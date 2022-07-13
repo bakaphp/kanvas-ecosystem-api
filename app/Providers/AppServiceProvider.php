@@ -1,6 +1,6 @@
 <?php
 
-namespace Kanvas\Providers;
+namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 

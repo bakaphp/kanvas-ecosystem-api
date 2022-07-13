@@ -1,6 +1,6 @@
 <?php
 
-namespace Kanvas\Exceptions;
+namespace App\Exceptions;
 
 use Exception;
 

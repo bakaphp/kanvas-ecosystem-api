@@ -1,6 +1,6 @@
 <?php
 
-namespace Kanvas\Providers;
+namespace App\Providers;
 
 use Exception;
 use Illuminate\Http\Request;

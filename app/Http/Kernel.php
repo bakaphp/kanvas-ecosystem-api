@@ -1,6 +1,6 @@
 <?php
 
-namespace Kanvas\Http;
+namespace App\Http;
 
 use Illuminate\Foundation\Http\Kernel as HttpKernel;
 
@@ -15,13 +15,13 @@ class Kernel extends HttpKernel
      */
     protected $middleware = [
         // \App\Http\Middleware\TrustHosts::class,
-        \Kanvas\Http\Middleware\TrustProxies::class,
+        \App\Http\Middleware\TrustProxies::class,
         \Illuminate\Http\Middleware\HandleCors::class,
-        \Kanvas\Http\Middleware\PreventRequestsDuringMaintenance::class,
+        \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
         \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
-        \Kanvas\Http\Middleware\TrimStrings::class,
+        \App\Http\Middleware\TrimStrings::class,
         \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
-        \Kanvas\Http\Middleware\JsonResponse::class,
+        \App\Http\Middleware\JsonResponse::class,
         \Fruitcake\Cors\HandleCors::class,
     ];
 
@@ -46,7 +46,7 @@ class Kernel extends HttpKernel
      * @var array<string, class-string|string>
      */
     protected $routeMiddleware = [
-        'auth' => \Kanvas\Http\Middleware\Authentication::class,
+        'auth' => \App\Http\Middleware\Authentication::class,
         'auth.basic' => \Illuminate\Auth\Middleware\AuthenticateWithBasicAuth::class,
         'cache.headers' => \Illuminate\Http\Middleware\SetCacheHeaders::class,
         'can' => \Illuminate\Auth\Middleware\Authorize::class,

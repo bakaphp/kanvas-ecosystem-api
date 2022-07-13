@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Http\Controllers\Locations;
+namespace App\Http\Controllers\Locations;
 
 use Illuminate\Http\Request;
 use Kanvas\Locations\States\Models\States;

@@ -181,10 +181,10 @@ return [
          * Kanvas Providers.
          */
         // Kanvas\Providers\ConfigServiceProvider::class,
-        Kanvas\Providers\RouteServiceProvider::class,
+        App\Providers\RouteServiceProvider::class,
         // Kanvas\Providers\MigrationsServiceProvider::class,
-        Kanvas\Providers\AppServiceProvider::class,
-        Kanvas\Providers\KanvasAppsProvider::class,
+        App\Providers\AppServiceProvider::class,
+        App\Providers\KanvasAppsProvider::class,
     ],
 
     /*

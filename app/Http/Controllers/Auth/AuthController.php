@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Http\Controllers\Auth;
+namespace App\Http\Controllers\Auth;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

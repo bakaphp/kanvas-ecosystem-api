@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Http\Controllers\Currencies;
+namespace App\Http\Controllers\Currencies;
 
 use Illuminate\Http\JsonResponse;
 use Kanvas\Currencies\DataTransferObject\CollectionResponseData;
