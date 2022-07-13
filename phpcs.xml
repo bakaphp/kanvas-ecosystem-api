@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<ruleset name="Phalcon">
+    <description>Phalcon Coding Standards</description>
+    <arg value="-colors" />
+    <arg value="s" />
+    <rule ref="PSR2">
+        <exclude name="PSR2.Methods.MethodDeclaration.Underscore" />
+        <exclude name="Generic.Files.LineLength.TooLong" />
+        <exclude name="PSR1.Files.SideEffects.FoundWithSymbols" />
+    </rule>
+
+    <!-- 2.3 Lines -->
+
+    <!-- The soft limit on line length MUST be 120 characters; automated style checkers MUST warn but MUST NOT error at the soft limit. -->
+    <rule ref="Generic.Files.LineLength">
+        <properties>
+            <property name="lineLimit" value="120" />
+            <property name="absoluteLineLimit" value="0" />
+        </properties>
+    </rule>
+
+    <!-- 2.5 Keywords and True/False/Null -->
+
+    <!-- PHP keywords MUST be in lower case. -->
+    <rule ref="Generic.PHP.LowerCaseKeyword" />
+
+    <!-- The PHP constants true, false, and null MUST be in lower case. -->
+    <rule ref="Generic.PHP.LowerCaseConstant" />
+
+    <!-- Visibility MUST be declared on all methods. -->
+    <rule ref="Squiz.Scope.MethodScope" />
+    <rule ref="Squiz.WhiteSpace.ScopeKeywordSpacing" />
+
+    <!-- 5. Control Structures -->
+
+    <!-- The general style rules for control structures are as follows:
+         There MUST be one space after the control structure keyword
+         There MUST NOT be a space after the opening parenthesis
+         There MUST NOT be a space before the closing parenthesis
+         There MUST be one space between the closing parenthesis and the opening brace
+         The structure body MUST be indented once
+         The closing brace MUST be on the next line after the body -->
+    <rule ref="Squiz.ControlStructures.ControlSignature" />
+    <rule ref="Squiz.WhiteSpace.ControlStructureSpacing.SpacingAfterOpen" />
+    <rule ref="Squiz.WhiteSpace.ControlStructureSpacing.SpacingBeforeClose" />
+    <rule ref="Squiz.WhiteSpace.ScopeClosingBrace" />
+    <rule ref="Squiz.ControlStructures.ForEachLoopDeclaration" />
+    <rule ref="Squiz.ControlStructures.ForLoopDeclaration" />
+    <rule ref="Squiz.ControlStructures.LowercaseDeclaration" />
+    <!-- checked by PSR2.ControlStructures.ControlStructureSpacing -->
+
+    <file>tests/cli</file>
+    <file>tests/integration</file>
+    <file>tests/unit</file>
+    <file>tests/_data/fixtures/Traits</file>
+    <file>tests/_support/Helper</file>
+</ruleset>
