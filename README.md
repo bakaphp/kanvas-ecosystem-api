@@ -6,21 +6,17 @@
 
 ## Initial Setup
 
-1. Have [Kanvas Core](https://github.com/bakaphp/kanvas-core) on the same folder as the skeleton API.
+1. Use the ``docker compose up --build -d`` to bring up the containers.Make sure to have Docker Desktop active and have no other containers running that may cause conflict with this project's containers(There may be conflicts port wise if more than one container uses the same ports).
 
-2. Use the ``docker compose up --build -d`` to bring up the containers.Make sure to have Docker Desktop active and have no other containers running that may cause conflict with this project's containers(There may be conflicts port wise if more than one container uses the same ports).
+2. Check status of containers using the command ```docker-compose ps```. Make sure they are running and services are healthy.
 
-3. Check status of containers using the command ```docker-compose ps```. Make sure they are running and services are healthy.
+3. Get inside the php container using ```docker exec -it php bash```.
 
-4. Get inside the php container using ```docker exec -it php bash```.
+4. Use the command ```php artisan migrate``` to migrate all kanvas migrations file.
 
-5. Make a ```composer install``` on the ```kanvas-core``` project and then do the same for this project.
+5. Use the command ```php artisan db:seed --class=KanvasSeeder```  to seed the database with an app, role and default system modules.
 
-6. Use the command ```php artisan migrate``` to migrate all kanvas migrations file.
-
-7. Use the command ```php artisan db:seed --class=KanvasSeeder```  to seed the database with an app, role and default system modules.
-
-9. To check if the API Skeleton is working just make a GET request to  ```http://localhost:80/v1/``` and see if the response returns ```"Woot Kanvas"```
+6. To check if the API Skeleton is working just make a GET request to  ```http://localhost:80/v1/``` and see if the response returns ```"Woot Kanvas"```
 
 
 ## Running the project with Laravel Octane
