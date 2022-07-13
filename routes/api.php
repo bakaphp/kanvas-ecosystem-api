@@ -2,8 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [\App\Http\Controllers\IndexController::class, 'index']);
-Route::get('/status', [\App\Http\Controllers\IndexController::class, 'status']);
+Route::get('/', [\Kanvas\Http\Controllers\IndexController::class, 'index']);
+Route::get('/status', [\Kanvas\Http\Controllers\IndexController::class, 'status']);
 Route::post('/register', [\Kanvas\Http\Controllers\Auth\AuthController::class, 'register']);
 Route::post('/login', [\Kanvas\Http\Controllers\Auth\AuthController::class, 'login']);
 Route::get('/countries', [\Kanvas\Http\Controllers\Locations\CountriesController::class, 'index']);
