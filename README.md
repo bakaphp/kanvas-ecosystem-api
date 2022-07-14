@@ -1,8 +1,9 @@
-# Laravel Kanvas API Skeleton
+# Kanvas Ecosystem API
 
 ## Prerequisites
 
 - PHP ^8.0
+- Laavel ^9.0
 
 ## Initial Setup
 
