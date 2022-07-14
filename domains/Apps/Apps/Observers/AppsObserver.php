@@ -15,7 +15,7 @@ class AppsObserver
      *
      * @return void
      */
-    public function saving(Apps $app) : void
+    public function creating(Apps $app) : void
     {
         $app->key = Str::uuid();
         $app->is_deleted = 0;
@@ -28,7 +28,7 @@ class AppsObserver
      *
      * @return void
      */
-    public function saved(Apps $app) : void
+    public function created(Apps $app) : void
     {
         $setup = new SetupAppsAction($app);
         $setup->execute();

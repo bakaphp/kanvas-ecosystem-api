@@ -16,7 +16,7 @@ class CompaniesObserver
      *
      * @return void
      */
-    public function saving(Companies $company) : void
+    public function creating(Companies $company) : void
     {
         $user = resolve('userData');
         $company->uuid = Str::uuid()->toString();
@@ -31,9 +31,9 @@ class CompaniesObserver
      *
      * @return void
      */
-    public function saved(Companies $company) : void
+    public function created(Companies $company) : void
     {
         $userData = resolve('userData');
-        AfterSignupEvent::dispatch($company, $userData);
+        // AfterSignupEvent::dispatch($company, $userData);
     }
 }

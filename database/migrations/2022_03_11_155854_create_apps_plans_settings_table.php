@@ -22,7 +22,6 @@ class CreateAppsPlansSettingsTable extends Migration
             $table->dateTime('updated_at')->nullable()->index('updated_at');
             $table->boolean('is_deleted')->nullable()->default(false)->index('is_deleted');
 
-            $table->unique(['apps_plans_id', 'key'], 'appskeys');
             $table->primary(['apps_plans_id', 'apps_id', 'key']);
         });
     }

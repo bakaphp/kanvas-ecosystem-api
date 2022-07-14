@@ -22,7 +22,7 @@ class CreateCompaniesTable extends Migration
             $table->text('address')->nullable();
             $table->string('zipcode', 50)->nullable();
             $table->string('email', 50)->nullable()->index('email');
-            $table->string('language', 3)->nullable()->index('language');
+            $table->string('language', 10)->nullable()->index('language');
             $table->string('timezone', 50)->nullable()->index('timezone');
             $table->string('phone', 64)->nullable();
             $table->integer('users_id')->index('users_id');

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Apps\Apps\DataTransferObject;
+namespace Kanvas\Companies\Companies\DataTransferObject;
 
 use Illuminate\Http\Request;
 use Spatie\DataTransferObject\DataTransferObject;

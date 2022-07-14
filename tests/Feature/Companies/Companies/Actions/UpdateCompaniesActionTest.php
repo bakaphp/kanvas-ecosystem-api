@@ -20,7 +20,17 @@ final class UpdateCompaniesActionTest extends TestCase
         $company = Companies::factory(1)->create()->first();
         $faker = \Faker\Factory::create();
         $data = [
+            'currency_id' => $company->currency_id,
             'name' => $faker->company,
+            'profile_image' => $company->profile_image,
+            'website' => $company->website,
+            'address'=> $company->address,
+            'zipcode' =>  $company->zipcode,
+            'email' => $company->email,
+            'language' => $company->language,
+            'timezone' => $company->timezone,
+            'phone' => $company->phone,
+            'country_code' => $company->country_code,
         ];
 
         $dtoData = CompaniesPutData::fromArray($data);

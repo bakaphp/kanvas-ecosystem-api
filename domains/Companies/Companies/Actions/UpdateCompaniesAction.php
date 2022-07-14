@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Apps\Apps\Actions;
+namespace Kanvas\Companies\Companies\Actions;
 
 use Kanvas\Companies\Companies\DataTransferObject\CompaniesPutData;
 use Kanvas\Companies\Companies\Models\Companies;
