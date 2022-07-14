@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Companies;
 
+use App\Http\Controllers\BaseController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Kanvas\Companies\Companies\Actions\CreateCompaniesAction;
@@ -15,7 +16,6 @@ use Kanvas\Companies\Companies\DataTransferObject\SingleResponseData;
 use Kanvas\Companies\Companies\Models\Companies;
 use Kanvas\Companies\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\HttpDefaults;
-use Kanvas\Http\Controllers\BaseController;
 use Kanvas\Users\Users\Models\Users;
 
 class CompaniesController extends BaseController

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Http\Controllers\BaseController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -11,7 +12,6 @@ use Illuminate\Validation\Rules\Password;
 use Kanvas\Apps\Apps\Models\Apps;
 use Kanvas\Auth\Traits\AuthTrait;
 use Kanvas\Auth\Traits\TokenTrait;
-use Kanvas\Http\Controllers\BaseController;
 use Kanvas\Users\Users\Actions\RegisterUsersAction;
 use Kanvas\Users\Users\DataTransferObject\RegisterPostData;
 

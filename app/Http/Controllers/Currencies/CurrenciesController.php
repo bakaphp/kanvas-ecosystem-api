@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Currencies;
 
+use App\Http\Controllers\BaseController;
 use Illuminate\Http\JsonResponse;
 use Kanvas\Currencies\DataTransferObject\CollectionResponseData;
 use Kanvas\Currencies\DataTransferObject\SingleResponseData;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\HttpDefaults;
-use Kanvas\Http\Controllers\BaseController;
 
 class CurrenciesController extends BaseController
 {

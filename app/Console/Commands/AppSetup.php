@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Cli\Commands;
+namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Kanvas\Apps\Apps\DataTransferObject\AppsPostData;

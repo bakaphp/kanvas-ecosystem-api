@@ -4,19 +4,18 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Apps;
 
-use Illuminate\Http\Request;
-use Kanvas\Apps\Models\Roles;
+use App\Http\Controllers\BaseController;
 use Illuminate\Http\Response;
-use Kanvas\Http\Controllers\BaseController;
+use Kanvas\Apps\Models\Roles;
 
 class RolesController extends BaseController
 {
     /**
-     * Fetch all apps
+     * Fetch all apps.
      *
      * @return Response
      */
-    public function index(): Response
+    public function index() : Response
     {
         return response(Roles::all());
     }

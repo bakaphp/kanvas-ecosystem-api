@@ -172,16 +172,16 @@ return [
          * Application Service Providers...
          */
         // App\Providers\AppServiceProvider::class,
-        // // App\Providers\AuthServiceProvider::class,
+        // App\Providers\AuthServiceProvider::class,
         // // App\Providers\BroadcastServiceProvider::class,
-        // App\Providers\EventServiceProvider::class,
-        // App\Providers\RouteServiceProvider::class,
+        App\Providers\EventServiceProvider::class,
+        App\Providers\RouteServiceProvider::class,
 
         /**
          * Kanvas Providers.
          */
         // Kanvas\Providers\ConfigServiceProvider::class,
-        App\Providers\RouteServiceProvider::class,
+        // App\Providers\RouteServiceProvider::class,
         // Kanvas\Providers\MigrationsServiceProvider::class,
         App\Providers\AppServiceProvider::class,
         App\Providers\KanvasAppsProvider::class,

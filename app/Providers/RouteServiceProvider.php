@@ -42,24 +42,24 @@ class RouteServiceProvider extends ServiceProvider
         });
     }
 
-     /**
-     * Register Routes function
+    /**
+     * Register Routes function.
      *
      * @return void
      */
-    protected function registerRoutes(): void
+    protected function registerRoutes() : void
     {
         Route::group($this->routeConfiguration(), function () {
-            $this->loadRoutesFrom(__DIR__.'/../../routes/api.php');
+            $this->loadRoutesFrom(base_path('routes/api.php'));
         });
     }
 
     /**
-     * Routes Configuration
+     * Routes Configuration.
      *
      * @return array
      */
-    protected function routeConfiguration(): array
+    protected function routeConfiguration() : array
     {
         return
         [

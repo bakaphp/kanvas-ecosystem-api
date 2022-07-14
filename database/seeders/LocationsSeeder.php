@@ -1,6 +1,6 @@
 <?php
 
-namespace Kanvas\Database\Seeders;
+namespace Database\Seeders;
 
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Kanvas\Database\Seeders\CountriesSeeder;

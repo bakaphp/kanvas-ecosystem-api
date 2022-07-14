@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Apps;
 
+use App\Http\Controllers\BaseController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Kanvas\Apps\Apps\Actions\CreateAppsAction;
@@ -14,7 +15,6 @@ use Kanvas\Apps\Apps\DataTransferObject\CollectionResponseData;
 use Kanvas\Apps\Apps\DataTransferObject\SingleResponseData;
 use Kanvas\Apps\Apps\Models\Apps;
 use Kanvas\Enums\HttpDefaults;
-use Kanvas\Http\Controllers\BaseController;
 use Kanvas\Users\Users\Models\Users;
 
 class AppsController extends BaseController
