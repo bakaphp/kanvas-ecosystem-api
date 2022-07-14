@@ -13,7 +13,7 @@ class CurrenciesTest extends TestCase
      */
     public function testGetAllCurrencies()
     {
-        $response = $this->get('/currencies');
+        $response = $this->get('/v1/currencies');
         $response->assertStatus(200);
     }
 }
