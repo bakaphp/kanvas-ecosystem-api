@@ -6,6 +6,11 @@ use Illuminate\Contracts\Console\Kernel;
 use Kanvas\Users\Users\Models\Users;
 use Kanvas\Apps\Apps\Models\Apps;
 
+/**
+ * Create Application trait
+ * 
+ * @todo Find a way to login a default user to test private routes
+ */
 trait CreatesApplication
 {
     /**
@@ -24,9 +29,6 @@ trait CreatesApplication
             return $kanvasApp;
         });
 
-        /**
-         * @todo Find a way to login a default user to test private routes
-         */
         $user = Users::factory()->create();
 
         $app->bind(Users::class, function () use ($user) {
