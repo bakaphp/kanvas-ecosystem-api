@@ -42,4 +42,15 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/companies/{id}', 'update');
         Route::delete('/companies/{id}', 'destroy');
     });
+
+    /**
+     * Filesystem Routes.
+     */
+    Route::group(['controller' => \App\Http\Controllers\Filesystem\FilesystemEntitiesController::class], function () {
+        Route::get('/filesystem-entities', 'index');
+        Route::get('/filesystem-entities/{id}', 'show');
+        Route::post('/filesystem-entities', 'create');
+        Route::put('/filesystem-entities/{id}', 'update');
+        Route::delete('/filesystem-entities/{id}', 'destroy');
+    });
 });
