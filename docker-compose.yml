@@ -36,6 +36,10 @@ services:
             - sail
         depends_on:
             - php
+        healthcheck:
+            test: ["CMD", "service", "nginx", "status"]
+            retries: 3
+            timeout: 5s
     mysql:
         container_name: mysql${APP_CONTAINER_NAME}
         image: 'mysql/mysql-server:8.0'
@@ -72,7 +76,7 @@ services:
 
     rabbitmq:
         container_name: rabbitmq${APP_CONTAINER_NAME}
-        image: rabbitmq:3.7.16-management
+        image: rabbitmq:3.9.21-management-alpine
         hostname: "rabbit"
         env_file:
             - '.env'

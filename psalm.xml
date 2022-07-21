@@ -9,10 +9,8 @@
     autoloader="vendor/autoload.php"
 >
     <projectFiles>
-        <directory name="apps" />
-        <directory name="cli" />
+        <directory name="app" />
         <directory name="domains" />
-        <directory name="library" />
         <ignoreFiles>
             <directory name="vendor" />
         </ignoreFiles>
@@ -39,7 +37,7 @@
         <MissingReturnType errorLevel="info" />
         <MissingPropertyType errorLevel="info" />
         <InvalidDocblock errorLevel="info" />
-        <MisplacedRequiredParam errorLevel="info" />
+        <!-- <MisplacedRequiredParam errorLevel="info" /> -->
 
         <PropertyNotSetInConstructor errorLevel="info" />
         <MissingConstructor errorLevel="info" />
@@ -61,7 +59,7 @@
 
         <MoreSpecificReturnType errorLevel="info" />
         <LessSpecificReturnStatement errorLevel="info" />
-        <TypeCoercion errorLevel="info" />
+        <!-- <TypeCoercion errorLevel="info" /> -->
 
         <PossiblyFalseArgument errorLevel="info" />
         <PossiblyFalseIterator errorLevel="info" />
