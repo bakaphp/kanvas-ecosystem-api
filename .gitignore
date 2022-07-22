@@ -12,7 +12,6 @@ Homestead.yaml
 npm-debug.log
 yarn-error.log
 /.idea
-/.vscode
 .DS_Store
 package.json
 /storage/framework/*
