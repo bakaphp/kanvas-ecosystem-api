@@ -1,0 +1,45 @@
+{
+	// Place your kanvas-ecosystem-api workspace snippets here. Each snippet is defined under a snippet name and has a scope, prefix, body and 
+	// description. Add comma separated ids of the languages where the snippet is applicable in the scope field. If scope 
+	// is left empty or omitted, the snippet gets applied to all languages. The prefix is what is 
+	// used to trigger the snippet and the body will be expanded and inserted. Possible variables are: 
+	// $1, $2 for tab stops, $0 for the final cursor position, and ${1:label}, ${2:another} for placeholders. 
+	// Placeholders with the same ids are connected.
+	// Example:
+	"Create a Kanvas DTO class": {
+		"scope": "php",
+		"prefix": "dtoclass",
+		"body": [
+			"declare(strict_types=1);",
+			"",
+			"//namespace Kanvas\\DomainName\\DataTransferObject;",
+			"",
+			"use Spatie\\DataTransferObject\\DataTransferObject;",
+			"",
+			"class $TM_FILENAME_BASE extends DataTransferObject {",
+			"",
+			"\t$BLOCK_COMMENT_START*",
+			"\t* Construct function",
+			"\t*",
+			"\t* @param int $id",
+			"\t$BLOCK_COMMENT_END",
+			"\tpublic function __construct(public int $$id){}",
+			"",
+			"\t$BLOCK_COMMENT_START*",
+			"\t* Create new instance of DTO from a model",
+			"\t*",
+			"\t* @param Model $$model",
+			"\t$BLOCK_COMMENT_END",
+			"\tpublic static function fromModel(Model $$model): self{return new self(id: $$model->id);}",
+			"",
+			"\t$BLOCK_COMMENT_START*",
+			"\t* Create new instance of DTO from array of data",
+			"\t*",
+			"\t* @param array $$data Input data",
+			"\t$BLOCK_COMMENT_END",
+			"\tpublic static function fromArray(array $$data): self{return new self(id: $$data['id']);}",
+			"}",
+		],
+		"description": "Create a Kanvas DTO class"
+	}
+}
