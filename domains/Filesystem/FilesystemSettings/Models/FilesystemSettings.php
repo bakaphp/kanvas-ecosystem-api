@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Filesystem\Models;
 
 use Kanvas\Models\BaseModel;
-use Kanvas\Filesystem\Filesystem\Models\Filesystem;
 
 /**
  * Apps Model.
@@ -36,5 +35,4 @@ class FilesystemSettings extends BaseModel
     {
         return $this->belongsTo(Filesystem::class, 'filesystem_id');
     }
-
 }
