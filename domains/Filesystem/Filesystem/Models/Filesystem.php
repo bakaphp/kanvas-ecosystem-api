@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Filesystem\Models;
 
-use Kanvas\Models\BaseModel;
-use Kanvas\Users\Users\Models\Users;
 use Kanvas\Apps\Apps\Models\Apps;
 use Kanvas\Companies\Companies\Models\Companies;
+use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Users\Users\Models\Users;
 
 /**
  * Apps Model.
@@ -17,7 +17,6 @@ use Kanvas\SystemModules\Models\SystemModules;
  * @property int $users_id
  * @property int $companies_id
  * @property int $apps_id
- * @property int $system_modules_id
  * @property int $entity_id
  * @property string $name
  * @property string $path
@@ -47,15 +46,15 @@ class Filesystem extends BaseModel
         return $this->belongsTo(Users::class, 'users_id');
     }
 
-    /**
-     * Companies relationship.
-     *
-     * @return Companies
-     */
-    public function company() : BelongsTo
-    {
-        return $this->belongsTo(Companies::class, 'companies_id');
-    }
+    // /**
+    //  * Companies relationship.
+    //  *
+    //  * @return Companies
+    //  */
+    // public function company() : BelongsTo
+    // {
+    //     return $this->belongsTo(Companies::class, 'companies_id');
+    // }
 
     /**
      * Apps relationship.
@@ -65,15 +64,5 @@ class Filesystem extends BaseModel
     public function app() : BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
-    }
-    
-    /**
-     * SystemModules relationship.
-     *
-     * @return SystemModules
-     */
-    public function systemModule() : BelongsTo
-    {
-        return $this->belongsTo(SystemModules::class, 'system_modules_id');
     }
 }
