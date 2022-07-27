@@ -7,6 +7,7 @@ namespace Kanvas\Filesystem\Filesystem\DataTransferObject;
 
 use Spatie\DataTransferObject\DataTransferObject;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 
 /**
  * AppsData class
@@ -19,7 +20,7 @@ class FilesystemPostData extends DataTransferObject
      * @property string $name
      */
     public function __construct(
-        public string $name,
+        public UploadedFile $file,
     ) {
     }
 
@@ -33,7 +34,7 @@ class FilesystemPostData extends DataTransferObject
     public static function fromRequest(Request $request): self
     {
         return new self(
-            name: $request->get('name'),
+            file: $request->file,
         );
     }
 
@@ -47,7 +48,7 @@ class FilesystemPostData extends DataTransferObject
     public static function fromArray(array $data): self
     {
         return new self(
-            name: $data['name'],
+            file: $data['file'],
         );
     }
 }
