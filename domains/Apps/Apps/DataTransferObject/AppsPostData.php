@@ -5,13 +5,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Apps\Apps\DataTransferObject;
 
-use Spatie\DataTransferObject\DataTransferObject;
+use Kanvas\Contracts\DataTransferObject\BaseDataTransferObject;
 use Illuminate\Http\Request;
 
 /**
  * AppsData class
  */
-class AppsPostData extends DataTransferObject
+class AppsPostData extends BaseDataTransferObject
 {
     /**
      * Construct function

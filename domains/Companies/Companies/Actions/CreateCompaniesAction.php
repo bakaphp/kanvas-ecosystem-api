@@ -28,7 +28,7 @@ class CreateCompaniesAction
     {
         $companies = new Companies();
         $companies->name = $this->data->name;
-        $companies->save();
+        $companies->saveOrFail();
 
         return $companies;
     }
