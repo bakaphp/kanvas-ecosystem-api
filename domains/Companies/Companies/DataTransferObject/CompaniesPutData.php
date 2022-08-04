@@ -5,40 +5,43 @@ declare(strict_types=1);
 namespace Kanvas\Companies\Companies\DataTransferObject;
 
 use Illuminate\Http\Request;
-use Spatie\DataTransferObject\DataTransferObject;
+use Kanvas\Contracts\DataTransferObject\BaseDataTransferObject;
+use Kanvas\Companies\Companies\Models\Companies;
 
 /**
  * AppsData class.
  */
-class CompaniesPutData extends DataTransferObject
+class CompaniesPutData extends BaseDataTransferObject
 {
     /**
      * Construct function.
      *
-     * @property int $currency_id
-     * @property string $name
-     * @property string $profile_image
-     * @property string $website
-     * @property string $address
-     * @property string $zipcode
-     * @property string $email
-     * @property string $language
-     * @property string $timezone
-     * @property string $phone
-     * @property string $country_code
+     * @property int|null $currency_id
+     * @property string|null $name
+     * @property string|null $profile_image
+     * @property string|null $website
+     * @property string|null $address
+     * @property string|null $zipcode
+     * @property string|null $email
+     * @property string|null $language
+     * @property string|null $timezone
+     * @property string|null $phone
+     * @property string|null $country_code
+     * @property array|null $files
      */
     public function __construct(
-        public int $currency_id,
-        public string $name,
-        public string $profile_image,
-        public string $website,
-        public string $address,
-        public string $zipcode,
-        public string $email,
-        public string $language,
-        public string $timezone,
-        public string $phone,
-        public string $country_code,
+        public ?int $currency_id = null,
+        public ?string $name = null,
+        public ?string $profile_image,
+        public ?string $website,
+        public ?string $address,
+        public ?string $zipcode,
+        public ?string $email,
+        public ?string $language,
+        public ?string $timezone,
+        public ?string $phone,
+        public ?string $country_code,
+        public ?array $files = null
     ) {
     }
 
@@ -63,6 +66,7 @@ class CompaniesPutData extends DataTransferObject
             timezone: $request->get('timezone'),
             phone: $request->get('phone'),
             country_code: $request->get('country_code'),
+            files: $request->get('files') ?? null
         );
     }
 
@@ -87,6 +91,7 @@ class CompaniesPutData extends DataTransferObject
             timezone: $data['timezone'],
             phone:$data['phone'],
             country_code: $data['country_code'],
+            files: $data['files'] ?? null,
         );
     }
 }

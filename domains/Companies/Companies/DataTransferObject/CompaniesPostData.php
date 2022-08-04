@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Companies\Companies\DataTransferObject;
 
 use Illuminate\Http\Request;
-use Spatie\DataTransferObject\DataTransferObject;
+use Kanvas\Contracts\DataTransferObject\BaseDataTransferObject;
 
 /**
  * CompaniesPostData class.
  */
-class CompaniesPostData extends DataTransferObject
+class CompaniesPostData extends BaseDataTransferObject
 {
     /**
      * Construct function.
@@ -20,7 +20,8 @@ class CompaniesPostData extends DataTransferObject
      */
     public function __construct(
         public int $users_id,
-        public string $name
+        public string $name,
+        public ?array $files = null
     ) {
     }
 
@@ -35,7 +36,8 @@ class CompaniesPostData extends DataTransferObject
     {
         return new self(
             users_id: (int)$request->get('users_id'),
-            name: $request->get('name')
+            name: $request->get('name'),
+            files: $request->get('files') ?? null
         );
     }
 

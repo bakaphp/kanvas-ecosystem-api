@@ -13,13 +13,15 @@ use Kanvas\Companies\Companies\DataTransferObject\CollectionResponseData;
 use Kanvas\Companies\Companies\DataTransferObject\CompaniesPostData;
 use Kanvas\Companies\Companies\DataTransferObject\CompaniesPutData;
 use Kanvas\Companies\Companies\DataTransferObject\SingleResponseData;
+use Kanvas\Traits\FilesystemAttachTrait;
 use Kanvas\Companies\Companies\Models\Companies;
-use Kanvas\Companies\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\HttpDefaults;
 use Kanvas\Users\Users\Models\Users;
 
 class CompaniesController extends BaseController
 {
+    use FilesystemAttachTrait;
+
     /**
      * DI User.
      */
@@ -75,7 +77,6 @@ class CompaniesController extends BaseController
         $data = CompaniesPostData::fromRequest($request);
         $company = new CreateCompaniesAction($data);
         $company = $company->execute();
-        CompaniesRepository::createBranch($company);
         $response = SingleResponseData::fromModel($company);
         return response()->json($response);
     }
@@ -89,7 +90,11 @@ class CompaniesController extends BaseController
     {
         $data = CompaniesPutData::fromRequest($request);
         $company = new UpdateCompaniesAction($data);
-        return response()->json($company->execute($id));
+        $company = $company->execute($id);
+        $this->setAssociatedModule($company);
+        $this->associateFileSystem();
+        $response = SingleResponseData::fromModel($company);
+        return response()->json($response);
     }
 
     /**

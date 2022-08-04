@@ -57,7 +57,7 @@ class FilesystemController extends BaseController
         $data = FilesystemPostData::fromRequest($request);
         $uploadedFile = new UploadFileAction($data->file);
         $createFilesystem = new CreateFilesystemAction($uploadedFile->execute());
-        $response =  SingleResponseData::fromModel($createFilesystem->execute());
+        $response = SingleResponseData::fromModel($createFilesystem->execute());
 
         return response()->json($response);
     }
