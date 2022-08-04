@@ -22,6 +22,7 @@ jobs:
         env:
           MYSQL_ROOT_PASSWORD: password
           MYSQL_DATABASE: test
+          GEWAER_APP_ID: ac53fedf-f873-4b96-973a-2368690652b5
         ports:
           - 3306:3306
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
