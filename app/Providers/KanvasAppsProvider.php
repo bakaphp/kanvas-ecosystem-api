@@ -7,7 +7,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\ServiceProvider;
 use Kanvas\Apps\Apps\Models\Apps;
 use Kanvas\Apps\Apps\Repositories\AppsRepository;
-use Schema;
 
 class KanvasAppsProvider extends ServiceProvider
 {
@@ -31,23 +30,16 @@ class KanvasAppsProvider extends ServiceProvider
         $domainBasedApp = (bool)getenv('KANVAS_CORE_DOMAIN_BASED_APP');
         $domainName = $request->getHttpHost();
         $appKey = config('kanvas.app.id');
-        try {
-            if (Schema::hasTable('apps') && Apps::find(1)) {
+        // $app = !$domainBasedApp ? AppsRepository::findFirstByKey($appKey) : AppsRepository::getByDomainName($domainName);
+        $app = AppsRepository::findFirstByKey($appKey);
 
-
-                // $app = !$domainBasedApp ? AppsRepository::findFirstByKey($appKey) : AppsRepository::getByDomainName($domainName);
-                $app = AppsRepository::findFirstByKey($appKey);
-
-                if (!$app) {
-                    $msg = !$domainBasedApp ? 'No App configure with this key ' . $appKey : 'No App configure by this domain ' . $domainName;
-                    throw new Exception($msg);
-                }
-
-                $this->app->bind(Apps::class, function () use ($app) {
-                    return $app;
-                });
-            }
-        } catch (\Throwable $th) {
+        if (!$app) {
+            $msg = !$domainBasedApp ? 'No App configure with this key ' . $appKey : 'No App configure by this domain ' . $domainName;
+            throw new Exception($msg);
         }
+
+        $this->app->bind(Apps::class, function () use ($app) {
+            return $app;
+        });
     }
 }
