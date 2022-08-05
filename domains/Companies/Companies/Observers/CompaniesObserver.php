@@ -22,7 +22,7 @@ class CompaniesObserver
     {
         $user = resolve('userData');
         $company->uuid = Str::uuid()->toString();
-        $company->users_id = $user->id;
+        $company->users_id = $user->first()->getKey();
         $company->is_deleted = 0;
     }
 
