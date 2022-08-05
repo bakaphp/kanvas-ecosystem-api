@@ -15,12 +15,13 @@ class CompaniesPostData extends BaseDataTransferObject
     /**
      * Construct function.
      *
-     * @param int $users_id
      * @param string $name
+     * @param int|null $users_id
+     * @param array|null $files
      */
     public function __construct(
-        public int $users_id,
         public string $name,
+        public ?int $users_id = null,
         public ?array $files = null
     ) {
     }
@@ -51,7 +52,6 @@ class CompaniesPostData extends BaseDataTransferObject
     public static function fromConsole(array $data) : self
     {
         return new self(
-            users_id: (int)$data['users_id'],
             name: $data['name'],
         );
     }
@@ -66,7 +66,6 @@ class CompaniesPostData extends BaseDataTransferObject
     public static function fromArray(array $data) : self
     {
         return new self(
-            users_id: (int)$data['users_id'],
             name: $data['name'],
         );
     }
