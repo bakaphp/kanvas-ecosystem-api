@@ -39,18 +39,4 @@ class AppsFactory extends Factory
             'is_deleted' => 0
         ];
     }
-
-    /**
-     * Indicate that the app is a test app by using a specific test key
-     *
-     * @return \Illuminate\Database\Eloquent\Factories\Factory
-     */
-    public function testing()
-    {
-        return $this->state(function () {
-            return [
-                'key' => config('kanvas.app.id')
-            ];
-        });
-    }
 }
