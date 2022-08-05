@@ -25,7 +25,7 @@ trait CreatesApplication
         $app->make(Kernel::class)->bootstrap();
 
         $kanvasApp = Apps::factory()->testing()->make();
-        
+
         $app->bind(Apps::class, function () use ($kanvasApp) {
             return $kanvasApp;
         });
