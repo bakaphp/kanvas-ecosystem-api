@@ -16,6 +16,7 @@ services:
         volumes:
             - '.:/var/www/html'
             - ../kanvas-core:/var/www/kanvas-core
+            - ./docker/php.ini:/usr/local/etc/php/conf.d/custom.ini
         networks:
             - sail
         depends_on:
