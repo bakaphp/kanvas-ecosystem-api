@@ -65,11 +65,10 @@ trait FilesystemAttachTrait
      * @param array $files
      *
      * @return void
+     * @todo This still does not work, needs to be checked
      */
     public function attach(array $files) : bool
     {
-        print_r($files);
-        die();
         $systemModule = SystemModules::getByModelName($this->systemModuleClass);
         $upload = false;
 
