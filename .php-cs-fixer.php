@@ -1,5 +1,4 @@
 <?php
-
 /*
  * This document has been generated with
  * https://mlocati.github.io/php-cs-fixer-configurator/#version:3.0.0|configurator
@@ -13,7 +12,7 @@ return $config
         'array_syntax' => true,
         'binary_operator_spaces' => true,
         'braces' => true,
-	      'combine_consecutive_unsets' => true,
+        'combine_consecutive_unsets' => true,
         'concat_space' => ['spacing' => 'one'],
         'declare_equal_normalize' => true,
         'function_typehint_space' => true,
@@ -35,7 +34,7 @@ return $config
         'phpdoc_summary' => true,
         'phpdoc_types' => true,
         'phpdoc_var_without_name' => true,
-        'return_type_declaration' => ['space_before'=>'one'],
+        'return_type_declaration' => ['space_before' => 'one'],
         'single_blank_line_before_namespace' => true,
         'single_quote' => true,
         'ternary_operator_spaces' => true,
@@ -43,7 +42,8 @@ return $config
         'unary_operator_spaces' => true,
         'whitespace_after_comma_in_array' => true,
     ])
-    ->setFinder(PhpCsFixer\Finder::create()
+    ->setFinder(
+        PhpCsFixer\Finder::create()
         ->exclude('vendor')
         ->in(__DIR__)
     );
