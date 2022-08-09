@@ -37,6 +37,13 @@ class Apps extends BaseModel
     protected $table = 'apps';
 
     /**
+    * The attributes that should not be mass assignable.
+    *
+    * @var array
+    */
+    protected $guarded = [];
+
+    /**
      * Create a new factory instance for the model.
      *
      * @return \Illuminate\Database\Eloquent\Factories\Factory

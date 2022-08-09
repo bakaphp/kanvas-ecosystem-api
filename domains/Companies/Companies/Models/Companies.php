@@ -46,6 +46,13 @@ class Companies extends BaseModel
     protected $table = 'companies';
 
     /**
+    * The attributes that should not be mass assignable.
+    *
+    * @var array
+    */
+    protected $guarded = ['files'];
+
+    /**
      * Create a new factory instance for the model.
      *
      * @return \Illuminate\Database\Eloquent\Factories\Factory

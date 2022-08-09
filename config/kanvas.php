@@ -16,7 +16,7 @@ return [
         ]
     ],
     'app' => [
-        'id' => getenv('GEWAER_APP_ID', 'ac53fedf-f873-4b96-973a-2368690652b5'),
+        'id' => getenv('GEWAER_APP_ID'),
         'frontEndUrl' => getenv('FRONTEND_URL'),
         'version' => getenv('VERSION', time()),
         'timezone' => "UTC",

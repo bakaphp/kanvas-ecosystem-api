@@ -24,12 +24,13 @@ trait CreatesApplication
 
         $app->make(Kernel::class)->bootstrap();
 
-        $kanvasApp = Users::factory()->create();
+        $kanvasApp = Apps::factory(1)->create();
+
         $app->bind(Apps::class, function () use ($kanvasApp) {
             return $kanvasApp;
         });
 
-        $user = Users::factory()->create();
+        $user = Users::factory(1)->create();
 
         $app->bind(Users::class, function () use ($user) {
             return $user;

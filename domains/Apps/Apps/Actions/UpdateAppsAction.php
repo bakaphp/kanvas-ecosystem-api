@@ -29,16 +29,7 @@ class UpdateAppsAction
     public function execute(int $id): Apps
     {
         $app = Apps::findOrFail($id);
-        $app->name = $this->data->name;
-        $app->url = $this->data->url;
-        $app->description = $this->data->description;
-        $app->domain = $this->data->domain;
-        $app->is_actived = $this->data->is_actived;
-        $app->ecosystem_auth = $this->data->ecosystem_auth;
-        $app->payments_active = $this->data->payments_active;
-        $app->is_public = $this->data->is_public;
-        $app->domain_based = $this->data->domain_based;
-        $app->update();
+        $app->updateOrFail($this->data->spitFilledAsArray());
 
         return $app;
     }

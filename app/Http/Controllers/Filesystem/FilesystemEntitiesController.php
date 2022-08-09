@@ -2,26 +2,23 @@
 
 declare(strict_types=1);
 
-namespace App\Http\Controllers\Companies;
+namespace App\Http\Controllers\Filesystem;
 
 use App\Http\Controllers\BaseController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Kanvas\Companies\Companies\Actions\CreateCompaniesAction;
-use Kanvas\Companies\Companies\Actions\UpdateCompaniesAction;
-use Kanvas\Companies\Companies\DataTransferObject\CollectionResponseData;
-use Kanvas\Companies\Companies\DataTransferObject\CompaniesPostData;
-use Kanvas\Companies\Companies\DataTransferObject\CompaniesPutData;
-use Kanvas\Companies\Companies\DataTransferObject\SingleResponseData;
-use Kanvas\Traits\FilesystemAttachTrait;
-use Kanvas\Companies\Companies\Models\Companies;
+use Kanvas\Filesystem\FilesystemEntities\Actions\CreateFilesystemEntitiesAction;
+use Kanvas\Filesystem\FilesystemEntities\Actions\UpdateFilesystemEntitiesAction;
+use Kanvas\Filesystem\FilesystemEntities\DataTransferObject\FilesystemEntitiesPostData;
+use Kanvas\Filesystem\FilesystemEntities\DataTransferObject\FilesystemEntitiesPutData;
+use Kanvas\Filesystem\FilesystemEntities\DataTransferObject\CollectionResponseData;
+use Kanvas\Filesystem\FilesystemEntities\DataTransferObject\SingleResponseData;
+use Kanvas\Filesystem\FilesystemEntities\Models\FilesystemEntities;
 use Kanvas\Enums\HttpDefaults;
 use Kanvas\Users\Users\Models\Users;
 
-class CompaniesController extends BaseController
+class FilesystemEntitiesController extends BaseController
 {
-    use FilesystemAttachTrait;
-
     /**
      * DI User.
      */
@@ -40,7 +37,7 @@ class CompaniesController extends BaseController
     }
 
     /**
-     * Fetch all apps.
+     * Fetch all
      *
      * @return JsonResponse
      *
@@ -49,7 +46,7 @@ class CompaniesController extends BaseController
     public function index() : JsonResponse
     {
         $limit = HttpDefaults::RECORDS_PER_PAGE;
-        $results = Companies::paginate($limit->getValue());
+        $results = FilesystemEntities::paginate($limit->getValue());
         $collection = CollectionResponseData::fromModelCollection($results);
 
         return response()->json($collection->formatResponse());
@@ -62,8 +59,8 @@ class CompaniesController extends BaseController
      */
     public function show(int $id) : JsonResponse
     {
-        $company = Companies::findOrFail($id);
-        $response = SingleResponseData::fromModel($company);
+        $app = FilesystemEntities::findOrFail($id); // Query should be done before passing to dto ?
+        $response = SingleResponseData::fromModel($app);
         return response()->json($response);
     }
 
@@ -74,11 +71,9 @@ class CompaniesController extends BaseController
      */
     public function create(Request $request) : JsonResponse
     {
-        $data = CompaniesPostData::fromRequest($request);
-        $company = new CreateCompaniesAction($data);
-        $company = $company->execute();
-        $response = SingleResponseData::fromModel($company);
-        return response()->json($response);
+        $data = FilesystemEntitiesPostData::fromRequest($request);
+        $app = new CreateFilesystemEntitiesAction($data);
+        return response()->json($app->execute());
     }
 
     /**
@@ -88,13 +83,9 @@ class CompaniesController extends BaseController
      */
     public function update(Request $request, int $id) : JsonResponse
     {
-        $data = CompaniesPutData::fromRequest($request);
-        $company = new UpdateCompaniesAction($data);
-        $company = $company->execute($id);
-        $this->setAssociatedModule($company);
-        $this->associateFileSystem();
-        $response = SingleResponseData::fromModel($company);
-        return response()->json($response);
+        $data = FilesystemEntitiesPutData::fromRequest($request);
+        $app = new UpdateFilesystemEntitiesAction($data);
+        return response()->json($app->execute($id));
     }
 
     /**
@@ -104,7 +95,7 @@ class CompaniesController extends BaseController
      */
     public function destroy(int $id) : JsonResponse
     {
-        Companies::findOrFail($id)->delete();
+        FilesystemEntities::findOrFail($id)->delete();
         return response()->json('Succesfully Deleted');
     }
 }

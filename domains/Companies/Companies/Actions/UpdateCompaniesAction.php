@@ -29,9 +29,7 @@ class UpdateCompaniesAction
     public function execute(int $id) : Companies
     {
         $companies = Companies::findOrFail($id);
-        $companies->name = $this->data->name;
-        $companies->update();
-
+        $companies->updateOrFail($this->data->spitFilledAsArray());
         return $companies;
     }
 }

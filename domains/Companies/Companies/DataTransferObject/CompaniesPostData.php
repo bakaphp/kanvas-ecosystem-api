@@ -5,22 +5,24 @@ declare(strict_types=1);
 namespace Kanvas\Companies\Companies\DataTransferObject;
 
 use Illuminate\Http\Request;
-use Spatie\DataTransferObject\DataTransferObject;
+use Kanvas\Contracts\DataTransferObject\BaseDataTransferObject;
 
 /**
  * CompaniesPostData class.
  */
-class CompaniesPostData extends DataTransferObject
+class CompaniesPostData extends BaseDataTransferObject
 {
     /**
      * Construct function.
      *
-     * @param int $users_id
      * @param string $name
+     * @param int|null $users_id
+     * @param array|null $files
      */
     public function __construct(
-        public int $users_id,
-        public string $name
+        public string $name,
+        public ?int $users_id = null,
+        public ?array $files = null
     ) {
     }
 
@@ -35,7 +37,8 @@ class CompaniesPostData extends DataTransferObject
     {
         return new self(
             users_id: (int)$request->get('users_id'),
-            name: $request->get('name')
+            name: $request->get('name'),
+            files: $request->get('files') ?? null
         );
     }
 
@@ -49,7 +52,6 @@ class CompaniesPostData extends DataTransferObject
     public static function fromConsole(array $data) : self
     {
         return new self(
-            users_id: (int)$data['users_id'],
             name: $data['name'],
         );
     }
@@ -64,7 +66,6 @@ class CompaniesPostData extends DataTransferObject
     public static function fromArray(array $data) : self
     {
         return new self(
-            users_id: (int)$data['users_id'],
             name: $data['name'],
         );
     }

@@ -5,7 +5,9 @@ namespace Kanvas\Companies\Companies\Observers;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Apps\Models\Apps;
 use Kanvas\Companies\Companies\Events\AfterSignupEvent;
+use Kanvas\Companies\Companies\Repositories\CompaniesRepository;
 use Kanvas\Companies\Companies\Models\Companies;
+use Illuminate\Http\Request;
 
 class CompaniesObserver
 {
@@ -20,7 +22,7 @@ class CompaniesObserver
     {
         $user = resolve('userData');
         $company->uuid = Str::uuid()->toString();
-        $company->users_id = $user->id;
+        $company->users_id = $user->first()->getKey();
         $company->is_deleted = 0;
     }
 
@@ -34,6 +36,7 @@ class CompaniesObserver
     public function created(Companies $company) : void
     {
         $userData = resolve('userData');
+        CompaniesRepository::createBranch($company);
         // AfterSignupEvent::dispatch($company, $userData);
     }
 }
