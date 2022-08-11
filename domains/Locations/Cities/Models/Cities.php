@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace Kanvas\Locations\Cities\Models;
 
 use Kanvas\Models\BaseModel;
@@ -20,13 +19,20 @@ use Kanvas\Locations\States\Models\States;
 
 class Cities extends BaseModel
 {
-    
     /**
      * The table associated with the model.
      *
      * @var string
      */
     protected $table = 'countries_cities';
+
+    protected $fillable = [
+        'countries_id',
+        'states_id',
+        'name',
+        'latitude',
+        'longitude'
+    ];
 
     /**
      * Countries relationship

@@ -17,7 +17,48 @@ type Cities {
   id: Int!
   name: String!
   country: Country!
+  latitude: Float
+  longitude: Float
 }
 type Query {
-    countries: [Country] @all(model: "\\Kanvas\\Locations\\Countries\\Models\\Countries" )
+    countries(
+        orderBy: _ @orderBy(columns: ["id", "created_at"])
+    ): [Country] @paginate(model: "\\Kanvas\\Locations\\Countries\\Models\\Countries" )
+}
+
+input CreateCountryInput {
+  name: String!
+  code: String!
+  flag: String
+  created_at: String!
+}
+input CreateStateInput {
+  name: String!
+  code: String!,
+  cities: [CreateCityInput]
+}
+input CreateCityInput {
+  name: String!
+  latitude: Float
+  longitude: Float
+}
+input OrderByClause{
+    field: String!
+    order: SortOrder!
+}
+enum SortOrder {
+    ASC
+    DESC
+}
+type Mutation {
+  createCountry(
+    name: String!
+    code: String!
+    flag: String
+    states: [CreateStateInput]
+  ): Country!
+  updateCountry(id: Int!, name: String!, code: String!, flag: String): Country @update(model: "\\Kanvas\\Locations\\Countries\\Models\\Countries")
+  deleteCountry(
+    id: Int!
+  ): Country! @delete(model: "\\Kanvas\\Locations\\Countries\\Models\\Countries")
 }
