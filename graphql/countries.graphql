@@ -20,7 +20,7 @@ type Cities {
   latitude: Float
   longitude: Float
 }
-type Query {
+extend type Query {
     countries(
         orderBy: _ @orderBy(columns: ["id", "created_at"])
     ): [Country] @paginate(model: "\\Kanvas\\Locations\\Countries\\Models\\Countries" )
@@ -50,7 +50,7 @@ enum SortOrder {
     ASC
     DESC
 }
-type Mutation {
+extend type Mutation {
   createCountry(
     name: String!
     code: String!

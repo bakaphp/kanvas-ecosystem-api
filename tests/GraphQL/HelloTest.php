@@ -1,6 +1,5 @@
 <?php
 declare(strict_types=1);
-
 namespace Tests\GraphQL;
 
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
@@ -19,9 +18,8 @@ class HelloTest extends BaseTestCase
             hello
             }
         ');
-
-       $this->assertArrayHasKey('data', $response);
-       $this->assertArrayHasKey('hello', $response['data']);
+        $this->assertArrayHasKey('data', $response);
+        $this->assertArrayHasKey('hello', $response['data']);
         $this->assertEquals('Kanvas Ecosystem!', $response['data']['hello']);
     }
 }
