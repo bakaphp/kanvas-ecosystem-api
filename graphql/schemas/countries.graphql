@@ -23,7 +23,10 @@ type Cities {
 extend type Query {
     countries(
         orderBy: _ @orderBy(columns: ["id", "created_at"])
+        where: _ @whereConditions(columns: ["name", "code", "flag", "id"])
+        hasStates: _@whereHasConditions(columns: ["name"])
     ): [Country] @paginate(model: "\\Kanvas\\Locations\\Countries\\Models\\Countries" )
+    country(id: Int! @eq): Country @find(model: "\\Kanvas\\Locations\\Countries\\Models\\Countries")
 }
 
 input CreateCountryInput {
