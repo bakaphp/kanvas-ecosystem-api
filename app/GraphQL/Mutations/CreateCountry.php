@@ -10,12 +10,12 @@ final class CreateCountry
      * @param  null  $_
      * @param  array{}  $args
      */
-    public function __invoke($_, array $args): Countries
+    public function __invoke($_, array $request): Countries
     {
         // TODO implement the resolver
 
-        $states = Arr::pull($args, 'states');
-        $country = Countries::create($args);
+        $states = Arr::pull($request, 'states');
+        $country = Countries::create($request);
         if ($states) {
             foreach ($states as $state) {
                 $cities = Arr::pull($state, 'cities');

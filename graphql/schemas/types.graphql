@@ -1,0 +1,8 @@
+input OrderByClause{
+    field: String!
+    order: SortOrder!
+}
+enum SortOrder {
+    ASC
+    DESC
+}

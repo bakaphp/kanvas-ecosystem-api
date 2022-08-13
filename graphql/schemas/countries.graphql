@@ -42,14 +42,7 @@ input CreateCityInput {
   latitude: Float
   longitude: Float
 }
-input OrderByClause{
-    field: String!
-    order: SortOrder!
-}
-enum SortOrder {
-    ASC
-    DESC
-}
+
 extend type Mutation {
   createCountry(
     name: String!
