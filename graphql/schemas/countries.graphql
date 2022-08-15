@@ -11,7 +11,10 @@ type States {
     name: String!
     code: String!
     country: Country!
-    cities: [Cities]!
+    cities: [Cities]
+    created_at: DateTime!
+    updated_at: DateTime
+    is_deleted: Boolean!
 }
 type Cities {
   id: Int!
@@ -25,6 +28,7 @@ extend type Query {
         orderBy: _ @orderBy(columns: ["id", "created_at"])
         where: _ @whereConditions(columns: ["name", "code", "flag", "id"])
         hasStates: _@whereHasConditions(columns: ["name"])
+        hasCities: _@whereHasConditions(columns: ["name"])
     ): [Country] @paginate(model: "\\Kanvas\\Locations\\Countries\\Models\\Countries" )
     country(id: Int! @eq): Country @find(model: "\\Kanvas\\Locations\\Countries\\Models\\Countries")
 }

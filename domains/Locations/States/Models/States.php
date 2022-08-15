@@ -6,6 +6,7 @@ namespace Kanvas\Locations\States\Models;
 use Kanvas\Models\BaseModel;
 use Kanvas\Locations\Countries\Models\Countries;
 use Kanvas\Locations\Cities\Models\Cities;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Cities Class
@@ -45,7 +46,7 @@ class States extends BaseModel
      *
      * @return Countries
      */
-    public function country(): Countries
+    public function country(): BelongsTo
     {
         return $this->belongsTo(Countries::class, 'countries_id');
     }
