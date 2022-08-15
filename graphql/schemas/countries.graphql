@@ -20,6 +20,8 @@ type Cities {
   id: Int!
   name: String!
   country: Country!
+  countries_id: Int!
+  states_id: Int!
   latitude: Float
   longitude: Float
 }
