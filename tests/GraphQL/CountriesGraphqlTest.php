@@ -6,6 +6,7 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Nuwave\Lighthouse\Testing\MakesGraphQLRequests;
 use Tests\CreatesApplication;
 use Kanvas\Locations\Countries\Models\Countries;
+use Kanvas\Locations\States\Models\States;
 
 class CountriesGraphqlTest extends BaseTestCase
 {
@@ -129,5 +130,113 @@ class CountriesGraphqlTest extends BaseTestCase
             'flag' => $country->flag,
         ]);
         $this->assertArrayHasKey('data', $response);
+    }
+
+    /**
+     * test_where
+     *
+     * @return void
+     */
+    public function test_where()
+    {
+        $country = Countries::orderBy('id', 'desc')->first();
+        $response = $this->graphQL(/** @lang GraphQL */ '
+            query COUNTRIES($name: Mixed) {
+                countries(
+                    first: 50, 
+                    page: 1, 
+                    orderBy: [{ column: ID, order: ASC }]
+                    where: {
+                        column:NAME, operator: EQ , value: $name
+                    },
+                ) {
+                data {
+                        
+                        id,
+                        name
+                    },
+                    paginatorInfo {
+                      currentPage
+                      lastPage
+                    }
+                }
+                
+            }', [
+            'name' => "$country->name",
+        ])->assertJson([
+            'data' => [
+                'countries' => [
+                    'data' => [
+                        [
+                            'id' => $country->id,
+                            'name' => $country->name
+                        ]
+                    ],
+                    'paginatorInfo' => [
+                        'currentPage' => 1,
+                        'lastPage' => 1
+                    ]
+                ],
+            ]
+        ]);
+    }
+
+    public function test_has_state()
+    {
+        $country = Countries::orderBy('id', 'desc')->first();
+        $state = States::first();
+        $response = $this->graphQL(/** @lang GraphQL */ '
+            query COUNTRIES($countryId: Mixed! $stateName: Mixed!) {
+                countries(
+                    first: 50, 
+                    page: 1, 
+                    orderBy: [{ column: ID, order: ASC }]
+                    where: {
+                        column:ID, operator: EQ , value: $countryId
+                    },
+                    hasStates: {
+                        column:NAME, operator: EQ, value: $stateName
+                    },
+                ) {
+                data {
+                        
+                        id,
+                        name,
+                        states {
+                            id,
+                            name
+                        }
+                    },
+                    paginatorInfo {
+                      currentPage
+                      lastPage
+                    }
+                }
+                
+            }', [
+            'countryId' => $state->countries_id,
+            'stateName' => $state->name,
+        ])->assertJson([
+            'data' => [
+                'countries' => [
+                    'data' => [
+                        [
+                            'id' => $state->countries_id,
+                            'name' => $state->country->name,
+                            'states' => [
+                                [
+                                    'id' => $state->id,
+                                    'name' => $state->name
+                                ]
+                            ]
+                        ]
+                    ],
+                    'paginatorInfo' => [
+                        'currentPage' => 1,
+                        'lastPage' => 1
+                    ]
+                ],
+            ]
+        ]);
     }
 }
