@@ -1,12 +1,12 @@
 <?php
 
 declare(strict_types=1);
-
 namespace Kanvas\Locations\Cities\Models;
 
 use Kanvas\Models\BaseModel;
 use Kanvas\Locations\Countries\Models\Countries;
 use Kanvas\Locations\States\Models\States;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Cities Class
@@ -20,7 +20,6 @@ use Kanvas\Locations\States\Models\States;
 
 class Cities extends BaseModel
 {
-    
     /**
      * The table associated with the model.
      *
@@ -28,12 +27,20 @@ class Cities extends BaseModel
      */
     protected $table = 'countries_cities';
 
+    protected $fillable = [
+        'countries_id',
+        'states_id',
+        'name',
+        'latitude',
+        'longitude'
+    ];
+
     /**
      * Countries relationship
      *
      * @return Countries
      */
-    public function country(): Countries
+    public function country(): BelongsTo
     {
         return $this->belongsTo(Countries::class, 'countries_id');
     }
@@ -43,7 +50,7 @@ class Cities extends BaseModel
      *
      * @return States
      */
-    public function state(): States
+    public function state(): BelongsTo
     {
         return $this->belongsTo(States::class, 'states_id');
     }

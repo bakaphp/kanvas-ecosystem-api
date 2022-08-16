@@ -185,6 +185,7 @@ return [
         // Kanvas\Providers\MigrationsServiceProvider::class,
         App\Providers\AppServiceProvider::class,
         App\Providers\KanvasAppsProvider::class,
+        \Nuwave\Lighthouse\WhereConditions\WhereConditionsServiceProvider::class
     ],
 
     /*
