@@ -8,6 +8,7 @@ namespace Kanvas\Users\Users\DataTransferObject;
 use Spatie\DataTransferObject\DataTransferObject;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Kanvas\Utils\Random;
 
 /**
  * AppsData class
@@ -44,12 +45,30 @@ class RegisterPostData extends DataTransferObject
     public static function fromRequest(Request $request): self
     {
         return new self(
-            firstname: $request->get('firstname'),
-            lastname: $request->get('lastname'),
-            displayname: $request->get('displayname'),
+            firstname: $request->get('firstname') ?? '',
+            lastname: $request->get('lastname') ?? '',
+            displayname: $request->get('displayname') ?? Random::generateDisplayName( $request->get('email')),
             email: $request->get('email'),
             password: Hash::make($request->get('password')),
-            default_company: $request->get('default_company')
+            default_company: $request->get('default_company') ?? '',
+        );
+    }
+
+    /**
+     * Generaet new instance of DTO from array
+     *
+     * @param array $request
+     * @return self
+     */
+    public static function fromMutation(array $request) : self
+    {
+        return new self(
+            firstname: $request['firstname'] ?? '',
+            lastname: $request['lastname'] ?? '',
+            displayname: $request['displayname'] ?? Random::generateDisplayName( $request['email']),
+            email: $request['email'],
+            password: Hash::make($request['password']),
+            default_company: $request['default_company'] ?? ''
         );
     }
 }

@@ -80,7 +80,7 @@ class Sessions extends BaseModel
         ];
 
         $banData = DB::select(
-            "SELECT * from banlist 
+            "SELECT * from banlist
             WHERE ip IN (:ip_one, :ip_two, :ip_three, :ip_four)
             OR users_id = :users_id
             OR email LIKE :email

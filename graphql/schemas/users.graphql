@@ -23,7 +23,18 @@ type TokenResponse {
     timezone: String!
 }
 
+type RegisterResponse
+{
+    user: User!
+    token: TokenResponse!
+}
+
 input LoginInput {
+    email: String!
+    password: String!
+}
+
+input UserRegistrationInput {
     email: String!
     password: String!
 }
@@ -33,13 +44,16 @@ input ForgotPasswordInput {
 }
 
 input RegisterInput {
-    name: String @rules(apply: ["required"])
+    firstname: String
+    lastname: String
     email: String @rules(apply: ["required"])
     password: String @rules(apply: ["required"])
     password_confirmation: String @rules(apply: ["required"])
     company_name: String
+    roles_id: Int
 }
 
 extend type Mutation {
     login(data: LoginInput!): TokenResponse! @field(resolver: "App\\GraphQL\\Resolvers\\Auth\\Login@resolve")
+    register(data: RegisterInput!): RegisterResponse! @field(resolver: "App\\GraphQL\\Resolvers\\Auth\\Register@resolve")
 }

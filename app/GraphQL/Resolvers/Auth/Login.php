@@ -26,13 +26,13 @@ class Login
      */
     public function resolve(
         mixed $rootValue,
-        array $args,
+        array $request,
         GraphQLContext $context = null,
         ResolveInfo $resolveInfo
     )
     {
-        $email = $args['data']['email'];
-        $password = $args['data']['password'];
+        $email = $request['data']['email'];
+        $password = $request['data']['password'];
         $request = request();
 
         $this->user = $this->loginUsers($request, $email, $password);

@@ -1,4 +1,5 @@
 <?php
+
 namespace App\GraphQL\Mutations;
 
 use Illuminate\Support\Arr;
@@ -10,7 +11,7 @@ final class CreateCountry
      * @param  null  $_
      * @param  array{}  $args
      */
-    public function __invoke($_, array $request): Countries
+    public function __invoke($_, array $request) : Countries
     {
         // TODO implement the resolver
 
