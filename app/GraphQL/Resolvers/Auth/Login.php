@@ -1,0 +1,42 @@
+<?php
+declare(strict_types=1);
+
+namespace App\GraphQL\Resolvers\Auth;
+
+use GraphQL\Type\Definition\ResolveInfo;
+use Illuminate\Http\Request;
+use Kanvas\Auth\Traits\AuthTrait;
+use Kanvas\Auth\Traits\TokenTrait;
+use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
+
+class Login
+{
+    use AuthTrait;
+    use TokenTrait;
+
+    /**
+     * @param $rootValue
+     * @param array $args
+     * @param \Nuwave\Lighthouse\Support\Contracts\GraphQLContext|null $context
+     * @param \GraphQL\Type\Definition\ResolveInfo $resolveInfo
+     *
+     * @return array
+     *
+     * @throws \Exception
+     */
+    public function resolve(
+        mixed $rootValue,
+        array $args,
+        GraphQLContext $context = null,
+        ResolveInfo $resolveInfo
+    )
+    {
+        $email = $args['data']['email'];
+        $password = $args['data']['password'];
+        $request = request();
+
+        $this->user = $this->loginUsers($request, $email, $password);
+
+        return $this->generateToken($request);
+    }
+}
