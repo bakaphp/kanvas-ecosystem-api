@@ -1,0 +1,36 @@
+type Companies {
+    id: Int
+    users_id: Int
+    system_modules_id: Int
+    currency_id: Int
+    uuid: String
+    name: String
+    profile_image: String
+    website: String
+    address: String
+    zipcode: String
+    email: String
+    language: String
+    timezone: String
+    phone: String
+    has_activities: Int
+    country_code: String
+    created_at: DateTime
+    updated_at: DateTime
+    is_deleted: Boolean
+}
+
+extend type Query {
+    companies(
+        orderBy: _ @orderBy(columns: ["id", "created_at"])
+        where: _ @whereConditions(columns: ["id","users_id","system_modules_id","currency_id","country_code","name"])
+    ): [Companies] @paginate(model: "Kanvas\\Companies\\Companies\\Models\\Companies", defaultCount: 25),
+    company(id: Int! @eq): Companies @find(model: "Kanvas\\Companies\\Companies\\Models\\Companies"),
+}
+
+extend type Mutation{
+    createCompany(
+        name: String!
+        users_id: Int!
+    ): Companies @field(resolver:"App\\GraphQL\\Mutations\\CreateCompany")
+}

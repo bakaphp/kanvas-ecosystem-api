@@ -27,7 +27,7 @@ class CreateCompaniesAction
     public function execute() : Companies
     {
         $companies = new Companies();
-        $companies->name = $this->data->name;
+        $companies->fill($this->data->spitFilledAsArray());
         $companies->saveOrFail();
 
         return $companies;

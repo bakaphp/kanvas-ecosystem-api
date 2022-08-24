@@ -20,9 +20,9 @@ class CompaniesObserver
      */
     public function creating(Companies $company) : void
     {
-        $user = resolve('userData');
+        // $user = resolve('userData');
         $company->uuid = Str::uuid()->toString();
-        $company->users_id = $user->first()->getKey();
+        // $company->users_id = $user->first()->getKey();
         $company->is_deleted = 0;
     }
 
@@ -35,8 +35,8 @@ class CompaniesObserver
      */
     public function created(Companies $company) : void
     {
-        $userData = resolve('userData');
-        CompaniesRepository::createBranch($company);
+        // $userData = resolve('userData');
+        // CompaniesRepository::createBranch($company);
         // AfterSignupEvent::dispatch($company, $userData);
     }
 }

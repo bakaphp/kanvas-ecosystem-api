@@ -67,6 +67,7 @@ class CompaniesPostData extends BaseDataTransferObject
     {
         return new self(
             name: $data['name'],
+            users_id: $data['users_id']
         );
     }
 }
