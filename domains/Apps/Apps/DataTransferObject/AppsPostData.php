@@ -28,7 +28,7 @@ class AppsPostData extends BaseDataTransferObject
      */
     public function __construct(
         public string $name,
-        public string $url,
+        public ?string $url = null,
         public string $description,
         public string $domain,
         public int $is_actived,

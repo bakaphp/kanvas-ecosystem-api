@@ -1,0 +1,58 @@
+type App {
+    id: Int!
+    name: String!
+    description: String
+    url: String
+    domain: String
+    default_apps_plan_id: Int
+    is_active: Int 
+    key: String
+    payments_active: Int
+    ecosystem_auth: Int
+    is_public: Int
+    domain_based: Int
+    is_deleted: Int!
+}
+
+extend type Query {
+    apps(
+        where: _@whereConditions(
+            columns: [
+                "id",
+                "name", 
+                "description",
+                "url", 
+                "domain", 
+                "default_apps_plan_id",
+                "is_active",
+                "key",
+                "payments_active",
+                "ecosystem_auth",
+                "is_public",
+                "domain_based"
+            ]
+        )
+        orderBy: _ @orderBy(columns: ["id"])
+        
+    ): [App] @paginate(model: "Kanvas\\Apps\\Apps\\Models\\Apps")
+}
+
+input AppInput {
+    name: String!
+    description: String!
+    url: String!
+    domain: String!
+    default_apps_plan_id: Int
+    is_actived: Int 
+    key: String
+    payments_active: Int!
+    ecosystem_auth: Int!
+    is_public: Int!
+    domain_based: Int!
+}
+
+extend type Mutation {
+    createApp(input: CreateAppInput): App!
+    updateApp(id: Int!,input: AppInput): App
+    deleteApp(id: Int!): App
+}

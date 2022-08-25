@@ -27,8 +27,8 @@ class CreateAppsAction
     public function execute() : Apps
     {
         $app = new Apps();
-        $app->saveOrFail($this->data->spitFilledAsArray());
-
+        $app->fill($this->data->spitFilledAsArray());
+        $app->saveOrFail();
         return $app;
     }
 }
