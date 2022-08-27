@@ -4,15 +4,12 @@ declare(strict_types=1);
 namespace App\GraphQL\Resolvers\Auth;
 
 use GraphQL\Type\Definition\ResolveInfo;
-use Illuminate\Http\Request;
 use Kanvas\Auth\Traits\AuthTrait;
-use Kanvas\Auth\Traits\TokenTrait;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class Login
 {
     use AuthTrait;
-    use TokenTrait;
 
     /**
      * @param $rootValue
@@ -29,14 +26,17 @@ class Login
         array $request,
         GraphQLContext $context = null,
         ResolveInfo $resolveInfo
-    )
-    {
+    ) {
         $email = $request['data']['email'];
         $password = $request['data']['password'];
         $request = request();
 
-        $this->user = $this->loginUsers($request, $email, $password);
+        $user = $this->login(
+            $request,
+            $email,
+            $password
+        );
 
-        return $this->generateToken($request);
+        return $user->createToken($request)->toArray();
     }
 }

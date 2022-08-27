@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Sessions\Keys\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
-use Kanvas\Users\Users\Models\Users;
 use Kanvas\Sessions\Sessions\Models\Sessions;
+use Kanvas\Users\Users\Models\Users;
 
 /**
- * Apps Model
+ * Apps Model.
  *
  * @property int $sessions_id
  * @property int $users_id
@@ -26,21 +27,21 @@ class SessionKeys extends BaseModel
     protected $table = 'session_keys';
 
     /**
-     * Sessions relationship
+     * Sessions relationship.
      *
-     * @return Sessions
+     * @return BelongsTo
      */
-    public function session(): Sessions
+    public function session() : BelongsTo
     {
         return $this->belongsTo(Sessions::class, 'sessions_id');
     }
 
     /**
-     * Users relationship
+     * Users relationship.
      *
-     * @return Users
+     * @return BelongsTo
      */
-    public function user(): Users
+    public function user() : BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
     }

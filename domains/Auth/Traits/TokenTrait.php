@@ -17,7 +17,6 @@ use Lcobucci\JWT\ValidationData;
 
 trait TokenTrait
 {
-
     /**
      * User variable.
      *

@@ -16,7 +16,7 @@ use Kanvas\Users\Config\Models\UserConfig;
 use Kanvas\Users\Users\Factories\UsersFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
+use Kanvas\Auth\Traits\HasApiTokens;
 
 /**
  * Apps Model.

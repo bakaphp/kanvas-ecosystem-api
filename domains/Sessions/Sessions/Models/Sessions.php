@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Sessions\Sessions\Models;
 
+use DateTimeInterface;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
@@ -11,6 +12,7 @@ use Kanvas\Apps\Apps\Models\Apps;
 use Kanvas\Sessions\Keys\Models\SessionKeys;
 use Kanvas\Users\Users\Models\Users;
 use Laravel\Sanctum\PersonalAccessToken;
+use Lcobucci\JWT\Token\Plain;
 
 /**
  * Apps Model.
@@ -67,7 +69,7 @@ class Sessions extends PersonalAccessToken
     /**
      * Apps relationship.
      *
-     * @return Apps
+     * @return BelongsTo
      */
     public function user() : BelongsTo
     {
@@ -79,14 +81,23 @@ class Sessions extends PersonalAccessToken
      *
      * @param Users $user
      * @param string $sessionId
-     * @param string $token
+     * @param Plain $token
      * @param string $userIp
      * @param int $pageId
      *
-     * @return Users
+     * @return self
      */
-    public function start(Users $user, string $sessionId, string $token, string $userIp, int $pageId) : Users
-    {
+    public function start(
+        Users $user,
+        string $name,
+        string $sessionId,
+        Plain $token,
+        Plain $refreshToken,
+        string $userIp,
+        array $ability = ['*'],
+        ?DateTimeInterface $expiresAt = null,
+        int $pageId = 0,
+    ) : self {
         $last_visit = 0;
         $currentTime = time();
 
@@ -142,9 +153,13 @@ class Sessions extends PersonalAccessToken
         $session->page = $pageId;
         $session->logged_in = 1;
         $session->id = $sessionId;
-        $session->token = $token;
+        $session->token = $token->toString();
+        $session->refresh_token = $refreshToken->toString();
+        $session->expires_at = $token->claims()->get('exp');
+        $session->refresh_token_expires_at = $refreshToken->claims()->get('exp');
+        $session->abilities = $ability;
         $session->ip = $userIp;
-        $session->save();
+        $session->saveOrFail();
 
         $lastVisit = ($user->session_time > 0) ? $user->session_time : $currentTime;
 
@@ -152,20 +167,21 @@ class Sessions extends PersonalAccessToken
         $user->session_time = $currentTime;
         $user->session_page = $pageId;
         $user->lastvisit = date('Y-m-d H:i:s', $lastVisit);
-        $user->save();
+        $user->saveOrFail();
 
         //create a new one
-        $session = new SessionKeys();
-        $session->sessions_id = $sessionId;
-        $session->users_id = $user->id;
-        $session->last_ip = $userIp;
-        $session->last_login = $currentTime;
-        $session->save();
+        $sessionKey = new SessionKeys();
+        $sessionKey->name = $name;
+        $sessionKey->sessions_id = $sessionId;
+        $sessionKey->users_id = $user->id;
+        $sessionKey->last_ip = $userIp;
+        $sessionKey->last_login = $currentTime;
+        $sessionKey->saveOrFail();
 
         //you are in, no?
         $user->loggedIn = true;
 
-        return $user;
+        return $session;
     }
 
     /**

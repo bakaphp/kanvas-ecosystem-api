@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Auth;
 
 use Canvas\Models\Sessions;
+use Exception;
 use Illuminate\Support\Facades\Hash;
 use Kanvas\Users\Users\Models\Users;
-use Exception;
 use Lcobucci\JWT\Token;
 
 class Auth
@@ -23,7 +23,13 @@ class Auth
      *
      * @return Users
      */
-    public static function login(string $email, string $password, int $autologin = 1, int $admin = 0, ?string $userIp = null) : Users
+    public static function login(
+        string $email,
+        string $password,
+        int $autologin = 1,
+        int $admin = 0,
+        ?string $userIp = null
+    ) : Users
     {
         $email = ltrim(trim($email));
         $password = ltrim(trim($password));
