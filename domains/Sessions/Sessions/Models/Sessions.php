@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Sessions\Sessions\Models;
 
-use Kanvas\Models\BaseModel;
-use Kanvas\Users\Users\Models\Users;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Apps\Apps\Models\Apps;
 use Kanvas\Sessions\Keys\Models\SessionKeys;
-use Exception;
+use Kanvas\Users\Users\Models\Users;
+use Laravel\Sanctum\PersonalAccessToken;
 
 /**
- * Apps Model
+ * Apps Model.
  *
  * @property int $users_id
  * @property string $token
@@ -22,8 +24,39 @@ use Exception;
  * @property int $logged_in
  * @property int $is_admin
  */
-class Sessions extends BaseModel
+class Sessions extends PersonalAccessToken
 {
+    /**
+     * The attributes that should be cast to native types.
+     *
+     * @var array
+     */
+    protected $casts = [
+        'abilities' => 'json',
+        'last_used_at' => 'datetime',
+        'expires_at' => 'datetime',
+    ];
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array
+     */
+    protected $fillable = [
+        'token',
+        'abilities',
+        'expires_at',
+    ];
+
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var array
+     */
+    protected $hidden = [
+        'token',
+    ];
+
     /**
      * The table associated with the model.
      *
@@ -32,11 +65,11 @@ class Sessions extends BaseModel
     protected $table = 'sessions';
 
     /**
-     * Apps relationship
+     * Apps relationship.
      *
      * @return Apps
      */
-    public function user(): Apps
+    public function user() : BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
     }
@@ -80,11 +113,11 @@ class Sessions extends BaseModel
         ];
 
         $banData = DB::select(
-            "SELECT * from banlist
+            'SELECT * from banlist
             WHERE ip IN (:ip_one, :ip_two, :ip_three, :ip_four)
             OR users_id = :users_id
             OR email LIKE :email
-            OR email LIKE :email_domain",
+            OR email LIKE :email_domain',
             $params
         );
 
@@ -92,7 +125,7 @@ class Sessions extends BaseModel
 
         if ($banInfo) {
             if ($banInfo['ip'] || $banInfo['users_id'] || $banInfo['email']) {
-                throw new Exception(_('This account has been banned. Please contact the administrators.'));
+                throw new AuthenticationException(_('This account has been banned. Please contact the administrators.'));
             }
         }
 
@@ -156,26 +189,22 @@ class Sessions extends BaseModel
         ];
 
         $result = DB::select(
-            "SELECT users.*, sessions.*
+            'SELECT users.*, sessions.*
             FROM sessions, users
             WHERE sessions.id = :session_id
-            AND users.id = sessions.users_id",
+            AND users.id = sessions.users_id',
             $params
         );
 
         $userData = current($result);
 
         if (empty($userData)) {
-            throw new Exception('Invalid Session');
+            throw new AuthenticationException('Invalid Session');
         }
 
         if ($userData->users_id != $user->id) {
-            throw new Exception('Invalid Token');
+            throw new AuthenticationException('Invalid Token');
         }
-
-
-        // print_r($userData);
-        // die();
 
         //
         // Did the session exist in the DB?
@@ -189,7 +218,7 @@ class Sessions extends BaseModel
                 $session->page = $pageId;
 
                 if (!$session->save()) {
-                    throw new Exception("Unable to update session");
+                    throw new AuthenticationException('Unable to update session');
                 }
 
                 //update user
@@ -206,6 +235,53 @@ class Sessions extends BaseModel
             return $user;
         }
 
-        throw new SessionNotFound(_('No Session Token Found'));
+        throw new AuthenticationException(_('No Session Token Found'));
+    }
+
+    /**
+     * Get the tokenable model that the access token belongs to.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\MorphTo
+     */
+    public function tokenable()
+    {
+        return $this->morphTo('sessions_keys');
+    }
+
+    /**
+     * Find the token instance matching the given token.
+     *
+     * @param  string  $token
+     *
+     * @return static|null
+     */
+    public static function findToken($token)
+    {
+        return static::where('token', $token)->first();
+    }
+
+    /**
+     * Determine if the token has a given ability.
+     *
+     * @param  string  $ability
+     *
+     * @return bool
+     */
+    public function can($ability)
+    {
+        return in_array('*', $this->abilities) ||
+               array_key_exists($ability, array_flip($this->abilities));
+    }
+
+    /**
+     * Determine if the token is missing a given ability.
+     *
+     * @param  string  $ability
+     *
+     * @return bool
+     */
+    public function cant($ability)
+    {
+        return !$this->can($ability);
     }
 }

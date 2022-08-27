@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Users\Users\Models;
 
 use Exception;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Kanvas\Companies\Branches\Models\CompaniesBranches;
 use Kanvas\Companies\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
@@ -13,6 +14,9 @@ use Kanvas\Traits\PermissionsTrait;
 use Kanvas\Traits\UsersAssociatedTrait;
 use Kanvas\Users\Config\Models\UserConfig;
 use Kanvas\Users\Users\Factories\UsersFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 
 /**
  * Apps Model.
@@ -64,11 +68,15 @@ use Kanvas\Users\Users\Factories\UsersFactory;
  * @property int $user_recover_code
  * @property int $is_deleted
  */
-class Users extends BaseModel
+class Users extends Authenticatable
 {
     use HashTableTrait;
     use UsersAssociatedTrait;
-    use PermissionsTrait;
+    //use PermissionsTrait;
+    use Notifiable;
+    use HasFactory;
+    use HasApiTokens;
+
 
     /**
      * The table associated with the model.

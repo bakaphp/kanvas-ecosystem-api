@@ -15,7 +15,7 @@
         "guzzlehttp/guzzle": "^7.2",
         "laravel/framework": "^9.2",
         "laravel/octane": "^1.2",
-        "laravel/sanctum": "^2.14.1",
+        "laravel/sanctum": "^3.0",
         "laravel/tinker": "^2.7",
         "lcobucci/jwt": "^4.1",
         "mll-lab/graphql-php-scalars": "^5.4",
