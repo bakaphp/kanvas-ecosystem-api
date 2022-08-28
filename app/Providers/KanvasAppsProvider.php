@@ -32,7 +32,7 @@ class KanvasAppsProvider extends ServiceProvider
         $domainName = $request->getHttpHost();
         $appKey = config('kanvas.app.id');
         // $app = !$domainBasedApp ? AppsRepository::findFirstByKey($appKey) : AppsRepository::getByDomainName($domainName);
-        if (FacadesSchema::hasTable('apps')) {
+        if (FacadesSchema::hasTable('apps') && Apps::count() > 0) {
             $app = AppsRepository::findFirstByKey($appKey);
 
             if (!$app) {
