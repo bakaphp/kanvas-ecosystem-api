@@ -41,7 +41,7 @@ return [
             'provider' => 'users',
         ],
         'api' => [
-            'driver' => 'custom-token',
+            'driver' => 'kanvasToken',
             'provider' => 'users',
         ],
     ],

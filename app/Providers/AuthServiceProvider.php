@@ -3,9 +3,8 @@
 namespace App\Providers;
 
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Kanvas\Users\Users\Models\Users;
+use Kanvas\Auth\TokenGuard;
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -27,15 +26,12 @@ class AuthServiceProvider extends ServiceProvider
     {
         //$this->registerPolicies();
 
-        Auth::viaRequest('custom-token', function (Request $request) {
-            if (!empty($request->bearerToken())) {
-                return Users::where('id', 1)->first();
-            }
-
-            return false;
-            //die('33');
-            //print_r($request); die();
-            //return User::where('token', $request->token)->first();
+        //set kanvas JWT Token Guard
+        Auth::extend('kanvasToken', function ($app, $name, array $config) {
+            return new TokenGuard(
+                Auth::createUserProvider($config['provider']),
+                $app->make('request')
+            );
         });
     }
 }

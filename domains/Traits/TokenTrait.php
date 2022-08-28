@@ -6,6 +6,9 @@ namespace Kanvas\Traits;
 
 use Kanvas\Auth\Jwt;
 use Lcobucci\JWT\Token;
+use Lcobucci\JWT\Validation\Constraint\IssuedBy;
+use Lcobucci\JWT\Validation\Constraint\SignedWith;
+
 use function time;
 
 trait TokenTrait
@@ -65,5 +68,26 @@ trait TokenTrait
     protected function getTokenTimeExpiration() : int
     {
         return (time() + getenv('TOKEN_EXPIRATION', 86400));
+    }
+
+    /**
+     * Given a JWT token validate it.
+     *
+     * @param Token $token
+     *
+     * @throws RequiredConstraintsViolated
+     * @throws NoConstraintsGiven
+     *
+     * @return bool
+     */
+    public static function validateJwtToken(Token $token) : bool
+    {
+        $config = Jwt::getConfig();
+
+        return $config->validator()->validate(
+            $token,
+            new IssuedBy(getenv('TOKEN_AUDIENCE')),
+            new SignedWith($config->signer(), $config->verificationKey())
+        );
     }
 }

@@ -77,7 +77,6 @@ class Users extends Authenticatable
     use HasFactory;
     use HasApiTokens;
 
-
     /**
      * The table associated with the model.
      *
