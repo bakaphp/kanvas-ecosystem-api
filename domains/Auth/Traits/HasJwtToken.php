@@ -22,7 +22,7 @@ trait HasJwtToken
      *
      * @return NewAccessToken
      */
-    protected function createToken(
+    public function createToken(
         string $name,
         array $abilities = ['*'],
         ?DateTimeInterface $expiresAt = null
@@ -37,19 +37,18 @@ trait HasJwtToken
 
         //start session
         $session = new Sessions();
-        $session->start(
+        $sessionJwtToken = $session->start(
             $this,
             $name,
             $sessionId,
             $tokenResponse,
             $refreshToken,
             $userIp,
-            $abilities,
-            $pageId
+            $abilities
         );
 
         return new NewAccessToken(
-            $session
+            $sessionJwtToken
         );
     }
 }

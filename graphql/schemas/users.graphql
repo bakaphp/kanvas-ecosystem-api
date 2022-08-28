@@ -19,7 +19,7 @@ type TokenResponse {
     refresh_token: String!
     token_expires: DateTime!
     refresh_token_expires: DateTime!
-    time: DateTime!
+    time: String!
     timezone: String!
 }
 

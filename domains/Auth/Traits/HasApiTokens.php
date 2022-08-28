@@ -10,8 +10,9 @@ use Laravel\Sanctum\NewAccessToken;
 
 trait HasApiTokens
 {
-    use SanctumHasApiTokens;
-    use HasJwtToken;
+    use SanctumHasApiTokens, HasJwtToken{
+        HasJwtToken::createToken insteadof  SanctumHasApiTokens;
+    }
 
     /**
      * Get the access tokens that belong to model.

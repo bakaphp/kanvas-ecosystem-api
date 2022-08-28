@@ -32,11 +32,11 @@ class NewAccessToken
             'sessionId' => $this->sessionToken->id,
             'token' => $this->sessionToken->token,
             'refresh_token' => $this->sessionToken->refresh_token,
-            'token_expires' => date('Y-m-d H:i:s', $this->sessionToken->expires_at),
-            'refresh_token_expires' =>  date('Y-m-d H:i:s', $this->sessionToken->refresh_token_expires_at),
+            'token_expires' => $this->sessionToken->expires_at->format('Y-m-d H:i:s'),
+            'refresh_token_expires' => $this->sessionToken->refresh_token_expires_at->format('Y-m-d H:i:s'),
             'time' => $this->sessionToken->time,
-            'timezone' => $this->user->timezone,
-            'id' => $this->user->id
+            'timezone' => $this->sessionToken->user->timezone,
+            'id' => $this->sessionToken->users_id
         ];
     }
 

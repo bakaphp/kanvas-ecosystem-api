@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [\App\Http\Controllers\IndexController::class, 'index']);
+Route::middleware('auth:sanctum')->get('/', [\App\Http\Controllers\IndexController::class, 'index']);
 Route::get('/status', [\App\Http\Controllers\IndexController::class, 'status']);
 Route::post('/register', [\App\Http\Controllers\Auth\AuthController::class, 'register']);
 Route::post('/login', [\App\Http\Controllers\Auth\AuthController::class, 'login']);

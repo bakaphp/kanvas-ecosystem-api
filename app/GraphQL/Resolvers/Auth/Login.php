@@ -37,6 +37,6 @@ class Login
             $password
         );
 
-        return $user->createToken($request)->toArray();
+        return $user->createToken('kanvas-login')->toArray();
     }
 }

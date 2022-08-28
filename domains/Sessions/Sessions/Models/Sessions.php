@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Sessions\Sessions\Models;
 
-use DateTimeInterface;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
@@ -45,9 +44,19 @@ class Sessions extends PersonalAccessToken
      * @var array
      */
     protected $fillable = [
+        'id',
+        'start',
+        'time',
+        'page',
+        'logged_in',
+        'id',
         'token',
-        'abilities',
+        'refresh_token',
         'expires_at',
+        'refresh_token_expires_at',
+        'abilities',
+        'ip',
+        'users_id',
     ];
 
     /**
@@ -73,7 +82,40 @@ class Sessions extends PersonalAccessToken
      */
     public function user() : BelongsTo
     {
-        return $this->belongsTo(Users::class, 'users_id');
+        return $this->belongsTo(Users::class, 'users_id', 'id');
+    }
+
+    /**
+     * Session Keys.
+     *
+     * @return BelongsTo
+     */
+    public function keys() : BelongsTo
+    {
+        return $this->belongsTo(SessionKeys::class);
+    }
+
+
+    /**
+     * Override the getIncrementing() function to return false to tell
+     * Laravel that the identifier does not auto increment (it's a string).
+     *
+     * @return bool
+     */
+    public function getIncrementing() : bool
+    {
+        return false;
+    }
+
+
+    /**
+     * Tell laravel that the key type is a string, not an integer.
+     *
+     * @return string
+     */
+    public function getKeyType() : string
+    {
+        return 'string';
     }
 
     /**
@@ -95,7 +137,6 @@ class Sessions extends PersonalAccessToken
         Plain $refreshToken,
         string $userIp,
         array $ability = ['*'],
-        ?DateTimeInterface $expiresAt = null,
         int $pageId = 0,
     ) : self {
         $last_visit = 0;
@@ -146,20 +187,20 @@ class Sessions extends PersonalAccessToken
          * @todo we don't need a new session for every getenv('ANONYMOUS') user, use less ,
          * right now 27.7.15 90% of the sessions are for that type of users
          */
-        $session = new self();
-        $session->users_id = $user->id;
-        $session->start = $currentTime;
-        $session->time = $currentTime;
-        $session->page = $pageId;
-        $session->logged_in = 1;
-        $session->id = $sessionId;
-        $session->token = $token->toString();
-        $session->refresh_token = $refreshToken->toString();
-        $session->expires_at = $token->claims()->get('exp');
-        $session->refresh_token_expires_at = $refreshToken->claims()->get('exp');
-        $session->abilities = $ability;
-        $session->ip = $userIp;
-        $session->saveOrFail();
+        $session = self::create([
+            'users_id' =>  $user->id,
+            'id' => $sessionId,
+            'start' => $currentTime,
+            'time' => $currentTime,
+            'page' => $pageId,
+            'logged_in' => 1,
+            'token' => $token->toString(),
+            'refresh_token' => $refreshToken->toString(),
+            'expires_at' => $token->claims()->get('exp'),
+            'refresh_token_expires_at' => $refreshToken->claims()->get('exp'),
+            'abilities' => $ability,
+            'ip' => $userIp,
+        ]);
 
         $lastVisit = ($user->session_time > 0) ? $user->session_time : $currentTime;
 

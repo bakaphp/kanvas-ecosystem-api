@@ -95,7 +95,6 @@ class Users extends Authenticatable
         return UsersFactory::new();
     }
 
-
     /**
      * Default Company relationship.
      *
