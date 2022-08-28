@@ -26,9 +26,10 @@ class AppsFactory extends Factory
     public function definition()
     {
         $totalApps  = Apps::count();
+
         return [
             'url' => $this->faker->url(),
-            'key' => $totalApps === 0 ? config('app.id') : Str::uuid(),
+            'key' => (int) $totalApps === 0 ? config('kanvas.app.id') : Str::uuid(),
             'name' => $this->faker->name(),
             'description' => $this->faker->sentence(2),
             'is_actived' => 1,
