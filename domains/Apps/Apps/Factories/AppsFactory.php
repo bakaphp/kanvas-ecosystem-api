@@ -27,6 +27,7 @@ class AppsFactory extends Factory
     {
         $totalApps  = Apps::count();
 
+        echo $totalApps; die();
         return [
             'url' => $this->faker->url(),
             'key' => (int) $totalApps === 0 ? config('kanvas.app.id') : Str::uuid(),
