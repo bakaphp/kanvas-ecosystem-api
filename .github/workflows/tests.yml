@@ -12,6 +12,7 @@ jobs:
       DB_USERNAME: root
       DB_PASSWORD: password
       DB_DATABASE: test
+      KANVAS_APP_ID: 059ddaaf-89b5-4158-a85a-90cbd69aa34b
     strategy:
       fail-fast: false
       matrix:
