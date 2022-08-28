@@ -14,11 +14,15 @@ class UpdateTokenSessionsTable extends Migration
     public function up()
     {
         Schema::table('sessions', function (Blueprint $table) {
-            $table->integer('apps_id')->default(0)->index('apps_id');
-            $table->text('refresh_token')->nullable();
-            $table->text('abilities')->nullable();
-            $table->timestamp('expires_at')->nullable()->index('expires_at');
-            $table->timestamp('refresh_token_expires_at')->nullable()->index('refresh_token_expires_at');
+            $table->integer('apps_id')->default(0)->index('apps_id')->after('users_id');
+            $table->text('refresh_token')->nullable()->after('is_admin');
+            $table->text('abilities')->nullable()->after('is_admin');
+            $table->timestamp('expires_at')->nullable()->index('expires_at')->after('is_admin');
+            $table->timestamp('refresh_token_expires_at')->nullable()->index('refresh_token_expires_at')->after('is_admin');
+        });
+
+        Schema::table('session_keys', function (Blueprint $table) {
+            $table->string('name', 150)->nullable()->after('users_id');
         });
     }
 }

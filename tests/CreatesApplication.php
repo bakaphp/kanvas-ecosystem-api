@@ -8,7 +8,7 @@ use Kanvas\Apps\Apps\Models\Apps;
 
 /**
  * Create Application trait
- * 
+ *
  * @todo Find a way to login a default user to test private routes
  */
 trait CreatesApplication
