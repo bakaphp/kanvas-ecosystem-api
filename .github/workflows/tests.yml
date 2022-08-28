@@ -55,4 +55,4 @@ jobs:
 
       - name: Run Tests
         if: success()
-        run: composer test
+        run: php artisan test
