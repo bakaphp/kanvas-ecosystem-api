@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL;
 
+use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
 
 class AuthTest extends TestCase
@@ -116,4 +117,27 @@ class AuthTest extends TestCase
         ->assertSee('refresh_token');
     }
 
+    public function test_auth_user() : void
+    {
+        $userData = Auth::user();
+        $response = $this->graphQL(/** @lang GraphQL */ '
+            {
+                me {
+                    id
+                    displayname
+                    email
+                }
+            }
+        ')
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'me' => [
+                    'id' => $userData->id,
+                    'displayname' => $userData->displayname,
+                    'email' => $userData->email
+                ]
+            ],
+        ]);
+    }
 }
