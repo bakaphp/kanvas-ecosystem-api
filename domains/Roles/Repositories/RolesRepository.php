@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Roles\Repositories;
 
+use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Apps\Enums\Defaults as AppsDefaults;
 use Kanvas\Apps\Apps\Models\Apps;
 use Kanvas\Companies\Companies\Models\Companies;
@@ -24,7 +25,7 @@ class RolesRepository
     public static function getByName(string $name, ?Companies $company = null) : Roles
     {
         $app = app(Apps::class);
-        $userData = app('userData');
+        $userData = Auth::user();
         if ($company === null) {
             $company = Di::getDefault()->get('acl')->getCompany();
         }

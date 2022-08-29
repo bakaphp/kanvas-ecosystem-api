@@ -1,20 +1,16 @@
 <?php
 declare(strict_types=1);
+
 namespace Tests\GraphQL;
 
-use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
-use Nuwave\Lighthouse\Testing\MakesGraphQLRequests;
-use Tests\CreatesApplication;
 use Kanvas\Locations\Countries\Models\Countries;
 use Kanvas\Locations\States\Models\States;
+use Tests\TestCase;
 
-class CountriesGraphqlTest extends BaseTestCase
+class CountriesGraphqlTest extends TestCase
 {
-    use CreatesApplication;
-    use MakesGraphQLRequests;
-
     /**
-     * test_save
+     * test_save.
      *
      * @return void
      */
@@ -65,17 +61,17 @@ class CountriesGraphqlTest extends BaseTestCase
     }
 
     /**
-     * test_get
+     * test_get.
      *
      * @return void
      */
-    public function test_get(): void
+    public function test_get() : void
     {
         $response = $this->graphQL(/** @lang GraphQL */ '
             query{
                 countries(first: 5, page: 1, orderBy: [{ column: ID, order: DESC }]) {
                 data {
-                        
+
                             id,
                             name,
                             states {
@@ -91,18 +87,18 @@ class CountriesGraphqlTest extends BaseTestCase
                       lastPage
                     }
                 }
-                
+
             }
             ');
         $this->assertArrayHasKey('data', $response);
     }
 
     /**
-     * test_update
+     * test_update.
      *
      * @return void
      */
-    public function test_update(): void
+    public function test_update() : void
     {
         $country = Countries::orderBy('id', 'desc')->first();
         $name = fake()->name;
@@ -133,7 +129,7 @@ class CountriesGraphqlTest extends BaseTestCase
     }
 
     /**
-     * test_where
+     * test_where.
      *
      * @return void
      */
@@ -143,15 +139,15 @@ class CountriesGraphqlTest extends BaseTestCase
         $response = $this->graphQL(/** @lang GraphQL */ '
             query COUNTRIES($name: Mixed) {
                 countries(
-                    first: 50, 
-                    page: 1, 
+                    first: 50,
+                    page: 1,
                     orderBy: [{ column: ID, order: ASC }]
                     where: {
                         column:NAME, operator: EQ , value: $name
                     },
                 ) {
                 data {
-                        
+
                         id,
                         name
                     },
@@ -160,7 +156,7 @@ class CountriesGraphqlTest extends BaseTestCase
                       lastPage
                     }
                 }
-                
+
             }', [
             'name' => "$country->name",
         ])->assertJson([
@@ -188,8 +184,8 @@ class CountriesGraphqlTest extends BaseTestCase
         $response = $this->graphQL(/** @lang GraphQL */ '
             query COUNTRIES($countryId: Mixed! $stateName: Mixed!) {
                 countries(
-                    first: 50, 
-                    page: 1, 
+                    first: 50,
+                    page: 1,
                     orderBy: [{ column: ID, order: ASC }]
                     where: {
                         column:ID, operator: EQ , value: $countryId
@@ -199,7 +195,7 @@ class CountriesGraphqlTest extends BaseTestCase
                     },
                 ) {
                 data {
-                        
+
                         id,
                         name,
                         states {
@@ -212,7 +208,7 @@ class CountriesGraphqlTest extends BaseTestCase
                       lastPage
                     }
                 }
-                
+
             }', [
             'countryId' => $state->countries_id,
             'stateName' => $state->name,

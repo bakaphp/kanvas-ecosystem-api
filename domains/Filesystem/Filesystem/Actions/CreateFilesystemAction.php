@@ -6,6 +6,7 @@ namespace Kanvas\Filesystem\Filesystem\Actions;
 
 use Kanvas\Filesystem\Filesystem\Models\Filesystem;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Kanvas\Apps\Apps\Models\Apps;
 
@@ -20,18 +21,18 @@ class CreateFilesystemAction
     }
 
     /**
-     * 
+     *
      *
      * @return Filesystem
-     * 
+     *
      * @todo Use currentCompanyId instead of defaultCompanyId when setting companies_id
      * @todo why tf does saveOrFail works but not create method?
      */
     public function execute() : Filesystem
-    {    
+    {
         $fileMetadata = pathinfo($this->filePath);
         $app = app(Apps::class);
-        $userData = app('userData');
+        $userData = Auth::user();
         $filesystemLocalCDN = config('kanvas.filesystem.local.cdn');
 
         $fileSystem = new Filesystem();

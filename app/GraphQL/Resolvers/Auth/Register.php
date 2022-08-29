@@ -49,13 +49,10 @@ class Register
         $request = request();
 
         $registeredUser = $user->execute();
-
-        $this->user = $registeredUser;
-
-        $tokenResponse = $this->generateToken($request);
+        $tokenResponse = $registeredUser->createToken('kanvas-login')->toArray();
 
         return [
-            'user' => $this->user,
+            'user' => $registeredUser,
             'token' => $tokenResponse
         ];
     }
