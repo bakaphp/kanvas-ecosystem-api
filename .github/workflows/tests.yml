@@ -55,11 +55,6 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-suggest
 
-      - name: Setup Key
-        run:
-          echo '' > .env
-          php artisan key:generate
-
       - name: Run Migrations
         run: php artisan migrate
 
