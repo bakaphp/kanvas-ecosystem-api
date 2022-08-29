@@ -20,7 +20,7 @@ class AuthTest extends TestCase
         if (empty(self::$loginData)) {
             self::$loginData = [
                 'email' => fake()->email,
-                'password' => fake()->password . fake()->password
+                'password' => fake()->password . time()
             ];
         }
 
