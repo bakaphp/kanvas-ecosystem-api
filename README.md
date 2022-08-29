@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- PHP ^8.0
+- PHP ^8.1
 
 ## Initial Setup
 
@@ -16,8 +16,9 @@
 
 5. Use the command ```php artisan db:seed --class=KanvasSeeder```  to seed the database with an app, role and default system modules.
 
-6. To check if the API is working just make a GET request to  ```http://localhost:80/v1/``` and see if the response returns ```"Woot Kanvas"```
+6. Generate app keys `php artisan key:generate` 
 
+7. To check if the API is working just make a GET request to  ```http://localhost:80/v1/``` and see if the response returns ```"Woot Kanvas"```
 
 ## Running the project with Laravel Octane
 

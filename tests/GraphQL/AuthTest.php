@@ -20,7 +20,7 @@ class AuthTest extends TestCase
         if (empty(self::$loginData)) {
             self::$loginData = [
                 'email' => fake()->email,
-                'password' => fake()->password . fake()->password()
+                'password' => fake()->password . fake()->password
             ];
         }
 
@@ -36,7 +36,7 @@ class AuthTest extends TestCase
     {
         $loginData = self::loginData();
         $email = $loginData['email'];
-        $password = 'passwordsometimes';
+        $password = $loginData['password'];
 
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation register($data: RegisterInput!) {
