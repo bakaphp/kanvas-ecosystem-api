@@ -61,7 +61,7 @@ class RegisterUsersAction
         $user->user_last_login_try = 0;
         $user->default_company = $user->default_company ?? StateEnums::NO->getValue();
         $user->session_time = time();
-        $user->session_page = '';
+        $user->session_page = StateEnums::NO->getValue();
         $user->password = $this->data->password;
         $user->language = $user->language ?: Defaults::DEFAULT_LANGUAGE->getValue();
         $user->user_activation_key = Hash::make(time());
