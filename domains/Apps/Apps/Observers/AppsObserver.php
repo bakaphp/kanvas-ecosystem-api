@@ -17,7 +17,10 @@ class AppsObserver
      */
     public function creating(Apps $app) : void
     {
-        $app->key = Str::uuid();
+        if (empty($app->key)) {
+            $app->key = Str::uuid();
+        }
+
         $app->is_deleted = 0;
     }
 

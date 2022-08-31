@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace Kanvas\Sessions\Sessions\Models;
 
-use Kanvas\Models\BaseModel;
-use Kanvas\Users\Users\Models\Users;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Apps\Apps\Models\Apps;
 use Kanvas\Sessions\Keys\Models\SessionKeys;
-use Exception;
+use Kanvas\Users\Users\Models\Users;
+use Laravel\Sanctum\PersonalAccessToken;
+use Lcobucci\JWT\Token\Plain;
 
 /**
- * Apps Model
+ * Apps Model.
  *
  * @property int $users_id
  * @property string $token
@@ -22,8 +25,49 @@ use Exception;
  * @property int $logged_in
  * @property int $is_admin
  */
-class Sessions extends BaseModel
+class Sessions extends PersonalAccessToken
 {
+    /**
+     * The attributes that should be cast to native types.
+     *
+     * @var array
+     */
+    protected $casts = [
+        'abilities' => 'json',
+        'last_used_at' => 'datetime',
+        'expires_at' => 'datetime',
+    ];
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array
+     */
+    protected $fillable = [
+        'id',
+        'start',
+        'time',
+        'page',
+        'logged_in',
+        'id',
+        'token',
+        'refresh_token',
+        'expires_at',
+        'refresh_token_expires_at',
+        'abilities',
+        'ip',
+        'users_id',
+    ];
+
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var array
+     */
+    protected $hidden = [
+        'token',
+    ];
+
     /**
      * The table associated with the model.
      *
@@ -32,13 +76,46 @@ class Sessions extends BaseModel
     protected $table = 'sessions';
 
     /**
-     * Apps relationship
+     * Apps relationship.
      *
-     * @return Apps
+     * @return BelongsTo
      */
-    public function user(): Apps
+    public function user() : BelongsTo
     {
-        return $this->belongsTo(Users::class, 'users_id');
+        return $this->belongsTo(Users::class, 'users_id', 'id');
+    }
+
+    /**
+     * Session Keys.
+     *
+     * @return BelongsTo
+     */
+    public function keys() : BelongsTo
+    {
+        return $this->belongsTo(SessionKeys::class);
+    }
+
+
+    /**
+     * Override the getIncrementing() function to return false to tell
+     * Laravel that the identifier does not auto increment (it's a string).
+     *
+     * @return bool
+     */
+    public function getIncrementing() : bool
+    {
+        return false;
+    }
+
+
+    /**
+     * Tell laravel that the key type is a string, not an integer.
+     *
+     * @return string
+     */
+    public function getKeyType() : string
+    {
+        return 'string';
     }
 
     /**
@@ -46,14 +123,22 @@ class Sessions extends BaseModel
      *
      * @param Users $user
      * @param string $sessionId
-     * @param string $token
+     * @param Plain $token
      * @param string $userIp
      * @param int $pageId
      *
-     * @return Users
+     * @return self
      */
-    public function start(Users $user, string $sessionId, string $token, string $userIp, int $pageId) : Users
-    {
+    public function start(
+        Users $user,
+        string $name,
+        string $sessionId,
+        Plain $token,
+        Plain $refreshToken,
+        string $userIp,
+        array $ability = ['*'],
+        int $pageId = 0,
+    ) : self {
         $last_visit = 0;
         $currentTime = time();
 
@@ -80,11 +165,11 @@ class Sessions extends BaseModel
         ];
 
         $banData = DB::select(
-            "SELECT * from banlist 
+            'SELECT * from banlist
             WHERE ip IN (:ip_one, :ip_two, :ip_three, :ip_four)
             OR users_id = :users_id
             OR email LIKE :email
-            OR email LIKE :email_domain",
+            OR email LIKE :email_domain',
             $params
         );
 
@@ -92,7 +177,7 @@ class Sessions extends BaseModel
 
         if ($banInfo) {
             if ($banInfo['ip'] || $banInfo['users_id'] || $banInfo['email']) {
-                throw new Exception(_('This account has been banned. Please contact the administrators.'));
+                throw new AuthenticationException(_('This account has been banned. Please contact the administrators.'));
             }
         }
 
@@ -102,16 +187,20 @@ class Sessions extends BaseModel
          * @todo we don't need a new session for every getenv('ANONYMOUS') user, use less ,
          * right now 27.7.15 90% of the sessions are for that type of users
          */
-        $session = new self();
-        $session->users_id = $user->id;
-        $session->start = $currentTime;
-        $session->time = $currentTime;
-        $session->page = $pageId;
-        $session->logged_in = 1;
-        $session->id = $sessionId;
-        $session->token = $token;
-        $session->ip = $userIp;
-        $session->save();
+        $session = self::create([
+            'users_id' =>  $user->id,
+            'id' => $sessionId,
+            'start' => $currentTime,
+            'time' => $currentTime,
+            'page' => $pageId,
+            'logged_in' => 1,
+            'token' => $token->toString(),
+            'refresh_token' => $refreshToken->toString(),
+            'expires_at' => $token->claims()->get('exp'),
+            'refresh_token_expires_at' => $refreshToken->claims()->get('exp'),
+            'abilities' => $ability,
+            'ip' => $userIp,
+        ]);
 
         $lastVisit = ($user->session_time > 0) ? $user->session_time : $currentTime;
 
@@ -119,20 +208,21 @@ class Sessions extends BaseModel
         $user->session_time = $currentTime;
         $user->session_page = $pageId;
         $user->lastvisit = date('Y-m-d H:i:s', $lastVisit);
-        $user->save();
+        $user->saveOrFail();
 
         //create a new one
-        $session = new SessionKeys();
-        $session->sessions_id = $sessionId;
-        $session->users_id = $user->id;
-        $session->last_ip = $userIp;
-        $session->last_login = $currentTime;
-        $session->save();
+        $sessionKey = new SessionKeys();
+        $sessionKey->name = $name;
+        $sessionKey->sessions_id = $sessionId;
+        $sessionKey->users_id = $user->id;
+        $sessionKey->last_ip = $userIp;
+        $sessionKey->last_login = $currentTime;
+        $sessionKey->saveOrFail();
 
         //you are in, no?
         $user->loggedIn = true;
 
-        return $user;
+        return $session;
     }
 
     /**
@@ -156,26 +246,22 @@ class Sessions extends BaseModel
         ];
 
         $result = DB::select(
-            "SELECT users.*, sessions.*
+            'SELECT users.*, sessions.*
             FROM sessions, users
             WHERE sessions.id = :session_id
-            AND users.id = sessions.users_id",
+            AND users.id = sessions.users_id',
             $params
         );
 
         $userData = current($result);
 
         if (empty($userData)) {
-            throw new Exception('Invalid Session');
+            throw new AuthenticationException('Invalid Session');
         }
 
         if ($userData->users_id != $user->id) {
-            throw new Exception('Invalid Token');
+            throw new AuthenticationException('Invalid Token');
         }
-
-
-        // print_r($userData);
-        // die();
 
         //
         // Did the session exist in the DB?
@@ -189,7 +275,7 @@ class Sessions extends BaseModel
                 $session->page = $pageId;
 
                 if (!$session->save()) {
-                    throw new Exception("Unable to update session");
+                    throw new AuthenticationException('Unable to update session');
                 }
 
                 //update user
@@ -206,6 +292,53 @@ class Sessions extends BaseModel
             return $user;
         }
 
-        throw new SessionNotFound(_('No Session Token Found'));
+        throw new AuthenticationException(_('No Session Token Found'));
+    }
+
+    /**
+     * Get the tokenable model that the access token belongs to.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\MorphTo
+     */
+    public function tokenable()
+    {
+        return $this->morphTo('sessions_keys');
+    }
+
+    /**
+     * Find the token instance matching the given token.
+     *
+     * @param  string  $token
+     *
+     * @return static|null
+     */
+    public static function findToken($token)
+    {
+        return static::where('token', $token)->first();
+    }
+
+    /**
+     * Determine if the token has a given ability.
+     *
+     * @param  string  $ability
+     *
+     * @return bool
+     */
+    public function can($ability)
+    {
+        return in_array('*', $this->abilities) ||
+               array_key_exists($ability, array_flip($this->abilities));
+    }
+
+    /**
+     * Determine if the token is missing a given ability.
+     *
+     * @param  string  $ability
+     *
+     * @return bool
+     */
+    public function cant($ability)
+    {
+        return !$this->can($ability);
     }
 }

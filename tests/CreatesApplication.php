@@ -3,12 +3,12 @@
 namespace Tests;
 
 use Illuminate\Contracts\Console\Kernel;
-use Kanvas\Users\Users\Models\Users;
 use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\Users\Users\Models\Users;
 
 /**
- * Create Application trait
- * 
+ * Create Application trait.
+ *
  * @todo Find a way to login a default user to test private routes
  */
 trait CreatesApplication
@@ -20,24 +20,27 @@ trait CreatesApplication
      */
     public function createApplication()
     {
-        $app = require __DIR__.'/../bootstrap/app.php';
+        $app = require __DIR__ . '/../bootstrap/app.php';
 
         $app->make(Kernel::class)->bootstrap();
 
-        $kanvasApp = Apps::factory(1)->create();
+        //  $kanvasApp = Apps::factory(1)->create();
 
-        $app->bind(Apps::class, function () use ($kanvasApp) {
-            return $kanvasApp;
-        });
+        /*    $app->bind(Apps::class, function () use ($kanvasApp) {
+               return $kanvasApp;
+           }); */
 
-        $user = Users::factory(1)->create();
+        //$user = Users::where('id', '>', 0)->first();
+        $user = Users::factory(1)->create()->first();
+        $this->app = $app;
+        $this->actingAs($user, 'api');
 
-        $app->bind(Users::class, function () use ($user) {
-            return $user;
-        });
+        /*    $app->bind(Users::class, function () use ($user) {
+               return $user;
+           });
 
-        $app->alias(Users::class, 'userData');
-
+           $app->alias(Users::class, 'userData');
+ */
         return $app;
     }
 }

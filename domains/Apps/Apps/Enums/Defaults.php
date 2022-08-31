@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Apps\Apps\Enums;
 
 use Kanvas\Contracts\EnumsInterface;
+use Monolog\Test\TestCase;
 
 enum Defaults implements EnumsInterface
 {
@@ -17,6 +18,11 @@ enum Defaults implements EnumsInterface
     case DEFAULT_ROLE_SETTING;
     case DEFAULT_COUNTRY;
     case VERSION;
+    case DEFAULT_SEX;
+    case DEFAULT_TIMEZONE;
+    case DEFAULT_USER_LEVEL;
+    case DEFAULT_LANGUAGE;
+    case DEFAULT_ROLE_ID;
 
     public function getValue(): mixed
     {
@@ -30,6 +36,11 @@ enum Defaults implements EnumsInterface
                 self::DEFAULT_ROLE_SETTING => 'default_admin_role',
                 self::DEFAULT_COUNTRY => 'default_user_country',
                 self::VERSION => 0.3,
+                self::DEFAULT_SEX => 'U',
+                self::DEFAULT_TIMEZONE => 'America/New_York',
+                self::DEFAULT_USER_LEVEL => 3,
+                self::DEFAULT_LANGUAGE => 'EN',
+                self::DEFAULT_ROLE_ID => 2,
         };
     }
 }

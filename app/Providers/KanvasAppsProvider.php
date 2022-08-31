@@ -3,8 +3,8 @@
 namespace App\Providers;
 
 use Exception;
-use Schema;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema as FacadesSchema;
 use Illuminate\Support\ServiceProvider;
 use Kanvas\Apps\Apps\Models\Apps;
 use Kanvas\Apps\Apps\Repositories\AppsRepository;
@@ -32,7 +32,7 @@ class KanvasAppsProvider extends ServiceProvider
         $domainName = $request->getHttpHost();
         $appKey = config('kanvas.app.id');
         // $app = !$domainBasedApp ? AppsRepository::findFirstByKey($appKey) : AppsRepository::getByDomainName($domainName);
-        if (Schema::hasTable('apps') && Apps::find(1) && (app()->env !== 'testing')) {
+        if (FacadesSchema::hasTable('apps') && Apps::count() > 0) {
             $app = AppsRepository::findFirstByKey($appKey);
 
             if (!$app) {

@@ -26,13 +26,17 @@ class Authentication
             throw new Exception('Missing Token');
         }
 
-        $user = $this->sessionUser($token, $request);
+        if (!$this->validateJwtToken($token)) {
+            throw new Exception('Invalid Token');
+        }
 
-        App::bind(Users::class, function () use ($user) {
-            return $user;
-        });
+        //  $user = $this->sessionUser($token, $request);
 
-        App::alias(Users::class, 'userData');
+        /*   App::bind(Users::class, function () use ($user) {
+              return $user;
+          });
+
+          App::alias(Users::class, 'userData'); */
 
         return $next($request);
     }
@@ -48,6 +52,8 @@ class Authentication
      * @throws UnauthorizedException
      *
      * @return void
+     *
+     * @deprecated version 1.x no need anymore for this, user() will check the user
      *
      * @todo Set userdata on DI ??
      */
@@ -65,16 +71,6 @@ class Authentication
             return $session->check($user, $token->claims()->get('sessionId'), (string) $ip, 1);
         } else {
             throw new Exception('User not found');
-        }
-
-        /**
-         * This is where we will validate the token that was sent to us
-         * using Bearer Authentication.
-         *
-         * Find the user attached to this token
-         */
-        if (!$this->validateJwtToken($token)) {
-            throw new Exception('Invalid Token');
         }
     }
 }

@@ -16,7 +16,7 @@ return [
         ]
     ],
     'app' => [
-        'id' => getenv('GEWAER_APP_ID'),
+        'id' => getenv('KANVAS_APP_ID'),
         'frontEndUrl' => getenv('FRONTEND_URL'),
         'version' => getenv('VERSION', time()),
         'timezone' => "UTC",

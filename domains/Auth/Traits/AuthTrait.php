@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\Traits;
 
+use Illuminate\Http\Request;
 use Kanvas\Auth\Factory;
 use Kanvas\Users\Users\Models\Users;
-use Illuminate\Http\Request;
 
 trait AuthTrait
 {
@@ -17,7 +17,7 @@ trait AuthTrait
      *
      * @return Users
      */
-    protected function loginUsers(Request $request, string $email, string $password) : Users
+    protected function login(Request $request, string $email, string $password) : Users
     {
         $userIp = $request->ip();
         $remember = 1;
@@ -25,7 +25,13 @@ trait AuthTrait
 
         $auth = Factory::create(true);
 
-        $userData = $auth::login($email, $password, $remember, $admin, $userIp);
+        $userData = $auth::login(
+            $email,
+            $password,
+            $remember,
+            $admin,
+            $userIp
+        );
 
         return $userData;
     }

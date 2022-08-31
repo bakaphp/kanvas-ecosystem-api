@@ -9,6 +9,7 @@ use Kanvas\Filesystem\Filesystem\Models\Filesystem;
 use Illuminate\Support\Facades\Storage;
 use Kanvas\Apps\Apps\Models\Apps;
 use Exception;
+use Illuminate\Support\Facades\Auth;
 
 class UploadFileAction
 {
@@ -24,13 +25,13 @@ class UploadFileAction
      * Upload file.
      *
      * @return string
-     * 
+     *
      * @todo Change Exception for custom type of exception
      */
     public function execute() : string
     {
         $app = app(Apps::class);
-        $userData = app('userData');
+        $userData = Auth::user();
         $filesystemLocalCDN = config('kanvas.filesystem.local.cdn');
 
        $filePath = Storage::put('files', $this->file);

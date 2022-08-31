@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\SystemModules\Models;
 
-use Kanvas\Models\BaseModel;
 use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Factories\SystemModulesFactory;
 
 /**
- * Apps Model
+ * Apps Model.
  *
  * @property string $name
  * @property string $slug
@@ -36,31 +36,31 @@ class SystemModules extends BaseModel
     protected $table = 'system_modules';
 
     /**
-    * Create a new factory instance for the model.
-    *
-    * @return \Illuminate\Database\Eloquent\Factories\Factory
-    */
+     * Create a new factory instance for the model.
+     *
+     * @return \Illuminate\Database\Eloquent\Factories\Factory
+     */
     protected static function newFactory()
     {
         return SystemModulesFactory::new();
     }
 
     /**
-     * Apps relationship
+     * Apps relationship.
      *
      * @return Apps
      */
-    public function app(): Apps
+    public function app() : Apps
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
 
     /**
-     * Apps relationship
+     * Apps relationship.
      *
      * @return self
      */
-    public function parent(): self
+    public function parent() : self
     {
         return $this->belongsTo(self::class, 'parents_id');
     }

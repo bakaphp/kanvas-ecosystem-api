@@ -1,0 +1,58 @@
+
+type User {
+    id: Int!
+    uuid: String!
+    firstname: String!
+    lastname: String!
+    displayname: String!
+    email: String!
+    password: String!
+    phone: String
+    user_active: Boolean!
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type TokenResponse {
+    id: Int!
+    token: String!
+    refresh_token: String!
+    token_expires: DateTime!
+    refresh_token_expires: DateTime!
+    time: String!
+    timezone: String!
+}
+
+type RegisterResponse
+{
+    user: User!
+    token: TokenResponse!
+}
+
+input LoginInput {
+    email: String!
+    password: String!
+}
+
+input ForgotPasswordInput {
+    email: String!
+}
+
+input RegisterInput {
+    firstname: String
+    lastname: String
+    email: String @rules(apply: ["required"])
+    password: String @rules(apply: ["required"])
+    password_confirmation: String @rules(apply: ["required"])
+    company_name: String
+    roles_id: Int
+}
+
+extend type Mutation {
+    login(data: LoginInput!): TokenResponse! @field(resolver: "App\\GraphQL\\Resolvers\\Auth\\Login@resolve")
+    register(data: RegisterInput!): RegisterResponse! @field(resolver: "App\\GraphQL\\Resolvers\\Auth\\Register@resolve")
+}
+
+type Query @guard {
+    me: User! @auth
+}
