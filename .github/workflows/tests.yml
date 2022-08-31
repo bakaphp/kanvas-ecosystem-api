@@ -17,7 +17,7 @@ jobs:
       APP_JWT_TOKEN: 4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY
       TOKEN_AUDIENCE: http://localhost
       TOKEN_PASSWORD: base64:4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY=
-      APP_DEBUG: true
+      #APP_DEBUG: true
     strategy:
       fail-fast: false
       matrix:
