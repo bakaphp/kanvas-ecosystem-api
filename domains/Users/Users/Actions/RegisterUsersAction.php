@@ -9,14 +9,13 @@ use Illuminate\Support\Facades\Hash;
 use Kanvas\Apps\Apps\Enums\Defaults;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Enums\StatusEnums;
-use Kanvas\Users\Users\Models\Users;
 use Kanvas\Users\Users\DataTransferObject\RegisterPostData;
-use Kanvas\Utils\Random;
+use Kanvas\Users\Users\Models\Users;
 
 class RegisterUsersAction
 {
     /**
-     * Construct function
+     * Construct function.
      */
     public function __construct(
         protected RegisterPostData $data
@@ -24,13 +23,13 @@ class RegisterUsersAction
     }
 
     /**
-     * Invoke function
+     * Invoke function.
      *
      * @param RegisterPostData $data
      *
      * @return Users
      */
-    public function execute(): Users
+    public function execute() : Users
     {
         $user = Users::where(
             [
@@ -60,7 +59,7 @@ class RegisterUsersAction
         $user->banned = StateEnums::NO->getValue();
         $user->user_login_tries = 0;
         $user->user_last_login_try = 0;
-        $user->default_company = $user->default_company ?? '';
+        $user->default_company = $user->default_company ?? StateEnums::NO->getValue();
         $user->session_time = time();
         $user->session_page = '';
         $user->password = $this->data->password;

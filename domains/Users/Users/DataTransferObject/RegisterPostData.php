@@ -23,7 +23,7 @@ class RegisterPostData extends DataTransferObject
      * @param string $displayname
      * @param string $email
      * @param string $password
-     * @param string $default_company
+     * @param string|null $default_company
      */
     public function __construct(
         public string $firstname,
@@ -31,7 +31,7 @@ class RegisterPostData extends DataTransferObject
         public string $displayname,
         public string $email,
         public string $password,
-        public string $default_company,
+        public ?string $default_company = null,
     ) {
     }
 
@@ -50,7 +50,7 @@ class RegisterPostData extends DataTransferObject
             displayname: $request->get('displayname') ?? Random::generateDisplayName( $request->get('email')),
             email: $request->get('email'),
             password: Hash::make($request->get('password')),
-            default_company: $request->get('default_company') ?? '',
+            default_company: $request->get('default_company') ?? null,
         );
     }
 
@@ -68,7 +68,7 @@ class RegisterPostData extends DataTransferObject
             displayname: $request['displayname'] ?? Random::generateDisplayName( $request['email']),
             email: $request['email'],
             password: Hash::make($request['password']),
-            default_company: $request['default_company'] ?? ''
+            default_company: $request['default_company'] ?? null
         );
     }
 }
