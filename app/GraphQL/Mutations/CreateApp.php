@@ -16,7 +16,7 @@ final class CreateApp
     {
         // TODO implement the resolver
         $request = $request['input'];
-        $data = [
+        $dto = AppsPostData::fromArray([
             'name' => $request['name'],
             'url' => $request['url'],
             'description' => $request['description'],
@@ -26,9 +26,8 @@ final class CreateApp
             'payments_active' => $request['payments_active'],
             'is_public' => $request['is_public'],
             'domain_based' => $request['domain_based']
-        ];
-        $dto = AppsPostData::fromArray($data);
+        ]);
         $action = new  CreateAppsAction($dto);
-       return $action->execute();
+        return $action->execute();
     }
 }

@@ -1,5 +1,4 @@
 <?php
-
 namespace App\GraphQL\Mutations;
 
 use Kanvas\Apps\Apps\DataTransferObject\AppsPutData;
@@ -15,7 +14,7 @@ final class UpdateApp
     {
         // TODO implement the resolver\
         $input = $request['input'];
-        $data = [
+        $dto = AppsPutData::fromArray([
             'name' => $input['name'],
             'url' => $input['url'],
             'description' => $input['description'],
@@ -25,8 +24,7 @@ final class UpdateApp
             'payments_active' => $input['payments_active'],
             'is_public' => $input['is_public'],
             'domain_based' => $input['domain_based']
-        ];
-        $dto = AppsPutData::fromArray($data);
+        ]);
         $action = new UpdateAppsAction($dto);
         return $action->execute($request['id']);
     }

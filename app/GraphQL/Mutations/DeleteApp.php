@@ -1,5 +1,4 @@
 <?php
-
 namespace App\GraphQL\Mutations;
 
 use Kanvas\Apps\Apps\Models\Apps;
