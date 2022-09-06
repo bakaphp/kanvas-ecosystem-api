@@ -15,17 +15,16 @@ final class CreateApp
     public function __invoke($_, array $request)
     {
         // TODO implement the resolver
-        $request = $request['input'];
         $dto = AppsPostData::fromArray([
-            'name' => $request['name'],
-            'url' => $request['url'],
-            'description' => $request['description'],
-            'domain' => $request['domain'],
-            'is_actived' => $request['is_actived'],
-            'ecosystem_auth' => $request['ecosystem_auth'],
-            'payments_active' => $request['payments_active'],
-            'is_public' => $request['is_public'],
-            'domain_based' => $request['domain_based']
+            'name' => $request['input']['name'],
+            'url' => $request['input']['url'],
+            'description' => $request['input']['description'],
+            'domain' => $request['input']['domain'],
+            'is_actived' => $request['input']['is_actived'],
+            'ecosystem_auth' => $request['input']['ecosystem_auth'],
+            'payments_active' => $request['input']['payments_active'],
+            'is_public' => $request['input']['is_public'],
+            'domain_based' => $request['input']['domain_based']
         ]);
         $action = new  CreateAppsAction($dto);
         return $action->execute();

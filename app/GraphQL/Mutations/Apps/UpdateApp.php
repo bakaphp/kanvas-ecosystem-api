@@ -13,17 +13,16 @@ final class UpdateApp
     public function __invoke($_, array $request)
     {
         // TODO implement the resolver\
-        $input = $request['input'];
         $dto = AppsPutData::fromArray([
-            'name' => $input['name'],
-            'url' => $input['url'],
-            'description' => $input['description'],
-            'domain' => $input['domain'],
-            'is_actived' => $input['is_actived'],
-            'ecosystem_auth' => $input['ecosystem_auth'],
-            'payments_active' => $input['payments_active'],
-            'is_public' => $input['is_public'],
-            'domain_based' => $input['domain_based']
+            'name' => $request['input']['name'],
+            'url' => $request['input']['url'],
+            'description' => $request['input']['description'],
+            'domain' => $request['input']['domain'],
+            'is_actived' => $request['input']['is_actived'],
+            'ecosystem_auth' => $request['input']['ecosystem_auth'],
+            'payments_active' => $request['input']['payments_active'],
+            'is_public' => $request['input']['is_public'],
+            'domain_based' => $request['input']['domain_based']
         ]);
         $action = new UpdateAppsAction($dto);
         return $action->execute($request['id']);
