@@ -12,6 +12,8 @@ type App {
     is_public: Int
     domain_based: Int
     is_deleted: Int!
+    created_at: String!
+    updated_at: String!
 }
 
 extend type Query {
@@ -52,7 +54,7 @@ input AppInput {
 }
 
 extend type Mutation {
-    createApp(input: CreateAppInput): App!
+    createApp(input: AppInput): App!
     updateApp(id: Int!,input: AppInput): App
     deleteApp(id: Int!): App
 }
