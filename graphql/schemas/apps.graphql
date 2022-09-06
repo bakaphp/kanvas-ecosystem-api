@@ -5,7 +5,7 @@ type App {
     url: String
     domain: String
     default_apps_plan_id: Int
-    is_active: Int 
+    is_actived: Int 
     key: String
     payments_active: Int
     ecosystem_auth: Int
@@ -54,7 +54,7 @@ input AppInput {
 }
 
 extend type Mutation {
-    createApp(input: AppInput): App!
-    updateApp(id: Int!,input: AppInput): App
-    deleteApp(id: Int!): App
+    createApp(input: AppInput): App! @field(resolver:"App\\GraphQL\\Mutations\\Apps\\CreateApp")
+    updateApp(id: Int!,input: AppInput): App @field(resolver:"App\\GraphQL\\Mutations\\Apps\\UpdateApp")
+    deleteApp(id: Int!): App @field(resolver:"App\\GraphQL\\Mutations\\Apps\\DeleteApp")
 }

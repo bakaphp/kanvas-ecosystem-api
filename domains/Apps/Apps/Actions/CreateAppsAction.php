@@ -27,7 +27,17 @@ class CreateAppsAction
     public function execute() : Apps
     {
         $app = new Apps();
-        $app->fill($this->data->spitFilledAsArray());
+        $app->fill([
+            'name' => $this->data->name,
+            'url' => $this->data->url,
+            'description' => $this->data->description,
+            'domain' => $this->data->domain,
+            'is_actived' => $this->data->is_actived,
+            'ecosystem_auth' => $this->data->ecosystem_auth,
+            'payments_active' => $this->data->payments_active,
+            'is_public' => $this->data->is_public,
+            'domain_based' => $this->data->domain_based
+        ]);
         $app->saveOrFail();
         return $app;
     }

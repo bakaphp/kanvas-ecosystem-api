@@ -1,5 +1,5 @@
 <?php
-namespace App\GraphQL\Mutations;
+namespace App\GraphQL\Mutations\Apps;
 
 use Kanvas\Apps\Apps\Models\Apps;
 use Kanvas\Apps\Apps\DataTransferObject\AppsPostData;
