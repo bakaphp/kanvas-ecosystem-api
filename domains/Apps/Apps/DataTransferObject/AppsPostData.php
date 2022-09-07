@@ -28,7 +28,7 @@ class AppsPostData extends BaseDataTransferObject
      */
     public function __construct(
         public string $name,
-        public string $url,
+        public ?string $url = null,
         public string $description,
         public string $domain,
         public int $is_actived,
@@ -91,7 +91,7 @@ class AppsPostData extends BaseDataTransferObject
      * @return self
      */
     public static function fromArray(array $data): self
-    {
+    {   
         return new self(
             name: $data['name'],
             url: $data['url'],
