@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace App\GraphQL\Mutations\Ecosystem\Apps;
+namespace App\GraphQL\Ecosystem\Mutations\Apps;
 
 use Kanvas\Apps\Apps\Models\Apps;
 use Kanvas\Apps\Apps\DataTransferObject\AppsPostData;

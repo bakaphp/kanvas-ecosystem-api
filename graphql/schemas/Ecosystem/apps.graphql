@@ -54,7 +54,7 @@ input AppInput {
 }
 
 extend type Mutation {
-    createApp(input: AppInput): App! @field(resolver:"App\\GraphQL\\Mutations\\Ecosystem\\Apps\\CreateApp")
-    updateApp(id: Int!,input: AppInput): App @field(resolver:"App\\GraphQL\\Mutations\\Ecosystem\\Apps\\UpdateApp")
-    deleteApp(id: Int!): App @field(resolver:"App\\GraphQL\\Mutations\\Ecosystem\\Apps\\DeleteApp")
+    createApp(input: AppInput): App! @field(resolver:"App\\GraphQL\\Ecosystem\\Mutations\\Apps\\CreateApp")
+    updateApp(id: Int!,input: AppInput): App @field(resolver:"App\\GraphQL\\Ecosystem\\Mutations\\Apps\\UpdateApp")
+    deleteApp(id: Int!): App @field(resolver:"App\\GraphQL\\Ecosystem\\Mutations\\Apps\\DeleteApp")
 }
