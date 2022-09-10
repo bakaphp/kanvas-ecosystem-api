@@ -49,8 +49,8 @@ input RegisterInput {
 }
 
 extend type Mutation {
-    login(data: LoginInput!): TokenResponse! @field(resolver: "App\\GraphQL\\Resolvers\\Auth\\Login@resolve")
-    register(data: RegisterInput!): RegisterResponse! @field(resolver: "App\\GraphQL\\Resolvers\\Auth\\Register@resolve")
+    login(data: LoginInput!): TokenResponse! @field(resolver: "App\\GraphQL\\Mutations\\Ecosystem\\Auth\\Login@resolve")
+    register(data: RegisterInput!): RegisterResponse! @field(resolver: "App\\GraphQL\\Mutations\\Ecosystem\\Auth\\Register@resolve")
 }
 
 type Query @guard {

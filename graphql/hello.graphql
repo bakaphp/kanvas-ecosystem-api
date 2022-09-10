@@ -1,4 +1,3 @@
-extend type Query  {
-  hello: String! #@guard
-
+extend type Query @namespace(field: "App\\GraphQL\\Ecosystem\\Queries") {
+    hello: String!
 }

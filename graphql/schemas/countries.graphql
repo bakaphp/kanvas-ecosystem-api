@@ -58,7 +58,7 @@ extend type Mutation {
     code: String!
     flag: String
     states: [CreateStateInput]
-  ): Country!
+  ): Country! @field(resolver:"App\\GraphQL\\Mutations\\Ecosystem\\Locations\\CreateCountry")
   updateCountry(id: Int!, name: String!, code: String!, flag: String): Country @update(model: "\\Kanvas\\Locations\\Countries\\Models\\Countries")
   deleteCountry(
     id: Int!

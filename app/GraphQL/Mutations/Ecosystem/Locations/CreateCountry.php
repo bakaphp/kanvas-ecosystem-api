@@ -1,6 +1,6 @@
 <?php
 
-namespace App\GraphQL\Mutations;
+namespace App\GraphQL\Mutations\Ecosystem\Locations;
 
 use Illuminate\Support\Arr;
 use Kanvas\Locations\Countries\Models\Countries;

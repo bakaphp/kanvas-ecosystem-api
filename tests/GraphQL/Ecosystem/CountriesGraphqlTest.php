@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Tests\GraphQL;
+namespace Tests\GraphQL\Ecosystem;
 
 use Kanvas\Locations\Countries\Models\Countries;
 use Kanvas\Locations\States\Models\States;
