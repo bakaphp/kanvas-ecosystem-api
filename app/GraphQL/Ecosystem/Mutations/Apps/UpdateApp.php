@@ -1,5 +1,7 @@
 <?php
-namespace App\GraphQL\Mutations\Apps;
+declare(strict_types=1);
+
+namespace App\GraphQL\Ecosystem\Mutations\Apps;
 
 use Kanvas\Apps\Apps\DataTransferObject\AppsPutData;
 use Kanvas\Apps\Apps\Actions\UpdateAppsAction;

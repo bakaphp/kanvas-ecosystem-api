@@ -28,9 +28,9 @@ return [
          * make sure to return spec-compliant responses in case an error is thrown.
          */
         'middleware' => [
-           \Nuwave\Lighthouse\Support\Http\Middleware\AttemptAuthentication::class,
+            \Nuwave\Lighthouse\Support\Http\Middleware\AttemptAuthentication::class,
             //  \App\Http\Middleware\Authentication::class,
-          //  \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            //  \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             \Nuwave\Lighthouse\Support\Http\Middleware\AcceptJson::class,
 
             // Logs in a user if they are authenticated. In contrast to Laravel's 'auth'
@@ -172,15 +172,58 @@ return [
     */
 
     'namespaces' => [
-        'models' => ['App', 'App\\Models'],
-        'queries' => 'App\\GraphQL\\Queries',
-        'mutations' => 'App\\GraphQL\\Mutations',
-        'subscriptions' => 'App\\GraphQL\\Subscriptions',
-        'interfaces' => 'App\\GraphQL\\Interfaces',
-        'unions' => 'App\\GraphQL\\Unions',
-        'scalars' => 'App\\GraphQL\\Scalars',
-        'directives' => ['App\\GraphQL\\Directives'],
-        'validators' => ['App\\GraphQL\\Validators'],
+        'models' => [
+            'App',
+            'App\\Models'
+        ],
+        'queries' => [
+            'App\\GraphQL\\Ecosystem\\Queries',
+            'App\\GraphQL\\CRM\\Queries',
+            'App\\GraphQL\\Social\\Queries',
+            'App\\GraphQL\\Inventory\\Queries'
+        ],
+        'mutations' => [
+            'App\\GraphQL\\Ecosystem\\Mutations',
+            'App\\GraphQL\\CRM\\Mutations',
+            'App\\GraphQL\\Social\\Mutations',
+            'App\\GraphQL\\Inventory\\Mutations',
+        ],
+        'subscriptions' => [
+            'App\\GraphQL\\Ecosystem\\Subscriptions',
+            'App\\GraphQL\\CRM\\Subscriptions',
+            'App\\GraphQL\\Social\\Subscriptions',
+            'App\\GraphQL\\Inventory\\Subscriptions',
+        ],
+        'interfaces' => [
+            'App\\GraphQL\\Ecosystem\\Interfaces',
+            'App\\GraphQL\\CRM\\Interfaces',
+            'App\\GraphQL\\Social\\Interfaces',
+            'App\\GraphQL\\Inventory\\Interfaces',
+        ],
+        'unions' => [
+            'App\\GraphQL\\Ecosystem\\Unions',
+            'App\\GraphQL\\CRM\\Unions',
+            'App\\GraphQL\\Social\\Unions',
+            'App\\GraphQL\\Inventory\\Unions',
+        ],
+        'scalars' => [
+            'App\\GraphQL\\Ecosystem\\Scalars',
+            'App\\GraphQL\\CRM\\Scalars',
+            'App\\GraphQL\\Social\\Scalars',
+            'App\\GraphQL\\Inventory\\Scalars',
+        ],
+        'directives' => [
+            'App\\GraphQL\\Ecosystem\\Directives',
+            'App\\GraphQL\\CRM\\Directives',
+            'App\\GraphQL\\Social\\Directives',
+            'App\\GraphQL\\Inventory\\Directives',
+        ],
+        'validators' => [
+            'App\\GraphQL\\Ecosystem\\Validators',
+            'App\\GraphQL\\CRM\\Validators',
+            'App\\GraphQL\\Social\\Validators',
+            'App\\GraphQL\\Inventory\\Validators',
+        ],
     ],
 
     /*

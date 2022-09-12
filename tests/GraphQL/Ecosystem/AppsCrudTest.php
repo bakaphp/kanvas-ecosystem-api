@@ -1,11 +1,12 @@
 <?php
 declare(strict_types=1);
-namespace Tests\GraphQL;
+
+namespace Tests\GraphQL\Ecosystem;
 
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Kanvas\Apps\Apps\Models\Apps;
 use Nuwave\Lighthouse\Testing\MakesGraphQLRequests;
 use Tests\CreatesApplication;
-use Kanvas\Apps\Apps\Models\Apps;
 
 class AppsCrudTest extends BaseTestCase
 {
@@ -80,13 +81,14 @@ class AppsCrudTest extends BaseTestCase
         );
         $this->assertArrayHasKey('data', $response);
     }
-    
+
     /**
-     * test_updated
+     * test_updated.
      *
      * @return void
      */
-    public function test_updated() {
+    public function test_updated()
+    {
         $apps = Apps::orderBy('id', 'desc')->first();
         $input = [
             'name' => fake()->name,
@@ -104,7 +106,7 @@ class AppsCrudTest extends BaseTestCase
                 $input: AppInput!
             ){
                 updateApp(
-                    id: '.$apps->id.',
+                    id: ' . $apps->id . ',
                     input: $input
                 ) {
                     id

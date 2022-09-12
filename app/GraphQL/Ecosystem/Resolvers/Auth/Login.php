@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace App\GraphQL\Resolvers\Auth;
+namespace App\GraphQL\Ecosystem\Resolvers\Auth;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Kanvas\Auth\Traits\AuthTrait;

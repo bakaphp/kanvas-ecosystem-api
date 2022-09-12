@@ -39,7 +39,9 @@
     "autoload": {
         "psr-4": {
             "App\\": "app/",
-            "Kanvas\\": "domains/",
+            "Kanvas\\": "src/Kanvas",
+            "Baka\\": "src/Baka",
+            "Domains\\": "src/Domains",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }
