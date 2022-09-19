@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-
 namespace Kanvas\Users\Users\DataTransferObject;
 
 use Spatie\DataTransferObject\DataTransferObject;

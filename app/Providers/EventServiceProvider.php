@@ -6,6 +6,16 @@ namespace App\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Event;
+use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\Apps\Apps\Observers\AppsObserver;
+use Kanvas\Companies\Companies\Events\AfterSignupEvent;
+use Kanvas\Companies\Companies\Listeners\AfterSignupListener;
+use Kanvas\Companies\Companies\Models\Companies;
+use Kanvas\Companies\Companies\Observers\CompaniesObserver;
+use Kanvas\Companies\Groups\Models\CompaniesGroups;
+use Kanvas\Companies\Groups\Observers\CompaniesGroupsObserver;
+use Kanvas\Users\Users\Models\Users;
+use Kanvas\Users\Users\Observers\UsersObserver;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -15,8 +25,8 @@ class EventServiceProvider extends ServiceProvider
      * @var array<class-string, array<int, class-string>>
      */
     protected $listen = [
-        \Kanvas\Companies\Companies\Events\AfterSignupEvent::class => [
-            \Kanvas\Companies\Companies\Listeners\AfterSignupListener::class,
+        AfterSignupEvent::class => [
+            AfterSignupListener::class,
         ]
     ];
 
@@ -27,21 +37,10 @@ class EventServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        \Kanvas\Apps\Apps\Models\Apps::observe(
-            \Kanvas\Apps\Apps\Observers\AppsObserver::class
-        );
-
-        \Kanvas\Users\Users\Models\Users::observe(
-            \Kanvas\Users\Users\Observers\UsersObserver::class
-        );
-
-        \Kanvas\Companies\Companies\Models\Companies::observe(
-            \Kanvas\Companies\Companies\Observers\CompaniesObserver::class
-        );
-
-        \Kanvas\Companies\Groups\Models\CompaniesGroups::observe(
-            \Kanvas\Companies\Groups\Observers\CompaniesGroupsObserver::class
-        );
+        Apps::observe(AppsObserver::class);
+        Users::observe(UsersObserver::class);
+        Companies::observe(CompaniesObserver::class);
+        CompaniesGroups::observe(CompaniesGroupsObserver::class);
     }
 
     /**

@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Kanvas\Enums;
 
@@ -16,7 +17,12 @@ enum StateEnums implements EnumsInterface
     case NO_STRING;
     case EMPTY_STRING;
 
-    public function getValue(): mixed
+    /**
+     * Get value
+     *
+     * @return mixed
+     */
+    public function getValue() : mixed
     {
         return match ($this) {
             self::ON => 1,

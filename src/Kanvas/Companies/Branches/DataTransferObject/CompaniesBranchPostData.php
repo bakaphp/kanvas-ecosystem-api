@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Companies\Companies\DataTransferObject;
+namespace Kanvas\Companies\Branches\DataTransferObject;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Contracts\DataTransferObject\BaseDataTransferObject;
 
 /**
- * CompaniesPostData class.
+ * CompaniesBranchPostData class.
  */
-class CompaniesPostData extends BaseDataTransferObject
+class CompaniesBranchPostData extends BaseDataTransferObject
 {
     /**
      * Construct function.
@@ -22,16 +22,13 @@ class CompaniesPostData extends BaseDataTransferObject
      */
     public function __construct(
         public string $name,
+        public int $companies_id,
         public int $users_id,
+        public int $is_default = 0,
         public ?string $email = null,
-        public ?string $phone = null,
-        public ?int $currency_id = null,
-        public ?string $website = null,
         public ?string $address = null,
+        public ?string $phone = null,
         public ?string $zipcode = null,
-        public ?string $language = null,
-        public ?string $timezone = null,
-        public ?string $country_code = null,
     ) {
     }
 
@@ -45,23 +42,11 @@ class CompaniesPostData extends BaseDataTransferObject
     public static function fromRequest(Request $request) : self
     {
         return new self(
-            users_id: Auth::user()->id,
             name: $request->get('name'),
-        );
-    }
-
-    /**
-     * Create new instance of DTO from Console Command.
-     *
-     * @param array $data Input data
-     *
-     * @return self
-     */
-    public static function fromConsole(array $data) : self
-    {
-        return new self(
-            name: $data['name'],
-            users_id : $data['users_id']
+            companies_id: (int) $request->get('companies_id'),
+            users_id: Auth::user()->id,
+            is_default: (int) $request->get('is_default'),
+            email : $request->get('email')
         );
     }
 
@@ -76,7 +61,10 @@ class CompaniesPostData extends BaseDataTransferObject
     {
         return new self(
             name: $data['name'],
-            users_id : $data['users_id']
+            users_id : $data['users_id'],
+            companies_id : (int) $data['companies_id'],
+            is_default : (int) $data['is_default'],
+            email : $data['email'],
         );
     }
 }

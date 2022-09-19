@@ -28,6 +28,15 @@ class CreateCompaniesAction
     {
         $companies = new Companies();
         $companies->name = $this->data->name;
+        $companies->users_id = $this->data->users_id;
+        $companies->website = $this->data->website;
+        $companies->phone = $this->data->phone;
+        $companies->address = $this->data->address;
+        $companies->zipcode = $this->data->zipcode;
+        $companies->email = $this->data->email;
+        $companies->phone = $this->data->phone;
+        $companies->currency_id = $this->data->currency_id;
+        $companies->country_code = $this->data->country_code;
         $companies->saveOrFail();
 
         return $companies;

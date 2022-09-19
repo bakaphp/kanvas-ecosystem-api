@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Companies\Companies\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Apps\Models\Apps;
 use Kanvas\Companies\Branches\Models\CompaniesBranches;
 use Kanvas\Companies\Companies\Enums\Defaults;
 use Kanvas\Companies\Companies\Factories\CompaniesFactory;
 use Kanvas\Companies\Groups\Models\CompaniesGroups;
+use Kanvas\Enums\StateEnums;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Traits\UsersAssociatedTrait;
@@ -70,6 +72,16 @@ class Companies extends BaseModel
     public function branches()
     {
         return $this->hasMany(CompaniesBranches::class, 'companies_id');
+    }
+
+    /**
+     * Default Branch
+     *
+     * @return HasOne
+     */
+    public function defaultBranch() : HasOne
+    {
+        return $this->hasOne(CompaniesBranches::class, 'companies_id')->where('is_default', StateEnums::YES->getValue());
     }
 
     /**

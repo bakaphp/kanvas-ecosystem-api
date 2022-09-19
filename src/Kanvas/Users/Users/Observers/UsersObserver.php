@@ -2,15 +2,16 @@
 
 namespace Kanvas\Users\Users\Observers;
 
-use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Str;
+use Kanvas\Companies\Companies\Actions\CreateCompaniesAction;
+use Kanvas\Companies\Companies\DataTransferObject\CompaniesPostData;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Users\Models\Users;
 
 class UsersObserver
 {
     /**
-     * Before create.
+     * After Create.
      *
      * @param Users $user
      *
@@ -18,10 +19,25 @@ class UsersObserver
      */
     public function created(Users $user) : void
     {
-        //for now
+        if ($user->isFirstSignup()) {
+            //create company
+            $createCompany = new CreateCompaniesAction(
+                new CompaniesPostData(
+                    $user->defaultCompanyName ?? $user->displayname . 'CP',
+                    $user->id,
+                    $user->email
+                )
+            );
 
+            $company = $createCompany->execute();
 
-        //create company
+            $user->default_company = $company->id;
+            $user->default_company_branch = $company->defaultBranch()->first()->id;
+            $user->saveOrFail();
+
+            //set default values for current sesion
+        } else {
+        }
     }
 
     /**
@@ -34,6 +50,6 @@ class UsersObserver
     public function saving(Users $user) : void
     {
         $user->uuid = Str::uuid()->toString();
-        $user->system_modules_id = SystemModules::first()->id;
+        //$user->system_modules_id = SystemModules::first()->id;
     }
 }

@@ -77,6 +77,8 @@ class Users extends Authenticatable
     use HasFactory;
     use HasApiTokens;
 
+    protected ?string $defaultCompanyName = null;
+
     /**
      * The table associated with the model.
      *
