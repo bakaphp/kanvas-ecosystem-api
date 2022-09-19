@@ -18,7 +18,7 @@ class AppsCrudTest extends BaseTestCase
         $input = [
             'name' => fake()->name,
             'url' => fake()->url,
-            'description' => substr(fake()->text, 0, 44),
+            'description' => trim(substr(fake()->text, 0, 44)),
             'domain' => fake()->safeEmailDomain,
             'is_actived' => 1,
             'ecosystem_auth' => 0,
