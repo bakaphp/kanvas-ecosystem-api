@@ -9,6 +9,7 @@ use Kanvas\Companies\Branches\Actions\CreateCompanyBranchActions;
 use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPostData;
 use Kanvas\Companies\Companies\Models\Companies;
 use Kanvas\Companies\Companies\Repositories\CompaniesRepository;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 
 class CompaniesObserver
@@ -37,7 +38,7 @@ class CompaniesObserver
         //CompaniesRepository::createBranch($company);
         $createCompanyBranch = new CreateCompanyBranchActions(
             new CompaniesBranchPostData(
-                'Default',
+                AppEnums::DEFAULT_NAME->getValue(),
                 $company->id,
                 $company->users_id,
                 StateEnums::YES->getValue(),

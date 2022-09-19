@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Companies\Companies\Actions;
 
+use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\Companies\DataTransferObject\CompaniesPostData;
 use Kanvas\Companies\Companies\Models\Companies;
@@ -21,7 +22,8 @@ final class CreateCompaniesActionTest extends TestCase
         $faker = \Faker\Factory::create();
         $user = Users::factory(1)->create()->first();
         $data = [
-            'name' => $faker->company
+            'name' => $faker->company,
+            'users_id' => Auth::user()->id
         ];
         //Create new AppsPostData
         $dtoData = CompaniesPostData::fromArray($data);

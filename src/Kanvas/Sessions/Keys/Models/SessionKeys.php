@@ -26,6 +26,8 @@ class SessionKeys extends BaseModel
      */
     protected $table = 'session_keys';
 
+    protected $attributes = [];
+
     /**
      * Sessions relationship.
      *
