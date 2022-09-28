@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace Kanvas\Users\Users\Actions;
 
 use Illuminate\Auth\AuthenticationException;
@@ -11,6 +10,7 @@ use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Users\DataTransferObject\RegisterPostData;
 use Kanvas\Users\Users\Models\Users;
+use Kanvas\Notifications\Templates\UserSignUp;
 
 class RegisterUsersAction
 {
@@ -66,7 +66,7 @@ class RegisterUsersAction
         $user->language = $user->language ?: Defaults::DEFAULT_LANGUAGE->getValue();
         $user->user_activation_key = Hash::make(time());
         $user->saveOrFail();
-
+        $user->notify(new UserSignUp($user));
         return $user;
     }
 }

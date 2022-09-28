@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace Kanvas\Templates\Models;
 
 use Kanvas\Models\BaseModel;
@@ -59,5 +58,19 @@ class Templates extends BaseModel
     public function app() : BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
+    }
+    
+    /**
+     * getByName
+     *
+     * @param  string $name
+     * @return Templates
+     */
+    public function getByName(string $name) : Templates
+    {
+        return self::where('name', $name)
+                ->where('is_deleted', 0)
+                // ->where('apps_id', $this->app->id)
+                ->first();
     }
 }
