@@ -1,10 +1,9 @@
-
 type Country {
-  id: Int!
-  name: String!
-  code: String!
-  flag: String!
-  states: [States]
+    id: Int!
+    name: String!
+    code: String!
+    flag: String!
+    states: [States]
 }
 type States {
     id: Int!
@@ -17,50 +16,60 @@ type States {
     is_deleted: Boolean!
 }
 type Cities {
-  id: Int!
-  name: String!
-  country: Country!
-  countries_id: Int!
-  states_id: Int!
-  latitude: Float
-  longitude: Float
+    id: Int!
+    name: String!
+    country: Country!
+    countries_id: Int!
+    states_id: Int!
+    latitude: Float
+    longitude: Float
 }
 extend type Query {
     countries(
         orderBy: _ @orderBy(columns: ["id", "created_at"])
         where: _ @whereConditions(columns: ["name", "code", "flag", "id"])
-        hasStates: _@whereHasConditions(columns: ["name"])
-        hasCities: _@whereHasConditions(columns: ["name"])
-    ): [Country] @paginate(model: "\\Kanvas\\Locations\\Countries\\Models\\Countries" )
-    country(id: Int! @eq): Country @find(model: "\\Kanvas\\Locations\\Countries\\Models\\Countries")
+        hasStates: _ @whereHasConditions(columns: ["name"])
+        hasCities: _ @whereHasConditions(columns: ["name"])
+    ): [Country]
+        @paginate(model: "\\Kanvas\\Locations\\Countries\\Models\\Countries")
+    country(id: Int! @eq): Country
+        @find(model: "\\Kanvas\\Locations\\Countries\\Models\\Countries")
 }
 
 input CreateCountryInput {
-  name: String!
-  code: String!
-  flag: String
-  created_at: String!
-}
-input CreateStateInput {
-  name: String!
-  code: String!,
-  cities: [CreateCityInput]
-}
-input CreateCityInput {
-  name: String!
-  latitude: Float
-  longitude: Float
-}
-
-extend type Mutation {
-  createCountry(
     name: String!
     code: String!
     flag: String
-    states: [CreateStateInput]
-  ): Country! @field(resolver:"App\\GraphQL\\Ecosystem\\Mutations\\Locations\\CreateCountry")
-  updateCountry(id: Int!, name: String!, code: String!, flag: String): Country @update(model: "\\Kanvas\\Locations\\Countries\\Models\\Countries")
-  deleteCountry(
-    id: Int!
-  ): Country! @delete(model: "\\Kanvas\\Locations\\Countries\\Models\\Countries")
+    created_at: String!
+}
+input CreateStateInput {
+    name: String!
+    code: String!
+    cities: [CreateCityInput]
+}
+input CreateCityInput {
+    name: String!
+    latitude: Float
+    longitude: Float
+}
+
+extend type Mutation {
+    createCountry(
+        name: String!
+        code: String!
+        flag: String
+        states: [CreateStateInput]
+    ): Country!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Locations\\CreateCountry"
+        )
+    updateCountry(
+        id: Int!
+        name: String!
+        code: String!
+        flag: String
+    ): Country
+        @update(model: "\\Kanvas\\Locations\\Countries\\Models\\Countries")
+    deleteCountry(id: Int!): Country!
+        @delete(model: "\\Kanvas\\Locations\\Countries\\Models\\Countries")
 }

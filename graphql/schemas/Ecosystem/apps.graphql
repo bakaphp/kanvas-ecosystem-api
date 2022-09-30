@@ -18,24 +18,24 @@ type App {
 
 extend type Query {
     apps(
-        where: _@whereConditions(
-            columns: [
-                "id",
-                "name",
-                "description",
-                "url",
-                "domain",
-                "default_apps_plan_id",
-                "is_active",
-                "key",
-                "payments_active",
-                "ecosystem_auth",
-                "is_public",
-                "domain_based"
-            ]
-        )
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "description"
+                    "url"
+                    "domain"
+                    "default_apps_plan_id"
+                    "is_active"
+                    "key"
+                    "payments_active"
+                    "ecosystem_auth"
+                    "is_public"
+                    "domain_based"
+                ]
+            )
         orderBy: _ @orderBy(columns: ["id"])
-
     ): [App] @paginate(model: "Kanvas\\Apps\\Apps\\Models\\Apps")
 }
 
@@ -54,7 +54,10 @@ input AppInput {
 }
 
 extend type Mutation {
-    createApp(input: AppInput): App! @field(resolver:"App\\GraphQL\\Ecosystem\\Mutations\\Apps\\CreateApp")
-    updateApp(id: Int!,input: AppInput): App @field(resolver:"App\\GraphQL\\Ecosystem\\Mutations\\Apps\\UpdateApp")
-    deleteApp(id: Int!): App @field(resolver:"App\\GraphQL\\Ecosystem\\Mutations\\Apps\\DeleteApp")
+    createApp(input: AppInput): App!
+        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\CreateApp")
+    updateApp(id: Int!, input: AppInput): App
+        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\UpdateApp")
+    deleteApp(id: Int!): App
+        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\DeleteApp")
 }
