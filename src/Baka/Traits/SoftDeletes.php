@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Kanvas\Traits;
+namespace Baka\Traits;
 
 use Illuminate\Database\Eloquent\SoftDeletes as EloquentSoftDeletes;
 

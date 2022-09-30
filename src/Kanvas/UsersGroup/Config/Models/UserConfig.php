@@ -24,6 +24,9 @@ class UserConfig extends BaseModel
      */
     protected $table = 'user_config';
 
+    protected $attributes = [
+    ];
+
     /**
      * Users relationship.
      *

@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Kanvas\CompanyGroup\Branches\Models\CompaniesBranches;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
-use Kanvas\Traits\HashTableTrait;
+use Baka\Traits\HashTableTrait;
 use Kanvas\Traits\PermissionsTrait;
 use Kanvas\Traits\UsersAssociatedTrait;
 use Kanvas\UsersGroup\Config\Models\UserConfig;
