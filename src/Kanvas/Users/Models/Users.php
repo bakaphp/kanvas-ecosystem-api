@@ -185,6 +185,7 @@ class Users extends Authenticatable
     protected function createSettingsModel() : void
     {
         $this->settingsModel = new UserConfig();
+
     }
 
     /**

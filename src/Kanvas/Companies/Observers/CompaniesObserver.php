@@ -71,5 +71,9 @@ class CompaniesObserver
             $assignRole = new AssignRole($user, $company, $app);
             $assignRole->execute(AppEnums::DEFAULT_ROLE_NAME->getValue());
         }
+
+        if (!$user->get(Companies::cacheKey())) {
+            $user->set(Companies::cacheKey(), $company->id);
+        }
     }
 }

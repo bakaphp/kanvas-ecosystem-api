@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Traits;
 
-use Exception;
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\Utils\Str;
 use RuntimeException;
 
 trait HashTableTrait
 {
-    protected $settingsModel;
+    protected ?Model $settingsModel = null;
 
     /**
      * Get the primary key of this model, this will only work on model with just 1 primary key.
@@ -47,8 +47,7 @@ trait HashTableTrait
         $this->createSettingsModel();
 
         if (!is_object($this->settingsModel)) {
-            // throw new RuntimeException('ModelSettingsTrait need to have a settings model configure, check the model setting exists for this class' . get_class($this));
-            throw new Exception('ModelSettingsTrait need to have a settings model configure, check the model setting exists for this class' . get_class($this));
+            throw new RuntimeException('ModelSettingsTrait need to have a settings model configure, check the model setting exists for this class' . get_class($this));
         }
 
         //if we don't find it we create it
@@ -69,12 +68,14 @@ trait HashTableTrait
 
     /**
      * Get the settings by its key.
+     *
+     * @return mixed
      */
-    protected function getSettingsByKey(string $key)
+    protected function getSettingsByKey(string $key) : mixed
     {
         return $this->settingsModel
-        ->where($this->getSettingsPrimaryKey(), $this->getKey())
-        ->where('name', $key)->first();
+            ->where($this->getSettingsPrimaryKey(), $this->getKey())
+            ->where('name', $key)->first();
     }
 
     /**
@@ -106,7 +107,7 @@ trait HashTableTrait
      *
      * @return mixed
      */
-    public function get(string $key)
+    public function get(string $key) : mixed
     {
         $this->createSettingsModel();
         $value = $this->getSettingsByKey($key);
