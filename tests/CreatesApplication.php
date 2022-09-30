@@ -4,7 +4,7 @@ namespace Tests;
 
 use Illuminate\Contracts\Console\Kernel;
 use Kanvas\Apps\Apps\Models\Apps;
-use Kanvas\Users\Users\Models\Users;
+use Kanvas\UsersGroup\Users\Models\Users;
 
 /**
  * Create Application trait.

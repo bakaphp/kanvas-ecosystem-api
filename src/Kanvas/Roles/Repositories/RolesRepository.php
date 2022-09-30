@@ -7,7 +7,7 @@ namespace Kanvas\Roles\Repositories;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Apps\Enums\Defaults as AppsDefaults;
 use Kanvas\Apps\Apps\Models\Apps;
-use Kanvas\Companies\Companies\Models\Companies;
+use Kanvas\CompanyGroup\Companies\Models\Companies;
 use Kanvas\Roles\Models\Roles;
 
 class RolesRepository

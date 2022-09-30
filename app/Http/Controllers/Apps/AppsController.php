@@ -15,7 +15,7 @@ use Kanvas\Apps\Apps\DataTransferObject\CollectionResponseData;
 use Kanvas\Apps\Apps\DataTransferObject\SingleResponseData;
 use Kanvas\Apps\Apps\Models\Apps;
 use Kanvas\Enums\HttpDefaults;
-use Kanvas\Users\Users\Models\Users;
+use Kanvas\UsersGroup\Users\Models\Users;
 
 class AppsController extends BaseController
 {

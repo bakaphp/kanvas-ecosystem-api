@@ -8,14 +8,14 @@ use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvi
 use Illuminate\Support\Facades\Event;
 use Kanvas\Apps\Apps\Models\Apps;
 use Kanvas\Apps\Apps\Observers\AppsObserver;
-use Kanvas\Companies\Companies\Events\AfterSignupEvent;
-use Kanvas\Companies\Companies\Listeners\AfterSignupListener;
-use Kanvas\Companies\Companies\Models\Companies;
-use Kanvas\Companies\Companies\Observers\CompaniesObserver;
-use Kanvas\Companies\Groups\Models\CompaniesGroups;
-use Kanvas\Companies\Groups\Observers\CompaniesGroupsObserver;
-use Kanvas\Users\Users\Models\Users;
-use Kanvas\Users\Users\Observers\UsersObserver;
+use Kanvas\CompanyGroup\Companies\Events\AfterSignupEvent;
+use Kanvas\CompanyGroup\Companies\Listeners\AfterSignupListener;
+use Kanvas\CompanyGroup\Companies\Models\Companies;
+use Kanvas\CompanyGroup\Companies\Observers\CompaniesObserver;
+use Kanvas\CompanyGroup\Groups\Models\CompaniesGroups;
+use Kanvas\CompanyGroup\Groups\Observers\CompaniesGroupsObserver;
+use Kanvas\UsersGroup\Users\Models\Users;
+use Kanvas\UsersGroup\Users\Observers\UsersObserver;
 
 class EventServiceProvider extends ServiceProvider
 {

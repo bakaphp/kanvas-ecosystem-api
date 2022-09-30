@@ -12,8 +12,8 @@ use Illuminate\Validation\Rules\Password;
 use Kanvas\Apps\Apps\Models\Apps;
 use Kanvas\Auth\Traits\AuthTrait;
 use Kanvas\Auth\Traits\TokenTrait;
-use Kanvas\Users\Users\Actions\RegisterUsersAction;
-use Kanvas\Users\Users\DataTransferObject\RegisterPostData;
+use Kanvas\UsersGroup\Users\Actions\RegisterUsersAction;
+use Kanvas\UsersGroup\Users\DataTransferObject\RegisterPostData;
 
 class AuthController extends BaseController
 {

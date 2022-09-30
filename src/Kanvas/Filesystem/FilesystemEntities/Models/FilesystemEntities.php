@@ -6,7 +6,7 @@ namespace Kanvas\Filesystem\FilesystemEntities\Models;
 
 use Kanvas\Models\BaseModel;
 use Kanvas\Apps\Apps\Models\Apps;
-use Kanvas\Companies\Companies\Models\Companies;
+use Kanvas\CompanyGroup\Companies\Models\Companies;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Filesystem\Filesystem\Models\Filesystem;
 
@@ -61,7 +61,7 @@ class FilesystemEntities extends BaseModel
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
-    
+
     /**
      * SystemModules relationship.
      *

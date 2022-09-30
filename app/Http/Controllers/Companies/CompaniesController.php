@@ -7,16 +7,16 @@ namespace App\Http\Controllers\Companies;
 use App\Http\Controllers\BaseController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Kanvas\Companies\Companies\Actions\CreateCompaniesAction;
-use Kanvas\Companies\Companies\Actions\UpdateCompaniesAction;
-use Kanvas\Companies\Companies\DataTransferObject\CollectionResponseData;
-use Kanvas\Companies\Companies\DataTransferObject\CompaniesPostData;
-use Kanvas\Companies\Companies\DataTransferObject\CompaniesPutData;
-use Kanvas\Companies\Companies\DataTransferObject\SingleResponseData;
+use Kanvas\CompanyGroup\Companies\Actions\CreateCompaniesAction;
+use Kanvas\CompanyGroup\Companies\Actions\UpdateCompaniesAction;
+use Kanvas\CompanyGroup\Companies\DataTransferObject\CollectionResponseData;
+use Kanvas\CompanyGroup\Companies\DataTransferObject\CompaniesPostData;
+use Kanvas\CompanyGroup\Companies\DataTransferObject\CompaniesPutData;
+use Kanvas\CompanyGroup\Companies\DataTransferObject\SingleResponseData;
 use Kanvas\Traits\FilesystemAttachTrait;
-use Kanvas\Companies\Companies\Models\Companies;
+use Kanvas\CompanyGroup\Companies\Models\Companies;
 use Kanvas\Enums\HttpDefaults;
-use Kanvas\Users\Users\Models\Users;
+use Kanvas\UsersGroup\Users\Models\Users;
 
 class CompaniesController extends BaseController
 {

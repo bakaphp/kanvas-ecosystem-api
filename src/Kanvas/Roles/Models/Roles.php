@@ -6,7 +6,7 @@ namespace Kanvas\Roles\Models;
 
 use Kanvas\Models\BaseModel;
 use Kanvas\Roles\Factories\RolesFactory;
-use Kanvas\Companies\Companies\Models\Companies;
+use Kanvas\CompanyGroup\Companies\Models\Companies;
 use Kanvas\Apps\Apps\Models\Apps;
 
 /**

@@ -7,7 +7,7 @@ namespace Kanvas\Auth;
 use Canvas\Models\Sessions;
 use Exception;
 use Illuminate\Support\Facades\Hash;
-use Kanvas\Users\Users\Models\Users;
+use Kanvas\UsersGroup\Users\Models\Users;
 use Lcobucci\JWT\Token;
 
 class Auth

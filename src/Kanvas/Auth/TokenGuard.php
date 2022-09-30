@@ -8,7 +8,7 @@ use Illuminate\Auth\TokenGuard as AuthTokenGuard;
 use Illuminate\Http\Request;
 use Kanvas\Sessions\Sessions\Models\Sessions;
 use Kanvas\Traits\TokenTrait;
-use Kanvas\Users\Users\Models\Users;
+use Kanvas\UsersGroup\Users\Models\Users;
 use Lcobucci\JWT\Token;
 
 class TokenGuard extends AuthTokenGuard

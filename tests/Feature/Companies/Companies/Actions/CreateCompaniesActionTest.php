@@ -4,10 +4,10 @@ declare(strict_types=1);
 namespace Tests\Feature\Companies\Companies\Actions;
 
 use Illuminate\Support\Facades\Auth;
-use Kanvas\Companies\Companies\Actions\CreateCompaniesAction;
-use Kanvas\Companies\Companies\DataTransferObject\CompaniesPostData;
-use Kanvas\Companies\Companies\Models\Companies;
-use Kanvas\Users\Users\Models\Users;
+use Kanvas\CompanyGroup\Companies\Actions\CreateCompaniesAction;
+use Kanvas\CompanyGroup\Companies\DataTransferObject\CompaniesPostData;
+use Kanvas\CompanyGroup\Companies\Models\Companies;
+use Kanvas\UsersGroup\Users\Models\Users;
 use Tests\TestCase;
 
 final class CreateCompaniesActionTest extends TestCase

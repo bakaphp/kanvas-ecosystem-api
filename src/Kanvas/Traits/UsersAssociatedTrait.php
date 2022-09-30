@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Traits;
 
 use Kanvas\Apps\Apps\Models\Apps;
-use Kanvas\Companies\Companies\Models\Companies;
-use Kanvas\Users\Users\Models\Users;
+use Kanvas\CompanyGroup\Companies\Models\Companies;
+use Kanvas\UsersGroup\Users\Models\Users;
 
 trait UsersAssociatedTrait
 {
