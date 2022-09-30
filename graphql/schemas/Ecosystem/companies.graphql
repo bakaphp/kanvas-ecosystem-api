@@ -57,22 +57,3 @@ type CompanySettings {
     created_at: DateTime
     updated_at: DateTime
 }
-
-input RegisterInput {
-    firstname: String
-    lastname: String
-    email: String @rules(apply: ["required"])
-    password: String @rules(apply: ["required"])
-    password_confirmation: String @rules(apply: ["required"])
-    company_name: String
-    roles_id: Int
-}
-
-extend type Mutation {
-    login(data: LoginInput!): TokenResponse! @field(resolver: "App\\GraphQL\\Ecosystem\\Resolvers\\Auth\\Login@resolve")
-    register(data: RegisterInput!): RegisterResponse! @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\Register@resolve")
-}
-
-type Query @guard {
-    me: User! @auth
-}
