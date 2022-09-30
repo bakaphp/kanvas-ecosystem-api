@@ -1,0 +1,78 @@
+
+type Company {
+    id: Int!
+    uuid: String!
+    name: String!
+    website: String
+    address: String
+    zipcode: String
+    email: String
+    language: String
+    timezone: String
+    phone: String
+    user: User!
+    country_code: String
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type CompanyGroup {
+    id: Int!
+    uuid: String!
+    name: String!
+    app: App!
+    user: User!
+    stripe_id: String
+    is_default: Int!
+    country_code: String
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type CompanyAssociation {
+    companyGroup: CompanyGroup!
+    company: Company!
+    is_default: Int!
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type CompanyBranch {
+    id: Int!
+    company: Company!
+    user: User!
+    name: String!
+    email: String
+    phone: String
+    zipcode: String
+    is_default: Int!
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type CompanySettings {
+    company: Company!
+    name: String!
+    value: String
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+input RegisterInput {
+    firstname: String
+    lastname: String
+    email: String @rules(apply: ["required"])
+    password: String @rules(apply: ["required"])
+    password_confirmation: String @rules(apply: ["required"])
+    company_name: String
+    roles_id: Int
+}
+
+extend type Mutation {
+    login(data: LoginInput!): TokenResponse! @field(resolver: "App\\GraphQL\\Ecosystem\\Resolvers\\Auth\\Login@resolve")
+    register(data: RegisterInput!): RegisterResponse! @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\Register@resolve")
+}
+
+type Query @guard {
+    me: User! @auth
+}
