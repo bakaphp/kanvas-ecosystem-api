@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth;
 
-use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\Apps\Models\Apps;
 
 class Factory
 {

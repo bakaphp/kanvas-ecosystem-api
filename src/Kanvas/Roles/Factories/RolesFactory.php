@@ -4,8 +4,8 @@ namespace Kanvas\Roles\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Kanvas\Roles\Models\Roles;
-use Kanvas\CompanyGroup\Companies\Models\Companies;
-use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Apps\Models\Apps;
 use Illuminate\Support\Str;
 
 /**

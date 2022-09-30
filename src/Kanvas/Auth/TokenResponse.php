@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth;
 
-use Kanvas\UsersGroup\Users\Models\Users;
+use Kanvas\Users\Models\Users;
 
 class TokenResponse
 {

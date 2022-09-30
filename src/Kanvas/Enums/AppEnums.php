@@ -16,6 +16,8 @@ enum AppEnums implements EnumsInterface
     case GLOBAL_APP_ID;
     case ECOSYSTEM_APP_ID;
     case GLOBAL_COMPANY_ID;
+    case DEFAULT_ROLE_NAME;
+    case DEFAULT_ROLES_NAMES;
 
     /**
      * Get value
@@ -32,7 +34,9 @@ enum AppEnums implements EnumsInterface
             self::VERSION => config('kanvas.app.version'),
             self::GLOBAL_APP_ID => 1,
             self::ECOSYSTEM_APP_ID => 1,
-            self::GLOBAL_COMPANY_ID => 0
+            self::GLOBAL_COMPANY_ID => 0,
+            self::DEFAULT_ROLE_NAME => 'Admins',
+            self::DEFAULT_ROLES_NAMES => ['Admin', 'Admins', 'User', 'Users', 'Agents'],
         };
     }
 }

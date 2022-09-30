@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\UsersGroup\CompanyApps\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Apps\Apps\Models\Apps;
-use Kanvas\CompanyGroup\Companies\Models\Companies;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
-use Kanvas\UsersGroup\Users\Models\Users;
+use Kanvas\Users\Models\Users;
 
 /**
  * UserCompanyApps Model.

@@ -66,7 +66,7 @@ return [
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
-            'model' => Kanvas\UsersGroup\Users\Models\Users::class,
+            'model' => Kanvas\Users\Models\Users::class,
         ],
 
         // 'users' => [

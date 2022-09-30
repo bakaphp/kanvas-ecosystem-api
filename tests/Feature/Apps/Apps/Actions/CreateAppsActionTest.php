@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Apps\Apps\Actions;
 
-use Kanvas\Apps\Apps\Actions\CreateAppsAction;
-use Kanvas\Apps\Apps\DataTransferObject\AppsPostData;
-use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\Apps\Actions\CreateAppsAction;
+use Kanvas\Apps\DataTransferObject\AppsPostData;
+use Kanvas\Apps\Models\Apps;
 use Tests\TestCase;
 
 final class CreateAppsActionTest extends TestCase

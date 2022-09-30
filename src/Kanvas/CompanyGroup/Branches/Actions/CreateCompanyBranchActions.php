@@ -6,8 +6,8 @@ namespace Kanvas\CompanyGroup\Branches\Actions;
 
 use Kanvas\CompanyGroup\Branches\DataTransferObject\CompaniesBranchPostData;
 use Kanvas\CompanyGroup\Branches\Models\CompaniesBranches;
-use Kanvas\CompanyGroup\Companies\DataTransferObject\CompaniesPostData;
-use Kanvas\CompanyGroup\Companies\Models\Companies;
+use Kanvas\Companies\DataTransferObject\CompaniesPostData;
+use Kanvas\Companies\Models\Companies;
 
 class CreateCompanyBranchActions
 {

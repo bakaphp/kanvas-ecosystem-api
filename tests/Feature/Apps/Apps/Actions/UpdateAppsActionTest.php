@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Apps\Apps\Actions;
 
-use Kanvas\Apps\Apps\Actions\UpdateAppsAction;
-use Kanvas\Apps\Apps\DataTransferObject\AppsPutData;
-use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\Apps\Actions\UpdateAppsAction;
+use Kanvas\Apps\DataTransferObject\AppsPutData;
+use Kanvas\Apps\Models\Apps;
 use Tests\TestCase;
 
 final class UpdateAppsActionTest extends TestCase

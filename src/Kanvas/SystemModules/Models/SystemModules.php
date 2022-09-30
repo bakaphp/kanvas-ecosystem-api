@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\SystemModules\Models;
 
-use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Factories\SystemModulesFactory;
 

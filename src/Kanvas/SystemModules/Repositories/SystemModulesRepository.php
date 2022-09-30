@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\SystemModules\Repositories;
 
 use Kanvas\SystemModules\Models\SystemModules;
-use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\Apps\Models\Apps;
 use Exception;
 
 class SystemModulesRepository

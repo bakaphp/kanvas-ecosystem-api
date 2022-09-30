@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Ecosystem;
 
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
-use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\Apps\Models\Apps;
 use Nuwave\Lighthouse\Testing\MakesGraphQLRequests;
 use Tests\CreatesApplication;
 
@@ -93,7 +93,7 @@ class AppsCrudTest extends BaseTestCase
         $input = [
             'name' => fake()->name,
             'url' => fake()->url,
-            'description' => substr(fake()->text, 0, 44),
+            'description' => trim(substr(fake()->text, 0, 44)),
             'domain' => fake()->safeEmailDomain,
             'is_actived' => 1,
             'ecosystem_auth' => 0,

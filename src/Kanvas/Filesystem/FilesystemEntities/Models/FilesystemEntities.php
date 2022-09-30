@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\FilesystemEntities\Models;
 
 use Kanvas\Models\BaseModel;
-use Kanvas\Apps\Apps\Models\Apps;
-use Kanvas\CompanyGroup\Companies\Models\Companies;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Filesystem\Filesystem\Models\Filesystem;
 

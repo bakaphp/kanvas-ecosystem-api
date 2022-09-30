@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Apps\Apps\Actions;
 
-use Kanvas\CompanyGroup\Companies\Actions\UpdateCompaniesAction;
-use Kanvas\CompanyGroup\Companies\DataTransferObject\CompaniesPutData;
-use Kanvas\CompanyGroup\Companies\Models\Companies;
+use Kanvas\Companies\Actions\UpdateCompaniesAction;
+use Kanvas\Companies\DataTransferObject\CompaniesPutData;
+use Kanvas\Companies\Models\Companies;
 use Tests\TestCase;
 
 final class UpdateCompaniesActionTest extends TestCase

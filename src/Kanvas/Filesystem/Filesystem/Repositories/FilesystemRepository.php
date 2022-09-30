@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Filesystem\Repositories;
 
 use Kanvas\Filesystem\Filesystem\Models\Filesystem;
-use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\Apps\Models\Apps;
 
 class FilesystemRepository
 {

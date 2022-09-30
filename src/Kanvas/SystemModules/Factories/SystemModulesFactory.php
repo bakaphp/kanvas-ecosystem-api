@@ -3,7 +3,7 @@
 namespace Kanvas\SystemModules\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\SystemModules\Models\SystemModules;
 
 /**

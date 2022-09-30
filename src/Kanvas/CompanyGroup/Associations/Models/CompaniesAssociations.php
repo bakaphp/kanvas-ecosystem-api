@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\CompanyGroup\Associations\Models;
 
 use Kanvas\Models\BaseModel;
-use Kanvas\UsersGroup\Users\Models\Users;
+use Kanvas\Users\Models\Users;
 use Kanvas\CompanyGroup\Groups\Models\CompaniesGroups;
-use Kanvas\CompanyGroup\Companies\Models\Companies;
+use Kanvas\Companies\Models\Companies;
 
 /**
  * CompaniesAssociations Model

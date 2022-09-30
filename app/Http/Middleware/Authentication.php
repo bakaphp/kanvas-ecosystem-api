@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Kanvas\Sessions\Sessions\Models\Sessions;
 use Kanvas\Traits\TokenTrait;
-use Kanvas\UsersGroup\Users\Models\Users;
+use Kanvas\Users\Models\Users;
 use Lcobucci\JWT\Token;
 
 class Authentication

@@ -6,7 +6,7 @@ namespace Kanvas\UsersGroup\Config\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
-use Kanvas\UsersGroup\Users\Models\Users;
+use Kanvas\Users\Models\Users;
 
 /**
  * Companies Model.

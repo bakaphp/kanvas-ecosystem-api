@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\CompanyGroup\Groups\Models;
 
-use Kanvas\CompanyGroup\Associations\Models\Associations;
-use Kanvas\CompanyGroup\Companies\Models\Companies;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\CompanyGroup\Associations\Models\CompaniesAssociations;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Enums\StateEnums;
 use Kanvas\Models\BaseModel;
-use Kanvas\UsersGroup\Users\Models\Users;
+use Kanvas\Users\Models\Users;
 
 /**
  * CompaniesGroups Model.
@@ -22,7 +26,6 @@ use Kanvas\UsersGroup\Users\Models\Users;
  */
 class CompaniesGroups extends BaseModel
 {
-
     /**
      * The table associated with the model.
      *
@@ -35,17 +38,17 @@ class CompaniesGroups extends BaseModel
      *
      * @return hasMany
      */
-    public function companiesAssoc()
+    public function companiesAssoc() : HasMany
     {
-        return $this->hasMany(Associations::class, 'companies_groups_id');
+        return $this->hasMany(CompaniesAssociations::class, 'companies_groups_id');
     }
 
     /**
      * Companies relationship.
      *
-     * @return hasMany
+     * @return BelongsToMany
      */
-    public function companies()
+    public function companies() : BelongsToMany
     {
         return $this->belongsToMany(Companies::class, 'companies_associations');
     }
@@ -55,8 +58,25 @@ class CompaniesGroups extends BaseModel
      *
      * @return Users
      */
-    public function user() : Users
+    public function user() : BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
+    }
+
+    /**
+     * Associate Company to this group.
+     *
+     * @param Companies $company
+     * @param int $isDefault
+     *
+     * @return void
+     */
+    public function associate(Companies $company, int $isDefault = 0)
+    {
+        $companyAssociations = new CompaniesAssociations();
+        $companyAssociations->companies_id = $company->id;
+        $companyAssociations->companies_groups_id = $this->id;
+        $companyAssociations->is_default = $isDefault;
+        $companyAssociations->saveOrFail();
     }
 }

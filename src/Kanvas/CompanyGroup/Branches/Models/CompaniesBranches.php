@@ -6,8 +6,8 @@ namespace Kanvas\CompanyGroup\Branches\Models;
 
 use Kanvas\Models\BaseModel;
 use Kanvas\CompanyGroup\Branches\Factories\CompaniesBranchesFactory;
-use Kanvas\UsersGroup\Users\Models\Users;
-use Kanvas\CompanyGroup\Companies\Models\Companies;
+use Kanvas\Users\Models\Users;
+use Kanvas\Companies\Models\Companies;
 
 /**
  * Companies Model

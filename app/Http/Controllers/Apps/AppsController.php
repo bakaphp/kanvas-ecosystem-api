@@ -7,15 +7,15 @@ namespace App\Http\Controllers\Apps;
 use App\Http\Controllers\BaseController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Kanvas\Apps\Apps\Actions\CreateAppsAction;
-use Kanvas\Apps\Apps\Actions\UpdateAppsAction;
-use Kanvas\Apps\Apps\DataTransferObject\AppsPostData;
-use Kanvas\Apps\Apps\DataTransferObject\AppsPutData;
-use Kanvas\Apps\Apps\DataTransferObject\CollectionResponseData;
-use Kanvas\Apps\Apps\DataTransferObject\SingleResponseData;
-use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\Apps\Actions\CreateAppsAction;
+use Kanvas\Apps\Actions\UpdateAppsAction;
+use Kanvas\Apps\DataTransferObject\AppsPostData;
+use Kanvas\Apps\DataTransferObject\AppsPutData;
+use Kanvas\Apps\DataTransferObject\CollectionResponseData;
+use Kanvas\Apps\DataTransferObject\SingleResponseData;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\HttpDefaults;
-use Kanvas\UsersGroup\Users\Models\Users;
+use Kanvas\Users\Models\Users;
 
 class AppsController extends BaseController
 {

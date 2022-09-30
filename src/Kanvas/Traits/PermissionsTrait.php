@@ -6,9 +6,9 @@ namespace Kanvas\Traits;
 
 use Baka\Http\Exception\InternalServerErrorException;
 use Baka\Http\Exception\UnauthorizedException;
-use Kanvas\Apps\Apps\Enums\Defaults as AppsDefaults;
-use Kanvas\Apps\Apps\Models\Apps;
-use Kanvas\CompanyGroup\Companies\Models\Companies;
+use Kanvas\Apps\Enums\Defaults as AppsDefaults;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Roles\Repositories\RolesRepository;
 use Kanvas\UsersGroup\Roles\Models\UserRoles;

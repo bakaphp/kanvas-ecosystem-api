@@ -14,7 +14,7 @@ use Kanvas\Filesystem\Filesystem\DataTransferObject\CollectionResponseData;
 use Kanvas\Filesystem\Filesystem\DataTransferObject\FilesystemPostData;
 use Kanvas\Filesystem\Filesystem\DataTransferObject\SingleResponseData;
 use Kanvas\Filesystem\Filesystem\Models\Filesystem;
-use Kanvas\UsersGroup\Users\Models\Users;
+use Kanvas\Users\Models\Users;
 
 class FilesystemController extends BaseController
 {

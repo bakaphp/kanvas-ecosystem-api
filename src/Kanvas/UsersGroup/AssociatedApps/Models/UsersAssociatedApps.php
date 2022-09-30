@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\UsersGroup\AssociatedApps\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Apps\Apps\Models\Apps;
-use Kanvas\CompanyGroup\Companies\Models\Companies;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
-use Kanvas\UsersGroup\Users\Models\Users;
+use Kanvas\Users\Models\Users;
 
 /**
  * UsersAssociatedApps Model.
@@ -16,7 +16,8 @@ use Kanvas\UsersGroup\Users\Models\Users;
  * @property int $users_id
  * @property int $apps_id
  * @property int $companies_id
- * @property string $identify_id
+ * @property ?string $identify_id
+ * @property ?string $password
  * @property int $user_active
  * @property string $user_role
  */

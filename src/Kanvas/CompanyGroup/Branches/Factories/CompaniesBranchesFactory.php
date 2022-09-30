@@ -4,7 +4,7 @@ namespace Kanvas\CompanyGroup\Branches\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Kanvas\Roles\Models\Roles;
-use Kanvas\CompanyGroup\Companies\Models\Companies;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Currencies\Models\Currencies;
 use Illuminate\Support\Str;

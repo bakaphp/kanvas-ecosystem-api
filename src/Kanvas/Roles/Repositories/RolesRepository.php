@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Roles\Repositories;
 
-use Illuminate\Support\Facades\Auth;
-use Kanvas\Apps\Apps\Enums\Defaults as AppsDefaults;
-use Kanvas\Apps\Apps\Models\Apps;
-use Kanvas\CompanyGroup\Companies\Models\Companies;
+use Kanvas\Apps\Enums\Defaults as AppsDefaults;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Roles\Models\Roles;
 
 class RolesRepository
@@ -22,24 +22,18 @@ class RolesRepository
      *
      * @todo Need to fetch app and company id from ACL on container instead of apps and userdata from DI.
      */
-    public static function getByName(string $name, ?Companies $company = null) : Roles
+    public static function getByName(string $name, Apps $app, Companies $company) : Roles
     {
-        $app = app(Apps::class);
-        $userData = Auth::user();
-        if ($company === null) {
-            $company = Di::getDefault()->get('acl')->getCompany();
-        }
-
         $role = Roles::where('name', $name)
-                ->where('apps_id', $app->getKey())
-                ->orWhere('apps_id', AppsDefaults::CANVAS_DEFAULT_APP_ID->getValue())
-                ->where('companies_id', $company->getKey())
-                ->orderBy('apps_id', 'desc')
+                ->where('apps_id', $app->id)
+                ->whereIn('apps_id', [$app->id, AppsDefaults::ECOSYSTEM_APP_ID->getValue()])
+                ->whereIn('companies_id', [$company->id, AppsDefaults::ECOSYSTEM_COMPANY_ID->getValue()])
+                ->orderBy('apps_id', 'DESC')
                 ->first();
 
         if (!is_object($role)) {
-            throw new UnprocessableEntityException(
-                _('Roles ' . $name . ' not found on this app ' . $app->getKey() . ' AND Company ' . $userData->currentCompanyId())
+            throw new InternalServerErrorException(
+                'Roles ' . $name . ' not found on this app ' . $app->getKey() . ' AND Company ' . $company->id
             );
         }
 

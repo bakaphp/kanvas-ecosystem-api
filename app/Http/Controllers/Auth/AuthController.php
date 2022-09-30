@@ -9,11 +9,11 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
-use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Traits\AuthTrait;
 use Kanvas\Auth\Traits\TokenTrait;
-use Kanvas\UsersGroup\Users\Actions\RegisterUsersAction;
-use Kanvas\UsersGroup\Users\DataTransferObject\RegisterPostData;
+use Kanvas\Users\Actions\RegisterUsersAction;
+use Kanvas\Users\DataTransferObject\RegisterPostData;
 
 class AuthController extends BaseController
 {

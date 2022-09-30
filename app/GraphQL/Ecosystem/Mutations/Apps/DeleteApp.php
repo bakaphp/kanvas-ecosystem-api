@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Apps;
 
-use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\Apps\Models\Apps;
 
 final class DeleteApp
 {

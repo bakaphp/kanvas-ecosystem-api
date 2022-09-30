@@ -6,7 +6,7 @@ namespace App\Http\Controllers\Apps;
 
 use App\Http\Controllers\BaseController;
 use Illuminate\Http\Response;
-use Kanvas\Apps\Models\Settings;
+use Kanvas\AppsGroup\Models\Settings;
 
 class SettingsController extends BaseController
 {

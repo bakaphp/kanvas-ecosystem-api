@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\UsersGroup\Roles\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Apps\Apps\Models\Apps;
-use Kanvas\CompanyGroup\Companies\Models\Companies;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
 use Kanvas\Roles\Models\Roles;
-use Kanvas\UsersGroup\Users\Models\Users;
+use Kanvas\Users\Models\Users;
 
 /**
  * UserRoles Model.
@@ -27,6 +27,14 @@ class UserRoles extends BaseModel
      * @var string
      */
     protected $table = 'user_roles';
+
+    protected $fillable = [
+        'users_id',
+        'apps_id',
+        'roles_id',
+        'companies_id'
+    ];
+
 
     /**
      * Users relationship.

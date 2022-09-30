@@ -15,7 +15,7 @@ use Kanvas\Filesystem\FilesystemEntities\DataTransferObject\CollectionResponseDa
 use Kanvas\Filesystem\FilesystemEntities\DataTransferObject\SingleResponseData;
 use Kanvas\Filesystem\FilesystemEntities\Models\FilesystemEntities;
 use Kanvas\Enums\HttpDefaults;
-use Kanvas\UsersGroup\Users\Models\Users;
+use Kanvas\Users\Models\Users;
 
 class FilesystemEntitiesController extends BaseController
 {

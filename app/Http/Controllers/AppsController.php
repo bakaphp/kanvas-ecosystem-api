@@ -3,7 +3,7 @@
 namespace Kanvas\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Kanvas\Apps\Models\Apps;
+use Kanvas\AppsGroup\Models\Apps;
 
 class AppsController extends Controller
 {

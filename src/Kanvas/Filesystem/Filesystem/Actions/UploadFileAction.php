@@ -7,7 +7,7 @@ namespace Kanvas\Filesystem\Filesystem\Actions;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Filesystem\Filesystem\Models\Filesystem;
 use Illuminate\Support\Facades\Storage;
-use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\Apps\Models\Apps;
 use Exception;
 use Illuminate\Support\Facades\Auth;
 

@@ -7,7 +7,7 @@ namespace Kanvas\Sessions\Keys\Models;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
 use Kanvas\Sessions\Sessions\Models\Sessions;
-use Kanvas\UsersGroup\Users\Models\Users;
+use Kanvas\Users\Models\Users;
 
 /**
  * Apps Model.

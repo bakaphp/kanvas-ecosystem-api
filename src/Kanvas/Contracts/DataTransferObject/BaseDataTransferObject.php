@@ -6,7 +6,7 @@ namespace Kanvas\Contracts\DataTransferObject;
 
 use Illuminate\Http\Request;
 use Spatie\DataTransferObject\DataTransferObject;
-use Kanvas\CompanyGroup\Companies\Models\Companies;
+use Kanvas\Companies\Models\Companies;
 
 /**
  * AppsData class.

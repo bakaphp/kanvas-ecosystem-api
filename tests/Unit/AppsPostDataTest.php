@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use Kanvas\Apps\Apps\DataTransferObject\AppsPostData;
+use Kanvas\Apps\DataTransferObject\AppsPostData;
 use Tests\TestCase;
 
 final class AppsPostDataTest extends TestCase

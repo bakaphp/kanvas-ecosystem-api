@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\UsersGroup\AssociatedCompanies\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\CompanyGroup\Companies\Models\Companies;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
-use Kanvas\UsersGroup\Users\Models\Users;
+use Kanvas\Users\Models\Users;
 
 /**
  * UsersAssociatedCompanies Model.
