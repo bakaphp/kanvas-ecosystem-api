@@ -30,6 +30,14 @@ class CompaniesGroups extends BaseModel
      */
     protected $table = 'companies_groups';
 
+    protected $fillable = [
+        'apps_id',
+        'users_id',
+        'name',
+        'is_default',
+        'country_code'
+    ];
+
     /**
      * CompaniesBranches relationship.
      *

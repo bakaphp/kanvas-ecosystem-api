@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Apps\Apps\Actions;
 
+use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Actions\UpdateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\CompaniesPutData;
 use Kanvas\Companies\Models\Companies;
@@ -24,8 +25,8 @@ final class UpdateCompaniesActionTest extends TestCase
             'name' => $faker->company,
             'profile_image' => $company->profile_image,
             'website' => $company->website,
-            'address'=> $company->address,
-            'zipcode' =>  $company->zipcode,
+            'address' => $company->address,
+            'zipcode' => (int) $company->zipcode,
             'email' => $company->email,
             'language' => $company->language,
             'timezone' => $company->timezone,
@@ -35,7 +36,7 @@ final class UpdateCompaniesActionTest extends TestCase
 
         $dtoData = CompaniesPutData::fromArray($data);
 
-        $updateCompany = new UpdateCompaniesAction($dtoData);
+        $updateCompany = new UpdateCompaniesAction(Auth::user(), $dtoData);
 
         $this->assertInstanceOf(
             Companies::class,

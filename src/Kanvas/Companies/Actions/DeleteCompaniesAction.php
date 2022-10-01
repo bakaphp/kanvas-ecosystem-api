@@ -1,0 +1,44 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Companies\Actions;
+
+use Illuminate\Validation\UnauthorizedException;
+use Kanvas\Companies\DataTransferObject\CompaniesPutData;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Enums\StateEnums;
+use Kanvas\Users\Models\Users;
+
+class DeleteCompaniesAction
+{
+    /**
+     * Construct function.
+     *
+     * @param CompaniesPutData $data
+     */
+    public function __construct(
+        protected Users $user
+    ) {
+    }
+
+    /**
+     * Invoke function.
+     *
+     * @param int $id
+     *
+     * @return Companies
+     */
+    public function execute(int $id) : Companies
+    {
+        $companies = Companies::getById($id);
+
+        if (!$companies->isOwner($this->user)) {
+            throw new UnauthorizedException('User cant delete this company');
+        }
+
+        $companies->softDelete();
+
+        return $companies;
+    }
+}

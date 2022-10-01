@@ -224,4 +224,16 @@ class Companies extends BaseModel
             'password' => $password
         ]);
     }
+
+    /**
+     * Is this user the owner of this company?
+     *
+     * @param Users $user
+     *
+     * @return bool
+     */
+    public function isOwner(Users $user) : bool
+    {
+        return $this->users_id === $user->getKey();
+    }
 }

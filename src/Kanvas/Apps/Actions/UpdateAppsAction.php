@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Apps\Actions;
 
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\DataTransferObject\AppsPutData;
+use Kanvas\Apps\Models\Apps;
 
 class UpdateAppsAction
 {
     /**
-     * Construct function
+     * Construct function.
      *
      * @param AppsPutData $data
      */
@@ -20,14 +20,17 @@ class UpdateAppsAction
     }
 
     /**
-     * Invoke function
+     * Invoke function.
      *
      * @param int $id
      *
      * @return Apps
      */
-    public function execute(int $id): Apps
+    public function execute(int $id) : Apps
     {
+        /**
+         * @todo only super admins can modify apps
+         */
         $app = Apps::findOrFail($id);
         $app->fill([
             'name' => $this->data->name,

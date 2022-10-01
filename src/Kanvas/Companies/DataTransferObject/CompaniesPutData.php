@@ -16,12 +16,11 @@ class CompaniesPutData extends BaseDataTransferObject
     /**
      * Construct function.
      *
+     * @property string $name
      * @property int|null $currency_id
-     * @property string|null $name
-     * @property string|null $profile_image
      * @property string|null $website
      * @property string|null $address
-     * @property string|null $zipcode
+     * @property int|null $zipcode
      * @property string|null $email
      * @property string|null $language
      * @property string|null $timezone
@@ -30,12 +29,11 @@ class CompaniesPutData extends BaseDataTransferObject
      * @property array|null $files
      */
     public function __construct(
+        public string $name,
         public ?int $currency_id = null,
-        public ?string $name = null,
-        public ?string $profile_image,
         public ?string $website,
         public ?string $address,
-        public ?string $zipcode,
+        public ?int $zipcode,
         public ?string $email,
         public ?string $language,
         public ?string $timezone,
@@ -60,7 +58,7 @@ class CompaniesPutData extends BaseDataTransferObject
             profile_image: $request->get('profile_image'),
             website: $request->get('website'),
             address: $request->get('address'),
-            zipcode: $request->get('zipcode'),
+            zipcode: (int) $request->get('zipcode'),
             email: $request->get('email'),
             language: $request->get('language'),
             timezone: $request->get('timezone'),
@@ -80,17 +78,16 @@ class CompaniesPutData extends BaseDataTransferObject
     public static function fromArray(array $data) : self
     {
         return new self(
-            currency_id: (int)$data['currency_id'],
             name: $data['name'],
-            profile_image: $data['profile_image'],
-            website: $data['website'],
-            address: $data['address'],
-            zipcode: $data['zipcode'],
-            email: $data['email'],
-            language: $data['language'],
-            timezone: $data['timezone'],
-            phone:$data['phone'],
-            country_code: $data['country_code'],
+            currency_id: $data['currency_id'] ?? null,
+            website: $data['website'] ?? null,
+            address: $data['address'] ?? null,
+            zipcode: $data['zipcode'] ?? null,
+            email: $data['email'] ?? null,
+            language: $data['language'] ?? null,
+            timezone: $data['timezone'] ?? null,
+            phone:$data['phone'] ?? null,
+            country_code: $data['country_code'] ?? null,
             files: $data['files'] ?? null,
         );
     }
