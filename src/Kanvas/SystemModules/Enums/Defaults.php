@@ -19,7 +19,7 @@ enum Defaults implements EnumsInterface
             [
                 'name' => 'Companies',
                 'slug' => 'companies',
-                'model_name' => "Kanvas\CompanyGroup\Models\Companies",
+                'model_name' => "Kanvas\CompaniesModels\Companies",
                 'parents_id' => '0',
                 'menu_order' => '0',
                 'show' => '1',

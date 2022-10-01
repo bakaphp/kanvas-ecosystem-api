@@ -9,11 +9,11 @@ use Illuminate\Support\Facades\Event;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Observers\AppsObserver;
 use Kanvas\Companies\Events\AfterSignupEvent;
+use Kanvas\Companies\Groups\Observers\CompaniesGroupsObserver;
 use Kanvas\Companies\Listeners\AfterSignupListener;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesGroups;
 use Kanvas\Companies\Observers\CompaniesObserver;
-use Kanvas\CompanyGroup\Groups\Models\CompaniesGroups;
-use Kanvas\CompanyGroup\Groups\Observers\CompaniesGroupsObserver;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Observers\UsersObserver;
 

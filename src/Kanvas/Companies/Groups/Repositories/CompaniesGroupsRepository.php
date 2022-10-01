@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\CompanyGroup\Groups\Repositories;
+namespace Kanvas\Companies\Groups\Repositories;
 
-use Kanvas\CompanyGroup\Associations\Models\CompaniesAssociations;
+use Kanvas\Companies\Models\CompaniesAssociations;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\CompanyGroup\Groups\Models\CompaniesGroups;
+use Kanvas\Companies\Models\CompaniesGroups;
 
 class CompaniesGroupsRepository
 {

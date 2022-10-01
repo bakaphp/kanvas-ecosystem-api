@@ -2,15 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\CompanyGroup\Branches\Models;
+namespace Kanvas\Companies\Models;
 
-use Kanvas\Models\BaseModel;
-use Kanvas\CompanyGroup\Branches\Factories\CompaniesBranchesFactory;
-use Kanvas\Users\Models\Users;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Branches\Factories\CompaniesBranchesFactory;
+use Kanvas\Models\BaseModel;
+use Kanvas\Users\Models\Users;
 
 /**
- * Companies Model
+ * Companies Model.
  *
  * @property int $companies_id
  * @property int $users_id
@@ -31,31 +32,31 @@ class CompaniesBranches extends BaseModel
     protected $table = 'companies_branches';
 
     /**
-    * Create a new factory instance for the model.
-    *
-    * @return \Illuminate\Database\Eloquent\Factories\Factory
-    */
+     * Create a new factory instance for the model.
+     *
+     * @return \Illuminate\Database\Eloquent\Factories\Factory
+     */
     protected static function newFactory()
     {
         return CompaniesBranchesFactory::new();
     }
 
     /**
-     * Companies relationship
+     * Companies relationship.
      *
-     * @return Companies
+     * @return BelongsTo
      */
-    public function company(): Companies
+    public function company() : BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }
 
     /**
-     * Users relationship
+     * Users relationship.
      *
-     * @return Users
+     * @return BelongsTo
      */
-    public function user(): Users
+    public function user() : BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
     }

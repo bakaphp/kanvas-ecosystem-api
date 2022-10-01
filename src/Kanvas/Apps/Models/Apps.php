@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Apps\Models;
 
 use Baka\Traits\HashTableTrait;
-use Kanvas\AppsGroup\Roles\Models\Roles;
-use Kanvas\AppsGroup\Settings\Models\Settings;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
 use Kanvas\UsersGroup\CompanyApps\Models\UserCompanyApps;

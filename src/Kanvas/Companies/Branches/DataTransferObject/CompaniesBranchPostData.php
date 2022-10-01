@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\CompanyGroup\Branches\DataTransferObject;
+namespace Kanvas\Companies\Branches\DataTransferObject;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;

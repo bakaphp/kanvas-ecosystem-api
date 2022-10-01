@@ -1,9 +1,9 @@
 <?php
 
-namespace Kanvas\CompanyGroup\Groups\Observers;
+namespace Kanvas\Companies\Groups\Observers;
 
 use Illuminate\Support\Str;
-use Kanvas\CompanyGroup\Groups\Models\CompaniesGroups;
+use Kanvas\Companies\Models\CompaniesGroups;
 
 class CompaniesGroupsObserver
 {

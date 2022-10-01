@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\CompanyGroup\Groups\Actions;
+namespace Kanvas\Companies\Groups\Actions;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\CompanyGroup\Groups\Models\CompaniesGroups;
-use Kanvas\CompanyGroup\Branches\Models\CompaniesBranches;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesGroups;
 
 class CreateCompanyGroupActions
 {

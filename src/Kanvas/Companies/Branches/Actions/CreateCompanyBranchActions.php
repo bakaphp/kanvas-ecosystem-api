@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\CompanyGroup\Branches\Actions;
+namespace Kanvas\Companies\Branches\Actions;
 
-use Kanvas\CompanyGroup\Branches\DataTransferObject\CompaniesBranchPostData;
-use Kanvas\CompanyGroup\Branches\Models\CompaniesBranches;
-use Kanvas\Companies\DataTransferObject\CompaniesPostData;
+use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPostData;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
 
 class CreateCompanyBranchActions
 {

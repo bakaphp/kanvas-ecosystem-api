@@ -2,18 +2,21 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\AppsGroup\Roles\Models;
+namespace Kanvas\Apps\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
 use Kanvas\Apps\Models\Apps;
 
 /**
- * AppsRoles Class
+ * AppsSettings Class
  *
  * @property int $apps_id
- * @property string $roles_name
+ * @property string $name
+ * @property string $value
  */
-class Roles extends BaseModel
+
+class Settings extends BaseModel
 {
 
     /**
@@ -21,14 +24,14 @@ class Roles extends BaseModel
      *
      * @var string
      */
-    protected $table = 'apps_roles';
+    protected $table = 'apps_settings';
 
     /**
      * Apps relationship
      *
      * @return Apps
      */
-    public function app(): Apps
+    public function app(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }

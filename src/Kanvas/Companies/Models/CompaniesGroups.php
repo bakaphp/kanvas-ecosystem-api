@@ -2,14 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\CompanyGroup\Groups\Models;
+namespace Kanvas\Companies\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Kanvas\CompanyGroup\Associations\Models\CompaniesAssociations;
-use Kanvas\Companies\Models\Companies;
-use Kanvas\Enums\StateEnums;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 

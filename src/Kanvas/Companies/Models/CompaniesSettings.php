@@ -2,13 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\CompanyGroup\Settings\Models;
+namespace Kanvas\Companies\Models;
 
-use Kanvas\Models\BaseModel;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Models\BaseModel;
 
 /**
- * CompaniesAssociations Model
+ * CompaniesAssociations Model.
  *
  * @property int $companies_id
  * @property string $name
@@ -25,11 +26,11 @@ class CompaniesSettings extends BaseModel
     protected $table = 'companies_settings';
 
     /**
-     * Companies relationship
+     * Companies relationship.
      *
      * @return Companies
      */
-    public function companies(): Companies
+    public function companies() : BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }

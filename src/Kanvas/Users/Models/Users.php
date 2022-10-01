@@ -13,7 +13,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Kanvas\Auth\Traits\HasApiTokens;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\CompanyGroup\Branches\Models\CompaniesBranches;
+use Kanvas\CompaniesBranches\Models\CompaniesBranches;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Traits\PermissionsTrait;
 use Kanvas\Traits\UsersAssociatedTrait;

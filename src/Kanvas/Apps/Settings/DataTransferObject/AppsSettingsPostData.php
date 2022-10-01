@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 
-namespace Kanvas\AppsGroup\Settings\DataTransferObject;
+namespace Kanvas\Apps\Settings\DataTransferObject;
 
 use Spatie\DataTransferObject\DataTransferObject;
 use Kanvas\AppsGroup\Settings\Models\Settings;

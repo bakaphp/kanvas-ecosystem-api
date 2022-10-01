@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\CompanyGroup\Associations\Models;
+namespace Kanvas\Companies\Models;
 
-use Kanvas\Models\BaseModel;
-use Kanvas\Users\Models\Users;
-use Kanvas\CompanyGroup\Groups\Models\CompaniesGroups;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesGroups;
+use Kanvas\Models\BaseModel;
 
 /**
- * CompaniesAssociations Model
+ * CompaniesAssociations Model.
  *
  * @property int $companies_groups_id
  * @property int $companies_id
@@ -27,21 +27,21 @@ class CompaniesAssociations extends BaseModel
     protected $table = 'companies_associations';
 
     /**
-     * CompaniesGroups relationship
+     * CompaniesGroups relationship.
      *
-     * @return CompaniesGroups
+     * @return BelongsTo
      */
-    public function companiesGroups(): CompaniesGroups
+    public function companiesGroups() : BelongsTo
     {
         return $this->belongsTo(CompaniesGroups::class, 'companies_groups_id');
     }
 
     /**
-     * Companies relationship
+     * Companies relationship.
      *
-     * @return Companies
+     * @return BelongsTo
      */
-    public function companies(): Companies
+    public function companies() : BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }
