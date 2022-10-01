@@ -36,7 +36,7 @@ type CompanyAssociation {
 
 type CompanyBranch {
     id: Int!
-    company: Company!
+    companyId: Int!
     name: String!
     email: String
     phone: String
@@ -64,6 +64,18 @@ input CompanyInput {
     timezone: String
     phone: String
     country_code: String
+}
+
+input CompanyBranchInput {
+    name: String!
+    isDefault: Int
+    website: String
+    address: String
+    zipcode: Int
+    email: String
+    language: String
+    timezone: String
+    phone: String
 }
 
 extend type Mutation @guard {
