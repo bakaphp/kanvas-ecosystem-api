@@ -36,12 +36,12 @@ type CompanyAssociation {
 
 type CompanyBranch {
     id: Int!
-    companyId: Int!
+    companies_id: Int!
     name: String!
     email: String
     phone: String
     zipcode: Int
-    is_default: Int!
+    is_default: Boolean!
     created_at: DateTime
     updated_at: DateTime
 }
@@ -68,11 +68,13 @@ input CompanyInput {
 
 input CompanyBranchInput {
     name: String!
-    isDefault: Int
+    companies_id: Int!
+    is_default: Boolean
     website: String
     address: String
     zipcode: Int
     email: String
+    country_code: String
     language: String
     timezone: String
     phone: String
@@ -80,9 +82,27 @@ input CompanyBranchInput {
 
 extend type Mutation @guard {
     createCompany(input: CompanyInput): Company!
-        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CreateCompany")
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CreateCompany"
+        )
     updateCompany(id: Int!, input: CompanyInput): Company!
-        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\UpdateCompany")
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\UpdateCompany"
+        )
     deleteCompany(id: Int!): String!
-        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\DeleteCompany")
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\DeleteCompany"
+        )
+    CreateCompaniesBranch(input: CompanyBranchInput): CompanyBranch!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CreateCompaniesBranch"
+        )
+    updateCompanyBranch(id: Int!, input: CompanyBranchInput): CompanyBranch!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\UpdateCompaniesBranch"
+        )
+    deleteCompanyBranch(id: Int!): String!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\DeleteCompaniesBranch"
+        )
 }

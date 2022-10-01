@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Companies\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Branches\Factories\CompaniesBranchesFactory;
+use Kanvas\Enums\StateEnums;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 
@@ -59,5 +59,15 @@ class CompaniesBranches extends BaseModel
     public function user() : BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
+    }
+
+    /**
+     * Is default?
+     *
+     * @return bool
+     */
+    public function isDefault() : bool
+    {
+        return (bool) $this->is_default;
     }
 }

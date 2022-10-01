@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Actions;
 
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Companies\DataTransferObject\CompaniesPutData;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
@@ -34,12 +33,8 @@ class UpdateCompaniesAction
     {
         $companies = Companies::findOrFail($id);
 
-        try {
-            CompaniesRepository::userAssociatedToCompany($companies, $this->user);
-            $companies->updateOrFail($this->data->spitFilledAsArray());
-        } catch (ModelNotFoundException $e) {
-            throw new ModelNotFoundException('User doesn\'t belong to this company ' . $companies->uuid . ' , talk to the Admin');
-        }
+        CompaniesRepository::userAssociatedToCompany($companies, $this->user);
+        $companies->updateOrFail($this->data->spitFilledAsArray());
 
         return $companies;
     }
