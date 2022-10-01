@@ -45,6 +45,7 @@ class CompaniesObserver
         $createCompanyGroup->execute($company->name, StateEnums::ON->getValue());
 
         $createCompanyBranch = new CreateCompanyBranchActions(
+                $user,
             new CompaniesBranchPostData(
                 AppEnums::DEFAULT_NAME->getValue(),
                 $company->id,

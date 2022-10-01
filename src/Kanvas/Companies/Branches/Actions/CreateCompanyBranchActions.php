@@ -30,7 +30,12 @@ class CreateCompanyBranchActions
     public function execute() : CompaniesBranches
     {
         $company = Companies::getById($this->data->companies_id);
-        CompaniesRepository::userAssociatedToCompany($company, $this->user);
+
+        if ($company->branches()->count()) {
+            CompaniesRepository::userAssociatedToCompany($company, $this->user);
+        } else {
+            $company->isOwner($this->user);
+        }
 
         if ($this->data->is_default === StateEnums::YES->getValue()) {
             $company->branches()->update(['is_default' => StateEnums::NO->getValue()]);
