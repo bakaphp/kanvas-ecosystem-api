@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\UsersGroup\Roles\Models;
+namespace Kanvas\Users\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;

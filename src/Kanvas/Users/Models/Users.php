@@ -18,7 +18,7 @@ use Kanvas\Roles\Models\Roles;
 use Kanvas\Traits\PermissionsTrait;
 use Kanvas\Traits\UsersAssociatedTrait;
 use Kanvas\Users\Factories\UsersFactory;
-use Kanvas\UsersGroup\Config\Models\UserConfig;
+use Kanvas\Users\Models\UserConfig;
 
 /**
  * Apps Model.

@@ -10,7 +10,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Roles\Repositories\RolesRepository;
 use Kanvas\Users\DataTransferObject\RegisterPostData;
 use Kanvas\Users\Models\Users;
-use Kanvas\UsersGroup\Roles\Models\UserRoles;
+use Kanvas\Users\Models\UserRoles;
 
 class AssignRole
 {

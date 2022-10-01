@@ -11,7 +11,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Roles\Repositories\RolesRepository;
-use Kanvas\UsersGroup\Roles\Models\UserRoles;
+use Kanvas\Users\Models\UserRoles;
 use Kanvas\Utils\Str;
 
 trait PermissionsTrait

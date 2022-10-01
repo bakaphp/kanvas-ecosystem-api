@@ -15,8 +15,8 @@ use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Traits\UsersAssociatedTrait;
 use Kanvas\Users\Models\Users;
-use Kanvas\UsersGroup\AssociatedApps\Models\UsersAssociatedApps;
-use Kanvas\UsersGroup\AssociatedCompanies\Models\UsersAssociatedCompanies;
+use Kanvas\Users\Models\UsersAssociatedApps;
+use Kanvas\Users\Models\UsersAssociatedCompanies;
 
 /**
  * Companies Model.

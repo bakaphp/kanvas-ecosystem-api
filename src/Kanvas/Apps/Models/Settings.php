@@ -6,10 +6,9 @@ namespace Kanvas\Apps\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
-use Kanvas\Apps\Models\Apps;
 
 /**
- * AppsSettings Class
+ * AppsSettings Class.
  *
  * @property int $apps_id
  * @property string $name
@@ -18,7 +17,6 @@ use Kanvas\Apps\Models\Apps;
 
 class Settings extends BaseModel
 {
-
     /**
      * The table associated with the model.
      *
@@ -27,11 +25,11 @@ class Settings extends BaseModel
     protected $table = 'apps_settings';
 
     /**
-     * Apps relationship
+     * Apps relationship.
      *
      * @return Apps
      */
-    public function app(): BelongsTo
+    public function app() : BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }

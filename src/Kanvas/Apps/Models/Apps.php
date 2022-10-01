@@ -7,7 +7,7 @@ namespace Kanvas\Apps\Models;
 use Baka\Traits\HashTableTrait;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
-use Kanvas\UsersGroup\CompanyApps\Models\UserCompanyApps;
+use Kanvas\Users\Models\UserCompanyApps;
 
 /**
  * Apps Model.

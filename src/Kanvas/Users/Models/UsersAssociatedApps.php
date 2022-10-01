@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\UsersGroup\CompanyApps\Models;
+namespace Kanvas\Users\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
@@ -11,22 +11,34 @@ use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 
 /**
- * UserCompanyApps Model.
+ * UsersAssociatedApps Model.
  *
  * @property int $users_id
- * @property int $companies_id
  * @property int $apps_id
- * @property string $stripe_id
- * @property int $subscriptions_id
+ * @property int $companies_id
+ * @property ?string $identify_id
+ * @property ?string $password
+ * @property int $user_active
+ * @property string $user_role
  */
-class UserCompanyApps extends BaseModel
+class UsersAssociatedApps extends BaseModel
 {
     /**
      * The table associated with the model.
      *
      * @var string
      */
-    protected $table = 'user_company_apps';
+    protected $table = 'users_associated_apps';
+
+    protected $fillable = [
+        'users_id',
+        'apps_id',
+        'roles_id',
+        'companies_id',
+        'identify_id',
+        'password',
+        'user_role',
+    ];
 
     /**
      * Users relationship.
@@ -41,7 +53,7 @@ class UserCompanyApps extends BaseModel
     /**
      * Users relationship.
      *
-     * @return Users
+     * @return Companies
      */
     public function company() : BelongsTo
     {
@@ -51,7 +63,7 @@ class UserCompanyApps extends BaseModel
     /**
      * Users relationship.
      *
-     * @return Users
+     * @return Apps
      */
     public function app() : BelongsTo
     {
