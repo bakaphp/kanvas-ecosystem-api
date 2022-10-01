@@ -30,6 +30,16 @@ class UsersAssociatedApps extends BaseModel
      */
     protected $table = 'users_associated_apps';
 
+    protected $fillable = [
+        'users_id',
+        'apps_id',
+        'roles_id',
+        'companies_id',
+        'identify_id',
+        'password',
+        'user_role',
+    ];
+
     /**
      * Users relationship.
      *

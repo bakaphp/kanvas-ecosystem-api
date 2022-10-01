@@ -10,6 +10,8 @@ use Kanvas\CompanyGroup\Branches\Models\CompaniesBranches;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
 use Baka\Traits\HashTableTrait;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Traits\PermissionsTrait;
 use Kanvas\Traits\UsersAssociatedTrait;
 use Kanvas\UsersGroup\Config\Models\UserConfig;
@@ -17,6 +19,7 @@ use Kanvas\Users\Factories\UsersFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Kanvas\Auth\Traits\HasApiTokens;
+use Kanvas\Roles\Models\Roles;
 
 /**
  * Apps Model.
@@ -101,7 +104,7 @@ class Users extends Authenticatable
      *
      * @return hasMany
      */
-    public function defaultCompany()
+    public function defaultCompany() : HasOne
     {
         return $this->hasOne(Companies::class, 'id', 'default_company');
     }
@@ -111,7 +114,7 @@ class Users extends Authenticatable
      *
      * @return hasMany
      */
-    public function companies()
+    public function companies() : HasMany
     {
         return $this->hasMany(Companies::class, 'users_id');
     }
@@ -121,9 +124,19 @@ class Users extends Authenticatable
      *
      * @return hasMany
      */
-    public function branches()
+    public function branches() : HasMany
     {
         return $this->hasMany(CompaniesBranches::class, 'users_id');
+    }
+
+    /**
+     * Role relationship
+     *
+     * @return HasOne
+     */
+    public function role() : HasOne
+    {
+        return $this->hasOne(Roles::class, 'id', 'roles_id');
     }
 
     /**

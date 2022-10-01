@@ -35,7 +35,6 @@ class UserRoles extends BaseModel
         'companies_id'
     ];
 
-
     /**
      * Users relationship.
      *

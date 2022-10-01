@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Apps\Models;
 
+use Baka\Traits\HashTableTrait;
 use Kanvas\Apps\Factories\AppsFactory;
 use Kanvas\AppsGroup\Roles\Models\Roles;
 use Kanvas\AppsGroup\Settings\Models\Settings;
@@ -31,6 +32,8 @@ use Kanvas\UsersGroup\CompanyApps\Models\UserCompanyApps;
  */
 class Apps extends BaseModel
 {
+    use HashTableTrait;
+
     /**
      * The table associated with the model.
      *
@@ -83,6 +86,16 @@ class Apps extends BaseModel
     public function usesSubscriptions() : bool
     {
         return (bool) $this->payments_active;
+    }
+
+    /**
+     * Set hashtable settings table, userConfig ;).
+     *
+     * @return void
+     */
+    protected function createSettingsModel() : void
+    {
+        $this->settingsModel = new Settings();
     }
 
     /**

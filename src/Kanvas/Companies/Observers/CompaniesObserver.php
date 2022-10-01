@@ -44,17 +44,6 @@ class CompaniesObserver
         $createCompanyGroup = new CreateCompanyGroupActions($company, $app);
         $createCompanyGroup->execute($company->name, StateEnums::ON->getValue());
 
-        $company->associateUser(
-            $user,
-            StateEnums::ON->getValue()
-        );
-
-        $company->associateUserApp(
-            $user,
-            $app,
-            StateEnums::ON->getValue()
-        );
-
         $createCompanyBranch = new CreateCompanyBranchActions(
             new CompaniesBranchPostData(
                 AppEnums::DEFAULT_NAME->getValue(),
@@ -67,10 +56,20 @@ class CompaniesObserver
 
         $branch = $createCompanyBranch->execute();
 
-        if ($user->isFirstSignup()) {
-            $assignRole = new AssignRole($user, $company, $app);
-            $assignRole->execute(AppEnums::DEFAULT_ROLE_NAME->getValue());
-        }
+        $company->associateUser(
+            $user,
+            StateEnums::ON->getValue(),
+            $branch
+        );
+
+        $company->associateUserApp(
+            $user,
+            $app,
+            StateEnums::ON->getValue()
+        );
+
+        $assignRole = new AssignRole($user, $company, $app);
+        $assignRole->execute(AppEnums::DEFAULT_ROLE_NAME->getValue());
 
         if (!$user->get(Companies::cacheKey())) {
             $user->set(Companies::cacheKey(), $company->id);

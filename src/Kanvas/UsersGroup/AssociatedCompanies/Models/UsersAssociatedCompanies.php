@@ -14,6 +14,7 @@ use Kanvas\Users\Models\Users;
  *
  * @property int $users_id
  * @property int $companies_id
+ * @property int $companies_branches_id
  * @property string $identify_id
  * @property int $user_active
  * @property string $user_role
@@ -27,6 +28,15 @@ class UsersAssociatedCompanies extends BaseModel
      * @var string
      */
     protected $table = 'users_associated_company';
+
+    protected $fillable = [
+        'users_id',
+        'companies_id',
+        //'companies_branches_id' => $branch->getKey(),
+        'identify_id',
+        'user_active',
+        'user_role',
+    ];
 
     /**
      * Users relationship.

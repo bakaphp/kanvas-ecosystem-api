@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\AppsGroup\Settings\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
 use Kanvas\Apps\Models\Apps;
 
@@ -30,7 +31,7 @@ class Settings extends BaseModel
      *
      * @return Apps
      */
-    public function app(): Apps
+    public function app(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }

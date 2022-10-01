@@ -174,18 +174,21 @@ class Companies extends BaseModel
     public function associateUser(
         Users $user,
         int $isActive,
+        CompaniesBranches $branch,
         ?int $userRoleId = null,
         string $companyUserIdentifier = null
     ) : UsersAssociatedCompanies {
-        $usersAssociatedModel = new UsersAssociatedCompanies();
-        $usersAssociatedModel->users_id = $user->getKey();
-        $usersAssociatedModel->companies_id = $this->id;
-        $usersAssociatedModel->identify_id = $companyUserIdentifier ?? $user->id;
-        $usersAssociatedModel->user_active = $isActive;
-        $usersAssociatedModel->user_role = $userRoleId ?? $user->roles_id;
-        $usersAssociatedModel->saveOrFail();
-
-        return $usersAssociatedModel;
+        return UsersAssociatedCompanies::firstOrCreate([
+            'users_id' => $user->getKey(),
+            'companies_id' => $this->getKey(),
+        ], [
+            'users_id' => $user->getKey(),
+            'companies_id' => $this->getKey(),
+            //'companies_branches_id' => $branch->getKey(),
+            'identify_id' => $companyUserIdentifier ?? $user->id,
+            'user_active' => $isActive,
+            'user_role' => $userRoleId ?? $user->roles_id,
+        ]);
     }
 
     /**
@@ -207,15 +210,19 @@ class Companies extends BaseModel
         ?int $userRoleId = null,
         string $password = null,
         string $companyUserIdentifier = null
-    ) {
-        $usersAssociatedModel = new UsersAssociatedApps();
-        $usersAssociatedModel->users_id = $user->getKey();
-        $usersAssociatedModel->companies_id = $this->id;
-        $usersAssociatedModel->apps_id = $app->getKey();
-        $usersAssociatedModel->identify_id = $companyUserIdentifier ?? $user->id;
-        $usersAssociatedModel->user_active = $isActive;
-        $usersAssociatedModel->user_role = $userRoleId ?? $user->roles_id;
-        $usersAssociatedModel->password = $password;
-        $usersAssociatedModel->saveOrFail();
+    ) : UsersAssociatedApps {
+        return UsersAssociatedApps::firstOrCreate([
+            'users_id' => $user->getKey(),
+            'companies_id' => $this->getKey(),
+            'apps_id' => $app->getKey(),
+        ], [
+            'users_id' => $user->getKey(),
+            'companies_id' => $this->getKey(),
+            'apps_id' => $app->getKey(),
+            'identify_id' => $companyUserIdentifier ?? $user->id,
+            'user_active' => $isActive,
+            'user_role' => $userRoleId ?? $user->roles_id,
+            'password' => $password
+        ]);
     }
 }
