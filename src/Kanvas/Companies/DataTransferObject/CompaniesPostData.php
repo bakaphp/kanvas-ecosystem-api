@@ -28,7 +28,7 @@ class CompaniesPostData extends BaseDataTransferObject
         public ?int $currency_id = null,
         public ?string $website = null,
         public ?string $address = null,
-        public ?string $zipcode = null,
+        public ?int $zipcode = null,
         public ?string $language = null,
         public ?string $timezone = null,
         public ?string $country_code = null,
@@ -61,7 +61,16 @@ class CompaniesPostData extends BaseDataTransferObject
     {
         return new self(
             name: $data['name'],
-            users_id : $data['users_id']
+            users_id : $data['users_id'],
+            email : $data['email'] ?? null,
+            phone : $data['phone'] ?? null,
+            currency_id : $data['currency_id'] ?? null,
+            website : $data['website'] ?? null,
+            address : $data['address'] ?? null,
+            zipcode : $data['zipcode'] ?? null,
+            language : $data['language'] ?? null,
+            timezone : $data['timezone'] ?? null,
+            country_code : $data['country_code'] ?? null,
         );
     }
 
@@ -76,7 +85,16 @@ class CompaniesPostData extends BaseDataTransferObject
     {
         return new self(
             name: $data['name'],
-            users_id : $data['users_id']
+            users_id : $data['users_id'],
+            email : $data['email'] ?? null,
+            phone : $data['phone'] ?? null,
+            currency_id : $data['currency_id'] ?? null,
+            website : $data['website'] ?? null,
+            address : $data['address'] ?? null,
+            zipcode : $data['zipcode'] ?? null,
+            language : $data['language'] ?? null,
+            timezone : $data['timezone'] ?? null,
+            country_code : $data['country_code'] ?? null,
         );
     }
 }

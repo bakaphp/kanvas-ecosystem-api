@@ -4,12 +4,11 @@ type Company {
     name: String!
     website: String
     address: String
-    zipcode: String
+    zipcode: Int
     email: String
     language: String
     timezone: String
     phone: String
-    user: User!
     country_code: String
     created_at: DateTime
     updated_at: DateTime
@@ -20,7 +19,6 @@ type CompanyGroup {
     uuid: String!
     name: String!
     app: App!
-    user: User!
     stripe_id: String
     is_default: Int!
     country_code: String
@@ -39,11 +37,10 @@ type CompanyAssociation {
 type CompanyBranch {
     id: Int!
     company: Company!
-    user: User!
     name: String!
     email: String
     phone: String
-    zipcode: String
+    zipcode: Int
     is_default: Int!
     created_at: DateTime
     updated_at: DateTime
@@ -55,4 +52,25 @@ type CompanySettings {
     value: String
     created_at: DateTime
     updated_at: DateTime
+}
+
+input CompanyInput {
+    name: String!
+    website: String
+    address: String
+    zipcode: Int
+    email: String
+    language: String
+    timezone: String
+    phone: String
+    country_code: String
+}
+
+extend type Mutation @guard {
+    createCompany(input: CompanyInput): Company!
+        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CreateCompany")
+    updateCompany(id: Int!, input: CompanyInput): Company!
+        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\UpdateCompany")
+    deleteCompany(id: Int!): String
+        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\DeleteCompany")
 }

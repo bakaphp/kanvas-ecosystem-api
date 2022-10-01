@@ -26,14 +26,23 @@ class CreateCompanyGroupActions
      */
     public function execute(string $name, int $isDefault) : CompaniesGroups
     {
-        $companyGroup = new CompaniesGroups();
-        $companyGroup->name = $name;
-        $companyGroup->users_id = $this->company->users_id;
-        $companyGroup->apps_id = $this->app->id;
-        $companyGroup->is_default = $isDefault;
-        $companyGroup->saveOrFail();
+        $companyGroup = CompaniesGroups::firstOrCreate([
+            'apps_id' => $this->app->getKey(),
+            'users_id' => $this->company->users_id,
+            'is_deleted' => 0
+        ], [
+            'name' => $name,
+            'users_id' => $this->company->users_id,
+            'apps_id' => $this->app->getKey(),
+            'is_default' => $isDefault,
 
-        $companyGroup->associate($this->company, $isDefault);
+        ]);
+
+        //print_r($companyGroup->whereRelation('companiesAssoc', 'is_default', '=', 1)->get()->toArray()); die();
+        $companyGroup->associate(
+            $this->company,
+            $isDefault
+        );
 
         return $companyGroup;
     }
