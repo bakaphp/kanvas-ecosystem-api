@@ -30,16 +30,6 @@ class Roles extends BaseModel
     protected $table = 'roles';
 
     /**
-    * Create a new factory instance for the model.
-    *
-    * @return \Illuminate\Database\Eloquent\Factories\Factory
-    */
-    protected static function newFactory()
-    {
-        return RolesFactory::new();
-    }
-
-    /**
      * Companies relationship
      *
      * @return Companies

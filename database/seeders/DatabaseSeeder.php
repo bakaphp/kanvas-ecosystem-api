@@ -2,11 +2,7 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Kanvas\Apps\Factories\AppsFactory;
-use Kanvas\Apps\Models\Apps as ModelsApps;
-use Kanvas\AppsGroup\Models\Apps;
 
 class DatabaseSeeder extends Seeder
 {
@@ -17,9 +13,18 @@ class DatabaseSeeder extends Seeder
      */
     public function run()
     {
-        //\Kanvas\Apps\Models\Apps::factory(1)->create();
-        ModelsApps::factory()->count(1)->create();
-        \Kanvas\SystemModules\Models\SystemModules::factory(1)->create();
-        \Kanvas\Roles\Models\Roles::factory(1)->create();
+        $this->call([
+            CurrencySeeder::class,
+            AppSeeder::class,
+            AppPlansSeeder::class,
+            AppSettingsSeeder::class,
+            CountriesSeeder::class,
+            StatesSeeder::class,
+            CitiesSeeder::class,
+            RolesSeeder::class,
+            SourceSeeder::class,
+            SystemModuleSeeder::class,
+            UserSeeder::class
+        ]);
     }
 }

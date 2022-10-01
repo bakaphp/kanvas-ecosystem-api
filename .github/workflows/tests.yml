@@ -58,6 +58,9 @@ jobs:
       - name: Run Migrations
         run: php artisan migrate
 
+      - name: Run Seedes
+        run: php artisan db:seed
+
       - name: Run Tests
         if: success()
         run: php artisan test

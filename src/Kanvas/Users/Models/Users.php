@@ -132,7 +132,7 @@ class Users extends Authenticatable
     /**
      * Role relationship
      *
-     * @return HasOne
+     * @return void
      */
     public function role() : HasOne
     {

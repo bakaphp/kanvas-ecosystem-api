@@ -36,16 +36,6 @@ class SystemModules extends BaseModel
     protected $table = 'system_modules';
 
     /**
-     * Create a new factory instance for the model.
-     *
-     * @return \Illuminate\Database\Eloquent\Factories\Factory
-     */
-    protected static function newFactory()
-    {
-        return SystemModulesFactory::new();
-    }
-
-    /**
      * Apps relationship.
      *
      * @return Apps
