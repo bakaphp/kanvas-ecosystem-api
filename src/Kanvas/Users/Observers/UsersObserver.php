@@ -17,6 +17,20 @@ use Kanvas\Users\Models\Users;
 
 class UsersObserver
 {
+
+    /**
+     * Handle the Apps "saving" event.
+     *
+     * @param  Apps $app
+     *
+     * @return void
+     */
+    public function creating(Users $user) : void
+    {
+        $user->uuid = Str::uuid()->toString();
+        //$user->system_modules_id = SystemModules::first()->id;
+    }
+
     /**
      * After Create.
      *
@@ -29,7 +43,6 @@ class UsersObserver
         $app = app(Apps::class);
 
         if ($user->isFirstSignup()) {
-            //create company
             $createCompany = new CreateCompaniesAction(
                 new CompaniesPostData(
                     $user->defaultCompanyName ?? $user->displayname . 'CP',
@@ -74,18 +87,5 @@ class UsersObserver
 
         $assignRole = new AssignRole($user, $company, $app);
         $assignRole->execute($role);
-    }
-
-    /**
-     * Handle the Apps "saving" event.
-     *
-     * @param  Apps $app
-     *
-     * @return void
-     */
-    public function saving(Users $user) : void
-    {
-        $user->uuid = Str::uuid()->toString();
-        //$user->system_modules_id = SystemModules::first()->id;
     }
 }
