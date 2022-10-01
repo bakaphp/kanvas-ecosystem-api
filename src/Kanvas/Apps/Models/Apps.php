@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Apps\Models;
 
 use Baka\Traits\HashTableTrait;
-use Kanvas\Apps\Factories\AppsFactory;
 use Kanvas\AppsGroup\Roles\Models\Roles;
 use Kanvas\AppsGroup\Settings\Models\Settings;
 use Kanvas\Companies\Models\Companies;
@@ -42,21 +41,11 @@ class Apps extends BaseModel
     protected $table = 'apps';
 
     /**
-    * The attributes that should not be mass assignable.
-    *
-    * @var array
-    */
-    protected $guarded = [];
-
-    /**
-     * Create a new factory instance for the model.
+     * The attributes that should not be mass assignable.
      *
-     * @return \Illuminate\Database\Eloquent\Factories\Factory
+     * @var array
      */
-    protected static function newFactory()
-    {
-        return AppsFactory::new();
-    }
+    protected $guarded = [];
 
     /**
      * Settings relationship.
@@ -99,7 +88,7 @@ class Apps extends BaseModel
     }
 
     /**
-     * Associate company to App
+     * Associate company to App.
      *
      * @param Companies $company
      *

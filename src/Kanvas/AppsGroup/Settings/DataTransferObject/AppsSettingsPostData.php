@@ -19,12 +19,12 @@ class AppsSettingsPostData extends DataTransferObject
      *
      * @param int $apps_id
      * @param string $name
-     * @param string $value
+     * @param mixed $value
      */
     public function __construct(
         public int $apps_id,
         public string $name,
-        public string $value,
+        public mixed $value,
     ) {
     }
 

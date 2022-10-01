@@ -4,12 +4,9 @@ declare(strict_types=1);
 namespace Kanvas\Companies\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Kanvas\Roles\Models\Roles;
+use Illuminate\Support\Str;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Users\Models\Users;
-use Kanvas\SystemModules\Models\SystemModules;
-use Kanvas\Currencies\Models\Currencies;
-use Illuminate\Support\Str;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Model>
@@ -17,10 +14,10 @@ use Illuminate\Support\Str;
 class CompaniesFactory extends Factory
 {
     /**
-    * The name of the factory's corresponding model.
-    *
-    * @var Companies
-    */
+     * The name of the factory's corresponding model.
+     *
+     * @var Companies
+     */
     protected $model = Companies::class;
 
     /**
@@ -32,20 +29,20 @@ class CompaniesFactory extends Factory
     {
         $user = Users::factory()->create()->first();
         return [
-            "users_id" => $user->id,
-            "uuid" => Str::random(10),
-            "name" => $this->faker->name(),
-            "profile_image" => $this->faker->name(),
-            "website" => $this->faker->url(),
-            "address" => $this->faker->address(),
-            "zipcode" => $this->faker->postcode(),
-            "email" => $this->faker->email(),
-            "language" => "en_US",
-            "timezone" => $this->faker->timezone(),
-            "phone" => $this->faker->phoneNumber(),
-            "has_activities" => 1,
-            "country_code" => $this->faker->countryCode(),
-            "is_deleted" => 0
+            'users_id' => $user->id,
+            'uuid' => Str::random(10),
+            'name' => $this->faker->name(),
+            'profile_image' => $this->faker->name(),
+            'website' => $this->faker->url(),
+            'address' => $this->faker->address(),
+            'zipcode' => $this->faker->postcode(),
+            'email' => $this->faker->email(),
+            'language' => 'en_US',
+            'timezone' => $this->faker->timezone(),
+            'phone' => $this->faker->phoneNumber(),
+            'has_activities' => 1,
+            'country_code' => $this->faker->countryCode(),
+            'is_deleted' => 0
         ];
     }
 }

@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class SystemModuleSeeder extends Seeder
 {
@@ -14,6 +15,177 @@ class SystemModuleSeeder extends Seeder
      */
     public function run()
     {
-        //
+        DB::table('system_modules')->insert(
+            [
+                'name' => 'Companies',
+                'slug' => 'companies',
+                'model_name' => 'Kanvas\\Models\\Companies',
+                'apps_id' => '1',
+                'parents_id' => '0',
+                'menu_order' => null,
+                'show' => '1',
+                'use_elastic' => '0',
+                'browse_fields' => '[{"name":"name","title":"Name","sortField":"name","filterable":true,"searchable":true},{"name":"address","title":"Address","sortField":"address","filterable":true,"searchable":true},{"name":"timezone","title":"Timezone","sortField":"timezone","filterable":true,"searchable":true},{"name":"website","title":"Website","sortField":"website","filterable":true,"searchable":true}]',
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => null,
+                'is_deleted' => '0',
+                'mobile_component_type' => null,
+                'mobile_navigation_type' => null,
+                'mobile_tab_index' => '0'
+            ],
+            [
+                'name' => 'Users',
+                'slug' => 'users',
+                'model_name' => 'Kanvas\\Models\\Users',
+                'apps_id' => '1',
+                'parents_id' => '0',
+                'menu_order' => null,
+                'show' => '1',
+                'use_elastic' => '0',
+                'browse_fields' => '[{"name":"firstname","title":"First Name","sortField":"firstname","filterable":true,"searchable":true},{"name":"lastname","title":"Last Name","sortField":"lastname","filterable":true,"searchable":true},{"name":"email","title":"Email","sortField":"email","filterable":true,"searchable":true},{"name":"displayname","title":"Display Name","sortField":"displayname","filterable":true,"searchable":true}]',
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => null,
+                'is_deleted' => '0',
+                'mobile_component_type' => null,
+                'mobile_navigation_type' => null,
+                'mobile_tab_index' => '0'
+            ],
+            [
+                'name' => 'Users',
+                'slug' => 'users',
+                'model_name' => 'Gewaer\\Models\\Users',
+                'apps_id' => '1',
+                'parents_id' => '0',
+                'menu_order' => null,
+                'show' => '1',
+                'use_elastic' => '0',
+                'browse_fields' => '[{"name":"firstname","title":"First Name","sortField":"firstname","filterable":true,"searchable":true},{"name":"lastname","title":"Last Name","sortField":"lastname","filterable":true,"searchable":true},{"name":"email","title":"Email","sortField":"email","filterable":true,"searchable":true},{"name":"displayname","title":"Display Name","sortField":"displayname","filterable":true,"searchable":true}]',
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => null,
+                'is_deleted' => '0',
+                'mobile_component_type' => null,
+                'mobile_navigation_type' => null,
+                'mobile_tab_index' => '0'
+            ],
+            [
+                'name' => 'Companies Branches',
+                'slug' => 'companies-branches',
+                'model_name' => 'Kanvas\\Models\\CompaniesBranches',
+                'apps_id' => '1',
+                'parents_id' => '0',
+                'menu_order' => null,
+                'show' => '0',
+                'use_elastic' => '0',
+                'browse_fields' => '[{"name":"name","title":"Name","sortField":"name","filterable":true,"searchable":true}]',
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => null,
+                'is_deleted' => '0',
+                'mobile_component_type' => null,
+                'mobile_navigation_type' => null,
+                'mobile_tab_index' => '0'
+            ],
+            [
+                'name' => 'Active Users',
+                'slug' => 'users-active',
+                'model_name' => 'Kanvas\\Models\\Users',
+                'apps_id' => '1',
+                'parents_id' => '0',
+                'menu_order' => null,
+                'show' => '0',
+                'use_elastic' => '0',
+                'browse_fields' => '[{"name":"firstname","title":"First Name","sortField":"firstname","filterable":true,"searchable":true},{"name":"lastname","title":"Last Name","sortField":"lastname","filterable":true,"searchable":true},{"name":"email","title":"Email","sortField":"email","filterable":true,"searchable":true},{"name":"roles.0.name","title":"Roles","sortField":"roles_id","filterable":true},{"name":"lastvisit","title":"Last Visit","sortField":"lastvisit","filterable":true,"searchable":true}]',
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => null,
+                'is_deleted' => '0',
+                'mobile_component_type' => null,
+                'mobile_navigation_type' => null,
+                'mobile_tab_index' => '0'
+            ],
+            [
+                'name' => 'Invited Users',
+                'slug' => 'users-invite',
+                'model_name' => 'Kanvas\\Models\\Users',
+                'apps_id' => '1',
+                'parents_id' => '0',
+                'menu_order' => null,
+                'show' => '0',
+                'use_elastic' => '0',
+                'browse_fields' => '[{"name":"email","title":"Email","sortField":"email","filterable":true,"searchable":true},{"name":"roles.0.name","title":"Roles","sortField":"roles_id","filterable":true}]',
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => null,
+                'is_deleted' => '0',
+                'mobile_component_type' => null,
+                'mobile_navigation_type' => null,
+                'mobile_tab_index' => '0'
+            ],
+            [
+                'name' => 'Inactive Users',
+                'slug' => 'users-inactive',
+                'model_name' => 'Kanvas\\Models\\Users',
+                'apps_id' => '1',
+                'parents_id' => '0',
+                'menu_order' => null,
+                'show' => '0',
+                'use_elastic' => '0',
+                'browse_fields' => '[{"name":"firstname","title":"First Name","sortField":"firstname","filterable":true,"searchable":true},{"name":"lastname","title":"Last Name","sortField":"lastname","filterable":true,"searchable":true},{"name":"email","title":"Email","sortField":"email","filterable":true,"searchable":true},{"name":"roles.0.name","title":"Roles","sortField":"roles_id","filterable":true},{"name":"lastvisit","title":"Last Visit","sortField":"lastvisit","filterable":true,"searchable":true}]',
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => null,
+                'is_deleted' => '0',
+                'mobile_component_type' => null,
+                'mobile_navigation_type' => null,
+                'mobile_tab_index' => '0'
+            ],
+            [
+                'name' => 'Roles',
+                'slug' => 'roles',
+                'model_name' => 'Kanvas\\Models\\Roles',
+                'apps_id' => '1',
+                'parents_id' => '0',
+                'menu_order' => null,
+                'show' => '0',
+                'use_elastic' => '0',
+                'browse_fields' => '[{"name":"name","title":"Name","sortField":"name","filterable":true,"searchable":true},{"name":"description","title":"Description"}]',
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => null,
+                'is_deleted' => '0',
+                'mobile_component_type' => null,
+                'mobile_navigation_type' => null,
+                'mobile_tab_index' => '0'
+            ],
+            [
+                'name' => 'Custom Fields Modules',
+                'slug' => 'custom-fields-modules',
+                'model_name' => 'Kanvas\\Models\\CustomFieldsModules',
+                'apps_id' => '1',
+                'parents_id' => '0',
+                'menu_order' => null,
+                'show' => '0',
+                'use_elastic' => '0',
+                'browse_fields' => '[{"name":"name","title":"Module","sortField":"name","filterable":true,"searchable":true}]',
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => null,
+                'is_deleted' => '0',
+                'mobile_component_type' => null,
+                'mobile_navigation_type' => null,
+                'mobile_tab_index' => '0'
+            ],
+            [
+                'name' => 'Users Invite',
+                'slug' => 'users-invite',
+                'model_name' => 'Kanvas\\Models\\UsersInvite',
+                'apps_id' => '1',
+                'parents_id' => '0',
+                'menu_order' => null,
+                'show' => '0',
+                'use_elastic' => '0',
+                'browse_fields' => '[{"name":"email","title":"Email","sortField":"email","filterable":true,"searchable":true},{"name":"roles.0.name","title":"Roles","sortField":"roles_id","filterable":true}]',
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => null,
+                'is_deleted' => '0',
+                'mobile_component_type' => null,
+                'mobile_navigation_type' => null,
+                'mobile_tab_index' => '0'
+            ]
+        );
     }
 }

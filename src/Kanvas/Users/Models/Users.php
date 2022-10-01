@@ -4,22 +4,21 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Models;
 
+use Baka\Traits\HashTableTrait;
 use Exception;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Kanvas\CompanyGroup\Branches\Models\CompaniesBranches;
-use Kanvas\Companies\Models\Companies;
-use Kanvas\Models\BaseModel;
-use Baka\Traits\HashTableTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Kanvas\Traits\PermissionsTrait;
-use Kanvas\Traits\UsersAssociatedTrait;
-use Kanvas\UsersGroup\Config\Models\UserConfig;
-use Kanvas\Users\Factories\UsersFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Kanvas\Auth\Traits\HasApiTokens;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\CompanyGroup\Branches\Models\CompaniesBranches;
 use Kanvas\Roles\Models\Roles;
+use Kanvas\Traits\PermissionsTrait;
+use Kanvas\Traits\UsersAssociatedTrait;
+use Kanvas\Users\Factories\UsersFactory;
+use Kanvas\UsersGroup\Config\Models\UserConfig;
 
 /**
  * Apps Model.
@@ -130,7 +129,7 @@ class Users extends Authenticatable
     }
 
     /**
-     * Role relationship
+     * Role relationship.
      *
      * @return void
      */
@@ -198,7 +197,6 @@ class Users extends Authenticatable
     protected function createSettingsModel() : void
     {
         $this->settingsModel = new UserConfig();
-
     }
 
     /**

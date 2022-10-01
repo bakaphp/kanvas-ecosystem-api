@@ -21,12 +21,27 @@ enum AppEnums implements EnumsInterface
     case CORE_APP_ID;
     case ECOSYSTEM_COMPANY_ID;
     case DEFAULT_APP_NAME;
-    case DEFAULT_ROLE_SETTING;
     case DEFAULT_COUNTRY;
     case DEFAULT_USER_LEVEL;
+    case CURRENCY;
+    case FILESYSTEM;
+    case ALLOW_USER_REGISTRATION;
+    case BACKGROUND_IMAGE;
+    case LOGO;
+    case REGISTERED;
+    case FAVICON;
+    case BASE_COLOR;
+    case SECONDARY_COLOR;
+    case ALLOW_SOCIAL_AUTH;
+    case ALLOWED_SOCIAL_AUTHS;
+    case DEFAULT_SIDEBAR_STATE;
+    case SHOW_NOTIFICATIONS;
+    case DELETE_IMAGES_ON_EMPTY_FILES_FIELD;
+    case PUBLIC_IMAGES;
+    case DEFAULT_FEEDS_COMMENTS;
 
     /**
-     * Get value
+     * Get value.
      *
      * @return mixed
      */
@@ -40,15 +55,43 @@ enum AppEnums implements EnumsInterface
             self::VERSION => config('kanvas.app.version'),
             self::GLOBAL_APP_ID => 1,
             self::ECOSYSTEM_APP_ID => 1,
+            self::CORE_APP_ID => 1,
             self::GLOBAL_COMPANY_ID => 0,
             self::DEFAULT_ROLE_NAME => 'Admins',
             self::DEFAULT_ROLES_NAMES => ['Admin', 'Admins', 'User', 'Users', 'Agents'],
             self::ECOSYSTEM_COMPANY_ID => 1,
             self::DEFAULT_APP_NAME => 'Default',
-            self::DEFAULT_ROLE_SETTING => 'default_admin_role',
-            self::DEFAULT_COUNTRY => 'default_user_country',
+            self::DEFAULT_COUNTRY => 'USA',
             self::DEFAULT_USER_LEVEL => 3,
             self::DEFAULT_ROLE_ID => 2,
+            self::CURRENCY => 'USD',
+            self::FILESYSTEM => 's3',
+            self::ALLOW_USER_REGISTRATION => 1,
+            self::BACKGROUND_IMAGE => getenv('FILESYSTEM_CDN_URL') . '/default-background-auth.jpg',
+            self::LOGO => getenv('FILESYSTEM_CDN_URL') . '/gewaer-logo-dark.png',
+            self::REGISTERED => 1,
+            self::FAVICON => getenv('FILESYSTEM_CDN_URL') . '/gewaer-logo-dark.png',
+            self::BASE_COLOR => '#61c2cc',
+            self::SECONDARY_COLOR => '#9ee5b5',
+            self::ALLOW_SOCIAL_AUTH => 1,
+            self::ALLOWED_SOCIAL_AUTHS => '{"google": 1,"facebook": 0,"github": 0,"apple": 0}',
+            self::DEFAULT_SIDEBAR_STATE => 'closed',
+            self::SHOW_NOTIFICATIONS => 1,
+            self::DELETE_IMAGES_ON_EMPTY_FILES_FIELD => 1,
+            self::PUBLIC_IMAGES => 0,
+            self::DEFAULT_FEEDS_COMMENTS => 3,
         };
+    }
+
+    /**
+     * Given the enum name get its value.
+     *
+     * @param string $name
+     *
+     * @return mixed
+     */
+    public static function fromName(string $name) : mixed
+    {
+        return constant("self::$name")->getValue();
     }
 }

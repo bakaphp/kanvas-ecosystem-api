@@ -10,6 +10,7 @@ use Kanvas\Companies\DataTransferObject\CompaniesPostData;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Actions\AssignRole;
@@ -81,7 +82,7 @@ class UsersObserver
             StateEnums::ON->getValue()
         );
 
-        if (!$role = $app->get(AppEnums::DEFAULT_ROLE_SETTING->getValue())) {
+        if (!$role = $app->get(AppSettingsEnums::DEFAULT_ROLE_NAME->getValue())) {
             $role = $app->name . '.' . $user->role()->first()->name;
         }
 

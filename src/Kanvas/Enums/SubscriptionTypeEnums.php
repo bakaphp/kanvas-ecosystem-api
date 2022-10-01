@@ -7,9 +7,9 @@ use Kanvas\Contracts\EnumsInterface;
 
 enum SubscriptionTypeEnums implements EnumsInterface
 {
-    case GROUP ;
-    case COMPANY ;
-    case BRANCH ;
+    case GROUP;
+    case COMPANY;
+    case BRANCH;
 
     /**
      * Get value.

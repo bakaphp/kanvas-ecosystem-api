@@ -17,6 +17,7 @@ class UserSeeder extends Seeder
     {
         DB::table('users')->insert([
             'id' => -1,
+            'uuid' => Str::uuid(),
             'user_activation_email' => Str::uuid(),
             'email' => 'anonymous@kanvas.dev',
             'password' => password_hash('bakatest123567', PASSWORD_DEFAULT),

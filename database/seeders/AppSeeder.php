@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Enums\SubscriptionTypeEnums;
@@ -16,9 +15,9 @@ class AppSeeder extends Seeder
      */
     public function run()
     {
-        DB::table('apps')->insert(  [
+        DB::table('apps')->insert([
             'name' => 'Kanvas',
-            'key' => 'ac53fedf-f873-4b96-973a-2368690652b5',
+            'key' => '059ddaaf-89b5-4158-a85a-90cbd69aa34b',
             'is_public' => 1,
             'description' => 'Kanvas Ecosystem',
             'created_at' => date('Y-m-d H:i:s'),

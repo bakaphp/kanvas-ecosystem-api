@@ -17,7 +17,8 @@ final class UpdateAppsActionTest extends TestCase
      */
     public function testCreateAppsAction() : void
     {
-        $app = Apps::factory()->create();
+        //$app = Apps::factory()->create();
+        $app = Apps::where('id', '>', '0')->first();
 
         $data = [
             'url' => 'example.com',

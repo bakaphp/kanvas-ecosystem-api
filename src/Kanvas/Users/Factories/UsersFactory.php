@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace Kanvas\Users\Users\Factories;
+namespace Kanvas\Users\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
-use Kanvas\Users\Users\Models\Users;
+use Kanvas\Users\Models\Users;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Model>
@@ -32,7 +32,7 @@ class UsersFactory extends Factory
             'displayname' => $this->faker->word(),
             'email' => $this->faker->email(),
             'password' => Str::random(10),
-            'default_company' => 1,
+            'default_company' => 0,
             'user_active' => 1,
             'roles_id' => 1,
             'system_modules_id' => 1,

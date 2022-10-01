@@ -16,11 +16,11 @@ class DatabaseSeeder extends Seeder
         $this->call([
             CurrencySeeder::class,
             AppSeeder::class,
-            AppPlansSeeder::class,
             AppSettingsSeeder::class,
+            AppPlansSeeder::class,
             CountriesSeeder::class,
             StatesSeeder::class,
-            CitiesSeeder::class,
+            //CitiesSeeder::class,
             RolesSeeder::class,
             SourceSeeder::class,
             SystemModuleSeeder::class,
