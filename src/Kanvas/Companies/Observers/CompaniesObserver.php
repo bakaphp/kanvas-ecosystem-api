@@ -75,5 +75,9 @@ class CompaniesObserver
         if (!$user->get(Companies::cacheKey())) {
             $user->set(Companies::cacheKey(), $company->id);
         }
+
+        if (!$user->get($company->branchCacheKey())) {
+            $user->set($company->branchCacheKey(), $branch->id);
+        }
     }
 }
