@@ -7,6 +7,7 @@ namespace Kanvas\Companies\Groups\Actions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesGroups;
+use Kanvas\Enums\StateEnums;
 
 class CreateCompanyGroupActions
 {
@@ -38,10 +39,9 @@ class CreateCompanyGroupActions
 
         ]);
 
-        //print_r($companyGroup->whereRelation('companiesAssoc', 'is_default', '=', 1)->get()->toArray()); die();
         $companyGroup->associate(
             $this->company,
-            $isDefault
+            (int) $companyGroup->companiesAssoc()->count() === 0 ? $isDefault : StateEnums::NO->getValue()
         );
 
         return $companyGroup;
