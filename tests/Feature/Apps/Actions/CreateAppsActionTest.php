@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Tests\Feature\Apps\Apps\Actions;
+namespace Tests\Feature\Apps\Actions;
 
 use Kanvas\Apps\Actions\CreateAppsAction;
 use Kanvas\Apps\DataTransferObject\AppsPostData;

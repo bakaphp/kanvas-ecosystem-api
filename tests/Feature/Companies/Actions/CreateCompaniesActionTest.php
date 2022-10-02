@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Tests\Feature\Companies\Companies\Actions;
+namespace Tests\Feature\Companies\Actions;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
