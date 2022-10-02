@@ -9,6 +9,7 @@ type Company {
     language: String
     timezone: String
     phone: String
+    branches: [CompanyBranch!]! @hasMany(relation: "branches") #need to filter by the branches the user has access to
     country_code: String
     created_at: DateTime
     updated_at: DateTime
@@ -78,6 +79,54 @@ input CompanyBranchInput {
     language: String
     timezone: String
     phone: String
+}
+
+extend type Query @guard {
+    companies(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "name"
+                    "website"
+                    "address"
+                    "zipcode"
+                    "email"
+                    "language"
+                    "timezone"
+                    "phone"
+                    "country_code"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id"])
+    ): [Company!]!
+        @paginate(
+            model: "Kanvas\\Companies\\Models\\Companies"
+            scopes: [ "userAssociated"]
+        )
+}
+
+extend type Query @guard {
+    branches(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "name"
+                    "address"
+                    "email"
+                    "phone"
+                    "is_default"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id"])
+    ): [Company!]!
+        @paginate(
+            model: "Kanvas\\Companies\\Models\\CompaniesBranches"
+            scopes: [ "userAssociated"]
+        )
 }
 
 extend type Mutation @guard {

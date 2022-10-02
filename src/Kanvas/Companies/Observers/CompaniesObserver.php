@@ -5,10 +5,10 @@ namespace Kanvas\Companies\Observers;
 
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Branches\Actions\CreateCompanyBranchActions;
 use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPostData;
 use Kanvas\Companies\Groups\Actions\CreateCompanyGroupActions;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Actions\AssignRole;
@@ -45,7 +45,7 @@ class CompaniesObserver
         $createCompanyGroup->execute($company->name, StateEnums::ON->getValue());
 
         $createCompanyBranch = new CreateCompanyBranchActions(
-                $user,
+            $user,
             new CompaniesBranchPostData(
                 AppEnums::DEFAULT_NAME->getValue(),
                 $company->id,

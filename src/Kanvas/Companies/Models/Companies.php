@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\Defaults;
 use Kanvas\Companies\Factories\CompaniesFactory;
@@ -235,5 +237,23 @@ class Companies extends BaseModel
     public function isOwner(Users $user) : bool
     {
         return $this->users_id === $user->getKey();
+    }
+
+    /**
+     * Not deleted scope.
+     *
+     * @param Builder $query
+     *
+     * @return Builder
+     */
+    public function scopeUserAssociated(Builder $query) : Builder
+    {
+        $user = Auth::user();
+        return $query->join('users_associated_company', function ($join) use ($user) {
+            $join->on('companies.id', '=', 'users_associated_company.companies_id')
+                ->where('users_associated_company.users_id', '=', $user->getKey())
+                ->where('users_associated_company.is_deleted', '=', 0);
+        })
+        ->where('companies.is_deleted', '=', 0);
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Kanvas\Enums\StateEnums;
@@ -57,5 +58,16 @@ class BaseModel extends EloquentModel
     {
         $this->is_deleted = StateEnums::YES->getValue();
         return $this->saveOrFail();
+    }
+
+    /**
+     * Not deleted scope
+     *
+     * @param Builder $query
+     * @return Builder
+     */
+    public function scopeNotDeleted(Builder $query) : Builder
+    {
+        return $query->where('is_deleted', '=', StateEnums::NO->getValue());
     }
 }

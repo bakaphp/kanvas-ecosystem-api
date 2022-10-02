@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Branches\Factories\CompaniesBranchesFactory;
-use Kanvas\Enums\StateEnums;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 
@@ -69,5 +70,24 @@ class CompaniesBranches extends BaseModel
     public function isDefault() : bool
     {
         return (bool) $this->is_default;
+    }
+
+    /**
+     * Filter what the user can see
+     *
+     * @param Builder $query
+     *
+     * @return Builder
+     */
+    public function scopeUserAssociated(Builder $query) : Builder
+    {
+        $user = Auth::user();
+
+        return $query->join('users_associated_company', function ($join) use ($user) {
+            $join->on('users_associated_company.companies_id', '=', 'companies_branches.companies_id')
+                ->where('users_associated_company.users_id', '=', $user->getKey())
+                ->where('users_associated_company.is_deleted', '=', 0);
+        })
+        ->where('companies_branches.is_deleted', '=', 0);
     }
 }
