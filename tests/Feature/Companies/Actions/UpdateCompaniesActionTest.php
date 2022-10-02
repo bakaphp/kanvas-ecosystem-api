@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Tests\Feature\Apps\Apps\Actions;
+namespace Tests\Feature\Apps\Actions;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;

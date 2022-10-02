@@ -21,6 +21,7 @@
         "lcobucci/jwt": "^4.1",
         "mll-lab/graphql-php-scalars": "^5.4",
         "nuwave/lighthouse": "^5.57",
+        "sentry/sentry-laravel": "^2.13",
         "spatie/data-transfer-object": "^3.7",
         "symfony/http-client": "^6.1",
         "symfony/mailgun-mailer": "^6.1",
