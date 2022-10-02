@@ -4,9 +4,11 @@ declare(strict_types=1);
 namespace Tests\Feature\Apps\Apps\Actions;
 
 use Illuminate\Support\Facades\Auth;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\UpdateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\CompaniesPutData;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Enums\StateEnums;
 use Tests\TestCase;
 
 final class UpdateCompaniesActionTest extends TestCase
@@ -19,6 +21,9 @@ final class UpdateCompaniesActionTest extends TestCase
     public function testUpdateCompaniesAction() : void
     {
         $company = Companies::factory(1)->create()->first();
+        $company->associateUser(Auth::user(), StateEnums::YES->getValue(), $company->branch()->first());
+        $company->associateUserApp(Auth::user(), app(Apps::class), StateEnums::YES->getValue());
+
         $faker = \Faker\Factory::create();
         $data = [
             'currency_id' => $company->currency_id,
