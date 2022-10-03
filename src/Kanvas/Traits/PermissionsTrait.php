@@ -6,12 +6,12 @@ namespace Kanvas\Traits;
 
 use Baka\Http\Exception\InternalServerErrorException;
 use Baka\Http\Exception\UnauthorizedException;
-use Kanvas\Apps\Apps\Enums\Defaults as AppsDefaults;
-use Kanvas\Apps\Apps\Models\Apps;
-use Kanvas\Companies\Companies\Models\Companies;
+use Kanvas\Apps\Enums\Defaults as AppsDefaults;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Roles\Repositories\RolesRepository;
-use Kanvas\Users\Roles\Models\UserRoles;
+use Kanvas\Users\Models\UserRoles;
 use Kanvas\Utils\Str;
 
 trait PermissionsTrait
@@ -74,9 +74,9 @@ trait PermissionsTrait
         $role = Roles::getById($id, $company);
 
         $userRole = UserRoles::findFirstOrCreate([
-            'conditions' => 'users_id = :users_id: 
-                            AND apps_id = :apps_id: 
-                            AND companies_id = :companies_id: 
+            'conditions' => 'users_id = :users_id:
+                            AND apps_id = :apps_id:
+                            AND companies_id = :companies_id:
                             AND is_deleted = 0',
             'bind' => [
                 'users_id' => $this->getId(),
@@ -109,9 +109,9 @@ trait PermissionsTrait
         $role = Roles::getByAppName($role, $company);
 
         $userRole = UserRoles::findFirst([
-            'conditions' => 'users_id = ?0 
-                            AND roles_id = ?1 
-                            AND apps_id = ?2 
+            'conditions' => 'users_id = ?0
+                            AND roles_id = ?1
+                            AND apps_id = ?2
                             AND companies_id = ?3',
             'bind' => [
                 $this->getId(),
@@ -142,9 +142,9 @@ trait PermissionsTrait
         $role = Roles::getByAppName($role, $company);
 
         return (bool) UserRoles::count([
-            'conditions' => 'users_id = ?0 
-                            AND roles_id = ?1 
-                            AND (apps_id = ?2 or apps_id = ?4) 
+            'conditions' => 'users_id = ?0
+                            AND roles_id = ?1
+                            AND (apps_id = ?2 or apps_id = ?4)
                             AND companies_id = ?3',
             'bind' => [
                 $this->getId(),

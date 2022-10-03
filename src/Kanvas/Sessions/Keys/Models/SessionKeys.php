@@ -7,7 +7,7 @@ namespace Kanvas\Sessions\Keys\Models;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
 use Kanvas\Sessions\Sessions\Models\Sessions;
-use Kanvas\Users\Users\Models\Users;
+use Kanvas\Users\Models\Users;
 
 /**
  * Apps Model.
@@ -25,6 +25,8 @@ class SessionKeys extends BaseModel
      * @var string
      */
     protected $table = 'session_keys';
+
+    protected $attributes = [];
 
     /**
      * Sessions relationship.

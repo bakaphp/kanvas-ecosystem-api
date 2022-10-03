@@ -8,7 +8,7 @@ use Kanvas\Filesystem\Filesystem\Models\Filesystem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\Apps\Models\Apps;
 
 class CreateFilesystemAction
 {

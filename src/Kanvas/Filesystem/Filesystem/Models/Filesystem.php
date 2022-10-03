@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Filesystem\Models;
 
-use Kanvas\Apps\Apps\Models\Apps;
-use Kanvas\Companies\Companies\Models\Companies;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
-use Kanvas\SystemModules\Models\SystemModules;
-use Kanvas\Users\Users\Models\Users;
+use Kanvas\Users\Models\Users;
 
 /**
  * Filesystem Model.

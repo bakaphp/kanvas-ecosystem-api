@@ -8,8 +8,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
 use Kanvas\Auth\Traits\AuthTrait;
 use Kanvas\Auth\Traits\TokenTrait;
-use Kanvas\Users\Users\Actions\RegisterUsersAction;
-use Kanvas\Users\Users\DataTransferObject\RegisterPostData;
+use Kanvas\Users\Actions\RegisterUsersAction;
+use Kanvas\Users\DataTransferObject\RegisterPostData;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class Register

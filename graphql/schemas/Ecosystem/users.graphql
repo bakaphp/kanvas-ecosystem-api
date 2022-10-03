@@ -1,4 +1,3 @@
-
 type User {
     id: Int!
     uuid: String!
@@ -23,8 +22,7 @@ type TokenResponse {
     timezone: String!
 }
 
-type RegisterResponse
-{
+type RegisterResponse {
     user: User!
     token: TokenResponse!
 }
@@ -49,8 +47,14 @@ input RegisterInput {
 }
 
 extend type Mutation {
-    login(data: LoginInput!): TokenResponse! @field(resolver: "App\\GraphQL\\Ecosystem\\Resolvers\\Auth\\Login@resolve")
-    register(data: RegisterInput!): RegisterResponse! @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\Register@resolve")
+    login(data: LoginInput!): TokenResponse!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Resolvers\\Auth\\Login@resolve"
+        )
+    register(data: RegisterInput!): RegisterResponse!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\Register@resolve"
+        )
 }
 
 type Query @guard {

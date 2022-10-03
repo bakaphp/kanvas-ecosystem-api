@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Currencies\Models;
 
 use Kanvas\Models\BaseModel;
-use Kanvas\Companies\Companies\Models\Companies;
+use Kanvas\Companies\Models\Companies;
 
 /**
  * Companies Model

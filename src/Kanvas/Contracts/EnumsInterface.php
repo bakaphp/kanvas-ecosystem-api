@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Contracts;
 
 /**
- * EnumsInterface
+ * EnumsInterface.
  */
 interface EnumsInterface
 {
     /**
-     * Get Enum case value
+     * Get Enum case value.
      *
      * @return mixed
      */
-    public function getValue(): mixed;
+    public function getValue() : mixed;
 }

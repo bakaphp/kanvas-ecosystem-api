@@ -1,0 +1,16 @@
+type SystemModule {
+    id: Int!
+    name: String!
+    slug: String!
+    model_name: String!
+    app: App!
+    parent: SystemModule
+    menu_order: Int!
+    show: Int!
+    use_elastic: Int!
+    browse_fields: String
+    bulk_actions: String
+    created_at: String!
+    updated_at: String
+}
+

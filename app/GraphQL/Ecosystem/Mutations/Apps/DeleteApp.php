@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Apps;
 
-use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\Apps\Models\Apps;
 
 final class DeleteApp
 {
@@ -11,12 +11,14 @@ final class DeleteApp
      * @param  null  $_
      * @param  array{}  $args
      */
-    public function __invoke($_, array $args)
+    public function __invoke($_, array $request)
     {
-        // TODO implement the resolver
-        Apps::findOrFail($args['id']);
-        $apps->is_deleted = 1;
-        $apps->saveOrFail();
-        return $apps;
+        /**
+         * @todo only super admin can do this
+         */
+        $app = Apps::getById($request['id']);
+        $app->softDelete();
+
+        return $app;
     }
 }

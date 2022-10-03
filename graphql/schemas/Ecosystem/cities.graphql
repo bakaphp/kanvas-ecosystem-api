@@ -1,10 +1,20 @@
-
 extend type Query {
     cities(
         orderBy: _ @orderBy(columns: ["id", "created_at"])
-        where: _ @whereConditions(columns: ["name", "latitude", "longitude", "id", "states_id", "country_id"])
-    ): [Cities] @paginate(model: "Kanvas\\Locations\\Cities\\Models\\Cities"),
-    city(id: Int!): Cities @find(model: "Kanvas\\Locations\\Cities\\Models\\Cities"),
+        where: _
+            @whereConditions(
+                columns: [
+                    "name"
+                    "latitude"
+                    "longitude"
+                    "id"
+                    "states_id"
+                    "country_id"
+                ]
+            )
+    ): [Cities] @paginate(model: "Kanvas\\Locations\\Cities\\Models\\Cities")
+    city(id: Int!): Cities
+        @find(model: "Kanvas\\Locations\\Cities\\Models\\Cities")
 }
 
 extend type Mutation {
@@ -23,5 +33,6 @@ extend type Mutation {
         states_id: Int
         countries_id: Int
     ): Cities @update(model: "Kanvas\\Locations\\Cities\\Models\\Cities")
-    deleteCities(id: Int!): Cities @delete(model: "Kanvas\\Locations\\Cities\\Models\\Cities")
+    deleteCities(id: Int!): Cities
+        @delete(model: "Kanvas\\Locations\\Cities\\Models\\Cities")
 }

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Traits;
 
-use Kanvas\Apps\Apps\Models\Apps;
-use Kanvas\Companies\Companies\Models\Companies;
-use Kanvas\Users\Users\Models\Users;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Users\Models\Users;
 
 trait UsersAssociatedTrait
 {

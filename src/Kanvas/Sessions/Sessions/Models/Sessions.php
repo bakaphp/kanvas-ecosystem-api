@@ -7,9 +7,9 @@ namespace Kanvas\Sessions\Sessions\Models;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Sessions\Keys\Models\SessionKeys;
-use Kanvas\Users\Users\Models\Users;
+use Kanvas\Users\Models\Users;
 use Laravel\Sanctum\PersonalAccessToken;
 use Lcobucci\JWT\Token\Plain;
 
@@ -188,7 +188,7 @@ class Sessions extends PersonalAccessToken
          * right now 27.7.15 90% of the sessions are for that type of users
          */
         $session = self::create([
-            'users_id' =>  $user->id,
+            'users_id' => $user->id,
             'id' => $sessionId,
             'start' => $currentTime,
             'time' => $currentTime,
