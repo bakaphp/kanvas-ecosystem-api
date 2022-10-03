@@ -1,15 +1,15 @@
 <?php
 
 declare(strict_types=1);
-namespace Kanvas\Users\Users\Actions;
+namespace Kanvas\Users\Actions;
 
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Hash;
 use Kanvas\Apps\Enums\Defaults;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Enums\StatusEnums;
-use Kanvas\Users\Users\DataTransferObject\RegisterPostData;
-use Kanvas\Users\Users\Models\Users;
+use Kanvas\Users\DataTransferObject\RegisterPostData;
+use Kanvas\Users\Models\Users;
 
 class RegisterUsersAction
 {
