@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Templates\Repositories;
 
 use Kanvas\Templates\Models\Templates;
-use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\Apps\Models\Apps;
 
 class TemplatesRepository
 {

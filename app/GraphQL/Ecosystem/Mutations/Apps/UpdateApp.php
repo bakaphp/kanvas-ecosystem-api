@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Apps;
 
-use Kanvas\Apps\Apps\DataTransferObject\AppsPutData;
-use Kanvas\Apps\Apps\Actions\UpdateAppsAction;
+use Kanvas\Apps\DataTransferObject\AppsPutData;
+use Kanvas\Apps\Actions\UpdateAppsAction;
 
 final class UpdateApp
 {

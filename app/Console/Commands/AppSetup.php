@@ -3,9 +3,9 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Kanvas\Apps\Apps\DataTransferObject\AppsPostData;
-use Kanvas\Apps\Apps\Actions\CreateAppsAction;
-use Kanvas\Apps\Apps\Actions\SetupAppsAction;
+use Kanvas\Apps\DataTransferObject\AppsPostData;
+use Kanvas\Apps\Actions\CreateAppsAction;
+use Kanvas\Apps\Actions\SetupAppsAction;
 
 class AppSetup extends Command
 {

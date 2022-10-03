@@ -6,7 +6,7 @@ declare(strict_types=1);
 namespace Kanvas\Apps\Settings\DataTransferObject;
 
 use Spatie\DataTransferObject\DataTransferObject;
-use Kanvas\Apps\Settings\Models\Settings;
+use Kanvas\AppsGroup\Settings\Models\Settings;
 use Illuminate\Http\Request;
 
 /**
@@ -19,12 +19,12 @@ class AppsSettingsPostData extends DataTransferObject
      *
      * @param int $apps_id
      * @param string $name
-     * @param string $value
+     * @param mixed $value
      */
     public function __construct(
         public int $apps_id,
         public string $name,
-        public string $value,
+        public mixed $value,
     ) {
     }
 

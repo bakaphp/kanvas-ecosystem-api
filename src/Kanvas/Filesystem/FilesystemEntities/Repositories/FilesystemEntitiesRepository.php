@@ -7,7 +7,7 @@ namespace Kanvas\Filesystem\FilesystemEntities\Repositories;
 use Kanvas\Filesystem\FilesystemEntities\Models\FilesystemEntities;
 use Kanvas\Filesystem\Filesystem\Models\Filesystem;
 use Kanvas\SystemModules\Models\SystemModules;
-use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\Apps\Models\Apps;
 
 class FilesystemEntitiesRepository
 {
@@ -44,7 +44,7 @@ class FilesystemEntitiesRepository
 
 
         // return FileSystemEntities::findFirst([
-        //     'conditions' => 'id = :id: AND system_modules_id = :system_modules_id: ' . $addCompanySql . '  AND 
+        //     'conditions' => 'id = :id: AND system_modules_id = :system_modules_id: ' . $addCompanySql . '  AND
         //                         filesystem_id in (SELECT s.id from \Canvas\Models\FileSystem s WHERE s.apps_id = :apps_id: )',
         //     'bind' => $bind
         // ]);

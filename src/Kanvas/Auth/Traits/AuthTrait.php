@@ -6,7 +6,7 @@ namespace Kanvas\Auth\Traits;
 
 use Illuminate\Http\Request;
 use Kanvas\Auth\Factory;
-use Kanvas\Users\Users\Models\Users;
+use Kanvas\Users\Models\Users;
 
 trait AuthTrait
 {

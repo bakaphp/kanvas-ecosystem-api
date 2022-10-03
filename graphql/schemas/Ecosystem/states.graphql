@@ -5,24 +5,21 @@ type StateInput {
 }
 extend type Query {
     states(
-         where: _ @whereConditions(columns: ["name", "code" ,"id"])
+        where: _ @whereConditions(columns: ["name", "code", "id"])
     ): [States] @paginate(model: "\\Kanvas\\Locations\\States\\Models\\States")
-    state(id: Int!): States @find(model: "\\Kanvas\\Locations\\States\\Models\\States")
-} 
+    state(id: Int!): States
+        @find(model: "\\Kanvas\\Locations\\States\\Models\\States")
+}
 
 extend type Mutation {
-    createState(
-        countries_id: Int!
-        name: String!
-        code: String!
-    ): States @create(model: "\\Kanvas\\Locations\\States\\Models\\States")
+    createState(countries_id: Int!, name: String!, code: String!): States
+        @create(model: "\\Kanvas\\Locations\\States\\Models\\States")
     updateState(
-        id: Int!,
+        id: Int!
         countries_id: Int!
         name: String!
         code: String
     ): States @update(model: "\\Kanvas\\Locations\\States\\Models\\States")
-    deleteState(
-        id: Int!
-    ): States @delete(model: "\\Kanvas\\Locations\\States\\Models\\States")
+    deleteState(id: Int!): States
+        @delete(model: "\\Kanvas\\Locations\\States\\Models\\States")
 }

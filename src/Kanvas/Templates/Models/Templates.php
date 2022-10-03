@@ -4,8 +4,8 @@ declare(strict_types=1);
 namespace Kanvas\Templates\Models;
 
 use Kanvas\Models\BaseModel;
-use Kanvas\Users\Users\Models\Users;
-use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\UsersGroupUsers\Models\Users;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Companies\Models\Companies;
 
 /**

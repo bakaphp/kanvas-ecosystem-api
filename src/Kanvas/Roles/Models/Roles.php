@@ -6,8 +6,8 @@ namespace Kanvas\Roles\Models;
 
 use Kanvas\Models\BaseModel;
 use Kanvas\Roles\Factories\RolesFactory;
-use Kanvas\Companies\Companies\Models\Companies;
-use Kanvas\Apps\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Apps\Models\Apps;
 
 /**
  * Apps Model
@@ -28,16 +28,6 @@ class Roles extends BaseModel
      * @var string
      */
     protected $table = 'roles';
-
-    /**
-    * Create a new factory instance for the model.
-    *
-    * @return \Illuminate\Database\Eloquent\Factories\Factory
-    */
-    protected static function newFactory()
-    {
-        return RolesFactory::new();
-    }
 
     /**
      * Companies relationship

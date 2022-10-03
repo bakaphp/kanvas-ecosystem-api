@@ -3,11 +3,7 @@
 namespace Kanvas\Companies\Branches\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Kanvas\Roles\Models\Roles;
-use Kanvas\Companies\Companies\Models\Companies;
-use Kanvas\SystemModules\Models\SystemModules;
-use Kanvas\Currencies\Models\Currencies;
-use Illuminate\Support\Str;
+use Kanvas\Companies\Models\Companies;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Model>
@@ -15,10 +11,10 @@ use Illuminate\Support\Str;
 class CompaniesBranchesFactory extends Factory
 {
     /**
-    * The name of the factory's corresponding model.
-    *
-    * @var Apps
-    */
+     * The name of the factory's corresponding model.
+     *
+     * @var Apps
+     */
     protected $model = CompaniesBranches::class;
 
     /**
@@ -31,15 +27,15 @@ class CompaniesBranchesFactory extends Factory
         $user = Users::first();
         $company = Companies::first();
         return [
-            "companies_id" => $company->id,
-            "users_id" => $user->id,
-            "name" => $this->faker->name(),
-            "address" => $this->faker->address(),
-            "zipcode" => $this->faker->postcode(),
-            "email" => $this->faker->email(),
-            "phone" => $this->faker->phoneNumber(),
-            "is_default" => 1,
-            "is_deleted" => 0
+            'companies_id' => $company->id,
+            'users_id' => $user->id,
+            'name' => $this->faker->name(),
+            'address' => $this->faker->address(),
+            'zipcode' => $this->faker->postcode(),
+            'email' => $this->faker->email(),
+            'phone' => $this->faker->phoneNumber(),
+            'is_default' => 1,
+            'is_deleted' => 0
         ];
     }
 }

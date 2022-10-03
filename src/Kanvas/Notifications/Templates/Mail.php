@@ -5,8 +5,8 @@ namespace Kanvas\Notifications\Templates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
-use Kanvas\Apps\Apps\Models\Apps;
-use Kanvas\Users\Users\Models\Users;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Users\Models\Users;
 
 class Mail extends Mailable
 {

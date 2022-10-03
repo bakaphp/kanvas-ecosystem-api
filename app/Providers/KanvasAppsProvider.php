@@ -6,8 +6,8 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema as FacadesSchema;
 use Illuminate\Support\ServiceProvider;
-use Kanvas\Apps\Apps\Models\Apps;
-use Kanvas\Apps\Apps\Repositories\AppsRepository;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Apps\Repositories\AppsRepository;
 
 class KanvasAppsProvider extends ServiceProvider
 {
@@ -36,7 +36,7 @@ class KanvasAppsProvider extends ServiceProvider
             $app = AppsRepository::findFirstByKey($appKey);
 
             if (!$app) {
-                $msg = !$domainBasedApp ? 'No App configure with this key ' . $appKey : 'No App configure by this domain ' . $domainName;
+                $msg = !$domainBasedApp ? 'No App configure with this key ' . $appKey : 'No App configure for this domain ' . $domainName;
                 throw new Exception($msg);
             }
 
