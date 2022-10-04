@@ -9,10 +9,26 @@ use Kanvas\Users\Users\Models\Users;
 use Kanvas\Templates\Models\Templates;
 use Illuminate\Support\Facades\Blade;
 use Kanvas\Notifications\Interfaces\Email;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Notifications\Channels\KanvasDatabase as KanvasDatabaseChannel;
+use Kanvas\Notifications\Models\Types as NotificationType;
 
 class Notification extends LaravelNotification implements ShouldQueue, Email
 {
     use Queueable;
+
+    public $entity;
+    public $type;
+
+    /**
+     * via
+     *
+     * @return array
+     */
+    public function via(): array
+    {
+        return [KanvasDatabaseChannel::class];
+    }
 
     /**
     * Get the mail representation of the notification.
@@ -24,7 +40,31 @@ class Notification extends LaravelNotification implements ShouldQueue, Email
     {
         return (new MailMessage)
                 ->from('barrett@example.com', 'Barrett Blair')
-                ->view('emails.layout', ['html' => $this->generateHtml()]);
+                ->view('emails.layout', ['html' => $this->message()]);
+    }
+
+    /**
+     * toKanvasDatabase
+     *
+     * @param  mixed $notifiable
+     * @return void
+     */
+    public function toKanvasDatabase($notifiable)
+    {
+        return [
+            'users_id' => $notifiable->id,
+            'from_users_id' => auth()->user()->id ?? $notifiable->id,
+            'companies_id' => $notifiable->default_company,
+            'apps_id' => app(Apps::class)->id,
+            'system_modules_id' => $this->type->system_modules_id,
+            'notification_type_id' => $this->type->id,
+            'entity_id' => $this->entity->id,
+            'content' => $this->message(),
+            'read' => 0,
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+            'is_deleted' => 0,
+        ];
     }
 
     /**
@@ -32,10 +72,10 @@ class Notification extends LaravelNotification implements ShouldQueue, Email
      *
      * @return string
      */
-    public function generateHtml(): string
+    public function message(): string
     {
         $template = new Templates();
-        $html = Blade::render($template->getByName($this->templateName)->template, $this->getDataMail());
+        $html = Blade::render($template->getByName($this->templateName)->template, $this->getData());
         return $html;
     }
 
@@ -44,9 +84,20 @@ class Notification extends LaravelNotification implements ShouldQueue, Email
      *
      * @return array
      */
-    public function getDataMail(): array
+    public function getData(): array
     {
         return [
         ];
+    }
+
+    /**
+     * setType
+     *
+     * @param  string $type
+     * @return void
+     */
+    public function setType(string $type): void
+    {
+        $this->type = NotificationType::getByName($type);
     }
 }

@@ -10,6 +10,7 @@ use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\DataTransferObject\RegisterPostData;
 use Kanvas\Users\Models\Users;
+use Kanvas\Notifications\Templates\UserSignUp;
 
 class RegisterUsersAction
 {
