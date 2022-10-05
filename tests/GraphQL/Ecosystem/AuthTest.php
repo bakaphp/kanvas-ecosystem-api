@@ -59,23 +59,21 @@ class AuthTest extends TestCase
                 'password' => $password,
                 'password_confirmation' => $password
             ],
-        ]);
-        dd($response->json());
-        // ->assertJson([
-            // 'data' => [
-                // 'register' => [
-                    // 'user' => [
-                        // 'email' => $email,
-                    // ]
-                // ],
-            // ],
-        // ])
-        // ->assertSee('token')
-        // ->assertSee('token_expires')
-        // ->assertSee('refresh_token_expires')
-        // ->assertSee('time')
-        // ->assertSee('timezone')
-        // ->assertSee('refresh_token');
+        ])->assertJson([
+            'data' => [
+                'register' => [
+                    'user' => [
+                        'email' => $email,
+                    ]
+                ],
+            ],
+        ])
+        ->assertSee('token')
+        ->assertSee('token_expires')
+        ->assertSee('refresh_token_expires')
+        ->assertSee('time')
+        ->assertSee('timezone')
+        ->assertSee('refresh_token');
     }
 
     /**
