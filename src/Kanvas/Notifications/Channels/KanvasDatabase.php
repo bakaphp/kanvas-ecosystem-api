@@ -4,8 +4,8 @@ declare(strict_types=1);
 namespace Kanvas\Notifications\Channels;
 
 use Illuminate\Notifications\Notification;
-use Kanvas\Notifications\Dto\Notifications as NotificationsDto;
-use  Kanvas\Notifications\Actions\CreateNotification as CreateNotificationAction;
+use Kanvas\Notifications\DataTransferObject as NotificationsDto;
+use Kanvas\Notifications\Actions\CreateNotification as CreateNotificationAction;
 
 class KanvasDatabase
 {

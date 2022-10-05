@@ -32,6 +32,6 @@ class Types extends BaseModel
      */
     public static function getByName(string $name): self
     {
-        return self::where('name', $name)->first();
+        return self::where('name', $name)->firstOrFail();
     }
 }

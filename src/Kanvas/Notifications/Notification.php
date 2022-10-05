@@ -17,8 +17,8 @@ class Notification extends LaravelNotification implements ShouldQueue, Email
 {
     use Queueable;
 
-    public $entity;
-    public $type;
+    public object $entity;
+    public object $type;
 
     /**
      * via
@@ -39,7 +39,7 @@ class Notification extends LaravelNotification implements ShouldQueue, Email
     public function toMail($notifiable): MailMessage
     {
         return (new MailMessage)
-                ->from('barrett@example.com', 'Barrett Blair')
+                ->from(config('mail.from.address'), config('mail.from.name'))
                 ->view('emails.layout', ['html' => $this->message()]);
     }
 

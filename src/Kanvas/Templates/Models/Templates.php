@@ -7,6 +7,7 @@ use Kanvas\Models\BaseModel;
 use Kanvas\UsersGroupUsers\Models\Users;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Companies\Models\Companies;
+use Kanvas\Apps\Models\Apps;
 
 /**
  * Apps Model.
@@ -77,7 +78,7 @@ class Templates extends BaseModel
     {
         return self::where('name', $name)
                 ->where('is_deleted', 0)
-                // ->where('apps_id', $this->app->id)
-                ->first();
+                ->where('apps_id', app(Apps::class)->id)
+                ->firstOrFail();
     }
 }
