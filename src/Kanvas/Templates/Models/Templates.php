@@ -31,6 +31,13 @@ class Templates extends BaseModel
     protected $table = 'templates';
 
     /**
+     * The attributes that should not be mass assignable.
+     *
+     * @var array
+     */
+    protected $guarded = [];
+
+    /**
      * Users relationship.
      *
      * @return Users
@@ -59,7 +66,7 @@ class Templates extends BaseModel
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
-    
+
     /**
      * getByName
      *

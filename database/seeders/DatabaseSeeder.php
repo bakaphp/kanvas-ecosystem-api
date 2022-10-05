@@ -1,5 +1,4 @@
 <?php
-
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
@@ -24,7 +23,9 @@ class DatabaseSeeder extends Seeder
             RolesSeeder::class,
             SourceSeeder::class,
             SystemModuleSeeder::class,
-            UserSeeder::class
+            UserSeeder::class,
+            NotificationTypesSeeder::class,
+            TemplateSeeder::class,
         ]);
     }
 }
