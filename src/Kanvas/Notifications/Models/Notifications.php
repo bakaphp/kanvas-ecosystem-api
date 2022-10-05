@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace Kanvas\Notifications\Models;
 
 use Kanvas\Models\BaseModel;
+use Kanvas\Users\Models\Users;
 
 /**
  * Notifications Model.
@@ -31,4 +32,14 @@ class Notifications extends BaseModel
      * @var array
      */
     protected $guarded = [];
+
+    /**
+     * users
+     *
+     * @return BelongsTo
+     */
+    public function users()
+    {
+        return $this->belongsTo(Users::class, 'users_id');
+    }
 }

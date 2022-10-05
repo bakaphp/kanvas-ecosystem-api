@@ -15,7 +15,7 @@ type NotificationType {
 
 type Notification {
     id: Int!
-    user: User!
+    users: User!
     from: User!
     company: Company!
     app: App!
@@ -27,4 +27,8 @@ type Notification {
     content_group: String
     created_at: String!
     updated_at: String
+}
+
+extend type Query {
+    notifications: [Notification] 
 }
