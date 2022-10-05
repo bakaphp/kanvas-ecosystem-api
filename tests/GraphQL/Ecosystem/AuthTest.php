@@ -1,6 +1,5 @@
 <?php
 declare(strict_types=1);
-
 namespace Tests\GraphQL\Ecosystem;
 
 use Illuminate\Support\Facades\Auth;
@@ -60,21 +59,23 @@ class AuthTest extends TestCase
                 'password' => $password,
                 'password_confirmation' => $password
             ],
-        ])->assertJson([
-            'data' => [
-                'register' => [
-                    'user' => [
-                        'email' => $email,
-                    ]
-                ],
-            ],
-        ])
-        ->assertSee('token')
-        ->assertSee('token_expires')
-        ->assertSee('refresh_token_expires')
-        ->assertSee('time')
-        ->assertSee('timezone')
-        ->assertSee('refresh_token');
+        ]);
+        dd($response->json());
+        // ->assertJson([
+            // 'data' => [
+                // 'register' => [
+                    // 'user' => [
+                        // 'email' => $email,
+                    // ]
+                // ],
+            // ],
+        // ])
+        // ->assertSee('token')
+        // ->assertSee('token_expires')
+        // ->assertSee('refresh_token_expires')
+        // ->assertSee('time')
+        // ->assertSee('timezone')
+        // ->assertSee('refresh_token');
     }
 
     /**
