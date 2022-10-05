@@ -2,7 +2,7 @@
 declare(strict_types=1);
 namespace Kanvas\Notifications\Actions;
 
-use Kanvas\Notifications\Dto\Notifications as NotificationsDto;
+use Kanvas\Notifications\DataTransferObject\Notifications as NotificationsDto;
 use Kanvas\Notifications\Models\Notifications as NotificationsModel;
 
 class CreateNotification
