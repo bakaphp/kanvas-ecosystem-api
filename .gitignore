@@ -14,7 +14,8 @@ yarn-error.log
 /.idea
 .DS_Store
 package.json
-/storage/framework/*
+/storage/framework/cache/data/*
+/storage/framework/cache/views/*
 /storage/app/*
 /storage/logs/*
 package-lock.json
