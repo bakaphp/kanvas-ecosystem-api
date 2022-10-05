@@ -7,7 +7,6 @@ use Kanvas\Models\BaseModel;
 use Kanvas\UsersGroupUsers\Models\Users;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Companies\Models\Companies;
-use Kanvas\Apps\Models\Apps;
 
 /**
  * Apps Model.

@@ -16,11 +16,11 @@ type NotificationType {
 type Notification {
     id: Int!
     users: User!
-    from: User!
-    company: Company!
-    app: App!
+    fromUsers: User!
+    companies: Company!
+    apps: App!
     systemModule: SystemModule!
-    notificationType: NotificationType
+    types: NotificationType!
     entity_id: String!
     content: String
     read: Int!
@@ -30,5 +30,29 @@ type Notification {
 }
 
 extend type Query {
-    notifications: [Notification] 
+    notifications(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "users_id"
+                    "from_users_id"
+                    "companies_id"
+                    "apps_id"
+                    "system_modules_id"
+                    "notification_types_id"
+                    "entity_id"
+                    "content"
+                    "read"
+                    "created_at"
+                    "updated_at"
+                    "is_deleted"
+                    "content_group"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id"])
+    ): [Notification] @paginate(
+            model: "Kanvas\\Notifications\\Models\\Notifications"
+            scopes: [ "allNotifications" ]
+        )
 }

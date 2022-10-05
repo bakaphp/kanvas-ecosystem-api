@@ -4,6 +4,10 @@ namespace Kanvas\Notifications\Models;
 
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
+use Kanvas\Apps\Models\Apps;
+use Illuminate\Database\Eloquent\Builder;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\SystemModules\Models\SystemModules;
 
 /**
  * Notifications Model.
@@ -41,5 +45,69 @@ class Notifications extends BaseModel
     public function users()
     {
         return $this->belongsTo(Users::class, 'users_id');
+    }
+
+    /**
+     * fromUsers
+     *
+     * @return BelongsTo
+     */
+    public function fromUsers()
+    {
+        return $this->belongsTo(Users::class, 'from_users_id');
+    }
+
+    /**
+     * companies
+     *
+     * @return BelongsTo
+     */
+    public function companies()
+    {
+        return $this->belongsTo(Companies::class, 'companies_id');
+    }
+
+    /**
+     * apps
+     *
+     * @return BelongsTo
+     */
+    public function apps()
+    {
+        return $this->belongsTo(Apps::class, 'apps_id');
+    }
+
+    /**
+     * systemModule
+     *
+     * @return BelongsTo
+     */
+    public function systemModule()
+    {
+        return $this->belongsTo(SystemModules::class, 'system_modules_id');
+    }
+
+    /**
+     * types
+     *
+     * @return BelongsTo
+     */
+    public function types()
+    {
+        return $this->belongsTo(Types::class, 'notification_type_id');
+    }
+
+    /**
+     * Not deleted scope.
+     *
+     * @param Builder $query
+     *
+     * @return Builder
+     */
+    public function scopeAllNotifications(Builder $query): Builder
+    {
+        return $query->where('users_id', auth()->user()->id)
+                ->where('is_deleted', 0)
+                ->where('apps_id', app(Apps::class)->id);
     }
 }
