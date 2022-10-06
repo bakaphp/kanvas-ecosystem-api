@@ -36,8 +36,9 @@ class NotificationTest extends TestCase
             ],
         ])->decodeResponseJson();
         $token = $response['data']['register']['token']['token'];
-        $userData = Auth::user();
-        $response = $this->graphQL(/** @lang GraphQL */ '
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+        ])->graphQL(/** @lang GraphQL */ '
             {
                 notifications(first: 10) {
                        data {
