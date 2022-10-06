@@ -3,14 +3,29 @@ type SystemModule {
     name: String!
     slug: String!
     model_name: String!
-    app: App!
+    apps_id: Int!
     parent: SystemModule
     menu_order: Int!
     show: Int!
-    use_elastic: Int!
-    browse_fields: String
-    bulk_actions: String
-    created_at: String!
-    updated_at: String
 }
 
+extend type Query @guard {
+    systemModels(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "slug"
+                    "parents_id"
+                    "created_at"
+                    "updated_at"
+                    "is_deleted"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id"])
+    ): [SystemModule!]
+        @paginate(
+            model: "Kanvas\\SystemModules\\Models\\SystemModules"
+            scopes: ["filterByApp"]
+        )
+}
