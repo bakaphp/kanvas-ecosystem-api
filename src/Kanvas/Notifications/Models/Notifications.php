@@ -94,7 +94,7 @@ class Notifications extends BaseModel
      */
     public function types()
     {
-        return $this->belongsTo(Types::class, 'notification_type_id');
+        return $this->belongsTo(NotificationTypes::class, 'notification_type_id');
     }
 
     /**

@@ -66,18 +66,4 @@ class Templates extends BaseModel
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
-
-    /**
-     * getByName
-     *
-     * @param  string $name
-     * @return Templates
-     */
-    public function getByName(string $name) : Templates
-    {
-        return self::where('name', $name)
-                ->where('is_deleted', 0)
-                ->where('apps_id', app(Apps::class)->id)
-                ->firstOrFail();
-    }
 }

@@ -45,7 +45,7 @@ class UserSignUp extends Notification implements ShouldQueue
     public function getData(): array
     {
         return [
-            'name' => 'Barrett Blair',
+            'name' => "{$this->entity->displayname}",
         ];
     }
 }

@@ -20,7 +20,7 @@ use Kanvas\Models\BaseModel;
  * @property float $is_published
  *
  */
-class Types extends BaseModel
+class NotificationTypes extends BaseModel
 {
     public $table = 'notification_types';
 

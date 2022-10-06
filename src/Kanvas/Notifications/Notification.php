@@ -8,12 +8,13 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Kanvas\Users\Users\Models\Users;
 use Kanvas\Templates\Models\Templates;
 use Illuminate\Support\Facades\Blade;
-use Kanvas\Notifications\Interfaces\Email;
+use Kanvas\Notifications\Interfaces\EmailInterfaces;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Channels\KanvasDatabase as KanvasDatabaseChannel;
-use Kanvas\Notifications\Models\Types as NotificationType;
+use Kanvas\Notifications\Models\NotificationTypes;
+use Kanvas\Templates\Repositories\TemplatesRepository;
 
-class Notification extends LaravelNotification implements ShouldQueue, Email
+class Notification extends LaravelNotification implements ShouldQueue, EmailInterfaces
 {
     use Queueable;
 
@@ -75,7 +76,7 @@ class Notification extends LaravelNotification implements ShouldQueue, Email
     public function message(): string
     {
         $template = new Templates();
-        $html = Blade::render($template->getByName($this->templateName)->template, $this->getData());
+        $html = Blade::render(TemplatesRepository::getByName($this->templateName)->template, $this->getData());
         return $html;
     }
 
@@ -98,6 +99,6 @@ class Notification extends LaravelNotification implements ShouldQueue, Email
      */
     public function setType(string $type): void
     {
-        $this->type = NotificationType::getByName($type);
+        $this->type = NotificationTypes::getByName($type);
     }
 }
