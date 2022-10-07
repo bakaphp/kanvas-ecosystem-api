@@ -15,16 +15,48 @@ type NotificationType {
 
 type Notification {
     id: Int!
-    user: User!
-    from: User!
-    company: Company!
-    app: App!
+    users: User!
+    fromUsers: User!
+    companies: Company!
+    apps: App!
     systemModule: SystemModule!
-    notificationType: NotificationType
+    types: NotificationType!
     entity_id: String!
     content: String
     read: Int!
     content_group: String
     created_at: String!
     updated_at: String
+}
+
+extend type Query {
+    notifications(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "users_id"
+                    "from_users_id"
+                    "companies_id"
+                    "apps_id"
+                    "system_modules_id"
+                    "notification_types_id"
+                    "entity_id"
+                    "content"
+                    "read"
+                    "created_at"
+                    "updated_at"
+                    "is_deleted"
+                    "content_group"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id"])
+    ): [Notification] @paginate(
+            model: "Kanvas\\Notifications\\Models\\Notifications"
+            scopes: [ "allNotifications" ]
+        )
+}
+
+extend type Mutation {
+    readAllNotifications: Boolean @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\ReadAllNotification")
 }

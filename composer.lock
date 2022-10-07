@@ -3300,16 +3300,16 @@
         },
         {
             "name": "php-http/client-common",
-            "version": "2.5.0",
+            "version": "2.6.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/php-http/client-common.git",
-                "reference": "d135751167d57e27c74de674d6a30cef2dc8e054"
+                "reference": "45db684cd4e186dcdc2b9c06b22970fe123796c0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/php-http/client-common/zipball/d135751167d57e27c74de674d6a30cef2dc8e054",
-                "reference": "d135751167d57e27c74de674d6a30cef2dc8e054",
+                "url": "https://api.github.com/repos/php-http/client-common/zipball/45db684cd4e186dcdc2b9c06b22970fe123796c0",
+                "reference": "45db684cd4e186dcdc2b9c06b22970fe123796c0",
                 "shasum": ""
             },
             "require": {
@@ -3369,9 +3369,9 @@
             ],
             "support": {
                 "issues": "https://github.com/php-http/client-common/issues",
-                "source": "https://github.com/php-http/client-common/tree/2.5.0"
+                "source": "https://github.com/php-http/client-common/tree/2.6.0"
             },
-            "time": "2021-11-26T15:01:24+00:00"
+            "time": "2022-09-29T09:59:43+00:00"
         },
         {
             "name": "php-http/discovery",
@@ -4692,16 +4692,16 @@
         },
         {
             "name": "sentry/sentry-laravel",
-            "version": "2.13.0",
+            "version": "2.14.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/getsentry/sentry-laravel.git",
-                "reference": "c5e74e5fff18014780361fb33a883af9a9fbd900"
+                "reference": "cad98d81bc68a785ab108740c7262edcb82f5e2d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/getsentry/sentry-laravel/zipball/c5e74e5fff18014780361fb33a883af9a9fbd900",
-                "reference": "c5e74e5fff18014780361fb33a883af9a9fbd900",
+                "url": "https://api.github.com/repos/getsentry/sentry-laravel/zipball/cad98d81bc68a785ab108740c7262edcb82f5e2d",
+                "reference": "cad98d81bc68a785ab108740c7262edcb82f5e2d",
                 "shasum": ""
             },
             "require": {
@@ -4713,14 +4713,11 @@
                 "symfony/psr-http-message-bridge": "^1.0 | ^2.0"
             },
             "require-dev": {
-                "friendsofphp/php-cs-fixer": "2.18.*",
+                "friendsofphp/php-cs-fixer": "^3.11",
                 "laravel/framework": "5.0 - 5.8 | ^6.0 | ^7.0 | ^8.0 | ^9.0",
                 "mockery/mockery": "^1.3",
                 "orchestra/testbench": "3.1 - 3.8 | ^4.7 | ^5.1 | ^6.0 | ^7.0",
                 "phpunit/phpunit": "^5.7 | ^6.5 | ^7.5 | ^8.4 | ^9.3"
-            },
-            "suggest": {
-                "zendframework/zend-diactoros": "When using Laravel >=5.1 - <=6.9 this package can help get more accurate request info, not used on Laravel >=6.10 anymore (https://laravel.com/docs/5.8/requests#psr7-requests)"
             },
             "type": "library",
             "extra": {
@@ -4767,7 +4764,7 @@
             ],
             "support": {
                 "issues": "https://github.com/getsentry/sentry-laravel/issues",
-                "source": "https://github.com/getsentry/sentry-laravel/tree/2.13.0"
+                "source": "https://github.com/getsentry/sentry-laravel/tree/2.14.0"
             },
             "funding": [
                 {
@@ -4779,7 +4776,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2022-07-15T11:36:23+00:00"
+            "time": "2022-10-03T14:25:29+00:00"
         },
         {
             "name": "spatie/data-transfer-object",

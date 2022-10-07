@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace Kanvas\Users\Models;
 
 use Baka\Traits\HashTableTrait;
@@ -19,7 +18,8 @@ use Kanvas\Traits\PermissionsTrait;
 use Kanvas\Traits\UsersAssociatedTrait;
 use Kanvas\Users\Factories\UsersFactory;
 use Kanvas\Users\Models\UserConfig;
-
+use Kanvas\Notifications\Models\Notifications;
+use Illuminate\Database\Eloquent\Collection;
 /**
  * Apps Model.
  *
@@ -139,6 +139,16 @@ class Users extends Authenticatable
     }
 
     /**
+     * notifications
+     *
+     * @return void
+     */
+    public function notifications()
+    {
+        return $this->hasMany(Notifications::class, 'users_id');
+    }
+
+    /**
      * Get User's email.
      *
      * @return string
@@ -220,5 +230,15 @@ class Users extends Authenticatable
     public function currentCompanyId() : int
     {
         return  (int) $this->get(Companies::cacheKey());
+    }
+
+    /**
+     * unReadNotification
+     *
+     * @return object
+     */
+    public function unReadNotification(): Collection
+    {
+        return $this->notifications()->where('read', 0)->get();
     }
 }

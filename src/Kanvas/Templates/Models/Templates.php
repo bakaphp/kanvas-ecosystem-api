@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace Kanvas\Templates\Models;
 
 use Kanvas\Models\BaseModel;
@@ -30,6 +29,13 @@ class Templates extends BaseModel
      * @var string
      */
     protected $table = 'templates';
+
+    /**
+     * The attributes that should not be mass assignable.
+     *
+     * @var array
+     */
+    protected $guarded = [];
 
     /**
      * Users relationship.
