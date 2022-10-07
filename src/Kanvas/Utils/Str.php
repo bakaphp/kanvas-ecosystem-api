@@ -25,9 +25,9 @@ class Str extends IlluminateStr
      *
      * @param mixed $string
      *
-     * @return array|?string|mixed
+     * @return mixed
      */
-    public static function jsonToArray($string)
+    public static function jsonToArray($string) : mixed
     {
         return is_string($string) && self::isJson($string) ? json_decode($string, true) : $string;
     }
