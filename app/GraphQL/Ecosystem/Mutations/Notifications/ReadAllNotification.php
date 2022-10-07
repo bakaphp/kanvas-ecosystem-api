@@ -18,7 +18,6 @@ final class ReadAllNotification
             $action->execute();
             return true;
         } catch (Exception $e) {
-            dd($e->getMessage());
             return false;
         }
     }

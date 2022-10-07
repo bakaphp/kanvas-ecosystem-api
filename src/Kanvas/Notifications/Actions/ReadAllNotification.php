@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Kanvas\Notifications\Actions;
 
 use Kanvas\Users\Models\Users;
+use Kanvas\Notifications\Models\Notifications;
 
 class ReadAllNotification
 {
@@ -27,8 +28,8 @@ class ReadAllNotification
      */
     public function execute(): void
     {
-        foreach ($this->user->unReadNotification() as $notification) {
-            $notification->markAsRead();
-        }
+        Notifications::where('users_id', $this->user->id)
+            ->where('read', 0)
+            ->update(['read' => 1]);
     }
 }
