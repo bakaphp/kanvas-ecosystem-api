@@ -101,7 +101,7 @@ class NotificationTest extends TestCase
             'Authorization' => 'Bearer ' . $token,
         ])->graphQL(/** @lang GraphQL */ '
             mutation {
-                readAllNotifications(id: '.$userId.')
+                readAllNotifications
             }
             ');
         $this->assertArrayHasKey('data', $response);

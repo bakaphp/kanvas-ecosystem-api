@@ -58,5 +58,5 @@ extend type Query {
 }
 
 extend type Mutation {
-    readAllNotifications(id: Int): Boolean @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\ReadAllNotification")
+    readAllNotifications: Boolean @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\ReadAllNotification")
 }
