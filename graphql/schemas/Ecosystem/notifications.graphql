@@ -56,3 +56,7 @@ extend type Query {
             scopes: [ "allNotifications" ]
         )
 }
+
+extend type Mutation {
+    readAllNotifications(id: Int): Boolean @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\ReadAllNotification")
+}

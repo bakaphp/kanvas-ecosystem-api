@@ -110,4 +110,16 @@ class Notifications extends BaseModel
                 ->where('is_deleted', 0)
                 ->where('apps_id', app(Apps::class)->id);
     }
+
+    /**
+     * Mark the notification as read.
+     *
+     * @return void
+     */
+    public function markAsRead()
+    {
+        if (!$this->read) {
+            $this->forceFill(['read' => 1])->save();
+        }
+    }
 }
