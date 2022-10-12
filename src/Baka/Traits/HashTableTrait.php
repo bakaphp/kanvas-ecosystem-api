@@ -38,11 +38,11 @@ trait HashTableTrait
      * Set the settings.
      *
      * @param string $key
-     * @param string $value
+     * @param mixed $value
      *
      * @return bool
      */
-    public function set(string $key, $value) : bool
+    public function set(string $key, mixed $value) : bool
     {
         $this->createSettingsModel();
 
