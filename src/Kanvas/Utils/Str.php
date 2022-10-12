@@ -31,4 +31,16 @@ class Str extends IlluminateStr
     {
         return is_string($string) && self::isJson($string) ? json_decode($string, true) : $string;
     }
+
+    /**
+     * Generate none-unicode slugs for simple parsing.
+     *
+     * @param string $string
+     *
+     * @return string
+     */
+    public static function simpleSlug(string $string) : string
+    {
+        return strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $string)));
+    }
 }

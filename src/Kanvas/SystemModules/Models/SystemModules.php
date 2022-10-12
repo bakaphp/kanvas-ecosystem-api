@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\SystemModules\Models;
 
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Models\BaseModel;
-use Kanvas\SystemModules\Factories\SystemModulesFactory;
 
 /**
  * Apps Model.
@@ -36,11 +37,27 @@ class SystemModules extends BaseModel
     protected $table = 'system_modules';
 
     /**
+     * cast field.
+     *
+     * @var array
+     */
+    protected $casts = [
+        'browse_fields' => 'array',
+    ];
+
+    protected $fillable = [
+        'model_name',
+        'name',
+        'apps_id',
+        'slug',
+    ];
+
+    /**
      * Apps relationship.
      *
      * @return Apps
      */
-    public function app() : Apps
+    public function app() : BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
@@ -50,8 +67,21 @@ class SystemModules extends BaseModel
      *
      * @return self
      */
-    public function parent() : self
+    public function parent() : BelongsTo
     {
         return $this->belongsTo(self::class, 'parents_id');
+    }
+
+    /**
+     * Not deleted scope and app filter.
+     *
+     * @param Builder $query
+     *
+     * @return Builder
+     */
+    public function scopeFilterByApp(Builder $query) : Builder
+    {
+        return $query->where('apps_id', app(Apps::class)->id)
+                ->where('is_deleted', 0);
     }
 }

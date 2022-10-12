@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\SystemModules\Actions;
 
-use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\DataTransferObject\SystemModulesData;
+use Kanvas\SystemModules\Models\SystemModules;
 
 class CreateSystemModulesAction
 {
     /**
-     * Construct function
+     * Construct function.
      */
     public function __construct(
         protected SystemModulesData $data
@@ -18,11 +18,11 @@ class CreateSystemModulesAction
     }
 
     /**
-     * Invoke function
+     * Invoke function.
      *
      * @return Apps
      */
-    public function execute(): SystemModules
+    public function execute() : SystemModules
     {
         $systemModule = new SystemModules();
         $systemModule->name = $this->data->name;
@@ -37,7 +37,7 @@ class CreateSystemModulesAction
         $systemModule->bulk_actions = $this->data->bulk_actions;
         $systemModule->mobile_component_type = $this->data->mobile_component_type;
         $systemModule->mobile_navigation_type = $this->data->mobile_navigation_type;
-        $systemModule->mobile_tab_index= $this->data->mobile_tab_index;
+        $systemModule->mobile_tab_index = $this->data->mobile_tab_index;
         $systemModule->protected = $this->data->protected;
         $systemModule->save();
 
