@@ -22,7 +22,12 @@ class MuteAll
     ) {
     }
 
-    public function execute()
+    /**
+     * execute
+     *
+     * @return void
+     */
+    public function execute(): void
     {
         $notificationsTypes = NotificationTypes::where('apps_id', $this->app->id)
                             ->where('is_deleted', 0)

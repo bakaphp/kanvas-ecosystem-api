@@ -7,6 +7,8 @@ use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Models\NotificationsTypes;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * UsersNotificationsSettings Model.
@@ -30,13 +32,14 @@ class UsersNotificationsSettings extends BaseModel
      * @var array
      */
     protected $guarded = [];
+    public $incrementing = false;
 
     /**
      * users
      *
      * @return BelongsTo
      */
-    public function users()
+    public function users(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
     }
@@ -46,7 +49,7 @@ class UsersNotificationsSettings extends BaseModel
      *
      * @return BelongsTo
      */
-    public function apps()
+    public function apps(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
@@ -56,8 +59,37 @@ class UsersNotificationsSettings extends BaseModel
      *
      * @return BelongsTo
      */
-    public function notificationsTypes()
+    public function notificationsTypes(): BelongsTo
     {
         return $this->belongsTo(NotificationsTypes::class, 'notifications_types_id');
+    }
+
+    /**
+     * scopeAppUser
+     *
+     * @param  Builder $query
+     * @return Builder
+     */
+    public function scopeAppUser(Builder $query): Builder
+    {
+        $app = app(Apps::class);
+        return $query->where('apps_id', $app->id)
+            ->where('users_id', auth()->user()->id);
+    }
+
+    /**
+     * setKeysForSaveQuery
+     *
+     * @param  Builder $query
+     * @return Builder
+     */
+    protected function setKeysForSaveQuery($query)
+    {
+        $query
+            ->where('apps_id', $this->getAttribute('apps_id'))
+            ->where('users_id', $this->getAttribute('users_id'))
+            ->where('notifications_types_id', $this->getAttribute('notifications_types_id'));
+
+        return $query;
     }
 }

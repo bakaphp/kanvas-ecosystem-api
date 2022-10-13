@@ -6,6 +6,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Settings\Models\UsersNotificationsSettings;
 use Kanvas\Notifications\Models\NotificationTypes;
+use Kanvas\Notifications\Settings\Repositories\NotificationSettings;
 
 class SetNotificationSettings
 {
@@ -24,7 +25,7 @@ class SetNotificationSettings
         public NotificationTypes $notificationType,
     ) {
     }
-    
+
     /**
      * execute
      *
@@ -32,19 +33,16 @@ class SetNotificationSettings
      */
     public function execute(): UsersNotificationsSettings
     {
-        $notificationSettings = UsersNotificationsSettings::where('users_id', $this->user->id)
-            ->where('apps_id', $this->app->id)
-            ->where('notifications_types_id', $this->notificationType->id)
-            ->first();
-        
-        if(!$notificationSettings) {
+        $notificationSettings = NotificationSettings::getNotificationSettingsByType($this->user->id, $this->app->id, $this->notificationType->id);
+
+        if (!$notificationSettings) {
             $notificationSettings = new UsersNotificationsSettings();
             $notificationSettings->users_id = $this->user->id;
             $notificationSettings->apps_id = $this->app->id;
             $notificationSettings->notifications_types_id = $this->notificationType->id;
             $notificationSettings->is_enabled = (int)false;
             $notificationSettings->channels = json_encode([]);
-        }else {
+        } else {
             $notificationSettings->is_enabled = (int) !$notificationSettings->is_enabled;
         }
         $notificationSettings->saveOrFail();

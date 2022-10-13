@@ -30,6 +30,7 @@ extend type Query {
             ]
         
         )
+        @scope(name: "appUser")
     ): [NotificationSettings] @paginate(
             model: "Kanvas\\Notifications\\Settings\\Models\\UsersNotificationsSettings"
     )
@@ -37,13 +38,13 @@ extend type Query {
 
 extend type Mutation @guard {
     notificationsMuteAll: String! @field(
-        resolver: "Kanvas\\Notifications\\Settings\\Resolvers\\SettingsResolver@muteAll"
+        resolver: "App\\GraphQL\\Ecosystem\\Resolvers\\SettingsResolver@muteAll"
     )
     setNotificationSettings(
         notifications_types_id: Int!
         is_enabled: Int!
          channels: String!
     ): NotificationSettings! @field(
-        resolver: "Kanvas\\Notifications\\Settings\\Resolvers\\SettingsResolver@setNotificationSettings"
+        resolver: "App\\GraphQL\\Ecosystem\\Resolvers\\SettingsResolver@setNotificationSettings"
     )
 }
