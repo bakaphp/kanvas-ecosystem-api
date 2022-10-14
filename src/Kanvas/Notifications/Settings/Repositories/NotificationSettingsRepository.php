@@ -5,7 +5,7 @@ namespace Kanvas\Notifications\Settings\Repositories;
 
 use Kanvas\Notifications\Settings\Models\UsersNotificationsSettings;
 
-class NotificationSettings
+class NotificationSettingsRepository
 {
     /**
      * getNotificationSettings
@@ -29,7 +29,7 @@ class NotificationSettings
      * @param  int $notificationTypeId
      * @return UsersNotificationsSettings
      */
-    public static function getNotificationSettingsByType(int $userId, int $appId, int $notificationTypeId): UsersNotificationsSettings
+    public static function getNotificationSettingsByType(int $userId, int $appId, int $notificationTypeId): ?UsersNotificationsSettings
     {
         return UsersNotificationsSettings::where('users_id', $userId)
             ->where('apps_id', $appId)

@@ -6,7 +6,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Settings\Models\UsersNotificationsSettings;
 use Kanvas\Notifications\Models\NotificationTypes;
-use Kanvas\Notifications\Settings\Repositories\NotificationSettings;
+use Kanvas\Notifications\Settings\Repositories\NotificationSettingsRepository;
 
 class SetNotificationSettings
 {
@@ -33,7 +33,7 @@ class SetNotificationSettings
      */
     public function execute(): UsersNotificationsSettings
     {
-        $notificationSettings = NotificationSettings::getNotificationSettingsByType($this->user->id, $this->app->id, $this->notificationType->id);
+        $notificationSettings = NotificationSettingsRepository::getNotificationSettingsByType($this->user->id, $this->app->id, $this->notificationType->id);
 
         if (!$notificationSettings) {
             $notificationSettings = new UsersNotificationsSettings();

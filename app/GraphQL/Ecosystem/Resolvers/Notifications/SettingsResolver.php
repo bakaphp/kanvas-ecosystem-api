@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-namespace App\GraphQL\Ecosystem\Resolvers;
+namespace App\GraphQL\Ecosystem\Resolvers\Notifications;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Settings\Actions\MuteAll;
