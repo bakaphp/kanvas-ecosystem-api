@@ -15,8 +15,6 @@ use Kanvas\Models\BaseModel;
  * @property string $icon_url
  * @property int $with_realtime
  * @property int $parent_id
- * @property int $is_published
- * @property int $is_published
  * @property float $is_published
  *
  */
