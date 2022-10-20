@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b21d934a401a8708dc7b9dd16fdba389",
+    "content-hash": "0c9f0ea1ee0d298fc963ea987c866126",
     "packages": [
         {
             "name": "brick/math",
@@ -4777,6 +4777,81 @@
                 }
             ],
             "time": "2022-10-03T14:25:29+00:00"
+        },
+        {
+            "name": "silber/bouncer",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/JosephSilber/bouncer.git",
+                "reference": "ea1b7961b16b9556dfdf0a02522ed9f7b2cb1907"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/JosephSilber/bouncer/zipball/ea1b7961b16b9556dfdf0a02522ed9f7b2cb1907",
+                "reference": "ea1b7961b16b9556dfdf0a02522ed9f7b2cb1907",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/auth": "^6.0|^7.0|^8.0|^9.0",
+                "illuminate/cache": "^6.0|^7.0|^8.0|^9.0",
+                "illuminate/container": "^6.0|^7.0|^8.0|^9.0",
+                "illuminate/contracts": "^6.0|^7.0|^8.0|^9.0",
+                "illuminate/database": "^6.0|^7.0|^8.0|^9.0",
+                "php": "^7.2|^8.0"
+            },
+            "require-dev": {
+                "illuminate/console": "^6.0|^7.0|^8.0|^9.0",
+                "illuminate/events": "^6.0|^7.0|^8.0|^9.0",
+                "larapack/dd": "^1.1",
+                "mockery/mockery": "^1.3.3",
+                "phpunit/phpunit": "^8.0|^9.0"
+            },
+            "suggest": {
+                "illuminate/console": "Allows running the bouncer:clean artisan command",
+                "illuminate/events": "Required for multi-tenancy support"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Silber\\Bouncer\\BouncerServiceProvider"
+                    ],
+                    "aliases": {
+                        "Bouncer": "Silber\\Bouncer\\BouncerFacade"
+                    }
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Silber\\Bouncer\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Joseph Silber",
+                    "email": "contact@josephsilber.com"
+                }
+            ],
+            "description": "Eloquent roles and abilities.",
+            "keywords": [
+                "abilities",
+                "acl",
+                "capabilities",
+                "eloquent",
+                "laravel",
+                "permissions",
+                "roles"
+            ],
+            "support": {
+                "issues": "https://github.com/JosephSilber/bouncer/issues",
+                "source": "https://github.com/JosephSilber/bouncer/tree/v1.0.0"
+            },
+            "time": "2022-02-21T13:39:05+00:00"
         },
         {
             "name": "spatie/data-transfer-object",
