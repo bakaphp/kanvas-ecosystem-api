@@ -26,6 +26,8 @@ class BouncerProvider extends ServiceProvider
     {
         //
         $app = app(Apps::class);
-        Bouncer::scope()->to($app->id);
+        if (class_exists(Bouncer::class)) {
+            Bouncer::scope()->to($app->id);
+        }
     }
 }
