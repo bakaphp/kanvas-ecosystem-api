@@ -14,7 +14,7 @@ class RolesSeeder extends Seeder
      */
     public function run()
     {
-        DB::table('roles_kanvas')->insert(
+        DB::table('roles_kanvas_legacy')->insert(
             [
                 'name' => 'Admins',
                 'description' => 'System Administrator',

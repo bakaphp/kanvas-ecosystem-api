@@ -29,3 +29,4 @@ Use `--watch` in development allowing you to refresh modified files , this works
 Note: 
 - To install Swoole you can use the command ```pecl install swoole``` 
 - For production remove `--watch` from the command.
+- roles_kanvas_legacy will be deleted in the future.

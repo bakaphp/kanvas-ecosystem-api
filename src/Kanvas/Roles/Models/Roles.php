@@ -26,7 +26,7 @@ class Roles extends BaseModel
      *
      * @var string
      */
-    protected $table = 'roles_kanvas';
+    protected $table = 'roles_kanvas_legacy';
 
     /**
      * Companies relationship
