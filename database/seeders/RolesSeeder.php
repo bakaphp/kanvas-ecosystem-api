@@ -1,5 +1,4 @@
 <?php
-
 namespace Database\Seeders;
 
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -15,7 +14,7 @@ class RolesSeeder extends Seeder
      */
     public function run()
     {
-        DB::table('roles')->insert(
+        DB::table('roles_kanvas')->insert(
             [
                 'name' => 'Admins',
                 'description' => 'System Administrator',
@@ -26,7 +25,8 @@ class RolesSeeder extends Seeder
                 'is_active' => 1,
                 'created_at' => date('Y-m-d H:i:s'),
                 'is_deleted' => 0
-            ], [
+            ],
+            [
                 'name' => 'Users',
                 'description' => 'Normal Users can (CRUD)',
                 'scope' => 0,
@@ -36,7 +36,8 @@ class RolesSeeder extends Seeder
                 'is_active' => 1,
                 'created_at' => date('Y-m-d H:i:s'),
                 'is_deleted' => 0
-            ], [
+            ],
+            [
                 'name' => 'Agents',
                 'description' => 'Agents Users can (CRU)',
                 'scope' => 0,
