@@ -1,0 +1,14 @@
+type Role {
+    id: Int!
+    name: String!
+    title: String
+    scope: String
+}
+
+extend type Query @guard {
+    roles: [Role]
+}
+
+extend type Mutation @guard {
+    createRole(name: String!, title: String): Role @field(resolver: "App\\GraphQL\\Ecosystem\\Resolvers\\ACL\\RolesResolver@createRole")
+}

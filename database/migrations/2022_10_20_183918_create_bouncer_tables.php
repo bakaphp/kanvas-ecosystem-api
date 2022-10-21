@@ -1,7 +1,6 @@
 <?php
 
 use Silber\Bouncer\Database\Models;
-
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
@@ -31,7 +30,7 @@ class CreateBouncerTables extends Migration
             $table->bigIncrements('id');
             $table->string('name');
             $table->string('title')->nullable();
-            $table->integer('scope')->nullable()->index();
+            $table->string('scope', 150)->nullable()->index();
             $table->timestamps();
 
             $table->unique(
