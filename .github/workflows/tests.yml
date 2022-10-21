@@ -60,16 +60,7 @@ jobs:
 
       - name: Run Seedes
         run: php artisan db:seed
-      
-      - name: Create Role Admin
-        run: php artisan role:create Admin
-     
-      - name: Create Role Users
-        run: php artisan role:create Users
-     
-      - name: Create Role Agents
-        run: php artisan role:create Agents
-
+        
       - name: Run Tests
         if: success()
         run: php artisan test
