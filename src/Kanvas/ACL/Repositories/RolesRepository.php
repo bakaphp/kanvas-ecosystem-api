@@ -5,6 +5,7 @@ namespace Kanvas\ACL\Repositories;
 use Kanvas\ACL\Models\Role;
 use Kanvas\Apps\Models\Apps;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 
 class RolesRepository
 {
@@ -24,7 +25,7 @@ class RolesRepository
      *
      * @return string
      */
-    public static function getScope($user): string
+    public static function getScope(?Model $user = null): string
     {
         $app = app(Apps::class);
         $user = $user ?? auth()->user();
