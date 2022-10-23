@@ -60,6 +60,7 @@ final class CustomFieldsTest extends TestCase
     public function testMassAssignment()
     {
         $template = $this->createTemplate();
+        $template->deleteAllCustomFields();
 
         $template->setCustomFields([
             'test_1' => fake()->name,
@@ -69,8 +70,29 @@ final class CustomFieldsTest extends TestCase
 
         $template->saveCustomFields();
 
+
         $this->assertCount(3, $template->getAll());
     }
+
+    public function testDontAllowModelProperty()
+    {
+        $template = $this->createTemplate();
+        $template->deleteAllCustomFields();
+
+        $template->setCustomFields([
+            'test_1' => fake()->name,
+            'test_2' => fake()->name,
+            'test_3' => fake()->name,
+            'test_4' => fake()->name,
+            'name' => fake()->name,
+            'template' => fake()->name,
+        ]);
+
+        $template->saveCustomFields();
+
+        $this->assertCount(4, $template->getAll());
+    }
+
 
     public function testDeleteAll()
     {
@@ -86,6 +108,5 @@ final class CustomFieldsTest extends TestCase
         $template->deleteAllCustomFields();
 
         $this->assertCount(0, $template->getAll());
-
     }
 }

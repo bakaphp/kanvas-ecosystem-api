@@ -11,6 +11,7 @@ use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\CustomFields\Models\CustomFields;
 use Kanvas\CustomFields\Models\CustomFieldsModules;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Traits\HasSchemaAccessors;
 use Kanvas\Utils\Str;
 
 /**
@@ -18,6 +19,8 @@ use Kanvas\Utils\Str;
  */
 trait HasCustomFields
 {
+    use HasSchemaAccessors;
+
     public array $customFields = [];
 
     /**
@@ -272,7 +275,7 @@ trait HasCustomFields
     {
         if ($this->hasCustomFields()) {
             foreach ($this->customFields as $key => $value) {
-                if (!property_exists($this, $key)) {
+                if (!self::schemaHasColumn($key)) {
                     $this->set($key, $value);
                 }
             }
