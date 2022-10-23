@@ -28,8 +28,15 @@ class CustomFieldsModules extends BaseModel
      */
     protected $table = 'custom_fields_modules';
 
+    protected $fillable = [
+        'model_name',
+        'companies_id',
+        'name',
+        'apps_id'
+    ];
+
     /**
-     * Belongs to app
+     * Belongs to app.
      *
      * @return BelongsTo
      */

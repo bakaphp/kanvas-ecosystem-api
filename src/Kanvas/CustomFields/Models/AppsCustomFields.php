@@ -22,4 +22,14 @@ use Kanvas\Models\BaseModel;
 class AppsCustomFields extends BaseModel
 {
     protected $table = 'apps_custom_fields';
+
+    protected $fillable = [
+        'companies_id',
+        'users_id' ,
+        'model_name',
+        'entity_id',
+        'label',
+        'name',
+        'value'
+    ];
 }

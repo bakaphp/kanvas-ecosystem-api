@@ -33,6 +33,16 @@ class CustomFields extends BaseModel
      */
     protected $table = 'custom_fields';
 
+    protected $fillable = [
+        'users_id',
+        'companies_id',
+        'apps_id',
+        'name',
+        'label',
+        'custom_fields_modules_id',
+        'fields_type_id',
+    ];
+
     public function company() : BelongsTo
     {
         return $this->belongsTo(Companies::class, 'id', 'companies_id');
@@ -49,7 +59,7 @@ class CustomFields extends BaseModel
     }
 
     /**
-     * Belongs to
+     * Belongs to.
      *
      * @return BelongsTo
      */
