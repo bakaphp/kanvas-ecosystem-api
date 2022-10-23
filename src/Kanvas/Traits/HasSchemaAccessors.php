@@ -14,8 +14,9 @@ trait HasSchemaAccessors
     public static string $schemaTableName;
 
     /**
-     * @return Illuminate\Database\Eloquent\Model
      * Returns singleton of model
+     *
+     * @return Model
      */
     protected static function schemaInstance() : Model
     {
@@ -26,8 +27,9 @@ trait HasSchemaAccessors
     }
 
     /**
-     * @return string
      * Returns the table name for a given model
+     *
+     * @return string
      */
     public static function getSchemaTableName() : string
     {
@@ -38,8 +40,9 @@ trait HasSchemaAccessors
     }
 
     /**
+     * Fetches column names from the database schema.
+     *
      * @return array
-     * Fetches column names from the database schema
      */
     public static function getSchemaColumnNames() : array
     {
@@ -50,7 +53,9 @@ trait HasSchemaAccessors
     }
 
     /**
-     * @param $name
+     * does it exist in the schema?
+     *
+     * @param string $name
      *
      * @return bool
      */
