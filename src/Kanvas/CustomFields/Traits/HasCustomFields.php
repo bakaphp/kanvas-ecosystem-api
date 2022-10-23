@@ -6,7 +6,10 @@ namespace Kanvas\CustomFields\Traits;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\CustomFields\Models\AppsCustomFields;
+use Kanvas\CustomFields\Models\CustomFields;
+use Kanvas\CustomFields\Models\CustomFieldsModules;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Utils\Str;
 
@@ -208,50 +211,36 @@ trait HasCustomFields
      */
     public function createCustomField(string $name) : CustomFields
     {
-        $di = Di::getDefault();
-        $appsId = $di->has('app') ? $di->get('app')->getId() : 0;
-        $companiesId = $di->has('userData') ? UserProvider::get()->currentCompanyId() : 0;
+        $appsId = app(Apps::class)->id;
+        $companiesId = Auth::user() !== null ? $user->defaultCompany()->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
         $textField = 1;
-        $cacheKey = Slug::generate(get_class($this) . '-' . $appsId . '-' . $name);
-        $lifetime = 604800;
+        // $cacheKey = Slug::generate(get_class($this) . '-' . $appsId . '-' . $name);
+        //$lifetime = 604800;
+        $user = Auth::user();
 
-        $customFieldModules = CustomFieldsModules::findFirstOrCreate([
-            'conditions' => 'model_name = :model_name: AND apps_id = :apps_id:',
-            'bind' => [
-                'model_name' => get_class($this),
-                'apps_id' => $appsId
-            ],
-            'cache' => [
-                'lifetime' => $lifetime,
-                'key' => $cacheKey
-            ]], [
-                'model_name' => get_class($this),
-                'companies_id' => $companiesId,
-                'name' => get_class($this),
-                'apps_id' => $appsId
-            ]);
+        $customFieldModules = CustomFieldsModules::firstOrCreate([
+            'model_name' => get_class($this),
+            'apps_id' => $appsId
+        ], [
+            'model_name' => get_class($this),
+            'companies_id' => $companiesId,
+            'name' => get_class($this),
+            'apps_id' => $appsId
+        ]);
 
-        $customField = CustomFields::findFirstOrCreate([
-            'conditions' => 'apps_id = :apps_id:
-                            AND name = :name:
-                            AND custom_fields_modules_id = :custom_fields_modules_id:',
-            'bind' => [
-                'apps_id' => $appsId,
-                'name' => $name,
-                'custom_fields_modules_id' => $customFieldModules->getId(),
-            ],
-            'cache' => [
-                'lifetime' => $lifetime,
-                'key' => $cacheKey . $customFieldModules->getId()
-            ]], [
-                'users_id' => $di->has('userData') ? UserProvider::get()->getId() : 0,
-                'companies_id' => $companiesId,
-                'apps_id' => $appsId,
-                'name' => $name,
-                'label' => $name,
-                'custom_fields_modules_id' => $customFieldModules->getId(),
-                'fields_type_id' => $textField,
-            ]);
+        $customField = CustomFields::firstOrCreate([
+            'apps_id' => $appsId,
+            'name' => $name,
+            'custom_fields_modules_id' => $customFieldModules->getId(),
+        ], [
+            'users_id' => $user !== null ? $user->getKey() : AppEnums::GLOBAL_USER_ID->getValue(),
+            'companies_id' => $companiesId,
+            'apps_id' => $appsId,
+            'name' => $name,
+            'label' => $name,
+            'custom_fields_modules_id' => $customFieldModules->getId(),
+            'fields_type_id' => $textField,
+        ]);
 
         return $customField;
     }
