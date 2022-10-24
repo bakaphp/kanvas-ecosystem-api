@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
-namespace Kanvas\ACL\Repositories;
+namespace Kanvas\AccessControlList\Repositories;
 
-use Kanvas\ACL\Models\Role;
+use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Models\Apps;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -16,7 +16,8 @@ class RolesRepository
      */
     public static function getAllRoles(): ?Collection
     {
-        return Role::where('scope', self::getScope())
+        return Role::whereNull('scope')
+            ->orWhere('scope', self::getScope())
             ->get();
     }
 
@@ -29,6 +30,6 @@ class RolesRepository
     {
         $app = app(Apps::class);
         $user = $user ?? auth()->user();
-        return "app_{$app->id}_company_{$user->id}";
+        return "app_{$app->id}_company_{$user->default_company}";
     }
 }

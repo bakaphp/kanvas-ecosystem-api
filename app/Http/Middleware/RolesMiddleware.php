@@ -5,7 +5,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Bouncer;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\ACL\Repositories\RolesRepository;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 
 class RolesMiddleware
 {
