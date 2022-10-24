@@ -1,10 +1,12 @@
 <?php
 
 declare(strict_types=1);
+
 namespace Kanvas\Users\Models;
 
 use Baka\Traits\HashTableTrait;
 use Exception;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -13,13 +15,12 @@ use Illuminate\Notifications\Notifiable;
 use Kanvas\Auth\Traits\HasApiTokens;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\CompaniesBranches\Models\CompaniesBranches;
+use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Traits\PermissionsTrait;
 use Kanvas\Traits\UsersAssociatedTrait;
 use Kanvas\Users\Factories\UsersFactory;
-use Kanvas\Users\Models\UserConfig;
-use Kanvas\Notifications\Models\Notifications;
-use Illuminate\Database\Eloquent\Collection;
+
 /**
  * Apps Model.
  *
@@ -139,7 +140,7 @@ class Users extends Authenticatable
     }
 
     /**
-     * notifications
+     * notifications.
      *
      * @return void
      */
@@ -233,11 +234,11 @@ class Users extends Authenticatable
     }
 
     /**
-     * unReadNotification
+     * unReadNotification.
      *
      * @return object
      */
-    public function unReadNotification(): Collection
+    public function unReadNotification() : Collection
     {
         return $this->notifications()->where('read', 0)->get();
     }

@@ -3,10 +3,12 @@
 declare(strict_types=1);
 namespace Kanvas\Templates\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
 use Kanvas\UsersGroupUsers\Models\Users;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Companies\Models\Companies;
+use Kanvas\CustomFields\Traits\HasCustomFields;
 
 /**
  * Apps Model.
@@ -23,6 +25,8 @@ use Kanvas\Companies\Companies\Models\Companies;
  */
 class Templates extends BaseModel
 {
+    use HasCustomFields;
+
     /**
      * The table associated with the model.
      *

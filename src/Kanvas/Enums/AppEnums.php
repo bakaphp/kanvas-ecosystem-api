@@ -16,6 +16,7 @@ enum AppEnums implements EnumsInterface
     case GLOBAL_APP_ID;
     case ECOSYSTEM_APP_ID;
     case GLOBAL_COMPANY_ID;
+    case GLOBAL_USER_ID;
     case DEFAULT_ROLE_NAME;
     case DEFAULT_ROLES_NAMES;
     case CORE_APP_ID;
@@ -57,6 +58,7 @@ enum AppEnums implements EnumsInterface
             self::ECOSYSTEM_APP_ID => 1,
             self::CORE_APP_ID => 1,
             self::GLOBAL_COMPANY_ID => 0,
+            self::GLOBAL_USER_ID => 0,
             self::DEFAULT_ROLE_NAME => 'Admins',
             self::DEFAULT_ROLES_NAMES => ['Admin', 'Admins', 'User', 'Users', 'Agents'],
             self::ECOSYSTEM_COMPANY_ID => 1,
