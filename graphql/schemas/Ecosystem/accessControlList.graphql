@@ -6,7 +6,7 @@ type Role {
 }
 
 extend type Query @guard {
-    roles: [Role]
+    roles: [Role] @field(resolver: "App\\GraphQL\\Ecosystem\\Resolvers\\AccessControlList\\RolesResolver@getAllRoles")
 }
 
 extend type Mutation @guard {
@@ -17,5 +17,10 @@ extend type Mutation @guard {
     updateRole(id: Int!, name: String, title: String): Role
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\Roles@updateRole"
+        )
+
+    assignRoleToUser(userId: Int!, roleId: Int!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\UserAccessControlList@assignRoleToUser"
         )
 }
