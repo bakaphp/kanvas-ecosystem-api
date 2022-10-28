@@ -1,0 +1,26 @@
+# General Values
+# namespace:
+# apiImage:
+# lbSSLCert: arn:aws:acm:us-east-2:346494590871:certificate/11e3aee9-4332-47b5-9577-2a9617829096
+
+services:
+  loadBalancer:
+    name: apidevtest
+    appName: kanvas-api
+
+# namespace: memod-api
+apiImage: 617498580299.dkr.ecr.us-east-1.amazonaws.com/
+
+# PHP INIT Values
+php:
+  memoryLimit: 2128M
+
+
+# Deployments Values
+deployments:
+  api:
+    name: kanvas-api
+    containerName: api
+
+# Services Values
+

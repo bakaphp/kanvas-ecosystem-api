@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{.Values.deployments.api.name}}
+  namespace: {{.Values.namespace}}
+spec:
+  selector:
+    matchLabels:
+      app: {{.Values.deployments.api.name}}
+  template:
+    metadata:
+      labels:
+        app: {{.Values.deployments.api.name}}
+        type: api
+    spec:
+      volumes:
+        - name: envconfigmap
+          configMap:
+            name: envconfigmap
+            items:
+              - key: kanvasconfigmap
+                path: .env
+            defaultMode: 420
+        - name: webroot
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: nginx-php-api
+            items:
+              - key: config
+                path: default.conf
+        - name: phpini
+          configMap:
+            name: php-ini-config
+            items:
+              - key: phpini
+                path: phpupdate.ini
+        - name: phpfpm
+          configMap:
+            name: php-fpm-config
+            items:
+              - key: phpfpm
+                path: zzz-php-fpm-production.conf
+        - name: phpwww
+          configMap:
+            name: php-www-config
+            items:
+              - key: phpwww
+                path: www.conf
+      containers:
+        - name: {{.Values.deployments.api.containerName}}
+          image: {{.Values.apiImage}}
+          # envFrom:
+          # - configMapRef:
+          #     name: special-config
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 9000
+              protocol: TCP
+          volumeMounts:
+            - name: envconfigmap
+              mountPath: /app/.env
+              subPath: .env
+            - name: webroot
+              mountPath: "/var/www/html"
+            - name: phpini
+              mountPath: /usr/local/etc/php/conf.d/phpupdate.ini
+              subPath: phpupdate.ini
+            - name: phpfpm
+              mountPath: /usr/local/etc/php-fpm.d/zzz-php-fpm-production.conf
+              subPath: zzz-php-fpm-production.conf
+            - name: phpwww
+              mountPath: /usr/local/etc/php-fpm/php-fpm.d/www.conf
+              subPath: www.conf
+          resources:
+                requests:
+                    memory: "128M"
+                    cpu: "100m"
+                limits:
+                    memory: "1G"
+                    cpu: "500m"
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  [
+                    "/bin/sh",
+                    "-c",
+                    "cp -r /app/. /var/www/html && chmod -R 777 /var/www/html/. && composer install",
+                    "while true; do php cli/cli.php 'Twitter\\Main' get-mention ; sleep 60; done"
+                  ]
+        - name: nginx
+          image: nginx:1.18
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/conf.d
+            - name: webroot
+              mountPath: "/var/www/html"
+          resources:
+                requests:
+                    memory: "128M"
+                    cpu: "100m"
+                limits:
+                    memory: "512M"
+                    cpu: "200m"
+      securityContext:
+        fsGroup: 65533
