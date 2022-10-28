@@ -9,6 +9,7 @@ use Kanvas\Notifications\Templates\Invite as InviteTemplate;
 use Kanvas\Users\Invites\Actions\CreateInvite as CreateInviteAction;
 use Kanvas\Users\Invites\DataTransferObject\Invite as InviteDto;
 use Kanvas\Users\Invites\Actions\DeleteInvite as DeleteInviteAction;
+use Kanvas\Users\Invites\Actions\ProcessInvite as ProcessInviteAction;
 
 class Invite
 {
@@ -48,5 +49,18 @@ class Invite
         $action = new DeleteInviteAction($request['id']);
         $action->execute();
         return true;
+    }
+
+    /**
+     * processInvite
+     *
+     * @param  mixed $rootValue
+     * @param  array $request
+     * @return bool
+     */
+    public function processInvite($rootValue, array $request): Users
+    {
+        $action = new ProcessInviteAction($request['hash'], $request['password']);
+        return  $action->execute();
     }
 }

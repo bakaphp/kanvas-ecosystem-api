@@ -25,7 +25,9 @@ extend type Mutation @guard{
     inviteUser(input: InviteInput!): Boolean! @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\Invite@insertInvite") 
     deleteInvite(id: Int!): Boolean! @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\Invite@deleteInvite")
 }
-
+extend type Mutation {
+    processInvite(hash: String! password: String!): User! @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\Invite@processInvite")
+}
 extend type Query @guard {
     usersInvites(
         where: _
@@ -43,7 +45,7 @@ extend type Query @guard {
                     "description",
                 ]
             )
-        orderBy: _ @orderBy(columns: ["id"])
+        orderBy: _ @orderBy(columns: ["id"] direction: "DESC")
     ): [Invite] @paginate(
             model: "Kanvas\\Users\\Invites\\Models\\UsersInvite"
             scopes: ["company"]

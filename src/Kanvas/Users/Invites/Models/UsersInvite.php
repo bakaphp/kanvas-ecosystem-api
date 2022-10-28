@@ -4,6 +4,8 @@ namespace Kanvas\Users\Invites\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Models\BaseModel;
+use Kanvas\Users\Models\Users;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Model UsersInvite
@@ -34,5 +36,15 @@ class UsersInvite extends BaseModel
     public function scopeCompany(Builder $query) : Builder
     {
         return $query->where('companies_id', auth()->user()->defaultCompany->id);
+    }
+
+    /**
+     * Get the user that owns the UsersInvite
+     *
+     * @return BelongsTo
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'users_id');
     }
 }

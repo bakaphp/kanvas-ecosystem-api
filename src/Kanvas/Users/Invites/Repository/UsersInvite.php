@@ -21,4 +21,18 @@ class UsersInvite
             ->firstOrFail();
         return $invite;
     }
+
+    /**
+     * getByHash
+     *
+     * @param  string $hash
+     * @return UsersInviteModel
+     */
+    public static function getByHash(string $hash): UsersInviteModel
+    {
+        return UsersInviteModel::where('invite_hash', $hash)
+            ->where('apps_id', app(Apps::class)->id)
+            // ->where('companies_id', auth()->user()->defaultCompany->id)
+            ->firstOrFail();
+    }
 }
