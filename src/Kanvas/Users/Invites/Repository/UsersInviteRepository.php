@@ -5,7 +5,7 @@ namespace Kanvas\Users\Invites\Repository;
 use Kanvas\Users\Invites\Models\UsersInvite as UsersInviteModel;
 use Kanvas\Apps\Models\Apps;
 
-class UsersInvite
+class UsersInviteRepository
 {
     /**
      * getById

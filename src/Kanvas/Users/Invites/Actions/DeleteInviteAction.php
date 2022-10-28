@@ -4,7 +4,7 @@ namespace Kanvas\Users\Invites\Actions;
 
 use \Kanvas\Users\Invites\Repository\UsersInvite;
 
-class DeleteInvite
+class DeleteInviteAction
 {
     /**
      * __construct

@@ -6,10 +6,10 @@ use Kanvas\Users\Invites\Models\UsersInvite;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Notifications\Templates\Invite as InviteTemplate;
-use Kanvas\Users\Invites\Actions\CreateInvite as CreateInviteAction;
+use Kanvas\Users\Invites\Actions\CreateInviteAction;
 use Kanvas\Users\Invites\DataTransferObject\Invite as InviteDto;
-use Kanvas\Users\Invites\Actions\DeleteInvite as DeleteInviteAction;
-use Kanvas\Users\Invites\Actions\ProcessInvite as ProcessInviteAction;
+use Kanvas\Users\Invites\Actions\DeleteInviteAction;
+use Kanvas\Users\Invites\Actions\ProcessInviteAction;
 
 class Invite
 {
@@ -31,7 +31,8 @@ class Invite
                 $request['firstname'] ?? null,
                 $request['lastname'] ?? null,
                 $request['description'] ?? null,
-            )
+            ),
+            auth()->user()
         );
         $invite->execute();
         return true;

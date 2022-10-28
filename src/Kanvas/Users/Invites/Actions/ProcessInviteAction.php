@@ -3,13 +3,13 @@ declare(strict_types=1);
 namespace Kanvas\Users\Invites\Actions;
 
 use Kanvas\Users\Invites\Models\UsersInvite as UsersInviteModel;
-use Kanvas\Users\Invites\Repository\UsersInvite as UsersInviteRepository;
+use Kanvas\Users\Invites\Repository\UsersInviteRepository;
 use Auth;
 use Kanvas\Users\DataTransferObject\RegisterPostData as RegisterPostDataDto;
 use Kanvas\Users\Actions\RegisterUsersAction;
 use Kanvas\Users\Models\Users;
 
-class ProcessInvite
+class ProcessInviteAction
 {
     /**
      * __construct
