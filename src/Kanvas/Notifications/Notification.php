@@ -13,13 +13,17 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Channels\KanvasDatabase as KanvasDatabaseChannel;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Templates\Repositories\TemplatesRepository;
+use Illuminate\Support\Facades\Log;
 
-class Notification extends LaravelNotification implements ShouldQueue, EmailInterfaces
+class Notification extends LaravelNotification implements EmailInterfaces
 {
-    use Queueable;
-
     public object $entity;
     public object $type;
+
+    public function failed(Exception $exception)
+    {
+        Log::debug('MyNotification failed');
+    }
 
     /**
      * via
@@ -53,9 +57,9 @@ class Notification extends LaravelNotification implements ShouldQueue, EmailInte
     public function toKanvasDatabase($notifiable)
     {
         return [
-            'users_id' => $notifiable->id,
+            'users_id' => $notifiable->id ?? auth()->user()->id,
             'from_users_id' => auth()->user()->id ?? $notifiable->id,
-            'companies_id' => $notifiable->default_company,
+            'companies_id' => $notifiable->default_company ?? auth()->user()->defaultCompany->id,
             'apps_id' => app(Apps::class)->id,
             'system_modules_id' => $this->type->system_modules_id,
             'notification_type_id' => $this->type->id,

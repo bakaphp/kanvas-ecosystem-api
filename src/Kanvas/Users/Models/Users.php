@@ -12,7 +12,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Kanvas\Auth\Traits\HasApiTokens;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\CompaniesBranches\Models\CompaniesBranches;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Traits\PermissionsTrait;
 use Kanvas\Traits\UsersAssociatedTrait;
@@ -20,6 +20,7 @@ use Kanvas\Users\Factories\UsersFactory;
 use Kanvas\Users\Models\UserConfig;
 use Kanvas\Notifications\Models\Notifications;
 use Illuminate\Database\Eloquent\Collection;
+
 /**
  * Apps Model.
  *
@@ -80,6 +81,7 @@ class Users extends Authenticatable
     use HasApiTokens;
 
     protected ?string $defaultCompanyName = null;
+    protected $guarded = [];
 
     /**
      * The table associated with the model.
