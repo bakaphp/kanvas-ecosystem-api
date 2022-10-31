@@ -5,7 +5,8 @@ namespace App\GraphQL\Ecosystem\Mutations\AccessControlList;
 use Kanvas\AccessControlList\Actions\AssignAction;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
-
+use Kanvas\AccessControlList\Actions\AllowAction;
+use Bouncer;
 class UserAccessControlList
 {
     /**
@@ -39,4 +40,18 @@ class UserAccessControlList
         $user->retract($role);
         return true;
     }
+    
+    /**
+     * givePermissionToUser
+     *
+     * @param  mixed $rootValue
+     * @param  array $request
+     * @return bool
+     */
+    public function givePermissionToUser($rootValue, array $request): bool 
+    {
+        $user = UsersRepository::getById($request['userId'], auth()->user()->defaultCompany->id);
+        Bouncer::allow($user)->to($request['permission']);
+        return true;
+    }  
 }

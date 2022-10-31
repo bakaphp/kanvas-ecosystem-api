@@ -31,5 +31,8 @@ extend type Mutation @guard {
         userId: Int!
         role: String!
     ): Boolean @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\UserAccessControlList@removeRoleFromUser")
-    
+    givePermissionToUser(
+        userId: Int!
+        permission: String!
+    ): Boolean @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\UserAccessControlList@givePermissionToUser") 
 }

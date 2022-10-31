@@ -4,6 +4,7 @@ namespace App\GraphQL\Ecosystem\Resolvers\AccessControlList;
 
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Illuminate\Database\Eloquent\Collection;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class RolesResolver
 {
@@ -16,9 +17,17 @@ class RolesResolver
     {
         return RolesRepository::getAllRoles();
     }
-
+    
+    /**
+     * hasRole
+     *
+     * @param  mixed $_
+     * @param  array $request
+     * @return bool
+     */
     public function hasRole($_, array $request): bool
     {
-        dd($request);
+       $user =  UsersRepository::getById($request['userId'], auth()->user()->defaultCompany->id);
+       return $user->isAn($request['role']);
     }
 }
