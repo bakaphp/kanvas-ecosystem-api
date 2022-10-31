@@ -1,6 +1,5 @@
 <?php
 declare(strict_types=1);
-
 namespace Kanvas\Users\Observers;
 
 use Illuminate\Support\Str;
@@ -18,7 +17,6 @@ use Kanvas\Users\Models\Users;
 
 class UsersObserver
 {
-
     /**
      * Handle the Apps "saving" event.
      *
@@ -58,7 +56,7 @@ class UsersObserver
             $user->default_company_branch = $company->defaultBranch()->first()->id;
             $user->saveOrFail();
         } else {
-            $company = CompaniesRepository::getById($user->default_company);
+            $company = CompaniesRepository::getById((int)$user->default_company);
             $branch = $company->branch()->first();
 
             if (!$user->get(Companies::cacheKey())) {

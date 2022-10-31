@@ -1,0 +1,54 @@
+type Invite {
+    id: Int!
+    invite_hash: String!
+    users_id: Int!
+    companies_id: Int!
+    companies_branches_id: Int!
+    role_id: Int!
+    apps_id: Int!
+    email: String!
+    firstname: String
+    lastname: String
+    description: String
+}
+
+input InviteInput {
+    role_id: Int!
+    companies_branches_id: Int!
+    email: String!
+    firstname: String
+    lastname: String
+    description: String
+}
+
+extend type Mutation @guard{
+    inviteUser(input: InviteInput!): Boolean! @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\Invite@insertInvite") 
+    deleteInvite(id: Int!): Boolean! @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\Invite@deleteInvite")
+}
+extend type Mutation {
+    processInvite(hash: String! password: String!): User! @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\Invite@processInvite")
+}
+extend type Query @guard {
+    usersInvites(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id",
+                    "users_id",
+                    "companies_id",
+                    "companies_branches_id",
+                    "role_id",
+                    "apps_id",
+                    "email",
+                    "firstname",
+                    "lastname",
+                    "description",
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id"] direction: "DESC")
+    ): [Invite] @paginate(
+            model: "Kanvas\\Users\\Invites\\Models\\UsersInvite"
+            scopes: ["company"]
+    )
+
+}

@@ -6,7 +6,7 @@ namespace Kanvas\AccessControlList\Actions;
 use Bouncer;
 use Silber\Bouncer\Database\Role as SilberRole;
 
-class CreateRole
+class CreateRoleAction
 {
     /**
      * __construct

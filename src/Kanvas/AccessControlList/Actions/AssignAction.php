@@ -5,7 +5,7 @@ namespace Kanvas\AccessControlList\Actions;
 use Bouncer;
 use Kanvas\Users\Models\Users;
 
-class Assign
+class AssignAction
 {
     /**
      * __construct

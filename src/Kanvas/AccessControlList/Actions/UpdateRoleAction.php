@@ -6,7 +6,7 @@ use Kanvas\AccessControlList\Models\Role;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Exception;
 
-class UpdateRole
+class UpdateRoleAction
 {
     /**
      * __construct

@@ -4,7 +4,7 @@ namespace Kanvas\AccessControlList\Actions;
 
 use Bouncer;
 
-class Allow
+class AllowAction
 {
     public function __construct(
         public string $ability,

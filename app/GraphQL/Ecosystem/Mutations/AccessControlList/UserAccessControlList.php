@@ -4,6 +4,7 @@ namespace App\GraphQL\Ecosystem\Mutations\AccessControlList;
 
 use App\GraphQL\Ecosystem\Mutations\AccessControlList\Assign;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class UserAccessControlList
 {
@@ -17,7 +18,7 @@ class UserAccessControlList
     public function assignRoleToUser($rootValue, array $request): bool
     {
         $assign = new Assign(
-            Users::findOrFail($request['user_id']),
+            UsersRepository::getById($request['user_id'], auth()->user()->defaultCompany->id),
             $request['role']
         );
         $assign->execute();
