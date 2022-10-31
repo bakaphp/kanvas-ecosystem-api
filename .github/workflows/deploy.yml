@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  Build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -32,7 +32,7 @@ jobs:
         with:
           access_key_id: ${{ secrets.AWS_ACCESS_KEY_CICD }}
           secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY_CICD }}
-          account_id: 617498580299
+          account_id: ${{ secrets.AWS_ACCOUNT_ID }}
           repo: ${{ env.instance_name }}
           region: ${{ env.aws_region }}
           create_repo: true
