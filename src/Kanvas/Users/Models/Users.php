@@ -5,6 +5,7 @@ namespace Kanvas\Users\Models;
 
 use Baka\Traits\HashTableTrait;
 use Exception;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -19,7 +20,6 @@ use Kanvas\Traits\UsersAssociatedTrait;
 use Kanvas\Users\Factories\UsersFactory;
 use Kanvas\Users\Models\UserConfig;
 use Kanvas\Notifications\Models\Notifications;
-use Illuminate\Database\Eloquent\Collection;
 
 /**
  * Apps Model.
@@ -141,7 +141,7 @@ class Users extends Authenticatable
     }
 
     /**
-     * notifications
+     * notifications.
      *
      * @return void
      */
@@ -235,11 +235,11 @@ class Users extends Authenticatable
     }
 
     /**
-     * unReadNotification
+     * unReadNotification.
      *
      * @return object
      */
-    public function unReadNotification(): Collection
+    public function unReadNotification() : Collection
     {
         return $this->notifications()->where('read', 0)->get();
     }
