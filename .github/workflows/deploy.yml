@@ -1,4 +1,4 @@
-name: Kanvas API CI/CD
+name: CD
 
 on:
   push:
