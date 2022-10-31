@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{.Values.deployments.queues.events.name}}
+  namespace: {{.Values.namespace}}
+spec:
+  selector:
+    matchLabels:
+      app: {{.Values.deployments.queues.events.name}}
+  template:
+    metadata:
+      labels:
+        app: {{.Values.deployments.queues.events.name}}
+        type: api
+    spec:
+      volumes:
+        - name: envconfigmap
+          configMap:
+            name: envconfigmap
+            items:
+              - key: kanvasconfigmap
+                path: .env
+            defaultMode: 420
+        - name: webroot
+          emptyDir: {}
+      containers:
+        - name: {{.Values.deployments.queues.events.containerName}}
+          image: {{.Values.apiImage}}
+          imagePullPolicy: Always
+          command:
+            - "/bin/sh"
+            - "-c"
+            - "cd /app && php cli/cli.php queue events"
+          ports:
+            - containerPort: 9000
+              protocol: TCP
+          volumeMounts:
+            - name: envconfigmap
+              mountPath: /app/.env
+              subPath: .env
+            - name: webroot
+              mountPath: "/var/www/html"
+          resources:
+                requests:
+                    memory: "128M"
+                    cpu: "100m"
+                limits:
+                    memory: "512M"
+                    cpu: "200m"
+      securityContext:
+        fsGroup: 65533

@@ -1,0 +1,93 @@
+name: Kanvas API CI/CD
+
+on:
+  push:
+    branches:    
+      - '1.x'
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: set-vars 
+        run: |
+          cat .github/workflows/${GITHUB_REF##*/}-destinations >> $GITHUB_ENV 
+
+      - name: Install AWS CLI
+        run: | 
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && unzip awscliv2.zip && sudo ./aws/install --update
+
+      - name: AWS ECR
+        uses: kciter/aws-ecr-action@v4
+        with:
+          access_key_id: ${{ secrets.AWS_ACCESS_KEY_CICD }}
+          secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY_CICD }}
+          account_id: 346494590871
+          repo: ${{ env.instance_name }}
+          region: ${{ env.aws_region }}
+          create_repo: true
+          tags: latest,${{ github.run_number }},
+      
+  Deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      packages: write
+      
+    steps:
+    
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: set-vars 
+        run: |
+          cat .github/workflows/${GITHUB_REF##*/}-destinations >> $GITHUB_ENV 
+      
+      - name: Install Kubernetes toolset
+        uses: stefanprodan/kube-tools@v1.6.0
+        with:
+          kubectl: 1.23.0
+
+      - name: Download Configmap
+        uses: keithweaver/aws-s3-github-action@v1.0.0
+        with:
+          command: cp
+          source: ${{ env.configmap }}
+          destination: helm/templates/envconfigmap.yaml
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_CICD }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY_CICD }}
+          aws_region: ${{ env.aws_region }}
+
+          
+      - name: Deploy helm chart
+        run: |
+            
+            #configure aws login
+            if rm -rf /home/runner/.aws
+            then
+            echo old credentials removed
+            fi
+
+            aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_CICD }}
+            aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY_CICD }}
+            aws eks update-kubeconfig   --region ${{ env.aws_region }}   --name ${{ env.cluster_name }}
+            
+            #deploy or upgrade helm chart
+            helm upgrade --install ${{ env.instance_name }} helm \
+            --namespace ${{ env.instance_name }} \
+            --create-namespace \
+            --set apiImage=${{ env.api_image }}:${{ github.run_number }} \
+            --set services.loadBalancer.name=${{ env.service_loadbalancer }}
+
+    

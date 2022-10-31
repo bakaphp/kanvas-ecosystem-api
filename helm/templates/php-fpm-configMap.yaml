@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+    name: php-fpm-config
+    namespace: {{.Values.namespace}}
+    labels:
+        tier: backend
+data:
+    phpfpm: |
+        [www]
+
+        pm = dynamic
+        pm.max_children = 18
+        pm.start_servers = 6
+        pm.min_spare_servers = 2
+        pm.max_spare_servers = 8
+        pm.max_requests = 250

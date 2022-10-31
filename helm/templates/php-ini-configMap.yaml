@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+    name: php-ini-config
+    namespace: {{.Values.namespace}}
+    labels:
+        tier: backend
+data:
+    phpini: |
+        memory_limit = {{.Values.php.memoryLimit}}
