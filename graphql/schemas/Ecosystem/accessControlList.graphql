@@ -11,6 +11,10 @@ extend type Query @guard {
         userId: Int!
         role: String!
     ): Boolean @field(resolver: "App\\GraphQL\\Ecosystem\\Resolvers\\AccessControlList\\RolesResolver@hasRole")
+    can(
+        userId: Int!
+        permission: String
+    ): Boolean @field(resolver: "App\\GraphQL\\Ecosystem\\Resolvers\\AccessControlList\\PermissionsResolver@can")
 }
 
 extend type Mutation @guard {
@@ -35,4 +39,8 @@ extend type Mutation @guard {
         userId: Int!
         permission: String!
     ): Boolean @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\UserAccessControlList@givePermissionToUser") 
+    removePermissionToUser(
+        userId: Int!
+        permission: String!
+    ): Boolean @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\UserAccessControlList@removePermissionToUser")
 }

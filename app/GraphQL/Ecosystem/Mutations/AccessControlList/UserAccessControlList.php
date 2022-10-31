@@ -54,4 +54,18 @@ class UserAccessControlList
         Bouncer::allow($user)->to($request['permission']);
         return true;
     }  
+    
+    /**
+     * removePermissionToUser
+     *
+     * @param  mixed $rootValue
+     * @param  array $request
+     * @return bool
+     */
+    public function removePermissionToUser($rootValue, array $request): bool 
+    {
+        $user = UsersRepository::getById($request['userId'], auth()->user()->defaultCompany->id);
+        Bouncer::disallow($user)->to($request['permission']);
+        return true;
+    }
 }
