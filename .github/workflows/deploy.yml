@@ -1,4 +1,4 @@
-name: Kanvas API CI/CD
+name: CD
 
 on:
   push:
@@ -24,7 +24,7 @@ jobs:
           cat .github/workflows/${GITHUB_REF##*/}-destinations >> $GITHUB_ENV 
 
       - name: Install AWS CLI
-        run: | 
+        run: |
           curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && unzip awscliv2.zip && sudo ./aws/install --update
 
       - name: AWS ECR
