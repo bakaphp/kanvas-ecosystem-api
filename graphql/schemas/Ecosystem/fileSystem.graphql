@@ -1,0 +1,7 @@
+type Mutation @guard {
+    "Upload a file that is publicly available."
+    upload(file: Upload!): String
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\FileSystem\\Upload"
+        )
+}

@@ -19,6 +19,7 @@
         "laravel/sanctum": "^3.0",
         "laravel/tinker": "^2.7",
         "lcobucci/jwt": "^4.1",
+        "league/flysystem-aws-s3-v3": "^3.0",
         "mll-lab/graphql-php-scalars": "^5.4",
         "nuwave/lighthouse": "^5.57",
         "sentry/sentry-laravel": "^2.13",
