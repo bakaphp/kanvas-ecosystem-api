@@ -18,7 +18,7 @@ class UserAccessControlList
     public function assignRoleToUser($rootValue, array $request): bool
     {
         $assign = new Assign(
-            UsersRepository::getById($request['user_id']),
+            UsersRepository::getById($request['user_id'], auth()->user()->defaultCompany->id),
             $request['role']
         );
         $assign->execute();

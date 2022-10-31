@@ -13,9 +13,9 @@ class UsersRepository
      *
      * @return Users
      */
-    public static function getById(int $id) : Users
+    public static function getById(int $id, int $companiesId) : Users
     {
-        return Users::where('companies_id', auth()->user()->defaultCompany->id)
+        return Users::where('companies_id', $companiesId)
                 ->where('id', $id)
                 ->firstOrFail();
     }
