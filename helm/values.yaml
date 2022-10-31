@@ -1,11 +1,11 @@
 # General Values
 # namespace:
 # apiImage:
-# lbSSLCert: arn:aws:acm:us-east-2:346494590871:certificate/11e3aee9-4332-47b5-9577-2a9617829096
+lbSSLCert: arn:aws:elasticloadbalancing:us-east-1:617498580299:loadbalancer/net/kanvas-cluster-lb/43e151c7b4e8e2bc
 
 services:
   loadBalancer:
-    name: apidevtest
+    name: graph
     appName: kanvas-api
 
 # namespace: memod-api
