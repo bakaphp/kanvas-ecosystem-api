@@ -9,12 +9,12 @@ class AssignAction
 {
     /**
      * __construct
-     * @param Users $user
+     * @param $entity
      * @param string $role
      * @return void
      */
     public function __construct(
-        public Users $user,
+        public $entity,
         public string $role,
     ) {
     }

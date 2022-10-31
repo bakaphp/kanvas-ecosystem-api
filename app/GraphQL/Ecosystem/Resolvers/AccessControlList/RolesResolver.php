@@ -16,4 +16,9 @@ class RolesResolver
     {
         return RolesRepository::getAllRoles();
     }
+
+    public function hasRole($_, array $request): bool
+    {
+        dd($request);
+    }
 }

@@ -20,6 +20,7 @@ use Kanvas\Traits\UsersAssociatedTrait;
 use Kanvas\Users\Factories\UsersFactory;
 use Kanvas\Users\Models\UserConfig;
 use Kanvas\Notifications\Models\Notifications;
+use Silber\Bouncer\Database\HasRolesAndAbilities;
 
 /**
  * Apps Model.
@@ -79,6 +80,7 @@ class Users extends Authenticatable
     use Notifiable;
     use HasFactory;
     use HasApiTokens;
+    use HasRolesAndAbilities;
 
     protected ?string $defaultCompanyName = null;
     protected $guarded = [];

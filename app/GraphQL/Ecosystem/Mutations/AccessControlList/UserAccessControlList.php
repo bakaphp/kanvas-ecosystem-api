@@ -2,7 +2,7 @@
 declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Mutations\AccessControlList;
 
-use App\GraphQL\Ecosystem\Mutations\AccessControlList\Assign;
+use Kanvas\AccessControlList\Actions\AssignAction;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 
@@ -17,8 +17,8 @@ class UserAccessControlList
      */
     public function assignRoleToUser($rootValue, array $request): bool
     {
-        $assign = new Assign(
-            UsersRepository::getById($request['user_id'], auth()->user()->defaultCompany->id),
+        $assign = new AssignAction(
+            UsersRepository::getById($request['userId'], auth()->user()->defaultCompany->id),
             $request['role']
         );
         $assign->execute();
@@ -34,8 +34,8 @@ class UserAccessControlList
      */
     public function removeRoleFromUser($rootValue, array $request): bool
     {
-        $user = $request['user'];
         $role = $request['role'];
+        $user = UsersRepository::getById($request['userId'], auth()->user()->defaultCompany->id);
         $user->retract($role);
         return true;
     }

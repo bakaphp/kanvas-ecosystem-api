@@ -22,7 +22,7 @@ class CreateBouncerTables extends Migration
             $table->string('entity_type')->nullable();
             $table->boolean('only_owned')->default(false);
             $table->json('options')->nullable();
-            $table->integer('scope')->nullable()->index();
+            $table->string('scope')->nullable()->index();
             $table->timestamps();
         });
 
@@ -46,7 +46,7 @@ class CreateBouncerTables extends Migration
             $table->string('entity_type');
             $table->bigInteger('restricted_to_id')->unsigned()->nullable();
             $table->string('restricted_to_type')->nullable();
-            $table->integer('scope')->nullable()->index();
+            $table->string('scope')->nullable()->index();
 
             $table->index(
                 ['entity_id', 'entity_type', 'scope'],
@@ -64,7 +64,7 @@ class CreateBouncerTables extends Migration
             $table->bigInteger('entity_id')->unsigned()->nullable();
             $table->string('entity_type')->nullable();
             $table->boolean('forbidden')->default(false);
-            $table->integer('scope')->nullable()->index();
+            $table->string('scope')->nullable()->index();
 
             $table->index(
                 ['entity_id', 'entity_type', 'scope'],
