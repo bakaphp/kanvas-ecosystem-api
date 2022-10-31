@@ -1,7 +1,7 @@
 # General Values
 # namespace:
 # apiImage:
-lbSSLCert: "arn:aws:elasticloadbalancing:us-east-1:617498580299:loadbalancer/net/kanvas-cluster-lb/43e151c7b4e8e2bc"
+# lbSSLCert: none
 
 services:
   loadBalancer:
