@@ -14,7 +14,7 @@ class AssignAction
      * @return void
      */
     public function __construct(
-        public $entity,
+        public string|Users $entity,
         public string $role,
     ) {
     }

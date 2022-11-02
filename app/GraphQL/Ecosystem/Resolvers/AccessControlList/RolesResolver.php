@@ -17,7 +17,7 @@ class RolesResolver
     {
         return RolesRepository::getAllRoles();
     }
-    
+
     /**
      * hasRole
      *
@@ -25,9 +25,9 @@ class RolesResolver
      * @param  array $request
      * @return bool
      */
-    public function hasRole($_, array $request): bool
+    public function hasRole(mixed $_, array $request): bool
     {
-       $user =  UsersRepository::getById($request['userId'], auth()->user()->defaultCompany->id);
-       return $user->isAn($request['role']);
+        $user = UsersRepository::getById($request['userId'], auth()->user()->defaultCompany->id);
+        return $user->isAn($request['role']);
     }
 }
