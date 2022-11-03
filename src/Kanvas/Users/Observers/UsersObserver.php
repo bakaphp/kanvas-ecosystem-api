@@ -14,6 +14,10 @@ use Kanvas\Enums\StateEnums;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Actions\AssignRole;
 use Kanvas\Users\Models\Users;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
+use Bouncer;
+use Kanvas\AccessControlList\Actions\AssignAction;
+use Kanvas\AccessControlList\Models\Role;
 
 class UsersObserver
 {
@@ -80,11 +84,20 @@ class UsersObserver
             StateEnums::ON->getValue()
         );
 
-        if (!$role = $app->get(AppSettingsEnums::DEFAULT_ROLE_NAME->getValue())) {
-            $role = $app->name . '.' . $user->role()->first()->name;
+        Bouncer::scope()->to(RolesRepository::getScope($user));
+        if ($user->roles_id) {
+            $role = Role::find($user->roles_id)->name;
+            $assignRole = new AssignAction($user, $role);
+            $assignRole->execute();
+        } else {
+            $assignRole = new AssignAction($user, 'Admin');
+            $assignRole->execute();
+        }
+        if (!$roleLegacy = $app->get(AppSettingsEnums::DEFAULT_ROLE_NAME->getValue())) {
+            $roleLegacy = $app->name . '.' . $user->role()->first()->name;
         }
 
-        $assignRole = new AssignRole($user, $company, $app);
-        $assignRole->execute($role);
+        $assignRoleLegacy = new AssignRole($user, $company, $app);
+        $assignRoleLegacy->execute($roleLegacy);
     }
 }

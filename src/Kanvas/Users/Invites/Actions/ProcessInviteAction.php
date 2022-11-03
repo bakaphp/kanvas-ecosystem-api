@@ -37,6 +37,7 @@ class ProcessInviteAction
             'firstname' => $invite->firstname,
             'lastname' => $invite->lastname,
             'default_company' => (string)$invite->companies_id,
+            'roles_id' => $invite->role_id
         ]);
         $user = (new RegisterUsersAction($dto))->execute();
         $invite->delete();
