@@ -65,7 +65,7 @@ class RegisterUsersAction
         $user->password = $this->data->password;
         $user->language = $user->language ?: Defaults::DEFAULT_LANGUAGE->getValue();
         $user->user_activation_key = Hash::make(time());
-        $user->roles_id = $this->data->roles_id;
+        $user->roles_id = $this->data->roles_id ?? 1;
         $user->saveOrFail();
         $user->notify(new UserSignUp($user));
         return $user;
