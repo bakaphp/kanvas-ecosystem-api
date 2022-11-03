@@ -59,7 +59,7 @@ class RegisterPostData extends DataTransferObject
      * @param array $request
      * @return self
      */
-    public static function fromMutation(array $request) : self
+    public static function fromArray(array $request) : self
     {
         return new self(
             firstname: $request['firstname'] ?? '',

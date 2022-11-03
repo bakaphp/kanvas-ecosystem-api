@@ -31,7 +31,7 @@ class ProcessInviteAction
     {
         $invite = UsersInviteRepository::getByHash($this->hash);
         Auth::setUser($invite->user);
-        $dto = RegisterPostDataDto::fromMutation([
+        $dto = RegisterPostDataDto::fromArray([
             'email' => $invite->email,
             'password' => $this->password,
             'firstname' => $invite->firstname,
