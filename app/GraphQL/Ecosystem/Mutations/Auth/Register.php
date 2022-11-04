@@ -1,6 +1,5 @@
 <?php
 declare(strict_types=1);
-
 namespace App\GraphQL\Ecosystem\Mutations\Auth;
 
 use GraphQL\Type\Definition\ResolveInfo;
@@ -44,7 +43,7 @@ class Register
             ]
         )->validate();
 
-        $data = RegisterPostData::fromMutation($request['data']);
+        $data = RegisterPostData::fromArray($request['data']);
         $user = new RegisterUsersAction($data);
         $request = request();
 
