@@ -18,6 +18,7 @@ class RolesRepository
     {
         return Role::whereNull('scope')
             ->orWhere('scope', self::getScope())
+            ->orderBy('id', 'desc')
             ->get();
     }
 
