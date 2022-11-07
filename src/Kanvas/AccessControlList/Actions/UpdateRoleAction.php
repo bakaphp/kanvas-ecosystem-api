@@ -29,7 +29,7 @@ class UpdateRoleAction
     public function execute(): Role
     {
         $role = Role::find($this->id);
-        if ($role->scope != RolesRepository::getScope()) {
+        if ($role->scope !== RolesRepository::getScope()) {
             throw new AuthorizationException('You dont have permission to update this role');
         }
         $role->name = $this->name;
