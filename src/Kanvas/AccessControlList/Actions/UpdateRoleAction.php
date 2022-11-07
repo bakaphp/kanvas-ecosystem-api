@@ -5,6 +5,7 @@ namespace Kanvas\AccessControlList\Actions;
 use Kanvas\AccessControlList\Models\Role;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Exception;
+use Illuminate\Auth\Access\AuthorizationException;
 
 class UpdateRoleAction
 {
@@ -29,7 +30,7 @@ class UpdateRoleAction
     {
         $role = Role::find($this->id);
         if ($role->scope != RolesRepository::getScope()) {
-            throw new Exception('You dont have permission to update this role');
+            throw new AuthorizationException('You dont have permission to update this role');
         }
         $role->name = $this->name;
         $role->title = $this->title;

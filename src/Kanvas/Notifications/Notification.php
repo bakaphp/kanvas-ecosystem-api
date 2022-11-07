@@ -20,11 +20,6 @@ class Notification extends LaravelNotification implements EmailInterfaces
     public object $entity;
     public object $type;
 
-    public function failed(Exception $exception)
-    {
-        Log::debug('MyNotification failed');
-    }
-
     /**
      * via
      *
