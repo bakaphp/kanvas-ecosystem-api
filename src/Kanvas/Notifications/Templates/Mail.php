@@ -1,5 +1,4 @@
 <?php
-
 namespace Kanvas\Notifications\Templates;
 
 use Illuminate\Bus\Queueable;

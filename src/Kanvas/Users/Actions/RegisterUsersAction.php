@@ -11,6 +11,7 @@ use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\DataTransferObject\RegisterPostData;
 use Kanvas\Users\Models\Users;
 use Kanvas\Notifications\Templates\UserSignUp;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 
 class RegisterUsersAction
 {
@@ -65,6 +66,7 @@ class RegisterUsersAction
         $user->password = $this->data->password;
         $user->language = $user->language ?: Defaults::DEFAULT_LANGUAGE->getValue();
         $user->user_activation_key = Hash::make(time());
+        $user->roles_id = $this->data->roles_id ?? RolesEnums::ADMIN;
         $user->saveOrFail();
         $user->notify(new UserSignUp($user));
         return $user;

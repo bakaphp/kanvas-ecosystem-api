@@ -23,5 +23,13 @@ class TemplateSeeder extends Seeder
             'template' => '{{$name}}',
             'created_at' => date('Y-m-d H:i:s'),
         ]);
+        Templates::create([
+            'apps_id' => 1,
+            'users_id' => 1,
+            'companies_id' => 1,
+            'name' => 'users-invite',
+            'template' => '{{$name}}',
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
     }
 }
