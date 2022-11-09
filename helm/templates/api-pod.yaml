@@ -79,16 +79,16 @@ spec:
                 limits:
                     memory: "1G"
                     cpu: "500m"
-          lifecycle:
-            postStart:
-              exec:
-                command:
-                  [
-                    "/bin/sh",
-                    "-c",
-                    "cp -r /app/. /var/www/html && chmod -R 777 /var/www/html/. && composer install",
-                    "while true; do php cli/cli.php 'Twitter\\Main' get-mention ; sleep 60; done"
-                  ]
+          # lifecycle:
+          #   postStart:
+          #     exec:
+          #       command:
+          #         [
+          #           "/bin/sh",
+          #           "-c",
+          #           "",
+
+          #         ]
         - name: nginx
           image: nginx:1.18
           ports:
