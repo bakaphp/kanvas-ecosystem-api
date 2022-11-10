@@ -4,7 +4,6 @@ on: workflow_dispatch
 jobs:
   Scale-Down:
     runs-on: ubuntu-latest
-    needs: Build
     permissions:
       contents: read
       packages: write
