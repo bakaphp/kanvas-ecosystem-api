@@ -1,6 +1,5 @@
 name: Uninstall Helm Chart
-on:
-  workflow_dispatch:
+on: workflow_dispatch
 
 jobs:
   Scale-Down:
