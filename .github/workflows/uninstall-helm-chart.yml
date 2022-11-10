@@ -2,7 +2,7 @@ name: Uninstall Helm Chart
 on: workflow_dispatch
 
 jobs:
-  Scale-Down:
+  Uninstall-Helm-Chart:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -18,7 +18,7 @@ jobs:
         with:
           kubectl: 1.23.0
 
-      - name: Scale down pods
+      - name: Uninstall Helm Chart
         run: |
             #configure aws login
             if rm -rf /home/runner/.aws
@@ -32,7 +32,6 @@ jobs:
             
             #Uninstall current Helm Chart
             helm uninstall ${{ env.instance_name }} helm \
-            --namespace ${{ env.instance_name }} \
-            --create-namespace
+            --namespace ${{ env.instance_name }}
 
     
