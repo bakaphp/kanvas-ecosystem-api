@@ -1,0 +1,40 @@
+name: Uninstall Helm Chart
+on:
+  workflow_dispatch:
+
+jobs:
+  Scale-Down:
+    runs-on: ubuntu-latest
+    needs: Build
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: set-vars 
+        run: |
+          cat .github/workflows/${GITHUB_REF##*/}-destinations >> $GITHUB_ENV 
+      - name: Install Kubernetes toolset
+        uses: stefanprodan/kube-tools@v1.6.0
+        with:
+          kubectl: 1.23.0
+
+      - name: Scale down pods
+        run: |
+            #configure aws login
+            if rm -rf /home/runner/.aws
+            then
+            echo old credentials removed
+            fi
+
+            aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_CICD }}
+            aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY_CICD }}
+            aws eks update-kubeconfig   --region ${{ env.aws_region }}   --name ${{ env.cluster_name }}
+            
+            #Uninstall current Helm Chart
+            helm uninstall ${{ env.instance_name }} helm \
+            --namespace ${{ env.instance_name }} \
+            --create-namespace
+
+    
