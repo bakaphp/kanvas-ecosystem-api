@@ -59,10 +59,8 @@ spec:
               protocol: TCP
           volumeMounts:
             - name: envconfigmap
-              mountPath: /app/.env
+              mountPath: /var/www/html/.env
               subPath: .env
-            - name: webroot
-              mountPath: "/var/www/html"
             - name: phpini
               mountPath: /usr/local/etc/php/conf.d/phpupdate.ini
               subPath: phpupdate.ini
