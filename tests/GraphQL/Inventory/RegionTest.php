@@ -86,4 +86,130 @@ class RegionTest extends TestCase
             'data' => ['regions' => ['data' => [['name' => 'Test Region']]]]
         ]);
     }
+
+    /**
+     * testUpdateRegion
+     *
+     * @return void
+     */
+    public function testUpdateRegion()
+    {
+        $this->actingAs($this->createUser());
+        $data = [
+            'name' => 'Test Region',
+            'slug' => 'test-region',
+            'short_slug' => 'test-region',
+            'is_default' => 1,
+            'currency_id' => 1,
+        ];
+        $this->graphQL('
+            mutation($data: RegionInput!) {
+                createRegion(input: $data)
+                {
+                    id
+                    name
+                    slug
+                    short_slug
+                    currency_id
+                    is_default
+                }
+            }
+        ', [
+            'data' => $data
+        ])->assertJson([
+            'data' => ['createRegion' => $data]
+        ]);
+
+        $response = $this->graphQL('
+            query getMutation {
+                regions {
+                  data {
+                    name,
+                    id
+                  }
+                }
+            }
+        ');
+        $response = $response->decodeResponseJson();
+        $data = [
+            'name' => 'Test Region 2',
+            'slug' => 'test-region-2',
+            'short_slug' => 'test-region-2',
+            'is_default' => 1,
+            'currency_id' => 1,
+        ];
+        $this->graphQL('
+            mutation($data: RegionInputUpdate! $id: Int!) {
+                updateRegion(input: $data id: $id)
+                {
+                    id
+                    name
+                    slug
+                    short_slug
+                    currency_id
+                    is_default
+                }
+            }
+        ', [
+            'data' => $data,
+            'id' => $response['data']['regions']['data'][0]['id']
+        ])->assertJson([
+            'data' => ['updateRegion' => $data]
+        ]);
+    }
+
+    /**
+     * testDeleteRegion
+     *
+     * @return void
+     */
+    public function testDeleteRegion()
+    {
+        $this->actingAs($this->createUser());
+        $data = [
+            'name' => 'Test Region',
+            'slug' => 'test-region',
+            'short_slug' => 'test-region',
+            'is_default' => 1,
+            'currency_id' => 1,
+        ];
+        $this->graphQL('
+            mutation($data: RegionInput!) {
+                createRegion(input: $data)
+                {
+                    id
+                    name
+                    slug
+                    short_slug
+                    currency_id
+                    is_default
+                }
+            }
+        ', [
+            'data' => $data
+        ])->assertJson([
+            'data' => ['createRegion' => $data]
+        ]);
+
+        $response = $this->graphQL('
+            query getMutation {
+                regions {
+                  data {
+                    name,
+                    id
+                  }
+                }
+            }
+        ');
+        $response = $response->decodeResponseJson();
+        $this->graphQL('
+            mutation($id: Int!) {
+                deleteRegion(id: $id)
+            }
+        ', [
+            'id' => $response['data']['regions']['data'][0]['id']
+        ])->assertJson([
+            'data' => ['deleteRegion' => true]
+        ]);
+    }
 }

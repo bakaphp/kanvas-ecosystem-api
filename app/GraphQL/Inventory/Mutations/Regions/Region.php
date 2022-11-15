@@ -7,7 +7,7 @@ use Kanvas\Inventory\Regions\DataTransferObject\Region as RegionDto;
 use Kanvas\Inventory\Regions\Models\Regions as RegionModel;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Apps\Models\Apps;
-use Inventory\Regions\Repositories\Region as RegionRepository;
+use Kanvas\Inventory\Regions\Repositories\Region as RegionRepository;
 
 class Region
 {
