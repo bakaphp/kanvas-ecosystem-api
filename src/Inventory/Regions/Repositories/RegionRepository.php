@@ -4,7 +4,7 @@ namespace Kanvas\Inventory\Regions\Repositories;
 
 use Kanvas\Inventory\Regions\Models\Regions as RegionModel;
 
-class Region
+class RegionRepository
 {
     /**
      * getById
