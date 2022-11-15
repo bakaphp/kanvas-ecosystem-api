@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
-namespace Inventory\Regions\Repositories;
+namespace Kanvas\Inventory\Regions\Repositories;
 
-use Inventory\Regions\Models\Regions as RegionModel;
+use Kanvas\Inventory\Regions\Models\Regions as RegionModel;
 
 class Region
 {

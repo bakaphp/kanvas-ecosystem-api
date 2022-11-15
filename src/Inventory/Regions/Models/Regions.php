@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
-namespace Inventory\Regions\Models;
+namespace Kanvas\Inventory\Regions\Models;
 
-use Inventory\Models\BaseModel;
+use Kanvas\Inventory\Models\BaseModel;
 
 /**
  * Class Regions.

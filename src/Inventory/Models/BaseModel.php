@@ -1,7 +1,7 @@
 <?php
 
 declare(strict_types=1);
-namespace Inventory\Models;
+namespace Kanvas\Inventory\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;

@@ -2,9 +2,9 @@
 declare(strict_types=1);
 namespace App\GraphQL\Inventory\Mutations\Regions;
 
-use Inventory\Regions\Actions\CreateRegionAction;
-use Inventory\Regions\DataTransferObject\Region as RegionDto;
-use Inventory\Regions\Models\Regions as RegionModel;
+use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
+use Kanvas\Inventory\Regions\DataTransferObject\Region as RegionDto;
+use Kanvas\Inventory\Regions\Models\Regions as RegionModel;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Apps\Models\Apps;
 use Inventory\Regions\Repositories\Region as RegionRepository;

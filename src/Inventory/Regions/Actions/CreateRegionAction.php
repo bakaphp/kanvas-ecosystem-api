@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
-namespace Inventory\Regions\Actions;
+namespace Kanvas\Inventory\Regions\Actions;
 
-use Inventory\Regions\DataTransferObject\Region as RegionDto;
-use Inventory\Regions\Models\Regions as RegionModel;
+use Kanvas\Inventory\Regions\DataTransferObject\Region as RegionDto;
+use Kanvas\Inventory\Regions\Models\Regions as RegionModel;
 use Illuminate\Support\Str;
 
 class CreateRegionAction

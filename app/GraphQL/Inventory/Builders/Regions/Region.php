@@ -5,7 +5,7 @@ namespace App\GraphQL\Inventory\Builders\Regions;
 use Illuminate\Database\Eloquent\Builder;
 use GraphQL\Type\Definition\ResolveInfo;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
-use Inventory\Regions\Models\Regions as RegionModel;
+use Kanvas\Inventory\Regions\Models\Regions as RegionModel;
 use Kanvas\Apps\Models\Apps;
 
 class Region
