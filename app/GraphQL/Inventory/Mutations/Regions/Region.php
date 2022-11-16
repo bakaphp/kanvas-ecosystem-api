@@ -25,8 +25,7 @@ class Region
         $request['apps_id'] = app(Apps::class)->id;
         $currency = Currencies::findOrFail($request['currency_id']);
         $regionDto = RegionDto::fromArray($request);
-        $region = (new CreateRegionAction($regionDto))->execute();
-        return $region;
+        return (new CreateRegionAction($regionDto))->execute();
     }
 
     /**
