@@ -20,6 +20,7 @@
         "laravel/tinker": "^2.7",
         "lcobucci/jwt": "^4.1",
         "mll-lab/graphql-php-scalars": "^5.4",
+        "mll-lab/laravel-graphiql": "^1.0",
         "nuwave/lighthouse": "^5.57",
         "sentry/sentry-laravel": "^2.13",
         "silber/bouncer": "^1.0",
@@ -44,6 +45,7 @@
             "Kanvas\\": "src/Kanvas",
             "Baka\\": "src/Baka",
             "Domains\\": "src/Domains",
+            "Kanvas\\Inventory\\": "src/Inventory",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }
