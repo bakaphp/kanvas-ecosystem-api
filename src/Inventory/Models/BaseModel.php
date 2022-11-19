@@ -8,43 +8,16 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Traits\SoftDeletes;
+use Baka\Traits\BaseModel as BakaBaseModel;
 
 class BaseModel extends EloquentModel
 {
-    use HasFactory;
+    use HasFactory, BakaBaseModel;
     //use SoftDeletes;
 
     protected $attributes = [
         'is_deleted' => 0,
     ];
-
-    /**
-     * Get by uui.
-     *
-     * @param string $uuid
-     *
-     * @return self
-     */
-    public static function getByUuid(string $uuid) : self
-    {
-        return self::where('id', $uuid)
-            ->where('is_deleted', StateEnums::NO->getValue())
-            ->firstOrFail();
-    }
-
-    /**
-     * Get by Id.
-     *
-     * @param mixed $id
-     *
-     * @return self
-     */
-    public static function getById(mixed $id) : self
-    {
-        return self::where('id', (int) $id)
-            ->where('is_deleted', StateEnums::NO->getValue())
-            ->firstOrFail();
-    }
 
     /**
      * Current soft delete.

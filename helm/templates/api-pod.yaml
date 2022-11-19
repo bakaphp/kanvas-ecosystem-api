@@ -20,7 +20,7 @@ spec:
             items:
               - key: kanvasconfigmap
                 path: .env
-            defaultMode: 420
+            defaultMode: 432
         - name: webroot
           emptyDir: {}
         - name: config

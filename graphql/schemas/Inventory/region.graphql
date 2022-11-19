@@ -3,12 +3,19 @@ type Region {
     companies_id: Int!
     apps_id: Int!
     currency_id: Int!
+    companies: Company!
+    apps: App!
+    currencies: Currency!
     uuid: String!
     name: String!
     slug: String!
     short_slug: String!
     settings: String
-    is_default: Int!
+    is_default: Boolean!
+}
+type Currency {
+    id: Int!
+    name: String!
 }
 input RegionInput {
     currency_id: Int!
