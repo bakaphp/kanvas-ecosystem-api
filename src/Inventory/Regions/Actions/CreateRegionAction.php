@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 class CreateRegionAction
 {
     public function __construct(
-        protected RegionDto $data,
+        protected RegionDto $dto,
     ) {
     }
 
@@ -21,15 +21,15 @@ class CreateRegionAction
     public function execute(): RegionModel
     {
         return RegionModel::create([
-            'companies_id' => $this->data->companies_id,
-            'apps_id' => $this->data->apps_id,
-            'currency_id' => $this->data->currency_id,
+            'companies_id' => $this->dto->companies_id,
+            'apps_id' => $this->dto->apps_id,
+            'currency_id' => $this->dto->currency_id,
             'uuid' => Str::uuid(),
-            'name' => $this->data->name,
-            'slug' => $this->data->slug,
-            'short_slug' => $this->data->short_slug,
-            'settings' => $this->data->settings,
-            'is_default' => $this->data->is_default,
+            'name' => $this->dto->name,
+            'slug' => $this->dto->slug,
+            'short_slug' => $this->dto->short_slug,
+            'settings' => $this->dto->settings,
+            'is_default' => $this->dto->is_default,
         ]);
     }
 }
