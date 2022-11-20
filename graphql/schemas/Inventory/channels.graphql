@@ -17,7 +17,20 @@ input CreateChannelInput {
     description: String
     slug: String
 }
+input UpdateChannelInput {
+    name: String
+    description: String
+    slug: String
+}
 extend type Mutation @guard {
     createChannel(input: CreateChannelInput!): Channel! @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Channels\\Channel@create")
-    updateChannel(id: Int!, input: CreateChannelInput!): Channel! @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Channels\\Channel@update")
+    updateChannel(id: Int!, input: UpdateChannelInput!): Channel! @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Channels\\Channel@update")
+    deleteChannel(id: Int!): Boolean! @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Channels\\Channel@delete")
+}
+extend type Query @guard {
+    channels: [Channel!] @paginate(
+        model: "Kanvas\\Inventory\\Channels\\Models\\Channels"
+        scopes: ["app", "company"]
+        defaultCount: 10
+    )
 }

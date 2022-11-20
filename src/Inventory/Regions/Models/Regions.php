@@ -7,6 +7,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Currencies\Models\Currencies;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Class Regions.
@@ -55,5 +56,27 @@ class Regions extends BaseModel
     public function currencies(): BelongsTo
     {
         return $this->belongsTo(Currencies::class, 'currency_id');
+    }
+
+    /**
+     * scopeCompany
+     *
+     * @param  Builder $query
+     * @return Builder
+     */
+    public function scopeCompany(Builder $query): Builder
+    {
+        return $query->where('companies_id', auth()->user()->default_company);
+    }
+
+    /**
+     * scopeApp
+     *
+     * @param  Builder $query
+     * @return Builder
+     */
+    public function scopeApp(Builder $query): Builder
+    {
+        return $query->where('apps_id', app(Apps::class)->id);
     }
 }

@@ -10,7 +10,6 @@ use Kanvas\Inventory\Channels\Repositories\ChannelRepository;
 
 class Channel
 {
-    
     /**
      * create
      *
@@ -27,7 +26,7 @@ class Channel
         $channel = (new CreateChannel($dto))->execute();
         return $channel;
     }
-    
+
     /**
      * update
      *
@@ -42,5 +41,19 @@ class Channel
         $channel = ChannelRepository::getById($id);
         $channel->update($data);
         return $channel;
+    }
+
+    /**
+     * delete
+     *
+     * @param  mixed $rootValue
+     * @param  array $request
+     * @return bool
+     */
+    public function delete(mixed $rootValue, array $request): bool
+    {
+        $id = $request['id'];
+        $channel = ChannelRepository::getById($id);
+        return $channel->delete();
     }
 }

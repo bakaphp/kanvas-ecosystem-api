@@ -7,6 +7,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Users\Models\Users;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Class Channels.
@@ -25,9 +26,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class Channels extends BaseModel
 {
-    protected $table = "channels";
+    protected $table = 'channels';
     protected $guarded = [];
-
 
     /**
      * Get the companies that owns the Warehouses
@@ -47,7 +47,7 @@ class Channels extends BaseModel
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
-    
+
     /**
      * users
      *
@@ -56,5 +56,27 @@ class Channels extends BaseModel
     public function users(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
+    }
+
+    /**
+     * scopeCompany
+     *
+     * @param  Builder $query
+     * @return Builder
+     */
+    public function scopeCompany(Builder $query): Builder
+    {
+        return $query->where('companies_id', auth()->user()->default_company);
+    }
+
+    /**
+     * scopeApp
+     *
+     * @param  Builder $query
+     * @return Builder
+     */
+    public function scopeApp(Builder $query): Builder
+    {
+        return $query->where('apps_id', app(Apps::class)->id);
     }
 }

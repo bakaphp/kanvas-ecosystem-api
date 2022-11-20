@@ -16,6 +16,7 @@ class ChannelRepository
      */
     public static function getById(int $id, ?int $companiesId = null): Channels
     {
+        $companiesId = $companiesId ?? auth()->user()->default_company;
         return Channels::where('companies_id', $companiesId)
             ->where('apps_id', app(Apps::class)->id)
             ->findOrFail($id);
