@@ -76,6 +76,9 @@ jobs:
       - name: Run Migrations
         run: php artisan migrate
 
+      - name: Run Inventory Migrations
+        run: php artisan migrate --path database/migrations/Inventory/
+
       - name: Run Seedes
         run: php artisan db:seed
       
