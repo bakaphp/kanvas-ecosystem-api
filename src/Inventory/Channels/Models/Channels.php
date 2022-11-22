@@ -1,35 +1,35 @@
 <?php
 declare(strict_types=1);
-namespace Kanvas\Inventory\Regions\Models;
+namespace Kanvas\Inventory\Channels\Models;
 
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Users\Models\Users;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Currencies\Models\Currencies;
-use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
+use Baka\Traits\UuidTrait;
 
 /**
- * Class Regions.
+ * Class Channels.
  * @property int $id
  * @property int $companies_id
  * @property int $apps_id
- * @property int $currency_id
+ * @property int $users_id
  * @property string $uuid
  * @property string $name
+ * @property string $description
  * @property string $slug
- * @property string $short_slug
- * @property ?string settings = null
- * @property int $is_default
+ * @property int $is_published
  * @property int $is_deleted
  * @property string $created_at
  * @property string $updated_at
  */
-class Regions extends BaseModel
+class Channels extends BaseModel
 {
     use UuidTrait;
-    protected $table = 'regions';
+
+    protected $table = 'channels';
     protected $guarded = [];
 
     /**
@@ -52,12 +52,13 @@ class Regions extends BaseModel
     }
 
     /**
+     * users
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
-    public function currencies(): BelongsTo
+    public function users(): BelongsTo
     {
-        return $this->belongsTo(Currencies::class, 'currency_id');
+        return $this->belongsTo(Users::class, 'users_id');
     }
 
     /**

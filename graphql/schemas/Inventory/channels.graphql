@@ -1,0 +1,36 @@
+type Channel {
+    id: Int!
+    companies_id: Int!
+    apps_id: Int!
+    users_id: Int!
+    companies: Company
+    apps: App
+    users: User
+    name: String!
+    uuid: String!
+    description: String
+    slug: String!
+    is_published: Boolean!
+}
+input CreateChannelInput {
+    name: String!
+    description: String
+    slug: String
+}
+input UpdateChannelInput {
+    name: String
+    description: String
+    slug: String
+}
+extend type Mutation @guard {
+    createChannel(input: CreateChannelInput!): Channel! @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Channels\\Channel@create")
+    updateChannel(id: Int!, input: UpdateChannelInput!): Channel! @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Channels\\Channel@update")
+    deleteChannel(id: Int!): Boolean! @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Channels\\Channel@delete")
+}
+extend type Query @guard {
+    channels: [Channel!] @paginate(
+        model: "Kanvas\\Inventory\\Channels\\Models\\Channels"
+        scopes: ["app", "company"]
+        defaultCount: 10
+    )
+}
