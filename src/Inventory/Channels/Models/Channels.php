@@ -8,6 +8,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Users\Models\Users;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Builder;
+use Baka\Traits\UuidTrait;
 
 /**
  * Class Channels.
@@ -26,6 +27,8 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class Channels extends BaseModel
 {
+    use UuidTrait;
+
     protected $table = 'channels';
     protected $guarded = [];
 

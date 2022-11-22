@@ -14,10 +14,10 @@ class CreateChannel
      * @return void
      */
     public function __construct(
-       protected ChannelsDto $dto
+        protected ChannelsDto $dto
     ) {
     }
-    
+
     /**
      * execute
      *
@@ -29,7 +29,6 @@ class CreateChannel
             'companies_id' => $this->dto->companies_id,
             'apps_id' => $this->dto->apps_id,
             'users_id' => $this->dto->users_id,
-            'uuid' => Str::uuid(),
             'name' => $this->dto->name,
             'description' => $this->dto->description,
             'slug' => $this->dto->slug ?? Str::slug($this->dto->name),
