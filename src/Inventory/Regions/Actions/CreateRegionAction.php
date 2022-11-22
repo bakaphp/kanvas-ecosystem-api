@@ -24,7 +24,6 @@ class CreateRegionAction
             'companies_id' => $this->data->companies_id,
             'apps_id' => $this->data->apps_id,
             'currency_id' => $this->data->currency_id,
-            'uuid' => Str::uuid(),
             'name' => $this->data->name,
             'slug' => $this->data->slug,
             'short_slug' => $this->data->short_slug,

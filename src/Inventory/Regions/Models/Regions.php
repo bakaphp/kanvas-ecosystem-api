@@ -7,6 +7,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Currencies\Models\Currencies;
+use Baka\Traits\UuidTrait;
 
 /**
  * Class Regions.
@@ -26,6 +27,7 @@ use Kanvas\Currencies\Models\Currencies;
  */
 class Regions extends BaseModel
 {
+    use UuidTrait;
     protected $table = 'regions';
     protected $guarded = [];
 
