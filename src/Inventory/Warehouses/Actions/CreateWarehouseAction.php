@@ -29,7 +29,6 @@ class CreateWarehouseAction
             'companies_id' => $this->warehouseDto->companies_id,
             'apps_id' => $this->warehouseDto->apps_id,
             'regions_id' => $this->warehouseDto->regions_id,
-            'uuid' => Str::uuid(),
             'name' => $this->warehouseDto->name,
             'location' => $this->warehouseDto->location,
             'is_default' => $this->warehouseDto->is_default,

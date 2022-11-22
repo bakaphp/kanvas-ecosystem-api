@@ -8,6 +8,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Builder;
+use Baka\Traits\UuidTrait;
 
 /**
  * Class Warehouses
@@ -27,6 +28,8 @@ use Illuminate\Database\Eloquent\Builder;
 
 class Warehouses extends BaseModel
 {
+    use UuidTrait;
+
     protected $table = 'warehouses';
 
     protected $guarded = [];
