@@ -1,0 +1,58 @@
+type Warehouse {
+    id: Int!
+    companies: Company!
+    apps: App!
+    regions: Region!
+    apps_id: Int!
+    regions_id: Int!
+    companies_id: Int!
+    uuid: String!
+    name: String!
+    location: String
+    is_default: Boolean!
+    is_published: Int!
+}
+
+input WarehouseInput {
+    regions_id: Int!
+    name: String!
+    location: String
+    is_default: Boolean!
+    is_published: Int!
+}
+
+input WarehouseInputUpdate {
+    regions_id: Int
+    name: String
+    location: String
+    is_default: Boolean
+    is_published: Int
+}
+extend type Mutation @guard {
+    createWarehouse(input: WarehouseInput!): Warehouse! @field(
+        resolver: "App\\GraphQL\\Inventory\\Mutations\\Warehouses\\Warehouse@create"
+    )
+    updateWarehouse(input: WarehouseInputUpdate! id: Int!): Warehouse! @field(
+        resolver: "App\\GraphQL\\Inventory\\Mutations\\Warehouses\\Warehouse@update"
+    )
+    deleteWarehouse(id: Int!): Boolean! @field(
+        resolver: "App\\GraphQL\\Inventory\\Mutations\\Warehouses\\Warehouse@delete"
+    )
+}
+extend type Query @guard {
+    getWarehouses(
+        where: _
+            @whereConditions(
+                columns: [
+                    "name",
+                    "location",
+                    "is_default",
+                    "is_published",
+                ]
+            )
+    ): [Warehouse]! @paginate(
+        model: "Kanvas\\Inventory\\Warehouses\\Models\\Warehouses"
+        defaultCount: 25
+        scopes: ["company", "app"]
+    )
+}
