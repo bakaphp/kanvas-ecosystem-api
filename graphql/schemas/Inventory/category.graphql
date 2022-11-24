@@ -1,6 +1,5 @@
 type Category {
     id: Int!
-    apps_id: Int!
     companies_id: Int!
     parent_id: Int
     uuid: String!
@@ -9,6 +8,8 @@ type Category {
     code: String
     position: Int
     is_published: Boolean!
+    companies: Company!
+    users: User!
 }
 
 input CategoryInput{
@@ -33,6 +34,7 @@ extend type Query @guard {
         where: _
         @whereConditions(
             columns: [
+                "parent_id",
                 "name",
                 "slug",
                 "code",
