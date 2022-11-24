@@ -1,0 +1,47 @@
+type Category {
+    id: Int!
+    companies_id: Int!
+    parent_id: Int
+    uuid: String!
+    name: String!
+    slug: String!
+    code: String
+    position: Int
+    is_published: Boolean!
+    companies: Company!
+    users: User!
+}
+
+input CategoryInput{
+    parent_id: Int
+    name: String!
+    code: String
+    position: Int
+}
+input CategoryUpdateInput{
+    parent_id: Int
+    name: String!
+    code: String
+    position: Int
+}
+extend type Mutation @guard {
+    createCategory(input: CategoryInput!): Category! @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\Category@create")
+    updateCategory(id: Int!, input: CategoryUpdateInput!): Category! @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\Category@update")
+    deleteCategory(id: Int!): Boolean! @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\Category@delete")
+}
+extend type Query @guard {
+   categories(
+        where: _
+        @whereConditions(
+            columns: [
+                "parent_id",
+                "name",
+                "slug",
+                "code",
+                "uuid",
+                "position"
+            ]
+        )
+   ): [Category!]! @paginate(model: "Kanvas\\Inventory\\Categories\\Models\\Categories", defaultCount: 10, scopes: ["app", "company"])
+
+}
