@@ -1,0 +1,162 @@
+<?php
+declare(strict_types=1);
+
+namespace Tests\GraphQL\Inventory;
+
+use Illuminate\Support\Facades\Auth;
+use Tests\TestCase;
+
+class CategoryTest extends TestCase
+{
+    /**
+     * testCreateCategory
+     *
+     * @return void
+     */
+    public function testCreateCategory(): void
+    {
+        $this->actingAs($this->createUser());
+        $data = [
+            'name' => fake()->name
+        ];
+        $this->graphQL('
+            mutation($data: CategoryInput!) {
+                createCategory(input: $data)
+                {
+                    id
+                    name
+                }
+            }', ['data' => $data])->assertJson([
+            'data' => ['createCategory' => $data]
+        ]);
+    }
+    
+    /**
+     * testGetCategory
+     *
+     * @return void
+     */
+    public function testGetCategory(): void
+    {
+        $this->actingAs($this->createUser());
+        $data = [
+            'name' => fake()->name
+        ];
+        $this->graphQL('
+            mutation($data: CategoryInput!) {
+                createCategory(input: $data)
+                {
+                    id
+                    name
+                }
+            }', ['data' => $data])->assertJson([
+            'data' => ['createCategory' => $data]
+        ]);
+        $this->graphQL('
+            query {
+                categories {
+                    data {
+                        name,
+                    }
+                }
+            }')->assertJson([
+            'data' => ['categories' => ['data' => [$data]]]
+        ]);
+    }
+    
+    /**
+     * testUpdateCategory
+     *
+     * @return void
+     */
+    public function testUpdateCategory(): void
+    {
+        $this->actingAs($this->createUser());
+        $data = [
+            'name' => fake()->name
+        ];
+        $this->graphQL('
+            mutation($data: CategoryInput!) {
+                createCategory(input: $data)
+                {
+                    id
+                    name
+                }
+            }', ['data' => $data])->assertJson([
+            'data' => ['createCategory' => $data]
+        ]);
+        $response = $this->graphQL('
+            query {
+                categories {
+                    data {
+                        id,
+                        name,
+                    }
+                }
+        }');
+        $id = $response['data']['categories']['data'][0]['id'];
+        $data = [
+            'name' => fake()->name,
+        ];
+        $this->graphQL('
+            mutation($id: Int!, $data: CategoryUpdateInput!) {
+                updateCategory(id: $id, input: $data)
+                {
+                    name
+                }
+            }', ['id' => $id, 'data' => $data])->assertJson([
+            'data' => ['updateCategory' => $data]
+        ]);
+    }
+    
+    /**
+     * testDeleteCategory
+     *
+     * @return void
+     */
+    public function testDeleteCategory(): void
+    {
+        $this->actingAs($this->createUser());
+        $data = [
+            'name' => fake()->name
+        ];
+        $this->graphQL('
+            mutation($data: CategoryInput!) {
+                createCategory(input: $data)
+                {
+                    id
+                    name
+                }
+            }', ['data' => $data])->assertJson([
+            'data' => ['createCategory' => $data]
+        ]);
+        $response = $this->graphQL('
+            query {
+                categories {
+                    data {
+                        id,
+                        name,
+                    }
+                }
+        }');
+        $id = $response['data']['categories']['data'][0]['id'];
+        $data = [
+            'name' => fake()->name,
+        ];
+        $this->graphQL('
+            mutation($id: Int!, $data: CategoryUpdateInput!) {
+                updateCategory(id: $id, input: $data)
+                {
+                    name
+                }
+            }', ['id' => $id, 'data' => $data])->assertJson([
+            'data' => ['updateCategory' => $data]
+        ]);
+        $this->graphQL('
+            mutation($id: Int!) {
+                deleteCategory(id: $id)
+            }', ['id' => $id])->assertJson([
+            'data' => ['deleteCategory' => true]
+        ]);
+    }
+}
