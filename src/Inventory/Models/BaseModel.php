@@ -9,11 +9,12 @@ use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Traits\SoftDeletes;
 use Baka\Traits\BaseModel as BakaBaseModel;
-use Kanvas\Inventory\Traits\SetAppIdTrait;
-use Kanvas\Inventory\Traits\SetCompanyTrait;
+use Kanvas\Inventory\Traits\AppsIdTrait;
+use Kanvas\Inventory\Traits\CompaniesIdTrait;
+
 class BaseModel extends EloquentModel
 {
-    use HasFactory, BakaBaseModel,SetAppIdTrait,SetCompanyTrait;
+    use HasFactory, BakaBaseModel,AppsIdTrait,CompaniesIdTrait;
     //use SoftDeletes;
 
     protected $attributes = [

@@ -2,21 +2,21 @@
 declare(strict_types=1);
 namespace Kanvas\Inventory\ProductsTypes\DataTransferObject;
 
-class ProductsTypes {
-        
+class ProductsTypes
+{
     /**
      * __construct
      *
      * @return void
      */
     public function __construct(
-        public int $companiesId,
+        public ?int $companiesId = null,
         public string $name,
-        public string $description,
+        public ?string $description = null,
         public int $weight,
-    ){
+    ) {
     }
-    
+
     /**
      * fromArray
      *
@@ -28,7 +28,7 @@ class ProductsTypes {
         return new self(
             companiesId: $data['companies_id'] ?? null,
             name: $data['name'],
-            description: $data['description'],
+            description: $data['description'] ?? null,
             weight: $data['weight'],
         );
     }

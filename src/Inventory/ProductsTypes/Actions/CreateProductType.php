@@ -7,13 +7,27 @@ use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes as ProductsT
 
 class CreateProductType
 {
+    /**
+     * __construct
+     *
+     * @return void
+     */
     public function __construct(
-       protected ProductsTypesDto $dto
-    )
-    {
+        protected ProductsTypesDto $dto
+    ) {
     }
 
-    public function execute() {
-        
+    /**
+     * execute
+     *
+     * @return ProductsTypes
+     */
+    public function execute(): ProductsTypes
+    {
+        return ProductsTypes::create([
+            'name' => $this->dto->name,
+            'description' => $this->dto->description,
+            'weight' => $this->dto->weight,
+        ]);
     }
 }

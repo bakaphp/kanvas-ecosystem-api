@@ -1,0 +1,20 @@
+type ProductType {
+    id: Int!
+    companies_id: Int!
+    uuid: String!
+    name: String!
+    description: String
+    slug: String!
+    description: String
+    weight: Int
+    companies: Company!
+}
+
+input ProductTypeInput {
+    name: String!
+    description: String
+    weight: Int!
+}
+extend type Mutation @guard {
+    createProductType(input: ProductTypeInput!): ProductType! @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\ProductsTypes\\ProductsTypes@create")
+}

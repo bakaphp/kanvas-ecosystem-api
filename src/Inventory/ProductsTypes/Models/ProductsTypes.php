@@ -6,6 +6,9 @@ use Kanvas\Inventory\Models\BaseModel;
 use Baka\Traits\UuidTrait;
 use Baka\Traits\SlugTrait;
 use Kanvas\Inventory\Traits\ScopesTrait;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Class ProductsTypes
@@ -24,7 +27,17 @@ class ProductsTypes extends BaseModel
     use SlugTrait;
     use ScopesTrait;
 
-    protected $table = "products_types";
+    protected $table = 'products_types';
 
-    protected $guarded=[];
+    protected $guarded = [];
+
+    /**
+     * Get the user that owns the ProductsTypes
+     *
+     * @return BelongsTo
+     */
+    public function companies(): BelongsTo
+    {
+        return $this->belongsTo(Companies::class, 'companies_id');
+    }
 }
