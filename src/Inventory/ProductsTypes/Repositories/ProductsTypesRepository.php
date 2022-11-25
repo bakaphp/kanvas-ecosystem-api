@@ -1,6 +1,5 @@
 <?php
 declare(strict_types=1);
-
 namespace Kanvas\Inventory\ProductsTypes\Repositories;
 
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
@@ -15,9 +14,9 @@ class ProductsTypesRepository
      * @param  int $companiesId
      * @return ProductsTypes
      */
-    public static function getById(int $id, ?int $companiesId=null): ProductsTypes
+    public static function getById(int $id, ?int $companiesId = null): ProductsTypes
     {
-        $companiesId = $companiesId ?? auth()->user()->companies_id;
+        $companiesId = $companiesId ?? auth()->user()->default_company;
         return ProductsTypes::where('apps_id', app(Apps::class)->id)
             ->where('companies_id', $companiesId)
             ->findOrFail($id);
