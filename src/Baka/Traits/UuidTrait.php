@@ -17,14 +17,4 @@ trait UuidTrait
             $model->uuid = $model->uuid ?? Str::uuid();
         });
     }
-
-    /**
-     * Generate a new id.
-     *
-     * @return string
-     */
-    public function generateNewId() : string
-    {
-        return uniqid();
-    }
 }

@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace Baka\Traits;
+
 use Illuminate\Support\Str;
 
 trait SlugTrait
