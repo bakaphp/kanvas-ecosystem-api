@@ -20,7 +20,7 @@ spec:
             items:
               - key: kanvasconfigmap
                 path: .env
-            defaultMode: 420
+            defaultMode: 432
         - name: webroot
           emptyDir: {}
         - name: config
@@ -59,10 +59,8 @@ spec:
               protocol: TCP
           volumeMounts:
             - name: envconfigmap
-              mountPath: /app/.env
+              mountPath: /var/www/html/.env
               subPath: .env
-            - name: webroot
-              mountPath: "/var/www/html"
             - name: phpini
               mountPath: /usr/local/etc/php/conf.d/phpupdate.ini
               subPath: phpupdate.ini
@@ -79,16 +77,16 @@ spec:
                 limits:
                     memory: "1G"
                     cpu: "500m"
-          lifecycle:
-            postStart:
-              exec:
-                command:
-                  [
-                    "/bin/sh",
-                    "-c",
-                    "cp -r /app/. /var/www/html && chmod -R 777 /var/www/html/. && composer install",
-                    "while true; do php cli/cli.php 'Twitter\\Main' get-mention ; sleep 60; done"
-                  ]
+          # lifecycle:
+          #   postStart:
+          #     exec:
+          #       command:
+          #         [
+          #           "/bin/sh",
+          #           "-c",
+          #           "",
+
+          #         ]
         - name: nginx
           image: nginx:1.18
           ports:

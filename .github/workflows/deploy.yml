@@ -1,7 +1,7 @@
 name: CD
 on:
   push:
-    branches:    
+    branches:
       - '1.x'
 
   workflow_dispatch:

@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace Kanvas\Roles\Models;
 
 use Kanvas\Models\BaseModel;
@@ -27,7 +26,7 @@ class Roles extends BaseModel
      *
      * @var string
      */
-    protected $table = 'roles';
+    protected $table = 'roles_kanvas_legacy';
 
     /**
      * Companies relationship

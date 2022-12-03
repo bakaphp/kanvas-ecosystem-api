@@ -9,3 +9,4 @@ scalar Upload
 #import hello.graphql
 #import schemas/Ecosystem/*.graphql
 #import schemas/*.graphql
+#import schemas/Inventory/*.graphql

@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace Kanvas\Users\DataTransferObject;
 
 use Spatie\DataTransferObject\DataTransferObject;
@@ -31,6 +30,7 @@ class RegisterPostData extends DataTransferObject
         public string $email,
         public string $password,
         public ?string $default_company = null,
+        public ?int $roles_id = null
     ) {
     }
 
@@ -46,7 +46,7 @@ class RegisterPostData extends DataTransferObject
         return new self(
             firstname: $request->get('firstname') ?? '',
             lastname: $request->get('lastname') ?? '',
-            displayname: $request->get('displayname') ?? Random::generateDisplayName( $request->get('email')),
+            displayname: $request->get('displayname') ?? Random::generateDisplayName($request->get('email')),
             email: $request->get('email'),
             password: Hash::make($request->get('password')),
             default_company: $request->get('default_company') ?? null,
@@ -59,15 +59,16 @@ class RegisterPostData extends DataTransferObject
      * @param array $request
      * @return self
      */
-    public static function fromMutation(array $request) : self
+    public static function fromArray(array $request) : self
     {
         return new self(
             firstname: $request['firstname'] ?? '',
             lastname: $request['lastname'] ?? '',
-            displayname: $request['displayname'] ?? Random::generateDisplayName( $request['email']),
+            displayname: $request['displayname'] ?? Random::generateDisplayName($request['email']),
             email: $request['email'],
             password: Hash::make($request['password']),
-            default_company: $request['default_company'] ?? null
+            default_company: $request['default_company'] ?? null,
+            roles_id: $request['roles_id'] ?? null,
         );
     }
 }

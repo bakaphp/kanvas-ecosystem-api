@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace Kanvas\Users\Models;
 
 use Baka\Traits\HashTableTrait;
@@ -14,12 +13,14 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Kanvas\Auth\Traits\HasApiTokens;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\CompaniesBranches\Models\CompaniesBranches;
-use Kanvas\Notifications\Models\Notifications;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Traits\PermissionsTrait;
 use Kanvas\Traits\UsersAssociatedTrait;
 use Kanvas\Users\Factories\UsersFactory;
+use Kanvas\Users\Models\UserConfig;
+use Kanvas\Notifications\Models\Notifications;
+use Silber\Bouncer\Database\HasRolesAndAbilities;
 
 /**
  * Apps Model.
@@ -79,8 +80,10 @@ class Users extends Authenticatable
     use Notifiable;
     use HasFactory;
     use HasApiTokens;
+    use HasRolesAndAbilities;
 
     protected ?string $defaultCompanyName = null;
+    protected $guarded = [];
 
     /**
      * The table associated with the model.

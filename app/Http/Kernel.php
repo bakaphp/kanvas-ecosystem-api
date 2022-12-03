@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http;
 
 use Illuminate\Foundation\Http\Kernel as HttpKernel;
@@ -23,6 +22,8 @@ class Kernel extends HttpKernel
         \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
         \App\Http\Middleware\JsonResponse::class,
         \Fruitcake\Cors\HandleCors::class,
+        \App\Http\Middleware\RolesMiddleware::class,
+
     ];
 
     /**
