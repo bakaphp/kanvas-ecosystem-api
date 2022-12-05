@@ -1,0 +1,64 @@
+input ProductInput {
+    products_types_id: Int
+    name: String!
+    uuid: String!
+    description: String!
+    short_description: String
+    html_description: String
+    warranty_terms: String
+    upc: String
+    is_published: Boolean,
+    categories: [Int]
+    warehouses: [Int]
+}
+
+type Product {
+    id: Int!
+    products_types_id: Int
+    uuid: String
+    name: String!
+    description: String!
+    short_description: String
+    html_description: String
+    warranty_terms: String
+    upc: String
+    is_published: Boolean
+    created_at: String
+    updated_at: String
+    categories: [Category]
+    warehouses: [Warehouse]
+}
+input ProductInputUpdate {
+    products_types_id: Int
+    name: String
+    description: String
+    short_description: String
+    html_description: String
+    warranty_terms: String
+    upc: String
+    is_published: Boolean
+}
+extend type Mutation @guard {
+    createProduct(input: ProductInput!): Product @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@create")
+    updateProduct(id: Int! input: ProductInputUpdate): Product @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@update")
+    deleteProduct(id: Int!): Boolean @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@delete")
+}
+extend type Query @guard {
+    products(
+        where: _
+        @whereConditions(
+            columns: [
+                "products_types_id",
+                "name",
+                "slug",
+                "code",
+                "uuid",
+                "position"
+            ]
+        )
+    ): [Product] @paginate(
+        model: "Kanvas\\Inventory\\Products\\Models\\Products"
+        scopes: ["app", "company"]
+        defaultCount: 10
+    )
+}

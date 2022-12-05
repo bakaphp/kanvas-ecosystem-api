@@ -2,8 +2,15 @@
 declare(strict_types=1);
 namespace Kanvas\Inventory\Products\DataTransferObject;
 
-class Product
+use Spatie\LaravelData\Data;
+
+class Product extends Data
 {
+    /**
+     * __construct
+     *
+     * @return void
+     */
     public function __construct(
         public ?int $products_types_id = null,
         public string $name,
@@ -13,6 +20,8 @@ class Product
         public ?string $warranty_terms = null,
         public ?string $upc = null,
         public bool $is_published = true,
+        public ?array $categories = null,
+        public ?array $warehouses = null,
     ) {
     }
 }

@@ -28,7 +28,8 @@ return new class extends Migration {
             $table->text('html_description')->nullable();
             $table->text('warranty_terms')->nullable();
             $table->string('upc')->nullable();
-            $table->boolean('is_published')->default(1);
+            $table->boolean('is_published')->default(0);
+            $table->timestamp('published_at')->nullable();
             $table->boolean('is_deleted')->default(0);
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();

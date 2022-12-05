@@ -11,10 +11,11 @@ use Kanvas\Traits\SoftDeletes;
 use Baka\Traits\BaseModel as BakaBaseModel;
 use Kanvas\Inventory\Traits\AppsIdTrait;
 use Kanvas\Inventory\Traits\CompaniesIdTrait;
+use Kanvas\Inventory\Traits\ScopesTrait;
 
 class BaseModel extends EloquentModel
 {
-    use HasFactory, BakaBaseModel,AppsIdTrait,CompaniesIdTrait;
+    use HasFactory, BakaBaseModel,AppsIdTrait,CompaniesIdTrait,ScopesTrait;
     //use SoftDeletes;
 
     protected $attributes = [
