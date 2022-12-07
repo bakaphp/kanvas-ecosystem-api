@@ -1,7 +1,15 @@
+type Filesystem {
+    id: Int!
+    name: String!
+    url: String!
+    type: String!
+    size: Float!
+}
+
 type Mutation @guard {
     "Upload a file that is publicly available."
-    upload(file: Upload!): String
+    upload(file: Upload!): Filesystem!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\FileSystem\\Upload"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\Upload"
         )
 }

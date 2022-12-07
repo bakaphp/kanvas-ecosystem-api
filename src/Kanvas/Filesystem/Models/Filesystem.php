@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Filesystem\Filesystem\Models;
+namespace Kanvas\Filesystem\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
