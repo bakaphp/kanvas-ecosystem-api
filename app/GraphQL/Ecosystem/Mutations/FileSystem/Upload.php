@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+
 namespace App\GraphQL\Ecosystem\Mutations\FileSystem;
 
 use Illuminate\Support\Facades\Storage;
@@ -19,14 +20,11 @@ final class Upload
         /** @var \Illuminate\Http\UploadedFile $file */
         $file = $args['file'];
 
-        $imageName = time() . $file->getClientOriginalName();
-        $filePath = 'images-stage/' . $imageName;
-        try {
-            // $file->storePublicly($filePath, 's3');
-            Storage::disk('s3')->put($filePath, $file->get());
-        } catch (\League\Flysystem\UnableToWriteFile $e) {
-            throw new \Exception($e->getMessage());
-        }
-        return Storage::disk('s3')->url($filePath);
+        $imageName = $file->getClientOriginalName();
+        $filePath = '/';
+
+        $s3ImageName = $file->storePublicly($filePath, 's3');
+
+        return Storage::disk('s3')->url($filePath . $s3ImageName);
     }
 }
