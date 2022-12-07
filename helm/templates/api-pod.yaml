@@ -48,6 +48,23 @@ spec:
               - key: phpwww
                 path: www.conf
       containers:
+        - name: nginx
+          image: nginx:1.18
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/conf.d
+            - name: webroot
+              mountPath: "/var/www/html"
+          resources:
+                requests:
+                    memory: "128M"
+                    cpu: "100m"
+                limits:
+                    memory: "512M"
+                    cpu: "200m"
         - name: {{.Values.deployments.api.containerName}}
           image: {{.Values.apiImage}}
           # envFrom:
@@ -89,22 +106,5 @@ spec:
           #           "",
 
           #         ]
-        - name: nginx
-          image: nginx:1.18
-          ports:
-            - containerPort: 80
-              protocol: TCP
-          volumeMounts:
-            - name: config
-              mountPath: /etc/nginx/conf.d
-            - name: webroot
-              mountPath: "/app"
-          resources:
-                requests:
-                    memory: "128M"
-                    cpu: "100m"
-                limits:
-                    memory: "512M"
-                    cpu: "200m"
       securityContext:
         fsGroup: 65533
