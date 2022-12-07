@@ -22,14 +22,15 @@ final class Upload
     {
         /** @var \Illuminate\Http\UploadedFile $file */
         $file = $args['file'];
-        $imageName = $file->getClientOriginalName();
-        $uploadPath = '/';
+        $uploadPath = config('filesystems.disks.s3.path');
 
         $s3ImageName = $file->storePublicly($uploadPath, 's3');
 
         $createFileSystem = new CreateFilesystemAction($file, Auth::user());
-        $s3Url = Storage::disk('s3')->url($uploadPath . $s3ImageName);
 
-        return $createFileSystem->execute($s3Url, $uploadPath);
+        return $createFileSystem->execute(
+            Storage::disk('s3')->url($uploadPath . $s3ImageName),
+            $uploadPath
+        );
     }
 }
