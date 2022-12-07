@@ -9,7 +9,7 @@ services:
     appName: kanvas-cluster-api
 
 # namespace: memod-api
-# apiImage: 617498580299.dkr.ecr.us-east-1.amazonaws.com/
+apiImage: 617498580299.dkr.ecr.us-east-1.amazonaws.com/
 
 # PHP INIT Values
 php:

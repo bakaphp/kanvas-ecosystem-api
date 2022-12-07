@@ -75,13 +75,13 @@ jobs:
 
             aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_CICD }}
             aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY_CICD }}
-            aws eks update-kubeconfig   --region ${{ secrets.AWS_REGION }}   --name ${{ secrets.CLUSTER_NAME }}
+            aws eks update-kubeconfig   --region ${{ env.aws_region }}   --name ${{ env.cluster_name }}
             
             #deploy or upgrade helm chart
-            helm upgrade --install ${{ secrets.INSTANCE_NAME }} helm \
-            --namespace ${{ secrets.INSTANCE_NAME }} \
+            helm upgrade --install ${{ env.instance_name }} helm \
+            --namespace ${{ env.instance_name }} \
             --create-namespace \
-            --set apiImage=${{ secrets.API_IMAGE }}:${{ github.run_number }} \
-            --set services.loadBalancer.name=${{ secrets.SERVICE_LOADBALANCER }}
+            --set apiImage=${{ env.api_image }}:${{ github.run_number }} \
+            --set services.loadBalancer.name=${{ env.service_loadbalancer }}
 
     
