@@ -70,6 +70,8 @@ spec:
             - name: phpwww
               mountPath: /usr/local/etc/php-fpm/php-fpm.d/www.conf
               subPath: www.conf
+            - name: webroot
+              mountPath: "/app"
           resources:
                 requests:
                     memory: "128M"
