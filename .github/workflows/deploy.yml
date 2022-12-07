@@ -9,7 +9,7 @@ on:
 jobs:
   Build:
     runs-on: ubuntu-latest
-    environment: 1.x
+    environment: Production
     permissions:
       contents: read
       packages: write
@@ -40,7 +40,7 @@ jobs:
 
   Deploy:
     runs-on: ubuntu-latest
-    environment: 1.x
+    environment: Production
     needs: Build
     permissions:
       contents: read
