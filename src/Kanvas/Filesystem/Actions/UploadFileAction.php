@@ -2,44 +2,38 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Filesystem\Filesystem\Actions;
+namespace Kanvas\Filesystem\Actions;
 
 use Illuminate\Http\UploadedFile;
-use Kanvas\Filesystem\Filesystem\Models\Filesystem;
 use Illuminate\Support\Facades\Storage;
-use Kanvas\Apps\Models\Apps;
-use Exception;
-use Illuminate\Support\Facades\Auth;
+use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Users\Models\Users;
 
 class UploadFileAction
 {
-    /**
-     * Construct function.
-     */
     public function __construct(
-        protected UploadedFile $file
+        protected Users $user
     ) {
     }
 
     /**
-     * Upload file.
+     * Upload.
      *
-     * @return string
+     * @param UploadedFile $file
      *
-     * @todo Change Exception for custom type of exception
+     * @return Filesystem
      */
-    public function execute() : string
+    public function execute(UploadedFile $file) : Filesystem
     {
-        $app = app(Apps::class);
-        $userData = Auth::user();
-        $filesystemLocalCDN = config('kanvas.filesystem.local.cdn');
+        $uploadPath = config('filesystems.disks.s3.path');
 
-       $filePath = Storage::put('files', $this->file);
+        $s3ImageName = $file->storePublicly($uploadPath, 's3');
 
-        if (!$filePath) {
-            throw new Exception('Could not upload file');
-        }
+        $createFileSystem = new CreateFilesystemAction($file, $this->user);
 
-        return $filePath;
+        return $createFileSystem->execute(
+            Storage::disk('s3')->url($uploadPath . $s3ImageName),
+            $uploadPath
+        );
     }
 }

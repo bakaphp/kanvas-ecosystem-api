@@ -4,8 +4,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Mutations\Filesystem;
 
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use Kanvas\Filesystem\Actions\CreateFilesystemAction;
+use Kanvas\Filesystem\Actions\UploadFileAction;
 use Kanvas\Filesystem\Models\Filesystem;
 
 final class Upload
@@ -22,15 +21,9 @@ final class Upload
     {
         /** @var \Illuminate\Http\UploadedFile $file */
         $file = $args['file'];
-        $uploadPath = config('filesystems.disks.s3.path');
 
-        $s3ImageName = $file->storePublicly($uploadPath, 's3');
+        $uploadFile = new UploadFileAction(Auth::user());
 
-        $createFileSystem = new CreateFilesystemAction($file, Auth::user());
-
-        return $createFileSystem->execute(
-            Storage::disk('s3')->url($uploadPath . $s3ImageName),
-            $uploadPath
-        );
+        return $uploadFile->execute($file);
     }
 }

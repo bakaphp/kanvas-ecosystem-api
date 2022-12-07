@@ -2,10 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Filesystem\FilesystemEntities\Actions;
+namespace Kanvas\Filesystem\Actions;
 
-use Kanvas\Filesystem\Filesystem\Models\Filesystem;
-use Kanvas\Filesystem\FilesystemEntities\Models\FilesystemEntities;
+use Illuminate\Database\Eloquent\Model as EloquentModel;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Filesystem\FilesystemEntities\Repositories\FilesystemEntitiesRepository;
+use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Models\FilesystemEntities;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 class AttachFilesystemAction
 {
@@ -14,9 +18,7 @@ class AttachFilesystemAction
      */
     public function __construct(
         protected Filesystem $filesystem,
-        protected int $entityId,
-        protected int $systemModulesId,
-        protected string $fieldName
+        protected EloquentModel $entity
     ) {
     }
 
@@ -25,16 +27,24 @@ class AttachFilesystemAction
      *
      * @return FilesystemEntities
      */
-    public function execute() : FilesystemEntities
+    public function execute(string $fieldName, ?int $id = null) : FilesystemEntities
     {
-        $filesystemEntity = new FilesystemEntities();
-        $filesystemEntity->filesystem_id = $this->filesystem->getKey();
-        $filesystemEntity->companies_id = $this->filesystem->companies_id;
-        $filesystemEntity->system_modules_id = $systemModulesId;
-        $filesystemEntity->entity_id = $entityId;
-        $filesystemEntity->field_name = $fieldName;
-        $filesystemEntity->save();
+        $systemModule = SystemModulesRepository::getByModelName($this->entity::class);
+        $update = (int) $id > 0;
 
-        return $filesystemEntity;
+        if ($update) {
+            $fileEntity = FilesystemEntitiesRepository::getByIdAdnEntity($id, $this->entity);
+        } else {
+            $fileEntity = new FilesystemEntities();
+            $fileEntity->system_modules_id = $systemModule->getKey();
+            $fileEntity->companies_id = $this->filesystem->companies_id;
+            $fileEntity->entity_id = $this->filesystem->getKey();
+        }
+
+        $fileEntity->filesystem_id = $this->filesystem->getKey();
+        $fileEntity->field_name = $fieldName;
+        $fileEntity->saveOrFail();
+
+        return $fileEntity;
     }
 }

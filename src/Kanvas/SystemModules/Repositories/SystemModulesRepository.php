@@ -19,9 +19,17 @@ class SystemModulesRepository
     public static function getByModelName(string $modelName, ?Apps $app = null) : SystemModules
     {
         $app = $app === null ? app(Apps::class) : $app;
-        return SystemModules::where('model_name', $modelName)
-                                    ->where('apps_id', $app->getKey())
-                                    ->firstOrFail();
+
+        return SystemModules::firstOrCreate(
+            [
+                'model_name' => $modelName,
+                'apps_id' => $app->getKey()
+            ],
+            [
+                'model_name' => $modelName,
+                'apps_id' => $app->getKey()
+            ]
+        );
     }
 
     /**
@@ -55,7 +63,7 @@ class SystemModulesRepository
     }
 
     /**
-     * Get System Module by slug
+     * Get System Module by slug.
      *
      * @param int $id
      *

@@ -4,32 +4,28 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\FilesystemEntities\Repositories;
 
-use Kanvas\Filesystem\FilesystemEntities\Models\FilesystemEntities;
-use Kanvas\Filesystem\Filesystem\Models\Filesystem;
-use Kanvas\SystemModules\Models\SystemModules;
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\StateEnums;
+use Kanvas\Filesystem\Models\FilesystemEntities;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 class FilesystemEntitiesRepository
 {
-        /**
-     * Get a filesystem entities from this system modules.
+    /**
+     * Get a filesystem entity.
      *
      * @param int $id
-     * @param SystemModules $systemModules
-     * @param bool $isDeleted deprecated
+     * @param Model $entity
+     * @param bool $isDeleted
      *
-     * @return FileSystemEntities
+     * @return FilesystemEntities
      */
-    public static function getByIdWithSystemModule(int $id, SystemModules $systemModules, bool $isDeleted = false)
+    public static function getByIdAdnEntity(int $id, Model $entity, bool $isDeleted = false) : FilesystemEntities
     {
         $app = app(Apps::class);
+        $systemModule = SystemModulesRepository::getByModelName($entity::class);
         $addCompanySql = null;
-
-        $bind = [
-            'id' => $id,
-            'system_modules_id' => $systemModules->getKey(),
-            'apps_id' => $app->getKey(),
-        ];
 
         // if (!(bool) $app->get('public_images')) {
         //     $companyId = Di::getDefault()->get('userData')->currentCompanyId();
@@ -37,16 +33,10 @@ class FilesystemEntitiesRepository
         //     $bind['companies_id'] = $companyId;
         // }
 
-        return FileSystemEntities::where('id',)
-                                ->where('system_modules_id')
+        return FilesystemEntities::where('id', $id)
+                                ->where('system_modules_id', $systemModule->getKey())
+                                ->where('is_deleted', StateEnums::NO->getValue())
                                 ->whereRaw("filesystem_id in (SELECT s.id from Filesystem s WHERE s.apps_id = {$app->getKey()}")
-                                ->find();
-
-
-        // return FileSystemEntities::findFirst([
-        //     'conditions' => 'id = :id: AND system_modules_id = :system_modules_id: ' . $addCompanySql . '  AND
-        //                         filesystem_id in (SELECT s.id from \Canvas\Models\FileSystem s WHERE s.apps_id = :apps_id: )',
-        //     'bind' => $bind
-        // ]);
+                                ->firstOrFail();
     }
 }
