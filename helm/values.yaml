@@ -1,12 +1,12 @@
 # General Values
 # namespace:
 # apiImage:
-lbSSLCert: arn:aws:acm:us-east-1:617498580299:certificate/5452aaec-b95a-4879-a1bf-74b3059b3786
 
 services:
   loadBalancer:
     name: graph
     appName: kanvas-cluster-api
+    lbSSLCert: arn:aws:acm:us-east-1:617498580299:certificate/d26f7203-5607-4eee-ae5e-f9746c6fecae
 
 # namespace: memod-api
 apiImage: 617498580299.dkr.ecr.us-east-1.amazonaws.com/
