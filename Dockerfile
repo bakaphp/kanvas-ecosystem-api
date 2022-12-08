@@ -47,12 +47,10 @@ RUN groupadd -g 1000 www
 RUN useradd -u 1000 -ms /bin/bash -g www www
 
 # Copy code to /var/www
-COPY . /app
-
-RUN --chown=www:www-data /var/www/html
+COPY --chown=www:www-data . /app
 
 # add root to www group
-RUN chmod -R ug+w /var/www/html/storage
+RUN chmod -R ug+w /app/storage
 
 # Copy nginx/php/supervisor configs
 # RUN cp docker/supervisor.conf /etc/supervisord.conf
