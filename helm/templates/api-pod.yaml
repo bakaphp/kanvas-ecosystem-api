@@ -103,7 +103,7 @@ spec:
                   [
                     "/bin/sh",
                     "-c",
-                    "cp -R /app/. /var/www/html"
+                    "cp -R /app/. /var/www/html && chown=www:www-data /var/www/html/."
 
                   ]
       securityContext:
