@@ -103,10 +103,10 @@ spec:
                   [
                     "/bin/sh",
                     "-c",
-                    "cp -R /app/. /var/www/html && ",
-                    "cd /var/www/html &&",
-                    "chmod -R 755 . &&",
-                    "chmod -R 777 storage "
+                    "cp -R /app/. /var/www/html",
+                    "cd /var/www/html",
+                    "chmod -R 755 .",
+                    "chmod -R 777 storage"
                   ]
       securityContext:
         fsGroup: 65533
