@@ -20,7 +20,7 @@ type Branch {
     name: String!
     address: String
     email: String
-    phone: String 
+    phone: String
     zipcode: String
     is_default: String
 }
@@ -52,6 +52,7 @@ input ForgotPasswordInput {
 input RegisterInput {
     firstname: String
     lastname: String
+    displayname: String
     email: String @rules(apply: ["required"])
     password: String @rules(apply: ["required"])
     password_confirmation: String @rules(apply: ["required"])
