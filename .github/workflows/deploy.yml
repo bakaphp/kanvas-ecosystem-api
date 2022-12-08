@@ -83,5 +83,6 @@ jobs:
             --create-namespace \
             --set apiImage=${{ secrets.API_IMAGE }}:${{ github.run_number }} \
             --set services.loadBalancer.name=${{ secrets.SERVICE_LOADBALANCER }}
+            --set services.loadBalancer.lbSSLCert=${{ secrets.LB_SSLCERT }}
 
     
