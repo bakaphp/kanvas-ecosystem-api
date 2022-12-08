@@ -76,7 +76,7 @@ spec:
               protocol: TCP
           volumeMounts:
             - name: envconfigmap
-              mountPath: /var/www/html/.env
+              mountPath: /app/.env
               subPath: .env
             - name: phpini
               mountPath: /usr/local/etc/php/conf.d/phpupdate.ini
@@ -88,7 +88,7 @@ spec:
               mountPath: /usr/local/etc/php-fpm/php-fpm.d/www.conf
               subPath: www.conf
             - name: webroot
-              mountPath: "/app"
+              mountPath: "/var/www/html"
           resources:
                 requests:
                     memory: "128M"
@@ -103,7 +103,7 @@ spec:
           #         [
           #           "/bin/sh",
           #           "-c",
-          #           "",
+          #           "cp -r /app/. /var/www/html && chmod -R 777 /var/www/html/."
 
           #         ]
       securityContext:
