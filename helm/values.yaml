@@ -1,7 +1,7 @@
 # General Values
 # namespace:
 # apiImage:
-lbSSLCert: arn:aws:acm:us-east-1:617498580299:certificate/3961a1ae-668a-4f10-bf9e-1690179d2b99
+lbSSLCert: arn:aws:acm:us-east-1:617498580299:certificate/5452aaec-b95a-4879-a1bf-74b3059b3786
 
 services:
   loadBalancer:
