@@ -96,15 +96,15 @@ spec:
                 limits:
                     memory: "1G"
                     cpu: "500m"
-          # lifecycle:
-          #   postStart:
-          #     exec:
-          #       command:
-          #         [
-          #           "/bin/sh",
-          #           "-c",
-          #           "cp -r /app/. /var/www/html && chmod -R 777 /var/www/html/."
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  [
+                    "/bin/sh",
+                    "-c",
+                    "cp -R /app/. /var/www/html"
 
-          #         ]
+                  ]
       securityContext:
         fsGroup: 65533
