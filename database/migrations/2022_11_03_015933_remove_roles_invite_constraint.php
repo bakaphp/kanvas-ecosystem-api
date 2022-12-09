@@ -25,9 +25,9 @@ return new class extends Migration {
      */
     public function down()
     {
-        Schema::table('users_invite', function (Blueprint $table) {
-            //
-            $table->foreign('role_id')->reference('id')->on('roles');
-        });
+        // Schema::table('users_invite', function (Blueprint $table) {
+        //     //
+        //     $table->foreign('role_id')->reference('id')->on('roles');
+        // });
     }
 };
