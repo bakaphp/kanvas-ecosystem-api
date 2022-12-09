@@ -103,7 +103,11 @@ spec:
                   [
                     "/bin/sh",
                     "-c",
-                    "cp -R /app/. /var/www/html && chmod -R 755 /var/www/html && chmod -R 777 /var/www/html/storage"
+                    "cp -R /app/. /var/www/html && \
+                     chmod -R 755 /var/www/html && \
+                     chmod -R 777 /var/www/html/storage && \
+                     mkdir /var/www/html/bootstrap/cache && \ 
+                     chmod -R 777 /var/www/html/bootstrap/cache"
                   ]
       securityContext:
         fsGroup: 65533
