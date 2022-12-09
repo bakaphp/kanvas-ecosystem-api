@@ -27,7 +27,7 @@ return new class extends Migration {
     {
         Schema::table('users_invite', function (Blueprint $table) {
             //
-            $table->foreign('role_id')->reference('id')->on('roles_kanvas_legacy');
+            $table->foreign('role_id')->reference('id')->on('roles');
         });
     }
 };

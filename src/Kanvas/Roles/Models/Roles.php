@@ -1,15 +1,15 @@
 <?php
 
 declare(strict_types=1);
+
 namespace Kanvas\Roles\Models;
 
-use Kanvas\Models\BaseModel;
-use Kanvas\Roles\Factories\RolesFactory;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Models\BaseModel;
 
 /**
- * Apps Model
+ * Apps Model.
  *
  * @property int $companies_id
  * @property int $apps_id
@@ -26,24 +26,24 @@ class Roles extends BaseModel
      *
      * @var string
      */
-    protected $table = 'roles_kanvas_legacy';
+    protected $table = 'roles';
 
     /**
-     * Companies relationship
+     * Companies relationship.
      *
      * @return Companies
      */
-    public function company(): Companies
+    public function company() : Companies
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }
 
     /**
-     * Apps relationship
+     * Apps relationship.
      *
      * @return Apps
      */
-    public function app(): Apps
+    public function app() : Apps
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
