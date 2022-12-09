@@ -14,39 +14,24 @@ class RolesSeeder extends Seeder
      */
     public function run()
     {
-        DB::table('roles_kanvas_legacy')->insert(
+        DB::table('roles')->insert(
             [
                 'name' => 'Admins',
-                'description' => 'System Administrator',
+                'title' => 'System Administrator',
                 'scope' => 0,
-                'companies_id' => 1,
-                'apps_id' => 1,
-                'is_default' => 1,
-                'is_active' => 1,
-                'created_at' => date('Y-m-d H:i:s'),
-                'is_deleted' => 0
+                'created_at' => date('Y-m-d H:i:s')
             ],
             [
                 'name' => 'Users',
-                'description' => 'Normal Users can (CRUD)',
+                'title' => 'Normal Users can (CRUD)',
                 'scope' => 0,
-                'companies_id' => 1,
-                'apps_id' => 1,
-                'is_default' => 1,
-                'is_active' => 1,
-                'created_at' => date('Y-m-d H:i:s'),
-                'is_deleted' => 0
+                'created_at' => date('Y-m-d H:i:s')
             ],
             [
                 'name' => 'Agents',
-                'description' => 'Agents Users can (CRU)',
+                'title' => 'Agents Users can (CRU)',
                 'scope' => 0,
-                'companies_id' => 1,
-                'apps_id' => 1,
-                'is_default' => 1,
-                'is_active' => 1,
                 'created_at' => date('Y-m-d H:i:s'),
-                'is_deleted' => 0
             ]
         );
     }
