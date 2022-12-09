@@ -20,7 +20,6 @@ class DatabaseSeeder extends Seeder
             CountriesSeeder::class,
             StatesSeeder::class,
             //CitiesSeeder::class,
-            RolesSeeder::class,
             RolesKanvasLegacySeeder::class,
             SourceSeeder::class,
             SystemModuleSeeder::class,
