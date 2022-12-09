@@ -1,17 +1,19 @@
 <?php
 
 declare(strict_types=1);
+
 namespace Kanvas\Users\Actions;
 
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Hash;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Enums\Defaults;
 use Kanvas\Enums\StateEnums;
-use Kanvas\Users\Enums\StatusEnums;
-use Kanvas\Users\DataTransferObject\RegisterPostData;
-use Kanvas\Users\Models\Users;
 use Kanvas\Notifications\Templates\UserSignUp;
-use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\Users\DataTransferObject\RegisterPostData;
+use Kanvas\Users\Enums\StatusEnums;
+use Kanvas\Users\Models\Users;
 
 class RegisterUsersAction
 {
@@ -68,7 +70,13 @@ class RegisterUsersAction
         $user->user_activation_key = Hash::make(time());
         $user->roles_id = $this->data->roles_id ?? RolesEnums::ADMIN;
         $user->saveOrFail();
-        $user->notify(new UserSignUp($user));
+
+        try {
+            $user->notify(new UserSignUp($user));
+        } catch (ModelNotFoundException $e) {
+            //no email sent
+        }
+
         return $user;
     }
 }
