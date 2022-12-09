@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             StatesSeeder::class,
             //CitiesSeeder::class,
             RolesSeeder::class,
+            RolesKanvasLegacySeeder::class,
             SourceSeeder::class,
             SystemModuleSeeder::class,
             UserSeeder::class,
