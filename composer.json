@@ -14,7 +14,7 @@
         "fruitcake/laravel-cors": "^3.0",
         "goldspecdigital/laravel-eloquent-uuid": "^9.0",
         "guzzlehttp/guzzle": "^7.2",
-        "laravel/framework": "^9.2",
+        "laravel/framework": "9.41.0",
         "laravel/octane": "^1.2",
         "laravel/sanctum": "^3.0",
         "laravel/tinker": "^2.7",
