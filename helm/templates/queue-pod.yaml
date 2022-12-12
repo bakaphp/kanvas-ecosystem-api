@@ -23,29 +23,8 @@ spec:
             defaultMode: 432
         - name: webroot
           emptyDir: {}
-        - name: phpini
-          configMap:
-            name: php-ini-config
-            items:
-              - key: phpini
-                path: phpupdate.ini
-        - name: phpfpm
-          configMap:
-            name: php-fpm-config
-            items:
-              - key: phpfpm
-                path: zzz-php-fpm-production.conf
-        - name: phpwww
-          configMap:
-            name: php-www-config
-            items:
-              - key: phpwww
-                path: www.conf
       containers:
           image: {{.Values.apiImage}}
-          # envFrom:
-          # - configMapRef:
-          #     name: special-config
           imagePullPolicy: Always
           ports:
             - containerPort: 9000
@@ -54,15 +33,6 @@ spec:
             - name: envconfigmap
               mountPath: /app/.env
               subPath: .env
-            - name: phpini
-              mountPath: /usr/local/etc/php/conf.d/phpupdate.ini
-              subPath: phpupdate.ini
-            - name: phpfpm
-              mountPath: /usr/local/etc/php-fpm.d/zzz-php-fpm-production.conf
-              subPath: zzz-php-fpm-production.conf
-            - name: phpwww
-              mountPath: /usr/local/etc/php-fpm/php-fpm.d/www.conf
-              subPath: www.conf
             - name: webroot
               mountPath: "/var/www/html"
           resources:
@@ -72,19 +42,11 @@ spec:
                 limits:
                     memory: "1G"
                     cpu: "500m"
-          lifecycle:
-            postStart:
-              exec:
-                command:
-                  [
-                    "/bin/sh",
-                    "-c",
-                    "cp -R /app/. /var/www/html && \
-                     chmod -R 755 /var/www/html && \
-                     chmod -R 777 /var/www/html/storage && \
-                     chmod -R 777 /var/www/html/bootstrap/cache \
-                     cd /var/www/html && \
-                     php artisan queue:work"
-                  ]
+          command:
+            [
+              "/bin/sh",
+              "-c",
+              "php artisan queue:work"
+            ]
       securityContext:
         fsGroup: 65533
