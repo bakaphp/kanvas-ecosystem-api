@@ -24,6 +24,7 @@ spec:
         - name: webroot
           emptyDir: {}
       containers:
+        - name: {{.Values.deployments.api.containerName}}
           image: {{.Values.apiImage}}
           imagePullPolicy: Always
           ports:
@@ -46,7 +47,11 @@ spec:
             [
               "/bin/sh",
               "-c",
-              "php artisan queue:work"
+              "cp -R /app/. /var/www/html && \
+               chmod -R 755 /var/www/html && \
+               chmod -R 777 /var/www/html/storage && \
+               chmod -R 777 /var/www/html/bootstrap/cache && \
+               php artisan queue:work"
             ]
       securityContext:
         fsGroup: 65533
