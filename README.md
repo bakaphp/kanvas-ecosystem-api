@@ -14,7 +14,7 @@
 
 4. Use the command ```php artisan migrate``` to migrate all kanvas migrations file.
 
-5. Use the command ```php artisan db:seed --class=KanvasSeeder```  to seed the database with an app, role and default system modules.
+5. Use the command ```php artisan db:seed --class=DatabaseSeeder```  to seed the database with an app, role and default system modules.
 
 6. Generate app keys `php artisan key:generate` 
 
