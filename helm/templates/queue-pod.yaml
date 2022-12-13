@@ -47,7 +47,8 @@ spec:
             [
               "/bin/sh",
               "-c",
-              "cp -R /app/. /var/www/html && \
+              "composer install && \
+               cp -R /app/. /var/www/html && \
                chmod -R 755 /var/www/html && \
                chmod -R 777 /var/www/html/storage && \
                chmod -R 777 /var/www/html/bootstrap/cache && \
