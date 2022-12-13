@@ -7,6 +7,7 @@ use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Baka\Traits\UuidTrait;
 use Baka\Traits\SlugTrait;
+use Kanvas\Inventory\Attributes\Models\Attributes;
 
 /**
  * Class Products
@@ -46,5 +47,10 @@ class Products extends BaseModel
     public function warehouses()
     {
         return $this->belongsToMany(Warehouses::class, 'products_warehouses', 'products_id', 'warehouses_id');
+    }
+
+    public function attributes()
+    {
+        return $this->belongsToMany(Attributes::class, 'products_attributes', 'products_id', 'attributes_id')->withPivot('value');
     }
 }

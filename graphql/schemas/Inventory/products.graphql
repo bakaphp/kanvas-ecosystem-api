@@ -7,11 +7,10 @@ input ProductInput {
     html_description: String
     warranty_terms: String
     upc: String
-    is_published: Boolean,
+    is_published: Boolean
     categories: [Int]
     warehouses: [Int]
 }
-
 type Product {
     id: Int!
     products_types_id: Int
@@ -27,6 +26,8 @@ type Product {
     updated_at: String
     categories: [Category]
     warehouses: [Warehouse]
+    attributes: [Attributes]
+
 }
 input ProductInputUpdate {
     products_types_id: Int
@@ -42,6 +43,8 @@ extend type Mutation @guard {
     createProduct(input: ProductInput!): Product @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@create")
     updateProduct(id: Int! input: ProductInputUpdate): Product @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@update")
     deleteProduct(id: Int!): Boolean @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@delete")
+    addAttribute(id: Int! attribute_id: Int! value: String!): Product @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addAttribute")
+    removeAttribute(id: Int! attribute_id: Int!): Product @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@removeAttribute")
 }
 extend type Query @guard {
     products(

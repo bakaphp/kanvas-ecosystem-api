@@ -11,6 +11,7 @@ type Attributes {
   created_at: String
   updated_at: String
   companies: [Company]
+  value: String
 }
 extend type Mutation @guard{
     createAttribute(input: AttributeInput!): Attributes! @field(

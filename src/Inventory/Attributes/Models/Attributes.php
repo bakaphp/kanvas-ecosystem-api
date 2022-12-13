@@ -7,6 +7,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 /**
  * Class Attributes
@@ -40,5 +41,17 @@ class Attributes extends BaseModel
     public function apps(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
+    }
+
+    /**
+     * Get the user's first name.
+     *
+     * @return Attribute
+     */
+    protected function value(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->value,
+        );
     }
 }
