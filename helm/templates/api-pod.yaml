@@ -103,11 +103,12 @@ spec:
                   [
                     "/bin/sh",
                     "-c",
-                    "composer install && \
-                     cp -R /app/. /var/www/html && \
+                    "cp -R /app/. /var/www/html && \
                      chmod -R 755 /var/www/html && \
                      chmod -R 777 /var/www/html/storage && \
-                     chmod -R 777 /var/www/html/bootstrap/cache"
+                     chmod -R 777 /var/www/html/bootstrap/cache && \
+                     cd /var/www/html && \
+                     composer install"
                   ]
       securityContext:
         fsGroup: 65533
