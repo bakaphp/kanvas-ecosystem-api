@@ -96,4 +96,60 @@ class Products
         $action = new RemoveAttributeAction($product, $attribute);
         return $action->execute();
     }
+
+    /**
+     * addWarehouse
+     *
+     * @param  mixed $root
+     * @param  array $req
+     * @return ProductsModel
+     */
+    public function addWarehouse(mixed $root, array $req): ProductsModel
+    {
+        $product = ProductsRepository::getById($req['id']);
+        $product->warehouses()->attach($req['warehouse_id']);
+        return $product;
+    }
+
+    /**
+     * removeWarehouse
+     *
+     * @param  mixed $root
+     * @param  array $req
+     * @return ProductsModel
+     */
+    public function removeWarehouse(mixed $root, array $req): ProductsModel
+    {
+        $product = ProductsRepository::getById($req['id']);
+        $product->warehouses()->detach($req['warehouse_id']);
+        return $product;
+    }
+
+    /**
+     * addCategory
+     *
+     * @param  mixed $root
+     * @param  array $req
+     * @return ProductsModel
+     */
+    public function addCategory(mixed $root, array $req): ProductsModel
+    {
+        $product = ProductsRepository::getById($req['id']);
+        $product->categories()->attach($req['category_id']);
+        return $product;
+    }
+
+    /**
+     * removeCategory
+     *
+     * @param  mixed $root
+     * @param  array $req
+     * @return ProductsModel
+     */
+    public function removeCategory(mixed $root, array $req): ProductsModel
+    {
+        $product = ProductsRepository::getById($req['id']);
+        $product->categories()->detach($req['category_id']);
+        return $product;
+    }
 }
