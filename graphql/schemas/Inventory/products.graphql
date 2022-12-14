@@ -1,7 +1,6 @@
 input ProductInput {
     products_types_id: Int
     name: String!
-    uuid: String!
     description: String!
     short_description: String
     html_description: String

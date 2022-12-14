@@ -20,13 +20,13 @@ return new class extends Migration {
             $table->char('uuid', 100)->unique();
             $table->text('name');
             $table->string('slug', 100);
-            $table->text('description');
+            $table->text('description')->nullable();
             $table->text('short_description')->nullable();
             $table->text('html_description')->nullable();
             $table->string('sku', 64);
             $table->string('ean', 64);
             $table->string('barcode', 64);
-            $table->string('serial_number', 190);
+            $table->string('serial_number', 190)->nullable();
             $table->boolean('is_published')->default(1);
             $table->boolean('is_deleted')->default(0);
             $table->timestamp('created_at')->useCurrent();
