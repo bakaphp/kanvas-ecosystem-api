@@ -91,11 +91,11 @@ spec:
               mountPath: "/var/www/html"
           resources:
                 requests:
-                    memory: "128M"
-                    cpu: "100m"
+                    memory: "512M"
+                    cpu: "300m"
                 limits:
                     memory: "1G"
-                    cpu: "500m"
+                    cpu: "700m"
           lifecycle:
             postStart:
               exec:
@@ -106,6 +106,7 @@ spec:
                     "cp -R /app/. /var/www/html && \
                      chmod -R 755 /var/www/html && \
                      chmod -R 777 /var/www/html/storage && \
+                     chmod -R 777 /var/www/html/storage/logs && \
                      chmod -R 777 /var/www/html/bootstrap/cache && \
                      cd /var/www/html && \
                      composer install"
