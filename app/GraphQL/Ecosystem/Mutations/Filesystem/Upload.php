@@ -17,7 +17,7 @@ final class Upload
      *
      * @return string|null
      */
-    public function __invoke($_, array $args) : Filesystem
+    public function singleFile($_, array $args) : Filesystem
     {
         /** @var \Illuminate\Http\UploadedFile $file */
         $file = $args['file'];
@@ -25,5 +25,28 @@ final class Upload
         $uploadFile = new UploadFileAction(Auth::user());
 
         return $uploadFile->execute($file);
+    }
+
+    /**
+     * Multiple Upload.
+     *
+     * @param mixed $_
+     * @param array $args
+     *
+     * @return array<Filesystem>
+     */
+    public function multiFile($_, array $args) : array
+    {
+        /** @var \Illuminate\Http\UploadedFile $file */
+        $files = $args['files'];
+        $fileSystems = [];
+
+        foreach ($files as $file) {
+            $uploadFile = new UploadFileAction(Auth::user());
+
+            $fileSystems[] = $uploadFile->execute($file);
+        }
+
+        return $fileSystems;
     }
 }

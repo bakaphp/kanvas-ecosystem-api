@@ -10,6 +10,10 @@ type Mutation @guard {
     "Upload a file that is publicly available."
     upload(file: Upload!): Filesystem!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\Upload"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\Upload@singleFile"
+        )
+    multiUpload(files: [Upload!]!): [Filesystem!]!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\Upload@multiFile"
         )
 }
