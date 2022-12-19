@@ -10,6 +10,8 @@ use Baka\Traits\UuidTrait;
 
 /**
  * Class Attributes
+ * @property int apps_id
+ * @property int companies_id
  * @property int products_id
  * @property string uuid
  * @property string name
@@ -19,10 +21,9 @@ use Baka\Traits\UuidTrait;
  * @property string html_description
  * @property string sku
  * @property string ean
- * @property string html_description
  * @property string barcode
  * @property string serial_number
- * @property string is_published
+ * @property bool is_published
  */
 class Variants extends BaseModel
 {

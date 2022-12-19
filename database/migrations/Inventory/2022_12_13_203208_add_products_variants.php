@@ -16,6 +16,8 @@ return new class extends Migration {
             $table->charset = 'utf8mb4';
             $table->collation = 'utf8mb4_unicode_520_ci';
             $table->id();
+            $table->bigInteger('apps_id')->unsigned();
+            $table->bigInteger('companies_id')->unsigned();
             $table->bigInteger('products_id')->unsigned();
             $table->char('uuid', 100)->unique();
             $table->text('name');
@@ -23,9 +25,9 @@ return new class extends Migration {
             $table->text('description')->nullable();
             $table->text('short_description')->nullable();
             $table->text('html_description')->nullable();
-            $table->string('sku', 64);
-            $table->string('ean', 64);
-            $table->string('barcode', 64);
+            $table->string('sku', 64)->nullable();
+            $table->string('ean', 64)->nullable();
+            $table->string('barcode', 64)->nullable();
             $table->string('serial_number', 190)->nullable();
             $table->boolean('is_published')->default(1);
             $table->boolean('is_deleted')->default(0);

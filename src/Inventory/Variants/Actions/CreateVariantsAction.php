@@ -5,14 +5,25 @@ namespace Kanvas\Inventory\Variants\Actions;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\Models\Variants;
 
-class CreateVariants {
+class CreateVariantsAction
+{
+    /**
+     * __construct
+     *
+     * @return void
+     */
     public function __construct(
         private VariantsDto $variantDto
-    ){
+    ) {
     }
 
-    public function execute()
+    /**
+     * execute
+     *
+     * @return Variants
+     */
+    public function execute(): Variants
     {
-        Variants::create($this->variantDto->toArray());
+        return Variants::create($this->variantDto->toArray());
     }
 }

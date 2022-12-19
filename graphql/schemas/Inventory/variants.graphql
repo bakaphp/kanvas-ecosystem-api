@@ -1,0 +1,27 @@
+
+input VariantsInput {
+    products_id: Int
+    name: String!
+    description: String
+    short_description: String
+    html_description: String
+    sku: String
+    ean: String
+    barcode: String
+    serial_number: String
+    is_published: Boolean
+}
+type Variant {
+    id: Int
+    products_id: Int
+    name: String!
+    description: String
+    short_description: String
+    html_description: String
+    sku: String
+    ean: String
+
+}
+extend type Mutation @guard {
+    createVariant(input: VariantsInput!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@create")
+}
