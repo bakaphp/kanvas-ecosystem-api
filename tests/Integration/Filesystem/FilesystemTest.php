@@ -35,4 +35,17 @@ final class FilesystemTest extends TestCase
         $this->assertInstanceOf(FilesystemEntities::class, $filesystemEntities);
         $this->assertEquals($fieldName, $filesystemEntities->field_name);
     }
+
+
+    public function testGetFiles()
+    {
+        $file = UploadedFile::fake()->image('avatar.jpg');
+        $user = Auth::user();
+        $user->attach(
+            (new UploadFileAction($user))->execute($file),
+            'avatar'
+        );
+
+        $this->assertGreaterThan(0, $user->getFiles()->count());
+    }
 }

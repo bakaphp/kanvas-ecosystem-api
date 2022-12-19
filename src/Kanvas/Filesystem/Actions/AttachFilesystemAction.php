@@ -23,8 +23,10 @@ class AttachFilesystemAction
     }
 
     /**
-     * Invoke function.
+     * Attached a filesystem to a Eloquent model
      *
+     * @param string $fieldName
+     * @param integer|null $id
      * @return FilesystemEntities
      */
     public function execute(string $fieldName, ?int $id = null) : FilesystemEntities
@@ -38,7 +40,7 @@ class AttachFilesystemAction
             $fileEntity = new FilesystemEntities();
             $fileEntity->system_modules_id = $systemModule->getKey();
             $fileEntity->companies_id = $this->filesystem->companies_id;
-            $fileEntity->entity_id = $this->filesystem->getKey();
+            $fileEntity->entity_id = $this->entity->getKey();
         }
 
         $fileEntity->filesystem_id = $this->filesystem->getKey();

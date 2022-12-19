@@ -14,6 +14,7 @@ use Illuminate\Notifications\Notifiable;
 use Kanvas\Auth\Traits\HasApiTokens;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Traits\PermissionsTrait;
 use Kanvas\Traits\UsersAssociatedTrait;
@@ -81,6 +82,7 @@ class Users extends Authenticatable
     use HasFactory;
     use HasApiTokens;
     use HasRolesAndAbilities;
+    use HasFilesystemTrait;
 
     protected ?string $defaultCompanyName = null;
     protected $guarded = [];
