@@ -36,7 +36,6 @@ final class FilesystemTest extends TestCase
         $this->assertEquals($fieldName, $filesystemEntities->field_name);
     }
 
-
     public function testGetFiles()
     {
         $file = UploadedFile::fake()->image('avatar.jpg');
