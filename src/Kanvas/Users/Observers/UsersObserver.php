@@ -1,23 +1,23 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Users\Observers;
 
+use Bouncer;
 use Illuminate\Support\Str;
+use Kanvas\AccessControlList\Actions\AssignAction;
+use Kanvas\AccessControlList\Models\Role;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\CompaniesPostData;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
-use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Actions\AssignRole;
 use Kanvas\Users\Models\Users;
-use Kanvas\AccessControlList\Repositories\RolesRepository;
-use Bouncer;
-use Kanvas\AccessControlList\Actions\AssignAction;
-use Kanvas\AccessControlList\Models\Role;
 
 class UsersObserver
 {
