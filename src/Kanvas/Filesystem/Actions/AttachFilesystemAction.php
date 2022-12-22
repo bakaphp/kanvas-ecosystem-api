@@ -6,7 +6,7 @@ namespace Kanvas\Filesystem\Actions;
 
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Filesystem\FilesystemEntities\Repositories\FilesystemEntitiesRepository;
+use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;

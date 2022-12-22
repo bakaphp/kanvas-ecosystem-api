@@ -45,6 +45,20 @@ final class FilesystemTest extends TestCase
             'avatar'
         );
 
+
         $this->assertGreaterThan(0, $user->getFiles()->count());
+        $this->assertGreaterThan(0, $user->getFiles()->first()->delete());
+    }
+
+    public function testDeleteFiles()
+    {
+        $file = UploadedFile::fake()->image('avatar.jpg');
+        $user = Auth::user();
+        $user->attach(
+            (new UploadFileAction($user))->execute($file),
+            'avatar'
+        );
+
+        $this->assertGreaterThan(0, $user->deleteFiles());
     }
 }

@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Traits;
 
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
+use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use RuntimeException;
 
@@ -54,18 +55,22 @@ trait HasFilesystemTrait
     }
 
     /**
-     * Get list of files attached to this model
+     * Get list of files attached to this model.
      *
-     * @return Collection
+     * @return Collection<FilesystemEntities>
      */
     public function getFiles() : Collection
     {
-        $systemModule = SystemModulesRepository::getByModelName(self::class);
+        return FilesystemEntitiesRepository::getFilesByEntity($this);
+    }
 
-        return DB::table('filesystem')
-                    ->join('filesystem_entities', 'filesystem.id', '=', 'filesystem_entities.filesystem_id')
-                    ->where('filesystem_entities.entity_id', '=', $this->getKey())
-                    ->where('filesystem_entities.system_modules_id', '=', $systemModule->getKey())
-                    ->get();
+    /**
+     * Delete all files associated with this entity.
+     *
+     * @return int
+     */
+    public function deleteFiles() : int
+    {
+        return FilesystemEntitiesRepository::deleteAllFilesFromEntity($this);
     }
 }
