@@ -9,6 +9,7 @@ use Kanvas\Inventory\Regions\Models\Regions;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Builder;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 /**
  * Class Warehouses
@@ -82,5 +83,123 @@ class Warehouses extends BaseModel
     public function scopeApp(Builder $query): Builder
     {
         return $query->where('apps_id', app(Apps::class)->id);
+    }
+
+    /**
+     * quantityAttribute
+     *
+     * @return void
+     */
+    public function quantity(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->quantity,
+        );
+    }
+
+    /**
+     * price
+     *
+     * @return Attribute
+     */
+    public function price(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->price,
+        );
+    }
+
+    /**
+     * sku
+     *
+     * @return Attribute
+     */
+    public function sku(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->sku,
+        );
+    }
+
+    /**
+     * position
+     *
+     * @return Attributre
+     */
+    public function position(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->position,
+        );
+    }
+
+    public function serialNumber(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->serial_number,
+        );
+    }
+
+    public function isOversellable(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->is_oversellable,
+        );
+    }
+
+    public function isDefault(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->is_default,
+        );
+    }
+
+    public function isBestSeller(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->is_best_seller,
+        );
+    }
+
+    public function isOnSale(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->is_on_sale,
+        );
+    }
+
+    public function isOnPromo(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->is_on_promo,
+        );
+    }
+
+    public function canPreOrder(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->can_pre_order,
+        );
+    }
+
+    public function isComingSoon(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->is_coming_soon,
+        );
+    }
+
+    public function isNew(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->is_new,
+        );
+    }
+
+    public function isPublished(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->is_published,
+        );
     }
 }

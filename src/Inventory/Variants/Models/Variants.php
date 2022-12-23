@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Inventory\Products\Models\Products;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 /**
  * Class Attributes
@@ -41,5 +43,16 @@ class Variants extends BaseModel
     public function products(): BelongsTo
     {
         return $this->belongsTo(Products::class, 'products_id');
+    }
+
+    /**
+     * The warehouses that belong to the Variants
+     *
+     * @return BelongsToMany
+     */
+    public function warehouses(): BelongsToMany
+    {
+        return $this->belongsToMany(Warehouses::class, 'products_variants_warehouses', 'products_variants_id', 'warehouses_id')
+        ->withPivot('quantity', 'price', 'sku', 'position', 'serial_number', 'is_oversellable', 'is_default', 'is_default', 'is_best_seller', 'is_on_sale', 'is_on_promo', 'can_pre_order', 'is_new', 'is_published');
     }
 }

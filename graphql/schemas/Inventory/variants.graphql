@@ -11,6 +11,18 @@ input VariantsInput {
     serial_number: String
     is_published: Boolean
 }
+input VariantsUpdateInput {
+    products_id: Int
+    name: String
+    description: String
+    short_description: String
+    html_description: String
+    sku: String
+    ean: String
+    barcode: String
+    serial_number: String
+    is_published: Boolean
+}
 type Variant {
     id: Int
     products_id: Int
@@ -20,8 +32,69 @@ type Variant {
     html_description: String
     sku: String
     ean: String
+    warehouses: [WarehouseVariantRelantionship]
+}
+input VariantsWarehousesInput {
+    quantity: Float!
+    price: Float!
+    sku: String
+    position: Int!
+    serial_number: String
+    is_oversellable: Boolean
+    is_default: Boolean
+    is_best_seller: Boolean
+    is_on_sale: Boolean
+    is_on_promo: Boolean
+    can_pre_order: Boolean
+    is_coming_soon: Boolean
+    is_new: Boolean
+    is_published: Boolean
 
+}
+type WarehouseVariantRelantionship{
+    quantity: Float
+    price: Float
+    sku: String
+    position: Int
+    serial_number: String
+    is_oversellable: Boolean
+    is_default: Boolean
+    is_best_seller: Boolean
+    is_on_sale: Boolean
+    is_on_promo: Boolean
+    can_pre_order: Boolean
+    is_coming_soon: Boolean
+    is_new: Boolean
+    is_published: Boolean
 }
 extend type Mutation @guard {
     createVariant(input: VariantsInput!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@create")
+    updateVariant(input: VariantsUpdateInput! id: Int!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@update")
+    deleteVariant(id: Int!): Boolean @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@delete")
+    addToWarehouse(id: Int! warehouse_id: Int! input: VariantsWarehousesInput! ): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addToWarehouse")
+    removeToWarehouse(id: Int! warehouse_id: Int!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@removeToWarehouse")
+}
+
+extend type Query @guard {
+    variants(
+        where: _
+            @whereConditions(
+                columns: [
+                    "products_id",
+                    "name",
+                    "description",
+                    "short_description",
+                    "html_description",
+                    "sku",
+                    "ean",
+                    "barcode",
+                    "serial_number",
+                    "is_published"
+                ]
+            )
+    ): [Variant] @paginate(
+        defaultCount: 10
+        scopes: ["app","company"]
+        model: "Kanvas\\Inventory\\Variants\\Models\\Variants"
+    )
 }

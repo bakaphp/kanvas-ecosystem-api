@@ -6,6 +6,9 @@ use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantDto;
 use Kanvas\Inventory\Variants\Models\Variants as VariantModel;
 use Kanvas\Inventory\Variants\Repositories\VariantsRepository;
+use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
+use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction as AddToWarehouse;
+use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
 
 class Variants
 {
@@ -58,5 +61,35 @@ class Variants
     {
         $variant = VariantsRepository::getById($req['id']);
         return $variant->delete();
+    }
+
+    /**
+     * addToWarehouse
+     *
+     * @param  mixed $root
+     * @param  array $req
+     * @return VariantModel
+     */
+    public function addToWarehouse(mixed $root, array $req): VariantModel
+    {
+        $variant = VariantsRepository::getById($req['id']);
+        $warehouse = WarehouseRepository::getById($req['warehouse_id']);
+        $variantWarehouses = VariantsWarehouses::from($req['input']);
+        return (new AddToWarehouse($variant, $warehouse, $variantWarehouses))->execute();
+    }
+
+    /**
+     * removeToWarehouse
+     *
+     * @param  mixed $root
+     * @param  array $req
+     * @return VariantModel
+     */
+    public function removeToWarehouse(mixed $root, array $req): VariantModel
+    {
+        $variant = VariantsRepository::getById($req['id']);
+        $warehouse = WarehouseRepository::getById($req['warehouse_id']);
+        $variant->warehouses()->detach($warehouse->id);
+        return $variant;
     }
 }

@@ -13,7 +13,7 @@ class VariantsRepository
      * @param  int $companiesId
      * @return Variants
      */
-    public function getById(int $id, ?int $companiesId = null): Variants
+    public static function getById(int $id, ?int $companiesId = null): Variants
     {
         $companiesId = $companiesId ?? auth()->user()->default_company;
         return Variants::where('companies_id', $companiesId)->findOrFail($id);
