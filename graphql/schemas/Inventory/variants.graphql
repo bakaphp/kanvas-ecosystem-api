@@ -1,4 +1,56 @@
 
+
+type Variant {
+    id: Int
+    products_id: Int
+    name: String!
+    description: String
+    short_description: String
+    html_description: String
+    sku: String
+    ean: String
+    warehouses: [WarehouseVariantRelantionship]
+    attributes: [VariantsAttributes]
+}
+type WarehouseVariantRelantionship{
+    quantity: Float
+    price: Float
+    sku: String
+    position: Int
+    serial_number: String
+    is_oversellable: Boolean
+    is_default: Boolean
+    is_best_seller: Boolean
+    is_on_sale: Boolean
+    is_on_promo: Boolean
+    can_pre_order: Boolean
+    is_coming_soon: Boolean
+    is_new: Boolean
+    is_published: Boolean
+}
+type VariantsAttributes {
+    value: String
+}
+input VariantsWarehousesInput {
+    quantity: Float!
+    price: Float!
+    sku: String
+    position: Int!
+    serial_number: String
+    is_oversellable: Boolean
+    is_default: Boolean
+    is_best_seller: Boolean
+    is_on_sale: Boolean
+    is_on_promo: Boolean
+    can_pre_order: Boolean
+    is_coming_soon: Boolean
+    is_new: Boolean
+    is_published: Boolean
+
+}
+input VariantsAttributesInput {
+    value: String!
+}
 input VariantsInput {
     products_id: Int
     name: String!
@@ -23,56 +75,14 @@ input VariantsUpdateInput {
     serial_number: String
     is_published: Boolean
 }
-type Variant {
-    id: Int
-    products_id: Int
-    name: String!
-    description: String
-    short_description: String
-    html_description: String
-    sku: String
-    ean: String
-    warehouses: [WarehouseVariantRelantionship]
-}
-input VariantsWarehousesInput {
-    quantity: Float!
-    price: Float!
-    sku: String
-    position: Int!
-    serial_number: String
-    is_oversellable: Boolean
-    is_default: Boolean
-    is_best_seller: Boolean
-    is_on_sale: Boolean
-    is_on_promo: Boolean
-    can_pre_order: Boolean
-    is_coming_soon: Boolean
-    is_new: Boolean
-    is_published: Boolean
-
-}
-type WarehouseVariantRelantionship{
-    quantity: Float
-    price: Float
-    sku: String
-    position: Int
-    serial_number: String
-    is_oversellable: Boolean
-    is_default: Boolean
-    is_best_seller: Boolean
-    is_on_sale: Boolean
-    is_on_promo: Boolean
-    can_pre_order: Boolean
-    is_coming_soon: Boolean
-    is_new: Boolean
-    is_published: Boolean
-}
 extend type Mutation @guard {
     createVariant(input: VariantsInput!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@create")
     updateVariant(input: VariantsUpdateInput! id: Int!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@update")
     deleteVariant(id: Int!): Boolean @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@delete")
-    addToWarehouse(id: Int! warehouse_id: Int! input: VariantsWarehousesInput! ): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addToWarehouse")
-    removeToWarehouse(id: Int! warehouse_id: Int!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@removeToWarehouse")
+    addVariantToWarehouse(id: Int! warehouse_id: Int! input: VariantsWarehousesInput! ): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addToWarehouse")
+    removeVariantToWarehouse(id: Int! warehouse_id: Int!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@removeToWarehouse")
+    addAttributeToVariant(id: Int! attributes_id: Int! input: VariantsAttributesInput! ): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addAttribute")
+    removeAttributeToVariant(id: Int! attributes_id: Int!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@removeAttribute")
 }
 
 extend type Query @guard {
@@ -85,7 +95,7 @@ extend type Query @guard {
                     "description",
                     "short_description",
                     "html_description",
-                    "sku",
+                    "sku",array
                     "ean",
                     "barcode",
                     "serial_number",
