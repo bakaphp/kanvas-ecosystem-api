@@ -11,6 +11,9 @@ use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction as AddToWarehouse;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
 use Kanvas\Inventory\Variants\Actions\addAttributeAction;
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
+use Kanvas\Inventory\Channels\Repositories\ChannelRepository;
+use Kanvas\Inventory\Variants\Actions\AddVariantToChannel;
+use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
 
 class Variants
 {
@@ -122,6 +125,38 @@ class Variants
         $variant = VariantsRepository::getById($req['id']);
         $attribute = AttributesRepository::getById($req['attributes_id']);
         $variant->attributes()->detach($attribute->id);
+        return $variant;
+    }
+
+    /**
+     * addToChannel
+     *
+     * @param  mixed $root
+     * @param  array $req
+     * @return VariantModel
+     */
+    public function addToChannel(mixed $root, array $req): VariantModel
+    {
+        $variant = VariantsRepository::getById($req['id']);
+        $warehouse = WarehouseRepository::getById($req['warehouses_id']);
+        $channel = ChannelRepository::getById($req['channels_id']);
+        $variantChannel = VariantChannel::from($req['input']);
+        (new AddVariantToChannel($variant, $channel, $warehouse, $variantChannel))->execute();
+        return $variant;
+    }
+    
+    /**
+     * removeChannel
+     *
+     * @param  mixed $root
+     * @param  array $req
+     * @return VariantModel
+     */
+    public function removeChannel(mixed $root, array $req): VariantModel
+    {
+        $variant = VariantsRepository::getById($req['id']);
+        $channel = ChannelRepository::getById($req['channels_id']);
+        $variant->channels()->detach($channel->id);
         return $variant;
     }
 }

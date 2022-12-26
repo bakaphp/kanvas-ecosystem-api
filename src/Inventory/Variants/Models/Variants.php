@@ -9,6 +9,7 @@ use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 
 /**
@@ -66,5 +67,16 @@ class Variants extends BaseModel
     {
         return $this->belongsToMany(Attributes::class, 'products_variants_attributes', 'products_variants_id', 'attributes_id')
             ->withPivot('value');
+    }
+
+    /**
+     * channels
+     *
+     * @return BelongsToMany
+     */
+    public function channels(): BelongsToMany
+    {
+        return $this->belongsToMany(Channels::class, 'product_variants_channels', 'products_variants_id', 'channels_id')
+            ->withPivot('price', 'discounted_price', 'is_published','warehouses_id');
     }
 }

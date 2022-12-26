@@ -11,6 +11,7 @@ type Variant {
     ean: String
     warehouses: [WarehouseVariantRelantionship]
     attributes: [VariantsAttributes]
+    channels: [VariantChannelRelationship]
 }
 type WarehouseVariantRelantionship{
     quantity: Float
@@ -30,6 +31,12 @@ type WarehouseVariantRelantionship{
 }
 type VariantsAttributes {
     value: String
+}
+type VariantChannelRelationship {
+    warehouses_id: Int
+    price: Float
+    discounted_price: Float
+    is_published: Boolean
 }
 input VariantsWarehousesInput {
     quantity: Float!
@@ -75,6 +82,12 @@ input VariantsUpdateInput {
     serial_number: String
     is_published: Boolean
 }
+input VariantChannelInput {
+    price: Float!
+    discounted_price: Float!
+    is_published: Boolean!
+
+}
 extend type Mutation @guard {
     createVariant(input: VariantsInput!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@create")
     updateVariant(input: VariantsUpdateInput! id: Int!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@update")
@@ -83,6 +96,8 @@ extend type Mutation @guard {
     removeVariantToWarehouse(id: Int! warehouse_id: Int!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@removeToWarehouse")
     addAttributeToVariant(id: Int! attributes_id: Int! input: VariantsAttributesInput! ): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addAttribute")
     removeAttributeToVariant(id: Int! attributes_id: Int!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@removeAttribute")
+    addVariantToChannel(id: Int! channels_id: Int! warehouses_id: Int! input: VariantChannelInput! ): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addToChannel")
+    removeVariantChannel(id: Int! channels_id:Int!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@removeChannel")
 }
 
 extend type Query @guard {
