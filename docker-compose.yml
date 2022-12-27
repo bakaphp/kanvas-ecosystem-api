@@ -116,6 +116,21 @@ services:
 
         networks:
           - sail
+    minio1:
+      image: minio/minio
+      container_name: minio
+      restart: always
+      environment:
+        MINIO_ACCESS_KEY: minio
+        MINIO_SECRET_KEY: ${AWS_SECRET_ACCESS_KEY}
+      command: server /data --console-address ":9001"
+      ports:
+        - "9002:9000"
+        - "9001:9001"
+      volumes:
+        - s3data:/data
+      networks:
+        - sail
 networks:
     sail:
         driver: bridge
@@ -127,3 +142,4 @@ volumes:
         driver: local
     sail-rabbitmq:
         driver: local
+    s3data:

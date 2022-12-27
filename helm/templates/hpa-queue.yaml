@@ -1,7 +1,7 @@
-apiVersion: autoscaling/v2beta2
+apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{.Values.deployments.api.name}}
+  name: {{.Values.deployments.queue.name}}
   namespace: {{.Values.namespace}}
 spec:
   maxReplicas: 5
@@ -9,7 +9,7 @@ spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{.Values.deployments.api.name}}
+    name: {{.Values.deployments.queue.name}}
   metrics:
     - type: Resource
       resource:

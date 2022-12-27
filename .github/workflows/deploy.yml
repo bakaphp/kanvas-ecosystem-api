@@ -9,6 +9,7 @@ on:
 jobs:
   Build:
     runs-on: ubuntu-latest
+    environment: Production
     permissions:
       contents: read
       packages: write
@@ -32,13 +33,14 @@ jobs:
           access_key_id: ${{ secrets.AWS_ACCESS_KEY_CICD }}
           secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY_CICD }}
           account_id: 617498580299
-          repo: ${{ env.instance_name }}
-          region: ${{ env.aws_region }}
+          repo: ${{ secrets.INSTANCE_NAME }}
+          region: ${{ secrets.AWS_REGION }}
           create_repo: true
           tags: latest,${{ github.run_number }},
 
   Deploy:
     runs-on: ubuntu-latest
+    environment: Production
     needs: Build
     permissions:
       contents: read
@@ -57,11 +59,11 @@ jobs:
         uses: keithweaver/aws-s3-github-action@v1.0.0
         with:
           command: cp
-          source: ${{ env.configmap }}
+          source: ${{ secrets.CONFIGMAP }}
           destination: helm/templates/envconfigmap.yaml
           aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_CICD }}
           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY_CICD }}
-          aws_region: ${{ env.aws_region }}
+          aws_region: ${{ secrets.AWS_REGION }}
 
       - name: Deploy helm chart
         run: |
@@ -73,13 +75,14 @@ jobs:
 
             aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_CICD }}
             aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY_CICD }}
-            aws eks update-kubeconfig   --region ${{ env.aws_region }}   --name ${{ env.cluster_name }}
+            aws eks update-kubeconfig   --region ${{ secrets.AWS_REGION }}   --name ${{ secrets.CLUSTER_NAME }}
             
             #deploy or upgrade helm chart
-            helm upgrade --install ${{ env.instance_name }} helm \
-            --namespace ${{ env.instance_name }} \
+            helm upgrade --install ${{ secrets.INSTANCE_NAME }} helm \
+            --namespace ${{ secrets.INSTANCE_NAME }} \
             --create-namespace \
-            --set apiImage=${{ env.api_image }}:${{ github.run_number }} \
-            --set services.loadBalancer.name=${{ env.service_loadbalancer }}
+            --set apiImage=${{ secrets.API_IMAGE }}:${{ github.run_number }} \
+            --set services.loadBalancer.name=${{ secrets.SERVICE_LOADBALANCER }} \
+            --set services.loadBalancer.lbSSLCert=${{ secrets.LB_SSLCERT }}
 
     

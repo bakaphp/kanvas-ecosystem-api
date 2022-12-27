@@ -20,6 +20,11 @@ jobs:
       APP_JWT_TOKEN: 4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY
       TOKEN_AUDIENCE: http://localhost
       TOKEN_PASSWORD: base64:4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY=
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      AWS_BUCKET: ${{ secrets.AWS_BUCKET }}
+      AWS_URL: ${{ secrets.AWS_URL }}
       #APP_DEBUG: true
     strategy:
       fail-fast: false
@@ -81,13 +86,13 @@ jobs:
 
       - name: Run Seedes
         run: php artisan db:seed
-      
+
       - name: Create Role Admin
         run: php artisan role:create Admin
-     
+
       - name: Create Role Users
         run: php artisan role:create Users
-     
+
       - name: Create Role Agents
         run: php artisan role:create Agents
 

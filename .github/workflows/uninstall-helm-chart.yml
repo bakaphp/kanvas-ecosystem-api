@@ -4,6 +4,7 @@ on: workflow_dispatch
 jobs:
   Uninstall-Helm-Chart:
     runs-on: ubuntu-latest
+    environment: Production
     permissions:
       contents: read
       packages: write
@@ -28,10 +29,10 @@ jobs:
 
             aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_CICD }}
             aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY_CICD }}
-            aws eks update-kubeconfig   --region ${{ env.aws_region }}   --name ${{ env.cluster_name }}
+            aws eks update-kubeconfig   --region ${{ secrets.AWS_REGION }}   --name ${{ secrets.CLUSTER_NAME }}
             
             #Uninstall current Helm Chart
-            helm uninstall ${{ env.instance_name }} helm \
-            --namespace ${{ env.instance_name }}
+            helm uninstall ${{ secrets.INSTANCE_NAME }} helm \
+            --namespace ${{ secrets.INSTANCE_NAME }}
 
     

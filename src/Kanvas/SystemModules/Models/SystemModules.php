@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\SystemModules\Models;
 
+use Baka\Traits\SlugTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Models\BaseModel;
+use Kanvas\Utils\Str;
 
 /**
  * Apps Model.
@@ -29,6 +31,8 @@ use Kanvas\Models\BaseModel;
  */
 class SystemModules extends BaseModel
 {
+    use SlugTrait;
+
     /**
      * The table associated with the model.
      *
@@ -51,6 +55,19 @@ class SystemModules extends BaseModel
         'apps_id',
         'slug',
     ];
+
+    /**
+     * Boot function from laravel.
+     *
+     * @return void
+     */
+    public static function bootSlugTrait()
+    {
+        static::creating(function ($model) {
+            $model->slug = $model->slug ?? Str::slug($model->model_name);
+            $model->name = $model->name ?? $model->slug;
+        });
+    }
 
     /**
      * Apps relationship.
