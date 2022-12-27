@@ -25,7 +25,7 @@ return new class extends Migration {
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
             $table->index('price');
             $table->index('discounted_price');
-            $table->foreign('product_variants_id')->references('id')->on('products_variants');
+            $table->foreign('products_variants_id')->references('id')->on('products_variants');
             $table->foreign('channels_id')->references('id')->on('channels');
             $table->foreign('warehouses_id')->references('id')->on('warehouses');
         });
