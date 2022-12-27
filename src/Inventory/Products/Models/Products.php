@@ -8,6 +8,11 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Baka\Traits\UuidTrait;
 use Baka\Traits\SlugTrait;
 use Kanvas\Inventory\Attributes\Models\Attributes;
+use Kanvas\Inventory\Variants\Models\Variants;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Class Products
@@ -37,20 +42,50 @@ class Products extends BaseModel
     /**
      * categories
      *
-     * @return void
+     * @return BelongsToMany
      */
-    public function categories()
+    public function categories(): BelongsToMany
     {
         return $this->belongsToMany(Categories::class, 'products_categories', 'products_id', 'categories_id');
     }
 
-    public function warehouses()
+    /**
+     * warehouses
+     *
+     * @return BelongsToMany
+     */
+    public function warehouses(): BelongsToMany
     {
         return $this->belongsToMany(Warehouses::class, 'products_warehouses', 'products_id', 'warehouses_id');
     }
 
-    public function attributes()
+    /**
+     * attributes
+     *
+     * @return BelongsToMany
+     */
+    public function attributes(): BelongsToMany
     {
         return $this->belongsToMany(Attributes::class, 'products_attributes', 'products_id', 'attributes_id')->withPivot('value');
+    }
+
+    /**
+     * variants
+     *
+     * @return void
+     */
+    public function variants(): HasMany
+    {
+        return $this->hasMany(Variants::class, 'products_id');
+    }
+
+    /**
+     * productsTypes
+     *
+     * @return BelongsTo
+     */
+    public function productsTypes(): BelongsTo
+    {
+        return $this->belongsTo(ProductsTypes::class, 'products_types_id');
     }
 }

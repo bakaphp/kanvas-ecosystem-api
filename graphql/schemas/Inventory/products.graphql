@@ -26,6 +26,8 @@ type Product {
     categories: [Category]
     warehouses: [Warehouse]
     attributes: [Attributes]
+    variants: [Variant]
+    productsTypes: ProductType
 
 }
 input ProductInputUpdate {

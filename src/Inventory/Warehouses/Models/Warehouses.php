@@ -147,7 +147,7 @@ class Warehouses extends BaseModel
         );
     }
 
-    public function isDefault(): Attribute
+    public function isVariantDefault(): ?Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->is_default,
@@ -157,49 +157,49 @@ class Warehouses extends BaseModel
     public function isBestSeller(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->pivot->is_best_seller,
+            get: fn () => $this->pivot->is_best_seller ?? 0,
         );
     }
 
     public function isOnSale(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->pivot->is_on_sale,
+            get: fn () => $this->pivot->is_on_sale ?? 0,
         );
     }
 
     public function isOnPromo(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->pivot->is_on_promo,
+            get: fn () => $this->pivot->is_on_promo ?? 0,
         );
     }
 
     public function canPreOrder(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->pivot->can_pre_order,
+            get: fn () => $this->pivot->can_pre_order ?? 0,
         );
     }
 
     public function isComingSoon(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->pivot->is_coming_soon,
+            get: fn () => $this->pivot->is_coming_soon ?? 0,
         );
     }
 
     public function isNew(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->pivot->is_new,
+            get: fn () => $this->pivot->is_new ?? 0,
         );
     }
 
-    public function isPublished(): Attribute
+    public function isVariantPublished(): ?Attribute
     {
         return Attribute::make(
-            get: fn () => $this->pivot->is_published,
+            get: fn () => $this->pivot->is_published
         );
     }
 }
