@@ -1,0 +1,52 @@
+<?php
+declare(strict_types=1);
+namespace App\GraphQL\Inventory\Mutations\Attributes;
+
+use Kanvas\Inventory\Attributes\Models\Attributes as AttributeModel;
+use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributeDto;
+use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
+use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
+
+class Attributes
+{
+    /**
+     * create
+     *
+     * @param  mixed $root
+     * @param  array $req
+     * @return AttributeModel
+     */
+    public function create(mixed $root, array $req): AttributeModel
+    {
+        $dto = new AttributeDto($req['input']['name']);
+        $action = new CreateAttribute($dto);
+        return $action->execute();
+    }
+
+    /**
+     * update
+     *
+     * @param  mixed $root
+     * @param  array $req
+     * @return AttributeModel
+     */
+    public function update(mixed $root, array $req): AttributeModel
+    {
+        $attribute = AttributesRepository::getById($req['id']);
+        $attribute->update($req['input']);
+        return $attribute;
+    }
+
+    /**
+     * delete
+     *
+     * @param  mixed $root
+     * @param  array $req
+     * @return bool
+     */
+    public function delete(mixed $root, array $req): bool
+    {
+        $attribute = AttributesRepository::getById($req['id']);
+        return $attribute->delete();
+    }
+}

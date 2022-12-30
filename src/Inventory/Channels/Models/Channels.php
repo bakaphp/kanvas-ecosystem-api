@@ -9,6 +9,7 @@ use Kanvas\Users\Models\Users;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Builder;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 /**
  * Class Channels.
@@ -81,5 +82,48 @@ class Channels extends BaseModel
     public function scopeApp(Builder $query): Builder
     {
         return $query->where('apps_id', app(Apps::class)->id);
+    }
+
+    /**
+     * Get the user's first name.
+     *
+     * @return Attribute
+     */
+    protected function warehousesId(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->warehouses_id,
+        );
+    }
+
+    protected function discountedPrice(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->discounted_price,
+        );
+    }
+    
+    /**
+     * Get the user's first name.
+     *
+     * @return Attribute
+     */
+    protected function price(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->price,
+        );
+    }
+
+    /**
+     * Get the user's first name.
+     *
+     * @return Attribute
+     */
+    protected function isPublished(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->is_published,
+        );
     }
 }

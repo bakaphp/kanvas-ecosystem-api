@@ -1,0 +1,125 @@
+
+
+type Variant {
+    id: Int
+    products_id: Int
+    name: String!
+    description: String
+    short_description: String
+    html_description: String
+    sku: String
+    ean: String
+    warehouses: [WarehouseVariantRelantionship]
+    attributes: [VariantsAttributes]
+    channels: [VariantChannelRelationship]
+}
+type WarehouseVariantRelantionship{
+    quantity: Float
+    price: Float
+    sku: String
+    position: Int
+    serial_number: String
+    is_oversellable: Boolean
+    is_variant_default: Boolean
+    is_best_seller: Boolean
+    is_on_sale: Boolean
+    is_on_promo: Boolean
+    can_pre_order: Boolean
+    is_coming_soon: Boolean
+    is_new: Boolean
+    is_variant_published: Boolean
+}
+type VariantsAttributes {
+    value: String
+}
+type VariantChannelRelationship {
+    warehouses_id: Int
+    price: Float
+    discounted_price: Float
+    is_published: Boolean
+}
+input VariantsWarehousesInput {
+    quantity: Float!
+    price: Float!
+    sku: String
+    position: Int!
+    serial_number: String
+    is_oversellable: Boolean
+    is_default: Boolean
+    is_best_seller: Boolean
+    is_on_sale: Boolean
+    is_on_promo: Boolean
+    can_pre_order: Boolean
+    is_coming_soon: Boolean
+    is_new: Boolean
+    is_published: Boolean
+
+}
+input VariantsAttributesInput {
+    value: String!
+}
+input VariantsInput {
+    products_id: Int
+    name: String!
+    description: String
+    short_description: String
+    html_description: String
+    sku: String
+    ean: String
+    barcode: String
+    serial_number: String
+    is_published: Boolean
+}
+input VariantsUpdateInput {
+    products_id: Int
+    name: String
+    description: String
+    short_description: String
+    html_description: String
+    sku: String
+    ean: String
+    barcode: String
+    serial_number: String
+    is_published: Boolean
+}
+input VariantChannelInput {
+    price: Float!
+    discounted_price: Float!
+    is_published: Boolean!
+
+}
+extend type Mutation @guard {
+    createVariant(input: VariantsInput!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@create")
+    updateVariant(input: VariantsUpdateInput! id: Int!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@update")
+    deleteVariant(id: Int!): Boolean @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@delete")
+    addVariantToWarehouse(id: Int! warehouse_id: Int! input: VariantsWarehousesInput! ): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addToWarehouse")
+    removeVariantToWarehouse(id: Int! warehouse_id: Int!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@removeToWarehouse")
+    addAttributeToVariant(id: Int! attributes_id: Int! input: VariantsAttributesInput! ): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addAttribute")
+    removeAttributeToVariant(id: Int! attributes_id: Int!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@removeAttribute")
+    addVariantToChannel(id: Int! channels_id: Int! warehouses_id: Int! input: VariantChannelInput! ): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addToChannel")
+    removeVariantChannel(id: Int! channels_id:Int!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@removeChannel")
+}
+
+extend type Query @guard {
+    variants(
+        where: _
+            @whereConditions(
+                columns: [
+                    "products_id",
+                    "name",
+                    "description",
+                    "short_description",
+                    "html_description",
+                    "sku",array
+                    "ean",
+                    "barcode",
+                    "serial_number",
+                    "is_published"
+                ]
+            )
+    ): [Variant] @paginate(
+        defaultCount: 10
+        scopes: ["app","company"]
+        model: "Kanvas\\Inventory\\Variants\\Models\\Variants"
+    )
+}
