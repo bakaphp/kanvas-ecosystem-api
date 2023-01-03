@@ -19,7 +19,7 @@ php:
 # Deployments Values
 deployments:
   api:
-    name: kanvas-cluster-api
+    name: api
     containerName: api
   queue:
     name: queue
