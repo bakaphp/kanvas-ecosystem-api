@@ -49,6 +49,7 @@ extend type Mutation @guard {
     addWarehouse(id: Int! warehouse_id: Int!): Product @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addWarehouse")
     removeWarehouse(id: Int! warehouse_id: Int!): Product @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@removeWarehouse")
     addCategory(id: Int! category_id: Int!): Product @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addCategory")
+    importProduct: Boolean @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Import@importer")
 }
 extend type Query @guard {
     products(

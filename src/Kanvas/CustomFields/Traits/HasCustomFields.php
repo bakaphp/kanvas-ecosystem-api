@@ -1,6 +1,5 @@
 <?php
 declare(strict_types=1);
-
 namespace Kanvas\CustomFields\Traits;
 
 use Illuminate\Support\Facades\Auth;
@@ -354,5 +353,25 @@ trait HasCustomFields
         foreach ($this->getAll() as $key => $value) {
             $this->setInRedis($key, $value);
         }
+    }
+
+    /**
+     * getByCustomField
+     *
+     * @param  string $name
+     * @param  mixed $value
+     * @param  Company $company
+     * @return void
+     */
+    public static function getByCustomField(string $name, mixed $value, ?Company $company = null)
+    {
+        $company = $company ? $company->id : AppEnums::GLOBAL_COMPANY_ID->getValue();
+        DB::table($this->table)
+            ->join('apps_custom_fields', 'apps_custom_fields.entity_id', '=', $this->table . '.id')
+            ->where('apps_custom_fields.companies_id', $company)
+            ->where('apps_custom_fields.model_name', get_class(new static))
+            ->where('apps_custom_fields.name', $name)
+            ->where('apps_custom_fields.value', $value)
+            ->get();
     }
 }

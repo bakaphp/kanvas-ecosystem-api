@@ -22,4 +22,8 @@ class ProductsRepository
             ->where('apps_id', app(Apps::class)->id)
             ->findOrFail($id);
     }
+
+    public static function getBySourceKey(int $id): Products
+    {
+    }
 }

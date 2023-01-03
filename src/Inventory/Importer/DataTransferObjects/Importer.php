@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
-namespace Kanvas\Inventory\Products\DataTransferObject;
+namespace Kanvas\Inventory\Importer\DataTransferObjects;
 
 use Spatie\LaravelData\Data;
 
-class Product extends Data
+class Importer extends Data
 {
     /**
      * __construct
