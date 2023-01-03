@@ -4,6 +4,7 @@ metadata:
   name: {{.Values.deployments.api.name}}
   namespace: {{.Values.namespace}}
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: {{.Values.deployments.api.name}}

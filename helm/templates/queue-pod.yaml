@@ -4,6 +4,7 @@ metadata:
   name: {{.Values.deployments.queue.name}}
   namespace: {{.Values.namespace}}
 spec:
+  replicas: 1
   selector:
     matchLabels:
       app: {{.Values.deployments.queue.name}}
