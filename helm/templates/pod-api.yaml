@@ -93,10 +93,10 @@ spec:
           resources:
                 requests:
                     memory: "512M"
-                    cpu: "300m"
+                    cpu: "500m"
                 limits:
                     memory: "1G"
-                    cpu: "700m"
+                    cpu: "1000m"
           lifecycle:
             postStart:
               exec:
