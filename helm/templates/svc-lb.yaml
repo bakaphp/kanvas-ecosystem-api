@@ -8,7 +8,7 @@ metadata:
     external-dns.alpha.kubernetes.io/hostname: {{.Values.services.loadBalancer.name}}.kanvas.dev
     service.beta.kubernetes.io/aws-load-balancer-ssl-cert: {{.Values.services.loadBalancer.lbSSLCert}}
     service.beta.kubernetes.io/aws-load-balancer-type: "external"
-    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "instance"
     service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
 spec:
   selector:
