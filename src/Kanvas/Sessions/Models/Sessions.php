@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Sessions\Sessions\Models;
+namespace Kanvas\Sessions\Models;
 
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Sessions\Keys\Models\SessionKeys;
+use Kanvas\Sessions\Models\SessionKeys;
 use Kanvas\Users\Models\Users;
 use Laravel\Sanctum\PersonalAccessToken;
 use Lcobucci\JWT\Token\Plain;
@@ -37,6 +37,13 @@ class Sessions extends PersonalAccessToken
         'last_used_at' => 'datetime',
         'expires_at' => 'datetime',
     ];
+
+    /**
+     * disable created_At and updated_At.
+     *
+     * @var boolean
+     */
+    public $timestamps = false;
 
     /**
      * The attributes that are mass assignable.

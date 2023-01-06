@@ -8,7 +8,7 @@ use DateTimeInterface;
 use Illuminate\Support\Str;
 use Kanvas\Auth\Jwt;
 use Kanvas\Auth\NewAccessToken;
-use Kanvas\Sessions\Sessions\Models\Sessions;
+use Kanvas\Sessions\Models\Sessions;
 use Lcobucci\JWT\Token;
 
 trait HasJwtToken

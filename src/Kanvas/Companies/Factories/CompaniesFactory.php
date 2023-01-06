@@ -37,7 +37,7 @@ class CompaniesFactory extends Factory
             'address' => $this->faker->address(),
             'zipcode' => $this->faker->postcode(),
             'email' => $this->faker->email(),
-            'language' => 'en_US',
+            'language' => 'EN',
             'timezone' => $this->faker->timezone(),
             'phone' => $this->faker->phoneNumber(),
             'has_activities' => 1,

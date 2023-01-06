@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth;
 
-use Kanvas\Sessions\Sessions\Models\Sessions;
+use Kanvas\Sessions\Models\Sessions;
 
 /**
  * AppsData class.
