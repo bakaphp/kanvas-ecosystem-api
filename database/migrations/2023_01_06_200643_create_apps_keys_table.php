@@ -23,7 +23,7 @@ class CreateAppsKeysTable extends Migration
             $table->dateTime('updated_at')->nullable()->index('updated_at');
             $table->integer('is_deleted')->nullable()->index('is_deleted');
 
-            $table->unique(['apps_id', 'users_id'], 'apps_keys_UN');
+            $table->unique(['apps_id', 'users_id'], 'apps_keys_unique');
             $table->index(['client_id', 'apps_id'], 'client_id_apps_id');
             $table->index(['client_secret_id', 'apps_id'], 'client_secret_id_apps_id');
             $table->primary(['apps_id', 'users_id']);
