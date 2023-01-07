@@ -1,10 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace App\GraphQL\Ecosystem\Resolvers\Auth;
+namespace App\GraphQL\Ecosystem\Mutations\Auth;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Kanvas\Auth\Traits\AuthTrait;
+use Kanvas\Auth\DataTransferObject\LoginInput;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class Login
@@ -32,9 +33,11 @@ class Login
         $request = request();
 
         $user = $this->login(
-            $request,
-            $email,
-            $password
+            LoginInput::from([
+                'email' => $email,
+                'password' => $password,
+                'ip' => $request->ip(),
+            ])
         );
 
         return $user->createToken('kanvas-login')->toArray();

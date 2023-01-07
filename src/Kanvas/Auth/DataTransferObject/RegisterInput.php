@@ -1,20 +1,21 @@
 <?php
 
 declare(strict_types=1);
-namespace Kanvas\Users\DataTransferObject;
 
-use Spatie\DataTransferObject\DataTransferObject;
+namespace Kanvas\Auth\DataTransferObject;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Kanvas\Utils\Random;
+use Spatie\LaravelData\Data;
 
 /**
- * AppsData class
+ * AppsData class.
  */
-class RegisterPostData extends DataTransferObject
+class RegisterInput extends Data
 {
     /**
-     * Construct function
+     * Construct function.
      *
      * @param string $firstname
      * @param string $lastname
@@ -35,13 +36,13 @@ class RegisterPostData extends DataTransferObject
     }
 
     /**
-     * Create new instance of DTO from request
+     * Create new instance of DTO from request.
      *
      * @param Request $request Request Input data
      *
      * @return self
      */
-    public static function fromRequest(Request $request): self
+    public static function fromRequest(Request $request) : self
     {
         return new self(
             firstname: $request->get('firstname') ?? '',
@@ -54,9 +55,10 @@ class RegisterPostData extends DataTransferObject
     }
 
     /**
-     * Generaet new instance of DTO from array
+     * Generaet new instance of DTO from array.
      *
      * @param array $request
+     *
      * @return self
      */
     public static function fromArray(array $request) : self

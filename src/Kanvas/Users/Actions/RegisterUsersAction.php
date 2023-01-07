@@ -11,7 +11,7 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Enums\Defaults;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Notifications\Templates\UserSignUp;
-use Kanvas\Users\DataTransferObject\RegisterPostData;
+use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Models\Users;
 
@@ -21,14 +21,14 @@ class RegisterUsersAction
      * Construct function.
      */
     public function __construct(
-        protected RegisterPostData $data
+        protected RegisterInput $data
     ) {
     }
 
     /**
      * Invoke function.
      *
-     * @param RegisterPostData $data
+     * @param RegisterInput $data
      *
      * @return Users
      */

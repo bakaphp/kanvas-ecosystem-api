@@ -63,7 +63,7 @@ input RegisterInput {
 extend type Mutation {
     login(data: LoginInput!): TokenResponse!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Resolvers\\Auth\\Login@resolve"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\Login@resolve"
         )
     register(data: RegisterInput!): RegisterResponse!
         @field(
