@@ -7,6 +7,8 @@ namespace Baka\Users\Contracts;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Users\Models\UsersAssociatedApps;
 
 /**
  * EnumsInterface.
@@ -23,5 +25,6 @@ interface UserInterface extends Authenticatable
     public function companies() : HasMany;
     public function branches() : HasMany;
     public function notifications() : HasMany;
+    public function currentAppInfo() : UsersAssociatedApps;
 
 }

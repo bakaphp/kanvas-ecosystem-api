@@ -9,6 +9,7 @@ use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Hash;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Enums\StatusEnums;
@@ -39,50 +40,21 @@ class Auth
 
         self::loginAttemptsValidation($user);
 
+        $app = app(Apps::class);
+
+        $authentically = $user;
+        if ($app->usesEcosystemLogin()) {
+            //getCurrentUserAppInfo
+            $authentically = $user->currentAppInfo();
+        }
+
         //password verification
-        if (Hash::check($loginInput->getPassword(), $user->password) && $user->isActive()) {
-            Password::rehash($loginInput->getPassword(), $user);
+        if (Hash::check($loginInput->getPassword(), $authentically->password) && $user->isActive()) {
+            Password::rehash($loginInput->getPassword(), $authentically);
             self::resetLoginTries($user);
 
             return $user;
         } elseif (!$user->isActive()) {
-            throw new AuthenticationException('Invalid email or password.');
-        } elseif ($user->isBanned()) {
-            throw new AuthenticationException('User has been banned, please contact support.');
-        } else {
-            throw new AuthenticationException('User is not active, please contact support.');
-        }
-    }
-
-    /**
-     * User login.
-     *
-     * @param string $email
-     * @param string $password
-     * @param string $userIp
-     *
-     * @return Users
-     */
-    public static function specificAppLogin(
-        LoginInput $loginInput
-    ) : UserInterface {
-        $user = Users::getByEmail($loginInput->getEmail());
-
-        //first we find the user
-        if (!$user) {
-            throw new AuthenticationException('Invalid email or password.');
-        }
-
-        //password verification
-        if (Hash::check($loginInput->getPassword(), $user->password) && $user->isActive()) {
-            //rehash password
-            $rehashedPass = Hash::make($loginInput->getPassword());
-
-            $user->password = $rehashedPass;
-            $user->save();
-
-            return $user;
-        } elseif ($user->isActive()) {
             throw new AuthenticationException('Invalid email or password.');
         } elseif ($user->isBanned()) {
             throw new AuthenticationException('User has been banned, please contact support.');
@@ -109,7 +81,10 @@ class Auth
         //$config->max_login_attempts = getenv('AUTH_MAX_AUTOLOGIN_ATTEMPTS');
 
         // If the last login is more than x minutes ago, then reset the login tries/time
-        if ($user->user_last_login_try && $config->login_reset_time && $user->user_last_login_try < (time() - ($config->login_reset_time * 60))) {
+        if ($user->user_last_login_try
+            && $config->login_reset_time
+            && $user->user_last_login_try < (time() - ($config->login_reset_time * 60))
+        ) {
             $user->user_login_tries = 0; //turn back to 0 attempt, success
             $user->user_last_login_try = 0;
             $user->updateOrFail();
@@ -120,8 +95,11 @@ class Auth
             && $config->login_reset_time
             && $config->max_login_attempts
             && $user->user_last_login_try >= (time() - ($config->login_reset_time * 60))
-            && $user->user_login_tries >= $config->max_login_attempts) {
-            throw new AuthenticationException(sprintf(_('You have exhausted all login attempts.'), $config->max_login_attempts));
+            && $user->user_login_tries >= $config->max_login_attempts
+        ) {
+            throw new AuthenticationException(
+                sprintf(_('You have exhausted all login attempts.'), $config->max_login_attempts)
+            );
         }
 
         return true;
@@ -149,7 +127,7 @@ class Auth
      */
     protected static function updateLoginTries(UserInterface $user) : bool
     {
-        if ($user->getId() != StatusEnums::ANONYMOUS->getValue()) {
+        if ($user->getId() !== StatusEnums::ANONYMOUS->getValue()) {
             $user->user_login_tries += 1;
             $user->user_last_login_try = time();
             return $user->updateOrFail();

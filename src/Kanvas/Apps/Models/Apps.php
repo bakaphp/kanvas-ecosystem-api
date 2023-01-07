@@ -101,4 +101,35 @@ class Apps extends BaseModel
 
         return $companyApps;
     }
+
+    /**
+     * Is active?
+     *
+     * @return bool
+     */
+    public function isActive() : bool
+    {
+        return (bool) $this->is_actived;
+    }
+
+    /**
+     * Those this app use ecosystem login or
+     * the its own local login?
+     *
+     * @return bool
+     */
+    public function usesEcosystemLogin() : bool
+    {
+        return (bool) $this->ecosystem_auth;
+    }
+
+    /**
+     * Get th default app currency.
+     *
+     * @return string
+     */
+    public function defaultCurrency() : string
+    {
+        return $this->get('currency');
+    }
 }

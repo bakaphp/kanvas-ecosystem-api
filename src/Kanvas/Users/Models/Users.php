@@ -13,6 +13,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Contracts\Authenticatable as ContractsAuthenticatable;
 use Kanvas\Auth\Traits\HasApiTokens;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -74,7 +76,7 @@ use Silber\Bouncer\Database\HasRolesAndAbilities;
  * @property int $user_recover_code
  * @property int $is_deleted
  */
-class Users extends Authenticatable implements UserInterface
+class Users extends Authenticatable implements UserInterface, ContractsAuthenticatable
 {
     use HashTableTrait;
     use UsersAssociatedTrait;
@@ -143,6 +145,18 @@ class Users extends Authenticatable implements UserInterface
     public function companies() : HasMany
     {
         return $this->hasMany(Companies::class, 'users_id');
+    }
+
+    /**
+     * Get the current user information for the running app
+     *
+     * @return UsersAssociatedApps
+     */
+    public function currentAppInfo() : UsersAssociatedApps
+    {
+        return UsersAssociatedApps::where('users_id', $this->getId())
+            ->where('apps_id', app(Apps::class)->getKey())
+            ->firstOrFail();
     }
 
     /**

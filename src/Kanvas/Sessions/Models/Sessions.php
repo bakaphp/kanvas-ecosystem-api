@@ -8,7 +8,6 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Sessions\Models\SessionKeys;
 use Kanvas\Users\Models\Users;
 use Laravel\Sanctum\PersonalAccessToken;
 use Lcobucci\JWT\Token\Plain;
@@ -41,7 +40,7 @@ class Sessions extends PersonalAccessToken
     /**
      * disable created_At and updated_At.
      *
-     * @var boolean
+     * @var bool
      */
     public $timestamps = false;
 
@@ -347,5 +346,64 @@ class Sessions extends PersonalAccessToken
     public function cant($ability)
     {
         return !$this->can($ability);
+    }
+
+    /**
+     * Terminates the specified session
+     * It will delete the entry in the sessions table for this session,
+     * remove the corresponding auto-login key and reset the cookies.
+     *
+     * @param Users $user
+     * @param string|null $ip
+     *
+     * @return bool
+     */
+    public function end(Users $user, ?string $sessionId = null) : bool
+    {
+        if (is_null($sessionId)) {
+            return $this->endAll($user);
+        }
+
+
+        self::where('id', $sessionId)
+            ->where('users_id', $user->getId())
+            ->delete();
+
+            SessionKeys::where('sessions_id', $sessionId)
+            ->where('users_id', $user->getId())
+            ->delete();
+
+
+
+        return true;
+    }
+
+
+    /**
+     * End all user Sessions from all devices and Ips.
+     *
+     * @param Users $user
+     *
+     * @return bool
+     */
+    public function endAll(Users $user) : bool
+    {
+        $this->find([
+            'conditions' => 'users_id = :users_id:',
+            'bind' => [
+                'users_id' => $user->getId(),
+            ]
+        ])
+        ->delete();
+
+        SessionKeys::find([
+            'conditions' => 'users_id = :users_id: ',
+            'bind' => [
+                'users_id' => $user->getId(),
+            ]
+        ])
+        ->delete();
+
+        return true;
     }
 }

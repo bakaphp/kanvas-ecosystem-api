@@ -6,6 +6,7 @@ namespace Baka\Support;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\Hash;
+use Kanvas\Auth\Contracts\Authenticatable;
 
 class Password extends Hash
 {
@@ -14,11 +15,11 @@ class Password extends Hash
      * Given any entity with password , verify if the password need rehash and update it.
      *
      * @param string $password
-     * @param object $entity
+     * @param Authenticatable $entity
      *
      * @return bool
      */
-    public static function rehash(string $password, UserInterface $entity) : bool
+    public static function rehash(string $password, Authenticatable $entity) : bool
     {
         if (self::needsRehash($entity->password)) {
             $entity->password = self::make($password);
