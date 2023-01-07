@@ -21,7 +21,7 @@ use Kanvas\Traits\UsersAssociatedTrait;
 use Kanvas\Users\Factories\UsersFactory;
 use Kanvas\Users\Models\UserConfig;
 use Kanvas\Notifications\Models\Notifications;
-use Kanvas\Users\Contracts\UserInterface;
+use Baka\Users\Contracts\UserInterface;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 
 /**

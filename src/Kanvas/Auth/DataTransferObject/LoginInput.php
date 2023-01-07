@@ -24,4 +24,24 @@ class LoginInput extends Data
         public string $ip,
     ) {
     }
+
+    /**
+     * Get trim email
+     *
+     * @return string
+     */
+    public function getEmail() : string
+    {
+        return ltrim(trim($this->email));
+    }
+
+    /**
+     * Get trim password
+     *
+     * @return string
+     */
+    public function getPassword() : string
+    {
+        return ltrim(trim($this->password));
+    }
 }

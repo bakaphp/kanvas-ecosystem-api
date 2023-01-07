@@ -1,0 +1,65 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Auth;
+
+use Exception;
+use Illuminate\Support\Facades\Hash;
+use Kanvas\Sessions\Models\Sessions;
+use Kanvas\Baka\Users\Contracts\UserInterface;
+use Kanvas\Users\Models\Users;
+use Lcobucci\JWT\Token;
+
+class AppAuth
+{
+    /**
+     * User login.
+     *
+     * @param string $email
+     * @param string $password
+     * @param string $userIp
+     *
+     * @return Users
+     */
+    public static function login(
+        string $email,
+        string $password,
+        ?string $userIp = null
+    ) : Users
+    {
+        $email = ltrim(trim($email));
+        $password = ltrim(trim($password));
+
+        $user = Users::getByEmail($email);
+
+        //first we find the user
+        if (!$user) {
+            throw new Exception('Invalid email or password.');
+        }
+
+        // /**
+        //  * @todo Remove this in future versions
+        //  */
+        // if (!$user->get($user->getDefaultCompany()->branchCacheKey())) {
+        //     $user->set($user->getDefaultCompany()->branchCacheKey(), $user->getDefaultCompany()->branch->getId());
+        // }
+
+        //password verification
+        if (Hash::check($password, $user->password) && $user->isActive()) {
+            //rehash password
+            $rehashedPass = Hash::make($password);
+
+            $user->password = $rehashedPass;
+            $user->save();
+
+            return $user;
+        } elseif ($user->isActive()) {
+            throw new Exception('Invalid email or password.');
+        } elseif ($user->isBanned()) {
+            throw new Exception('User has been banned, please contact support.');
+        } else {
+            throw new Exception('User is not active, please contact support.');
+        }
+    }
+}

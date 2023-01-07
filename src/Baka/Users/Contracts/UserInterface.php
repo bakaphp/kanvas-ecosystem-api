@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Users\Contracts;
+namespace Baka\Users\Contracts;
 
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
