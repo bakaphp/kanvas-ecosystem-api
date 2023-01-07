@@ -1,9 +1,11 @@
 <?php
 
 declare(strict_types=1);
+
 namespace Kanvas\Users\Models;
 
 use Baka\Traits\HashTableTrait;
+use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,13 +17,11 @@ use Kanvas\Auth\Traits\HasApiTokens;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Traits\PermissionsTrait;
 use Kanvas\Traits\UsersAssociatedTrait;
 use Kanvas\Users\Factories\UsersFactory;
-use Kanvas\Users\Models\UserConfig;
-use Kanvas\Notifications\Models\Notifications;
-use Baka\Users\Contracts\UserInterface;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 
 /**
@@ -94,6 +94,26 @@ class Users extends Authenticatable implements UserInterface
      * @var string
      */
     protected $table = 'users';
+
+    /**
+     * Get id.
+     *
+     * @return int
+     */
+    public function getId() : int
+    {
+        return (int) $this->getKey();
+    }
+
+    /**
+     * Get uuid.
+     *
+     * @return string
+     */
+    public function getUuid() : string
+    {
+        return $this->uuid;
+    }
 
     /**
      * Create a new factory instance for the model.

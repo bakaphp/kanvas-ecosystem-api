@@ -73,17 +73,10 @@ class Auth
             throw new AuthenticationException('Invalid email or password.');
         }
 
-        // /**
-        //  * @todo Remove this in future versions
-        //  */
-        // if (!$user->get($user->getDefaultCompany()->branchCacheKey())) {
-        //     $user->set($user->getDefaultCompany()->branchCacheKey(), $user->getDefaultCompany()->branch->getId());
-        // }
-
         //password verification
-        if (Hash::check($password, $user->password) && $user->isActive()) {
+        if (Hash::check($loginInput->getPassword(), $user->password) && $user->isActive()) {
             //rehash password
-            $rehashedPass = Hash::make($password);
+            $rehashedPass = Hash::make($loginInput->getPassword());
 
             $user->password = $rehashedPass;
             $user->save();

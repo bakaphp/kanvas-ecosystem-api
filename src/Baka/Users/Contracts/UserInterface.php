@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 interface UserInterface extends Authenticatable
 {
     public static function getByEmail(string $email) : self;
+    public function getId() : int;
+    public function getUuid() : string;
     public function isActive() : bool;
     public function isBanned() : bool;
     public function getEmail() : string;

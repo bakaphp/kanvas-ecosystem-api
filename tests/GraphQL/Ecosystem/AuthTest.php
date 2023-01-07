@@ -3,24 +3,26 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Ecosystem;
 
 use Illuminate\Support\Facades\Auth;
+use Kanvas\Auth\DataTransferObject\LoginInput;
 use Tests\TestCase;
 
 class AuthTest extends TestCase
 {
-    protected static array $loginData = [];
+    protected static LoginInput $loginData;
 
     /**
      * Set login credentials.
      *
-     * @return array
+     * @return LoginInput
      */
-    public static function loginData() : array
+    public static function loginData() : LoginInput
     {
         if (empty(self::$loginData)) {
-            self::$loginData = [
+            self::$loginData = LoginInput::from([
                 'email' => fake()->email,
-                'password' => fake()->password . fake()->password
-            ];
+                'password' => fake()->password,
+                'ip' => request()->ip()
+            ]);
         }
 
         return self::$loginData;
@@ -34,8 +36,8 @@ class AuthTest extends TestCase
     public function test_signup() : void
     {
         $loginData = self::loginData();
-        $email = $loginData['email'];
-        $password = $loginData['password'];
+        $email = $loginData->getEmail();
+        $password = $loginData->getPassword();
 
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation register($data: RegisterInput!) {
@@ -84,8 +86,8 @@ class AuthTest extends TestCase
     public function test_login() : void
     {
         $loginData = self::loginData();
-        $email = $loginData['email'];
-        $password = $loginData['password'];
+        $email = $loginData->getEmail();
+        $password = $loginData->getPassword();
 
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation login($data: LoginInput!) {
