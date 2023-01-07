@@ -21,6 +21,7 @@ use Kanvas\Traits\UsersAssociatedTrait;
 use Kanvas\Users\Factories\UsersFactory;
 use Kanvas\Users\Models\UserConfig;
 use Kanvas\Notifications\Models\Notifications;
+use Kanvas\Users\Contracts\UserInterface;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 
 /**
@@ -73,7 +74,7 @@ use Silber\Bouncer\Database\HasRolesAndAbilities;
  * @property int $user_recover_code
  * @property int $is_deleted
  */
-class Users extends Authenticatable
+class Users extends Authenticatable implements UserInterface
 {
     use HashTableTrait;
     use UsersAssociatedTrait;
@@ -149,7 +150,7 @@ class Users extends Authenticatable
      *
      * @return void
      */
-    public function notifications()
+    public function notifications() : HasMany
     {
         return $this->hasMany(Notifications::class, 'users_id');
     }

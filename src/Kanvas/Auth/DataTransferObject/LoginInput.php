@@ -12,14 +12,11 @@ use Spatie\LaravelData\Data;
 class LoginInput extends Data
 {
     /**
-     * Construct function.
+     * Construct.
      *
-     * @param string $firstname
-     * @param string $lastname
-     * @param string $displayname
      * @param string $email
      * @param string $password
-     * @param string|null $default_company
+     * @param string $ip
      */
     public function __construct(
         public string $email,
