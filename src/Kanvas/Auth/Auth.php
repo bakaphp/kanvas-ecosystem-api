@@ -43,10 +43,10 @@ class Auth
         $app = app(Apps::class);
 
         $authentically = $user;
-        if ($app->usesEcosystemLogin()) {
+        /* if ($app->usesEcosystemLogin()) {
             //getCurrentUserAppInfo
             $authentically = $user->currentAppInfo();
-        }
+        } */
 
         //password verification
         if (Hash::check($loginInput->getPassword(), $authentically->password) && $user->isActive()) {
