@@ -5,6 +5,7 @@ namespace Kanvas\Apps\Observers;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Actions\SetupAppsAction;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\StateEnums;
 
 class AppsObserver
 {
@@ -21,7 +22,13 @@ class AppsObserver
             $app->key = Str::uuid();
         }
 
-        $app->is_deleted = 0;
+        if (!empty($app->settings)) {
+            foreach ($app->settings as $key => $value) {
+                $app->set($key, $value);
+            }
+        }
+
+        $app->is_deleted = StateEnums::NO->getValue();
     }
 
     /**

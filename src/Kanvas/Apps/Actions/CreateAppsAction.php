@@ -6,6 +6,7 @@ namespace Kanvas\Apps\Actions;
 
 use Kanvas\Apps\DataTransferObject\AppsPostData;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Users\Models\Users;
 
 class CreateAppsAction
 {
@@ -24,7 +25,7 @@ class CreateAppsAction
      *
      * @return Apps
      */
-    public function execute() : Apps
+    public function execute(Users $user) : Apps
     {
         $app = new Apps();
         $app->fill([
@@ -39,6 +40,12 @@ class CreateAppsAction
             'domain_based' => $this->data->domain_based
         ]);
         $app->saveOrFail();
+
+        $setupApp = new SetupAppsAction($app);
+        $setupApp->execute();
+
+        $app->associateUser($user, $user->status);
+
         return $app;
     }
 }

@@ -2,19 +2,17 @@
 
 declare(strict_types=1);
 
-
 namespace Kanvas\Apps\DataTransferObject;
 
-use Kanvas\Contracts\DataTransferObject\BaseDataTransferObject;
-use Illuminate\Http\Request;
+use Spatie\LaravelData\Data;
 
 /**
- * AppsData class
+ * AppsData class.
  */
-class AppsPostData extends BaseDataTransferObject
+class AppsPostData extends Data
 {
     /**
-     * Construct function
+     * Construct function.
      *
      * @param string $name
      * @param string $url
@@ -37,71 +35,5 @@ class AppsPostData extends BaseDataTransferObject
         public int $is_public,
         public int $domain_based
     ) {
-    }
-
-    /**
-     * Create new instance of DTO from request
-     *
-     * @param Request $request Request Input data
-     *
-     * @return self
-     */
-    public static function fromRequest(Request $request): self
-    {
-        return new self(
-            name: $request->get('name'),
-            url: $request->get('url'),
-            description: $request->get('description'),
-            domain: $request->get('domain'),
-            is_actived: (int)$request->get('is_actived'),
-            ecosystem_auth: (int)$request->get('ecosystem_auth'),
-            payments_active: (int)$request->get('payments_active'),
-            is_public: (int)$request->get('is_public'),
-            domain_based: (int)$request->get('domain_based')
-        );
-    }
-
-    /**
-     * Create new instance of DTO from Console Command
-     *
-     * @param array $data Input data
-     *
-     * @return self
-     */
-    public static function fromConsole(array $data): self
-    {
-        return new self(
-            name: $data['name'],
-            url: $data['url'],
-            description: $data['description'],
-            domain: $data['domain'],
-            is_actived: (int)$data['is_actived'],
-            ecosystem_auth: (int)$data['ecosystem_auth'],
-            payments_active: (int)$data['payments_active'],
-            is_public: (int)$data['is_public'],
-            domain_based: (int)$data['domain_based']
-        );
-    }
-
-    /**
-     * Create new instance of DTO from array of data
-     *
-     * @param array $data Input data
-     *
-     * @return self
-     */
-    public static function fromArray(array $data): self
-    {
-        return new self(
-            name: $data['name'],
-            url: $data['url'],
-            description: $data['description'],
-            domain: $data['domain'],
-            is_actived: (int)$data['is_actived'],
-            ecosystem_auth: (int)$data['ecosystem_auth'],
-            payments_active: (int)$data['payments_active'],
-            is_public: (int)$data['is_public'],
-            domain_based: (int)$data['domain_based']
-        );
     }
 }

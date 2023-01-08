@@ -6,8 +6,12 @@ namespace Kanvas\Apps\Models;
 
 use Baka\Traits\HashTableTrait;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\UserCompanyApps;
+use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
+use Kanvas\Utils\Str;
 
 /**
  * Apps Model.
@@ -44,6 +48,9 @@ class Apps extends BaseModel
      * @var array
      */
     protected $guarded = [];
+
+    protected array $settings = [];
+    protected ?Companies $company = null;
 
     /**
      * Settings relationship.
@@ -131,5 +138,41 @@ class Apps extends BaseModel
     public function defaultCurrency() : string
     {
         return $this->get('currency');
+    }
+
+    /**
+     * Associate user to the app.
+     *
+     * @param Users $user
+     * @param Apps $app
+     * @param int $isActive
+     * @param int|null $userRoleId
+     * @param string|null $password
+     * @param string|null $companyUserIdentifier
+     *
+     * @return void
+     */
+    public function associateUser(
+        Users $user,
+        int $isActive,
+        ?int $userRoleId = null,
+        string $password = null,
+        string $companyUserIdentifier = null,
+        string $configuration = null
+    ) : UsersAssociatedApps {
+        return UsersAssociatedApps::firstOrCreate([
+            'users_id' => $user->getKey(),
+            'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
+            'apps_id' => $this->getKey(),
+        ], [
+            'users_id' => $user->getKey(),
+            'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
+            'apps_id' => $this->getKey(),
+            'identify_id' => $companyUserIdentifier ?? $user->id,
+            'user_active' => $isActive,
+            'user_role' => $userRoleId ?? $user->roles_id,
+            'password' => $password,
+            'configuration' => Str::isJson($configuration) ? json_encode($configuration) : $configuration
+        ]);
     }
 }

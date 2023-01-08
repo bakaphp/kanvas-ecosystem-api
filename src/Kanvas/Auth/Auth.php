@@ -43,7 +43,9 @@ class Auth
         $app = app(Apps::class);
 
         $authentically = $user;
-        /* if ($app->usesEcosystemLogin()) {
+        /*
+        @todo reactive ecosystem auth
+        if ($app->usesEcosystemLogin()) {
             //getCurrentUserAppInfo
             $authentically = $user->currentAppInfo();
         } */

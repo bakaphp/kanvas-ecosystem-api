@@ -35,6 +35,8 @@ class SetupAppsAction
     {
         $this->setupSettings();
         $this->setupSystemModules();
+        //roles
+        //templaes
 
         return $this->app;
     }

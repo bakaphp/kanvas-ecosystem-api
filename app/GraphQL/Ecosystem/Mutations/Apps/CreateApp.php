@@ -17,8 +17,8 @@ final class CreateApp
     public function __invoke($_, array $request)
     {
         // TODO implement the resolver
-        $dto = AppsPostData::fromArray($request['input']);
+        $dto = AppsPostData::from($request['input']);
         $action = new  CreateAppsAction($dto);
-        return $action->execute();
+        return $action->execute(auth()->user());
     }
 }

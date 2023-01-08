@@ -61,4 +61,6 @@ extend type Mutation @guard {
         @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\UpdateApp")
     deleteApp(id: Int!): App
         @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\DeleteApp")
+    assignCompanyToApp(id: Int!, company_id: Int!): App
+        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AssignCompanyToApp")
 }
