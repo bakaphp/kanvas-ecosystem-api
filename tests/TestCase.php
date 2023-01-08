@@ -5,7 +5,7 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Nuwave\Lighthouse\Testing\MakesGraphQLRequests;
 use Kanvas\Users\Models\Users;
 use Kanvas\Auth\DataTransferObject\RegisterInput as RegisterPostDataDto;
-use Kanvas\Users\Actions\RegisterUsersAction;
+use Kanvas\Auth\Actions\RegisterUsersAction;
 
 class TestCase extends BaseTestCase
 {

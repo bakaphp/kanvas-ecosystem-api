@@ -6,7 +6,7 @@ use Kanvas\Users\Invites\Models\UsersInvite as UsersInviteModel;
 use Kanvas\Users\Invites\Repository\UsersInviteRepository;
 use Auth;
 use Kanvas\Auth\DataTransferObject\RegisterInput as RegisterPostDataDto;
-use Kanvas\Users\Actions\RegisterUsersAction;
+use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Users\Models\Users;
 
 class ProcessInviteAction
