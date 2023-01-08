@@ -2,27 +2,31 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Users\Actions;
+namespace Kanvas\Auth\Actions;
 
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Hash;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Enums\Defaults;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Notifications\Templates\UserSignUp;
-use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Models\Users;
 
 class RegisterUsersAction
 {
+    protected Apps $app;
+
     /**
      * Construct function.
      */
     public function __construct(
         protected RegisterInput $data
     ) {
+        $this->app = app(Apps::class);
     }
 
     /**
@@ -41,6 +45,9 @@ class RegisterUsersAction
             ]
         )->first();
 
+        /**
+         * @todo ecosystemAuth
+         */
         if ($user) {
             throw new AuthenticationException('Email already exists');
         }

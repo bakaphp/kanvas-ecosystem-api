@@ -185,7 +185,7 @@ class Companies extends BaseModel
         ], [
             'users_id' => $user->getKey(),
             'companies_id' => $this->getKey(),
-            //'companies_branches_id' => $branch->getKey(),
+            'companies_branches_id' => $branch->getKey(),
             'identify_id' => $companyUserIdentifier ?? $user->id,
             'user_active' => $isActive,
             'user_role' => $userRoleId ?? $user->roles_id,

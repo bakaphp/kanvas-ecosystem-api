@@ -364,16 +364,13 @@ class Sessions extends PersonalAccessToken
             return $this->endAll($user);
         }
 
-
         self::where('id', $sessionId)
             ->where('users_id', $user->getId())
             ->delete();
 
-            SessionKeys::where('sessions_id', $sessionId)
-            ->where('users_id', $user->getId())
-            ->delete();
-
-
+        SessionKeys::where('sessions_id', $sessionId)
+        ->where('users_id', $user->getId())
+        ->delete();
 
         return true;
     }
