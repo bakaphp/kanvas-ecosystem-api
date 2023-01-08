@@ -13,7 +13,7 @@ use Kanvas\Models\BaseModel;
  * @property int $apps_id
  * @property string $roles_name
  */
-class Roles extends BaseModel
+class AppRoles extends BaseModel
 {
     /**
      * The table associated with the model.

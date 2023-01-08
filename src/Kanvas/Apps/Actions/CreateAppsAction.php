@@ -41,9 +41,6 @@ class CreateAppsAction
         ]);
         $app->saveOrFail();
 
-        $setupApp = new SetupAppsAction($app);
-        $setupApp->execute();
-
         $app->associateUser($user, $user->status);
 
         return $app;

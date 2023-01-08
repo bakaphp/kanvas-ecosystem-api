@@ -1,20 +1,23 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\AccessControlList\Repositories;
 
-use Kanvas\AccessControlList\Models\Role;
-use Kanvas\Apps\Models\Apps;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Models\Role;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 
 class RolesRepository
 {
     /**
-     * getAllRoles
+     * getAllRoles.
      *
      * @return ?Collection
      */
-    public static function getAllRoles(): ?Collection
+    public static function getAllRoles() : ?Collection
     {
         return Role::whereNull('scope')
             ->orWhere('scope', self::getScope())
@@ -23,14 +26,27 @@ class RolesRepository
     }
 
     /**
-     * getScope
+     * getScope.
      *
      * @return string
      */
-    public static function getScope(?Model $user = null): string
+    public static function getScope(?Model $user = null) : string
     {
         $app = app(Apps::class);
         $user = $user ?? auth()->user();
-        return "app_{$app->id}_company_{$user->default_company}";
+
+        return RolesEnums::getKey($app, Companies::getById($user->currentCompanyId()));
+    }
+
+    /**
+     * Get app list of default roles.
+     *
+     * @param Apps $app
+     *
+     * @return Collection
+     */
+    public static function getAppRoles(Apps $app) : Collection
+    {
+        return Role::where('scope', RolesEnums::getKey($app))->get();
     }
 }
