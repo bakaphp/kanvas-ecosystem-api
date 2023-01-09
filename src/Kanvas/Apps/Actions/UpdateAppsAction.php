@@ -6,6 +6,7 @@ namespace Kanvas\Apps\Actions;
 
 use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Apps\Repositories\AppsRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 
@@ -25,17 +26,17 @@ class UpdateAppsAction
     /**
      * Invoke function.
      *
-     * @param int $id
+     * @param string $id
      *
      * @return Apps
      */
-    public function execute(int $id) : Apps
+    public function execute(string $id) : Apps
     {
         /**
          * @todo only super admins can modify apps
          */
-        $app = Apps::findOrFail($id);
-        UsersRepository::belongsToThisApp($this->user, $app);
+        $app = AppsRepository::findFirstByKey($id);
+        UsersRepository::userOwnsThisApp($this->user, $app);
 
         $app->fill([
             'name' => $this->data->name,

@@ -3,11 +3,9 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Apps;
 
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Actions\CreateAppsAction;
-use Exception;
 use Kanvas\Apps\Repositories\AppsRepository;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 
@@ -19,18 +17,41 @@ final class AssignCompanyToApp
      */
     public function __invoke($_, array $request)
     {
-
         $id = $request['id'];
-        $companyId  = $request['companyId'];
+        $companyId = $request['companyId'];
 
         $app = AppsRepository::findFirstByKey($id);
         $company = CompaniesRepository::getByUuid($companyId);
 
-        UsersRepository::belongsToThisApp(auth()->user(), $app);
+        UsersRepository::userOwnsThisApp(auth()->user(), $app);
         UsersRepository::belongsToCompany(auth()->user(), $company);
 
         //$action = new  CreateAppsAction($dto);
         $app->associateCompany($company);
+
+        return $company;
+    }
+
+
+    /**
+     * @param  null  $_
+     * @param  array{}  $args
+     */
+    public function remove($_, array $request) : Companies
+    {
+        $id = $request['id'];
+        $companyId = $request['companyId'];
+
+        $app = AppsRepository::findFirstByKey($id);
+        $company = CompaniesRepository::getByUuid($companyId);
+
+        UsersRepository::userOwnsThisApp(auth()->user(), $app);
+
+        //if they are super user no need to verify if they belong to the company
+        //UsersRepository::belongsToCompany(auth()->user(), $company);
+
+        //$action = new  CreateAppsAction($dto);
+        $app->associateCompany($company)->delete();
 
         return $company;
     }

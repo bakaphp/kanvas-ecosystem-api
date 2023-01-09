@@ -20,10 +20,29 @@ final class ActivateApp
 
         $app = AppsRepository::findFirstByKey($id);
 
-        UsersRepository::belongsToThisApp(auth()->user(), $app);
+        UsersRepository::userOwnsThisApp(auth()->user(), $app);
 
         //$action = new  CreateAppsAction($dto);
         $app->is_actived = StateEnums::YES->getValue();
+        $app->saveOrFail();
+
+        return $app;
+    }
+
+    /**
+     * @param  null  $_
+     * @param  array{}  $args
+     */
+    public function deActive($_, array $request)
+    {
+        $id = $request['id'];
+
+        $app = AppsRepository::findFirstByKey($id);
+
+        UsersRepository::userOwnsThisApp(auth()->user(), $app);
+
+        //$action = new  CreateAppsAction($dto);
+        $app->is_actived = StateEnums::NO->getValue();
         $app->saveOrFail();
 
         return $app;

@@ -115,4 +115,26 @@ class UsersRepository
             throw new ModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
         }
     }
+
+    /**
+     * Is this user owner of the app?
+     *
+     * @param Users $user
+     * @param Apps $app
+     *
+     * @return UsersAssociatedApps
+     */
+    public static function userOwnsThisApp(Users $user, Apps $app) : UsersAssociatedApps
+    {
+        try {
+            //for now user who own / created the app have global company id assign the tthem
+            return UsersAssociatedApps::where('users_id', $user->getKey())
+                        ->where('apps_id', $app->getKey())
+                        ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+                        ->where('is_deleted', StateEnums::NO->getValue())
+                        ->firstOrFail();
+        } catch (ModelNotFoundException) {
+            throw new ModelNotFoundException('User doesn\'t own this app ' . $app->uuid . ' , talk to the Admin');
+        }
+    }
 }
