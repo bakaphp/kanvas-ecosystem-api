@@ -9,7 +9,7 @@ use Spatie\LaravelData\Data;
 /**
  * AppsData class.
  */
-class AppsPostData extends Data
+class AppInput extends Data
 {
     /**
      * Construct function.

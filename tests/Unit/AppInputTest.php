@@ -3,17 +3,17 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use Kanvas\Apps\DataTransferObject\AppsPutData;
+use Kanvas\Apps\DataTransferObject\AppInput;
 use Tests\TestCase;
 
-final class AppsPutDataTest extends TestCase
+final class AppsPostDataTest extends TestCase
 {
     /**
-     * Test Create AppsPutData Dto.
+     * Test Create AppsPostData Dto.
      *
      * @return void
      */
-    public function testCreateAppsPutDataDto() : void
+    public function testCreateAppsPostDataDto() : void
     {
         $data = [
             'url' => 'example.com',
@@ -28,8 +28,8 @@ final class AppsPutDataTest extends TestCase
         ];
 
         $this->assertInstanceOf(
-            AppsPutData::class,
-            AppsPutData::fromArray($data)
+            AppInput::class,
+            AppInput::from($data)
         );
     }
 }

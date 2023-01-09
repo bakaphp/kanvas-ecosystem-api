@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Apps;
 
-use Kanvas\Apps\DataTransferObject\AppsPutData;
+use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Actions\UpdateAppsAction;
 
 final class UpdateApp
@@ -15,8 +15,8 @@ final class UpdateApp
     public function __invoke($_, array $request)
     {
         // TODO implement the resolver\
-        $dto = AppsPutData::fromArray($request['input']);
-        $action = new UpdateAppsAction($dto);
+        $dto = AppInput::from($request['input']);
+        $action = new UpdateAppsAction($dto, auth()->user());
         return $action->execute($request['id']);
     }
 }

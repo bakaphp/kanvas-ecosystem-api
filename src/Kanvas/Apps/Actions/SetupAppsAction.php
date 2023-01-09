@@ -24,7 +24,7 @@ class SetupAppsAction
     /**
      * Construct function.
      *
-     * @param AppsPostData $data
+     * @param Apps $app
      */
     public function __construct(
         protected Apps $app

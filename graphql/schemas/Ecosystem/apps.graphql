@@ -54,13 +54,31 @@ input AppInput {
     domain_based: Int!
 }
 
+input appSettingInput
+{
+    name: String!
+    value: String!
+}
+
 extend type Mutation @guard {
     createApp(input: AppInput): App!
         @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\CreateApp")
-    updateApp(id: Int!, input: AppInput): App
+    updateApp(id: String!, input: AppInput): App
         @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\UpdateApp")
-    deleteApp(id: Int!): App
+    deleteApp(id: String!): App
         @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\DeleteApp")
-    assignCompanyToApp(id: Int!, company_id: Int!): App
+    assignCompanyToApp(id: String!, companyId: String!): Company
         @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AssignCompanyToApp")
+    removeCompanyToApp(id: String!, companyId: String!): Company
+        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\RemoveCompanyToApp")
+    activateApp(id: String!): App
+        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\ActivateApp")
+    deactivateApp(id: String!): App
+        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\DeActivateApp")
+    saveAppSettings(id: String!, input: appSettingInput): App
+        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\SaveAppSettings")
+    addTemplateToApp(id: String!, templateId: String!): App
+        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AddTemplateToApp")
+    removeTemplateToApp(id: String!, templateId: String!): App
+        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\RemoveTemplateToApp")
 }

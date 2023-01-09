@@ -101,12 +101,10 @@ class Apps extends BaseModel
      */
     public function associateCompany(Companies $company) : UserCompanyApps
     {
-        $companyApps = new UserCompanyApps();
-        $companyApps->companies_id = $company->id;
-        $companyApps->apps_id = $this->id;
-        $companyApps->saveOrFail();
-
-        return $companyApps;
+        return UserCompanyApps::firstOrCreate([
+            'apps_id' => $this->id,
+            'companies_id' => $company->getKey()
+        ]);
     }
 
     /**

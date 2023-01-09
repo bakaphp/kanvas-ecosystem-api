@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Apps\Actions;
 
 use Kanvas\Apps\Actions\UpdateAppsAction;
-use Kanvas\Apps\DataTransferObject\AppsPutData;
+use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Models\Apps;
 use Tests\TestCase;
 
@@ -32,8 +32,8 @@ final class UpdateAppsActionTest extends TestCase
             'domain' => 'example.com',
         ];
 
-        //Create new AppsPostData
-        $dtoData = AppsPutData::fromArray($data);
+        //Create new AppInput
+        $dtoData = AppInput::from($data);
 
         $updateApp = new UpdateAppsAction($dtoData);
 

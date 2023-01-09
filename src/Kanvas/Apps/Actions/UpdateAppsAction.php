@@ -4,18 +4,21 @@ declare(strict_types=1);
 
 namespace Kanvas\Apps\Actions;
 
-use Kanvas\Apps\DataTransferObject\AppsPutData;
+use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Users\Models\Users;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class UpdateAppsAction
 {
     /**
      * Construct function.
      *
-     * @param AppsPutData $data
+     * @param AppInput $data
      */
     public function __construct(
-        protected AppsPutData $data
+        protected AppInput $data,
+        protected Users $user
     ) {
     }
 
@@ -32,6 +35,8 @@ class UpdateAppsAction
          * @todo only super admins can modify apps
          */
         $app = Apps::findOrFail($id);
+        UsersRepository::belongsToThisApp($this->user, $app);
+
         $app->fill([
             'name' => $this->data->name,
             'url' => $this->data->url,
@@ -43,6 +48,8 @@ class UpdateAppsAction
             'is_public' => $this->data->is_public,
             'domain_based' => $this->data->domain_based
         ]);
+        $app->saveOrFail();
+
         return $app;
     }
 }

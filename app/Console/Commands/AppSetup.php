@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Kanvas\Apps\DataTransferObject\AppsPostData;
+use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Actions\CreateAppsAction;
 use Kanvas\Apps\Actions\SetupAppsAction;
 
@@ -55,7 +55,7 @@ class AppSetup extends Command
         $paymentsActive = $this->confirm('Do you want payments enabled?', true);
         $isPublic = $this->confirm('Do you want want the app to be public?', true);
 
-        $data = AppsPostData::fromConsole(
+        $data = AppInput::fromConsole(
             [
             'name' => $name,
             'url' => $url,

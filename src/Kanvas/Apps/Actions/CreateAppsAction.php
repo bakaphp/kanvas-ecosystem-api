@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Apps\Actions;
 
-use Kanvas\Apps\DataTransferObject\AppsPostData;
+use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Models\Users;
 
@@ -14,14 +14,14 @@ class CreateAppsAction
      * Construct function.
      */
     public function __construct(
-        protected AppsPostData $data
+        protected AppInput $data
     ) {
     }
 
     /**
      * Invoke function.
      *
-     * @param AppsPostData $data
+     * @param AppInput $data
      *
      * @return Apps
      */
