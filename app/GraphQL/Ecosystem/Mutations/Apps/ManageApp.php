@@ -6,6 +6,7 @@ namespace App\GraphQL\Ecosystem\Mutations\Apps;
 use Kanvas\Apps\Actions\CreateAppsAction;
 use Kanvas\Apps\Actions\UpdateAppsAction;
 use Kanvas\Apps\DataTransferObject\AppInput;
+use Kanvas\Apps\DataTransferObject\AppSettingsInput;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Repositories\AppsRepository;
 use Kanvas\Enums\StateEnums;
@@ -76,5 +77,25 @@ final class ManageApp
         $app->saveOrFail();
 
         return $app;
+    }
+
+    /**
+     * Save app setting
+     *
+     * @param mixed $root
+     * @param array $req
+     * @return mixed
+     */
+    public function saveSettings(mixed $root, array $req) : mixed
+    {
+        $app = AppsRepository::findFirstByKey($req['id']);
+
+        UsersRepository::userOwnsThisApp(auth()->user(), $app);
+
+        $appSetting = AppSettingsInput::from($req['input']);
+
+        $app->set($appSetting->name, $appSetting->value);
+
+        return $app->get($appSetting->name);
     }
 }
