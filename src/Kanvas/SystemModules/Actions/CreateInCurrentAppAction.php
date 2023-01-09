@@ -7,7 +7,7 @@ namespace Kanvas\SystemModules\Actions;
 use App\Exceptions\InternalServerErrorException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\SystemModules\Models\SystemModules;
-use Kanvas\Utils\Str;
+use Baka\Support\Str;
 
 class CreateInCurrentAppAction
 {

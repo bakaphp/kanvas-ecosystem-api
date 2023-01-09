@@ -11,7 +11,7 @@ use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
-use Kanvas\Utils\Str;
+use Baka\Support\Str;
 
 /**
  * Apps Model.

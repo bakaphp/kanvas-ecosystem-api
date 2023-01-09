@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Utils;
+namespace Baka\Support;
 
 class Random
 {

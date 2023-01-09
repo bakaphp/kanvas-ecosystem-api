@@ -12,7 +12,7 @@ use Kanvas\CustomFields\Models\CustomFields;
 use Kanvas\CustomFields\Models\CustomFieldsModules;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Traits\HasSchemaAccessors;
-use Kanvas\Utils\Str;
+use Baka\Support\Str;
 
 /**
  * Custom field class.

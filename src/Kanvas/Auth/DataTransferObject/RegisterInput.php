@@ -6,7 +6,7 @@ namespace Kanvas\Auth\DataTransferObject;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Kanvas\Utils\Random;
+use Baka\Support\Random;
 use Spatie\LaravelData\Data;
 
 /**

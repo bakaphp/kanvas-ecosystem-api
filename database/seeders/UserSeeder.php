@@ -4,7 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Utils\Str;
+use Baka\Support\Str;
 
 class UserSeeder extends Seeder
 {
