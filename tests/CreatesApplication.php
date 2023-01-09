@@ -31,9 +31,9 @@ trait CreatesApplication
            }); */
 
         //$user = Users::where('id', '>', 0)->first();
-        $user = Users::factory(1)->create()->first();
+        //$user = Users::factory(1)->create()->first();
         $this->app = $app;
-        $this->actingAs($user, 'api');
+        $this->actingAs($this->createUser(), 'api');
 
         /*    $app->bind(Users::class, function () use ($user) {
                return $user;

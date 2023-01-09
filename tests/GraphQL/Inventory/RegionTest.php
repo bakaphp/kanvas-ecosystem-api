@@ -14,7 +14,6 @@ class RegionTest extends TestCase
      */
     public function testCreateRegion()
     {
-        $this->actingAs($this->createUser());
         $data = [
             'name' => 'Test Region',
             'slug' => 'test-region',
@@ -48,7 +47,6 @@ class RegionTest extends TestCase
      */
     public function testFindRegion()
     {
-        $this->actingAs($this->createUser());
         $data = [
             'name' => 'Test Region',
             'slug' => 'test-region',
@@ -94,7 +92,6 @@ class RegionTest extends TestCase
      */
     public function testUpdateRegion()
     {
-        $this->actingAs($this->createUser());
         $data = [
             'name' => 'Test Region',
             'slug' => 'test-region',
@@ -165,7 +162,6 @@ class RegionTest extends TestCase
      */
     public function testDeleteRegion()
     {
-        $this->actingAs($this->createUser());
         $data = [
             'name' => 'Test Region',
             'slug' => 'test-region',

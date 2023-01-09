@@ -14,7 +14,6 @@ class ChannelTest extends TestCase
      */
     public function testCreateChannel(): void
     {
-        $this->actingAs($this->createUser());
         $data = [
             'name' => fake()->name,
         ];
@@ -37,7 +36,6 @@ class ChannelTest extends TestCase
      */
     public function testGetChannels(): void
     {
-        $this->actingAs($this->createUser());
         $data = [
             'name' => fake()->name,
         ];
@@ -71,7 +69,6 @@ class ChannelTest extends TestCase
      */
     public function testUpdateChannel(): void
     {
-        $this->actingAs($this->createUser());
         $data = [
             'name' => fake()->name,
         ];
@@ -118,7 +115,6 @@ class ChannelTest extends TestCase
      */
     public function testDeleteChannel(): void
     {
-        $this->actingAs($this->createUser());
         $data = [
             'name' => fake()->name,
         ];
