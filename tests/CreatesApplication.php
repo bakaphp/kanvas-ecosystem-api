@@ -35,12 +35,6 @@ trait CreatesApplication
         $this->app = $app;
         $this->actingAs($this->createUser(), 'api');
 
-        /*    $app->bind(Users::class, function () use ($user) {
-               return $user;
-           });
-
-           $app->alias(Users::class, 'userData');
- */
         return $app;
     }
 }
