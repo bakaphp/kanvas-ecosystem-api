@@ -69,7 +69,7 @@ class AppSetup extends Command
             ]
         );
 
-        $createApp = new CreateAppsAction($data);
+        $createApp = new CreateAppsAction($data, auth()->user());
         $app = $createApp->execute();
 
         $this->newLine();

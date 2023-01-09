@@ -19,7 +19,7 @@ class TestCase extends BaseTestCase
      */
     public function createUser(): Users
     {
-        $dto = RegisterPostDataDto::fromArray([
+        $dto = RegisterPostDataDto::from([
             'email' => fake()->email,
             'password' => fake()->password,
             'firstname' => fake()->firstName,

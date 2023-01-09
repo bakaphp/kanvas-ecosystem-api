@@ -29,9 +29,9 @@ final class CreateAppsActionTest extends TestCase
             'domain' => 'example.com',
         ];
         //Create new AppInput
-        $dtoData = AppInput::fromArray($data);
+        $dtoData = AppInput::from($data);
 
-        $app = new CreateAppsAction($dtoData);
+        $app = new CreateAppsAction($dtoData, auth()->user());
 
         $this->assertInstanceOf(
             Apps::class,

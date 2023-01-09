@@ -22,8 +22,8 @@ final class ManageApp
     {
         // TODO implement the resolver
         $dto = AppInput::from($request['input']);
-        $action = new  CreateAppsAction($dto);
-        return $action->execute(auth()->user());
+        $action = new  CreateAppsAction($dto, auth()->user());
+        return $action->execute();
     }
 
     /**

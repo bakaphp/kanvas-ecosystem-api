@@ -13,8 +13,8 @@ class AccessControlListTest extends TestCase
      */
     public function testCreateRole() : void
     {
-        $user = $this->createUser();
-        $this->actingAs($user);
+        $user = auth()->user();
+
         $this->graphQL( /** @lang GraphQL */
             '
             mutation(
@@ -51,8 +51,8 @@ class AccessControlListTest extends TestCase
      */
     public function testGetRole(): void
     {
-        $user = $this->createUser();
-        $this->actingAs($user);
+        $user = auth()->user();
+
         $this->graphQL( /** @lang GraphQL */
             '
             mutation(
@@ -100,8 +100,8 @@ class AccessControlListTest extends TestCase
      */
     public function testUpdateRole(): void
     {
-        $user = $this->createUser();
-        $this->actingAs($user);
+        $user = auth()->user();
+
         $this->graphQL( /** @lang GraphQL */
             '
             mutation(

@@ -14,7 +14,8 @@ class CreateAppsAction
      * Construct function.
      */
     public function __construct(
-        protected AppInput $data
+        protected AppInput $data,
+        protected Users $user
     ) {
     }
 
@@ -25,7 +26,7 @@ class CreateAppsAction
      *
      * @return Apps
      */
-    public function execute(Users $user) : Apps
+    public function execute() : Apps
     {
         $app = new Apps();
         $app->fill([
@@ -41,7 +42,7 @@ class CreateAppsAction
         ]);
         $app->saveOrFail();
 
-        $app->associateUser($user, $user->status);
+        $app->associateUser($this->user, $this->data->is_actived);
 
         return $app;
     }

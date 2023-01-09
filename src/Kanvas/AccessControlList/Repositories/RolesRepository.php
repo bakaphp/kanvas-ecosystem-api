@@ -30,12 +30,13 @@ class RolesRepository
      *
      * @return string
      */
-    public static function getScope(?Model $user = null) : string
+    public static function getScope(?Model $user = null, ?Companies $company = null) : string
     {
         $app = app(Apps::class);
         $user = $user ?? auth()->user();
+        $company = $company ?? Companies::getById($user->currentCompanyId());
 
-        return RolesEnums::getKey($app, Companies::getById($user->currentCompanyId()));
+        return RolesEnums::getKey($app, $company);
     }
 
     /**

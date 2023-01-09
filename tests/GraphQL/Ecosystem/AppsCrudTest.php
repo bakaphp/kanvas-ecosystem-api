@@ -5,6 +5,7 @@ namespace Tests\GraphQL\Ecosystem;
 
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\StateEnums;
 use Nuwave\Lighthouse\Testing\MakesGraphQLRequests;
 use Tests\CreatesApplication;
 
@@ -90,6 +91,9 @@ class AppsCrudTest extends BaseTestCase
     public function test_updated()
     {
         $apps = Apps::orderBy('id', 'desc')->first();
+        $user = auth()->user();
+        $apps->associateUser($user, StateEnums::ON->getValue());
+
         $input = [
             'name' => fake()->name,
             'url' => fake()->url,
@@ -101,15 +105,15 @@ class AppsCrudTest extends BaseTestCase
             'is_public' => 1,
             'domain_based' => 0
         ];
+
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation(
                 $input: AppInput!
             ){
                 updateApp(
-                    id: ' . $apps->id . ',
+                    id: "'.$apps->key.'",
                     input: $input
                 ) {
-                    id
                     name
                     url
                     description
@@ -125,6 +129,7 @@ class AppsCrudTest extends BaseTestCase
                 'input' => $input
             ]
         );
+
         $response->assertJson([
             'data' => [
                 'updateApp' => $input

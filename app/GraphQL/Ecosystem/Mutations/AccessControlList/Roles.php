@@ -5,6 +5,7 @@ namespace App\GraphQL\Ecosystem\Mutations\AccessControlList;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
 use Silber\Bouncer\Database\Role as SilberRole;
 use Kanvas\AccessControlList\Actions\UpdateRoleAction;
+use Kanvas\Companies\Models\Companies;
 
 class Roles
 {
@@ -21,7 +22,7 @@ class Roles
             $request['name'],
             $request['title']
         );
-        return $role->execute();
+        return $role->execute(Companies::getById(auth()->user()->currentCompanyId()));
     }
 
     /**
@@ -38,6 +39,6 @@ class Roles
             $request['name'],
             $request['title'] ?? null
         );
-        return $role->execute();
+        return $role->execute(Companies::getById(auth()->user()->currentCompanyId()));
     }
 }
