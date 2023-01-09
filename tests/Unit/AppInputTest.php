@@ -4,9 +4,9 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use Kanvas\Apps\DataTransferObject\AppInput;
-use Tests\TestCase;
+use Tests\TestCaseUnit;
 
-final class AppsPostDataTest extends TestCase
+final class AppInputTest extends TestCaseUnit
 {
     /**
      * Test Create AppsPostData Dto.
