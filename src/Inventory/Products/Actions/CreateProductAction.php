@@ -27,12 +27,6 @@ class CreateProductAction
      */
     public function execute()
     {
-        foreach ($this->productDto->categories as $category) {
-            $category = CategoriesRepository::getById($category);
-        }
-        foreach ($this->productDto->warehouses as $warehouse) {
-            WarehouseRepository::getById($warehouse);
-        }
         $products = Products::create([
             'products_types_id' => $this->productDto->products_types_id,
             'name' => $this->productDto->name,
@@ -43,9 +37,15 @@ class CreateProductAction
             'upc' => $this->productDto->upc
         ]);
         if ($this->productDto->categories) {
+            foreach ($this->productDto->categories as $category) {
+                $category = CategoriesRepository::getById($category);
+            }
             $products->categories()->attach($this->productDto->categories);
         }
         if ($this->productDto->warehouses) {
+            foreach ($this->productDto->warehouses as $warehouse) {
+                WarehouseRepository::getById($warehouse);
+            }
             $products->warehouses()->attach($this->productDto->warehouses);
         }
         return $products;

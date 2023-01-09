@@ -12,7 +12,7 @@ use Kanvas\CustomFields\Models\CustomFieldsModules;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Traits\HasSchemaAccessors;
 use Kanvas\Utils\Str;
-
+use Kanvas\Companies\Models\Companies;
 /**
  * Custom field class.
  */
@@ -360,14 +360,16 @@ trait HasCustomFields
      *
      * @param  string $name
      * @param  mixed $value
-     * @param  Company $company
+     * @param  Companies $company
      * @return void
      */
-    public static function getByCustomField(string $name, mixed $value, ?Company $company = null)
+    public static function getByCustomField(string $name, mixed $value, ?Companies $company = null)
     {
         $company = $company ? $company->id : AppEnums::GLOBAL_COMPANY_ID->getValue();
-        DB::table($this->table)
-            ->join('apps_custom_fields', 'apps_custom_fields.entity_id', '=', $this->table . '.id')
+        $table = (new static)->getTable();
+        // dd($name, get_class(new static),$value, $table,$company);
+        return DB::table($table)
+            ->join('apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table . '.id')
             ->where('apps_custom_fields.companies_id', $company)
             ->where('apps_custom_fields.model_name', get_class(new static))
             ->where('apps_custom_fields.name', $name)
