@@ -3,17 +3,12 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem;
 
-use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\StateEnums;
-use Nuwave\Lighthouse\Testing\MakesGraphQLRequests;
-use Tests\CreatesApplication;
+use Tests\TestCase;
 
-class AppsCrudTest extends BaseTestCase
+class AppsCrudTest extends TestCase
 {
-    use CreatesApplication;
-    use MakesGraphQLRequests;
-
     public function test_save()
     {
         $input = [
@@ -111,7 +106,7 @@ class AppsCrudTest extends BaseTestCase
                 $input: AppInput!
             ){
                 updateApp(
-                    id: "'.$apps->key.'",
+                    id: "' . $apps->key . '",
                     input: $input
                 ) {
                     name
