@@ -1,8 +1,19 @@
 # Kanvas Niche App Ecosystem
 
+Welcome to our niche app ecosystem for developers! Our platform is designed to help developers build powerful and innovative applications that solve real business challenges. With our comprehensive set of headless Graph API's, you can easily add key functionality such as user and team management, CRM, inventory management, social graph integration, and workflow automation to your app. Whether you're looking to streamline your sales pipeline, manage product inventory across multiple regions, or add social features to your app, our platform has you covered. Join us and revolutionize the way you build applications!
+
+
+Todo:
+- [ ] Ecosystem (in progress)
+- [ ] Inventory (in progress)
+- [ ] CRM
+- [ ] Social
+- [ ] Workflow
+
 ## Prerequisites
 
 - PHP ^8.1
+- Laravel ^9.1
 
 ## Initial Setup
 
