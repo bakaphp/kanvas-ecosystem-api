@@ -33,16 +33,16 @@ class KanvasAppsProvider extends ServiceProvider
         $appKey = config('kanvas.app.id');
         // $app = !$domainBasedApp ? AppsRepository::findFirstByKey($appKey) : AppsRepository::getByDomainName($domainName);
         if (FacadesSchema::hasTable('apps') && Apps::count() > 0) {
-            $app = AppsRepository::findFirstByKey($appKey);
+            try {
+                $app = AppsRepository::findFirstByKey($appKey);
 
-            if (!$app) {
+                $this->app->bind(Apps::class, function () use ($app) {
+                    return $app;
+                });
+            } catch (Exception $e) {
                 $msg = !$domainBasedApp ? 'No App configure with this key ' . $appKey : 'No App configure for this domain ' . $domainName;
                 throw new Exception($msg);
             }
-
-            $this->app->bind(Apps::class, function () use ($app) {
-                return $app;
-            });
         }
     }
 }
