@@ -4,34 +4,40 @@ declare(strict_types=1);
 
 namespace Kanvas\Apps\Actions;
 
-use Kanvas\Apps\DataTransferObject\AppsPutData;
+use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Apps\Repositories\AppsRepository;
+use Kanvas\Users\Models\Users;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class UpdateAppsAction
 {
     /**
      * Construct function.
      *
-     * @param AppsPutData $data
+     * @param AppInput $data
      */
     public function __construct(
-        protected AppsPutData $data
+        protected AppInput $data,
+        protected Users $user
     ) {
     }
 
     /**
      * Invoke function.
      *
-     * @param int $id
+     * @param string $id
      *
      * @return Apps
      */
-    public function execute(int $id) : Apps
+    public function execute(string $id) : Apps
     {
         /**
          * @todo only super admins can modify apps
          */
-        $app = Apps::findOrFail($id);
+        $app = AppsRepository::findFirstByKey($id);
+        UsersRepository::userOwnsThisApp($this->user, $app);
+
         $app->fill([
             'name' => $this->data->name,
             'url' => $this->data->url,
@@ -43,6 +49,8 @@ class UpdateAppsAction
             'is_public' => $this->data->is_public,
             'domain_based' => $this->data->domain_based
         ]);
+        $app->saveOrFail();
+
         return $app;
     }
 }

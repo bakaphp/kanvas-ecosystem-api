@@ -8,6 +8,7 @@ use Illuminate\Support\Str;
 use Kanvas\AccessControlList\Actions\AssignAction;
 use Kanvas\AccessControlList\Models\Role;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
+use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\CompaniesPostData;
@@ -85,12 +86,13 @@ class UsersObserver
         );
 
         Bouncer::scope()->to(RolesRepository::getScope($user));
+
         if ($user->roles_id) {
             $role = Role::find($user->roles_id)->name;
             $assignRole = new AssignAction($user, $role);
             $assignRole->execute();
         } else {
-            $assignRole = new AssignAction($user, 'Admin');
+            $assignRole = new AssignAction($user, DefaultRoles::ADMIN->getValue());
             $assignRole->execute();
         }
         if (!$roleLegacy = $app->get(AppSettingsEnums::DEFAULT_ROLE_NAME->getValue())) {

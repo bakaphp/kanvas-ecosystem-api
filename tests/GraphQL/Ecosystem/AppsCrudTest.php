@@ -3,16 +3,12 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem;
 
-use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Kanvas\Apps\Models\Apps;
-use Nuwave\Lighthouse\Testing\MakesGraphQLRequests;
-use Tests\CreatesApplication;
+use Kanvas\Enums\StateEnums;
+use Tests\TestCase;
 
-class AppsCrudTest extends BaseTestCase
+class AppsCrudTest extends TestCase
 {
-    use CreatesApplication;
-    use MakesGraphQLRequests;
-
     public function test_save()
     {
         $input = [
@@ -90,6 +86,9 @@ class AppsCrudTest extends BaseTestCase
     public function test_updated()
     {
         $apps = Apps::orderBy('id', 'desc')->first();
+        $user = auth()->user();
+        $apps->associateUser($user, StateEnums::ON->getValue());
+
         $input = [
             'name' => fake()->name,
             'url' => fake()->url,
@@ -101,15 +100,15 @@ class AppsCrudTest extends BaseTestCase
             'is_public' => 1,
             'domain_based' => 0
         ];
+
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation(
                 $input: AppInput!
             ){
                 updateApp(
-                    id: ' . $apps->id . ',
+                    id: "' . $apps->key . '",
                     input: $input
                 ) {
-                    id
                     name
                     url
                     description
@@ -125,6 +124,7 @@ class AppsCrudTest extends BaseTestCase
                 'input' => $input
             ]
         );
+
         $response->assertJson([
             'data' => [
                 'updateApp' => $input

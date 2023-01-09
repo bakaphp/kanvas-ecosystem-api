@@ -8,7 +8,7 @@ use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Roles\Repositories\RolesRepository;
-use Kanvas\Users\DataTransferObject\RegisterPostData;
+use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UserRoles;
 
@@ -27,7 +27,7 @@ class AssignRole
     /**
      * Invoke function.
      *
-     * @param RegisterPostData $data
+     * @param RegisterInput $data
      *
      * @return Users
      */

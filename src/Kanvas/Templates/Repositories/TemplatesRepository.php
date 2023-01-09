@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Templates\Repositories;
 
-use Kanvas\Templates\Models\Templates;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Templates\Models\Templates;
 
 class TemplatesRepository
 {
@@ -23,11 +23,11 @@ class TemplatesRepository
 
         // $companyId = userData->currentCompanyId() ?? 0;
 
-        $emailTemplate =  Templates::where('apps_id', $appId)
+        $emailTemplate = Templates::where('apps_id', $appId)
                             // ->where('companies_id',$companyId)
                             ->where('name', $name)
-                            ->where('is_deleted',0)
-                            ->orderBy('id','desc')
+                            ->where('is_deleted', 0)
+                            ->orderBy('id', 'desc')
                             ->firstOrFail();
 
         return $emailTemplate;

@@ -15,7 +15,6 @@ class CategoryTest extends TestCase
      */
     public function testCreateCategory(): void
     {
-        $this->actingAs($this->createUser());
         $data = [
             'name' => fake()->name
         ];
@@ -30,7 +29,7 @@ class CategoryTest extends TestCase
             'data' => ['createCategory' => $data]
         ]);
     }
-    
+
     /**
      * testGetCategory
      *
@@ -38,7 +37,6 @@ class CategoryTest extends TestCase
      */
     public function testGetCategory(): void
     {
-        $this->actingAs($this->createUser());
         $data = [
             'name' => fake()->name
         ];
@@ -63,7 +61,7 @@ class CategoryTest extends TestCase
             'data' => ['categories' => ['data' => [$data]]]
         ]);
     }
-    
+
     /**
      * testUpdateCategory
      *
@@ -71,7 +69,6 @@ class CategoryTest extends TestCase
      */
     public function testUpdateCategory(): void
     {
-        $this->actingAs($this->createUser());
         $data = [
             'name' => fake()->name
         ];
@@ -108,7 +105,7 @@ class CategoryTest extends TestCase
             'data' => ['updateCategory' => $data]
         ]);
     }
-    
+
     /**
      * testDeleteCategory
      *
@@ -116,7 +113,6 @@ class CategoryTest extends TestCase
      */
     public function testDeleteCategory(): void
     {
-        $this->actingAs($this->createUser());
         $data = [
             'name' => fake()->name
         ];

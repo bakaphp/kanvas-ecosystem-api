@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Apps\Actions;
 
 use Kanvas\Apps\Actions\CreateAppsAction;
-use Kanvas\Apps\DataTransferObject\AppsPostData;
+use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Models\Apps;
 use Tests\TestCase;
 
@@ -28,10 +28,10 @@ final class CreateAppsActionTest extends TestCase
             'description' => 'Kanvas Application',
             'domain' => 'example.com',
         ];
-        //Create new AppsPostData
-        $dtoData = AppsPostData::fromArray($data);
+        //Create new AppInput
+        $dtoData = AppInput::from($data);
 
-        $app = new CreateAppsAction($dtoData);
+        $app = new CreateAppsAction($dtoData, auth()->user());
 
         $this->assertInstanceOf(
             Apps::class,

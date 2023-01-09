@@ -29,7 +29,7 @@
         "spatie/laravel-data": "^2.0",
         "symfony/http-client": "^6.1",
         "symfony/mailgun-mailer": "^6.1",
-        "vladimir-yuldashev/laravel-queue-rabbitmq": "^12.0",
+        "vladimir-yuldashev/laravel-queue-rabbitmq": "^13.0",
         "vlucas/phpdotenv": "^5.4"
     },
     "require-dev": {

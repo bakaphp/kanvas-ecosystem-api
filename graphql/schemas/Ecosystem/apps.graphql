@@ -16,6 +16,12 @@ type App {
     updated_at: String!
 }
 
+type Template {
+    id: Int!
+    name: String!
+    template: String!
+}
+
 extend type Query {
     apps(
         where: _
@@ -54,11 +60,55 @@ input AppInput {
     domain_based: Int!
 }
 
+input appSettingInput {
+    name: String!
+    value: Mixed!
+}
+
+input templateInput {
+    name: String!
+    template: String!
+}
+
 extend type Mutation @guard {
     createApp(input: AppInput): App!
-        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\CreateApp")
-    updateApp(id: Int!, input: AppInput): App
-        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\UpdateApp")
-    deleteApp(id: Int!): App
-        @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\DeleteApp")
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\ManageApp@create"
+        )
+    updateApp(id: String!, input: AppInput): App!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\ManageApp@update"
+        )
+    deleteApp(id: String!): App!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\ManageApp@delete"
+        )
+    restoreApp(id: String!): App!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\ManageApp@restore"
+        )
+    assignCompanyToApp(id: String!, companyId: String!): Company!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AssignCompanyToApp"
+        )
+    removeCompanyToApp(id: String!, companyId: String!): Company!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AssignCompanyToApp@remove"
+        )
+    activateApp(id: String!): App!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\ActivateApp"
+        )
+    deactivateApp(id: String!): App!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\ActivateApp@deActive"
+        )
+    saveAppSettings(id: String!, input: appSettingInput): Mixed!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\ManageApp@saveSettings"
+        )
+    addTemplateToApp(id: String!, input: templateInput!): Template
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\ManageTemplate@create"
+        )
 }

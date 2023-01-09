@@ -7,8 +7,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
 use Kanvas\Auth\Traits\AuthTrait;
 use Kanvas\Auth\Traits\TokenTrait;
-use Kanvas\Users\Actions\RegisterUsersAction;
-use Kanvas\Users\DataTransferObject\RegisterPostData;
+use Kanvas\Auth\Actions\RegisterUsersAction;
+use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class Register
@@ -43,7 +43,7 @@ class Register
             ]
         )->validate();
 
-        $data = RegisterPostData::fromArray($request['data']);
+        $data = RegisterInput::fromArray($request['data']);
         $user = new RegisterUsersAction($data);
         $request = request();
 

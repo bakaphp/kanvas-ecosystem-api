@@ -14,7 +14,6 @@ class WarehouseTest extends TestCase
      */
     public function testCreateWarehouse(): void
     {
-        $this->actingAs($this->createUser());
         $data = [
             'name' => 'Test Region',
             'slug' => 'test-region',
@@ -70,7 +69,6 @@ class WarehouseTest extends TestCase
      */
     public function testFindWarehouse(): void
     {
-        $this->actingAs($this->createUser());
         $data = [
             'name' => 'Test Region',
             'slug' => 'test-region',
@@ -146,7 +144,6 @@ class WarehouseTest extends TestCase
      */
     public function testUpdateWarehouse(): void
     {
-        $this->actingAs($this->createUser());
         $data = [
             'name' => 'Test Region',
             'slug' => 'test-region',
@@ -229,7 +226,6 @@ class WarehouseTest extends TestCase
 
     public function testDeleteWarehouse(): void
     {
-        $this->actingAs($this->createUser());
         $data = [
             'name' => 'Test Region',
             'slug' => 'test-region',

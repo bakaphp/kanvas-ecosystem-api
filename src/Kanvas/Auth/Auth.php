@@ -4,11 +4,18 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth;
 
-use Canvas\Models\Sessions;
+use Baka\Support\Password;
+use Baka\Users\Contracts\UserInterface;
 use Exception;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Hash;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\DataTransferObject\LoginInput;
+use Kanvas\Sessions\Models\Sessions;
+use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Models\Users;
 use Lcobucci\JWT\Token;
+use stdClass;
 
 class Auth
 {
@@ -17,53 +24,118 @@ class Auth
      *
      * @param string $email
      * @param string $password
-     * @param int $autologin
-     * @param int $admin
      * @param string $userIp
      *
      * @return Users
      */
     public static function login(
-        string $email,
-        string $password,
-        int $autologin = 1,
-        int $admin = 0,
-        ?string $userIp = null
-    ) : Users
-    {
-        $email = ltrim(trim($email));
-        $password = ltrim(trim($password));
-
-        $user = Users::getByEmail($email);
+        LoginInput $loginInput
+    ) : UserInterface {
+        $user = Users::getByEmail($loginInput->getEmail());
 
         //first we find the user
         if (!$user) {
-            throw new Exception('Invalid email or password.');
+            throw new AuthenticationException('Invalid email or password.');
         }
 
-        // /**
-        //  * @todo Remove this in future versions
-        //  */
-        // if (!$user->get($user->getDefaultCompany()->branchCacheKey())) {
-        //     $user->set($user->getDefaultCompany()->branchCacheKey(), $user->getDefaultCompany()->branch->getId());
-        // }
+        self::loginAttemptsValidation($user);
+
+        $app = app(Apps::class);
+
+        $authentically = $user;
+        /*
+        @todo reactive ecosystem auth
+        if ($app->usesEcosystemLogin()) {
+            //getCurrentUserAppInfo
+            $authentically = $user->currentAppInfo();
+        } */
 
         //password verification
-        if (Hash::check($password, $user->password) && $user->isActive()) {
-            //rehash password
-            $rehashedPass = Hash::make($password);
-
-            $user->password = $rehashedPass;
-            $user->save();
+        if (Hash::check($loginInput->getPassword(), $authentically->password) && $user->isActive()) {
+            Password::rehash($loginInput->getPassword(), $authentically);
+            self::resetLoginTries($user);
 
             return $user;
-        } elseif ($user->isActive()) {
-            throw new Exception('Invalid email or password.');
+        } elseif (!$user->isActive()) {
+            throw new AuthenticationException('Invalid email or password.');
         } elseif ($user->isBanned()) {
-            throw new Exception('User has been banned, please contact support.');
+            throw new AuthenticationException('User has been banned, please contact support.');
         } else {
-            throw new Exception('User is not active, please contact support.');
+            throw new AuthenticationException('User is not active, please contact support.');
         }
+    }
+
+    /**
+     * Check the user login attempt to the app.
+     *
+     * @param Users $user
+     *
+     * @throws Exception
+     *
+     * @return bool
+     */
+    protected static function loginAttemptsValidation(UserInterface $user) : bool
+    {
+        //load config
+        $config = new stdClass();
+        $config->login_reset_time = getenv('AUTH_MAX_AUTOLOGIN_TIME');
+        $config->max_login_attempts = getenv('AUTH_MAX_AUTOLOGIN_ATTEMPS');
+        //$config->max_login_attempts = getenv('AUTH_MAX_AUTOLOGIN_ATTEMPTS');
+
+        // If the last login is more than x minutes ago, then reset the login tries/time
+        if ($user->user_last_login_try
+            && $config->login_reset_time
+            && $user->user_last_login_try < (time() - ($config->login_reset_time * 60))
+        ) {
+            $user->user_login_tries = 0; //turn back to 0 attempt, success
+            $user->user_last_login_try = 0;
+            $user->updateOrFail();
+        }
+
+        // Check to see if user is allowed to login again... if his tries are exceeded
+        if ($user->user_last_login_try
+            && $config->login_reset_time
+            && $config->max_login_attempts
+            && $user->user_last_login_try >= (time() - ($config->login_reset_time * 60))
+            && $user->user_login_tries >= $config->max_login_attempts
+        ) {
+            throw new AuthenticationException(
+                sprintf(_('You have exhausted all login attempts.'), $config->max_login_attempts)
+            );
+        }
+
+        return true;
+    }
+
+    /**
+     * Reset login tries.
+     *
+     * @param Users $user
+     *
+     * @return bool
+     */
+    protected static function resetLoginTries(UserInterface $user) : bool
+    {
+        $user->lastvisit = date('Y-m-d H:i:s');
+        $user->user_login_tries = 0;
+        $user->user_last_login_try = 0;
+        return $user->updateOrFail();
+    }
+
+    /**
+     * Update login tries for the given user.
+     *
+     * @return bool
+     */
+    protected static function updateLoginTries(UserInterface $user) : bool
+    {
+        if ($user->getId() !== StatusEnums::ANONYMOUS->getValue()) {
+            $user->user_login_tries += 1;
+            $user->user_last_login_try = time();
+            return $user->updateOrFail();
+        }
+
+        return false;
     }
 
     /**

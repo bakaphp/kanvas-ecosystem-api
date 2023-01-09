@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Apps\Actions;
 
-use Kanvas\Apps\DataTransferObject\AppsPostData;
+use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Users\Models\Users;
 
 class CreateAppsAction
 {
@@ -13,14 +14,15 @@ class CreateAppsAction
      * Construct function.
      */
     public function __construct(
-        protected AppsPostData $data
+        protected AppInput $data,
+        protected Users $user
     ) {
     }
 
     /**
      * Invoke function.
      *
-     * @param AppsPostData $data
+     * @param AppInput $data
      *
      * @return Apps
      */
@@ -39,6 +41,9 @@ class CreateAppsAction
             'domain_based' => $this->data->domain_based
         ]);
         $app->saveOrFail();
+
+        $app->associateUser($this->user, $this->data->is_actived);
+
         return $app;
     }
 }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Baka\Traits;
 
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Utils\Str;
+use Baka\Support\Str;
 use RuntimeException;
 
 trait HashTableTrait
