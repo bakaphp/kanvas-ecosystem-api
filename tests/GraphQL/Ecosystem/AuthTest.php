@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+
 namespace Tests\GraphQL\Ecosystem;
 
 use Illuminate\Support\Facades\Auth;
@@ -20,7 +21,7 @@ class AuthTest extends TestCase
         if (empty(self::$loginData)) {
             self::$loginData = LoginInput::from([
                 'email' => fake()->email,
-                'password' => fake()->password,
+                'password' => fake()->password . fake()->password,
                 'ip' => request()->ip()
             ]);
         }
