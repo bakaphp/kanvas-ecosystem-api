@@ -19,8 +19,8 @@ php:
 # Deployments Values
 deployments:
   api:
-    name: api
-    containerName: api
+    name: kanvas-api
+    containerName: kanvas-api
   queue:
     name: queue
     containerName: queue
