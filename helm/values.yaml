@@ -5,7 +5,7 @@
 services:
   loadBalancer:
     name: graph
-    appName: kanvas-cluster-api
+    appName: kanvas-api
     lbSSLCert: none
 
 # namespace: memod-api
