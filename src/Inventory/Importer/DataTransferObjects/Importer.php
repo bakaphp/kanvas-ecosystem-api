@@ -12,7 +12,6 @@ class Importer extends Data
      * @return void
      */
     public function __construct(
-        public ?int $products_types_id = null,
         public string $name,
         public string $description,
         public ?string $short_description = null,
@@ -26,7 +25,6 @@ class Importer extends Data
         public ?array $variants = null,
         public ?array $attributes = null,
         public ?array $productType = null,
-
     ) {
     }
 }

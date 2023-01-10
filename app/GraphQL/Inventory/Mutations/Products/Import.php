@@ -10,7 +10,10 @@ class Import
 {
     public function importer(mixed $root, array $req): bool
     {
-        $dto = Importer::from([...$req['input']['product']]);
+        $dto = Importer::from([
+            ...$req['input']['product'],
+            'productType' => $req['input']['productType']
+        ]);
         (new ImporterAction("telegram",$dto,auth()->user()->defaultCompany))->execute();
         return true;
     }

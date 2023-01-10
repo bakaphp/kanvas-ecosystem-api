@@ -2,7 +2,9 @@
 declare(strict_types=1);
 namespace Kanvas\Inventory\ProductsTypes\DataTransferObject;
 
-class ProductsTypes
+use Spatie\LaravelData\Data;
+
+class ProductsTypes extends Data
 {
     /**
      * __construct

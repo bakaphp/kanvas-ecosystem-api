@@ -1,5 +1,6 @@
 input Importer {
     product: ProductInput
+    productType: ProductTypeInput
 }
 
 extend type Mutation @guard{

@@ -6,7 +6,7 @@ use Kanvas\Inventory\Importer\DataTransferObjects\Importer;
 use Kanvas\Inventory\Products\Repositories\ProductsRepository;
 use Kanvas\Inventory\ProductsTypes\Repositories\ProductsTypesRepository;
 use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes;
-use Kanvas\Inventory\ProductsTypes\Actions\CreateProductType;
+use Kanvas\Inventory\ProductsTypes\Actions\CreateProductTypeAction;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Categories\DataTransferObject\Categories as CategoryDto;
@@ -17,6 +17,7 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductsDto;
 use Kanvas\Inventory\Products\Models\Products as ProductsModel;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes as ProductsTypesModel;
 
 class ImporterAction
 {
@@ -25,7 +26,7 @@ class ImporterAction
     public function __construct(
         public string $source,
         public Importer $importerDto,
-        public Companies $company 
+        public Companies $company
     ) {
     }
 
@@ -46,6 +47,7 @@ class ImporterAction
             $this->product = (new CreateProductAction($productDto))->execute();
             $this->product->set("{$this->source}_id", $this->importerDto->source_id);
         }
+        $this->productType();
     }
 
     /**
@@ -55,18 +57,18 @@ class ImporterAction
      */
     protected function productType()
     {
-        $productType = ProductsTypesRepository::getBySourceKey("{$this->source}_id", $this->importerDto->products_types_id);
+        $productType = ProductsTypesModel::getByCustomField("{$this->source}_id", $this->importerDto->productType['source_id'], $this->company);
         if ($productType) {
-            $this->importerDto->products_types_id = $productType->id;
+            $this->product->update(['products_types_id' => $productType->id]);
         } else {
-            $productType = ProductsTypes::fromArray([
-                'companies_id' => auth()->user()->default_company,
+            $productTypeDto = ProductsTypes::from([
+                'companies_id' => $this->company->id,
                 'name' => $this->importerDto->productType['name'],
-                'weight' => $this->importerDto->productType['weight']
+                'description' => $this->importerDto->productType['description'] ?? null,
+                'weight' => $this->importerDto->productType['weight'],
             ]);
-            $productType = (new CreateProductType($productType))->execute();
-            $productType->set("{{$this->source}}_id", $this->importerDto->productType['source_id']);
-            $this->importerDto->products_types_id = $productType->id;
+            $productType = (new CreateProductTypeAction($productTypeDto))->execute();
+            $this->product->update(['products_types_id' => $productType->id]);
         }
     }
 

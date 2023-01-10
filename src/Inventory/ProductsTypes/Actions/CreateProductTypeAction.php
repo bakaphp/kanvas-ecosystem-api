@@ -5,7 +5,7 @@ namespace Kanvas\Inventory\ProductsTypes\Actions;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes as ProductsTypesDto;
 
-class CreateProductType
+class CreateProductTypeAction
 {
     /**
      * __construct
