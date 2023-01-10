@@ -12,7 +12,9 @@ class Import
     {
         $dto = Importer::from([
             ...$req['input']['product'],
-            'productType' => $req['input']['productType']
+            'productType' => $req['input']['productType'],
+            'categories' => $req['input']['categories'],
+            'attributes'=> $req['input']['attributes'],
         ]);
         (new ImporterAction("telegram",$dto,auth()->user()->defaultCompany))->execute();
         return true;

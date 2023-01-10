@@ -18,6 +18,10 @@ use Kanvas\Inventory\Products\DataTransferObject\Product as ProductsDto;
 use Kanvas\Inventory\Products\Models\Products as ProductsModel;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes as ProductsTypesModel;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Inventory\Attributes\Models\Attributes;
+use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
+use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 
 class ImporterAction
 {
@@ -48,6 +52,8 @@ class ImporterAction
             $this->product->set("{$this->source}_id", $this->importerDto->source_id);
         }
         $this->productType();
+        $this->categories();
+        $this->attributes();
     }
 
     /**
@@ -68,6 +74,7 @@ class ImporterAction
                 'weight' => $this->importerDto->productType['weight'],
             ]);
             $productType = (new CreateProductTypeAction($productTypeDto))->execute();
+            $productType->set("{$this->source}_id", $this->importerDto->productType['source_id']);
             $this->product->update(['products_types_id' => $productType->id]);
         }
     }
@@ -79,29 +86,41 @@ class ImporterAction
      */
     public function categories()
     {
-        foreach ($this->importerDto->categories as $key => $category) {
-            $categoryInv = Categories::getSourceKey("{{$this->source}}_id", $category['source_id']);
-            if ($categoryInv) {
-                $this->importerDto->categories[$key] = $categoryInv->toArray();
+        foreach ($this->importerDto->categories as $category) {
+            $categoryModel = Categories::getByCustomField("{$this->source}_id", $category['source_id'], $this->company);
+            if ($categoryModel) {
+                $this->product->categories()->syncWithoutDetaching([$categoryModel->id]);
+            } else {
+                $categoryDto = CategoryDto::fromArray([
+                    'companies_id' => $this->company->id,
+                    'parent_id' => $category['parent_id'] ?? null,
+                    'name' => $category['name'],
+                    'code' => $category['code'],
+                    'position' => $category['position'],
+                ]);
+                $categoryModel = (new CreateCategory($categoryDto))->execute();
+                $categoryModel->set("{$this->source}_id", $category['source_id']);
+                $this->product->categories()->attach($categoryModel->id);
             }
-            $category = CategoryDto::from($category);
-            $category = (new CreateCategory(CategoryDto::from($category)))->execute();
-            $category->set("{{$this->source}}_id", $category['source_id']);
-            $this->importerDto->categories[$key] = $category;
         }
     }
 
+    
     /**
-     * warehouses
+     * attributes
      *
      * @return void
      */
-    public function warehouses()
+    public function attributes()
     {
-        foreach ($this->importerDto->warehouses as $key => $warehouses) {
-            $warehouseInv = Warehouses::getSourceKey($this->source);
-            if ($warehouseInv) {
-                $this->importerDto->categories[$key] = $warehouseInv->ToArray();
+        foreach ($this->importerDto->attributes as $attribute) {
+            $attributeModel = Attributes::getByCustomField("{$this->source}_id", $attribute['source_id'], $this->company);
+            if (!$attributeModel) {
+                $attributesDto = AttributesDto::from([
+                    'name' => $attribute['name'],
+                ]);
+                $attributeModel = (new CreateAttribute($attributesDto))->execute();
+                $attributeModel->set("{$this->source}_id", $attribute['source_id']);
             }
         }
     }

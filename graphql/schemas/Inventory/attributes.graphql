@@ -1,5 +1,6 @@
 input AttributeInput {
     name: String!
+    source_id: String
 }
 input AttributeUpdateInput {
     name: String

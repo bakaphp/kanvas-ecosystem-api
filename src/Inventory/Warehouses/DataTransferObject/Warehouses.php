@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace Kanvas\Inventory\Warehouses\DataTransferObject;
+use Spatie\LaravelData\Data;
 
 /**
  * Class Warehouses
@@ -12,7 +13,7 @@ namespace Kanvas\Inventory\Warehouses\DataTransferObject;
  * @property bool $is_default
  * @property int $is_published
  */
-class Warehouses
+class Warehouses extends Data
 {
     /**
      * __construct

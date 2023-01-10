@@ -373,6 +373,7 @@ trait HasCustomFields
             ->where('apps_custom_fields.model_name', get_class(new static))
             ->where('apps_custom_fields.name', $name)
             ->where('apps_custom_fields.value', $value)
+            ->select($table . '.*')
             ->first();
     }
 }

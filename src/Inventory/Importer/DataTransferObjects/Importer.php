@@ -21,7 +21,6 @@ class Importer extends Data
         public string $source_id,
         public bool $is_published = true,
         public ?array $categories = null,
-        public ?array $warehouses = null,
         public ?array $variants = null,
         public ?array $attributes = null,
         public ?array $productType = null,
