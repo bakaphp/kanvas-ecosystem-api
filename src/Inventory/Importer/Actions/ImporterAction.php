@@ -22,6 +22,9 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
+use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
+use Kanvas\Inventory\Variants\Models\Variants as VariantsModel;
+use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
 
 class ImporterAction
 {
@@ -54,6 +57,7 @@ class ImporterAction
         $this->productType();
         $this->categories();
         $this->attributes();
+        $this->variants();
     }
 
     /**
@@ -105,7 +109,6 @@ class ImporterAction
         }
     }
 
-    
     /**
      * attributes
      *
@@ -122,6 +125,26 @@ class ImporterAction
                 $attributeModel = (new CreateAttribute($attributesDto))->execute();
                 $attributeModel->set("{$this->source}_id", $attribute['source_id']);
             }
+        }
+    }
+
+    /**
+     * variants
+     *
+     * @return void
+     */
+    public function variants()
+    {
+        foreach ($this->importerDto->variants as $variant) {
+            $variantModel = VariantsModel::getByCustomField("{$this->source}_id", $variant['source_id'], $this->company);
+            if ($variantModel) {
+                $this->product->variants()->attach($variantModel->id);
+            }
+            $variantDto = VariantsDto::from([
+                'products_id' => $this->product->id,
+                ...$variant
+            ]);
+            $variantModel = (new CreateVariantsAction($variantDto))->execute();
         }
     }
 }
