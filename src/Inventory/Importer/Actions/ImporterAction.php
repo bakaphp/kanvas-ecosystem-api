@@ -30,6 +30,11 @@ class ImporterAction
 {
     protected $product;
 
+    /**
+     * __construct
+     *
+     * @return void
+     */
     public function __construct(
         public string $source,
         public Importer $importerDto,
@@ -37,7 +42,12 @@ class ImporterAction
     ) {
     }
 
-    public function execute()
+    /**
+     * execute
+     *
+     * @return void
+     */
+    public function execute(): void
     {
         $product = ProductsModel::getByCustomField("{$this->source}_id", $this->importerDto->source_id, $this->company);
         if ($product) {
@@ -65,7 +75,7 @@ class ImporterAction
      *
      * @return void
      */
-    protected function productType()
+    protected function productType(): void
     {
         $productType = ProductsTypesModel::getByCustomField("{$this->source}_id", $this->importerDto->productType['source_id'], $this->company);
         if ($productType) {
@@ -88,7 +98,7 @@ class ImporterAction
      *
      * @return void
      */
-    public function categories()
+    public function categories(): void
     {
         foreach ($this->importerDto->categories as $category) {
             $categoryModel = Categories::getByCustomField("{$this->source}_id", $category['source_id'], $this->company);
@@ -114,7 +124,7 @@ class ImporterAction
      *
      * @return void
      */
-    public function attributes()
+    public function attributes(): void
     {
         foreach ($this->importerDto->attributes as $attribute) {
             $attributeModel = Attributes::getByCustomField("{$this->source}_id", $attribute['source_id'], $this->company);
@@ -133,7 +143,7 @@ class ImporterAction
      *
      * @return void
      */
-    public function variants()
+    public function variants(): void
     {
         foreach ($this->importerDto->variants as $variant) {
             $variantModel = VariantsModel::getByCustomField("{$this->source}_id", $variant['source_id'], $this->company);
