@@ -17,6 +17,7 @@ class CategoryTest extends TestCase
         $data = [
             'name' => fake()->name,
             'code' => fake()->name,
+            'position' => 1,
         ];
         $this->graphQL('
             mutation($data: CategoryInput!) {
@@ -24,7 +25,8 @@ class CategoryTest extends TestCase
                 {
                     id
                     name
-                    code
+                    code,
+                    position
                 }
             }', ['data' => $data])->assertJson([
             'data' => ['createCategory' => $data]
@@ -41,6 +43,8 @@ class CategoryTest extends TestCase
         $data = [
             'name' => fake()->name,
             'code' => fake()->name,
+            'position' => 1,
+
         ];
         $this->graphQL('
             mutation($data: CategoryInput!) {
@@ -48,7 +52,8 @@ class CategoryTest extends TestCase
                 {
                     id
                     name,
-                    code
+                    code,
+                    position
                 }
             }', ['data' => $data])->assertJson([
             'data' => ['createCategory' => $data]
@@ -75,6 +80,7 @@ class CategoryTest extends TestCase
         $data = [
             'name' => fake()->name,
             'code' => fake()->name,
+            'position' => 1,
         ];
         $this->graphQL('
             mutation($data: CategoryInput!) {
@@ -82,7 +88,8 @@ class CategoryTest extends TestCase
                 {
                     id
                     name,
-                    code
+                    code,
+                    position
                 }
             }', ['data' => $data])->assertJson([
             'data' => ['createCategory' => $data]
@@ -120,7 +127,9 @@ class CategoryTest extends TestCase
     {
         $data = [
             'name' => fake()->name,
-            'code' => fake()->name
+            'code' => fake()->name,
+            'position' => 1,
+
         ];
         $this->graphQL('
             mutation($data: CategoryInput!) {
@@ -128,7 +137,8 @@ class CategoryTest extends TestCase
                 {
                     id
                     name,
-                    code
+                    code,
+                    position
                 }
             }', ['data' => $data])->assertJson([
             'data' => ['createCategory' => $data]
