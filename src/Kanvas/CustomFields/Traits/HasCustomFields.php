@@ -13,6 +13,7 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Traits\HasSchemaAccessors;
 use Kanvas\Utils\Str;
 use Kanvas\Companies\Models\Companies;
+
 /**
  * Custom field class.
  */
@@ -367,7 +368,6 @@ trait HasCustomFields
     {
         $company = $company ? $company->id : AppEnums::GLOBAL_COMPANY_ID->getValue();
         $table = (new static)->getTable();
-        // dd($name, get_class(new static),$value, $table,$company);
         return self::join('apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table . '.id')
             ->where('apps_custom_fields.companies_id', $company)
             ->where('apps_custom_fields.model_name', get_class(new static))
