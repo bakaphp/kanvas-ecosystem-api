@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Apps\Actions;
 
 use Illuminate\Support\Facades\Auth;
+use Kanvas\Apps\Enums\Defaults;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\UpdateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\CompaniesPutData;
@@ -33,7 +34,7 @@ final class UpdateCompaniesActionTest extends TestCase
             'address' => $company->address,
             'zipcode' => (int) $company->zipcode,
             'email' => $company->email,
-            'language' => $company->language,
+            'language' =>  Defaults::DEFAULT_LANGUAGE->getValue(),
             'timezone' => $company->timezone,
             'phone' => $company->phone,
             'country_code' => $company->country_code,

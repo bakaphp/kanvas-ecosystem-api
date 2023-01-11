@@ -8,7 +8,7 @@ use DateTimeImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Kanvas\Auth\Jwt;
-use Kanvas\Sessions\Sessions\Models\Sessions;
+use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Models\Users;
 use Lcobucci\JWT\Token;
 use Lcobucci\JWT\Validation\Constraint\IssuedBy;

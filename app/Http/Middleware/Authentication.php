@@ -6,7 +6,7 @@ use Closure;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
-use Kanvas\Sessions\Sessions\Models\Sessions;
+use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Traits\TokenTrait;
 use Kanvas\Users\Models\Users;
 use Lcobucci\JWT\Token;

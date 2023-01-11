@@ -1,16 +1,19 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\AccessControlList\Actions;
 
+use Illuminate\Auth\Access\AuthorizationException;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Models\Role;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
-use Exception;
-use Illuminate\Auth\Access\AuthorizationException;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 
 class UpdateRoleAction
 {
     /**
-     * __construct
+     * __construct.
      *
      * @return void
      */
@@ -18,23 +21,30 @@ class UpdateRoleAction
         public int $id,
         public string $name,
         public ?string $title = null,
+        public ?Apps $app = null
     ) {
+        if ($app === null) {
+            $this->app = app(Apps::class);
+        }
     }
 
     /**
-     * execute
+     * execute.
      *
      * @return Role
      */
-    public function execute(): Role
+    public function execute(?Companies $company = null) : Role
     {
         $role = Role::find($this->id);
-        if ($role->scope !== RolesRepository::getScope()) {
-            throw new AuthorizationException('You dont have permission to update this role');
+
+        if ($role->scope !== RolesEnums::getKey($this->app, $company)) {
+            throw new AuthorizationException('You don\'t have permission to update this role');
         }
+
         $role->name = $this->name;
         $role->title = $this->title;
         $role->saveOrFail();
+
         return $role;
     }
 }

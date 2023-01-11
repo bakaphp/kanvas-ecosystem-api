@@ -5,7 +5,7 @@
 services:
   loadBalancer:
     name: graph
-    appName: kanvas-cluster-api
+    appName: kanvas-api
     lbSSLCert: none
 
 # namespace: memod-api
@@ -19,8 +19,8 @@ php:
 # Deployments Values
 deployments:
   api:
-    name: kanvas-cluster-api
-    containerName: api
+    name: kanvas-api
+    containerName: kanvas-api
   queue:
     name: queue
     containerName: queue

@@ -17,7 +17,7 @@ class AppsRepository
      */
     public static function findFirstByKey(string $key) : ?Apps
     {
-        return Apps::where('key', $key)->where('is_deleted', 0)->first();
+        return Apps::where('key', $key)->where('is_deleted', 0)->firstOrFail();
     }
 
     /**

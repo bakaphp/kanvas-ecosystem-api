@@ -25,7 +25,7 @@ final class CreateCompaniesActionTest extends TestCase
             'name' => $faker->company,
             'users_id' => Auth::user()->id
         ];
-        //Create new AppsPostData
+
         $dtoData = CompaniesPostData::fromArray($data);
 
         $company = new CreateCompaniesAction($dtoData);

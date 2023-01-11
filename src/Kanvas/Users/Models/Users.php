@@ -1,9 +1,11 @@
 <?php
 
 declare(strict_types=1);
+
 namespace Kanvas\Users\Models;
 
 use Baka\Traits\HashTableTrait;
+use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,16 +13,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Contracts\Authenticatable as ContractsAuthenticatable;
 use Kanvas\Auth\Traits\HasApiTokens;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Traits\PermissionsTrait;
 use Kanvas\Traits\UsersAssociatedTrait;
 use Kanvas\Users\Factories\UsersFactory;
-use Kanvas\Users\Models\UserConfig;
-use Kanvas\Notifications\Models\Notifications;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 
 /**
@@ -73,7 +76,7 @@ use Silber\Bouncer\Database\HasRolesAndAbilities;
  * @property int $user_recover_code
  * @property int $is_deleted
  */
-class Users extends Authenticatable
+class Users extends Authenticatable implements UserInterface, ContractsAuthenticatable
 {
     use HashTableTrait;
     use UsersAssociatedTrait;
@@ -93,6 +96,26 @@ class Users extends Authenticatable
      * @var string
      */
     protected $table = 'users';
+
+    /**
+     * Get id.
+     *
+     * @return int
+     */
+    public function getId() : int
+    {
+        return (int) $this->getKey();
+    }
+
+    /**
+     * Get uuid.
+     *
+     * @return string
+     */
+    public function getUuid() : string
+    {
+        return $this->uuid;
+    }
 
     /**
      * Create a new factory instance for the model.
@@ -125,6 +148,18 @@ class Users extends Authenticatable
     }
 
     /**
+     * Get the current user information for the running app
+     *
+     * @return UsersAssociatedApps
+     */
+    public function currentAppInfo() : UsersAssociatedApps
+    {
+        return UsersAssociatedApps::where('users_id', $this->getId())
+            ->where('apps_id', app(Apps::class)->getKey())
+            ->firstOrFail();
+    }
+
+    /**
      * CompaniesBranches relationship.
      *
      * @return hasMany
@@ -149,7 +184,7 @@ class Users extends Authenticatable
      *
      * @return void
      */
-    public function notifications()
+    public function notifications() : HasMany
     {
         return $this->hasMany(Notifications::class, 'users_id');
     }

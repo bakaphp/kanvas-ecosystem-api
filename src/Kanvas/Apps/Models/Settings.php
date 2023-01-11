@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Apps\Models;
 
+use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
 
@@ -17,12 +18,16 @@ use Kanvas\Models\BaseModel;
 
 class Settings extends BaseModel
 {
+    use HasCompositePrimaryKeyTrait;
+
     /**
      * The table associated with the model.
      *
      * @var string
      */
     protected $table = 'apps_settings';
+
+    protected $primaryKey = ['apps_id', 'name'];
 
     /**
      * Apps relationship.

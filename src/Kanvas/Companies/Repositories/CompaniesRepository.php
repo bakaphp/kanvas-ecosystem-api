@@ -30,6 +30,18 @@ class CompaniesRepository
     }
 
     /**
+     * Get by uuid.
+     *
+     * @param string $uuid
+     *
+     * @return Companies
+     */
+    public static function getByUuid(string $uuid) : Companies
+    {
+        return Companies::where('uuid', $uuid)->firstOrFail();
+    }
+
+    /**
      * User belongs / has permission in this company.
      *
      * @param Companies $company

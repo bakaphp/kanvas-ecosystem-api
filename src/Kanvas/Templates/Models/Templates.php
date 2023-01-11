@@ -32,7 +32,7 @@ class Templates extends BaseModel
      *
      * @var string
      */
-    protected $table = 'templates';
+    protected $table = 'email_templates';
 
     /**
      * The attributes that should not be mass assignable.

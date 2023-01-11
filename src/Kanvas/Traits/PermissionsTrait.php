@@ -12,7 +12,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Roles\Repositories\RolesRepository;
 use Kanvas\Users\Models\UserRoles;
-use Kanvas\Utils\Str;
+use Baka\Support\Str;
 
 trait PermissionsTrait
 {

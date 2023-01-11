@@ -14,7 +14,6 @@ class ProductsTypesTest extends TestCase
      */
     public function testCreate(): void
     {
-        $this->actingAs($this->createUser());
         $data = [
             'name' => fake()->name,
             'weight' => 1,
@@ -38,7 +37,6 @@ class ProductsTypesTest extends TestCase
      */
     public function testSearch(): void
     {
-        $this->actingAs($this->createUser());
         $data = [
             'name' => fake()->name,
             'weight' => 1,
@@ -73,7 +71,6 @@ class ProductsTypesTest extends TestCase
      */
     public function testUpdate(): void
     {
-        $this->actingAs($this->createUser());
         $data = [
             'name' => fake()->name,
             'weight' => 1,
@@ -119,7 +116,6 @@ class ProductsTypesTest extends TestCase
      */
     public function testDelete(): void
     {
-        $this->actingAs($this->createUser());
         $data = [
             'name' => fake()->name,
             'weight' => 1,

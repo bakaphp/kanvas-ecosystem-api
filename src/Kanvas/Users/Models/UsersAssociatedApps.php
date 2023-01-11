@@ -6,6 +6,7 @@ namespace Kanvas\Users\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Contracts\Authenticatable;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
@@ -21,7 +22,7 @@ use Kanvas\Users\Models\Users;
  * @property int $user_active
  * @property string $user_role
  */
-class UsersAssociatedApps extends BaseModel
+class UsersAssociatedApps extends BaseModel implements Authenticatable
 {
     /**
      * The table associated with the model.

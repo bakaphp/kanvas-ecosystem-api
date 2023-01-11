@@ -95,6 +95,7 @@ services:
             - sail
     mailhog:
         image: 'mailhog/mailhog:latest'
+        container_name: mailhog${APP_CONTAINER_NAME}
         ports:
             - '${FORWARD_MAILHOG_PORT:-1025}:1025'
             - '${FORWARD_MAILHOG_DASHBOARD_PORT:-8025}:8025'
@@ -102,6 +103,7 @@ services:
           - sail
     phpmyadmin:
         image: phpmyadmin/phpmyadmin:5.0.2
+        container_name: phpmyadmin${APP_CONTAINER_NAME}
         restart: always
         environment:
             - PMA_HOST=mysql
@@ -116,7 +118,7 @@ services:
           - sail
     minio1:
       image: minio/minio
-      container_name: minio
+      container_name: minio${APP_CONTAINER_NAME}
       restart: always
       environment:
         MINIO_ACCESS_KEY: minio

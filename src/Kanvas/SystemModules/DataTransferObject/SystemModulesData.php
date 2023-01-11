@@ -2,18 +2,17 @@
 
 declare(strict_types=1);
 
-
 namespace Kanvas\SystemModules\DataTransferObject;
 
-use Spatie\DataTransferObject\DataTransferObject;
+use Spatie\LaravelData\Data;
 
 /**
- * AppsData class
+ * AppsData class.
  */
-class SystemModulesData extends DataTransferObject
+class SystemModulesData extends Data
 {
     /**
-     * Construct function
+     * Construct function.
      *
      * @property string $name
      * @property string $slug
@@ -55,7 +54,7 @@ class SystemModulesData extends DataTransferObject
      *
      * @return self
      */
-    public static function fromArray(array $data): self
+    public static function fromArray(array $data) : self
     {
         return new self(
             name: $data['name'],
