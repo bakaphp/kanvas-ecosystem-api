@@ -63,6 +63,8 @@ class CategoryTest extends TestCase
                 categories {
                     data {
                         name,
+                        code,
+                        position
                     }
                 }
             }')->assertJson([
