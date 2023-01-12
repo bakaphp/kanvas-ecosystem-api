@@ -13,10 +13,11 @@ use Kanvas\Inventory\Traits\AppsIdTrait;
 use Kanvas\Inventory\Traits\CompaniesIdTrait;
 use Kanvas\Inventory\Traits\ScopesTrait;
 use Kanvas\CustomFields\Traits\HasCustomFields;
+use Kanvas\Inventory\Traits\SourceTrait;
 
 class BaseModel extends EloquentModel
 {
-    use HasFactory, BakaBaseModel,AppsIdTrait,CompaniesIdTrait,ScopesTrait,HasCustomFields;
+    use HasFactory,SourceTrait,BakaBaseModel,AppsIdTrait,CompaniesIdTrait,ScopesTrait,HasCustomFields;
     //use SoftDeletes;
 
     protected $attributes = [

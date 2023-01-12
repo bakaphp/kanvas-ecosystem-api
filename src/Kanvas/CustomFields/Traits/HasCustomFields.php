@@ -366,7 +366,7 @@ trait HasCustomFields
      */
     public static function getByCustomField(string $name, mixed $value, ?Companies $company = null)
     {
-        $company = $company ? $company->id : AppEnums::GLOBAL_COMPANY_ID->getValue();
+        $company = $company ? $company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
         $table = (new static)->getTable();
         return self::join('apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table . '.id')
             ->where('apps_custom_fields.companies_id', $company)

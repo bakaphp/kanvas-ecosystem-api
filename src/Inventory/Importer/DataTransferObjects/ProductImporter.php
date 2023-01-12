@@ -4,7 +4,7 @@ namespace Kanvas\Inventory\Importer\DataTransferObjects;
 
 use Spatie\LaravelData\Data;
 
-class Importer extends Data
+class ProductImporter extends Data
 {
     /**
      * __construct

@@ -13,10 +13,10 @@ use Shopify\Auth\FileSessionStorage;
 use Kanvas\Inventory\Shopify\Client;
 use Spatie\LaravelData\Data;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Inventory\Importer\DataTransferObjects\Importer as ImporterDto;
-use Kanvas\Inventory\Importer\Actions\ImporterAction;
+use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter as ImporterDto;
+use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 
-class Importer implements ShouldQueue
+class ProductImporterJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -42,6 +42,6 @@ class Importer implements ShouldQueue
      */
     public function handle()
     {
-        (new ImporterAction($this->source, $this->importer, $this->company))->execute();
+        (new ProductImporterAction($this->source, $this->importer, $this->company))->execute();
     }
 }

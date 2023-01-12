@@ -2,7 +2,7 @@
 declare(strict_types=1);
 namespace Kanvas\Inventory\Importer\Actions;
 
-use Kanvas\Inventory\Importer\DataTransferObjects\Importer;
+use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Products\Repositories\ProductsRepository;
 use Kanvas\Inventory\ProductsTypes\Repositories\ProductsTypesRepository;
 use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes;
@@ -26,7 +26,7 @@ use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\Models\Variants as VariantsModel;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
 
-class ImporterAction
+class ProductImporterAction
 {
     protected $product;
 
@@ -37,7 +37,7 @@ class ImporterAction
      */
     public function __construct(
         public string $source,
-        public Importer $importerDto,
+        public ProductImporter $importerDto,
         public Companies $company
     ) {
     }
@@ -62,7 +62,7 @@ class ImporterAction
                 'upc' => $this->importer->upc ?? null
             ]);
             $this->product = (new CreateProductAction($productDto))->execute();
-            $this->product->set("{$this->source}_id", $this->importerDto->source_id);
+            $this->product->setLinkedSource($this->source, $this->importerDto->source_id);
         }
         $this->productType();
         $this->categories();
@@ -88,7 +88,7 @@ class ImporterAction
                 'weight' => $this->importerDto->productType['weight'],
             ]);
             $productType = (new CreateProductTypeAction($productTypeDto))->execute();
-            $productType->set("{$this->source}_id", $this->importerDto->productType['source_id']);
+            $this->product->setLinkedSource($this->source, $this->importerDto->productType['source_id']);
             $this->product->update(['products_types_id' => $productType->id]);
         }
     }
@@ -113,7 +113,7 @@ class ImporterAction
                     'position' => $category['position'],
                 ]);
                 $categoryModel = (new CreateCategory($categoryDto))->execute();
-                $categoryModel->set("{$this->source}_id", $category['source_id']);
+                $categoryModel->setLinkedSource($this->source, $category['source_id']);
                 $this->product->categories()->attach($categoryModel->id);
             }
         }
@@ -133,7 +133,7 @@ class ImporterAction
                     'name' => $attribute['name'],
                 ]);
                 $attributeModel = (new CreateAttribute($attributesDto))->execute();
-                $attributeModel->set("{$this->source}_id", $attribute['source_id']);
+                $attributeModel->setLinkedSource($this->source, $attribute['source_id']);
             }
         }
     }
@@ -148,13 +148,15 @@ class ImporterAction
         foreach ($this->importerDto->variants as $variant) {
             $variantModel = VariantsModel::getByCustomField("{$this->source}_id", $variant['source_id'], $this->company);
             if ($variantModel) {
-                $this->product->variants()->attach($variantModel->id);
+                $this->product->variants()->save($variantModel);
+            } else {
+                $variantDto = VariantsDto::from([
+                    'products_id' => $this->product->id,
+                    ...$variant
+                ]);
+                $variantModel = (new CreateVariantsAction($variantDto))->execute();
+                $variantModel->setLinkedSource($this->source, $variant['source_id']);
             }
-            $variantDto = VariantsDto::from([
-                'products_id' => $this->product->id,
-                ...$variant
-            ]);
-            $variantModel = (new CreateVariantsAction($variantDto))->execute();
         }
     }
 }

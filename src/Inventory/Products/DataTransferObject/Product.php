@@ -20,11 +20,11 @@ class Product extends Data
         public ?string $warranty_terms = null,
         public ?string $upc = null,
         public bool $is_published = true,
-        public ?array $categories = null,
-        public ?array $warehouses = null,
-        public ?array $variants = null,
-        public ?array $attributes = null,
-        public ?array $productType = null,
+        public array $categories = [],
+        public array $warehouses = [],
+        public array $variants = [],
+        public array $attributes = [],
+        public array $productType = [],
     ) {
     }
 }
