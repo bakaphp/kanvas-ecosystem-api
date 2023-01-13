@@ -31,6 +31,9 @@ Todo:
 
 7. To check if the API is working just make a GET request to  ```http://localhost:80/v1/``` and see if the response returns ```"Woot Kanvas"```
 
+### Setup Inventory
+1. php artisan migrate --path database/migrations/Inventory/
+
 ## Running the project with Laravel Octane
 
 After doing all the steps above, you could run the project with Laravel Octane by using the command ```php artisan octane:start --port 8080 --host=0.0.0.0```. 
