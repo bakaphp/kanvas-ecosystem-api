@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -79,7 +80,7 @@ class CompaniesRepository
             return UsersAssociatedCompanies::where('users_id', $user->getKey())
                                 ->where('companies_id', $company->getKey())
                                 ->whereIn('companies_branches_id', [$branch->getKey(), StateEnums::NO->getValue()])
-                                ->where('is_deleted', StateEnums::NO->getValue())
+                                ->where('is_deleted', AppEnums::GLOBAL_COMPANY_ID->getValue())
                                 ->firstOrFail();
         } catch (ModelNotFoundException) {
             throw new ModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
