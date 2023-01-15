@@ -49,12 +49,14 @@ class ProcessInviteAction
 
             $company = $invite->company()->get()->first();
             $branch = $invite->branch()->get()->first();
-            $company->associateUser(
+
+           /*  $company->associateUser(
                 $user,
                 StateEnums::YES->getValue(),
                 $branch,
                 $invite->role_id
-            );
+            ); */
+
             $company->associateUserApp(
                 $user,
                 app(Apps::class),
