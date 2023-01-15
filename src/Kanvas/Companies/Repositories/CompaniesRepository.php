@@ -78,7 +78,7 @@ class CompaniesRepository
         try {
             return UsersAssociatedCompanies::where('users_id', $user->getKey())
                                 ->where('companies_id', $company->getKey())
-                                //->where('companies_branches_id', $branch->getKey())
+                                ->whereIn('companies_branches_id', [$branch->getKey(), StateEnums::NO->getValue()])
                                 ->where('is_deleted', StateEnums::NO->getValue())
                                 ->firstOrFail();
         } catch (ModelNotFoundException) {

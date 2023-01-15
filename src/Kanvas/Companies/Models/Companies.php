@@ -166,10 +166,10 @@ class Companies extends BaseModel
      * Associate user to this company.
      *
      * @param Users $user
-     * @param int $isActive
-     * @param int|null $userRoleId
+     * @param integer $isActive
+     * @param CompaniesBranches $branch
+     * @param integer|null $userRoleId
      * @param string|null $companyUserIdentifier
-     *
      * @return UsersAssociatedCompanies
      */
     public function associateUser(
@@ -182,11 +182,11 @@ class Companies extends BaseModel
         return UsersAssociatedCompanies::firstOrCreate([
             'users_id' => $user->getKey(),
             'companies_id' => $this->getKey(),
-            'companies_branches_id' => $branch->getKey(),
+            'companies_branches_id' => $branch->id,
         ], [
             'users_id' => $user->getKey(),
             'companies_id' => $this->getKey(),
-            'companies_branches_id' => $branch->getKey(),
+            'companies_branches_id' => $branch->id,
             'identify_id' => $companyUserIdentifier ?? $user->id,
             'user_active' => $isActive,
             'user_role' => $userRoleId ?? $user->roles_id,

@@ -9,6 +9,7 @@ use Kanvas\Companies\Branches\Actions\CreateCompanyBranchActions;
 use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPostData;
 use Kanvas\Companies\Groups\Actions\CreateCompanyGroupActions;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Actions\AssignRole;
@@ -56,6 +57,15 @@ class CompaniesObserver
         );
 
         $branch = $createCompanyBranch->execute();
+
+        //associate to all branches of this company
+        $tempBranch = new CompaniesBranches();
+        $tempBranch->id = 0;
+        $company->associateUser(
+            $user,
+            StateEnums::ON->getValue(),
+            $tempBranch
+        );
 
         $company->associateUser(
             $user,

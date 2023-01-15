@@ -25,7 +25,7 @@ class CreateUsersAssociatedCompanyTable extends Migration
             $table->dateTime('updated_at')->nullable()->index('updated_at');
             $table->tinyInteger('is_deleted')->default(0)->index('is_deleted');
 
-            $table->primary(['users_id', 'companies_id']);
+            $table->primary(['users_id', 'companies_id', 'companies_branches_id']);
             $table->unique(['users_id', 'companies_branches_id', 'companies_id'], 'users_id');
             $table->index(['users_id', 'companies_id'], 'users_id_2');
         });

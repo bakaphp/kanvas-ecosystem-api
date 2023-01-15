@@ -32,7 +32,7 @@ class UsersAssociatedCompanies extends BaseModel
     protected $fillable = [
         'users_id',
         'companies_id',
-        //'companies_branches_id' => $branch->getKey(),
+        'companies_branches_id',
         'identify_id',
         'user_active',
         'user_role',
