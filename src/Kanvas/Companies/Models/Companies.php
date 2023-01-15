@@ -182,6 +182,7 @@ class Companies extends BaseModel
         return UsersAssociatedCompanies::firstOrCreate([
             'users_id' => $user->getKey(),
             'companies_id' => $this->getKey(),
+            'companies_branches_id' => $branch->getKey(),
         ], [
             'users_id' => $user->getKey(),
             'companies_id' => $this->getKey(),

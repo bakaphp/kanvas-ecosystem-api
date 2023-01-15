@@ -1,52 +1,67 @@
 <?php
 declare(strict_types=1);
-namespace Kanvas\Users\Invites\Actions;
 
-use Kanvas\Users\Invites\DataTransferObject\Invite as InviteDto;
-use Kanvas\Notifications\Templates\Invite as InviteTemplate;
-use Kanvas\Users\Invites\Models\UsersInvite;
-use Kanvas\Apps\Models\Apps;
+namespace Kanvas\Users\Actions;
+
 use Illuminate\Support\Str;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Notifications\Templates\Invite as InviteTemplate;
+use Kanvas\Users\DataTransferObject\Invite as InviteDto;
+use Kanvas\Users\Models\UsersInvite;
 use Kanvas\Users\Models\Users;
 
 class CreateInviteAction
 {
     public function __construct(
         public InviteDto $inviteDto,
-        public ?Users $user = null,
+        public Users $user
     ) {
     }
 
     /**
-     * execute
+     * execute.
      *
      * @return bool
      */
-    public function execute(): bool
+    public function execute() : UsersInvite
     {
+        $companyBranch = CompaniesBranches::getById($this->inviteDto->companies_branches_id);
+        $company = $companyBranch->company()->get()->first();
+
+        CompaniesRepository::userAssociatedToCompanyAndBranch(
+            $company,
+            $companyBranch,
+            $this->user
+        );
+
         $invite = new UsersInvite();
         $invite->fill([
-            'invite_hash' => Str::random(30),
+            'invite_hash' => Str::random(50),
             'users_id' => $this->user ? $this->user->id : auth()->user()->id,
-            'companies_id' => $this->user ? $this->user->defaultCompany->id : auth()->user()->defaultCompany->id,
-            'companies_branches_id' => $this->inviteDto->companies_branches_id,
+            'companies_id' => $company->getKey(),
+            'companies_branches_id' => $companyBranch->getKey(),
             'role_id' => $this->inviteDto->role_id,
-            'apps_id' => app(Apps::class)->id,
+            'apps_id' => app(Apps::class)->getKey(),
             'email' => $this->inviteDto->email,
             'firstname' => $this->inviteDto->firstname,
             'lastname' => $this->inviteDto->lastname,
             'description' => $this->inviteDto->description,
         ]);
+
         $invite->saveOrFail();
         $userTemp = new Users();
+
         $userTemp->fill([
             'email' => $this->inviteDto->email,
             'firstname' => $this->inviteDto->firstname,
             'lastname' => $this->inviteDto->lastname,
             'companies_id' => auth()->user()->defaultCompany->id,
         ]);
+
         $userTemp->notify(new InviteTemplate($invite));
 
-        return true;
+        return $invite;
     }
 }

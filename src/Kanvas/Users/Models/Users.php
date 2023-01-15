@@ -18,6 +18,7 @@ use Kanvas\Auth\Contracts\Authenticatable as ContractsAuthenticatable;
 use Kanvas\Auth\Traits\HasApiTokens;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Roles\Models\Roles;
@@ -148,7 +149,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
-     * Get the current user information for the running app
+     * Get the current user information for the running app.
      *
      * @return UsersAssociatedApps
      */
@@ -271,6 +272,16 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function currentCompanyId() : int
     {
         return  (int) $this->get(Companies::cacheKey());
+    }
+
+    /**
+     * Get the current company in the user session
+     *
+     * @return Companies
+     */
+    public function getCurrentCompany() : Companies
+    {
+        return CompaniesRepository::getById($this->currentCompanyId());
     }
 
     /**
