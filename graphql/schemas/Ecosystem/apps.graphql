@@ -22,30 +22,6 @@ type Template {
     template: String!
 }
 
-extend type Query {
-    apps(
-        where: _
-            @whereConditions(
-                columns: [
-                    "id"
-                    "key"
-                    "name"
-                    "description"
-                    "url"
-                    "domain"
-                    "default_apps_plan_id"
-                    "is_active"
-                    "key"
-                    "payments_active"
-                    "ecosystem_auth"
-                    "is_public"
-                    "domain_based"
-                ]
-            )
-        orderBy: _ @orderBy(columns: ["id"])
-    ): [App] @paginate(model: "Kanvas\\Apps\\Models\\Apps")
-}
-
 input AppInput {
     name: String!
     description: String!
@@ -68,6 +44,47 @@ input appSettingInput {
 input templateInput {
     name: String!
     template: String!
+}
+
+type AppSettings {
+    name: String!
+    description: String
+    settings: [Mixed!]!
+}
+
+extend type Query @guard {
+    apps(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "key"
+                    "name"
+                    "description"
+                    "url"
+                    "domain"
+                    "default_apps_plan_id"
+                    "is_active"
+                    "key"
+                    "payments_active"
+                    "ecosystem_auth"
+                    "is_public"
+                    "domain_based"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id"])
+    ): [App!]!
+        @paginate(
+            model: "Kanvas\\Apps\\Models\\Apps"
+            scopes: ["userAssociated"]
+        )
+}
+
+extend type Query {
+    getAppSettings(key: String! @eq): AppSettings
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\AppsList@getAppSettings"
+        )
 }
 
 extend type Mutation @guard {

@@ -34,7 +34,7 @@ class UpdateCompaniesAction
         $companies = Companies::findOrFail($id);
 
         CompaniesRepository::userAssociatedToCompany($companies, $this->user);
-        $companies->updateOrFail($this->data->spitFilledAsArray());
+        $companies->updateOrFail($this->data->toArray());
 
         return $companies;
     }

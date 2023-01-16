@@ -10,6 +10,16 @@ use Kanvas\Enums\StateEnums;
 trait KanvasModelTrait
 {
     /**
+     * Get primary key.
+     *
+     * @return mixed
+     */
+    public function getId() : mixed
+    {
+        return $this->getKey();
+    }
+
+    /**
      * Get by uui.
      *
      * @param string $uuid

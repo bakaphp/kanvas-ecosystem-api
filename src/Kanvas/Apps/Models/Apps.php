@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Apps\Models;
 
+use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
+use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
-use Baka\Support\Str;
 
 /**
  * Apps Model.
@@ -172,5 +174,23 @@ class Apps extends BaseModel
             'password' => $password,
             'configuration' => Str::isJson($configuration) ? json_encode($configuration) : $configuration
         ]);
+    }
+
+    /**
+     * Not deleted scope.
+     *
+     * @param Builder $query
+     *
+     * @return Builder
+     */
+    public function scopeUserAssociated(Builder $query) : Builder
+    {
+        $user = Auth::user();
+        return $query->join('users_associated_apps', function ($join) use ($user) {
+            $join->on('apps.id', '=', 'users_associated_apps.apps_id')
+                ->where('users_associated_apps.users_id', '=', $user->getKey())
+                ->where('users_associated_apps.is_deleted', '=', 0);
+        })
+        ->where('apps.is_deleted', '=', 0);
     }
 }
