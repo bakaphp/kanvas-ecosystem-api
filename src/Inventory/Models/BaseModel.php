@@ -17,6 +17,8 @@ use Kanvas\Inventory\Traits\SourceTrait;
 
 class BaseModel extends EloquentModel
 {
+    protected $connection= 'inventory';
+
     use HasFactory,SourceTrait,BakaBaseModel,AppsIdTrait,CompaniesIdTrait,ScopesTrait,HasCustomFields;
     //use SoftDeletes;
 
