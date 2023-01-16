@@ -73,7 +73,7 @@ class CompaniesBranches extends BaseModel
     }
 
     /**
-     * Filter what the user can see
+     * Filter what the user can see.
      *
      * @param Builder $query
      *
@@ -89,5 +89,18 @@ class CompaniesBranches extends BaseModel
                 ->where('users_associated_company.is_deleted', '=', 0);
         })
         ->where('companies_branches.is_deleted', '=', 0);
+    }
+
+    /**
+     * Get a branch with id 0 , representing the global branch.
+     *
+     * @return self
+     */
+    public static function getGlobalBranch() : self
+    {
+        $branch = new self();
+        $branch->id = 0;
+
+        return $branch;
     }
 }

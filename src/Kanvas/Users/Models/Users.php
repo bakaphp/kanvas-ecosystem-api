@@ -22,6 +22,7 @@ use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Roles\Models\Roles;
+use Kanvas\Traits\KanvasModelTrait;
 use Kanvas\Traits\PermissionsTrait;
 use Kanvas\Traits\UsersAssociatedTrait;
 use Kanvas\Users\Factories\UsersFactory;
@@ -87,6 +88,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use HasApiTokens;
     use HasRolesAndAbilities;
     use HasFilesystemTrait;
+    use KanvasModelTrait;
 
     protected ?string $defaultCompanyName = null;
     protected $guarded = [];

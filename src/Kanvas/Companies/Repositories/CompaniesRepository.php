@@ -27,7 +27,9 @@ class CompaniesRepository
      */
     public static function getById(int $id) : Companies
     {
-        return Companies::where('id', $id)->firstOrFail();
+        return Companies::where('id', $id)
+                ->where('is_deleted', StateEnums::NO->getValue())
+                ->firstOrFail();
     }
 
     /**
@@ -39,7 +41,9 @@ class CompaniesRepository
      */
     public static function getByUuid(string $uuid) : Companies
     {
-        return Companies::where('uuid', $uuid)->firstOrFail();
+        return Companies::where('uuid', $uuid)
+                ->where('is_deleted', StateEnums::NO->getValue())
+                ->firstOrFail();
     }
 
     /**

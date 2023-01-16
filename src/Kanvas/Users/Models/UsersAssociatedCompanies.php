@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Models;
 
+use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
@@ -22,12 +23,16 @@ use Kanvas\Users\Models\Users;
  */
 class UsersAssociatedCompanies extends BaseModel
 {
+    use HasCompositePrimaryKeyTrait;
+
     /**
      * The table associated with the model.
      *
      * @var string
      */
     protected $table = 'users_associated_company';
+
+    protected $primaryKey = ['users_id', 'companies_id', 'companies_branches_id'];
 
     protected $fillable = [
         'users_id',
