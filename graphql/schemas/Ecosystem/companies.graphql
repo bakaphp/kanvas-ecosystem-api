@@ -148,7 +148,7 @@ extend type Query @guard {
             )
     ): [User!]!
         @paginate(
-            builder: "App\\GraphQL\\Ecosystem\\Resolvers\\Companies\\UserManagement@getAllCompanyUsers"
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagement@getAllCompanyUsers"
             defaultCount: 10
         )
 }
@@ -172,7 +172,7 @@ extend type Query @guard {
             )
     ): [User!]!
         @paginate(
-            builder: "App\\GraphQL\\Ecosystem\\Resolvers\\Companies\\UserManagement@getAllCompanyBranchUsers"
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagement@getAllCompanyBranchUsers"
             defaultCount: 10
         )
 }

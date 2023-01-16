@@ -72,4 +72,8 @@ extend type Mutation {
 
 type Query @guard {
     me: User! @auth
+    user(id: ID! @eq): User
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Users\\UsersList@getFromCurrentCompany"
+        )
 }

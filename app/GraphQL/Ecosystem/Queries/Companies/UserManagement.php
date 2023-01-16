@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace App\GraphQL\Ecosystem\Resolvers\Companies;
+namespace App\GraphQL\Ecosystem\Queries\Companies;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
