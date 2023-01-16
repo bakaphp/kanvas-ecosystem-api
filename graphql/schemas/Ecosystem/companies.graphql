@@ -122,7 +122,7 @@ extend type Query @guard {
                 ]
             )
         orderBy: _ @orderBy(columns: ["id"])
-    ): [Company!]!
+    ): [CompanyBranch!]!
         @paginate(
             model: "Kanvas\\Companies\\Models\\CompaniesBranches"
             scopes: [ "userAssociated"]
@@ -146,7 +146,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CreateCompaniesBranch"
         )
-    updateCompanyBranch(id: Int!, input: CompanyBranchInput): Boolean!
+    updateCompanyBranch(id: Int!, input: CompanyBranchInput): CompanyBranch!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\UpdateCompaniesBranch"
         )
