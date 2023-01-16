@@ -129,6 +129,54 @@ extend type Query @guard {
         )
 }
 
+extend type Query @guard {
+    companyUsers(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id",
+                    "uuid",
+                    "firstname",
+                    "lastname",
+                    "displayname",
+                    "email",
+                    "phone",
+                    "user_active",
+                    "created_at",
+                    "updated_at"
+                ]
+            )
+    ): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Resolvers\\Companies\\UserManagement@getAllCompanyUsers"
+            defaultCount: 10
+        )
+}
+
+extend type Query @guard {
+    companyBranchUsers(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id",
+                    "uuid",
+                    "firstname",
+                    "lastname",
+                    "displayname",
+                    "email",
+                    "phone",
+                    "user_active",
+                    "created_at",
+                    "updated_at"
+                ]
+            )
+    ): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Resolvers\\Companies\\UserManagement@getAllCompanyBranchUsers"
+            defaultCount: 10
+        )
+}
+
 extend type Mutation @guard {
     createCompany(input: CompanyInput): Company!
         @field(

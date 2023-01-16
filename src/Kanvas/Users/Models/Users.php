@@ -277,7 +277,17 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
-     * Get the current company in the user session
+     * What the current branch the users is logged in with.
+     *
+     * @return int
+     */
+    public function currentBranchId() : int
+    {
+        return  (int) $this->get($this->getCurrentCompany()->branchCacheKey());
+    }
+
+    /**
+     * Get the current company in the user session.
      *
      * @return Companies
      */
