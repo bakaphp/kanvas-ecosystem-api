@@ -6,8 +6,8 @@ namespace Baka\Users\Contracts;
 
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Users\Models\UsersAssociatedApps;
 
 /**
@@ -22,9 +22,8 @@ interface UserInterface extends Authenticatable
     public function isBanned() : bool;
     public function getEmail() : string;
     public function defaultCompany() : HasOne;
-    public function companies() : HasMany;
-    public function branches() : HasMany;
+    public function companies() : HasManyThrough;
+    public function branches() : HasManyThrough;
     public function notifications() : HasMany;
     public function currentAppInfo() : UsersAssociatedApps;
-
 }

@@ -10,6 +10,7 @@ use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -19,6 +20,7 @@ use Kanvas\Auth\Traits\HasApiTokens;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Roles\Models\Roles;
@@ -142,12 +144,21 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * Companies relationship.
+     * use distinct() to avoid duplicate companies
      *
-     * @return hasMany
+     * @return HasManyThrough
      */
-    public function companies() : HasMany
+    public function companies() : HasManyThrough
     {
-        return $this->hasMany(Companies::class, 'users_id');
+        //return $this->hasMany(Companies::class, 'users_id');
+        return $this->hasManyThrough(
+            Companies::class,
+            UsersAssociatedCompanies::class,
+            'users_id',
+            'id',
+            'id',
+            'companies_id'
+        )->where('companies.is_deleted', 0)->distinct();
     }
 
     /**
@@ -165,11 +176,18 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * CompaniesBranches relationship.
      *
-     * @return hasMany
+     * @return HasManyThrough
      */
-    public function branches() : HasMany
+    public function branches() : HasManyThrough
     {
-        return $this->hasMany(CompaniesBranches::class, 'users_id');
+        return $this->hasManyThrough(
+            CompaniesBranches::class,
+            UsersAssociatedCompanies::class,
+            'users_id',
+            'id',
+            'id',
+            'companies_branches_id'
+        )->where('companies_branches.is_deleted', 0);
     }
 
     /**
@@ -189,7 +207,9 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function notifications() : HasMany
     {
-        return $this->hasMany(Notifications::class, 'users_id');
+        return $this->hasMany(Notifications::class, 'users_id')
+            ->where('is_deleted', StateEnums::NO->getValue())
+            ->where('apps_id', app(Apps::class)->getId());
     }
 
     /**
