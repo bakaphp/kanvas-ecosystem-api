@@ -25,6 +25,7 @@ use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\Models\Variants as VariantsModel;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
+use Kanvas\Inventory\Products\Actions\AddAttributeAction;
 
 class ProductImporterAction
 {
@@ -135,6 +136,7 @@ class ProductImporterAction
                 $attributeModel = (new CreateAttribute($attributesDto))->execute();
                 $attributeModel->setLinkedSource($this->source, $attribute['source_id']);
             }
+            (new AddAttributeAction($this->product, $attributeModel, $attribute['value']))->execute();
         }
     }
 

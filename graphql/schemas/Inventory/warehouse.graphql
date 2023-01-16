@@ -19,7 +19,7 @@ input WarehouseInput {
     location: String
     is_default: Boolean!
     is_published: Int!
-    source_id: String
+    source_id: Mixed
 }
 
 input WarehouseInputUpdate {

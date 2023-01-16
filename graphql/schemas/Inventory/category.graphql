@@ -17,7 +17,7 @@ input CategoryInput{
     name: String!
     code: String!
     position: Int!
-    source_id: String
+    source_id: Mixed
 }
 input CategoryUpdateInput{
     parent_id: Int

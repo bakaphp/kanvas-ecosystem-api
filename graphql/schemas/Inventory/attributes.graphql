@@ -1,6 +1,7 @@
 input AttributeInput {
     name: String!
-    source_id: String
+    source_id: Mixed
+    value: String
 }
 input AttributeUpdateInput {
     name: String

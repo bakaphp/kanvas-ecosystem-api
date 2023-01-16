@@ -9,7 +9,7 @@ input ProductInput {
     is_published: Boolean
     categories: [Int]
     warehouses: [Int]
-    source_id: String
+    source_id: Mixed
 }
 type Product {
     id: Int!

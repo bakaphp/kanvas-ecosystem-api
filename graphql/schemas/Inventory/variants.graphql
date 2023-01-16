@@ -69,7 +69,8 @@ input VariantsInput {
     barcode: String
     serial_number: String
     is_published: Boolean
-    source_id: String
+    source_id: Mixed
+    attributes: [VariantsAttributesInput]
 }
 input VariantsUpdateInput {
     products_id: Int
