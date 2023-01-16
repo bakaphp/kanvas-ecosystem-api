@@ -103,11 +103,9 @@ extend type Query @guard {
     ): [Company!]!
         @paginate(
             model: "Kanvas\\Companies\\Models\\Companies"
-            scopes: [ "userAssociated"]
+            scopes: ["userAssociated"]
         )
-}
 
-extend type Query @guard {
     branches(
         where: _
             @whereConditions(
@@ -125,24 +123,22 @@ extend type Query @guard {
     ): [CompanyBranch!]!
         @paginate(
             model: "Kanvas\\Companies\\Models\\CompaniesBranches"
-            scopes: [ "userAssociated"]
+            scopes: ["userAssociated"]
         )
-}
 
-extend type Query @guard {
     companyUsers(
         where: _
             @whereConditions(
                 columns: [
-                    "id",
-                    "uuid",
-                    "firstname",
-                    "lastname",
-                    "displayname",
-                    "email",
-                    "phone",
-                    "user_active",
-                    "created_at",
+                    "id"
+                    "uuid"
+                    "firstname"
+                    "lastname"
+                    "displayname"
+                    "email"
+                    "phone"
+                    "user_active"
+                    "created_at"
                     "updated_at"
                 ]
             )
@@ -151,22 +147,20 @@ extend type Query @guard {
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagement@getAllCompanyUsers"
             defaultCount: 10
         )
-}
 
-extend type Query @guard {
     companyBranchUsers(
         where: _
             @whereConditions(
                 columns: [
-                    "id",
-                    "uuid",
-                    "firstname",
-                    "lastname",
-                    "displayname",
-                    "email",
-                    "phone",
-                    "user_active",
-                    "created_at",
+                    "id"
+                    "uuid"
+                    "firstname"
+                    "lastname"
+                    "displayname"
+                    "email"
+                    "phone"
+                    "user_active"
+                    "created_at"
                     "updated_at"
                 ]
             )
