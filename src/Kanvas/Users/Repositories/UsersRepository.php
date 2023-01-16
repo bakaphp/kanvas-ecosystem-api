@@ -17,9 +17,9 @@ use Kanvas\Users\Models\UsersAssociatedCompanies;
 class UsersRepository
 {
     /**
-     * Get the user by email.
+     * Get the user by id.
      *
-     * @param int $email
+     * @param int $id
      *
      * @return Users
      */
@@ -28,6 +28,50 @@ class UsersRepository
         return Users::join('users_associated_company', 'users_associated_company.users_id', 'users.id')
                 ->where('users_associated_company.companies_id', $companiesId)
                 ->where('id', $id)
+                ->firstOrFail();
+    }
+
+    /**
+     * Get the user by email.
+     *
+     * @param int $email
+     *
+     * @return Users
+     */
+    public static function getByEmail(string $email) : Users
+    {
+        return Users::where('email', $email)
+                ->firstOrFail();
+    }
+
+    /**
+     * Get the user if he exist in the current company.
+     *
+     * @param Companies $company
+     * @param int $id
+     *
+     * @return Users
+     */
+    public static function getUserOfCompanyById(Companies $company, int $id) : Users
+    {
+        return Users::join('users_associated_company', 'users_associated_company.users_id', 'users.id')
+                ->where('users_associated_company.companies_id', $company->getKey())
+                ->where('users.id', $id)
+                ->firstOrFail();
+    }
+
+    /**
+     * Get the user if he exist in the current app.
+     *
+     * @param int $id
+     *
+     * @return Users
+     */
+    public static function getUserOfAppById(int $id) : Users
+    {
+        return Users::join('users_associated_apps', 'users_associated_apps.users_id', 'users.id')
+                ->where('users_associated_apps.apps_id', app(Apps::class))
+                ->where('users.id', $id)
                 ->firstOrFail();
     }
 

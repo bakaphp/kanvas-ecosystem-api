@@ -18,9 +18,11 @@ use Kanvas\Auth\Contracts\Authenticatable as ContractsAuthenticatable;
 use Kanvas\Auth\Traits\HasApiTokens;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Roles\Models\Roles;
+use Kanvas\Traits\KanvasModelTrait;
 use Kanvas\Traits\PermissionsTrait;
 use Kanvas\Traits\UsersAssociatedTrait;
 use Kanvas\Users\Factories\UsersFactory;
@@ -86,6 +88,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use HasApiTokens;
     use HasRolesAndAbilities;
     use HasFilesystemTrait;
+    use KanvasModelTrait;
 
     protected ?string $defaultCompanyName = null;
     protected $guarded = [];
@@ -148,7 +151,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
-     * Get the current user information for the running app
+     * Get the current user information for the running app.
      *
      * @return UsersAssociatedApps
      */
@@ -271,6 +274,26 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function currentCompanyId() : int
     {
         return  (int) $this->get(Companies::cacheKey());
+    }
+
+    /**
+     * What the current branch the users is logged in with.
+     *
+     * @return int
+     */
+    public function currentBranchId() : int
+    {
+        return  (int) $this->get($this->getCurrentCompany()->branchCacheKey());
+    }
+
+    /**
+     * Get the current company in the user session.
+     *
+     * @return Companies
+     */
+    public function getCurrentCompany() : Companies
+    {
+        return CompaniesRepository::getById($this->currentCompanyId());
     }
 
     /**

@@ -12,6 +12,19 @@ type Invite {
     description: String
 }
 
+type ExternalInvite {
+    invite_hash: String!
+    users_id: Int!
+    companies_id: Int!
+    companies_branches_id: Int!
+    role_id: Int!
+    apps_id: Int!
+    email: String!
+    firstname: String
+    lastname: String
+    description: String
+}
+
 input InviteInput {
     role_id: Int!
     companies_branches_id: Int!
@@ -21,34 +34,55 @@ input InviteInput {
     description: String
 }
 
-extend type Mutation @guard{
-    inviteUser(input: InviteInput!): Boolean! @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\Invite@insertInvite") 
-    deleteInvite(id: Int!): Boolean! @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\Invite@deleteInvite")
+input CompleteInviteInput {
+    invite_hash: String!
+    password: String!
+    firstname: String!
+    lastname: String!
 }
+
+extend type Mutation @guard {
+    inviteUser(input: InviteInput!): Invite!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\Invite@insertInvite"
+        )
+    deleteInvite(id: Int!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\Invite@deleteInvite"
+        )
+}
+
 extend type Mutation {
-    processInvite(hash: String! password: String!): User! @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\Invite@processInvite")
+    getInvite(hash: String!): ExternalInvite!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\Invite@get"
+        )
+    processInvite(input: CompleteInviteInput!): User!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\Invite@process"
+        )
 }
 extend type Query @guard {
     usersInvites(
         where: _
             @whereConditions(
                 columns: [
-                    "id",
-                    "users_id",
-                    "companies_id",
-                    "companies_branches_id",
-                    "role_id",
-                    "apps_id",
-                    "email",
-                    "firstname",
-                    "lastname",
-                    "description",
+                    "id"
+                    "users_id"
+                    "companies_id"
+                    "companies_branches_id"
+                    "role_id"
+                    "apps_id"
+                    "email"
+                    "firstname"
+                    "lastname"
+                    "description"
                 ]
             )
-        orderBy: _ @orderBy(columns: ["id"] direction: "DESC")
-    ): [Invite] @paginate(
-            model: "Kanvas\\Users\\Invites\\Models\\UsersInvite"
+        orderBy: _ @orderBy(columns: ["id"], direction: "DESC")
+    ): [Invite]
+        @paginate(
+            model: "Kanvas\\Users\\Models\\UsersInvite"
             scopes: ["company"]
-    )
-
+        )
 }

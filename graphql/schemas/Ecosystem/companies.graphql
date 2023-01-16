@@ -103,11 +103,9 @@ extend type Query @guard {
     ): [Company!]!
         @paginate(
             model: "Kanvas\\Companies\\Models\\Companies"
-            scopes: [ "userAssociated"]
+            scopes: ["userAssociated"]
         )
-}
 
-extend type Query @guard {
     branches(
         where: _
             @whereConditions(
@@ -122,10 +120,54 @@ extend type Query @guard {
                 ]
             )
         orderBy: _ @orderBy(columns: ["id"])
-    ): [Company!]!
+    ): [CompanyBranch!]!
         @paginate(
             model: "Kanvas\\Companies\\Models\\CompaniesBranches"
-            scopes: [ "userAssociated"]
+            scopes: ["userAssociated"]
+        )
+
+    companyUsers(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "firstname"
+                    "lastname"
+                    "displayname"
+                    "email"
+                    "phone"
+                    "user_active"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+    ): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagement@getAllCompanyUsers"
+            defaultCount: 10
+        )
+
+    companyBranchUsers(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "firstname"
+                    "lastname"
+                    "displayname"
+                    "email"
+                    "phone"
+                    "user_active"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+    ): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagement@getAllCompanyBranchUsers"
+            defaultCount: 10
         )
 }
 
@@ -138,11 +180,11 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\UpdateCompany"
         )
-    deleteCompany(id: Int!): String!
+    deleteCompany(id: Int!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\DeleteCompany"
         )
-    CreateCompaniesBranch(input: CompanyBranchInput): CompanyBranch!
+    createCompaniesBranch(input: CompanyBranchInput): CompanyBranch!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CreateCompaniesBranch"
         )
@@ -153,5 +195,21 @@ extend type Mutation @guard {
     deleteCompanyBranch(id: Int!): String!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\DeleteCompaniesBranch"
+        )
+    addUserToBranch(id: Int!, users_id: Int!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\UserManagement@addUserToBranch"
+        )
+    removeUserFromBranch(id: Int!, users_id: Int!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\UserManagement@removeUserFromBranch"
+        )
+    addUserToCompany(id: Int!, users_id: Int!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\UserManagement@addUserToCompany"
+        )
+    removeUserFromCompany(id: Int!, users_id: Int!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\UserManagement@removeUserFromCompany"
         )
 }

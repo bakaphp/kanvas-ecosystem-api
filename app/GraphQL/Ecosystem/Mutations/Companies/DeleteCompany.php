@@ -18,8 +18,8 @@ final class DeleteCompany
          * @todo only super admin can do this
          */
         $companyDelete = new DeleteCompaniesAction(Auth::user());
-        $company = $companyDelete->execute($request['id']);
+        $companyDelete->execute($request['id']);
 
-        return 'Successfully Delete Company : ' . $company->name;
+        return true;
     }
 }

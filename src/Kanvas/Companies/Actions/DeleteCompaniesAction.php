@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Actions;
 
-use Illuminate\Validation\UnauthorizedException;
+use Illuminate\Auth\Access\AuthorizationException;
 use Kanvas\Companies\DataTransferObject\CompaniesPutData;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Models\Users;
 
 class DeleteCompaniesAction
@@ -34,7 +33,7 @@ class DeleteCompaniesAction
         $companies = Companies::getById($id);
 
         if (!$companies->isOwner($this->user)) {
-            throw new UnauthorizedException('User cant delete this company');
+            throw new AuthorizationException('User cant delete this company');
         }
 
         $companies->softDelete();

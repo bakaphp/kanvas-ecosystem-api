@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Baka\Traits;
 
-use Illuminate\Database\Eloquent\Model;
 use Baka\Support\Str;
+use Illuminate\Database\Eloquent\Model;
 use RuntimeException;
 
 trait HashTableTrait
@@ -88,13 +88,10 @@ trait HashTableTrait
         $this->createSettingsModel();
 
         $allSettings = [];
-        $settings = $this->settingsModel->find([
-            'conditions' => "{$this->getSettingsPrimaryKey()} = ?0",
-            'bind' => [$this->getId()]
-        ]);
+        $settings = $this->settingsModel::where($this->getSettingsPrimaryKey(), $this->getId())->get();
 
         foreach ($settings as $setting) {
-            $allSettings[$setting->name] = $setting->value;
+            $allSettings[$setting->name] = !Str::isJson($setting->value) ? $setting->value : json_decode($setting->value, true);
         }
 
         return $allSettings;
