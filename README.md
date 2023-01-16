@@ -32,7 +32,15 @@ Todo:
 7. To check if the API is working just make a GET request to  ```http://localhost:80/v1/``` and see if the response returns ```"Woot Kanvas"```
 
 ### Setup Inventory
-1. php artisan migrate --path database/migrations/Inventory/
+1. php artisan migrate --path database/migrations/Inventory/ --database name_database
+2. Set env var in .env
+```
+DB_INVENTORY_HOST=mysql
+DB_INVENTORY_PORT=3306
+DB_INVENTORY_DATABASE=kanvas_laravel
+DB_INVENTORY_USERNAME=root
+DB_INVENTORY_PASSWORD=password
+```
 
 ## Running the project with Laravel Octane
 
