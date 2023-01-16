@@ -143,8 +143,27 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
+     * Apps relationship.
+     * use distinct() to avoid duplicate apps.
+     *
+     * @return HasManyThrough
+     */
+    public function apps() : HasManyThrough
+    {
+        //return $this->hasMany(Companies::class, 'users_id');
+        return $this->hasManyThrough(
+            Apps::class,
+            UsersAssociatedApps::class,
+            'users_id',
+            'id',
+            'id',
+            'apps_id'
+        )->where('apps.is_deleted', StateEnums::NO->getValue())->distinct();
+    }
+
+    /**
      * Companies relationship.
-     * use distinct() to avoid duplicate companies
+     * use distinct() to avoid duplicate companies.
      *
      * @return HasManyThrough
      */
@@ -158,7 +177,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             'id',
             'id',
             'companies_id'
-        )->where('companies.is_deleted', 0)->distinct();
+        )->where('companies.is_deleted', StateEnums::NO->getValue())->distinct();
     }
 
     /**
@@ -187,7 +206,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             'id',
             'id',
             'companies_branches_id'
-        )->where('companies_branches.is_deleted', 0);
+        )->where('companies_branches.is_deleted', StateEnums::NO->getValue());
     }
 
     /**
@@ -203,7 +222,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * notifications.
      *
-     * @return void
+     * @return HasMany
      */
     public function notifications() : HasMany
     {

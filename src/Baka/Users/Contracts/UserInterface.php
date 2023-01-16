@@ -22,6 +22,7 @@ interface UserInterface extends Authenticatable
     public function isBanned() : bool;
     public function getEmail() : string;
     public function defaultCompany() : HasOne;
+    public function apps() : HasManyThrough;
     public function companies() : HasManyThrough;
     public function branches() : HasManyThrough;
     public function notifications() : HasMany;
