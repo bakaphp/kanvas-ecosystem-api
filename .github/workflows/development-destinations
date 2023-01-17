@@ -1,8 +1,8 @@
 service=graph
 instance_name=kanvas-api
-configmap=s3://kanvas-laravel-env/production/kanvas-api-env-configmap.yaml
+configmap=s3://kanvas-laravel-env/development/kanvas-api-env-configmap.yaml
 source_branch=1.x
 aws_region=us-east-1
 service_loadbalancer=graphapi
-cluster_name=production-kanvas-cluster
+cluster_name=development-kanvas-cluster
 api_image=617498580299.dkr.ecr.us-east-1.amazonaws.com/kanvas-api
