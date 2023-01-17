@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -26,7 +27,9 @@ class CompaniesRepository
      */
     public static function getById(int $id) : Companies
     {
-        return Companies::where('id', $id)->firstOrFail();
+        return Companies::where('id', $id)
+                ->where('is_deleted', StateEnums::NO->getValue())
+                ->firstOrFail();
     }
 
     /**
@@ -38,7 +41,9 @@ class CompaniesRepository
      */
     public static function getByUuid(string $uuid) : Companies
     {
-        return Companies::where('uuid', $uuid)->firstOrFail();
+        return Companies::where('uuid', $uuid)
+                ->where('is_deleted', StateEnums::NO->getValue())
+                ->firstOrFail();
     }
 
     /**
@@ -78,8 +83,8 @@ class CompaniesRepository
         try {
             return UsersAssociatedCompanies::where('users_id', $user->getKey())
                                 ->where('companies_id', $company->getKey())
-                                //->where('companies_branches_id', $branch->getKey())
-                                ->where('is_deleted', StateEnums::NO->getValue())
+                                ->whereIn('companies_branches_id', [$branch->getKey(), StateEnums::NO->getValue()])
+                                ->where('is_deleted', AppEnums::GLOBAL_COMPANY_ID->getValue())
                                 ->firstOrFail();
         } catch (ModelNotFoundException) {
             throw new ModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');

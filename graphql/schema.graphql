@@ -13,10 +13,10 @@ scalar DateTimeTz
 scalar Upload
     @scalar(class: "Nuwave\\Lighthouse\\Schema\\Types\\Scalars\\Upload")
 
-scalar Mixed @scalar(class: "MLL\\GraphQLScalar\\MixedScalar")
-scalar Email @scalar(class: "MLL\\GraphQLScalar\\Email")
-scalar JSON  @scalar(class: "MLL\\GraphQLScalar\\JSON")
-scalar Null  @scalar(class: "MLL\\GraphQLScalar\\NullScalar")
+scalar Mixed @scalar(class: "MLL\\GraphQLScalars\\MixedScalar")
+scalar Email @scalar(class: "MLL\\GraphQLScalars\\Email")
+scalar JSON  @scalar(class: "MLL\\GraphQLScalars\\JSON")
+scalar Null  @scalar(class: "MLL\\GraphQLScalars\\NullScalar")
 
 #import hello.graphql
 #import schemas/Ecosystem/*.graphql

@@ -10,6 +10,7 @@ use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -18,9 +19,12 @@ use Kanvas\Auth\Contracts\Authenticatable as ContractsAuthenticatable;
 use Kanvas\Auth\Traits\HasApiTokens;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Roles\Models\Roles;
+use Kanvas\Traits\KanvasModelTrait;
 use Kanvas\Traits\PermissionsTrait;
 use Kanvas\Traits\UsersAssociatedTrait;
 use Kanvas\Users\Factories\UsersFactory;
@@ -86,6 +90,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use HasApiTokens;
     use HasRolesAndAbilities;
     use HasFilesystemTrait;
+    use KanvasModelTrait;
 
     protected ?string $defaultCompanyName = null;
     protected $guarded = [];
@@ -138,17 +143,45 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
-     * Companies relationship.
+     * Apps relationship.
+     * use distinct() to avoid duplicate apps.
      *
-     * @return hasMany
+     * @return HasManyThrough
      */
-    public function companies() : HasMany
+    public function apps() : HasManyThrough
     {
-        return $this->hasMany(Companies::class, 'users_id');
+        //return $this->hasMany(Companies::class, 'users_id');
+        return $this->hasManyThrough(
+            Apps::class,
+            UsersAssociatedApps::class,
+            'users_id',
+            'id',
+            'id',
+            'apps_id'
+        )->where('apps.is_deleted', StateEnums::NO->getValue())->distinct();
     }
 
     /**
-     * Get the current user information for the running app
+     * Companies relationship.
+     * use distinct() to avoid duplicate companies.
+     *
+     * @return HasManyThrough
+     */
+    public function companies() : HasManyThrough
+    {
+        //return $this->hasMany(Companies::class, 'users_id');
+        return $this->hasManyThrough(
+            Companies::class,
+            UsersAssociatedCompanies::class,
+            'users_id',
+            'id',
+            'id',
+            'companies_id'
+        )->where('companies.is_deleted', StateEnums::NO->getValue())->distinct();
+    }
+
+    /**
+     * Get the current user information for the running app.
      *
      * @return UsersAssociatedApps
      */
@@ -162,11 +195,18 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * CompaniesBranches relationship.
      *
-     * @return hasMany
+     * @return HasManyThrough
      */
-    public function branches() : HasMany
+    public function branches() : HasManyThrough
     {
-        return $this->hasMany(CompaniesBranches::class, 'users_id');
+        return $this->hasManyThrough(
+            CompaniesBranches::class,
+            UsersAssociatedCompanies::class,
+            'users_id',
+            'id',
+            'id',
+            'companies_branches_id'
+        )->where('companies_branches.is_deleted', StateEnums::NO->getValue());
     }
 
     /**
@@ -182,11 +222,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * notifications.
      *
-     * @return void
+     * @return HasMany
      */
     public function notifications() : HasMany
     {
-        return $this->hasMany(Notifications::class, 'users_id');
+        return $this->hasMany(Notifications::class, 'users_id')
+            ->where('is_deleted', StateEnums::NO->getValue())
+            ->where('apps_id', app(Apps::class)->getId());
     }
 
     /**
@@ -271,6 +313,26 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function currentCompanyId() : int
     {
         return  (int) $this->get(Companies::cacheKey());
+    }
+
+    /**
+     * What the current branch the users is logged in with.
+     *
+     * @return int
+     */
+    public function currentBranchId() : int
+    {
+        return  (int) $this->get($this->getCurrentCompany()->branchCacheKey());
+    }
+
+    /**
+     * Get the current company in the user session.
+     *
+     * @return Companies
+     */
+    public function getCurrentCompany() : Companies
+    {
+        return CompaniesRepository::getById($this->currentCompanyId());
     }
 
     /**

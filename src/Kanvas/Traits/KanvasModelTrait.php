@@ -1,0 +1,74 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Traits;
+
+use Illuminate\Database\Eloquent\Builder;
+use Kanvas\Enums\StateEnums;
+
+trait KanvasModelTrait
+{
+    /**
+     * Get primary key.
+     *
+     * @return mixed
+     */
+    public function getId() : mixed
+    {
+        return $this->getKey();
+    }
+
+    /**
+     * Get by uui.
+     *
+     * @param string $uuid
+     *
+     * @return self
+     */
+    public static function getByUuid(string $uuid) : self
+    {
+        return self::where('id', $uuid)
+            ->where('is_deleted', StateEnums::NO->getValue())
+            ->firstOrFail();
+    }
+
+    /**
+     * Get by Id.
+     *
+     * @param mixed $id
+     *
+     * @return self
+     */
+    public static function getById(mixed $id) : self
+    {
+        return self::where('id', (int) $id)
+            ->where('is_deleted', StateEnums::NO->getValue())
+            ->firstOrFail();
+    }
+
+    /**
+     * Current soft delete.
+     *
+     * @todo change to laravel default behavior
+     *
+     * @return bool
+     */
+    public function softDelete() : bool
+    {
+        $this->is_deleted = StateEnums::YES->getValue();
+        return $this->saveOrFail();
+    }
+
+    /**
+     * Not deleted scope.
+     *
+     * @param Builder $query
+     *
+     * @return Builder
+     */
+    public function scopeNotDeleted(Builder $query) : Builder
+    {
+        return $query->where('is_deleted', '=', StateEnums::NO->getValue());
+    }
+}

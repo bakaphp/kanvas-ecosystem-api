@@ -25,7 +25,7 @@ class CreateCompanyBranchActions
     /**
      * Invoke function.
      *
-     * @return Companies
+     * @return CompaniesBranches
      */
     public function execute() : CompaniesBranches
     {
