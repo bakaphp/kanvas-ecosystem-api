@@ -3,13 +3,15 @@ on:
   push:
     branches:
       - '1.x'
+      - 'development'
 
   workflow_dispatch:
 
 jobs:
   Build:
     runs-on: ubuntu-latest
-    environment: Production
+    environment: ${{ github.ref_name }}
+
     permissions:
       contents: read
       packages: write
@@ -18,10 +20,6 @@ jobs:
     
       - name: Checkout repository
         uses: actions/checkout@v2
-
-      - name: set-vars 
-        run: |
-          cat .github/workflows/${GITHUB_REF##*/}-destinations >> $GITHUB_ENV 
 
       - name: Install AWS CLI
         run: |
@@ -40,7 +38,7 @@ jobs:
 
   Deploy:
     runs-on: ubuntu-latest
-    environment: Production
+    environment: ${{ github.ref_name }}
     needs: Build
     permissions:
       contents: read
