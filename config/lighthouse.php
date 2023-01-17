@@ -206,12 +206,12 @@ return [
             'App\\GraphQL\\Social\\Unions',
             'App\\GraphQL\\Inventory\\Unions',
         ],
-        // 'scalars' => [
-        //     'App\\GraphQL\\Ecosystem\\Scalars',
-        //     'App\\GraphQL\\CRM\\Scalars',
-        //     'App\\GraphQL\\Social\\Scalars',
-        //     'App\\GraphQL\\Inventory\\Scalars',
-        // ],
+        'scalars' => [
+            'App\\GraphQL\\Ecosystem\\Scalars',
+            'App\\GraphQL\\CRM\\Scalars',
+            'App\\GraphQL\\Social\\Scalars',
+            'App\\GraphQL\\Inventory\\Scalars',
+        ],
         'directives' => [
             'App\\GraphQL\\Ecosystem\\Directives',
             'App\\GraphQL\\CRM\\Directives',
