@@ -11,9 +11,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-      - name: set-vars 
-        run: |
-          cat .github/workflows/${GITHUB_REF##*/}-destinations >> $GITHUB_ENV 
+        
       - name: Install Kubernetes toolset
         uses: stefanprodan/kube-tools@v1.6.0
         with:
