@@ -4,14 +4,14 @@ on: workflow_dispatch
 jobs:
   Uninstall-Helm-Chart:
     runs-on: ubuntu-latest
-    environment: Production
+    environment: ${GITHUB_REF##*/}
     permissions:
       contents: read
       packages: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-        
+
       - name: Install Kubernetes toolset
         uses: stefanprodan/kube-tools@v1.6.0
         with:
