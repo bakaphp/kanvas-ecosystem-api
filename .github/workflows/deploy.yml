@@ -10,7 +10,7 @@ on:
 jobs:
   Build:
     runs-on: ubuntu-latest
-    environment: ${GITHUB_REF##*/}
+    environment: .github/workflows/${GITHUB_REF##*/}
     permissions:
       contents: read
       packages: write
@@ -37,7 +37,7 @@ jobs:
 
   Deploy:
     runs-on: ubuntu-latest
-    environment: ${GITHUB_REF##*/}
+    environment: .github/workflows/${GITHUB_REF##*/}
     needs: Build
     permissions:
       contents: read
