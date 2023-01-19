@@ -45,7 +45,7 @@ input LoginInput {
 }
 
 input ForgotPasswordInput {
-    email: String!
+    email: String! @rules(apply: ["required","email"])
 }
 
 input RegisterInput {
@@ -67,6 +67,10 @@ extend type Mutation {
     register(data: RegisterInput!): RegisterResponse!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\Register@resolve"
+        )
+    forgotPassword(data: ForgotPasswordInput!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\ForgotPassword@forgot"
         )
 }
 
