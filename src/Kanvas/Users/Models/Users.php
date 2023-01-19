@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Models;
 
+use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
@@ -343,5 +344,18 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function unReadNotification() : Collection
     {
         return $this->notifications()->where('read', 0)->get();
+    }
+
+    /**
+     * Generate new forgot password hash.
+     *
+     * @return string
+     */
+    public function generateForgotHash() : string
+    {
+        $this->user_activation_forgot = Str::random(50);
+        $this->updateOrFail();
+
+        return $this->user_activation_forgot;
     }
 }
