@@ -6,7 +6,6 @@ namespace Kanvas\Users\Models;
 
 use Baka\Traits\HashTableTrait;
 use Baka\Users\Contracts\UserInterface;
-use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -21,6 +20,8 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Exceptions\Exception;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Roles\Models\Roles;
@@ -256,7 +257,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         )->first();
 
         if (!$user) {
-            throw new Exception('No User Found');
+            throw new ModelNotFoundException('No User Found');
         }
 
         return $user;
