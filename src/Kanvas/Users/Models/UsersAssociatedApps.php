@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Users\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Contracts\Authenticatable;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
-use Kanvas\Users\Models\Users;
 
 /**
  * UsersAssociatedApps Model.
@@ -69,5 +69,45 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable
     public function app() : BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
+    }
+
+    /**
+     * Set a new config value for the specific user.
+     *
+     * @param string $key
+     * @param mixed $value
+     *
+     * @return void
+     */
+    public function set(string $key, mixed $value) : void
+    {
+        if (Str::isJson($this->configuration)) {
+            $configuration = json_decode($this->configuration, true);
+            $configuration[$key] = $value;
+            $this->configuration = json_encode($configuration);
+        } else {
+            $this->configuration = json_encode([
+                $key => $value
+            ]);
+        }
+
+        $this->saveOrFail();
+    }
+
+    /**
+     * Get a specific config value for the specific user.
+     *
+     * @param string $key
+     *
+     * @return mixed
+     */
+    public function get(string $key) : mixed
+    {
+        if (Str::isJson($this->configuration)) {
+            $configuration = json_decode($this->configuration, true);
+            return $configuration[$key] ?? null;
+        }
+
+        return null;
     }
 }
