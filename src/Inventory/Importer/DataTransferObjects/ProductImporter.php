@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
-namespace Kanvas\Inventory\Products\DataTransferObject;
+namespace Kanvas\Inventory\Importer\DataTransferObjects;
 
 use Spatie\LaravelData\Data;
 
-class Product extends Data
+class ProductImporter extends Data
 {
     /**
      * __construct
@@ -12,19 +12,18 @@ class Product extends Data
      * @return void
      */
     public function __construct(
-        public ?int $products_types_id = null,
         public string $name,
         public string $description,
         public ?string $short_description = null,
         public ?string $html_description = null,
         public ?string $warranty_terms = null,
         public ?string $upc = null,
+        public string $source_id,
         public bool $is_published = true,
-        public array $categories = [],
-        public array $warehouses = [],
-        public array $variants = [],
-        public array $attributes = [],
-        public array $productType = [],
+        public ?array $categories = null,
+        public ?array $variants = null,
+        public ?array $attributes = null,
+        public ?array $productType = null,
     ) {
     }
 }

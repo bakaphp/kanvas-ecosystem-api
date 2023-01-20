@@ -1,9 +1,11 @@
 <?php
 declare(strict_types=1);
 namespace Kanvas\Inventory\Categories\DataTransferObject;
-use Kanvas\Apps\Models\Apps;
 
-class Categories
+use Kanvas\Apps\Models\Apps;
+use Spatie\LaravelData\Data;
+
+class Categories extends Data
 {
     /**
      * __construct

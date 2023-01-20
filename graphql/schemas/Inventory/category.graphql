@@ -15,8 +15,9 @@ type Category {
 input CategoryInput{
     parent_id: Int
     name: String!
-    code: String
-    position: Int
+    code: String!
+    position: Int!
+    source_id: Mixed
 }
 input CategoryUpdateInput{
     parent_id: Int

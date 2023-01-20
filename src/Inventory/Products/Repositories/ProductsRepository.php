@@ -10,16 +10,20 @@ class ProductsRepository
     /**
      * getById
      *
-     * @param  int $id
+     * @param  int|string $id
      * @param  int $companiesId
      * @return Products
      */
-    public static function getById(int $id, ?int $companiesId = null): Products
+    public static function getById(int|string $id, ?int $companiesId = null): Products
     {
         $companiesId = $companiesId ?? auth()->user()->default_company;
 
         return Products::where('companies_id', $companiesId)
             ->where('apps_id', app(Apps::class)->id)
             ->findOrFail($id);
+    }
+
+    public static function getBySourceKey(int $id): Products
+    {
     }
 }
