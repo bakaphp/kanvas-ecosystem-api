@@ -10,6 +10,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
@@ -64,7 +65,7 @@ class CompaniesRepository
                                 ->where('is_deleted', StateEnums::NO->getValue())
                                 ->firstOrFail();
         } catch (ModelNotFoundException) {
-            throw new ModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
+            throw new ExceptionsModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
         }
     }
 
@@ -87,7 +88,7 @@ class CompaniesRepository
                                 ->where('is_deleted', AppEnums::GLOBAL_COMPANY_ID->getValue())
                                 ->firstOrFail();
         } catch (ModelNotFoundException) {
-            throw new ModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
+            throw new ExceptionsModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
         }
     }
 
@@ -111,7 +112,7 @@ class CompaniesRepository
                         ->where('is_deleted', StateEnums::NO->getValue())
                         ->firstOrFail();
         } catch (ModelNotFoundException) {
-            throw new ModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
+            throw new ExceptionsModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
         }
     }
 }
