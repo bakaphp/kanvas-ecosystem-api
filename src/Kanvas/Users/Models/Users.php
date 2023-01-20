@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Users\Models;
 
 use Baka\Traits\HashTableTrait;
+use Baka\Traits\KanvasModelTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -25,7 +26,6 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Roles\Models\Roles;
-use Kanvas\Traits\KanvasModelTrait;
 use Kanvas\Traits\PermissionsTrait;
 use Kanvas\Traits\UsersAssociatedTrait;
 use Kanvas\Users\Factories\UsersFactory;

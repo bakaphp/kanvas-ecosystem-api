@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Traits;
+namespace Baka\Traits;
 
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Enums\StateEnums;
