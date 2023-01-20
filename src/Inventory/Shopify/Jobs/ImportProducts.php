@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Shopify\Jobs;
 
 use Illuminate\Bus\Queueable;
@@ -7,9 +8,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use PHPShopify\ShopifySDK;
-use Shopify\Context;
-use Shopify\Auth\FileSessionStorage;
 use Kanvas\Inventory\Shopify\Client;
 
 class ImportProducts implements ShouldQueue
@@ -23,7 +21,7 @@ class ImportProducts implements ShouldQueue
      */
     public function handle()
     {
-        //
+
         $graphQL = <<<Query
         query{
             products(first: 10){

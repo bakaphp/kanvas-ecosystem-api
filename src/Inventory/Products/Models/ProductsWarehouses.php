@@ -5,31 +5,30 @@ namespace Kanvas\Inventory\Products\Models;
 
 use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Inventory\Attributes\Models\Attributes;
+use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 /**
- * Class Products.
+ * Class Products Categories.
  *
  * @property int $products_id
- * @property int $attributes_id
- * @property string $value
+ * @property int $warehouses_id
  * @property string $created_at
  * @property string $updated_at
  * @property bool $is_deleted
  */
-class ProductsAttributes extends BaseModel
+class ProductsWarehouses extends BaseModel
 {
     use HasCompositePrimaryKeyTrait;
 
-    protected $table = 'products_attributes';
+    protected $table = 'products_warehouses';
     protected $guarded = [
         'products_id',
-        'attributes_id',
-        'value'
+        'warehouses_id'
     ];
 
-    protected $primaryKey = ['products_id', 'attributes_id'];
+    protected $primaryKey = ['products_id', 'warehouses_id'];
 
     /**
      * Get the product.
@@ -42,12 +41,12 @@ class ProductsAttributes extends BaseModel
     }
 
     /**
-     * Get the attribute.
+     * Get the warehouse.
      *
      * @return BelongsTo
      */
-    public function attribute() : BelongsTo
+    public function warehouse() : BelongsTo
     {
-        return $this->belongsTo(Attributes::class, 'attributes_id');
+        return $this->belongsTo(Warehouses::class, 'warehouses_id');
     }
 }
