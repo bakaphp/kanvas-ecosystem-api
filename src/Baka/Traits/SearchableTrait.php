@@ -7,6 +7,7 @@ namespace Baka\Traits;
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Apps\Models\Apps;
 
 trait SearchableTrait
 {
