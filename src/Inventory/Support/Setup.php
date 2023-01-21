@@ -14,11 +14,15 @@ use Kanvas\Inventory\Categories\DataTransferObject\Categories as Category;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Channels\Actions\CreateChannel;
 use Kanvas\Inventory\Channels\DataTransferObject\Channels;
+use Kanvas\Inventory\Channels\Models\Channels as ModelsChannels;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
 use Kanvas\Inventory\Regions\DataTransferObject\Region;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
+use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses;
+use Kanvas\Inventory\Warehouses\Models\Warehouses as ModelsWarehouses;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
 
 class Setup
@@ -97,6 +101,25 @@ class Setup
 
         $defaultRegion = $createRegion->execute();
 
-        return true;
+        $createWarehouse = new CreateWarehouseAction(
+            new Warehouses(
+                $this->company->getId(),
+                $this->app->getId(),
+                $this->user->getId(),
+                $defaultRegion->getId(),
+                StateEnums::DEFAULT_NAME->getValue(),
+                StateEnums::DEFAULT_NAME->getValue(),
+                (bool) StateEnums::YES->getValue(),
+                StateEnums::YES->getValue(),
+            ),
+            $this->user
+        );
+
+        $defaultWarehouse = $createWarehouse->execute();
+
+        return $defaultCategory instanceof Categories &&
+            $defaultChannel instanceof ModelsChannels &&
+            $defaultRegion instanceof Regions &&
+            $defaultWarehouse instanceof ModelsWarehouses;
     }
 }
