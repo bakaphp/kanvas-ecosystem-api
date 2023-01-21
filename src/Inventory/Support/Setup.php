@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Support;
 
-use Baka\Apps\Contracts\AppInterface;
-use Baka\Companies\Contracts\CompanyInterface;
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 
 class Setup

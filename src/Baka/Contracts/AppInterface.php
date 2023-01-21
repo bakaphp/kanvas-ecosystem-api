@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Baka\Apps\Contracts;
+namespace Baka\Contracts;
 
 /**
  * EnumsInterface.

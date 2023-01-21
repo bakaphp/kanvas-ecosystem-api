@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Models;
 
-use Baka\Companies\Contracts\CompanyInterface;
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
