@@ -1,52 +1,56 @@
 <?php
 declare(strict_types=1);
+
 namespace App\GraphQL\Inventory\Mutations\Attributes;
 
-use Kanvas\Inventory\Attributes\Models\Attributes as AttributeModel;
-use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributeDto;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
+use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributeDto;
+use Kanvas\Inventory\Attributes\Models\Attributes as AttributeModel;
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
 
 class Attributes
 {
     /**
-     * create
+     * create.
      *
      * @param  mixed $root
      * @param  array $req
+     *
      * @return AttributeModel
      */
-    public function create(mixed $root, array $req): AttributeModel
+    public function create(mixed $root, array $req) : AttributeModel
     {
-        $dto = new AttributeDto($req['input']['name']);
-        $action = new CreateAttribute($dto);
+        $dto = AttributeDto::fromRequest($req['input']);
+        $action = new CreateAttribute($dto, auth()->user());
         return $action->execute();
     }
 
     /**
-     * update
+     * update.
      *
      * @param  mixed $root
      * @param  array $req
+     *
      * @return AttributeModel
      */
-    public function update(mixed $root, array $req): AttributeModel
+    public function update(mixed $root, array $req) : AttributeModel
     {
-        $attribute = AttributesRepository::getById($req['id']);
+        $attribute = AttributesRepository::getById($req['id'], auth()->user()->getCurrentCompany());
         $attribute->update($req['input']);
         return $attribute;
     }
 
     /**
-     * delete
+     * delete.
      *
      * @param  mixed $root
      * @param  array $req
+     *
      * @return bool
      */
-    public function delete(mixed $root, array $req): bool
+    public function delete(mixed $root, array $req) : bool
     {
-        $attribute = AttributesRepository::getById($req['id']);
+        $attribute = AttributesRepository::getById($req['id'], auth()->user()->getCurrentCompany());
         return $attribute->delete();
     }
 }

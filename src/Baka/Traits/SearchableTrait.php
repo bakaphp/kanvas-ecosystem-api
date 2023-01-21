@@ -7,7 +7,9 @@ namespace Baka\Traits;
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 
 trait SearchableTrait
 {
@@ -17,31 +19,43 @@ trait SearchableTrait
     {
         $company = $company ?? auth()->user()->getCurrentCompany();
 
-        return self::getModel()::where('companies_id', $company->getId())
-            ->where('apps_id', app(Apps::class)->id)
-            ->where('is_deleted', StateEnums::NO->getValue())
-            ->findOrFail($id);
+        try {
+            return self::getModel()::where('companies_id', $company->getId())
+                ->where('apps_id', app(Apps::class)->id)
+                ->where('is_deleted', StateEnums::NO->getValue())
+                ->findOrFail($id);
+        } catch (ModelNotFoundException $e) {
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
     }
 
     public static function getByUuid(string $uuid, ?CompanyInterface $company = null) : Model
     {
         $company = $company ?? auth()->user()->getCurrentCompany();
 
-        return self::getModel()::where('companies_id', $company->getId())
-            ->where('apps_id', app(Apps::class)->getId())
-            ->where('uuid', $uuid)
-            ->where('is_deleted', StateEnums::NO->getValue())
-            ->findOrFail();
+        try {
+            return self::getModel()::where('companies_id', $company->getId())
+                ->where('apps_id', app(Apps::class)->getId())
+                ->where('uuid', $uuid)
+                ->where('is_deleted', StateEnums::NO->getValue())
+                ->findOrFail();
+        } catch (ModelNotFoundException $e) {
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
     }
 
     public static function getByName(string $name, ?CompanyInterface $company = null) : Model
     {
         $company = $company ?? auth()->user()->getCurrentCompany();
 
-        return self::getModel()::where('companies_id', $company->getId())
-            ->where('apps_id', app(Apps::class)->getId())
-            ->where('is_deleted', StateEnums::NO->getValue())
-            ->where('name', $name)
-            ->findOrFail();
+        try {
+            return self::getModel()::where('companies_id', $company->getId())
+                ->where('apps_id', app(Apps::class)->getId())
+                ->where('is_deleted', StateEnums::NO->getValue())
+                ->where('name', $name)
+                ->findOrFail();
+        } catch (ModelNotFoundException $e) {
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
     }
 }

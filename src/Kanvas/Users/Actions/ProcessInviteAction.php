@@ -50,12 +50,12 @@ class ProcessInviteAction
             $company = $invite->company()->get()->first();
             $branch = $invite->branch()->get()->first();
 
-           /*  $company->associateUser(
-                $user,
-                StateEnums::YES->getValue(),
-                $branch,
-                $invite->role_id
-            ); */
+            /*  $company->associateUser(
+                 $user,
+                 StateEnums::YES->getValue(),
+                 $branch,
+                 $invite->role_id
+             ); */
 
             $company->associateUserApp(
                 $user,
@@ -64,11 +64,11 @@ class ProcessInviteAction
             );
 
             $invite->softDelete();
+            DB::commit();
         } catch (Throwable $e) {
             DB::rollBack();
             throw $e;
         }
-        DB::commit();
 
         return $user;
     }
