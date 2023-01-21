@@ -1,19 +1,21 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\ProductsTypes\Models;
 
-use Kanvas\Inventory\Models\BaseModel;
-use Baka\Traits\UuidTrait;
 use Baka\Traits\SlugTrait;
-use Kanvas\Inventory\Traits\ScopesTrait;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
+use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Inventory\Traits\ScopesTrait;
 
 /**
- * Class ProductsTypes
+ * Class ProductsTypes.
+ *
  * @property int $id
  * @property int $apps_id
+ * @property int $users_id
  * @property int $companies_id
  * @property string $name
  * @property string $uuid
@@ -32,11 +34,11 @@ class ProductsTypes extends BaseModel
     protected $guarded = [];
 
     /**
-     * Get the user that owns the ProductsTypes
+     * Get the user that owns the ProductsTypes.
      *
      * @return BelongsTo
      */
-    public function companies(): BelongsTo
+    public function companies() : BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }

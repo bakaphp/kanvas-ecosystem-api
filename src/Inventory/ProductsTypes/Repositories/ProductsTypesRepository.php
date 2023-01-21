@@ -1,36 +1,40 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\ProductsTypes\Repositories;
 
-use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
+use Baka\Contracts\CompanyInterface;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 
 class ProductsTypesRepository
 {
     /**
-     * getById
+     * getById.
      *
      * @param  int $id
-     * @param  int $companiesId
-     * @return ProductsTypes
+     * @param  CompanyInterface|null $company
+     *
+     * @return Categories
      */
-    public static function getById(int $id, ?int $companiesId = null): ProductsTypes
+    public static function getById(int $id, ?CompanyInterface $company = null) : ProductsTypes
     {
-        $companiesId = $companiesId ?? auth()->user()->default_company;
-        return ProductsTypes::where('apps_id', app(Apps::class)->id)
-            ->where('companies_id', $companiesId)
+        $company = $company ?? auth()->user()->getCurrentCompany();
+        return ProductsTypes::where('companies_id', $company->getId())
+            ->where('apps_id', app(Apps::class)->id)
             ->findOrFail($id);
     }
-    
+
     /**
-     * getBySourceId
+     * getBySourceId.
      *
      * @param  mixed $id
+     *
      * @return ProductsTypes
      */
-    public static function getBySourceKey(string $key, string $id): ProductsTypes
+    public static function getBySourceKey(string $key, string $id) : ProductsTypes
     {
-        $key = "{{$key}}_id";
+        $key = $key . '_id';
         return ProductsTypes::getByCustomField($key, $id);
     }
 }

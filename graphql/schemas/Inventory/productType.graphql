@@ -16,30 +16,42 @@ input ProductTypeInput {
     weight: Int!
     source_id: Mixed
 }
+
 input ProductTypeUpdateInput {
     name: String
     description: String
     weight: Int
 }
+
 extend type Mutation @guard {
-    createProductType(input: ProductTypeInput!): ProductType! @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\ProductsTypes\\ProductsTypes@create")
-    updateProductType(id: Int!, input: ProductTypeUpdateInput!): ProductType! @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\ProductsTypes\\ProductsTypes@update")
-    deleteProductType(id: Int!): Boolean! @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\ProductsTypes\\ProductsTypes@delete")
+    createProductType(input: ProductTypeInput!): ProductType!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\ProductsTypes\\ProductsTypes@create"
+        )
+    updateProductType(id: Int!, input: ProductTypeUpdateInput!): ProductType!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\ProductsTypes\\ProductsTypes@update"
+        )
+    deleteProductType(id: Int!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\ProductsTypes\\ProductsTypes@delete"
+        )
 }
 extend type Query {
     productTypes(
         where: _
             @whereConditions(
                 columns: [
-                    "name",
-                    "slug",
-                    "companies_id",
-                    "uuid",
-                    "description",
-                    "weight",
+                    "name"
+                    "slug"
+                    "companies_id"
+                    "uuid"
+                    "description"
+                    "weight"
                 ]
-            )    
-        ): [ProductType!]! @paginate(
+            )
+    ): [ProductType!]!
+        @paginate(
             model: "Kanvas\\Inventory\\ProductsTypes\\Models\\ProductsTypes"
             defaultCount: 10
             scopes: ["app", "company"]
