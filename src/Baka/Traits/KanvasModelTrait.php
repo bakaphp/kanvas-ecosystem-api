@@ -20,6 +20,16 @@ trait KanvasModelTrait
     }
 
     /**
+     * Get uuid.
+     *
+     * @return string
+     */
+    public function getUuid() : string
+    {
+        return $this->uuid;
+    }
+
+    /**
      * Get by uui.
      *
      * @param string $uuid
