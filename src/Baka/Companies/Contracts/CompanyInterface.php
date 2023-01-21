@@ -9,6 +9,6 @@ namespace Baka\Companies\Contracts;
  */
 interface CompanyInterface
 {
-    public function getId() : int;
+    public function getId() : mixed;
     public function getUuid() : string;
 }
