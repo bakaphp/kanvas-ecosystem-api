@@ -30,16 +30,16 @@ class CreateCategory
     public function execute() : Categories
     {
         CompaniesRepository::userAssociatedToCompany(
-            Companies::getById($this->dto->companies_id),
+            $this->dto->company,
             $this->user
         );
 
         return Categories::firstOrCreate([
-            'companies_id' => $this->dto->companies_id,
-            'apps_id' => $this->dto->apps_id,
+            'companies_id' => $this->dto->company->getId(),
+            'apps_id' => $this->dto->app->getId(),
             'name' => $this->dto->name,
         ], [
-            'users_id' => $this->dto->users_id,
+            'users_id' => $this->dto->user->getId(),
             'parent_id' => $this->dto->parent_id,
             'code' => $this->dto->code,
             'position' => $this->dto->position,

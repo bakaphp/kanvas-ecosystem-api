@@ -31,22 +31,19 @@ class CreateChannel
     public function execute() : Channels
     {
         CompaniesRepository::userAssociatedToCompany(
-            Companies::getById($this->dto->companies_id),
+            $this->dto->company,
             $this->user
         );
 
         return Channels::firstOrCreate([
-            'companies_id' => $this->dto->companies_id,
-            'apps_id' => $this->dto->apps_id,
+            'companies_id' => $this->dto->company->getId(),
+            'apps_id' => $this->dto->app->getId(),
             'name' => $this->dto->name,
         ], [
-            'name' => $this->dto->name,
             'description' => $this->dto->description,
             'slug' => $this->dto->slug ?? Str::slug($this->dto->name),
             'is_published' => $this->dto->is_published,
-            'users_id' => $this->dto->users_id,
-            'companies_id' => $this->dto->companies_id,
-            'apps_id' => $this->dto->apps_id,
+            'users_id' => $this->user->getId(),
         ]);
     }
 }

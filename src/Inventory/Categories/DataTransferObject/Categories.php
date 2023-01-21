@@ -3,8 +3,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Categories\DataTransferObject;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
+use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Spatie\LaravelData\Data;
 
 class Categories extends Data
@@ -15,9 +19,9 @@ class Categories extends Data
      * @return void
      */
     public function __construct(
-        public int $apps_id,
-        public int $companies_id,
-        public int $users_id,
+        public AppInterface $app,
+        public CompanyInterface $company,
+        public UserInterface $user,
         public string $name,
         public int $parent_id = 0,
         public int $position = 0,
@@ -36,9 +40,9 @@ class Categories extends Data
     public static function fromRequest(array $request) : self
     {
         return new self(
-            app(Apps::class)->getKey(),
-            $request['company'] ?? auth()->user()->getCurrentCompany()->getId(),
-            auth()->user()->getId(),
+            app(Apps::class),
+            isset($request['company_id']) ? Companies::getById($request['company_id']) : auth()->user()->getCurrentCompany(),
+            auth()->user(),
             $request['name'],
             $request['parent_id'] ?? 0,
             $request['position'] ?? 0,

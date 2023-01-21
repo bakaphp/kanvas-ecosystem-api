@@ -59,9 +59,9 @@ class Setup
 
         $createCategory = new CreateCategory(
             new Category(
-                $this->app->getId(),
-                $this->company->getId(),
-                $this->user->getId(),
+                $this->app,
+                $this->company,
+                $this->user,
                 StateEnums::DEFAULT_NAME->getValue(),
                 StateEnums::DEFAULT_PARENT_ID->getValue(),
                 StateEnums::DEFAULT_POSITION->getValue(),
@@ -74,9 +74,9 @@ class Setup
 
         $createChannel = new CreateChannel(
             new Channels(
-                $this->app->getId(),
-                $this->company->getId(),
-                $this->user->getId(),
+                $this->app,
+                $this->company,
+                $this->user,
                 StateEnums::DEFAULT_NAME->getValue(),
                 StateEnums::DEFAULT_NAME->getValue(),
                 StateEnums::YES->getValue()
@@ -104,10 +104,10 @@ class Setup
 
         $createWarehouse = new CreateWarehouseAction(
             new Warehouses(
-                $this->company->getId(),
-                $this->app->getId(),
-                $this->user->getId(),
-                $defaultRegion->getId(),
+                $this->company,
+                $this->app,
+                $this->user,
+                $defaultRegion,
                 StateEnums::DEFAULT_NAME->getValue(),
                 StateEnums::DEFAULT_NAME->getValue(),
                 (bool) StateEnums::YES->getValue(),
