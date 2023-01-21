@@ -18,6 +18,7 @@ return new class extends Migration {
             $table->id();
             $table->bigInteger('apps_id')->unsigned();
             $table->bigInteger('companies_id')->unsigned();
+            $table->bigInteger('users_id')->unsigned();
             $table->bigInteger('currency_id')->unsigned();
             $table->char('uuid', 37)->unique();
             $table->string('name', 64);
@@ -37,6 +38,7 @@ return new class extends Migration {
             $table->index('short_slug');
             $table->index('is_deleted');
             $table->index('is_default');
+            $table->index('users_id');
             $table->index('created_at');
             $table->index('updated_at');
         });

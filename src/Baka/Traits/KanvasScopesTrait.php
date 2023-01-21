@@ -17,7 +17,7 @@ trait KanvasScopesTrait
      */
     public function scopeCompany(Builder $query) : Builder
     {
-        return $query->where('companies_id', auth()->user()->default_company);
+        return $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
     }
 
     /**
@@ -29,6 +29,6 @@ trait KanvasScopesTrait
      */
     public function scopeApp(Builder $query) : Builder
     {
-        return $query->where('apps_id', app(Apps::class)->id);
+        return $query->where('apps_id', app(Apps::class)->getId());
     }
 }

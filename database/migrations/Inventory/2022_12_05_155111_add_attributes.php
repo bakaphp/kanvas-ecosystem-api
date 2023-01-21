@@ -18,6 +18,7 @@ return new class extends Migration {
             $table->id();
             $table->bigInteger('apps_id')->unsigned();
             $table->bigInteger('companies_id')->unsigned();
+            $table->bigInteger('users_id')->unsigned();
             $table->char('uuid', 37)->unique();
             $table->string('name', 100);
             $table->boolean('is_deleted')->default(0);
@@ -26,6 +27,7 @@ return new class extends Migration {
             $table->index('apps_id');
             $table->index('companies_id');
             $table->index('uuid');
+            $table->index('users_id');
             $table->index('is_deleted');
             $table->index('created_at');
             $table->index('updated_at');

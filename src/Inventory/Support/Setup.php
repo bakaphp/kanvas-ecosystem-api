@@ -15,6 +15,8 @@ use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Channels\Actions\CreateChannel;
 use Kanvas\Inventory\Channels\DataTransferObject\Channels;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
+use Kanvas\Inventory\Regions\DataTransferObject\Region;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
@@ -78,6 +80,22 @@ class Setup
         );
 
         $defaultChannel = $createChannel->execute();
+
+        $createRegion = new CreateRegionAction(
+            new Region(
+                $this->company->getId(),
+                $this->app->getId(),
+                $this->user->getId(),
+                1,
+                StateEnums::DEFAULT_NAME->getValue(),
+                StateEnums::DEFAULT_NAME->getValue(),
+                null,
+                StateEnums::YES->getValue(),
+            ),
+            $this->user
+        );
+
+        $defaultRegion = $createRegion->execute();
 
         return true;
     }

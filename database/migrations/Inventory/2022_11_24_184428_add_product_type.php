@@ -16,6 +16,7 @@ return new class extends Migration {
             $table->id();
             $table->bigInteger('apps_id')->unsigned();
             $table->bigIntegeR('companies_id')->unsigned();
+            $table->bigIntegeR('users_id')->unsigned();
             $table->string('name');
             $table->char('uuid', 37)->unique();
             $table->string('slug');
@@ -31,6 +32,7 @@ return new class extends Migration {
             $table->index('slug');
             $table->index('uuid');
             $table->index('is_deleted');
+            $table->index('users_id');
             $table->index('created_at');
             $table->index('updated_at');
         });
