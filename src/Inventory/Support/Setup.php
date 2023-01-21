@@ -17,6 +17,9 @@ use Kanvas\Inventory\Channels\Actions\CreateChannel;
 use Kanvas\Inventory\Channels\DataTransferObject\Channels;
 use Kanvas\Inventory\Channels\Models\Channels as ModelsChannels;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\ProductsTypes\Actions\CreateProductTypeAction;
+use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes;
+use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes as ModelsProductsTypes;
 use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
 use Kanvas\Inventory\Regions\DataTransferObject\Region;
 use Kanvas\Inventory\Regions\Models\Regions;
@@ -118,9 +121,22 @@ class Setup
 
         $defaultWarehouse = $createWarehouse->execute();
 
+        $createDefaultProductType= new CreateProductTypeAction(
+            new ProductsTypes(
+                $this->company,
+                $this->user,
+                StateEnums::DEFAULT_NAME->getValue(),
+                StateEnums::DEFAULT_NAME->getValue()
+            ),
+            $this->user
+        );
+
+        $defaultProductType = $createDefaultProductType->execute();
+
         return $defaultCategory instanceof Categories &&
             $defaultChannel instanceof ModelsChannels &&
             $defaultRegion instanceof Regions &&
-            $defaultWarehouse instanceof ModelsWarehouses;
+            $defaultWarehouse instanceof ModelsWarehouses &&
+            $defaultProductType instanceof ModelsProductsTypes;
     }
 }

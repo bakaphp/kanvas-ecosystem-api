@@ -10,19 +10,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Currencies\Models\Currencies;
 
-/**
- * Class Region.
- *
- * @property int $companies_id
- * @property int $apps_id
- * @property int $currency_id
- * @property string $uuid
- * @property string $name
- * @property string $slug
- * @property string $short_slug
- * @property ?string settings = null
- * @property int $is_default
- */
 class Region
 {
     /**

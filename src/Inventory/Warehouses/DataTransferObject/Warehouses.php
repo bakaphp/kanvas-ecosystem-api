@@ -41,7 +41,7 @@ class Warehouses extends Data
      */
     public static function fromRequest(array $data) : self
     {
-        $company= auth()->user()->getCurrentCompany();
+        $company = auth()->user()->getCurrentCompany();
         return new self(
             isset($request['company_id']) ? Companies::getById($request['company_id']) : $company,
             app(Apps::class),

@@ -3,26 +3,17 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\ProductsTypes\Repositories;
 
-use Baka\Contracts\CompanyInterface;
-use Kanvas\Apps\Models\Apps;
+use Baka\Traits\SearchableTrait;
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 
 class ProductsTypesRepository
 {
-    /**
-     * getById.
-     *
-     * @param  int $id
-     * @param  CompanyInterface|null $company
-     *
-     * @return Categories
-     */
-    public static function getById(int $id, ?CompanyInterface $company = null) : ProductsTypes
+    use SearchableTrait;
+
+    public static function getModel() : Model
     {
-        $company = $company ?? auth()->user()->getCurrentCompany();
-        return ProductsTypes::where('companies_id', $company->getId())
-            ->where('apps_id', app(Apps::class)->id)
-            ->findOrFail($id);
+        return new ProductsTypes();
     }
 
     /**

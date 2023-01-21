@@ -1,18 +1,20 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\CustomFields\Traits;
 
+use Baka\Support\Str;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\CustomFields\Models\CustomFields;
 use Kanvas\CustomFields\Models\CustomFieldsModules;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Traits\HasSchemaAccessors;
-use Kanvas\Companies\Models\Companies;
-use Baka\Support\Str;
 
 /**
  * Custom field class.
@@ -357,14 +359,15 @@ trait HasCustomFields
     }
 
     /**
-     * getByCustomField
+     * Get a model from a custom field.
      *
      * @param  string $name
      * @param  mixed $value
      * @param  Companies $company
-     * @return void
+     *
+     * @return Model|null
      */
-    public static function getByCustomField(string $name, mixed $value, ?Companies $company = null)
+    public static function getByCustomField(string $name, mixed $value, ?Companies $company = null) : ?Model
     {
         $company = $company ? $company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
         $table = (new static)->getTable();
