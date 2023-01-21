@@ -3,7 +3,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Regions\DataTransferObject;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
+use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Currencies\Models\Currencies;
 
 /**
  * Class Region.
@@ -26,10 +31,10 @@ class Region
      * @return void
      */
     public function __construct(
-        public int $companies_id,
-        public int $apps_id,
-        public int $users_id,
-        public int $currency_id,
+        public CompanyInterface $company,
+        public AppInterface $app,
+        public UserInterface $user,
+        public Currencies $currency,
         public string $name,
         public string $short_slug,
         public ?string $settings = null,
@@ -47,10 +52,10 @@ class Region
     public static function fromRequest(array $data) : self
     {
         return new self(
-            $data['companies_id'] ?? auth()->user()->getCurrentCompany()->getId(),
-            $data['apps_id'] ?? app(Apps::class)->getId(),
-            $data['users_id'] ?? auth()->user()->getId(),
-            $data['currency_id'],
+            isset($data['companies_id']) ? Companies::getById($data['companies_id']) : auth()->user()->getCurrentCompany(),
+            app(Apps::class),
+            auth()->user(),
+            Currencies::getById($data['currency_id']),
             $data['name'],
             $data['short_slug'] ?? '',
             $data['settings'] ?? null,

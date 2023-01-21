@@ -1,10 +1,8 @@
 type Region {
     id: Int!
     companies_id: Int!
-    apps_id: Int!
     currency_id: Int!
     companies: Company!
-    apps: App!
     currencies: Currency!
     uuid: String!
     name: String!
@@ -35,14 +33,7 @@ input RegionInputUpdate {
 }
 extend type Query @guard {
     regions(
-        where: _
-            @whereConditions(
-                columns: [
-                    "name",
-                    "slug",
-                    "short_slug",
-                ]
-            )
+        where: _ @whereConditions(columns: ["name", "slug", "short_slug"])
     ): [Region]
         @paginate(
             builder: "App\\GraphQL\\Inventory\\Builders\\Regions\\Region@all"
@@ -50,7 +41,16 @@ extend type Query @guard {
         )
 }
 extend type Mutation @guard {
-    createRegion(input: RegionInput!): Region! @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Regions\\Region@create")
-    updateRegion(id: Int!, input: RegionInputUpdate!): Region! @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Regions\\Region@update")
-    deleteRegion(id: Int!): Boolean! @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Regions\\Region@delete")
+    createRegion(input: RegionInput!): Region!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Regions\\Region@create"
+        )
+    updateRegion(id: Int!, input: RegionInputUpdate!): Region!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Regions\\Region@update"
+        )
+    deleteRegion(id: Int!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Regions\\Region@delete"
+        )
 }

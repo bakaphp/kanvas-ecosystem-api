@@ -3,9 +3,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Regions\Repositories;
 
-use Baka\Contracts\CompanyInterface;
 use Baka\Traits\SearchableTrait;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Regions\Models\Regions as RegionModel;
 
 class RegionRepository
@@ -15,7 +13,5 @@ class RegionRepository
     public static function getModel() : RegionModel
     {
         return new RegionModel();
-
-
     }
 }

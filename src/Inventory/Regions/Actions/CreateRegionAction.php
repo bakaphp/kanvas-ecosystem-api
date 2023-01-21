@@ -25,17 +25,17 @@ class CreateRegionAction
     public function execute() : RegionModel
     {
         CompaniesRepository::userAssociatedToCompany(
-            Companies::getById($this->data->companies_id),
+            Companies::getById($this->data->company->getId()),
             $this->user
         );
 
         return RegionModel::firstOrCreate([
             'name' => $this->data->name,
-            'companies_id' => $this->data->companies_id,
-            'apps_id' => $this->data->apps_id,
+            'companies_id' => $this->data->company->getId(),
+            'apps_id' => $this->data->app->getId(),
         ], [
-            'users_id' => $this->data->users_id,
-            'currency_id' => $this->data->currency_id,
+            'users_id' => $this->data->user->getId(),
+            'currency_id' => $this->data->currency->getId(),
             'short_slug' => $this->data->short_slug,
             'settings' => $this->data->settings,
             'is_default' => $this->data->is_default,

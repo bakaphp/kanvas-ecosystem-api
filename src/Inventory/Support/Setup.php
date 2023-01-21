@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Actions\CreateCategory;
 use Kanvas\Inventory\Categories\DataTransferObject\Categories as Category;
@@ -87,10 +88,10 @@ class Setup
 
         $createRegion = new CreateRegionAction(
             new Region(
-                $this->company->getId(),
-                $this->app->getId(),
-                $this->user->getId(),
-                1,
+                $this->company,
+                $this->app,
+                $this->user,
+                Currencies::where('code', 'USD')->firstOrFail(),
                 StateEnums::DEFAULT_NAME->getValue(),
                 StateEnums::DEFAULT_NAME->getValue(),
                 null,

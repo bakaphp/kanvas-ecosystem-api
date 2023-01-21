@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Baka\Traits;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 
 trait KanvasModelTrait
 {
@@ -38,9 +40,14 @@ trait KanvasModelTrait
      */
     public static function getByUuid(string $uuid) : self
     {
-        return self::where('id', $uuid)
-            ->where('is_deleted', StateEnums::NO->getValue())
-            ->firstOrFail();
+        try {
+            return self::where('uuid', $uuid)
+                ->where('is_deleted', StateEnums::NO->getValue())
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
     }
 
     /**
@@ -52,9 +59,14 @@ trait KanvasModelTrait
      */
     public static function getById(mixed $id) : self
     {
-        return self::where('id', (int) $id)
-            ->where('is_deleted', StateEnums::NO->getValue())
-            ->firstOrFail();
+        try {
+            return self::where('id', $id)
+                ->where('is_deleted', StateEnums::NO->getValue())
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
     }
 
     /**
