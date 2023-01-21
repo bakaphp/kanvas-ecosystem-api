@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Baka\Contracts;
 
-/**
- * EnumsInterface.
- */
 interface AppInterface
 {
     public function getId() : mixed;

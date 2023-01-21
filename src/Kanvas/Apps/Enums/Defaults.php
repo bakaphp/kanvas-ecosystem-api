@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Apps\Enums;
 
-use Kanvas\Contracts\EnumsInterface;
+use Baka\Contracts\EnumsInterface;
 
 /**
  * @deprecated version 1.0 use Global Enums AppEnum

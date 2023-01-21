@@ -10,9 +10,6 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Users\Models\UsersAssociatedApps;
 
-/**
- * EnumsInterface.
- */
 interface UserInterface extends Authenticatable
 {
     public static function getByEmail(string $email) : self;
