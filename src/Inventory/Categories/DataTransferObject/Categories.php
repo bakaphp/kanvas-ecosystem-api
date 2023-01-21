@@ -3,10 +3,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Categories\DataTransferObject;
 
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
-use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Spatie\LaravelData\Data;
 

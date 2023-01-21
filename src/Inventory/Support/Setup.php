@@ -12,6 +12,8 @@ use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Actions\CreateCategory;
 use Kanvas\Inventory\Categories\DataTransferObject\Categories as Category;
 use Kanvas\Inventory\Categories\Models\Categories;
+use Kanvas\Inventory\Channels\Actions\CreateChannel;
+use Kanvas\Inventory\Channels\DataTransferObject\Channels;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -63,6 +65,19 @@ class Setup
 
         $defaultCategory = $createCategory->execute();
 
+        $createChannel = new CreateChannel(
+            new Channels(
+                $this->app->getId(),
+                $this->company->getId(),
+                $this->user->getId(),
+                StateEnums::DEFAULT_NAME->getValue(),
+                StateEnums::DEFAULT_NAME->getValue(),
+                StateEnums::YES->getValue()
+            ),
+            $this->user
+        );
+
+        $defaultChannel = $createChannel->execute();
 
         return true;
     }

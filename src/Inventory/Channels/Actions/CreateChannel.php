@@ -3,7 +3,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Channels\Actions;
 
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Str;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Channels\DataTransferObject\Channels as ChannelsDto;
 use Kanvas\Inventory\Channels\Models\Channels;
 
@@ -15,7 +18,8 @@ class CreateChannel
      * @return void
      */
     public function __construct(
-        protected ChannelsDto $dto
+        protected ChannelsDto $dto,
+        protected UserInterface $user
     ) {
     }
 
@@ -26,6 +30,11 @@ class CreateChannel
      */
     public function execute() : Channels
     {
+        CompaniesRepository::userAssociatedToCompany(
+            Companies::getById($this->dto->companies_id),
+            $this->user
+        );
+
         return Channels::firstOrCreate([
             'companies_id' => $this->dto->companies_id,
             'apps_id' => $this->dto->apps_id,

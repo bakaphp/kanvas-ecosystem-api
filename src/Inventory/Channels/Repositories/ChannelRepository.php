@@ -1,23 +1,26 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Channels\Repositories;
 
-use Kanvas\Inventory\Channels\Models\Channels;
+use Baka\Contracts\CompanyInterface;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Inventory\Channels\Models\Channels;
 
 class ChannelRepository
 {
     /**
-     * getById
+     * getById.
      *
      * @param  int $id
-     * @param  int $companiesId
-     * @return Channels
+     * @param  CompanyInterface|null $company
+     *
+     * @return Categories
      */
-    public static function getById(int $id, ?int $companiesId = null): Channels
+    public static function getById(int $id, ?CompanyInterface $company = null) : Channels
     {
-        $companiesId = $companiesId ?? auth()->user()->default_company;
-        return Channels::where('companies_id', $companiesId)
+        $company = $company ?? auth()->user()->getCurrentCompany();
+        return Channels::where('companies_id', $company->getId())
             ->where('apps_id', app(Apps::class)->id)
             ->findOrFail($id);
     }
