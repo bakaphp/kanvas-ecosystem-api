@@ -18,7 +18,7 @@ return new class extends Migration {
             $table->id();
             $table->bigInteger('apps_id')->unsigned();
             $table->bigInteger('companies_id')->unsigned();
-            $table->char('uuid', 100);
+            $table->char('uuid', 37)->unique();
             $table->string('name', 100);
             $table->boolean('is_deleted')->default(0);
             $table->timestamp('created_at')->useCurrent();

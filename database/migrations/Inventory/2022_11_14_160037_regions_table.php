@@ -19,7 +19,7 @@ return new class extends Migration {
             $table->bigInteger('apps_id')->unsigned();
             $table->bigInteger('companies_id')->unsigned();
             $table->bigInteger('currency_id')->unsigned();
-            $table->char('uuid', 100);
+            $table->char('uuid', 37)->unique();
             $table->string('name', 64);
             $table->string('slug', 32);
             $table->string('short_slug', 32);
@@ -28,6 +28,7 @@ return new class extends Migration {
             $table->boolean('is_deleted')->default(0);
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
+            $table->unique(['companies_id', 'slug']);
             $table->index('apps_id');
             $table->index('companies_id');
             $table->index('currency_id');
@@ -35,6 +36,7 @@ return new class extends Migration {
             $table->index('slug');
             $table->index('short_slug');
             $table->index('is_deleted');
+            $table->index('is_default');
             $table->index('created_at');
             $table->index('updated_at');
         });

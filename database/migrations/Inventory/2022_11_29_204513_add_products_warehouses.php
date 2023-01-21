@@ -15,6 +15,7 @@ return new class extends Migration {
         Schema::create('products_warehouses', function (Blueprint $table) {
             $table->charset = 'utf8mb4';
             $table->collation = 'utf8mb4_unicode_520_ci';
+            $table->primary(['products_id', 'warehouses_id']);
             $table->bigInteger('warehouses_id')->unsigned();
             $table->bigInteger('products_id')->unsigned();
             $table->boolean('is_deleted')->default(0);

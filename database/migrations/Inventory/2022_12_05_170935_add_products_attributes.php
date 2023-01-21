@@ -15,7 +15,7 @@ return new class extends Migration {
         Schema::create('products_attributes', function (Blueprint $table) {
             $table->charset = 'utf8mb4';
             $table->collation = 'utf8mb4_unicode_520_ci';
-            $table->id();
+            $table->primary(['products_id', 'attributes_id']);
             $table->bigInteger('products_id')->unsigned();
             $table->bigInteger('attributes_id')->unsigned();
             $table->text('value');
@@ -27,6 +27,9 @@ return new class extends Migration {
             $table->index('is_deleted');
             $table->index('created_at');
             $table->index('updated_at');
+            $table->foreign('products_id')->references('id')->on('products');
+            $table->foreign('attributes_id')->references('id')->on('attributes');
+
         });
     }
 
