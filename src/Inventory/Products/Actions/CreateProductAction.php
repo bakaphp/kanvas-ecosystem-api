@@ -1,17 +1,17 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Products\Actions;
 
-use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Inventory\Categories\Models\Categories;
-use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
+use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 
 class CreateProductAction
 {
     /**
-     * __construct
+     * __construct.
      *
      * @return void
      */
@@ -21,7 +21,7 @@ class CreateProductAction
     }
 
     /**
-     * execute
+     * execute.
      *
      * @return void
      */

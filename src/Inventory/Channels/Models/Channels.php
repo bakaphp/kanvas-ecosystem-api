@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Channels\Models;
 
+use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -31,6 +32,7 @@ use Kanvas\Users\Models\Users;
 class Channels extends BaseModel
 {
     use UuidTrait;
+    use SlugTrait;
 
     protected $table = 'channels';
     protected $guarded = [];

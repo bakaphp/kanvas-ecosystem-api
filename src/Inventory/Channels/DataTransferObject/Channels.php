@@ -1,14 +1,14 @@
 <?php
 declare(strict_types=1);
 
-
 namespace Kanvas\Inventory\Channels\DataTransferObject;
+
 use Kanvas\Apps\Models\Apps;
 
-class Channels {
-    
+class Channels
+{
     /**
-     * __construct
+     * __construct.
      *
      * @return void
      */
@@ -17,20 +17,21 @@ class Channels {
         public int $apps_id,
         public int $users_id,
         public string $name,
-        public ?string $description=null,
+        public ?string $description = null,
         public ?string $slug,
         public int $is_published,
     ) {
     }
-    
+
     /**
-     * fromArray
+     * fromArray.
      *
      * @param  array $data
+     *
      * @return self
      */
-    public static function fromArray(array $data): self
-    { 
+    public static function fromArray(array $data) : self
+    {
         return new self(
             $data['companies_id'] ?? auth()->user()->default_company,
             $data['apps_id'] ?? app(Apps::class)->id,
@@ -41,5 +42,4 @@ class Channels {
             $data['is_published'] ?? 0,
         );
     }
-    
 }

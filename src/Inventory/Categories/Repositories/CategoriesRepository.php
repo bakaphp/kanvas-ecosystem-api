@@ -1,24 +1,26 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Categories\Repositories;
 
-use Kanvas\Inventory\Categories\Models\Categories;
+use Baka\Contracts\CompanyInterface;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Inventory\Categories\Models\Categories;
 
 class CategoriesRepository
 {
-     
     /**
-     * getById
+     * getById.
      *
      * @param  int $id
-     * @param  ?int $companiesId
+     * @param  CompanyInterface|null $company
+     *
      * @return Categories
      */
-    public static function getById(int $id, ?int $companiesId = null): Categories
+    public static function getById(int $id, ?CompanyInterface $company = null) : Categories
     {
-        $companiesId = $companiesId ?? auth()->user()->default_company;
-        return Categories::where('companies_id', $companiesId)
+        $company = $company ?? auth()->user()->getCurrentCompany();
+        return Categories::where('companies_id', $company->getId())
             ->where('apps_id', app(Apps::class)->id)
             ->findOrFail($id);
     }
