@@ -54,7 +54,7 @@ class ProductImporterAction
         if ($this->importedProduct->isFromThirdParty()) {
             $this->product = ProductsModel::getByCustomField(
                 $this->importedProduct->getSourceKey(),
-                $this->importedProduct->source_id,
+                $this->importedProduct->sourceId,
                 $this->company
             );
         }
@@ -94,8 +94,9 @@ class ProductImporterAction
             if ($this->importedProduct->isFromThirdParty()) {
                 $this->product->setLinkedSource(
                     $this->importedProduct->source,
-                    $this->importedProduct->source_id
+                    $this->importedProduct->sourceId
                 );
+
                 $this->product->set('source', $this->importedProduct->source);
             }
 

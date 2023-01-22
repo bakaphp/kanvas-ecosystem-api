@@ -1,7 +1,7 @@
 input ImporterProductInput {
     name: String!
     description: String!
-    region_id: Int!
+    regionId: Int!
     slug: String!
     price: Float!
     sku: String!
@@ -14,7 +14,7 @@ input ImporterProductInput {
     is_published: Boolean
     warehouses: [Int]
     source: String
-    source_id: Mixed
+    sourceId: Mixed
     productType: ProductTypeInput
     categories: [CategoryInput]
     attributes: [AttributeInput]
