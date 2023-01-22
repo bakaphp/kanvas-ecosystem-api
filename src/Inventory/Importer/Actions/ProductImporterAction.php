@@ -253,7 +253,7 @@ class ProductImporterAction
                     'user' => $this->user,
                     'app' => $this->app,
                     'region' => $this->region,
-                    'region_id' => $this->region->getId(),
+                    'regions_id' => $this->region->getId(),
                     'name' => $warehouseLocation['warehouse']
                 ]);
 
@@ -302,7 +302,7 @@ class ProductImporterAction
                 'user' => $this->user,
                 'app' => $this->app,
                 'region' => $this->region,
-                'region_id' => $this->region->getId(),
+                'regions_id' => $this->region->getId(),
                 'name' => $warehouseLocation['warehouse']
             ]);
 

@@ -44,7 +44,7 @@ class Warehouses extends Data
     {
         $company = auth()->user()->getCurrentCompany();
 
-        if (!isset($request['region_id'])) {
+        if (!isset($request['regions_id'])) {
             throw new ValidationException('Region is required');
         }
 
@@ -52,7 +52,7 @@ class Warehouses extends Data
             isset($request['company_id']) ? Companies::getById($request['company_id']) : $company,
             app(Apps::class),
             auth()->user(),
-            RegionRepository::getById($request['region_id'], $company),
+            RegionRepository::getById($request['regions_id'], $company),
             $request['name'],
             $request['location'] ?? null,
             $request['is_default'] ?? (bool) StateEnums::NO->getValue(),
