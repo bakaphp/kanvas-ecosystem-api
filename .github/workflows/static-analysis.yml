@@ -1,40 +1,103 @@
 name: static analysis
 
-on:
-  push:
-    branches:
-      - master
-      - '*.x'
-  pull_request:
+on: ["push"]
 
 jobs:
-  types:
-    runs-on: ubuntu-22.04
-
+  run-tests:
+    name: PHP ${{ matrix.php-versions }}
+    runs-on: ubuntu-latest
+    env:
+      extensions: mbstring, intl, json, redis, swoole, xdebug
+      APP_ENV: testing
+      DB_HOST: 127.0.0.1
+      REDIS_URL: tcp://127.0.0.1:6379?database=0
+      REDIS_HOST: 127.0.0.1
+      DB_USERNAME: root
+      DB_PASSWORD: password
+      DB_DATABASE: test
+      DB_INVENTORY_DATABASE: test
+      DB_INVENTORY_USERNAME: root
+      DB_INVENTORY_PASSWORD: password
+      KANVAS_APP_ID: 059ddaaf-89b5-4158-a85a-90cbd69aa34b
+      APP_KEY: base64:4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY=
+      APP_JWT_TOKEN: 4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY
+      TOKEN_AUDIENCE: http://localhost
+      TOKEN_PASSWORD: base64:4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY=
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      AWS_BUCKET: ${{ secrets.AWS_BUCKET }}
+      AWS_URL: ${{ secrets.AWS_URL }}
+      #APP_DEBUG: true
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
-        directory: [src, types]
-
-    name: ${{ matrix.directory == 'src' && 'Source Code' || 'Types' }}
-
+        php-versions: ["8.1", "8.2"]
+    services:
+      mysql:
+        image: mariadb:10.4
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: test
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+      redis:
+        # Docker Hub image
+        image: redis
+        # Set health checks to wait until redis has started
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+      rabbitmq:
+        image: rabbitmq
+        ports:
+          - 5672:5672
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v2
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: 8.1
-          tools: composer:v2
-          coverage: none
+          php-version: ${{ matrix.php-versions }}
+          extensions: ${{ env.extensions }}
+          tools: pecl
 
-      - name: Install dependencies
-        uses: nick-fields/retry@v2
+      - name: Get Composer Cache Directory
+        id: composer-cache
+        run: echo "::set-output name=dir::$(composer config cache-files-dir)"
+
+      - name: Cache composer dependencies
+        uses: actions/cache@v1
         with:
-          timeout_minutes: 5
-          max_attempts: 5
-          command: composer update --prefer-stable --prefer-dist --no-interaction --no-progress
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-suggest
+
+      - name: Run Migrations
+        run: php artisan migrate
+
+      - name: Run Inventory Migrations
+        run: php artisan migrate --path database/migrations/Inventory/
+
+      - name: Run Seedes
+        run: php artisan db:seed
+
+      - name: Create Role Admin
+        run: php artisan role:create Admin
+
+      - name: Create Role Users
+        run: php artisan role:create Users
+
+      - name: Create Role Agents
+        run: php artisan role:create Agents
 
       - name: Execute type checking
         run: vendor/bin/phpstan --configuration="phpstan.${{ matrix.directory }}.neon.dist"
