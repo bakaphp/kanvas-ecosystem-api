@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Importer\Actions;
 
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
@@ -23,13 +24,16 @@ use Kanvas\Inventory\ProductsTypes\Actions\CreateProductTypeAction;
 use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes as ProductsTypesModel;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction;
 use Kanvas\Inventory\Variants\Actions\AddVariantToChannel;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
+use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
 use Kanvas\Inventory\Variants\Models\Variants as VariantsModel;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses;
+use Throwable;
 
 class ProductImporterAction
 {
@@ -58,50 +62,62 @@ class ProductImporterAction
     }
 
     /**
-     * execute.
+     * Run all method dor a specify product.
      *
-     * @return void
+     * @throws Exception
+     *
+     * @return bool
      */
-    public function execute() : void
+    public function execute() : bool
     {
-        if ($this->product === null) {
-            $productDto = ProductsDto::from([
-                'app' => $this->app,
-                'company' => $this->company,
-                'user' => $this->user,
-                'name' => $this->importedProduct->name,
-                'slug' => $this->importedProduct->slug,
-                'description' => $this->importedProduct->description,
-                'short_description' => $this->importedProduct->shortDescription,
-                'html_description' => $this->importedProduct->htmlDescription,
-                'warranty_terms' => $this->importedProduct->warrantyTerms,
-                'upc' => $this->importedProduct->upc,
-                'is_published' => $this->importedProduct->isPublished,
-            ]);
-            $this->product = (new CreateProductAction($productDto, $this->user))->execute();
+        try {
+            DB::connection('inventory')->beginTransaction();
+
+            if ($this->product === null) {
+                $productDto = ProductsDto::from([
+                    'app' => $this->app,
+                    'company' => $this->company,
+                    'user' => $this->user,
+                    'name' => $this->importedProduct->name,
+                    'slug' => $this->importedProduct->slug,
+                    'description' => $this->importedProduct->description,
+                    'short_description' => $this->importedProduct->shortDescription,
+                    'html_description' => $this->importedProduct->htmlDescription,
+                    'warranty_terms' => $this->importedProduct->warrantyTerms,
+                    'upc' => $this->importedProduct->upc,
+                    'is_published' => $this->importedProduct->isPublished,
+                ]);
+                $this->product = (new CreateProductAction($productDto, $this->user))->execute();
+            }
+
+            if ($this->importedProduct->isFromThirdParty()) {
+                $this->product->setLinkedSource(
+                    $this->importedProduct->source,
+                    $this->importedProduct->source_id
+                );
+                $this->product->set('source', $this->importedProduct->source);
+            }
+
+            $this->categories();
+
+            if (!empty($this->importedProduct->attributes)) {
+                $this->attributes();
+            }
+
+            $this->productWarehouse();
+
+            $this->variants();
+
+            if (!empty($this->importedProduct->productType)) {
+                $this->productType();
+            }
+            DB::connection('inventory')->commit();
+        } catch (Throwable $e) {
+            DB::connection('inventory')->rollback();
+            throw $e;
         }
 
-        if ($this->importedProduct->isFromThirdParty()) {
-            $this->product->setLinkedSource(
-                $this->importedProduct->source,
-                $this->importedProduct->source_id
-            );
-            $this->product->set('source', $this->importedProduct->source);
-        }
-
-        $this->categories();
-
-        if (!empty($this->importedProduct->attributes)) {
-            $this->attributes();
-        }
-
-        $this->productWarehouse();
-
-        $this->variants();
-
-        if (!empty($this->importedProduct->productType)) {
-            $this->productType();
-        }
+        return true;
     }
 
     /**
@@ -221,6 +237,7 @@ class ProductImporterAction
             } else {
                 $variantDto = VariantsDto::from([
                     'product' => $this->product,
+                    'products_id' => $this->product->getId(),
                     ...$variant
                 ]);
                 $variantModel = (new CreateVariantsAction($variantDto, $this->user))->execute();
@@ -236,6 +253,7 @@ class ProductImporterAction
                     'user' => $this->user,
                     'app' => $this->app,
                     'region' => $this->region,
+                    'region_id' => $this->region->getId(),
                     'name' => $warehouseLocation['warehouse']
                 ]);
 
@@ -256,8 +274,18 @@ class ProductImporterAction
                     'is_published' => $this->importedProduct->isPublished,
                 ]);
 
+                (new AddToWarehouseAction(
+                    $variantModel,
+                    $warehouse,
+                    VariantsWarehouses::from([
+                        'quantity' => $this->importedProduct->quantity,
+                        'price' => $this->importedProduct->price,
+                        'sku' => $variantModel->sku
+                    ]),
+                ))->execute();
+
                 (new AddVariantToChannel(
-                    $variant,
+                    $variantModel,
                     $channel,
                     $warehouse,
                     $variantChannel
@@ -274,6 +302,7 @@ class ProductImporterAction
                 'user' => $this->user,
                 'app' => $this->app,
                 'region' => $this->region,
+                'region_id' => $this->region->getId(),
                 'name' => $warehouseLocation['warehouse']
             ]);
 

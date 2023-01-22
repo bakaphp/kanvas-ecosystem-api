@@ -1,8 +1,8 @@
-
 input ImporterProductInput {
     products_types_id: Int
     name: String!
     description: String!
+    region_id : Int!
     short_description: String
     html_description: String
     warranty_terms: String
@@ -17,6 +17,9 @@ input ImporterProductInput {
     variants: [VariantsInput]
 }
 
-extend type Mutation @guard{
-    importProduct(input: ImporterProductInput source: String): Boolean @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Import@product")
+extend type Mutation @guard {
+    importProduct(input: ImporterProductInput, source: String): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Import@product"
+        )
 }

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Exceptions;
+namespace Baka\Exceptions;
 
 use Exception;
 use Nuwave\Lighthouse\Exceptions\RendersErrorsExtensions;
