@@ -23,6 +23,19 @@ final class ImporterTest extends TestCase
         );
         $setupCompany->run();
 
+        $attributes = [
+            'attributes' => [
+                [
+                    'name' => fake()->word(),
+                    'value' => fake()->word(),
+                ],
+                [
+                    'name' => fake()->word(),
+                    'value' => fake()->word(),
+                ],
+            ],
+        ];
+
         $productData = ProductImporter::from([
             'name' => fake()->word(),
             'description' => fake()->sentence(),
@@ -30,6 +43,7 @@ final class ImporterTest extends TestCase
             'sku' => fake()->word(),
             'price' => fake()->randomNumber(2),
             'quantity' => fake()->randomNumber(2),
+            'isPublished' => true,
             'variants' => [
                 [
                     'name' => fake()->word(),
@@ -38,6 +52,7 @@ final class ImporterTest extends TestCase
                     'price' => fake()->randomNumber(2),
                     'is_published' => true,
                     'slug' => fake()->slug(),
+                    ...$attributes,
                 ],
                 [
                     'name' => fake()->word(),
@@ -46,6 +61,7 @@ final class ImporterTest extends TestCase
                     'price' => fake()->randomNumber(2),
                     'is_published' => true,
                     'slug' => fake()->slug(),
+                    ...$attributes,
                 ],
             ],
             'categories' => [
@@ -54,7 +70,8 @@ final class ImporterTest extends TestCase
                     'code' => (string) fake()->randomNumber(3),
                     'position' => fake()->randomNumber(1),
                 ]
-            ]
+            ],
+            ...$attributes
         ]);
 
         $productImporter = new ProductImporterAction(

@@ -24,6 +24,7 @@ use Kanvas\Inventory\ProductsTypes\Actions\CreateProductTypeAction;
 use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes as ProductsTypesModel;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Inventory\Variants\Actions\AddAttributeAction as ActionsAddAttributeAction;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction;
 use Kanvas\Inventory\Variants\Actions\AddVariantToChannel;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
@@ -197,11 +198,11 @@ class ProductImporterAction
     {
         foreach ($this->importedProduct->attributes as $attribute) {
             $attributeModel = null;
-            if ($attribute['source_id']) {
+            if (isset($attribute['source_id'])) {
                 $attributeModel = Attributes::getByCustomField($this->importedProduct->getSourceKey(), $attribute['source_id'], $this->company);
             }
 
-            if ($attributeModel) {
+            if (!$attributeModel) {
                 $attributesDto = AttributesDto::from([
                     'app' => $this->app,
                     'user' => $this->user,
@@ -210,7 +211,7 @@ class ProductImporterAction
                 ]);
                 $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
 
-                if ($attribute['source_id']) {
+                if (isset($attribute['source_id'])) {
                     $attributeModel->setLinkedSource($this->importedProduct->source, $attribute['source_id']);
                 }
             }
@@ -243,6 +244,30 @@ class ProductImporterAction
                 $variantModel = (new CreateVariantsAction($variantDto, $this->user))->execute();
                 if (isset($variant['source_id'])) {
                     $variantModel->setLinkedSource($this->importedProduct->source, $variant['source_id']);
+                }
+            }
+
+            if (isset($variant['attributes']) && !empty($variant['attributes'])) {
+                foreach ($variant['attributes'] as $attribute) {
+                    $attributeModel = null;
+                    if (isset($attribute['source_id'])) {
+                        $attributeModel = Attributes::getByCustomField($this->importedProduct->getSourceKey(), $attribute['source_id'], $this->company);
+                    }
+
+                    if (!$attributeModel) {
+                        $attributesDto = AttributesDto::from([
+                            'app' => $this->app,
+                            'user' => $this->user,
+                            'company' => $this->company,
+                            'name' => $attribute['name'],
+                        ]);
+                        $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
+
+                        if (isset($attribute['source_id'])) {
+                            $attributeModel->setLinkedSource($this->importedProduct->source, $attribute['source_id']);
+                        }
+                    }
+                    (new ActionsAddAttributeAction($variantModel, $attributeModel, $attribute['value']))->execute();
                 }
             }
 

@@ -27,7 +27,6 @@ class ProductImporter extends Data
         public ?string $sourceId = null,
         public array $productType = [],
         public array $attributes = [],
-        public array $variantAttributes = [],
         public array $warehouses = [
             [
                 'warehouse' => 'default',
