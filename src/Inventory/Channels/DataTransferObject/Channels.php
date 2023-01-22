@@ -27,22 +27,15 @@ class Channels
     ) {
     }
 
-    /**
-     * fromRequest.
-     *
-     * @param array $data
-     *
-     * @return self
-     */
-    public static function fromRequest(array $data) : self
+    public static function fromRequest(array $request) : self
     {
         return new self(
             app(Apps::class),
             isset($request['company_id']) ? Companies::getById($request['company_id']) : auth()->user()->getCurrentCompany(),
             auth()->user(),
-            $data['name'],
-            $data['description'] ?? null,
-            $data['is_published'] ?? StateEnums::YES->getValue(),
+            $request['name'],
+            $request['description'] ?? null,
+            $request['is_published'] ?? StateEnums::YES->getValue(),
         );
     }
 }

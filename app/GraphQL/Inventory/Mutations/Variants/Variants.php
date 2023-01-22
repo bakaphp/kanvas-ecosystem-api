@@ -5,7 +5,7 @@ namespace App\GraphQL\Inventory\Mutations\Variants;
 
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
 use Kanvas\Inventory\Channels\Repositories\ChannelRepository;
-use Kanvas\Inventory\Variants\Actions\addAttributeAction;
+use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction as AddToWarehouse;
 use Kanvas\Inventory\Variants\Actions\AddVariantToChannel;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
@@ -110,7 +110,7 @@ class Variants
         $variant = VariantsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
 
         $attribute = AttributesRepository::getById($req['attributes_id']);
-        (new addAttributeAction($variant, $attribute, $req['input']['value']))->execute();
+        (new AddAttributeAction($variant, $attribute, $req['input']['value']))->execute();
         return $variant;
     }
 

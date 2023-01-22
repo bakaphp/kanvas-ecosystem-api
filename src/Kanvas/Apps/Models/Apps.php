@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Models\BaseModel;
+use Kanvas\Roles\Models\Roles;
 use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;

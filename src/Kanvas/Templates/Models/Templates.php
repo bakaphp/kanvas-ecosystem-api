@@ -6,10 +6,10 @@ namespace Kanvas\Templates\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Companies\Models\Companies;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Models\BaseModel;
-use Kanvas\UsersGroupUsers\Models\Users;
+use Kanvas\Users\Models\Users;
 
 /**
  * Apps Model.
@@ -45,7 +45,7 @@ class Templates extends BaseModel
     /**
      * Users relationship.
      *
-     * @return Users
+     * @return BelongsTo
      */
     public function user() : BelongsTo
     {
@@ -55,7 +55,7 @@ class Templates extends BaseModel
     /**
      * Users relationship.
      *
-     * @return Companies
+     * @return BelongsTo
      */
     public function company() : BelongsTo
     {
@@ -65,7 +65,7 @@ class Templates extends BaseModel
     /**
      * Users relationship.
      *
-     * @return Apps
+     * @return BelongsTo
      */
     public function app() : BelongsTo
     {

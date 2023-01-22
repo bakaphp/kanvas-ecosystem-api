@@ -8,9 +8,7 @@ use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvi
 use Illuminate\Support\Facades\Event;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Observers\AppsObserver;
-use Kanvas\Companies\Events\AfterSignupEvent;
 use Kanvas\Companies\Groups\Observers\CompaniesGroupsObserver;
-use Kanvas\Companies\Listeners\AfterSignupListener;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesGroups;
 use Kanvas\Companies\Observers\CompaniesObserver;
@@ -25,9 +23,7 @@ class EventServiceProvider extends ServiceProvider
      * @var array<class-string, array<int, class-string>>
      */
     protected $listen = [
-        AfterSignupEvent::class => [
-            AfterSignupListener::class,
-        ]
+
     ];
 
     /**

@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Models\BaseModel;
-use Kanvas\Notifications\Models\NotificationsTypes;
+use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -63,7 +63,7 @@ class UsersNotificationsSettings extends BaseModel
      */
     public function notificationsTypes(): BelongsTo
     {
-        return $this->belongsTo(NotificationsTypes::class, 'notifications_types_id');
+        return $this->belongsTo(NotificationTypes::class, 'notifications_types_id');
     }
 
     /**

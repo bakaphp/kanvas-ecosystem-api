@@ -15,17 +15,18 @@ class CreateNotification
      *
      * @return void
      */
-    public function __construct(NotificationsDto $dto)
-    {
-        $this->dto = $dto;
+    public function __construct(
+        protected NotificationsDto $dto
+    ) {
     }
+
 
     /**
      * execute.
      *
      * @return void
      */
-    public function execute(): void
+    public function execute() : void
     {
         $notification = new NotificationsModel();
         $notification->fill((array) $this->dto);

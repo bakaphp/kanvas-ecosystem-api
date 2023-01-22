@@ -16,9 +16,6 @@ use Kanvas\CustomFields\Models\CustomFieldsModules;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Traits\HasSchemaAccessors;
 
-/**
- * Custom field class.
- */
 trait HasCustomFields
 {
     use HasSchemaAccessors;
@@ -373,7 +370,7 @@ trait HasCustomFields
         $table = (new static)->getTable();
         return self::join('apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table . '.id')
             ->where('apps_custom_fields.companies_id', $company)
-            ->where('apps_custom_fields.model_name', get_class(new static))
+            ->where('apps_custom_fields.model_name', static::class)
             ->where('apps_custom_fields.name', $name)
             ->where('apps_custom_fields.value', $value)
             ->select($table . '.*')

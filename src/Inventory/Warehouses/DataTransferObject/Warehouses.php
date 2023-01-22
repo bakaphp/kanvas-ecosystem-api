@@ -39,18 +39,18 @@ class Warehouses extends Data
      *
      * @return self
      */
-    public static function fromRequest(array $data) : self
+    public static function fromRequest(array $request) : self
     {
         $company = auth()->user()->getCurrentCompany();
         return new self(
             isset($request['company_id']) ? Companies::getById($request['company_id']) : $company,
             app(Apps::class),
             auth()->user(),
-            RegionRepository::getById($data['regions_id'], $company),
-            $data['name'],
-            $data['location'] ?? null,
-            $data['is_default'] ?? (bool) StateEnums::NO->getValue(),
-            $data['is_published'] ?? StateEnums::YES->getValue(),
+            RegionRepository::getById($request['regions_id'], $company),
+            $request['name'],
+            $request['location'] ?? null,
+            $request['is_default'] ?? (bool) StateEnums::NO->getValue(),
+            $request['is_published'] ?? StateEnums::YES->getValue(),
         );
     }
 }

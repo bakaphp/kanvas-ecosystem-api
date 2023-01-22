@@ -4,6 +4,8 @@ namespace Kanvas\Companies\Branches\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Users\Models\Users;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Model>
