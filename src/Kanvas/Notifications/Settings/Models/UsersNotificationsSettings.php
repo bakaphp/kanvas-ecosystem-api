@@ -1,17 +1,19 @@
 <?php
 
 declare(strict_types=1);
+
 namespace Kanvas\Notifications\Settings\Models;
 
-use Kanvas\Models\BaseModel;
-use Kanvas\Users\Models\Users;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Notifications\Models\NotificationsTypes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Models\BaseModel;
+use Kanvas\Notifications\Models\NotificationsTypes;
+use Kanvas\Users\Models\Users;
 
 /**
  * UsersNotificationsSettings Model.
+ *
  * @property int $users_id
  * @property int $apps_id
  * @property int $notifications_types_id
@@ -35,7 +37,7 @@ class UsersNotificationsSettings extends BaseModel
     public $incrementing = false;
 
     /**
-     * users
+     * users.
      *
      * @return BelongsTo
      */
@@ -45,7 +47,7 @@ class UsersNotificationsSettings extends BaseModel
     }
 
     /**
-     * apps
+     * apps.
      *
      * @return BelongsTo
      */
@@ -55,7 +57,7 @@ class UsersNotificationsSettings extends BaseModel
     }
 
     /**
-     * notificationsTypes
+     * notificationsTypes.
      *
      * @return BelongsTo
      */
@@ -65,9 +67,10 @@ class UsersNotificationsSettings extends BaseModel
     }
 
     /**
-     * scopeAppUser
+     * scopeAppUser.
      *
      * @param  Builder $query
+     *
      * @return Builder
      */
     public function scopeAppUser(Builder $query): Builder
@@ -78,9 +81,10 @@ class UsersNotificationsSettings extends BaseModel
     }
 
     /**
-     * setKeysForSaveQuery
+     * setKeysForSaveQuery.
      *
      * @param  Builder $query
+     *
      * @return Builder
      */
     protected function setKeysForSaveQuery($query)

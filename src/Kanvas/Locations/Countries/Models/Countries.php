@@ -1,14 +1,15 @@
 <?php
 
 declare(strict_types=1);
+
 namespace Kanvas\Locations\Countries\Models;
 
-use Kanvas\Models\BaseModel;
 use Kanvas\Locations\Cities\Models\Cities;
 use Kanvas\Locations\States\Models\States;
+use Kanvas\Models\BaseModel;
 
 /**
- * Countries Class
+ * Countries Class.
  *
  * @property string $name
  * @property string $code
@@ -31,7 +32,7 @@ class Countries extends BaseModel
     ];
 
     /**
-     * Cities relationship
+     * Cities relationship.
      *
      * @return hasMany
      */
@@ -41,7 +42,7 @@ class Countries extends BaseModel
     }
 
     /**
-     * States relationship
+     * States relationship.
      *
      * @return hasMany
      */

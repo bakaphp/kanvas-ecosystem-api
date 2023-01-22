@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Warehouses\Actions;
 
 use Baka\Users\Contracts\UserInterface;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses as WarehousesDto;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;

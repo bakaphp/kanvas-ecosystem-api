@@ -4,8 +4,8 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Mutations\Auth;
 
 use GraphQL\Type\Definition\ResolveInfo;
-use Kanvas\Auth\Traits\AuthTrait;
 use Kanvas\Auth\DataTransferObject\LoginInput;
+use Kanvas\Auth\Traits\AuthTrait;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class Login

@@ -1,13 +1,11 @@
 <?php
+
 namespace Kanvas\Notifications\Templates;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Kanvas\Notifications\Notification;
-use Illuminate\Notifications\Messages\MailMessage;
 use Kanvas\Users\Models\Users;
-use Kanvas\Templates\Models\Templates;
-use Illuminate\Support\Facades\Blade;
 
 class UserSignUp extends Notification implements ShouldQueue
 {
@@ -16,9 +14,10 @@ class UserSignUp extends Notification implements ShouldQueue
     public string $templateName = 'user-signup';
 
     /**
-     * __construct
+     * __construct.
      *
      * @param  Users $user
+     *
      * @return void
      */
     public function __construct(Users $user)
@@ -28,7 +27,7 @@ class UserSignUp extends Notification implements ShouldQueue
     }
 
     /**
-     * via
+     * via.
      *
      * @return array
      */
@@ -38,7 +37,7 @@ class UserSignUp extends Notification implements ShouldQueue
     }
 
     /**
-     * getData
+     * getData.
      *
      * @return array
      */

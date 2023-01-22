@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Enums;
 
-use Kanvas\Apps\Enums\Defaults as AppsDefaults;
 use Baka\Contracts\EnumsInterface;
+use Kanvas\Apps\Enums\Defaults as AppsDefaults;
 
 enum Defaults implements EnumsInterface
 {

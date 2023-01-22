@@ -1,14 +1,15 @@
 <?php
 declare(strict_types=1);
+
 namespace Tests\GraphQL\Ecosystem;
 
-use Tests\TestCase;
 use Kanvas\Notifications\Models\NotificationTypes;
+use Tests\TestCase;
 
 class NotificationSettingTest extends TestCase
 {
     /**
-     * testListAllSetting
+     * testListAllSetting.
      *
      * @return void
      */
@@ -61,7 +62,7 @@ class NotificationSettingTest extends TestCase
     }
 
     /**
-     * testMuteAll
+     * testMuteAll.
      *
      * @return void
      */
@@ -109,7 +110,7 @@ class NotificationSettingTest extends TestCase
     }
 
     /**
-     * testSetNotificationSettings
+     * testSetNotificationSettings.
      *
      * @return void
      */

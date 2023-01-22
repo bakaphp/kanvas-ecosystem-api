@@ -1,8 +1,9 @@
 <?php
+
 namespace App\GraphQL\Ecosystem\Mutations\Notifications;
 
-use Kanvas\Notifications\Actions\ReadAllNotification as ReadAllNotificationAction;
 use Exception;
+use Kanvas\Notifications\Actions\ReadAllNotification as ReadAllNotificationAction;
 
 final class ReadAllNotification
 {

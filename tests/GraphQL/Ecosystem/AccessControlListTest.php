@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+
 namespace Tests\GraphQL\Ecosystem;
 
 use Tests\TestCase;
@@ -7,7 +8,7 @@ use Tests\TestCase;
 class AccessControlListTest extends TestCase
 {
     /**
-     * testCreateRole
+     * testCreateRole.
      *
      * @return void
      */
@@ -45,7 +46,7 @@ class AccessControlListTest extends TestCase
     }
 
     /**
-     * testGetRole
+     * testGetRole.
      *
      * @return void
      */
@@ -94,7 +95,7 @@ class AccessControlListTest extends TestCase
     }
 
     /**
-     * testUpdateRole
+     * testUpdateRole.
      *
      * @return void
      */

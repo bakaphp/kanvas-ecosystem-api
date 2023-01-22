@@ -25,7 +25,7 @@ class AppsCustomFields extends BaseModel
 
     protected $fillable = [
         'companies_id',
-        'users_id' ,
+        'users_id',
         'model_name',
         'entity_id',
         'label',

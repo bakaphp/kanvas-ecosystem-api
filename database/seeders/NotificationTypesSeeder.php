@@ -1,7 +1,7 @@
 <?php
+
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\SystemModules\Models\SystemModules;
@@ -15,7 +15,7 @@ class NotificationTypesSeeder extends Seeder
      */
     public function run()
     {
-        //
+
         $systemModule = SystemModules::first();
         NotificationTypes::create([
             'apps_id' => 1,

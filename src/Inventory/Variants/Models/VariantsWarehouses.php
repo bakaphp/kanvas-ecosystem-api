@@ -55,6 +55,5 @@ class VariantsWarehouses extends BaseModel
         'is_published'
     ];
 
-
     protected $primaryKey = ['products_variants_id', 'warehouses_id'];
 }

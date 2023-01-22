@@ -5,7 +5,6 @@ namespace Kanvas\Inventory\Channels\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Str;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Channels\DataTransferObject\Channels as ChannelsDto;
 use Kanvas\Inventory\Channels\Models\Channels;

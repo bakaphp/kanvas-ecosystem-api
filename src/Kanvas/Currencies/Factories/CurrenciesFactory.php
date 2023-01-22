@@ -4,7 +4,6 @@ namespace Kanvas\Currencies\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Kanvas\Currencies\Models\Currencies;
-use Illuminate\Support\Str;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Model>
@@ -12,10 +11,10 @@ use Illuminate\Support\Str;
 class CurrenciesFactory extends Factory
 {
     /**
-    * The name of the factory's corresponding model.
-    *
-    * @var Apps
-    */
+     * The name of the factory's corresponding model.
+     *
+     * @var Apps
+     */
     protected $model = Currencies::class;
 
     /**
@@ -26,11 +25,11 @@ class CurrenciesFactory extends Factory
     public function definition()
     {
         return [
-            "country" => $this->faker->locale(),
-            "currency" => $this->faker->currencyCode(),
-            "code" => $this->faker->countryCode(),
-            "symbol" => $this->faker->locale(),
-            "is_deleted" => 0
+            'country' => $this->faker->locale(),
+            'currency' => $this->faker->currencyCode(),
+            'code' => $this->faker->countryCode(),
+            'symbol' => $this->faker->locale(),
+            'is_deleted' => 0
         ];
     }
 }

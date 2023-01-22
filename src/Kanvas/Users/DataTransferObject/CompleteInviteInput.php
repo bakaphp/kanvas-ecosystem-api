@@ -24,7 +24,7 @@ class CompleteInviteInput extends Data
     }
 
     /**
-     * Get invite hash
+     * Get invite hash.
      *
      * @return string
      */

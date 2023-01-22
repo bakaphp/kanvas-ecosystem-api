@@ -26,7 +26,6 @@ return new class extends Migration {
             $table->index('is_deleted');
             $table->index('created_at');
             $table->index('updated_at');
-
         });
     }
 

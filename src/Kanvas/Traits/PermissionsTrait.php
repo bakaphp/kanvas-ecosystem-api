@@ -6,13 +6,13 @@ namespace Kanvas\Traits;
 
 use Baka\Http\Exception\InternalServerErrorException;
 use Baka\Http\Exception\UnauthorizedException;
+use Baka\Support\Str;
 use Kanvas\Apps\Enums\Defaults as AppsDefaults;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Roles\Repositories\RolesRepository;
 use Kanvas\Users\Models\UserRoles;
-use Baka\Support\Str;
 
 trait PermissionsTrait
 {
@@ -41,7 +41,6 @@ trait PermissionsTrait
 
         $app = app(Apps::class);
         $appId = $role->apps_id == AppsDefaults::CANVAS_DEFAULT_APP_ID->getValue() ? $app->getKey() : $role->apps_id;
-
 
         $userRole = UserRoles::where('users_id', $this->getKey())
                     ->where('apps_id', $appId)

@@ -4,9 +4,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Mutations\Companies;
 
 use Illuminate\Support\Facades\Auth;
-use Kanvas\Companies\Branches\Actions\CreateCompanyBranchActions;
 use Kanvas\Companies\Branches\Actions\UpdateCompanyBranchActions;
-use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPostData;
 use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPutData;
 
 final class UpdateCompaniesBranch

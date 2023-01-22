@@ -31,6 +31,5 @@ class VariantsChannels extends BaseModel
         'discount_price'
     ];
 
-
     protected $primaryKey = ['products_variants_id', 'channels_id', 'warehouses_id'];
 }

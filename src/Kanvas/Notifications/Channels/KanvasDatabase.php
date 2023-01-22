@@ -1,11 +1,12 @@
 <?php
 
 declare(strict_types=1);
+
 namespace Kanvas\Notifications\Channels;
 
 use Illuminate\Notifications\Notification;
-use Kanvas\Notifications\DataTransferObject\Notifications as NotificationsDto;
 use Kanvas\Notifications\Actions\CreateNotification as CreateNotificationAction;
+use Kanvas\Notifications\DataTransferObject\Notifications as NotificationsDto;
 
 class KanvasDatabase
 {
@@ -14,6 +15,7 @@ class KanvasDatabase
      *
      * @param  mixed  $notifiable
      * @param  \Illuminate\Notifications\Notification  $notification
+     *
      * @return void
      */
     public function send($notifiable, Notification $notification)

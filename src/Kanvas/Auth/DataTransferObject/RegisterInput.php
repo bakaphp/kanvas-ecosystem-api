@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\DataTransferObject;
 
+use Baka\Support\Random;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Baka\Support\Random;
 use Spatie\LaravelData\Data;
 
 /**

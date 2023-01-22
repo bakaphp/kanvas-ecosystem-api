@@ -1,19 +1,21 @@
 <?php
 declare(strict_types=1);
+
 namespace App\GraphQL\Ecosystem\Mutations\AccessControlList;
 
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
-use Silber\Bouncer\Database\Role as SilberRole;
 use Kanvas\AccessControlList\Actions\UpdateRoleAction;
 use Kanvas\Companies\Models\Companies;
+use Silber\Bouncer\Database\Role as SilberRole;
 
 class Roles
 {
     /**
-     * createRole
+     * createRole.
      *
      * @param  mixed $rootValue
      * @param  array $request
+     *
      * @return void
      */
     public function createRole(mixed $rootValue, array $request): SilberRole
@@ -26,10 +28,11 @@ class Roles
     }
 
     /**
-     * updateRole
+     * updateRole.
      *
      * @param  mixed $rootValue
      * @param  array $request
+     *
      * @return void
      */
     public function updateRole(mixed $rootValue, array $request): SilberRole
