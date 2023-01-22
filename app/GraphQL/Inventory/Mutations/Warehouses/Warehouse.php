@@ -24,7 +24,7 @@ class Warehouse
         $request = $request['input'];
 
         return (new CreateWarehouseAction(
-            WarehousesDto::fromRequest($request),
+            WarehousesDto::viaRequest($request),
             auth()->user()
         ))->execute();
     }

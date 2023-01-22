@@ -23,7 +23,7 @@ class Products
      */
     public function create(mixed $root, array $req) : ProductsModel
     {
-        $productDto = ProductDto::fromRequest($req['input']);
+        $productDto = ProductDto::viaRequest($req['input']);
         $action = new CreateProductAction($productDto, auth()->user());
         return $action->execute();
     }

@@ -30,7 +30,7 @@ class ProductsTypes extends Data
      *
      * @return ProductsTypes
      */
-    public static function fromRequest(array $request) : ProductsTypes
+    public static function viaRequest(array $request) : ProductsTypes
     {
         return new self(
             isset($request['companies_id']) ? Companies::getById($request['companies_id']) : auth()->user()->getCurrentCompany(),

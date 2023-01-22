@@ -19,7 +19,7 @@ abstract class BaseDataTransferObject extends DataTransferObject
      *
      * @return self
      */
-    abstract public static function fromRequest(Request $request) : self;
+    abstract public static function viaRequest(Request $request) : self;
 
     /**
      * Create new instance of DTO from array of data.

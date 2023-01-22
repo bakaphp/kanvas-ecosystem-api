@@ -23,7 +23,7 @@ class Region
     {
         $request = $request['input'];
         $currency = Currencies::findOrFail($request['currency_id']);
-        $regionDto = RegionDto::fromRequest($request);
+        $regionDto = RegionDto::viaRequest($request);
         return (new CreateRegionAction($regionDto, auth()->user()))->execute();
     }
 

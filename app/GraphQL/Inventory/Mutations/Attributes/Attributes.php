@@ -20,7 +20,7 @@ class Attributes
      */
     public function create(mixed $root, array $req) : AttributeModel
     {
-        $dto = AttributeDto::fromRequest($req['input']);
+        $dto = AttributeDto::viaRequest($req['input']);
         $action = new CreateAttribute($dto, auth()->user());
         return $action->execute();
     }

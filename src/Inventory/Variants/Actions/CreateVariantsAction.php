@@ -35,7 +35,7 @@ class CreateVariantsAction
 
         $search = [
             'products_id' => $this->variantDto->product->getId(),
-            'name' => $this->variantDto->name,
+            'name' => trim($this->variantDto->name),
             'companies_id' => $this->variantDto->product->companies_id,
             'apps_id' => $this->variantDto->product->apps_id
         ];

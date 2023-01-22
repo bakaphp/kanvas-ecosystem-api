@@ -28,7 +28,7 @@ class Variants
      */
     public function create(mixed $root, array $req) : VariantModel
     {
-        $variantDto = VariantDto::fromRequest($req['input']);
+        $variantDto = VariantDto::viaRequest($req['input']);
         $action = new CreateVariantsAction($variantDto, auth()->user());
         return $action->execute();
     }

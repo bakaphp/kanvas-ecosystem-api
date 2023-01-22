@@ -42,7 +42,7 @@ class RegisterInput extends Data
      *
      * @return self
      */
-    public static function fromRequest(Request $request) : self
+    public static function viaRequest(Request $request) : self
     {
         return new self(
             firstname: $request->get('firstname') ?? '',

@@ -36,7 +36,7 @@ class Region
      *
      * @return self
      */
-    public static function fromRequest(array $data) : self
+    public static function viaRequest(array $data) : self
     {
         return new self(
             isset($data['companies_id']) ? Companies::getById($data['companies_id']) : auth()->user()->getCurrentCompany(),

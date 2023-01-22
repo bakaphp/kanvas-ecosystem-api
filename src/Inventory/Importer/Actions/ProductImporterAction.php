@@ -146,7 +146,7 @@ class ProductImporterAction
 
             $productType = (new CreateProductTypeAction($productTypeDto, $this->user))->execute();
 
-            if (isset($this->importedProduct->productType['source_id'])) {
+            if (isset($this->importedProduct->productType['source_id']) && $this->importedProduct->isFromThirdParty()) {
                 $productType->setLinkedSource($this->importedProduct->source, $this->importedProduct->productType['source_id']);
             }
 
@@ -181,7 +181,7 @@ class ProductImporterAction
                     'position' => $category['position'],
                 ]);
                 $categoryModel = (new CreateCategory($categoryDto, $this->user))->execute();
-                if (isset($category['source_id'])) {
+                if (isset($category['source_id']) && $this->importedProduct->isFromThirdParty()) {
                     $categoryModel->setLinkedSource($this->importedProduct->source, $category['source_id']);
                 }
                 $this->product->categories()->syncWithoutDetaching($categoryModel->getId());
@@ -211,7 +211,7 @@ class ProductImporterAction
                 ]);
                 $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
 
-                if (isset($attribute['source_id'])) {
+                if (isset($attribute['source_id']) && $this->importedProduct->isFromThirdParty()) {
                     $attributeModel->setLinkedSource($this->importedProduct->source, $attribute['source_id']);
                 }
             }
@@ -260,7 +260,7 @@ class ProductImporterAction
                     ...$variant
                 ]);
                 $variantModel = (new CreateVariantsAction($variantDto, $this->user))->execute();
-                if (isset($variant['source_id'])) {
+                if (isset($variant['source_id']) && $this->importedProduct->isFromThirdParty()) {
                     $variantModel->setLinkedSource($this->importedProduct->source, $variant['source_id']);
                 }
             }
@@ -289,7 +289,7 @@ class ProductImporterAction
                     ]);
                     $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
 
-                    if (isset($attribute['source_id'])) {
+                    if (isset($attribute['source_id']) && $this->importedProduct->isFromThirdParty()) {
                         $attributeModel->setLinkedSource($this->importedProduct->source, $attribute['source_id']);
                     }
                 }

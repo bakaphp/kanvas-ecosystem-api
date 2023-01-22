@@ -58,7 +58,7 @@ trait HasCustomFields
 
         $results = DB::select('
             SELECT name, value
-                FROM apps_custom_fields
+                FROM ' . DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields
                 WHERE
                     companies_id = ?
                     AND model_name = ?
@@ -298,7 +298,7 @@ trait HasCustomFields
 
         return DB::statement('
             DELETE
-                FROM apps_custom_fields
+                FROM ' . DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields
                     WHERE
                         companies_id = :companies_id
                         AND model_name = :model_name
@@ -368,7 +368,7 @@ trait HasCustomFields
     {
         $company = $company ? $company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
         $table = (new static)->getTable();
-        return self::join('apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table . '.id')
+        return self::join(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table . '.id')
             ->where('apps_custom_fields.companies_id', $company)
             ->where('apps_custom_fields.model_name', static::class)
             ->where('apps_custom_fields.name', $name)

@@ -17,11 +17,12 @@ class Import
      *
      * @return bool
      */
-    public function product(mixed $root, array $req): bool
+    public function product(mixed $root, array $req) : bool
     {
         $region = RegionRepository::getById($req['input']['region_id'], auth()->user()->getCurrent);
         $dto = ProductImporter::from($req['input']);
-        ImporterJob::dispatchSync(
+
+        ImporterJob::dispatch(
             $dto,
             auth()->user()->getCurrentCompany(),
             auth()->user(),
