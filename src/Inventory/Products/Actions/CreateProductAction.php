@@ -29,9 +29,9 @@ class CreateProductAction
     /**
      * execute.
      *
-     * @return void
+     * @return Products
      */
-    public function execute()
+    public function execute() : Products
     {
         CompaniesRepository::userAssociatedToCompany(
             $this->productDto->company,

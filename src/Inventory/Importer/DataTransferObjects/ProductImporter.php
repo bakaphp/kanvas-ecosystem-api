@@ -13,22 +13,22 @@ class ProductImporter extends Data
         public string $slug,
         public string $sku,
         public float $price,
+        public array $variants,
+        public array $categories,
         public bool $isPublished = true,
         public float $discountPrice = 0.0,
         public int $position = 0,
-        public ?string $productType = null,
         public ?string $shortDescription = null,
         public ?string $htmlDescription = null,
         public ?string $warrantyTerms = null,
         public ?string $upc = null,
         public ?string $source = null,
         public ?string $sourceId = null,
-        public array $categories = [],
+        public array $productType = [],
         public array $attributes = [],
         public array $variantAttributes = [],
         public array $warehouses = ['default'],
         public array $channels = ['default'],
-
     ) {
     }
 
@@ -37,6 +37,11 @@ class ProductImporter extends Data
      */
     public function isFromThirdParty() : bool
     {
-        return $this->source_id != null;
+        return $this->source !== null && $this->sourceId !== null;
+    }
+
+    public function getSourceKey() : string
+    {
+        return $this->source . '_id';
     }
 }

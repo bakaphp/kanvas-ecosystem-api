@@ -89,7 +89,7 @@ class Products extends BaseModel
     /**
      * variants.
      *
-     * @return void
+     * @return HasMany
      */
     public function variants() : HasMany
     {

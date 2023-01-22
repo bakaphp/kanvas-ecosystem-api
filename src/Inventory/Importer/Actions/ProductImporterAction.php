@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Importer\Actions;
 
+use Baka\Users\Contracts\UserInterface;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
@@ -24,16 +26,26 @@ use Kanvas\Inventory\Variants\Models\Variants as VariantsModel;
 
 class ProductImporterAction
 {
-    protected ProductsModel $product;
-
+    protected ?ProductsModel $product = null;
+    protected Apps $app;
     /**
      * __construct.
      *
      */
     public function __construct(
-        public ProductImporter $importerDto,
-        public Companies $company
+        public ProductImporter $importedProduct,
+        public Companies $company,
+        public UserInterface $user
     ) {
+        if ($this->importedProduct->isFromThirdParty()) {
+            $this->product = ProductsModel::getByCustomField(
+                $this->importedProduct->getSourceKey(),
+                $this->importedProduct->source_id,
+                $this->company
+            );
+        }
+
+        $this->app = app(Apps::class);
     }
 
     /**
@@ -41,27 +53,44 @@ class ProductImporterAction
      *
      * @return void
      */
-    public function execute(): void
+    public function execute() : void
     {
-        $product = ProductsModel::getByCustomField("{$this->source}_id", $this->importerDto->source_id, $this->company);
-        if ($product) {
-            $this->product = $product;
-        } else {
+        if ($this->product === null) {
             $productDto = ProductsDto::from([
-                'name' => $this->importerDto->name,
-                'description' => $this->importerDto->description,
-                'short_description' => $this->importerDto->short_description ?? null,
-                'html_description' => $this->importerDto->html_description ?? null,
-                'warranty_terms' => $this->importerDto->warranty_terms ?? null,
-                'upc' => $this->importer->upc ?? null
+                'app' => $this->app,
+                'company' => $this->company,
+                'user' => $this->user,
+                'name' => $this->importedProduct->name,
+                'slug' => $this->importedProduct->slug,
+                'description' => $this->importedProduct->description,
+                'short_description' => $this->importedProduct->shortDescription,
+                'html_description' => $this->importedProduct->htmlDescription,
+                'warranty_terms' => $this->importedProduct->warrantyTerms,
+                'upc' => $this->importedProduct->upc,
+                'is_published' => $this->importedProduct->isPublished,
             ]);
-            $this->product = (new CreateProductAction($productDto))->execute();
-            $this->product->setLinkedSource($this->source, $this->importerDto->source_id);
+            $this->product = (new CreateProductAction($productDto, $this->user))->execute();
         }
-        $this->productType();
+
+        if ($this->importedProduct->isFromThirdParty()) {
+            $this->product->setLinkedSource(
+                $this->importedProduct->source,
+                $this->importedProduct->source_id
+            );
+            $this->product->set('source', $this->importedProduct->source);
+        }
+
         $this->categories();
-        $this->attributes();
+
+        if (!empty($this->importedProduct->attributes)) {
+            $this->attributes();
+        }
+
         $this->variants();
+
+        if (!empty($this->importedProduct->productType)) {
+            $this->productType();
+        }
     }
 
     /**
@@ -69,20 +98,30 @@ class ProductImporterAction
      *
      * @return void
      */
-    protected function productType(): void
+    protected function productType() : void
     {
-        $productType = ProductsTypesModel::getByCustomField("{$this->source}_id", $this->importerDto->productType['source_id'], $this->company);
+        $productType = null;
+
+        if (isset($this->importedProduct->productType['source_id'])) {
+            $productType = ProductsTypesModel::getByCustomField($this->importedProduct->getSourceKey(), $this->importedProduct->productType['source_id'], $this->company);
+        }
         if ($productType) {
             $this->product->update(['products_types_id' => $productType->id]);
         } else {
             $productTypeDto = ProductsTypes::from([
-                'companies_id' => $this->company->id,
-                'name' => $this->importerDto->productType['name'],
-                'description' => $this->importerDto->productType['description'] ?? null,
-                'weight' => $this->importerDto->productType['weight'],
+                'company' => $this->company,
+                'user' => $this->user,
+                'name' => $this->importedProduct->productType['name'],
+                'description' => $this->importedProduct->productType['description'] ?? null,
+                'weight' => $this->importedProduct->productType['weight'],
             ]);
-            $productType = (new CreateProductTypeAction($productTypeDto))->execute();
-            $this->product->setLinkedSource($this->source, $this->importerDto->productType['source_id']);
+
+            $productType = (new CreateProductTypeAction($productTypeDto, $this->user))->execute();
+
+            if (isset($this->importedProduct->productType['source_id'])) {
+                $productType->setLinkedSource($this->importedProduct->source, $this->importedProduct->productType['source_id']);
+            }
+
             $this->product->update(['products_types_id' => $productType->id]);
         }
     }
@@ -92,23 +131,32 @@ class ProductImporterAction
      *
      * @return void
      */
-    public function categories(): void
+    public function categories() : void
     {
-        foreach ($this->importerDto->categories as $category) {
-            $categoryModel = Categories::getByCustomField("{$this->source}_id", $category['source_id'], $this->company);
+        foreach ($this->importedProduct->categories as $category) {
+            $categoryModel = null;
+
+            if (isset($category['source_id'])) {
+                $categoryModel = Categories::getByCustomField($this->importedProduct->getSourceKey(), $category['source_id'], $this->company);
+            }
+
             if ($categoryModel) {
-                $this->product->categories()->syncWithoutDetaching([$categoryModel->id]);
+                $this->product->categories()->syncWithoutDetaching([$categoryModel->getId()]);
             } else {
-                $categoryDto = CategoryDto::fromArray([
-                    'companies_id' => $this->company->id,
-                    'parent_id' => $category['parent_id'] ?? null,
+                $categoryDto = CategoryDto::from([
+                    'app' => $this->app,
+                    'user' => $this->user,
+                    'company' => $this->company,
+                    'parent_id' => $category['parent_id'] ?? 0,
                     'name' => $category['name'],
                     'code' => $category['code'],
                     'position' => $category['position'],
                 ]);
-                $categoryModel = (new CreateCategory($categoryDto))->execute();
-                $categoryModel->setLinkedSource($this->source, $category['source_id']);
-                $this->product->categories()->attach($categoryModel->id);
+                $categoryModel = (new CreateCategory($categoryDto, $this->user))->execute();
+                if (isset($category['source_id'])) {
+                    $categoryModel->setLinkedSource($this->importedProduct->source, $category['source_id']);
+                }
+                $this->product->categories()->attach($categoryModel->getId());
             }
         }
     }
@@ -118,16 +166,26 @@ class ProductImporterAction
      *
      * @return void
      */
-    public function attributes(): void
+    public function attributes() : void
     {
-        foreach ($this->importerDto->attributes as $attribute) {
-            $attributeModel = Attributes::getByCustomField("{$this->source}_id", $attribute['source_id'], $this->company);
-            if (!$attributeModel) {
+        foreach ($this->importedProduct->attributes as $attribute) {
+            $attributeModel = null;
+            if ($attribute['source_id']) {
+                $attributeModel = Attributes::getByCustomField($this->importedProduct->getSourceKey(), $attribute['source_id'], $this->company);
+            }
+
+            if ($attributeModel) {
                 $attributesDto = AttributesDto::from([
+                    'app' => $this->app,
+                    'user' => $this->user,
+                    'company' => $this->company,
                     'name' => $attribute['name'],
                 ]);
-                $attributeModel = (new CreateAttribute($attributesDto))->execute();
-                $attributeModel->setLinkedSource($this->source, $attribute['source_id']);
+                $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
+
+                if ($attribute['source_id']) {
+                    $attributeModel->setLinkedSource($this->importedProduct->source, $attribute['source_id']);
+                }
             }
             (new AddAttributeAction($this->product, $attributeModel, $attribute['value']))->execute();
         }
@@ -138,19 +196,26 @@ class ProductImporterAction
      *
      * @return void
      */
-    public function variants(): void
+    public function variants() : void
     {
-        foreach ($this->importerDto->variants as $variant) {
-            $variantModel = VariantsModel::getByCustomField("{$this->source}_id", $variant['source_id'], $this->company);
+        foreach ($this->importedProduct->variants as $variant) {
+            $variantModel = null;
+
+            if (isset($variant['source_id'])) {
+                $variantModel = VariantsModel::getByCustomField($this->importedProduct->getSourceKey(), $variant['source_id'], $this->company);
+            }
+
             if ($variantModel) {
                 $this->product->variants()->save($variantModel);
             } else {
                 $variantDto = VariantsDto::from([
-                    'products_id' => $this->product->id,
+                    'product' => $this->product,
                     ...$variant
                 ]);
-                $variantModel = (new CreateVariantsAction($variantDto))->execute();
-                $variantModel->setLinkedSource($this->source, $variant['source_id']);
+                $variantModel = (new CreateVariantsAction($variantDto, $this->user))->execute();
+                if (isset($variant['source_id'])) {
+                    $variantModel->setLinkedSource($this->importedProduct->source, $variant['source_id']);
+                }
             }
         }
     }
