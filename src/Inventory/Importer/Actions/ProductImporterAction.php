@@ -219,6 +219,24 @@ class ProductImporterAction
         }
     }
 
+    public function productWarehouse() : void
+    {
+        foreach ($this->importedProduct->warehouses as $warehouseLocation) {
+            $warehouseData = Warehouses::from([
+                'company' => $this->company,
+                'user' => $this->user,
+                'app' => $this->app,
+                'region' => $this->region,
+                'regions_id' => $this->region->getId(),
+                'name' => $warehouseLocation['warehouse']
+            ]);
+
+            $warehouse = (new CreateWarehouseAction($warehouseData, $this->user))->execute();
+
+            $this->product->warehouses()->syncWithoutDetaching([$warehouse->getId()]);
+        }
+    }
+
     /**
      * variants.
      *
@@ -247,80 +265,49 @@ class ProductImporterAction
                 }
             }
 
-            if (isset($variant['attributes']) && !empty($variant['attributes'])) {
-                foreach ($variant['attributes'] as $attribute) {
-                    $attributeModel = null;
-                    if (isset($attribute['source_id'])) {
-                        $attributeModel = Attributes::getByCustomField($this->importedProduct->getSourceKey(), $attribute['source_id'], $this->company);
-                    }
+            $this->variantsAttributes($variantModel, $variant);
 
-                    if (!$attributeModel) {
-                        $attributesDto = AttributesDto::from([
-                            'app' => $this->app,
-                            'user' => $this->user,
-                            'company' => $this->company,
-                            'name' => $attribute['name'],
-                        ]);
-                        $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
+            $this->addVariantsToLocation($variantModel);
+        }
+    }
 
-                        if (isset($attribute['source_id'])) {
-                            $attributeModel->setLinkedSource($this->importedProduct->source, $attribute['source_id']);
-                        }
-                    }
-                    (new ActionsAddAttributeAction($variantModel, $attributeModel, $attribute['value']))->execute();
+    public function variantsAttributes(VariantsModel $variantModel, array $variantData) : void
+    {
+        if (isset($variantData['attributes']) && !empty($variantData['attributes'])) {
+            foreach ($variantData['attributes'] as $attribute) {
+                $attributeModel = null;
+                if (isset($attribute['source_id'])) {
+                    $attributeModel = Attributes::getByCustomField($this->importedProduct->getSourceKey(), $attribute['source_id'], $this->company);
                 }
-            }
 
-            //add to warehouse
-            foreach ($this->importedProduct->warehouses as $warehouseLocation) {
-                $warehouseData = Warehouses::from([
-                    'company' => $this->company,
-                    'user' => $this->user,
-                    'app' => $this->app,
-                    'region' => $this->region,
-                    'regions_id' => $this->region->getId(),
-                    'name' => $warehouseLocation['warehouse']
-                ]);
+                if (!$attributeModel) {
+                    $attributesDto = AttributesDto::from([
+                        'app' => $this->app,
+                        'user' => $this->user,
+                        'company' => $this->company,
+                        'name' => $attribute['name'],
+                    ]);
+                    $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
 
-                $warehouse = (new CreateWarehouseAction($warehouseData, $this->user))->execute();
-
-                $channelData = Channels::from([
-                    'app' => $this->app,
-                    'user' => $this->user,
-                    'company' => $this->company,
-                    'name' => $warehouseLocation['channel'],
-                ]);
-
-                $channel = (new CreateChannel($channelData, $this->user))->execute();
-
-                $variantChannel = VariantChannel::from([
-                    'price' => $this->importedProduct->price,
-                    'discounted_price' => $this->importedProduct->discountPrice,
-                    'is_published' => $this->importedProduct->isPublished,
-                ]);
-
-                (new AddToWarehouseAction(
-                    $variantModel,
-                    $warehouse,
-                    VariantsWarehouses::from([
-                        'quantity' => $this->importedProduct->quantity,
-                        'price' => $this->importedProduct->price,
-                        'sku' => $variantModel->sku
-                    ]),
-                ))->execute();
-
-                (new AddVariantToChannel(
-                    $variantModel,
-                    $channel,
-                    $warehouse,
-                    $variantChannel
-                ))->execute();
+                    if (isset($attribute['source_id'])) {
+                        $attributeModel->setLinkedSource($this->importedProduct->source, $attribute['source_id']);
+                    }
+                }
+                (new ActionsAddAttributeAction($variantModel, $attributeModel, $attribute['value']))->execute();
             }
         }
     }
 
-    public function productWarehouse() : void
+    /**
+     * Add variant to warehouse and channels.
+     *
+     * @param VariantsModel $variantModel
+     *
+     * @return void
+     */
+    public function addVariantsToLocation(VariantsModel $variantModel) : void
     {
+        //add to warehouse
         foreach ($this->importedProduct->warehouses as $warehouseLocation) {
             $warehouseData = Warehouses::from([
                 'company' => $this->company,
@@ -333,7 +320,37 @@ class ProductImporterAction
 
             $warehouse = (new CreateWarehouseAction($warehouseData, $this->user))->execute();
 
-            $this->product->warehouses()->syncWithoutDetaching([$warehouse->getId()]);
+            $channelData = Channels::from([
+                'app' => $this->app,
+                'user' => $this->user,
+                'company' => $this->company,
+                'name' => $warehouseLocation['channel'],
+            ]);
+
+            $channel = (new CreateChannel($channelData, $this->user))->execute();
+
+            $variantChannel = VariantChannel::from([
+                'price' => $this->importedProduct->price,
+                'discounted_price' => $this->importedProduct->discountPrice,
+                'is_published' => $this->importedProduct->isPublished,
+            ]);
+
+            (new AddToWarehouseAction(
+                $variantModel,
+                $warehouse,
+                VariantsWarehouses::from([
+                    'quantity' => $this->importedProduct->quantity,
+                    'price' => $this->importedProduct->price,
+                    'sku' => $variantModel->sku
+                ]),
+            ))->execute();
+
+            (new AddVariantToChannel(
+                $variantModel,
+                $channel,
+                $warehouse,
+                $variantChannel
+            ))->execute();
         }
     }
 }
