@@ -12,6 +12,8 @@ use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Actions\CreateCategory;
 use Kanvas\Inventory\Categories\DataTransferObject\Categories as CategoryDto;
 use Kanvas\Inventory\Categories\Models\Categories;
+use Kanvas\Inventory\Channels\Actions\CreateChannel;
+use Kanvas\Inventory\Channels\DataTransferObject\Channels;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Products\Actions\AddAttributeAction;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
@@ -20,9 +22,14 @@ use Kanvas\Inventory\Products\Models\Products as ProductsModel;
 use Kanvas\Inventory\ProductsTypes\Actions\CreateProductTypeAction;
 use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes as ProductsTypesModel;
+use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Inventory\Variants\Actions\AddVariantToChannel;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
+use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\Models\Variants as VariantsModel;
+use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
+use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses;
 
 class ProductImporterAction
 {
@@ -35,7 +42,8 @@ class ProductImporterAction
     public function __construct(
         public ProductImporter $importedProduct,
         public Companies $company,
-        public UserInterface $user
+        public UserInterface $user,
+        public Regions $region
     ) {
         if ($this->importedProduct->isFromThirdParty()) {
             $this->product = ProductsModel::getByCustomField(
@@ -85,6 +93,8 @@ class ProductImporterAction
         if (!empty($this->importedProduct->attributes)) {
             $this->attributes();
         }
+
+        $this->productWarehouse();
 
         $this->variants();
 
@@ -217,6 +227,58 @@ class ProductImporterAction
                     $variantModel->setLinkedSource($this->importedProduct->source, $variant['source_id']);
                 }
             }
+
+            //add to warehouse
+            foreach ($this->importedProduct->warehouses as $warehouseLocation) {
+                $warehouseData = Warehouses::from([
+                    'company' => $this->company,
+                    'user' => $this->user,
+                    'app' => $this->app,
+                    'region' => $this->region,
+                    'name' => $warehouseLocation['warehouse']
+                ]);
+
+                $warehouse = (new CreateWarehouseAction($warehouseData, $this->user))->execute();
+
+                $channelData = Channels::from([
+                    'app' => $this->app,
+                    'user' => $this->user,
+                    'company' => $this->company,
+                    'name' => $warehouseLocation['channel'],
+                ]);
+
+                $channel = (new CreateChannel($channelData, $this->user))->execute();
+
+                $variantChannel = VariantChannel::from([
+                    'price' => $this->importedProduct->price,
+                    'discounted_price' => $this->importedProduct->discountPrice,
+                    'is_published' => $this->importedProduct->isPublished,
+                ]);
+
+                (new AddVariantToChannel(
+                    $variant,
+                    $channel,
+                    $warehouse,
+                    $variantChannel
+                ))->execute();
+            }
+        }
+    }
+
+    public function productWarehouse() : void
+    {
+        foreach ($this->importedProduct->warehouses as $warehouseLocation) {
+            $warehouseData = Warehouses::from([
+                'company' => $this->company,
+                'user' => $this->user,
+                'app' => $this->app,
+                'region' => $this->region,
+                'name' => $warehouseLocation['warehouse']
+            ]);
+
+            $warehouse = (new CreateWarehouseAction($warehouseData, $this->user))->execute();
+
+            $this->product->warehouses()->syncWithoutDetaching([$warehouse->getId()]);
         }
     }
 }
