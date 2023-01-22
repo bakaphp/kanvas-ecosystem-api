@@ -49,6 +49,9 @@ trait KanvasModelTrait
         }
     }
 
+    /**
+     * @return BelongsTo<Companies>
+     */
     public function company() : BelongsTo
     {
         return $this->setConnection('ecosystem')->belongsTo(

@@ -6,15 +6,10 @@ namespace Kanvas\Inventory\Traits;
 trait SourceTrait
 {
     /**
-     * setLinkedSource.
-     *
-     * @param  string $source
-     * @param  string $sourceId
-     *
-     * @return void
+     * set entity relationship with third party source.
      */
-    public function setLinkedSource(string $source, string $sourceId)
+    public function setLinkedSource(string $source, string $sourceId) : void
     {
-        $this->set("{$source}_id", $sourceId);
+        $this->set($source . '_id', $sourceId);
     }
 }

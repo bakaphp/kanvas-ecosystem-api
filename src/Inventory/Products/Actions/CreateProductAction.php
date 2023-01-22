@@ -42,22 +42,33 @@ class CreateProductAction
             DB::connection('inventory')->beginTransaction();
 
             $productType = $this->productDto?->productsType?->getId();
-            $products = Products::firstOrCreate([
+
+            $search = [
                 'name' => $this->productDto->name,
                 'apps_id' => $this->productDto->app->getId(),
                 'companies_id' => $this->productDto->company->getId(),
-            ], [
-                'products_types_id' => $productType,
-                'name' => $this->productDto->name,
-                'description' => $this->productDto->description,
-                'short_description' => $this->productDto->short_description,
-                'html_description' => $this->productDto->html_description,
-                'warranty_terms' => $this->productDto->warranty_terms,
-                'upc' => $this->productDto->upc,
-                'users_id' => $this->user->getId(),
-                'is_published' => $this->productDto->is_published,
-                'published_at' => Carbon::now()
-            ]);
+            ];
+
+            if ($this->productDto->slug) {
+                unset($search['name']);
+                $search['slug'] = $this->productDto->slug;
+            }
+
+            $products = Products::firstOrCreate(
+                $search,
+                [
+                    'products_types_id' => $productType,
+                    'name' => $this->productDto->name,
+                    'description' => $this->productDto->description,
+                    'short_description' => $this->productDto->short_description,
+                    'html_description' => $this->productDto->html_description,
+                    'warranty_terms' => $this->productDto->warranty_terms,
+                    'upc' => $this->productDto->upc,
+                    'users_id' => $this->user->getId(),
+                    'is_published' => $this->productDto->is_published,
+                    'published_at' => Carbon::now()
+                ]
+            );
 
             if ($this->productDto->categories) {
                 foreach ($this->productDto->categories as $category) {

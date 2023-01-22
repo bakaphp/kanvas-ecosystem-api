@@ -7,24 +7,36 @@ use Spatie\LaravelData\Data;
 
 class ProductImporter extends Data
 {
-    /**
-     * __construct.
-     *
-     * @return void
-     */
     public function __construct(
         public string $name,
         public string $description,
-        public ?string $short_description = null,
-        public ?string $html_description = null,
-        public ?string $warranty_terms = null,
+        public string $slug,
+        public string $sku,
+        public float $price,
+        public bool $isPublished = true,
+        public float $discountPrice = 0.0,
+        public int $position = 0,
+        public ?string $productType = null,
+        public ?string $shortDescription = null,
+        public ?string $htmlDescription = null,
+        public ?string $warrantyTerms = null,
         public ?string $upc = null,
-        public string $source_id,
-        public bool $is_published = true,
-        public ?array $categories = null,
-        public ?array $variants = null,
-        public ?array $attributes = null,
-        public ?array $productType = null,
+        public ?string $source = null,
+        public ?string $sourceId = null,
+        public array $categories = [],
+        public array $attributes = [],
+        public array $variantAttributes = [],
+        public array $warehouses = ['default'],
+        public array $channels = ['default'],
+
     ) {
+    }
+
+    /**
+     * is this product from shopify , bigcommerce or any other source.
+     */
+    public function isFromThirdParty() : bool
+    {
+        return $this->source_id != null;
     }
 }

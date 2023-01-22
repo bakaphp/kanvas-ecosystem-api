@@ -24,15 +24,13 @@ use Kanvas\Inventory\Variants\Models\Variants as VariantsModel;
 
 class ProductImporterAction
 {
-    protected $product;
+    protected ProductsModel $product;
 
     /**
      * __construct.
      *
-     * @return void
      */
     public function __construct(
-        public string $source,
         public ProductImporter $importerDto,
         public Companies $company
     ) {

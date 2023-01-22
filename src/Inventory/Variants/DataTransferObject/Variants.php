@@ -19,7 +19,8 @@ class Variants extends Data
         public ?string $ean = null,
         public ?string $barcode = null,
         public ?string $serial_number = null,
-        public bool $is_published = true
+        public bool $is_published = true,
+        public ?string $slug = null
     ) {
     }
 
