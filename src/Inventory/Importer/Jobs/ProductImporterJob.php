@@ -9,6 +9,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter as ImporterDto;
@@ -33,6 +34,7 @@ class ProductImporterJob implements ShouldQueue
      */
     public function handle()
     {
+        Auth::loginUsingId($this->user->getId());
         (new ProductImporterAction($this->importer, $this->company, $this->user, $this->region))->execute();
     }
 }

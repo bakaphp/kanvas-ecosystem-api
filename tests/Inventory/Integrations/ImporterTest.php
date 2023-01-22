@@ -6,6 +6,7 @@ namespace Tests\Inventory\Integration;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
+use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Inventory\Support\Setup;
 use Tests\TestCase;

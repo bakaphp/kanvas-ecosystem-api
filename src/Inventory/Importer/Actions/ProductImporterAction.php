@@ -184,7 +184,7 @@ class ProductImporterAction
                 if (isset($category['source_id'])) {
                     $categoryModel->setLinkedSource($this->importedProduct->source, $category['source_id']);
                 }
-                $this->product->categories()->attach($categoryModel->getId());
+                $this->product->categories()->syncWithoutDetaching($categoryModel->getId());
             }
         }
     }

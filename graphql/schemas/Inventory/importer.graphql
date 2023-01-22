@@ -1,14 +1,12 @@
 input ImporterProductInput {
-    products_types_id: Int
     name: String!
     description: String!
-    region_id : Int!
+    region_id: Int!
     short_description: String
     html_description: String
     warranty_terms: String
     upc: String
     is_published: Boolean
-    categories: [Int]
     warehouses: [Int]
     source_id: Mixed
     productType: ProductTypeInput
