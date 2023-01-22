@@ -1,19 +1,16 @@
 <?php
+
 namespace Kanvas\Notifications;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Notification as LaravelNotification;
 use Illuminate\Notifications\Messages\MailMessage;
-use Kanvas\Users\Users\Models\Users;
-use Kanvas\Templates\Models\Templates;
+use Illuminate\Notifications\Notification as LaravelNotification;
 use Illuminate\Support\Facades\Blade;
-use Kanvas\Notifications\Interfaces\EmailInterfaces;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Channels\KanvasDatabase as KanvasDatabaseChannel;
+use Kanvas\Notifications\Interfaces\EmailInterfaces;
 use Kanvas\Notifications\Models\NotificationTypes;
+use Kanvas\Templates\Models\Templates;
 use Kanvas\Templates\Repositories\TemplatesRepository;
-use Illuminate\Support\Facades\Log;
 
 class Notification extends LaravelNotification implements EmailInterfaces
 {
@@ -21,7 +18,7 @@ class Notification extends LaravelNotification implements EmailInterfaces
     public object $type;
 
     /**
-     * via
+     * via.
      *
      * @return array
      */
@@ -31,11 +28,12 @@ class Notification extends LaravelNotification implements EmailInterfaces
     }
 
     /**
-    * Get the mail representation of the notification.
-    *
-    * @param  mixed  $notifiable
-    * @return \Illuminate\Notifications\Messages\MailMessage
-    */
+     * Get the mail representation of the notification.
+     *
+     * @param  mixed  $notifiable
+     *
+     * @return \Illuminate\Notifications\Messages\MailMessage
+     */
     public function toMail($notifiable): MailMessage
     {
         return (new MailMessage)
@@ -44,9 +42,10 @@ class Notification extends LaravelNotification implements EmailInterfaces
     }
 
     /**
-     * toKanvasDatabase
+     * toKanvasDatabase.
      *
      * @param  mixed $notifiable
+     *
      * @return void
      */
     public function toKanvasDatabase($notifiable)
@@ -68,7 +67,7 @@ class Notification extends LaravelNotification implements EmailInterfaces
     }
 
     /**
-     * generateHtml
+     * generateHtml.
      *
      * @return string
      */
@@ -80,7 +79,7 @@ class Notification extends LaravelNotification implements EmailInterfaces
     }
 
     /**
-     * getDataMail
+     * getDataMail.
      *
      * @return array
      */
@@ -91,9 +90,10 @@ class Notification extends LaravelNotification implements EmailInterfaces
     }
 
     /**
-     * setType
+     * setType.
      *
      * @param  string $type
+     *
      * @return void
      */
     public function setType(string $type): void

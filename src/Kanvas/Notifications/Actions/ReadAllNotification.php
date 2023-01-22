@@ -1,19 +1,21 @@
 <?php
 
 declare(strict_types=1);
+
 namespace Kanvas\Notifications\Actions;
 
-use Kanvas\Users\Models\Users;
 use Kanvas\Notifications\Models\Notifications;
+use Kanvas\Users\Models\Users;
 
 class ReadAllNotification
 {
     public Users $user;
 
     /**
-     * __construct
+     * __construct.
      *
      * @param  Users $user
+     *
      * @return void
      */
     public function __construct(Users $user)
@@ -22,7 +24,7 @@ class ReadAllNotification
     }
 
     /**
-     * execute
+     * execute.
      *
      * @return void
      */

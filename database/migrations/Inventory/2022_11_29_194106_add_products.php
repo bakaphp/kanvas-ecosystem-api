@@ -12,7 +12,7 @@ return new class extends Migration {
      */
     public function up()
     {
-        //
+
         Schema::create('products', function (Blueprint $table) {
             $table->charset = 'utf8mb4';
             $table->collation = 'utf8mb4_unicode_520_ci';
@@ -47,7 +47,6 @@ return new class extends Migration {
             $table->index('updated_at');
             $table->foreign('products_types_id')->references('id')->on('products_types');
             $table->unique(['companies_id', 'slug']);
-
         });
     }
 
@@ -58,7 +57,7 @@ return new class extends Migration {
      */
     public function down()
     {
-        //
+
         Schema::dropIfExists('products');
     }
 };

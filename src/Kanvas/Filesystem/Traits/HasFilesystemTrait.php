@@ -7,10 +7,9 @@ namespace Kanvas\Filesystem\Traits;
 use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
-use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
-use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use RuntimeException;
 
 trait HasFilesystemTrait

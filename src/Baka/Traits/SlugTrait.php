@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+
 namespace Baka\Traits;
 
 use Baka\Contracts\CompanyInterface;
@@ -21,7 +22,7 @@ trait SlugTrait
     }
 
     /**
-     * Get Model
+     * Get Model.
      *
      * @param string $slug
      * @param CompanyInterface $company

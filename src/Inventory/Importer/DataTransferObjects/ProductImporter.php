@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Importer\DataTransferObjects;
 
 use Spatie\LaravelData\Data;
@@ -7,7 +8,7 @@ use Spatie\LaravelData\Data;
 class ProductImporter extends Data
 {
     /**
-     * __construct
+     * __construct.
      *
      * @return void
      */

@@ -26,7 +26,7 @@ class LoginInput extends Data
     }
 
     /**
-     * Get trim email
+     * Get trim email.
      *
      * @return string
      */
@@ -36,7 +36,7 @@ class LoginInput extends Data
     }
 
     /**
-     * Get trim password
+     * Get trim password.
      *
      * @return string
      */

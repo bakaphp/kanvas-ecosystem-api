@@ -10,7 +10,6 @@ use Kanvas\Inventory\Products\Actions\RemoveAttributeAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products as ProductsModel;
 use Kanvas\Inventory\Products\Repositories\ProductsRepository;
-use Kanvas\Inventory\ProductsTypes\Repositories\ProductsTypesRepository;
 
 class Products
 {

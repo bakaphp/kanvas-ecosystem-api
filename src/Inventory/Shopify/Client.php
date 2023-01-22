@@ -1,15 +1,17 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Shopify;
 
 use GuzzleHttp\Client as GuzzleClient;
 
 class Client
-{    
+{
     /**
-     * getClient
+     * getClient.
      *
      * @param  string $storeUrl
+     *
      * @return GuzzleClient
      */
     public static function getClient(string $storeUrl): GuzzleClient

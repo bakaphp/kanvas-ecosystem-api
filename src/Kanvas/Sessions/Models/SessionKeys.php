@@ -6,7 +6,6 @@ namespace Kanvas\Sessions\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
-use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -25,7 +24,6 @@ class SessionKeys extends BaseModel
      * @var string
      */
     protected $table = 'session_keys';
-
 
     /**
      * disable created_At and updated_At.

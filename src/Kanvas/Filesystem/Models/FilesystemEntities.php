@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Models\BaseModel;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Filesystem\Filesystem\Models\Filesystem;
+use Kanvas\Models\BaseModel;
+use Kanvas\SystemModules\Models\SystemModules;
 
 /**
  * Apps Model.

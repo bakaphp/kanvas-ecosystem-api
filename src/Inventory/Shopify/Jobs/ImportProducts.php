@@ -21,7 +21,6 @@ class ImportProducts implements ShouldQueue
      */
     public function handle()
     {
-
         $graphQL = <<<Query
         query{
             products(first: 10){

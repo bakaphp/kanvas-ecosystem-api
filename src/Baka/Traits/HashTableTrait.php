@@ -7,7 +7,6 @@ namespace Baka\Traits;
 use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Exceptions\ConfigurationException;
-use RuntimeException;
 
 trait HashTableTrait
 {

@@ -39,7 +39,6 @@ class WarehouseTest extends TestCase
             'data' => ['createRegion' => $data]
         ]);
 
-
         $response = $response->decodeResponseJson();
 
         $data = [

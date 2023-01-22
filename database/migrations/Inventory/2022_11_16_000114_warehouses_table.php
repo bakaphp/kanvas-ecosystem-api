@@ -36,7 +36,6 @@ return new class extends Migration {
             $table->index('created_at');
             $table->index('updated_at');
             $table->foreign('regions_id')->references('id')->on('regions');
-
         });
     }
 

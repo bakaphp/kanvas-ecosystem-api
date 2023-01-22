@@ -1,14 +1,15 @@
 <?php
 
 declare(strict_types=1);
+
 namespace Kanvas\Templates\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Models\BaseModel;
-use Kanvas\UsersGroupUsers\Models\Users;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Companies\Models\Companies;
 use Kanvas\CustomFields\Traits\HasCustomFields;
+use Kanvas\Models\BaseModel;
+use Kanvas\UsersGroupUsers\Models\Users;
 
 /**
  * Apps Model.

@@ -18,7 +18,7 @@ enum StateEnums implements EnumsInterface
     case EMPTY_STRING;
 
     /**
-     * Get value
+     * Get value.
      *
      * @return mixed
      */

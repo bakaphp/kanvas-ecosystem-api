@@ -27,7 +27,7 @@ class CustomFieldsTypeSettings extends BaseModel
     protected $table = 'custom_fields_types_settings';
 
     /**
-     * Belong sto
+     * Belong sto.
      *
      * @return BelongsTo
      */

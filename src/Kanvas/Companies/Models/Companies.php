@@ -98,7 +98,6 @@ class Companies extends BaseModel implements CompanyInterface
         return $this->hasOne(CompaniesBranches::class, 'companies_id');
     }
 
-
     /**
      * CompaniesGroups relationship.
      *
@@ -167,10 +166,11 @@ class Companies extends BaseModel implements CompanyInterface
      * Associate user to this company.
      *
      * @param Users $user
-     * @param integer $isActive
+     * @param int $isActive
      * @param CompaniesBranches $branch
-     * @param integer|null $userRoleId
+     * @param int|null $userRoleId
      * @param string|null $companyUserIdentifier
+     *
      * @return UsersAssociatedCompanies
      */
     public function associateUser(

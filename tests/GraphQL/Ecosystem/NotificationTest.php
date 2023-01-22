@@ -1,15 +1,15 @@
 <?php
 
 declare(strict_types=1);
+
 namespace Tests\GraphQL\Ecosystem;
 
-use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
 
 class NotificationTest extends TestCase
 {
     /**
-     * test_notification
+     * test_notification.
      *
      * @return void
      */
@@ -61,9 +61,9 @@ class NotificationTest extends TestCase
             ');
         $this->assertArrayHasKey('data', $response);
     }
-    
+
     /**
-     * test_readAll
+     * test_readAll.
      *
      * @return void
      */

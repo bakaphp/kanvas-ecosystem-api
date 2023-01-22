@@ -6,7 +6,6 @@ namespace Kanvas\Auth\Traits;
 
 use Kanvas\Sessions\Models\Sessions;
 use Laravel\Sanctum\HasApiTokens as SanctumHasApiTokens;
-use Laravel\Sanctum\NewAccessToken;
 
 trait HasApiTokens
 {

@@ -1,8 +1,9 @@
 <?php
+
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use Bouncer;
+use Illuminate\Console\Command;
 
 class CreateRole extends Command
 {

@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Actions;
 
 use Illuminate\Database\Eloquent\Model as EloquentModel;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
+use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 class AttachFilesystemAction
@@ -23,10 +22,11 @@ class AttachFilesystemAction
     }
 
     /**
-     * Attached a filesystem to a Eloquent model
+     * Attached a filesystem to a Eloquent model.
      *
      * @param string $fieldName
-     * @param integer|null $id
+     * @param int|null $id
+     *
      * @return FilesystemEntities
      */
     public function execute(string $fieldName, ?int $id = null) : FilesystemEntities
