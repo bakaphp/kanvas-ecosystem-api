@@ -35,6 +35,7 @@ class ProductImporterAction
 {
     protected ?ProductsModel $product = null;
     protected Apps $app;
+
     /**
      * __construct.
      *
