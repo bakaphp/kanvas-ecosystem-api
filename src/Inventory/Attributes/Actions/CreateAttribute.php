@@ -33,7 +33,7 @@ class CreateAttribute
             'companies_id' => $this->dto->company->getId(),
             'apps_id' => $this->dto->app->getId(),
         ], [
-            'name' => $this->dto->name,
+            'users_id' => $this->user->getId()
         ]);
     }
 }
