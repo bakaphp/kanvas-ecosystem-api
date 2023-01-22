@@ -1,29 +1,22 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Products\Repositories;
 
+use Baka\Traits\SearchableTrait;
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Apps\Models\Apps;
 
 class ProductsRepository
 {
-    /**
-     * getById
-     *
-     * @param  int|string $id
-     * @param  int $companiesId
-     * @return Products
-     */
-    public static function getById(int|string $id, ?int $companiesId = null): Products
-    {
-        $companiesId = $companiesId ?? auth()->user()->default_company;
+    use SearchableTrait;
 
-        return Products::where('companies_id', $companiesId)
-            ->where('apps_id', app(Apps::class)->id)
-            ->findOrFail($id);
+    public static function getModel() : Model
+    {
+        return new Products();
     }
 
-    public static function getBySourceKey(int $id): Products
+    public static function getBySourceKey(int $id) : Products
     {
     }
 }

@@ -1,21 +1,17 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Regions\Repositories;
 
+use Baka\Traits\SearchableTrait;
 use Kanvas\Inventory\Regions\Models\Regions as RegionModel;
 
 class RegionRepository
 {
-    /**
-     * getById
-     *
-     * @param  int $id
-     * @param  ?int $companiesId
-     * @return RegionModel
-     */
-    public static function getById(int $id, ?int $companiesId = null): RegionModel
+    use SearchableTrait;
+
+    public static function getModel() : RegionModel
     {
-        $companiesId = $companiesId ?? auth()->user()->default_company;
-        return RegionModel::where('companies_id', $companiesId)->where('id', $id)->firstOrFail();
+        return new RegionModel();
     }
 }

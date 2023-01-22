@@ -19,7 +19,7 @@ return new class extends Migration {
             $table->bigInteger('users_id');
             $table->bigInteger('companies_id');
             $table->bigInteger('apps_id');
-            $table->char('uuid', 100);
+            $table->char('uuid', 37)->unique();
             $table->string('name');
             $table->text('description')->nullable();
             $table->string('slug');
@@ -28,6 +28,7 @@ return new class extends Migration {
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
             $table->index(['slug', 'companies_id']);
+            $table->unique(['slug', 'companies_id']);
             $table->index('uuid');
             $table->index('slug');
             $table->index('users_id');

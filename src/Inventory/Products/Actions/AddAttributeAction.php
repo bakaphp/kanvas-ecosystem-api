@@ -1,14 +1,15 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Products\Actions;
 
-use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Attributes\Models\Attributes;
+use Kanvas\Inventory\Products\Models\Products;
 
 class AddAttributeAction
 {
     /**
-     * __construct
+     * __construct.
      *
      * @return void
      */
@@ -20,13 +21,19 @@ class AddAttributeAction
     }
 
     /**
-     * execute
+     * execute.
      *
      * @return void
      */
-    public function execute(): Products
+    public function execute() : Products
     {
-        $this->product->attributes()->attach($this->attribute->id, ['value' => $this->value]);
+        $this->product->attributes()->attach(
+            $this->attribute->getId(),
+            [
+                'value' => $this->value
+            ]
+        );
+
         return $this->product;
     }
 }

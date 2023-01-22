@@ -1,36 +1,49 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Categories\Actions;
 
+use Baka\Users\Contracts\UserInterface;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Categories\DataTransferObject\Categories as CategoriesDto;
 use Kanvas\Inventory\Categories\Models\Categories;
 
 class CreateCategory
 {
     /**
-     * __construct
+     * __construct.
      *
      * @return void
      */
     public function __construct(
-        protected CategoriesDto $dto
+        protected CategoriesDto $dto,
+        protected UserInterface $user
     ) {
     }
 
     /**
-     * execute
+     * execute.
      *
      * @return Categories
      */
-    public function execute(): Categories
+    public function execute() : Categories
     {
-        return Categories::create([
-            'apps_id' => $this->dto->apps_id,
-            'companies_id' => $this->dto->companies_id,
-            'parent_id' => $this->dto->parent_id,
+        CompaniesRepository::userAssociatedToCompany(
+            $this->dto->company,
+            $this->user
+        );
+
+        return Categories::firstOrCreate([
+            'companies_id' => $this->dto->company->getId(),
+            'apps_id' => $this->dto->app->getId(),
             'name' => $this->dto->name,
+        ], [
+            'users_id' => $this->dto->user->getId(),
+            'parent_id' => $this->dto->parent_id,
             'code' => $this->dto->code,
-            'position' => $this->dto->position
+            'position' => $this->dto->position,
+            'is_published' => $this->dto->is_published
         ]);
     }
 }

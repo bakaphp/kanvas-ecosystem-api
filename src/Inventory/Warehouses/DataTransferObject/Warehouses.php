@@ -1,52 +1,56 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Warehouses\DataTransferObject;
+
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
+use Baka\Enums\StateEnums;
+use Baka\Users\Contracts\UserInterface;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Spatie\LaravelData\Data;
 
-/**
- * Class Warehouses
- * @property int $companies_id
- * @property int $apps_id
- * @property int $regions_id
- * @property string $name
- * @property string $location
- * @property bool $is_default
- * @property int $is_published
- */
 class Warehouses extends Data
 {
     /**
-     * __construct
+     * __construct.
      *
      * @return void
      */
     public function __construct(
-        public int $companies_id,
-        public int $apps_id,
-        public int $regions_id,
+        public CompanyInterface $company,
+        public AppInterface $app,
+        public UserInterface $user,
+        public Regions $region,
         public string $name,
         public ?string $location = null,
-        public bool $is_default,
-        public int $is_published,
+        public bool $is_default = false,
+        public int $is_published = 1,
     ) {
     }
 
     /**
-     * fromArray
+     * fromArray.
      *
      * @param  array $data
+     *
      * @return self
      */
-    public static function fromArray(array $data): self
+    public static function fromRequest(array $data) : self
     {
+        $company = auth()->user()->getCurrentCompany();
         return new self(
-            $data['companies_id'],
-            $data['apps_id'],
-            $data['regions_id'],
+            isset($request['company_id']) ? Companies::getById($request['company_id']) : $company,
+            app(Apps::class),
+            auth()->user(),
+            RegionRepository::getById($data['regions_id'], $company),
             $data['name'],
             $data['location'] ?? null,
-            $data['is_default'],
-            $data['is_published'],
+            $data['is_default'] ?? (bool) StateEnums::NO->getValue(),
+            $data['is_published'] ?? StateEnums::YES->getValue(),
         );
     }
 }

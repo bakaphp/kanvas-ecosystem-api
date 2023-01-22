@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Models;
 
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -39,7 +40,7 @@ use Kanvas\Users\Models\UsersAssociatedCompanies;
  * @property int $has_activities
  * @property string $country_code
  */
-class Companies extends BaseModel
+class Companies extends BaseModel implements CompanyInterface
 {
     // use UsersAssociatedTrait;
 

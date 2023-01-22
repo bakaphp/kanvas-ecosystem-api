@@ -19,8 +19,9 @@ return new class extends Migration {
             $table->id();
             $table->bigInteger('apps_id')->unsigned();
             $table->bigInteger('companies_id')->unsigned();
+            $table->bigInteger('users_id')->unsigned();
             $table->bigInteger('products_types_id')->unsigned()->nullable();
-            $table->char('uuid', 100);
+            $table->char('uuid', 37)->unique();
             $table->text('name');
             $table->string('slug');
             $table->text('description');
@@ -40,8 +41,13 @@ return new class extends Migration {
             $table->index('slug');
             $table->index('is_published');
             $table->index('is_deleted');
+            $table->index('users_id');
+            $table->index('published_at');
             $table->index('created_at');
             $table->index('updated_at');
+            $table->foreign('products_types_id')->references('id')->on('products_types');
+            $table->unique(['companies_id', 'slug']);
+
         });
     }
 

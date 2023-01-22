@@ -1,21 +1,23 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Products\Models;
 
-use Kanvas\Inventory\Models\BaseModel;
-use Kanvas\Inventory\Categories\Models\Categories;
-use Kanvas\Inventory\Warehouses\Models\Warehouses;
-use Baka\Traits\UuidTrait;
 use Baka\Traits\SlugTrait;
-use Kanvas\Inventory\Attributes\Models\Attributes;
-use Kanvas\Inventory\Variants\Models\Variants;
+use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Inventory\Attributes\Models\Attributes;
+use Kanvas\Inventory\Categories\Models\Categories;
+use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 /**
- * Class Products
+ * Class Products.
+ *
  * @property int $id
  * @property int $apps_id
  * @property int $companies_id
@@ -40,51 +42,66 @@ class Products extends BaseModel
     protected $guarded = [];
 
     /**
-     * categories
+     * categories.
      *
      * @return BelongsToMany
      */
-    public function categories(): BelongsToMany
+    public function categories() : BelongsToMany
     {
-        return $this->belongsToMany(Categories::class, 'products_categories', 'products_id', 'categories_id');
+        return $this->belongsToMany(
+            Categories::class,
+            'products_categories',
+            'products_id',
+            'categories_id'
+        );
     }
 
     /**
-     * warehouses
+     * warehouses.
      *
      * @return BelongsToMany
      */
-    public function warehouses(): BelongsToMany
+    public function warehouses() : BelongsToMany
     {
-        return $this->belongsToMany(Warehouses::class, 'products_warehouses', 'products_id', 'warehouses_id');
+        return $this->belongsToMany(
+            Warehouses::class,
+            'products_warehouses',
+            'products_id',
+            'warehouses_id'
+        );
     }
 
     /**
-     * attributes
+     * attributes.
      *
      * @return BelongsToMany
      */
-    public function attributes(): BelongsToMany
+    public function attributes() : BelongsToMany
     {
-        return $this->belongsToMany(Attributes::class, 'products_attributes', 'products_id', 'attributes_id')->withPivot('value');
+        return $this->belongsToMany(
+            Attributes::class,
+            'products_attributes',
+            'products_id',
+            'attributes_id'
+        )->withPivot('value');
     }
 
     /**
-     * variants
+     * variants.
      *
      * @return void
      */
-    public function variants(): HasMany
+    public function variants() : HasMany
     {
         return $this->hasMany(Variants::class, 'products_id');
     }
 
     /**
-     * productsTypes
+     * productsTypes.
      *
      * @return BelongsTo
      */
-    public function productsTypes(): BelongsTo
+    public function productsTypes() : BelongsTo
     {
         return $this->belongsTo(ProductsTypes::class, 'products_types_id');
     }

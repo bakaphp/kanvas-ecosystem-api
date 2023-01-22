@@ -1,53 +1,50 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Regions\DataTransferObject;
 
-/**
- * Class Region.
- * @property int $companies_id
- * @property int $apps_id
- * @property int $currency_id
- * @property string $uuid
- * @property string $name
- * @property string $slug
- * @property string $short_slug
- * @property ?string settings = null
- * @property int $is_default
- */
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
+use Baka\Users\Contracts\UserInterface;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Currencies\Models\Currencies;
+
 class Region
 {
     /**
-     * __construct
+     * __construct.
      *
      * @return void
      */
     public function __construct(
-        public int $companies_id,
-        public int $apps_id,
-        public int $currency_id,
+        public CompanyInterface $company,
+        public AppInterface $app,
+        public UserInterface $user,
+        public Currencies $currency,
         public string $name,
-        public string $slug,
         public string $short_slug,
         public ?string $settings = null,
-        public int $is_default,
+        public int $is_default = 0,
     ) {
     }
 
     /**
-     * fromArray
+     * fromArray.
      *
      * @param  array $data
+     *
      * @return self
      */
-    public static function fromArray(array $data):self
+    public static function fromRequest(array $data) : self
     {
         return new self(
-            $data['companies_id'],
-            $data['apps_id'],
-            $data['currency_id'],
+            isset($data['companies_id']) ? Companies::getById($data['companies_id']) : auth()->user()->getCurrentCompany(),
+            app(Apps::class),
+            auth()->user(),
+            Currencies::getById($data['currency_id']),
             $data['name'],
-            $data['slug'],
-            $data['short_slug'],
+            $data['short_slug'] ?? '',
             $data['settings'] ?? null,
             $data['is_default'],
         );

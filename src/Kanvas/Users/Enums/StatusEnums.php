@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Enums;
 
-use Kanvas\Contracts\EnumsInterface;
+use Baka\Contracts\EnumsInterface;
 
 enum StatusEnums implements EnumsInterface
 {

@@ -18,6 +18,7 @@ return new class extends Migration {
             $table->id();
             $table->bigInteger('apps_id')->unsigned();
             $table->bigInteger('companies_id')->unsigned();
+            $table->bigInteger('users_id')->unsigned();
             $table->bigInteger('products_id')->unsigned();
             $table->char('uuid', 100)->unique();
             $table->text('name');
@@ -34,12 +35,21 @@ return new class extends Migration {
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
             $table->foreign('products_id')->references('id')->on('products');
+            $table->unique(['companies_id', 'slug']);
             $table->index('products_id');
             $table->index('uuid');
             $table->index('sku');
             $table->index('ean');
             $table->index('barcode');
             $table->index('serial_number');
+            $table->index('apps_id');
+            $table->index('companies_id');
+            $table->index('users_id');
+            $table->index('slug');
+            $table->index('is_published');
+            $table->index('is_deleted');
+            $table->index('created_at');
+            $table->index('updated_at');
         });
     }
 

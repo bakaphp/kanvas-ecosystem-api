@@ -12,8 +12,8 @@ return new class extends Migration {
      */
     public function up()
     {
-        Schema::create('product_variants_channels', function (Blueprint $table) {
-            $table->id();
+        Schema::create('products_variants_channels', function (Blueprint $table) {
+            $table->primary(['products_variants_id', 'channels_id', 'warehouses_id'], 'products_variants_channels_primary');
             $table->bigInteger('products_variants_id')->unsigned();
             $table->bigInteger('channels_id')->unsigned();
             $table->bigInteger('warehouses_id')->unsigned();
@@ -28,6 +28,10 @@ return new class extends Migration {
             $table->foreign('products_variants_id')->references('id')->on('products_variants');
             $table->foreign('channels_id')->references('id')->on('channels');
             $table->foreign('warehouses_id')->references('id')->on('warehouses');
+            $table->index('is_published');
+            $table->index('is_deleted');
+            $table->index('created_at');
+            $table->index('updated_at');
         });
     }
 
@@ -38,6 +42,6 @@ return new class extends Migration {
      */
     public function down()
     {
-        Schema::dropIfExists('product_variants_channels');
+        Schema::dropIfExists('products_variants_channels');
     }
 };

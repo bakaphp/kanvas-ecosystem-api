@@ -1,16 +1,18 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Attributes\Models;
 
-use Kanvas\Inventory\Models\BaseModel;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Inventory\Models\BaseModel;
 
 /**
- * Class Attributes
+ * Class Attributes.
+ *
  * @property int $id
  * @property int $apps_id
  * @property int $companies_id
@@ -24,21 +26,21 @@ class Attributes extends BaseModel
     public $guarded = [];
 
     /**
-     * companies
+     * companies.
      *
      * @return BelongsTo
      */
-    public function companies(): BelongsTo
+    public function companies() : BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }
 
     /**
-     * apps
+     * apps.
      *
      * @return BelongsTo
      */
-    public function apps(): BelongsTo
+    public function apps() : BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
@@ -48,7 +50,7 @@ class Attributes extends BaseModel
      *
      * @return Attribute
      */
-    protected function value(): Attribute
+    protected function value() : Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->value,

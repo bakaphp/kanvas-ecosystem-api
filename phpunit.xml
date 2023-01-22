@@ -17,6 +17,9 @@
         <testsuite name="GraphQL">
             <directory suffix="Test.php">./tests/GraphQL</directory>
         </testsuite>
+        <testsuite name="Inventory">
+            <directory suffix="Test.php">./tests/Inventory</directory>
+        </testsuite>
     </testsuites>
     <coverage processUncoveredFiles="true">
         <include>

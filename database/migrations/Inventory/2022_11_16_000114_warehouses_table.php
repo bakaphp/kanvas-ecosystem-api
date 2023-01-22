@@ -16,8 +16,9 @@ return new class extends Migration {
             $table->id();
             $table->bigInteger('companies_id')->unsigned();
             $table->bigInteger('apps_id')->unsigned();
+            $table->bigInteger('users_id')->unsigned();
             $table->bigInteger('regions_id')->unsigned();
-            $table->char('uuid', 100);
+            $table->char('uuid', 37)->unique();
             $table->string('name');
             $table->string('location')->nullable();
             $table->boolean('is_default')->nullable()->default(false);
@@ -31,8 +32,11 @@ return new class extends Migration {
             $table->index('is_default');
             $table->index('is_published');
             $table->index('is_deleted');
+            $table->index('users_id');
             $table->index('created_at');
             $table->index('updated_at');
+            $table->foreign('regions_id')->references('id')->on('regions');
+
         });
     }
 

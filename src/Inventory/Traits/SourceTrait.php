@@ -1,16 +1,16 @@
 <?php
 declare(strict_types=1);
-namespace Kanvas\Inventory\Traits;
 
-use Illuminate\Database\Eloquent\Model as EloquentModel;
+namespace Kanvas\Inventory\Traits;
 
 trait SourceTrait
 {
     /**
-     * setLinkedSource
+     * setLinkedSource.
      *
      * @param  string $source
      * @param  string $sourceId
+     *
      * @return void
      */
     public function setLinkedSource(string $source, string $sourceId)

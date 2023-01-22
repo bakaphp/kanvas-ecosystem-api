@@ -1,45 +1,48 @@
 <?php
 declare(strict_types=1);
 
-
 namespace Kanvas\Inventory\Channels\DataTransferObject;
-use Kanvas\Apps\Models\Apps;
 
-class Channels {
-    
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
+use Baka\Enums\StateEnums;
+use Baka\Users\Contracts\UserInterface;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+
+class Channels
+{
     /**
-     * __construct
+     * __construct.
      *
      * @return void
      */
     public function __construct(
-        public int $companies_id,
-        public int $apps_id,
-        public int $users_id,
+        public AppInterface $app,
+        public CompanyInterface $company,
+        public UserInterface $user,
         public string $name,
-        public ?string $description=null,
-        public ?string $slug,
-        public int $is_published,
+        public ?string $description = null,
+        public int $is_published = 1,
     ) {
     }
-    
+
     /**
-     * fromArray
+     * fromRequest.
      *
-     * @param  array $data
+     * @param array $data
+     *
      * @return self
      */
-    public static function fromArray(array $data): self
-    { 
+    public static function fromRequest(array $data) : self
+    {
         return new self(
-            $data['companies_id'] ?? auth()->user()->default_company,
-            $data['apps_id'] ?? app(Apps::class)->id,
-            $data['users_id'] ?? auth()->user()->id,
+            app(Apps::class),
+            isset($request['company_id']) ? Companies::getById($request['company_id']) : auth()->user()->getCurrentCompany(),
+            auth()->user(),
             $data['name'],
             $data['description'] ?? null,
-            $data['slug'] ?? null,
-            $data['is_published'] ?? 0,
+            $data['is_published'] ?? StateEnums::YES->getValue(),
         );
     }
-    
 }

@@ -30,30 +30,29 @@ input WarehouseInputUpdate {
     is_published: Int
 }
 extend type Mutation @guard {
-    createWarehouse(input: WarehouseInput!): Warehouse! @field(
-        resolver: "App\\GraphQL\\Inventory\\Mutations\\Warehouses\\Warehouse@create"
-    )
-    updateWarehouse(input: WarehouseInputUpdate! id: Int!): Warehouse! @field(
-        resolver: "App\\GraphQL\\Inventory\\Mutations\\Warehouses\\Warehouse@update"
-    )
-    deleteWarehouse(id: Int!): Boolean! @field(
-        resolver: "App\\GraphQL\\Inventory\\Mutations\\Warehouses\\Warehouse@delete"
-    )
+    createWarehouse(input: WarehouseInput!): Warehouse!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Warehouses\\Warehouse@create"
+        )
+    updateWarehouse(input: WarehouseInputUpdate!, id: Int!): Warehouse!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Warehouses\\Warehouse@update"
+        )
+    deleteWarehouse(id: Int!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Warehouses\\Warehouse@delete"
+        )
 }
 extend type Query @guard {
     getWarehouses(
         where: _
             @whereConditions(
-                columns: [
-                    "name",
-                    "location",
-                    "is_default",
-                    "is_published",
-                ]
+                columns: ["name", "location", "is_default", "is_published"]
             )
-    ): [Warehouse]! @paginate(
-        model: "Kanvas\\Inventory\\Warehouses\\Models\\Warehouses"
-        defaultCount: 25
-        scopes: ["company", "app"]
-    )
+    ): [Warehouse]!
+        @paginate(
+            model: "Kanvas\\Inventory\\Warehouses\\Models\\Warehouses"
+            defaultCount: 25
+            scopes: ["company", "app"]
+        )
 }
