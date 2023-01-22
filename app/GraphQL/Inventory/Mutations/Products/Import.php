@@ -5,6 +5,7 @@ namespace App\GraphQL\Inventory\Mutations\Products;
 
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob as ImporterJob;
+use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 
 class Import
 {
@@ -18,8 +19,14 @@ class Import
      */
     public function product(mixed $root, array $req): bool
     {
+        $region = RegionRepository::getById($req['input']['region_id'], auth()->user()->getCurrent);
         $dto = ProductImporter::from($req['input']);
-        ImporterJob::dispatchSync($req['source'], $dto, auth()->user()->defaultCompany);
+        ImporterJob::dispatchSync(
+            $dto,
+            auth()->user()->getCurrentCompany(),
+            auth()->user(),
+            $region
+        );
         return true;
     }
 }

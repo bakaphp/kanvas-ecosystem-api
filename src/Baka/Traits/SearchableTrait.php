@@ -23,7 +23,8 @@ trait SearchableTrait
             return self::getModel()::where('companies_id', $company->getId())
                 ->where('apps_id', app(Apps::class)->id)
                 ->where('is_deleted', StateEnums::NO->getValue())
-                ->findOrFail($id);
+                ->where('id', $id)
+                ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             throw new ExceptionsModelNotFoundException($e->getMessage());
         }
@@ -38,7 +39,7 @@ trait SearchableTrait
                 ->where('apps_id', app(Apps::class)->getId())
                 ->where('uuid', $uuid)
                 ->where('is_deleted', StateEnums::NO->getValue())
-                ->findOrFail();
+                ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             throw new ExceptionsModelNotFoundException($e->getMessage());
         }
@@ -53,7 +54,7 @@ trait SearchableTrait
                 ->where('apps_id', app(Apps::class)->getId())
                 ->where('is_deleted', StateEnums::NO->getValue())
                 ->where('name', $name)
-                ->findOrFail();
+                ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             throw new ExceptionsModelNotFoundException($e->getMessage());
         }

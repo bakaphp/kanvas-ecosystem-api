@@ -9,6 +9,7 @@ use Baka\Enums\StateEnums;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Spatie\LaravelData\Data;
@@ -42,6 +43,11 @@ class Warehouses extends Data
     public static function fromRequest(array $request) : self
     {
         $company = auth()->user()->getCurrentCompany();
+
+        if (!isset($request['regions_id'])) {
+            throw new ValidationException('Region is required');
+        }
+
         return new self(
             isset($request['company_id']) ? Companies::getById($request['company_id']) : $company,
             app(Apps::class),

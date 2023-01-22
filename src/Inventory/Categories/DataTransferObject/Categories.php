@@ -24,7 +24,7 @@ class Categories extends Data
         public UserInterface $user,
         public string $name,
         public int $parent_id = 0,
-        public int $position = 0,
+        public int|string $position = 0,
         public int $is_published = 1,
         public ?string $code = null,
     ) {

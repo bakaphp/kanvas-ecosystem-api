@@ -20,10 +20,10 @@ class AddVariantToChannel
 
     public function execute(): Variants
     {
-        if ($this->variants->channels()->find($this->channel->id)) {
+        if ($this->variants->channels()->find($this->channel->getId())) {
             $this->variants->channels()->syncWithoutDetaching([
-                $this->channel->id => [
-                    'warehouses_id' => $this->warehouse->id,
+                $this->channel->getId() => [
+                    'warehouses_id' => $this->warehouse->getId(),
                     'price' => $this->variantChannel->price,
                     'discounted_price' => $this->variantChannel->discounted_price,
                     'is_published' => $this->variantChannel->is_published,
@@ -31,8 +31,8 @@ class AddVariantToChannel
             ]);
         } else {
             $this->variants->channels()->attach([
-                $this->channel->id => [
-                    'warehouses_id' => $this->warehouse->id,
+                $this->channel->getId() => [
+                    'warehouses_id' => $this->warehouse->getId(),
                     'price' => $this->variantChannel->price,
                     'discounted_price' => $this->variantChannel->discounted_price,
                     'is_published' => $this->variantChannel->is_published,

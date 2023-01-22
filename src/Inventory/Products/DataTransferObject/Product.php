@@ -38,6 +38,7 @@ class Product extends Data
         public array $variants = [],
         public array $attributes = [],
         public array $productType = [],
+        public ?string $slug = null,
     ) {
     }
 

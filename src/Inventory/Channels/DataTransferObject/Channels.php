@@ -9,8 +9,9 @@ use Baka\Enums\StateEnums;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Spatie\LaravelData\Data;
 
-class Channels
+class Channels extends Data
 {
     /**
      * __construct.

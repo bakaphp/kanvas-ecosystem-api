@@ -23,16 +23,15 @@ class AddAttributeAction
     /**
      * execute.
      *
-     * @return void
+     * @return Products
      */
     public function execute() : Products
     {
-        $this->product->attributes()->attach(
-            $this->attribute->getId(),
-            [
-                'value' => $this->value
-            ]
-        );
+        if ($this->product->attributes()->find($this->attribute->getId())) {
+            $this->product->attributes()->syncWithoutDetaching([$this->attribute->getId() => ['value' => $this->value]]);
+        } else {
+            $this->product->attributes()->attach($this->attribute->getId(), ['value' => $this->value]);
+        }
 
         return $this->product;
     }
