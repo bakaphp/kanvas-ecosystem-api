@@ -16,3 +16,4 @@ parameters:
     - "#Function GuzzleHttp\\\\Psr7#"
     - "#Instantiated class [a-zA-Z0-9\\\\_]+ not found.#"
     - "#Unsafe usage of new static#"
+    - "#unknown class Bouncer#"
