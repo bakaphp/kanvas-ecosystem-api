@@ -14,7 +14,6 @@ class CustomFieldsTypesSeeder extends Seeder
      */
     public function run()
     {
-
         CustomFieldsTypes::create([
             'name' => 'Text',
             'description' => 'Text Fields',

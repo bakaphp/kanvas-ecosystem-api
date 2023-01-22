@@ -14,7 +14,6 @@ class TemplateSeeder extends Seeder
      */
     public function run()
     {
-
         Templates::create([
             'apps_id' => 1,
             'users_id' => 1,

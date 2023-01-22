@@ -11,7 +11,6 @@ return new class extends Migration {
      */
     public function up()
     {
-
         Schema::rename('roles', 'roles_kanvas_legacy');
     }
 
@@ -22,6 +21,5 @@ return new class extends Migration {
      */
     public function down()
     {
-
     }
 };
