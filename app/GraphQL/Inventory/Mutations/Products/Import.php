@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace App\GraphQL\Inventory\Mutations\Products;
 
 use Baka\Support\Str;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob as ImporterJob;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
@@ -20,7 +22,14 @@ class Import
      */
     public function product(mixed $root, array $req) : string
     {
-        $region = RegionRepository::getById($req['regionId'], auth()->user()->getCurrent);
+        $company = Companies::getById($req['companyId']);
+
+        CompaniesRepository::userAssociatedToCompany(
+            $company,
+            auth()->user()
+        );
+
+        $region = RegionRepository::getById($req['regionId'], $company);
 
         //verify it has the correct format
         ProductImporter::from($req['input'][0]);
