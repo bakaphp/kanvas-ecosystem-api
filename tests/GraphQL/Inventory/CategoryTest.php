@@ -1,14 +1,14 @@
 <?php
 declare(strict_types=1);
+
 namespace Tests\GraphQL\Inventory;
 
-use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
 
 class CategoryTest extends TestCase
 {
     /**
-     * testCreateCategory
+     * testCreateCategory.
      *
      * @return void
      */
@@ -34,7 +34,7 @@ class CategoryTest extends TestCase
     }
 
     /**
-     * testGetCategory
+     * testGetCategory.
      *
      * @return void
      */
@@ -73,7 +73,7 @@ class CategoryTest extends TestCase
     }
 
     /**
-     * testUpdateCategory
+     * testUpdateCategory.
      *
      * @return void
      */
@@ -121,7 +121,7 @@ class CategoryTest extends TestCase
     }
 
     /**
-     * testDeleteCategory
+     * testDeleteCategory.
      *
      * @return void
      */

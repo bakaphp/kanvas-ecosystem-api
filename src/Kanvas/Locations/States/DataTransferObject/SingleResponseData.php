@@ -4,17 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Locations\States\DataTransferObject;
 
-use Spatie\DataTransferObject\DataTransferObject;
-use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Locations\States\Models\States;
+use Spatie\DataTransferObject\DataTransferObject;
 
 /**
- * ResponseData class
+ * ResponseData class.
  */
 class SingleResponseData extends DataTransferObject
 {
     /**
-     * Construct function
+     * Construct function.
      *
      * @param int $id
      * @param int $countries_id
@@ -36,7 +35,7 @@ class SingleResponseData extends DataTransferObject
     }
 
     /**
-     * Create new instance of DTO from request
+     * Create new instance of DTO from request.
      *
      * @param App $app
      *

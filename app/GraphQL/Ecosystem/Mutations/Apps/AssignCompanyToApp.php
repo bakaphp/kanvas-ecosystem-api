@@ -32,7 +32,6 @@ final class AssignCompanyToApp
         return $company;
     }
 
-
     /**
      * @param  null  $_
      * @param  array{}  $args

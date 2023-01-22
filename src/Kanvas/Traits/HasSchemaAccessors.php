@@ -14,7 +14,7 @@ trait HasSchemaAccessors
     public static string $schemaTableName;
 
     /**
-     * Returns singleton of model
+     * Returns singleton of model.
      *
      * @return Model
      */
@@ -27,7 +27,7 @@ trait HasSchemaAccessors
     }
 
     /**
-     * Returns the table name for a given model
+     * Returns the table name for a given model.
      *
      * @return string
      */

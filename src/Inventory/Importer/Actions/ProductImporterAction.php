@@ -1,38 +1,33 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Importer\Actions;
 
-use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
-use Kanvas\Inventory\Products\Repositories\ProductsRepository;
-use Kanvas\Inventory\ProductsTypes\Repositories\ProductsTypesRepository;
-use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes;
-use Kanvas\Inventory\ProductsTypes\Actions\CreateProductTypeAction;
-use Kanvas\Inventory\Products\Actions\CreateProductAction;
-use Kanvas\Inventory\Categories\Models\Categories;
-use Kanvas\Inventory\Categories\DataTransferObject\Categories as CategoryDto;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
+use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
+use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Actions\CreateCategory;
-use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses as WarehousesDto;
-use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
-use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Inventory\Categories\DataTransferObject\Categories as CategoryDto;
+use Kanvas\Inventory\Categories\Models\Categories;
+use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
+use Kanvas\Inventory\Products\Actions\AddAttributeAction;
+use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductsDto;
 use Kanvas\Inventory\Products\Models\Products as ProductsModel;
-use Kanvas\Companies\Models\Companies;
+use Kanvas\Inventory\ProductsTypes\Actions\CreateProductTypeAction;
+use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes as ProductsTypesModel;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Inventory\Attributes\Models\Attributes;
-use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
-use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
+use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\Models\Variants as VariantsModel;
-use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
-use Kanvas\Inventory\Products\Actions\AddAttributeAction;
 
 class ProductImporterAction
 {
     protected $product;
 
     /**
-     * __construct
+     * __construct.
      *
      * @return void
      */
@@ -44,7 +39,7 @@ class ProductImporterAction
     }
 
     /**
-     * execute
+     * execute.
      *
      * @return void
      */
@@ -72,7 +67,7 @@ class ProductImporterAction
     }
 
     /**
-     * productType
+     * productType.
      *
      * @return void
      */
@@ -95,7 +90,7 @@ class ProductImporterAction
     }
 
     /**
-     * categories
+     * categories.
      *
      * @return void
      */
@@ -121,7 +116,7 @@ class ProductImporterAction
     }
 
     /**
-     * attributes
+     * attributes.
      *
      * @return void
      */
@@ -141,7 +136,7 @@ class ProductImporterAction
     }
 
     /**
-     * variants
+     * variants.
      *
      * @return void
      */

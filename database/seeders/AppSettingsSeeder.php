@@ -135,6 +135,6 @@ class AppSettingsSeeder extends Seeder
                 'value' => '3',
                 'created_at' => date('Y-m-d H:m:s'),
             ]
-        ]   );
+        ]);
     }
 }

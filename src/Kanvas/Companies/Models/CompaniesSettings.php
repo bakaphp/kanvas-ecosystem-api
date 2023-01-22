@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Companies\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
 
 /**

@@ -2,20 +2,19 @@
 
 declare(strict_types=1);
 
-
 namespace Kanvas\Apps\Settings\DataTransferObject;
 
-use Spatie\DataTransferObject\DataTransferObject;
-use Kanvas\AppsGroup\Settings\Models\Settings;
 use Illuminate\Http\Request;
+use Kanvas\AppsGroup\Settings\Models\Settings;
+use Spatie\DataTransferObject\DataTransferObject;
 
 /**
- * AppsData class
+ * AppsData class.
  */
 class AppsSettingsPostData extends DataTransferObject
 {
     /**
-     * Construct function
+     * Construct function.
      *
      * @param int $apps_id
      * @param string $name
@@ -29,7 +28,7 @@ class AppsSettingsPostData extends DataTransferObject
     }
 
     /**
-     * Create new instance of DTO from request
+     * Create new instance of DTO from request.
      *
      * @param Request $request Request Input data
      *

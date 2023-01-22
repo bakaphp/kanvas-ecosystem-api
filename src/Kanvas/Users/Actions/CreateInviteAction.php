@@ -9,8 +9,8 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Notifications\Templates\Invite as InviteTemplate;
 use Kanvas\Users\DataTransferObject\Invite as InviteDto;
-use Kanvas\Users\Models\UsersInvite;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersInvite;
 
 class CreateInviteAction
 {

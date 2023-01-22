@@ -4,12 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Branches\Actions;
 
-use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPostData;
-use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPutData;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
-use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Models\Users;
 
 class DeleteCompanyBranchActions

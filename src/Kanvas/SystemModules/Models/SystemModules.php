@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\SystemModules\Models;
 
+use Baka\Support\Str;
 use Baka\Traits\SlugTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Models\BaseModel;
-use Baka\Support\Str;
 
 /**
  * Apps Model.

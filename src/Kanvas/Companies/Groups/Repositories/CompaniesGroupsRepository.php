@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Groups\Repositories;
 
-use Kanvas\Companies\Models\CompaniesAssociations;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesAssociations;
 use Kanvas\Companies\Models\CompaniesGroups;
 
 class CompaniesGroupsRepository

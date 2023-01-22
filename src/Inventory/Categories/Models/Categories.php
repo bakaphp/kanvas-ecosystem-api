@@ -1,13 +1,14 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Categories\Models;
 
-use Kanvas\Inventory\Models\BaseModel;
+use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Baka\Traits\SlugTrait;
+use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Traits\ScopesTrait;
 
 class Categories extends BaseModel
@@ -29,7 +30,7 @@ class Categories extends BaseModel
     }
 
     /**
-     * companies
+     * companies.
      *
      * @return BelongsTo
      */
@@ -37,5 +38,4 @@ class Categories extends BaseModel
     {
         return $this->belongsTo(Companies::class, 'companies_id', 'id');
     }
-
 }

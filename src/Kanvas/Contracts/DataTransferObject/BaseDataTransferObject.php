@@ -6,7 +6,6 @@ namespace Kanvas\Contracts\DataTransferObject;
 
 use Illuminate\Http\Request;
 use Spatie\DataTransferObject\DataTransferObject;
-use Kanvas\Companies\Models\Companies;
 
 /**
  * AppsData class.
@@ -32,7 +31,7 @@ abstract class BaseDataTransferObject extends DataTransferObject
     abstract public static function fromArray(array $data) : self;
 
     /**
-     * Spit all filled fields as an array
+     * Spit all filled fields as an array.
      *
      * @return array
      */

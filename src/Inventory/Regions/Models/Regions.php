@@ -3,10 +3,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Regions\Models;
 
-use Baka\Traits\KanvasScopesTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;

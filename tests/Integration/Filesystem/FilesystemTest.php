@@ -45,7 +45,6 @@ final class FilesystemTest extends TestCase
             'avatar'
         );
 
-
         $this->assertGreaterThan(0, $user->getFiles()->count());
         $this->assertGreaterThan(0, $user->getFiles()->first()->delete());
     }

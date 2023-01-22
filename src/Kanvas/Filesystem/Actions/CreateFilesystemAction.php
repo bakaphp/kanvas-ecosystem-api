@@ -22,10 +22,11 @@ class CreateFilesystemAction
     }
 
     /**
-     * Create a new FileSystem
+     * Create a new FileSystem.
      *
      * @param string $uploadUrl
      * @param string $uploadPath
+     *
      * @return Filesystem
      */
     public function execute(string $uploadUrl, string $uploadPath) : Filesystem

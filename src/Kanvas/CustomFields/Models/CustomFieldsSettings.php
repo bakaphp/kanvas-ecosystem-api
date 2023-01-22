@@ -29,7 +29,7 @@ class CustomFieldsSettings extends BaseModel
     protected $table = 'custom_fields_setting';
 
     /**
-     * Belongs to app
+     * Belongs to app.
      *
      * @return BelongsTo
      */

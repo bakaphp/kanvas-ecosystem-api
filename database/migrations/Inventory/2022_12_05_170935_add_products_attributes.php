@@ -29,7 +29,6 @@ return new class extends Migration {
             $table->index('updated_at');
             $table->foreign('products_id')->references('id')->on('products');
             $table->foreign('attributes_id')->references('id')->on('attributes');
-
         });
     }
 

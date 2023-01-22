@@ -1,11 +1,12 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Variants\Actions;
 
-use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Channels\Models\Channels;
-use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
+use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 class AddVariantToChannel
 {

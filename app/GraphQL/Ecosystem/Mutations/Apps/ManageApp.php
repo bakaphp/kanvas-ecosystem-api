@@ -80,10 +80,11 @@ final class ManageApp
     }
 
     /**
-     * Save app setting
+     * Save app setting.
      *
      * @param mixed $root
      * @param array $req
+     *
      * @return mixed
      */
     public function saveSettings(mixed $root, array $req) : mixed

@@ -1,16 +1,18 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Notifications\Models;
 
-use Kanvas\Models\BaseModel;
-use Kanvas\Users\Models\Users;
-use Kanvas\Apps\Models\Apps;
 use Illuminate\Database\Eloquent\Builder;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Users\Models\Users;
 
 /**
  * Notifications Model.
+ *
  * @property int $users_id
  * @property int $from_users_id
  * @property int $companies_id
@@ -38,7 +40,7 @@ class Notifications extends BaseModel
     protected $guarded = [];
 
     /**
-     * users
+     * users.
      *
      * @return BelongsTo
      */
@@ -48,7 +50,7 @@ class Notifications extends BaseModel
     }
 
     /**
-     * fromUsers
+     * fromUsers.
      *
      * @return BelongsTo
      */
@@ -58,7 +60,7 @@ class Notifications extends BaseModel
     }
 
     /**
-     * companies
+     * companies.
      *
      * @return BelongsTo
      */
@@ -68,7 +70,7 @@ class Notifications extends BaseModel
     }
 
     /**
-     * apps
+     * apps.
      *
      * @return BelongsTo
      */
@@ -78,7 +80,7 @@ class Notifications extends BaseModel
     }
 
     /**
-     * systemModule
+     * systemModule.
      *
      * @return BelongsTo
      */
@@ -88,7 +90,7 @@ class Notifications extends BaseModel
     }
 
     /**
-     * types
+     * types.
      *
      * @return BelongsTo
      */

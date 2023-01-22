@@ -6,7 +6,6 @@ namespace Kanvas\AccessControlList\Actions;
 use Illuminate\Auth\Access\AuthorizationException;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Models\Role;
-use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 
