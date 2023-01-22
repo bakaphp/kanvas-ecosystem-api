@@ -23,12 +23,14 @@ class ProductImporterJob implements ShouldQueue
     /**
      * constructor.
      *
+     * @param string $jobUuid
      * @param array<int, ImporterDto> $importer
      * @param Companies $company
      * @param UserInterface $user
      * @param Regions $region
      */
     public function __construct(
+        public string $jobUuid,
         public array $importer,
         public Companies $company,
         public UserInterface $user,
