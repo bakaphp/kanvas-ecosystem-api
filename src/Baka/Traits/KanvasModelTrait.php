@@ -6,38 +6,25 @@ namespace Baka\Traits;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
+use Kanvas\Users\Models\Users;
 
 trait KanvasModelTrait
 {
-    /**
-     * Get primary key.
-     *
-     * @return mixed
-     */
     public function getId() : mixed
     {
         return $this->getKey();
     }
 
-    /**
-     * Get uuid.
-     *
-     * @return string
-     */
     public function getUuid() : string
     {
         return $this->uuid;
     }
 
-    /**
-     * Get by uui.
-     *
-     * @param string $uuid
-     *
-     * @return self
-     */
     public static function getByUuid(string $uuid) : self
     {
         try {
@@ -50,13 +37,6 @@ trait KanvasModelTrait
         }
     }
 
-    /**
-     * Get by Id.
-     *
-     * @param mixed $id
-     *
-     * @return self
-     */
     public static function getById(mixed $id) : self
     {
         try {
@@ -67,6 +47,33 @@ trait KanvasModelTrait
             //we want to expose the not found msg
             throw new ExceptionsModelNotFoundException($e->getMessage());
         }
+    }
+
+    public function company() : BelongsTo
+    {
+        return $this->setConnection('ecosystem')->belongsTo(
+            Companies::class,
+            'companies_id',
+            'id'
+        );
+    }
+
+    public function user() : BelongsTo
+    {
+        return $this->setConnection('ecosystem')->belongsTo(
+            Users::class,
+            'users_id',
+            'id'
+        );
+    }
+
+    public function app() : BelongsTo
+    {
+        return $this->setConnection('ecosystem')->belongsTo(
+            Apps::class,
+            'apps_id',
+            'id'
+        );
     }
 
     /**

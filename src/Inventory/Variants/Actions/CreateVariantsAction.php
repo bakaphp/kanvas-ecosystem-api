@@ -1,29 +1,53 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Variants\Actions;
 
+use Baka\Users\Contracts\UserInterface;
+use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\Models\Variants;
 
 class CreateVariantsAction
 {
     /**
-     * __construct
+     * __construct.
      *
      * @return void
      */
     public function __construct(
-        private VariantsDto $variantDto
+        protected VariantsDto $variantDto,
+        protected UserInterface $user
     ) {
     }
 
     /**
-     * execute
+     * execute.
      *
      * @return Variants
      */
-    public function execute(): Variants
+    public function execute() : Variants
     {
-        return Variants::create($this->variantDto->toArray());
+        CompaniesRepository::userAssociatedToCompany(
+            $this->variantDto->product->company()->get()->first(),
+            $this->user
+        );
+
+        return Variants::firstOrCreate([
+            'products_id' => $this->variantDto->product->getId(),
+            'name' => $this->variantDto->name,
+            'companies_id' => $this->variantDto->product->companies_id,
+            'apps_id' => $this->variantDto->product->apps_id
+        ], [
+            'users_id' => $this->user->getId(),
+            'description' => $this->variantDto->description,
+            'short_description' => $this->variantDto->short_description,
+            'html_description' => $this->variantDto->html_description,
+            'sku' => $this->variantDto->sku,
+            'ean' => $this->variantDto->ean,
+            'barcode' => $this->variantDto->barcode,
+            'serial_number' => $this->variantDto->serial_number,
+            'is_published' => $this->variantDto->is_published
+        ]);
     }
 }
