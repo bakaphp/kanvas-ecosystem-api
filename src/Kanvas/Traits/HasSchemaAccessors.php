@@ -21,7 +21,7 @@ trait HasSchemaAccessors
     protected static function schemaInstance() : Model
     {
         if (empty(static::$schemaInstance)) {
-            static::$schemaInstance = new static;
+            static::$schemaInstance = new static();
         }
         return static::$schemaInstance;
     }

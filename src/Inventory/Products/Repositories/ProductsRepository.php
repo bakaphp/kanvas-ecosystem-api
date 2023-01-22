@@ -16,7 +16,9 @@ class ProductsRepository
         return new Products();
     }
 
-    public static function getBySourceKey(int $id) : Products
+    public static function getBySourceKey(string $key, string $id) : Products
     {
+        $key = $key . '_id';
+        return Products::getByCustomField($key, $id);
     }
 }

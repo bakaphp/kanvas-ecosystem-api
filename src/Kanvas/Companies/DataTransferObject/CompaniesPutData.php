@@ -54,7 +54,6 @@ class CompaniesPutData extends Data
         return new self(
             currency_id: (int)$request->get('currency_id'),
             name: $request->get('name'),
-            profile_image: $request->get('profile_image'),
             website: $request->get('website'),
             address: $request->get('address'),
             zipcode: (int) $request->get('zipcode'),

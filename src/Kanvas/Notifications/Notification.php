@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Kanvas\Notifications;
 
@@ -16,6 +17,7 @@ class Notification extends LaravelNotification implements EmailInterfaces
 {
     public object $entity;
     public object $type;
+    public string $templateName = 'default';
 
     /**
      * via.

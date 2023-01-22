@@ -7,7 +7,6 @@ namespace Kanvas\Filesystem\Models;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Filesystem\Filesystem\Models\Filesystem;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
 
@@ -40,7 +39,7 @@ class FilesystemEntities extends BaseModel
      */
     public function filesystem() : BelongsTo
     {
-        return $this->belongsTo(FileSystem::class, 'filesystem_id');
+        return $this->belongsTo(Filesystem::class, 'filesystem_id');
     }
 
     /**

@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\Defaults;
 use Kanvas\Companies\Factories\CompaniesFactory;
-use Kanvas\CompaniesGroups\Models\CompaniesGroups;
+use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
@@ -85,7 +85,10 @@ class Companies extends BaseModel implements CompanyInterface
      */
     public function defaultBranch() : HasOne
     {
-        return $this->hasOne(CompaniesBranches::class, 'companies_id')->where('is_default', StateEnums::YES->getValue());
+        return $this->hasOne(
+            CompaniesBranches::class,
+            'companies_id'
+        )->where('is_default', StateEnums::YES->getValue());
     }
 
     /**

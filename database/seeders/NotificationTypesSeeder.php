@@ -15,7 +15,6 @@ class NotificationTypesSeeder extends Seeder
      */
     public function run()
     {
-
         $systemModule = SystemModules::first();
         NotificationTypes::create([
             'apps_id' => 1,

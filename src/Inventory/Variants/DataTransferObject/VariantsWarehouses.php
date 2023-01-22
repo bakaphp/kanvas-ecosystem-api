@@ -9,9 +9,9 @@ class VariantsWarehouses extends Data
 {
     public function __construct(
         public float $quantity = 0.0,
-        public float $price,
+        public float $price = 0.0,
         public ?string $sku = null,
-        public int $position,
+        public int $position = 0,
         public ?string $serial_number = null,
         public bool $is_oversellable = false,
         public bool $is_default = false,

@@ -54,7 +54,7 @@ class AppSetup extends Command
         $paymentsActive = $this->confirm('Do you want payments enabled?', true);
         $isPublic = $this->confirm('Do you want want the app to be public?', true);
 
-        $data = AppInput::fromConsole(
+        $data = AppInput::from(
             [
                 'name' => $name,
                 'url' => $url,
@@ -72,7 +72,7 @@ class AppSetup extends Command
         $app = $createApp->execute();
 
         $this->newLine();
-        $this->info("App {$app->name} sucessfully created!");
+        $this->info("App {$app->name} successfully created!");
         $this->newLine();
 
         return;
