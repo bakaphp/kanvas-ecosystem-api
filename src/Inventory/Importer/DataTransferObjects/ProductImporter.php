@@ -41,7 +41,7 @@ class ProductImporter extends Data
      */
     public function isFromThirdParty() : bool
     {
-        return $this->source !== null && $this->sourceId !== null;
+        return $this->source && $this->sourceId;
     }
 
     public function getSourceKey() : string

@@ -20,7 +20,7 @@ class ProductsTypes
      */
     public function create(mixed $root, array $request) : ProductsTypesModel
     {
-        $dto = ProductsTypesDto::fromRequest($request['input']);
+        $dto = ProductsTypesDto::viaRequest($request['input']);
         $productType = (
             new CreateProductTypeAction(
                 $dto,

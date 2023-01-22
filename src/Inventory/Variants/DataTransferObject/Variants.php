@@ -24,7 +24,7 @@ class Variants extends Data
     ) {
     }
 
-    public static function fromRequest(array $request) : self
+    public static function viaRequest(array $request) : self
     {
         return new self(
             ProductsRepository::getById($request['products_id'], auth()->user()->getCurrentCompany()),

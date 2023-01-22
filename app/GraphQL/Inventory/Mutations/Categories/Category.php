@@ -20,7 +20,7 @@ class Category
      */
     public function create(mixed $root, array $request) : Categories
     {
-        $dto = CategoriesDto::fromRequest($request['input']);
+        $dto = CategoriesDto::viaRequest($request['input']);
         $category = new CreateCategory($dto, auth()->user());
         return $category->execute();
     }

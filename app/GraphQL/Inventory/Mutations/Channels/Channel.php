@@ -21,7 +21,7 @@ class Channel
     public function create(mixed $rootValue, array $request) : ChannelsModel
     {
         $data = $request['input'];
-        $dto = ChannelsDto::fromRequest($data);
+        $dto = ChannelsDto::viaRequest($data);
         $channel = (new CreateChannel($dto, auth()->user()))->execute();
         return $channel;
     }

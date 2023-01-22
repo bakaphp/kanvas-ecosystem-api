@@ -40,7 +40,7 @@ class Warehouses extends Data
      *
      * @return self
      */
-    public static function fromRequest(array $request) : self
+    public static function viaRequest(array $request) : self
     {
         $company = auth()->user()->getCurrentCompany();
 

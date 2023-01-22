@@ -37,7 +37,7 @@ class Categories extends Data
      *
      * @return self
      */
-    public static function fromRequest(array $request) : self
+    public static function viaRequest(array $request) : self
     {
         return new self(
             app(Apps::class),
