@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Products;
 
-use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob as ImporterJob;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
@@ -20,18 +19,13 @@ class Import
      */
     public function product(mixed $root, array $req) : bool
     {
-        $region = RegionRepository::getById($req['input']['regionId'], auth()->user()->getCurrent);
-        $dto = ProductImporter::from($req['input']);
+        $region = RegionRepository::getById($req['regionId'], auth()->user()->getCurrent);
 
-        (new ProductImporterAction(
-            $dto,
-            auth()->user()->getCurrentCompany(),
-            auth()->user(),
-            $region
-        ))->execute();
+        //verify it has the correct format
+        ProductImporter::from($req['input'][0]);
 
         ImporterJob::dispatch(
-            $dto,
+            $req['input'],
             auth()->user()->getCurrentCompany(),
             auth()->user(),
             $region
