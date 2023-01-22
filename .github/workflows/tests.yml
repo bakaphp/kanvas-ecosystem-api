@@ -87,7 +87,7 @@ jobs:
       - name: Run Inventory Migrations
         run: php artisan migrate --path database/migrations/Inventory/
 
-      - name: Run Seedes
+      - name: Run Seeders
         run: php artisan db:seed
 
       - name: Create Role Admin
