@@ -5,6 +5,7 @@ on: ["push"]
 jobs:
   run-tests:
     name: PHP ${{ matrix.php-versions }}
+
     runs-on: ubuntu-latest
     env:
       extensions: mbstring, intl, json, redis, swoole
@@ -57,6 +58,7 @@ jobs:
         image: rabbitmq
         ports:
           - 5672:5672
+
     steps:
       - uses: actions/checkout@v2
 
@@ -100,4 +102,4 @@ jobs:
         run: php artisan role:create Agents
 
       - name: Execute type checking
-        run: vendor/bin/phpstan --configuration="phpstan.${{ matrix.directory }}.neon.dist" --xdebug
+        run: vendor/bin/phpstan --configuration="phpstan.src.neon.dist" --xdebug
