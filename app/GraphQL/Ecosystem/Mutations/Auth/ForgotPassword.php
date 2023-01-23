@@ -43,7 +43,7 @@ class ForgotPassword
     }
 
     /**
-     * Reset user password
+     * Reset user password.
      *
      * @param mixed $rootValue
      * @param array $request

@@ -16,7 +16,7 @@ class ResetPassword extends Notification implements ShouldQueue
      * __construct.
      *
      * @param  Users $user
-     * 
+     *
      * @return void
      */
     public function __construct(Users $user)

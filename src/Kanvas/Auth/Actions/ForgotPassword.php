@@ -25,7 +25,7 @@ class ForgotPassword
      * Send email forgot password.
      *
      * @param array $data
-     * 
+     *
      * @return Users
      */
     public function forgot(array $data) : Users
@@ -46,6 +46,7 @@ class ForgotPassword
      * Get user and update password to the new one.
      *
      * @param array $data
+     *
      * @return bool
      */
     public function reset(array $data) : bool
