@@ -3,9 +3,8 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Actions\CreateAppsAction;
-use Kanvas\Apps\Actions\SetupAppsAction;
+use Kanvas\Apps\DataTransferObject\AppInput;
 
 class AppSetup extends Command
 {
@@ -42,7 +41,7 @@ class AppSetup extends Command
     {
         $name = $this->ask("What's the name of the app?");
         $url = $this->ask("What's its url?");
-        $description = $this->ask("Add some description of app");
+        $description = $this->ask('Add some description of app');
         $domain = $this->ask("What's the domain of the app?");
 
         //If any question is empty, ask it again.
@@ -55,17 +54,17 @@ class AppSetup extends Command
         $paymentsActive = $this->confirm('Do you want payments enabled?', true);
         $isPublic = $this->confirm('Do you want want the app to be public?', true);
 
-        $data = AppInput::fromConsole(
+        $data = AppInput::from(
             [
-            'name' => $name,
-            'url' => $url,
-            'description' => $description,
-            'domain' => $domain,
-            'is_actived' => 1,
-            'ecosystem_auth' => (int)$ecosystemAuth,
-            'payments_active' => (int)$paymentsActive,
-            'is_public' => (int)$isPublic,
-            'domain_based' => 0
+                'name' => $name,
+                'url' => $url,
+                'description' => $description,
+                'domain' => $domain,
+                'is_actived' => 1,
+                'ecosystem_auth' => (int)$ecosystemAuth,
+                'payments_active' => (int)$paymentsActive,
+                'is_public' => (int)$isPublic,
+                'domain_based' => 0
             ]
         );
 
@@ -73,7 +72,7 @@ class AppSetup extends Command
         $app = $createApp->execute();
 
         $this->newLine();
-        $this->info("App {$app->name} sucessfully created!");
+        $this->info("App {$app->name} successfully created!");
         $this->newLine();
 
         return;

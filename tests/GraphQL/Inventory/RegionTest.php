@@ -1,14 +1,14 @@
 <?php
 declare(strict_types=1);
+
 namespace Tests\GraphQL\Inventory;
 
-use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
 
 class RegionTest extends TestCase
 {
     /**
-     * testCreateRegion
+     * testCreateRegion.
      *
      * @return void
      */
@@ -41,7 +41,7 @@ class RegionTest extends TestCase
     }
 
     /**
-     * testFindRegion
+     * testFindRegion.
      *
      * @return void
      */
@@ -86,7 +86,7 @@ class RegionTest extends TestCase
     }
 
     /**
-     * testUpdateRegion
+     * testUpdateRegion.
      *
      * @return void
      */
@@ -156,7 +156,7 @@ class RegionTest extends TestCase
     }
 
     /**
-     * testDeleteRegion
+     * testDeleteRegion.
      *
      * @return void
      */

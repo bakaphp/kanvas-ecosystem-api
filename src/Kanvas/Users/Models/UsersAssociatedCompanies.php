@@ -8,7 +8,6 @@ use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
-use Kanvas\Users\Models\Users;
 
 /**
  * UsersAssociatedCompanies Model.

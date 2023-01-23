@@ -1,18 +1,18 @@
 <?php
 declare(strict_types=1);
+
 namespace Tests\GraphQL\Inventory;
 
-use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
 
 class WarehouseTest extends TestCase
 {
     /**
-     * testCreateWarehouse
+     * testCreateWarehouse.
      *
      * @return void
      */
-    public function testCreateWarehouse(): void
+    public function testCreateWarehouse() : void
     {
         $data = [
             'name' => 'Test Region',
@@ -38,6 +38,7 @@ class WarehouseTest extends TestCase
         ])->assertJson([
             'data' => ['createRegion' => $data]
         ]);
+
         $response = $response->decodeResponseJson();
 
         $data = [
@@ -47,7 +48,8 @@ class WarehouseTest extends TestCase
             'is_default' => false,
             'is_published' => 1,
         ];
-        $this->graphQL('
+
+        $response = $this->graphQL('
             mutation($data: WarehouseInput!) {
                 createWarehouse(input: $data)
                 {
@@ -63,11 +65,11 @@ class WarehouseTest extends TestCase
     }
 
     /**
-     * testFindWarehouse
+     * testFindWarehouse.
      *
      * @return void
      */
-    public function testFindWarehouse(): void
+    public function testFindWarehouse() : void
     {
         $data = [
             'name' => 'Test Region',
@@ -138,11 +140,11 @@ class WarehouseTest extends TestCase
     }
 
     /**
-     * testUpdateWareHouse
+     * testUpdateWareHouse.
      *
      * @return void
      */
-    public function testUpdateWarehouse(): void
+    public function testUpdateWarehouse() : void
     {
         $data = [
             'name' => 'Test Region',
@@ -224,7 +226,7 @@ class WarehouseTest extends TestCase
         ]);
     }
 
-    public function testDeleteWarehouse(): void
+    public function testDeleteWarehouse() : void
     {
         $data = [
             'name' => 'Test Region',

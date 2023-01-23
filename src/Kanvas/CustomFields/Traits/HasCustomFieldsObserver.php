@@ -12,9 +12,10 @@ use Kanvas\CustomFields\Interfaces\CustomFieldModelInterface;
 trait HasCustomFieldsObserver
 {
     /**
-     * After Create
+     * After Create.
      *
      * @param Model $model
+     *
      * @return void
      */
     public function created(CustomFieldModelInterface $model)
@@ -23,9 +24,10 @@ trait HasCustomFieldsObserver
     }
 
     /**
-     * After updated
+     * After updated.
      *
      * @param Model $model
+     *
      * @return void
      */
     public function updated(CustomFieldModelInterface $model)
@@ -37,9 +39,10 @@ trait HasCustomFieldsObserver
     }
 
     /**
-     * After Delete
+     * After Delete.
      *
      * @param Model $model
+     *
      * @return void
      */
     public function deleted(CustomFieldModelInterface $model)

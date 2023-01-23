@@ -9,7 +9,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
 use Kanvas\Roles\Models\Roles;
-use Kanvas\Users\Models\Users;
 
 /**
  * UserRoles Model.

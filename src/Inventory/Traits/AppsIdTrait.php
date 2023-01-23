@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Traits;
 
 use Kanvas\Apps\Models\Apps;
@@ -7,7 +8,7 @@ use Kanvas\Apps\Models\Apps;
 trait AppsIdTrait
 {
     /**
-     * bootSetAppId
+     * bootSetAppId.
      *
      * @return void
      */

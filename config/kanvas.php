@@ -19,7 +19,7 @@ return [
         'id' => getenv('KANVAS_APP_ID'),
         'frontEndUrl' => getenv('FRONTEND_URL'),
         'version' => getenv('VERSION', time()),
-        'timezone' => "UTC",
+        'timezone' => 'UTC',
         'debug' => getenv('APP_DEBUG', false),
         'env' => getenv('APP_ENV', 'development'),
         'production' => getenv('APP_ENV', 'development'),

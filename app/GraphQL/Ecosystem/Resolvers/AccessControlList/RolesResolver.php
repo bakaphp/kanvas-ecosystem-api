@@ -1,15 +1,16 @@
 <?php
 declare(strict_types=1);
+
 namespace App\GraphQL\Ecosystem\Resolvers\AccessControlList;
 
-use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Illuminate\Database\Eloquent\Collection;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 
 class RolesResolver
 {
     /**
-     * getAllRoles
+     * getAllRoles.
      *
      * @return Collection
      */
@@ -19,10 +20,11 @@ class RolesResolver
     }
 
     /**
-     * hasRole
+     * hasRole.
      *
      * @param  mixed $_
      * @param  array $request
+     *
      * @return bool
      */
     public function hasRole(mixed $_, array $request): bool

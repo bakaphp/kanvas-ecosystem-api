@@ -4,18 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Locations\States\DataTransferObject;
 
-use Kanvas\Contracts\DataTransferObject\CollectionResponseData as BaseCollectionResponseData;
-use Illuminate\Database\Eloquent\Collection;
-use Kanvas\Locations\States\DataTransferObject\SingleResponseData;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Kanvas\Contracts\DataTransferObject\CollectionResponseData as BaseCollectionResponseData;
 
 /**
- * ResponseData class
+ * ResponseData class.
  */
 class CollectionResponseData extends BaseCollectionResponseData
 {
     /**
-     * Create new instance of DTO from request
+     * Create new instance of DTO from request.
      *
      * @param LengthAwarePaginator $paginatedCollection
      *

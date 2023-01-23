@@ -1,22 +1,24 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Notifications\Settings\Actions;
 
-use Kanvas\Users\Models\Users;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Notifications\Settings\Models\UsersNotificationsSettings;
 use Kanvas\Notifications\Models\NotificationTypes;
+use Kanvas\Notifications\Settings\Models\UsersNotificationsSettings;
 use Kanvas\Notifications\Settings\Repositories\NotificationSettingsRepository;
+use Kanvas\Users\Models\Users;
 
 class SetNotificationSettings
 {
     /**
-     * __construct
+     * __construct.
      *
      * @param  Users $user
      * @param  Apps $app
      * @param  NotificationTypes $notificationType
      * @param  array $data
+     *
      * @return void
      */
     public function __construct(
@@ -27,7 +29,7 @@ class SetNotificationSettings
     }
 
     /**
-     * execute
+     * execute.
      *
      * @return void
      */

@@ -6,11 +6,11 @@ namespace Kanvas\Users\Actions;
 
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Roles\Repositories\RolesRepository;
-use Kanvas\Auth\DataTransferObject\RegisterInput;
-use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UserRoles;
+use Kanvas\Users\Models\Users;
 
 class AssignRole
 {

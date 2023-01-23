@@ -1,24 +1,17 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Channels\Repositories;
 
+use Baka\Traits\SearchableTrait;
 use Kanvas\Inventory\Channels\Models\Channels;
-use Kanvas\Apps\Models\Apps;
 
 class ChannelRepository
 {
-    /**
-     * getById
-     *
-     * @param  int $id
-     * @param  int $companiesId
-     * @return Channels
-     */
-    public static function getById(int $id, ?int $companiesId = null): Channels
+    use SearchableTrait;
+
+    public static function getModel() : Channels
     {
-        $companiesId = $companiesId ?? auth()->user()->default_company;
-        return Channels::where('companies_id', $companiesId)
-            ->where('apps_id', app(Apps::class)->id)
-            ->findOrFail($id);
+        return new Channels();
     }
 }

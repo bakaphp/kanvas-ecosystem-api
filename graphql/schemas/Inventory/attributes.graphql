@@ -1,42 +1,41 @@
 input AttributeInput {
     name: String!
+    source_id: Mixed
+    value: Mixed
 }
 input AttributeUpdateInput {
     name: String
 }
 type Attributes {
-  id: Int!
-  uuid: String
-  name: String
-  created_at: String
-  updated_at: String
-  companies: [Company]
-  value: String
+    id: Int!
+    uuid: String
+    name: String
+    created_at: String
+    updated_at: String
+    companies: [Company]
+    value: Mixed
 }
-extend type Mutation @guard{
-    createAttribute(input: AttributeInput!): Attributes! @field(
-        resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\Attributes@create"
+extend type Mutation @guard {
+    createAttribute(input: AttributeInput!): Attributes!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\Attributes@create"
         )
-    updateAttribute(id: Int!, input: AttributeUpdateInput!): Attributes! @field(
-        resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\Attributes@update"
+    updateAttribute(id: Int!, input: AttributeUpdateInput!): Attributes!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\Attributes@update"
         )
-    deleteAttribute(id: Int!): Attributes! @field(
-        resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\Attributes@delete"
-    )
-    
+    deleteAttribute(id: Int!): Attributes!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\Attributes@delete"
+        )
 }
 extend type Query @guard {
     attributes(
-         where: _
-            @whereConditions(
-                columns: [
-                    "uuid",
-                    "name",
-                ]
-            )
-    ): [Attributes!]! @paginate(
-        defaultCount: 10,
-        model: "Kanvas\\Inventory\\Attributes\\Models\\Attributes",
-        scopes: ["app", "company"]
-    )
+        where: _ @whereConditions(columns: ["uuid", "name"])
+    ): [Attributes!]!
+        @paginate(
+            defaultCount: 10
+            model: "Kanvas\\Inventory\\Attributes\\Models\\Attributes"
+            scopes: ["app", "company"]
+        )
 }

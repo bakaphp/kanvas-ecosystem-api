@@ -1,15 +1,16 @@
 <?php
 
 declare(strict_types=1);
+
 namespace Kanvas\Locations\Cities\Models;
 
-use Kanvas\Models\BaseModel;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Locations\Countries\Models\Countries;
 use Kanvas\Locations\States\Models\States;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Models\BaseModel;
 
 /**
- * Cities Class
+ * Cities Class.
  *
  * @property int $countries_id
  * @property int $states_id
@@ -36,7 +37,7 @@ class Cities extends BaseModel
     ];
 
     /**
-     * Countries relationship
+     * Countries relationship.
      *
      * @return Countries
      */
@@ -46,7 +47,7 @@ class Cities extends BaseModel
     }
 
     /**
-     * States relationship
+     * States relationship.
      *
      * @return States
      */

@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\Actions;
 
-use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Hash;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Enums\Defaults;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
+use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Notifications\Templates\UserSignUp;
 use Kanvas\Users\Enums\StatusEnums;

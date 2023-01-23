@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Enums;
 
-use Kanvas\Contracts\EnumsInterface;
+use Baka\Contracts\EnumsInterface;
 
 enum StateEnums implements EnumsInterface
 {
@@ -18,7 +18,7 @@ enum StateEnums implements EnumsInterface
     case EMPTY_STRING;
 
     /**
-     * Get value
+     * Get value.
      *
      * @return mixed
      */

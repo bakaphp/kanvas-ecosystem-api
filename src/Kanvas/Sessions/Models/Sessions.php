@@ -101,7 +101,6 @@ class Sessions extends PersonalAccessToken
         return $this->belongsTo(SessionKeys::class);
     }
 
-
     /**
      * Override the getIncrementing() function to return false to tell
      * Laravel that the identifier does not auto increment (it's a string).
@@ -112,7 +111,6 @@ class Sessions extends PersonalAccessToken
     {
         return false;
     }
-
 
     /**
      * Tell laravel that the key type is a string, not an integer.
@@ -374,7 +372,6 @@ class Sessions extends PersonalAccessToken
 
         return true;
     }
-
 
     /**
      * End all user Sessions from all devices and Ips.

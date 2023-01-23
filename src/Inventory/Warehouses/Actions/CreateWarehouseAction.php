@@ -1,38 +1,50 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Warehouses\Actions;
 
-use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Baka\Users\Contracts\UserInterface;
+use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses as WarehousesDto;
-use Illuminate\Support\Str;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 class CreateWarehouseAction
 {
     /**
-     * __construct
+     * __construct.
+     *
      * @param  WarehousesDto $dto
+     *
      * @return void
      */
     public function __construct(
-        private WarehousesDto $warehouseDto
+        protected WarehousesDto $data,
+        protected UserInterface $user,
     ) {
     }
 
     /**
-     * execute
+     * execute.
      *
      * @return Warehouses
      */
-    public function execute(): Warehouses
+    public function execute() : Warehouses
     {
-        return Warehouses::create([
-            'companies_id' => $this->warehouseDto->companies_id,
-            'apps_id' => $this->warehouseDto->apps_id,
-            'regions_id' => $this->warehouseDto->regions_id,
-            'name' => $this->warehouseDto->name,
-            'location' => $this->warehouseDto->location,
-            'is_default' => $this->warehouseDto->is_default,
-            'is_published' => $this->warehouseDto->is_published,
+        CompaniesRepository::userAssociatedToCompany(
+            $this->data->company,
+            $this->user
+        );
+
+        return Warehouses::firstOrCreate([
+            'name' => $this->data->name,
+            'companies_id' => $this->data->company->getId(),
+            'apps_id' => $this->data->app->getId(),
+            'regions_id' => $this->data->region->getId(),
+        ], [
+            'users_id' => $this->data->user->getId(),
+            'location' => $this->data->location,
+            'is_default' => $this->data->is_default,
+            'is_published' => $this->data->is_published,
         ]);
     }
 }

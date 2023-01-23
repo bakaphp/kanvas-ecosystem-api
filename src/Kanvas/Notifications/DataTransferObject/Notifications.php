@@ -1,11 +1,12 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Notifications\DataTransferObject;
 
 class Notifications
 {
     /**
-     * __construct
+     * __construct.
      *
      * @return void
      */
@@ -27,9 +28,10 @@ class Notifications
     }
 
     /**
-     * fromArray
+     * fromArray.
      *
      * @param  array $data
+     *
      * @return self
      */
     public static function fromArray(array $data): self

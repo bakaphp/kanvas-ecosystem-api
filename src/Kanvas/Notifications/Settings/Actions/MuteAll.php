@@ -1,19 +1,21 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Notifications\Settings\Actions;
 
-use Kanvas\Users\Models\Users;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Notifications\Settings\Models\UsersNotificationsSettings;
 use Kanvas\Notifications\Models\NotificationTypes;
+use Kanvas\Notifications\Settings\Models\UsersNotificationsSettings;
+use Kanvas\Users\Models\Users;
 
 class MuteAll
 {
     /**
-     * __construct
+     * __construct.
      *
      * @param  Users $user
      * @param  Apps $app
+     *
      * @return void
      */
     public function __construct(
@@ -23,7 +25,7 @@ class MuteAll
     }
 
     /**
-     * execute
+     * execute.
      *
      * @return void
      */

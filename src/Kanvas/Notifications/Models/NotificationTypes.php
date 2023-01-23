@@ -1,11 +1,13 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Notifications\Models;
 
 use Kanvas\Models\BaseModel;
 
 /**
  * Notifications Model.
+ *
  * @property int $apps_id
  * @property int $system_modules_id
  * @property string $name
@@ -23,9 +25,10 @@ class NotificationTypes extends BaseModel
     public $table = 'notification_types';
 
     /**
-     * getByName
+     * getByName.
      *
      * @param  string $name
+     *
      * @return self
      */
     public static function getByName(string $name): self

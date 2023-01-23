@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Languages\Models;
 
-use Kanvas\Models\BaseModel;
-use Kanvas\Locations\Countries\Models\Countries;
 use Kanvas\Locations\Cities\Models\Cities;
+use Kanvas\Models\BaseModel;
 
 /**
- * Cities Class
+ * Cities Class.
  *
  * @property string $name
  * @property string $title
@@ -18,7 +17,7 @@ use Kanvas\Locations\Cities\Models\Cities;
 
 class Languages extends BaseModel
 {
-    
+
     /**
      * The table associated with the model.
      *

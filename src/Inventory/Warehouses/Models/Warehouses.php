@@ -1,18 +1,20 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Warehouses\Models;
 
-use Kanvas\Inventory\Models\BaseModel;
+use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Regions\Models\Regions;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Builder;
-use Baka\Traits\UuidTrait;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 
 /**
- * Class Warehouses
+ * Class Warehouses.
+ *
  * @property int $id
  * @property int $companies_id
  * @property int $apps_id
@@ -36,7 +38,7 @@ class Warehouses extends BaseModel
     protected $guarded = [];
 
     /**
-     * Get the companies that owns the Warehouses
+     * Get the companies that owns the Warehouses.
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
@@ -64,9 +66,10 @@ class Warehouses extends BaseModel
     }
 
     /**
-     * scopeCompany
+     * scopeCompany.
      *
      * @param  Builder $query
+     *
      * @return Builder
      */
     public function scopeCompany(Builder $query): Builder
@@ -75,9 +78,10 @@ class Warehouses extends BaseModel
     }
 
     /**
-     * scopeApp
+     * scopeApp.
      *
      * @param  Builder $query
+     *
      * @return Builder
      */
     public function scopeApp(Builder $query): Builder
@@ -86,7 +90,7 @@ class Warehouses extends BaseModel
     }
 
     /**
-     * quantityAttribute
+     * quantityAttribute.
      *
      * @return void
      */
@@ -98,7 +102,7 @@ class Warehouses extends BaseModel
     }
 
     /**
-     * price
+     * price.
      *
      * @return Attribute
      */
@@ -110,7 +114,7 @@ class Warehouses extends BaseModel
     }
 
     /**
-     * sku
+     * sku.
      *
      * @return Attribute
      */
@@ -122,7 +126,7 @@ class Warehouses extends BaseModel
     }
 
     /**
-     * position
+     * position.
      *
      * @return Attributre
      */

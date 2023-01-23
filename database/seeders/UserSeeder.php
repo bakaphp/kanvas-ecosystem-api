@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
+use Baka\Support\Str;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Baka\Support\Str;
 
 class UserSeeder extends Seeder
 {

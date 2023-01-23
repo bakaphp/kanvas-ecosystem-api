@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\DataTransferObject;
 
+use Baka\Support\Random;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Baka\Support\Random;
 use Spatie\LaravelData\Data;
 
 /**
@@ -42,7 +42,7 @@ class RegisterInput extends Data
      *
      * @return self
      */
-    public static function fromRequest(Request $request) : self
+    public static function viaRequest(Request $request) : self
     {
         return new self(
             firstname: $request->get('firstname') ?? '',

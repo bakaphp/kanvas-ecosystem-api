@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Traits;
 
 use Illuminate\Database\Eloquent\Collection;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
-use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
-use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use RuntimeException;
 
 trait HasFilesystemTrait
@@ -44,7 +44,7 @@ trait HasFilesystemTrait
     {
         foreach ($files as $file) {
             if (!isset($file['file']) || !isset($file['fieldName'])) {
-                throw new RuntimeException('Missing file || fieldName index');
+                throw new ValidationException('Missing file || fieldName index');
             }
 
             $attachFilesystem = new AttachFilesystemAction($file['file'], $this);

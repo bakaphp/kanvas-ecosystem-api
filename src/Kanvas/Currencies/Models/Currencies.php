@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Currencies\Models;
 
-use Kanvas\Models\BaseModel;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Currencies\Factories\CurrenciesFactory;
+use Kanvas\Models\BaseModel;
 
 /**
- * Companies Model
+ * Companies Model.
  *
  * @property string $country
  * @property string $currency
@@ -25,17 +26,17 @@ class Currencies extends BaseModel
     protected $table = 'currencies';
 
     /**
-    * Create a new factory instance for the model.
-    *
-    * @return \Illuminate\Database\Eloquent\Factories\Factory
-    */
+     * Create a new factory instance for the model.
+     *
+     * @return \Illuminate\Database\Eloquent\Factories\Factory
+     */
     protected static function newFactory()
     {
         return CurrenciesFactory::new();
     }
 
     /**
-     * Companies relationship
+     * Companies relationship.
      *
      * @return hasMany
      */

@@ -1,17 +1,18 @@
 <?php
 declare(strict_types=1);
+
 namespace App\GraphQL\Ecosystem\Resolvers\Notifications;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Notifications\Settings\Actions\MuteAll;
-use Kanvas\Notifications\Settings\Models\UsersNotificationsSettings;
-use Kanvas\Notifications\Settings\Actions\SetNotificationSettings;
 use Kanvas\Notifications\Models\NotificationTypes;
+use Kanvas\Notifications\Settings\Actions\MuteAll;
+use Kanvas\Notifications\Settings\Actions\SetNotificationSettings;
+use Kanvas\Notifications\Settings\Models\UsersNotificationsSettings;
 
 class SettingsResolver
 {
     /**
-     * mute
+     * mute.
      *
      * @return string
      */
@@ -25,7 +26,7 @@ class SettingsResolver
     }
 
     /**
-     * setNotificationSettings
+     * setNotificationSettings.
      *
      * @return UsersNotificationsSettings
      */

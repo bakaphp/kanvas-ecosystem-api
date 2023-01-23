@@ -14,20 +14,20 @@ trait HasSchemaAccessors
     public static string $schemaTableName;
 
     /**
-     * Returns singleton of model
+     * Returns singleton of model.
      *
      * @return Model
      */
     protected static function schemaInstance() : Model
     {
         if (empty(static::$schemaInstance)) {
-            static::$schemaInstance = new static;
+            static::$schemaInstance = new static();
         }
         return static::$schemaInstance;
     }
 
     /**
-     * Returns the table name for a given model
+     * Returns the table name for a given model.
      *
      * @return string
      */

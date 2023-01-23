@@ -1,14 +1,15 @@
 <?php
 declare(strict_types=1);
+
 namespace App\GraphQL\Ecosystem\Mutations\Auth;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
-use Kanvas\Auth\Traits\AuthTrait;
-use Kanvas\Auth\Traits\TokenTrait;
 use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
+use Kanvas\Auth\Traits\AuthTrait;
+use Kanvas\Auth\Traits\TokenTrait;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class Register
