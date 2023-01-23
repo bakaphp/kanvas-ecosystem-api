@@ -27,7 +27,7 @@ trait TokenTrait
     /**
      * Returns the string token.
      *
-     * @return string
+     * @return array
      *
      * @throws ModelException
      */
@@ -101,7 +101,7 @@ trait TokenTrait
 
         return $config->validator()->validate(
             $token,
-            new IssuedBy(getenv('TOKEN_AUDIENCE')),
+            new IssuedBy(env('TOKEN_AUDIENCE')),
             new SignedWith($config->signer(), $config->verificationKey())
         );
     }
@@ -123,8 +123,8 @@ trait TokenTrait
 
         //https://lcobucci-jwt.readthedocs.io/en/latest/issuing-tokens/
         $token = $config->builder()
-                ->issuedBy(getenv('TOKEN_AUDIENCE'))
-                ->permittedFor(getenv('TOKEN_AUDIENCE'))
+                ->issuedBy(env('TOKEN_AUDIENCE'))
+                ->permittedFor(env('TOKEN_AUDIENCE'))
                 ->identifiedBy($sessionId)
                 ->issuedAt($now)
                 ->canOnlyBeUsedAfter($now)
@@ -156,7 +156,15 @@ trait TokenTrait
 
         //start session
         $session = new Sessions();
-        $session->start($this->user, $tokenResponse['sessionId'], $tokenResponse['token'], $userIp, $pageId);
+
+        $session->start(
+            $this->user,
+            'kanvas-login',
+            $tokenResponse['sessionId'],
+            $tokenResponse['token'],
+            $tokenResponse['refresh_token'],
+            $userIp
+        );
 
         unset($tokenResponse['sessionId']);
         return $tokenResponse;
