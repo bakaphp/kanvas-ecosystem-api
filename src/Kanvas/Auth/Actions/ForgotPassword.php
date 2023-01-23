@@ -39,4 +39,24 @@ class ForgotPassword
 
         return $recoverUser;
     }
+
+    /**
+     * Get user and update password to the new one
+     *
+     * @param array $data
+     * @return boolean
+     */
+    public function reset(array $data) : bool
+    {
+        $key = $data['hash_key'];
+
+        $recoverUser = Users::where(
+            [
+                'user_activation_forgot' => $key,
+                'is_deleted' => 0
+            ]
+        )->first();
+
+        return $recoverUser->resetPassword($data['new_password']);
+    }
 }
