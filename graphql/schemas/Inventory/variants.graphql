@@ -1,6 +1,7 @@
 type Variant {
     id: Int
     uuid: String!
+    slug: String!
     products_id: Int!
     name: String!
     description: String
@@ -152,13 +153,9 @@ extend type Query @guard {
                 columns: [
                     "products_id"
                     "name"
-                    "description"
-                    "short_description"
-                    "html_description"
+                    "slug"
+                    "uuid"
                     "sku"
-                    array
-                    "ean"
-                    "barcode"
                     "serial_number"
                     "is_published"
                 ]
@@ -168,5 +165,22 @@ extend type Query @guard {
             defaultCount: 10
             scopes: ["app", "company"]
             model: "Kanvas\\Inventory\\Variants\\Models\\Variants"
+        )
+}
+
+extend type Query {
+    channelVariants(
+        id: String!
+        where: _
+            @whereConditions(
+                columns: [
+                    "slug"
+                    "uuid"
+                ]
+            )
+    ): [Variant!]
+        @paginate(
+            defaultCount: 10
+            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\Variants@allAvailableViaChannel"
         )
 }
