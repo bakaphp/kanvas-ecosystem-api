@@ -41,4 +41,24 @@ class ForgotPassword
             'token' => $tokenResponse
         ];
     }
+
+    /**
+     * Reset user password
+     *
+     * @param mixed $rootValue
+     * @param array $request
+     * @param GraphQLContext|null $context
+     * @param ResolveInfo $resolveInfo
+     * @return void
+     */
+    public function reset(
+        mixed $rootValue,
+        array $request,
+        GraphQLContext $context = null,
+        ResolveInfo $resolveInfo
+    ) {
+        $user = new ForgotPasswordAction();
+
+        return $user->reset($request['data']);
+    }
 }
