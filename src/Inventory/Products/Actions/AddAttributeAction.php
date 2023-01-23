@@ -16,7 +16,7 @@ class AddAttributeAction
     public function __construct(
         private Products $product,
         private Attributes $attribute,
-        private string $value
+        private int|string $value
     ) {
     }
 

@@ -11,7 +11,7 @@ class AddAttributeAction
     public function __construct(
         public Variants $variants,
         public Attributes $attributes,
-        public string $value,
+        public int|string $value,
     ) {
     }
 
