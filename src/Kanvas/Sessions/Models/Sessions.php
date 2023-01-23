@@ -188,7 +188,7 @@ class Sessions extends PersonalAccessToken
         /**
          * Create or update the session.
          *
-         * @todo we don't need a new session for every getenv('ANONYMOUS') user, use less ,
+         * @todo we don't need a new session for every env('ANONYMOUS') user, use less ,
          * right now 27.7.15 90% of the sessions are for that type of users
          */
         $session = self::create([

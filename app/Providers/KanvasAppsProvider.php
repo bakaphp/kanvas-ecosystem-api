@@ -28,7 +28,7 @@ class KanvasAppsProvider extends ServiceProvider
     public function boot()
     {
         $request = new Request();
-        $domainBasedApp = (bool)getenv('KANVAS_CORE_DOMAIN_BASED_APP');
+        $domainBasedApp = (bool) env('KANVAS_CORE_DOMAIN_BASED_APP');
         $domainName = $request->getHttpHost();
         $appKey = config('kanvas.app.id');
         // $app = !$domainBasedApp ? AppsRepository::findFirstByKey($appKey) : AppsRepository::getByDomainName($domainName);
