@@ -13,9 +13,10 @@ class ResetPassword extends Notification implements ShouldQueue
     public string $templateName = 'reset-password';
 
     /**
-     * __construct
+     * __construct.
      *
      * @param  Users $user
+     * 
      * @return void
      */
     public function __construct(Users $user)
@@ -25,7 +26,7 @@ class ResetPassword extends Notification implements ShouldQueue
     }
 
     /**
-     * via
+     * via.
      *
      * @return array
      */
@@ -35,7 +36,7 @@ class ResetPassword extends Notification implements ShouldQueue
     }
 
     /**
-     * getData
+     * getData.
      *
      * @return array
      */

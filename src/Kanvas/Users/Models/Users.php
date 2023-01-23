@@ -361,10 +361,10 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
-     * Generate a hash password and updated for the user model
+     * Generate a hash password and updated for the user model.
      *
      * @param string $newPassword
-     * @return boolean
+     * @return bool
      */
     public function resetPassword(string $newPassword) : bool
     {

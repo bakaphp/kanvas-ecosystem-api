@@ -143,7 +143,7 @@ class AuthTest extends TestCase
     }
 
     /**
-     * Test the forgot password hash creation and email
+     * Test the forgot password hash creation and email.
      *
      * @return void
      */
@@ -152,7 +152,8 @@ class AuthTest extends TestCase
         $loginData = self::loginData();
         $email = $loginData->getEmail();
 
-        $response = $this->graphQL( /** @lang GraphQL */ '
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
             mutation forgotPassword($data: ForgotPasswordInput!) {
                 forgotPassword(data: $data)
             }',

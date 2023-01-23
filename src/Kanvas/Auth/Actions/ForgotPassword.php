@@ -16,7 +16,8 @@ class ForgotPassword
     /**
      * Construct function.
      */
-    public function __construct() {
+    public function __construct()
+    {
         $this->app = app(Apps::class);
     }
 
@@ -24,6 +25,7 @@ class ForgotPassword
      * Send email forgot password.
      *
      * @param array $data
+     * 
      * @return Users
      */
     public function forgot(array $data) : Users
@@ -41,10 +43,10 @@ class ForgotPassword
     }
 
     /**
-     * Get user and update password to the new one
+     * Get user and update password to the new one.
      *
      * @param array $data
-     * @return boolean
+     * @return bool
      */
     public function reset(array $data) : bool
     {
