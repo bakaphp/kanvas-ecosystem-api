@@ -141,4 +141,28 @@ class AuthTest extends TestCase
             ],
         ]);
     }
+
+    /**
+     * Test the forgot password hash creation and email
+     *
+     * @return void
+     */
+    public function test_forgot_password() : void
+    {
+        $loginData = self::loginData();
+        $email = $loginData->getEmail();
+
+        $response = $this->graphQL( /** @lang GraphQL */ '
+            mutation forgotPassword($data: ForgotPasswordInput!) {
+                forgotPassword(data: $data)
+            }',
+            [
+                'data' => [
+                    'email' => $email
+                ],
+            ]
+        )
+        ->assertSuccessful()
+        ->assertSee('forgotPassword');
+    }
 }
