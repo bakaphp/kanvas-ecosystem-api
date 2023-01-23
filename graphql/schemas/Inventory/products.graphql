@@ -17,6 +17,7 @@ type Product {
     products_types_id: Int
     uuid: String
     name: String!
+    slug: String!
     description: String!
     short_description: String
     html_description: String
