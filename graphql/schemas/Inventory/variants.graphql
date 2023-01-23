@@ -30,6 +30,7 @@ type WarehouseVariantRelationship {
     is_variant_published: Boolean
 }
 type VariantsAttributes {
+    name: String!
     value: String
 }
 type VariantChannelRelationship {
@@ -55,7 +56,8 @@ input VariantsWarehousesInput {
     is_published: Boolean
 }
 input VariantsAttributesInput {
-    value: String!
+    name: String!
+    value: Mixed!
 }
 input VariantsInput {
     products_id: Int
@@ -68,6 +70,9 @@ input VariantsInput {
     barcode: String
     serial_number: String
     is_published: Boolean
+    slug: String
+    discountPrice: Float
+    price: Float
     source_id: Mixed
     attributes: [VariantsAttributesInput]
 }

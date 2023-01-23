@@ -4,6 +4,7 @@ input ImporterProductInput {
     regionId: Int!
     slug: String!
     price: Float!
+    discountPrice: Float
     sku: String!
     variants: [VariantsInput]!
     quantity: Int!
@@ -11,7 +12,7 @@ input ImporterProductInput {
     html_description: String
     warranty_terms: String
     upc: String
-    is_published: Boolean
+    isPublished: Boolean
     warehouses: [Int]
     source: String
     sourceId: Mixed

@@ -1,7 +1,7 @@
 input AttributeInput {
     name: String!
     source_id: Mixed
-    value: String
+    value: Mixed
 }
 input AttributeUpdateInput {
     name: String
@@ -13,7 +13,7 @@ type Attributes {
     created_at: String
     updated_at: String
     companies: [Company]
-    value: String
+    value: Mixed
 }
 extend type Mutation @guard {
     createAttribute(input: AttributeInput!): Attributes!
