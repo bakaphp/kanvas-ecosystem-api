@@ -27,7 +27,7 @@ trait TokenTrait
     /**
      * Returns the string token.
      *
-     * @return string
+     * @return array
      *
      * @throws ModelException
      */
@@ -156,7 +156,15 @@ trait TokenTrait
 
         //start session
         $session = new Sessions();
-        $session->start($this->user, $tokenResponse['sessionId'], $tokenResponse['token'], $userIp, $pageId);
+
+        $session->start(
+            $this->user,
+            'kanvas-login',
+            $tokenResponse['sessionId'],
+            $tokenResponse['token'],
+            $tokenResponse['refresh_token'],
+            $userIp
+        );
 
         unset($tokenResponse['sessionId']);
         return $tokenResponse;

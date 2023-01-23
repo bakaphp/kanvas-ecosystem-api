@@ -10,7 +10,7 @@ use Laravel\Sanctum\HasApiTokens as SanctumHasApiTokens;
 trait HasApiTokens
 {
     use SanctumHasApiTokens, HasJwtToken{
-        HasJwtToken::createToken insteadof  SanctumHasApiTokens;
+        HasJwtToken::createToken insteadof SanctumHasApiTokens;
     }
 
     /**
