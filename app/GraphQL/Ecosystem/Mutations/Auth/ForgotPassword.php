@@ -49,6 +49,7 @@ class ForgotPassword
      * @param array $request
      * @param GraphQLContext|null $context
      * @param ResolveInfo $resolveInfo
+     *
      * @return void
      */
     public function reset(
