@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Hash;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Contracts\Authenticatable as ContractsAuthenticatable;
 use Kanvas\Auth\Traits\HasApiTokens;
@@ -357,5 +358,22 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $this->updateOrFail();
 
         return $this->user_activation_forgot;
+    }
+
+    /**
+     * Generate a hash password and updated for the user model
+     *
+     * @param string $newPassword
+     * @return boolean
+     */
+    public function resetPassword(string $newPassword) : bool
+    {
+        $this->password = Hash::make($newPassword);
+        $this->saveOrFail();
+
+        $this->user_activation_forgot = '';
+        $this->saveOrFail();
+
+        return true;
     }
 }
