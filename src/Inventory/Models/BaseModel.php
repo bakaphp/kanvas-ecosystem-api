@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Inventory\Traits\AppsIdTrait;
 use Kanvas\Inventory\Traits\CompaniesIdTrait;
 use Kanvas\Inventory\Traits\ScopesTrait;
@@ -27,6 +28,7 @@ class BaseModel extends EloquentModel
     use CompaniesIdTrait;
     use ScopesTrait;
     use HasCustomFields;
+    use HasFilesystemTrait;
 
     //use SoftDeletes;
 
