@@ -1,51 +1,62 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Warehouses\DataTransferObject;
 
-/**
- * Class Warehouses
- * @property int $companies_id
- * @property int $apps_id
- * @property int $regions_id
- * @property string $name
- * @property string $location
- * @property bool $is_default
- * @property int $is_published
- */
-class Warehouses
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
+use Baka\Enums\StateEnums;
+use Baka\Users\Contracts\UserInterface;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Inventory\Regions\Repositories\RegionRepository;
+use Spatie\LaravelData\Data;
+
+class Warehouses extends Data
 {
     /**
-     * __construct
+     * __construct.
      *
      * @return void
      */
     public function __construct(
-        public int $companies_id,
-        public int $apps_id,
-        public int $regions_id,
+        public CompanyInterface $company,
+        public AppInterface $app,
+        public UserInterface $user,
+        public Regions $region,
         public string $name,
         public ?string $location = null,
-        public bool $is_default,
-        public int $is_published,
+        public bool $is_default = false,
+        public int $is_published = 1,
     ) {
     }
 
     /**
-     * fromArray
+     * fromArray.
      *
      * @param  array $data
+     *
      * @return self
      */
-    public static function fromArray(array $data): self
+    public static function viaRequest(array $request) : self
     {
+        $company = auth()->user()->getCurrentCompany();
+
+        if (!isset($request['regions_id'])) {
+            throw new ValidationException('Region is required');
+        }
+
         return new self(
-            $data['companies_id'],
-            $data['apps_id'],
-            $data['regions_id'],
-            $data['name'],
-            $data['location'] ?? null,
-            $data['is_default'],
-            $data['is_published'],
+            isset($request['company_id']) ? Companies::getById($request['company_id']) : $company,
+            app(Apps::class),
+            auth()->user(),
+            RegionRepository::getById($request['regions_id'], $company),
+            $request['name'],
+            $request['location'] ?? null,
+            $request['is_default'] ?? (bool) StateEnums::NO->getValue(),
+            $request['is_published'] ?? StateEnums::YES->getValue(),
         );
     }
 }

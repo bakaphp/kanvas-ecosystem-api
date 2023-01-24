@@ -1,14 +1,14 @@
 <?php
 declare(strict_types=1);
+
 namespace Tests\GraphQL\Inventory;
 
-use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
 
 class ChannelTest extends TestCase
 {
     /**
-     * testCreateChannel
+     * testCreateChannel.
      *
      * @return void
      */
@@ -30,7 +30,7 @@ class ChannelTest extends TestCase
     }
 
     /**
-     * testGetChannels
+     * testGetChannels.
      *
      * @return void
      */
@@ -63,7 +63,7 @@ class ChannelTest extends TestCase
     }
 
     /**
-     * testUpdateChannel
+     * testUpdateChannel.
      *
      * @return void
      */
@@ -109,7 +109,7 @@ class ChannelTest extends TestCase
     }
 
     /**
-     * testDeleteChannel
+     * testDeleteChannel.
      *
      * @return void
      */

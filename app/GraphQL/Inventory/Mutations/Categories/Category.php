@@ -1,54 +1,56 @@
 <?php
 declare(strict_types=1);
+
 namespace App\GraphQL\Inventory\Mutations\Categories;
 
 use Kanvas\Inventory\Categories\Actions\CreateCategory;
-use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Categories\DataTransferObject\Categories as CategoriesDto;
-use Kanvas\Apps\Models\Apps;
+use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 
 class Category
 {
     /**
-     * create
+     * create.
      *
      * @param  mixed $root
      * @param  array $request
+     *
      * @return Categories
      */
-    public function create(mixed $root, array $request): Categories
+    public function create(mixed $root, array $request) : Categories
     {
-        $dto = CategoriesDto::fromArray($request['input']);
-        $category = new CreateCategory($dto);
+        $dto = CategoriesDto::viaRequest($request['input']);
+        $category = new CreateCategory($dto, auth()->user());
         return $category->execute();
     }
 
     /**
-     * update
+     * update.
      *
      * @param  mixed $root
      * @param  array $request
+     *
      * @return Categories
      */
-    public function update(mixed $root, array $request): Categories
+    public function update(mixed $root, array $request) : Categories
     {
-        $category = CategoriesRepository::getById($request['id']);
+        $category = CategoriesRepository::getById($request['id'], auth()->user()->getCurrentCompany());
         $category->update($request['input']);
         return $category;
     }
 
     /**
-     * delete
+     * delete.
      *
      * @param  mixed $root
      * @param  array $request
+     *
      * @return bool
      */
-    public function delete(mixed $root, array $request): bool
+    public function delete(mixed $root, array $request) : bool
     {
-        $category = CategoriesRepository::getById($request['id']);
+        $category = CategoriesRepository::getById($request['id'], auth()->user()->getCurrentCompany());
         return $category->delete();
     }
-
 }

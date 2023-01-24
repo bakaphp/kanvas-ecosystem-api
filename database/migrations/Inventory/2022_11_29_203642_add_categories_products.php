@@ -15,7 +15,7 @@ return new class extends Migration {
         Schema::create('products_categories', function (Blueprint $table) {
             $table->charset = 'utf8mb4';
             $table->collation = 'utf8mb4_unicode_520_ci';
-            $table->id();
+            $table->primary(['products_id', 'categories_id']);
             $table->bigInteger('categories_id')->unsigned();
             $table->bigInteger('products_id')->unsigned();
             $table->boolean('is_deleted')->default(0);

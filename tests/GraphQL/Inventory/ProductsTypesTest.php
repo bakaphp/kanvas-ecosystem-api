@@ -1,14 +1,14 @@
 <?php
 declare(strict_types=1);
+
 namespace Tests\GraphQL\Inventory;
 
-use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
 
 class ProductsTypesTest extends TestCase
 {
     /**
-     * testCreate
+     * testCreate.
      *
      * @return void
      */
@@ -31,7 +31,7 @@ class ProductsTypesTest extends TestCase
     }
 
     /**
-     * testSearch
+     * testSearch.
      *
      * @return void
      */
@@ -65,7 +65,7 @@ class ProductsTypesTest extends TestCase
     }
 
     /**
-     * testUpdate
+     * testUpdate.
      *
      * @return void
      */
@@ -110,7 +110,7 @@ class ProductsTypesTest extends TestCase
     }
 
     /**
-     * testDelete
+     * testDelete.
      *
      * @return void
      */

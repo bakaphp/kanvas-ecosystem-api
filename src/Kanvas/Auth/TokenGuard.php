@@ -80,4 +80,12 @@ class TokenGuard extends AuthTokenGuard
             throw new AuthorizationException('User not found');
         }
     }
+
+    public function loginUsingId(mixed $id, bool $remember = false)
+    {
+        $user = Users::getById((int) $id);
+        $this->setUser($user);
+
+        return $user;
+    }
 }

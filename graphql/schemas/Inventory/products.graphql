@@ -2,6 +2,7 @@ input ProductInput {
     products_types_id: Int
     name: String!
     description: String!
+    slug: String!
     short_description: String
     html_description: String
     warranty_terms: String
@@ -9,12 +10,14 @@ input ProductInput {
     is_published: Boolean
     categories: [Int]
     warehouses: [Int]
+    source_id: Mixed
 }
 type Product {
     id: Int!
     products_types_id: Int
     uuid: String
     name: String!
+    slug: String!
     description: String!
     short_description: String
     html_description: String
@@ -28,7 +31,6 @@ type Product {
     attributes: [Attributes]
     variants: [Variant]
     productsTypes: ProductType
-
 }
 input ProductInputUpdate {
     products_types_id: Int
@@ -41,31 +43,56 @@ input ProductInputUpdate {
     is_published: Boolean
 }
 extend type Mutation @guard {
-    createProduct(input: ProductInput!): Product @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@create")
-    updateProduct(id: Int! input: ProductInputUpdate): Product @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@update")
-    deleteProduct(id: Int!): Boolean @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@delete")
-    addAttribute(id: Int! attribute_id: Int! value: String!): Product @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addAttribute")
-    removeAttribute(id: Int! attribute_id: Int!): Product @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@removeAttribute")
-    addWarehouse(id: Int! warehouse_id: Int!): Product @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addWarehouse")
-    removeWarehouse(id: Int! warehouse_id: Int!): Product @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@removeWarehouse")
-    addCategory(id: Int! category_id: Int!): Product @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addCategory")
+    createProduct(input: ProductInput!): Product
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@create"
+        )
+    updateProduct(id: Int!, input: ProductInputUpdate): Product
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@update"
+        )
+    deleteProduct(id: Int!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@delete"
+        )
+    addAttribute(id: Int!, attribute_id: Int!, value: String!): Product
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addAttribute"
+        )
+    removeAttribute(id: Int!, attribute_id: Int!): Product
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@removeAttribute"
+        )
+    addWarehouse(id: Int!, warehouse_id: Int!): Product
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addWarehouse"
+        )
+    removeWarehouse(id: Int!, warehouse_id: Int!): Product
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@removeWarehouse"
+        )
+    addCategory(id: Int!, category_id: Int!): Product
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addCategory"
+        )
 }
 extend type Query @guard {
     products(
         where: _
-        @whereConditions(
-            columns: [
-                "products_types_id",
-                "name",
-                "slug",
-                "code",
-                "uuid",
-                "position"
-            ]
+            @whereConditions(
+                columns: [
+                    "products_types_id"
+                    "name"
+                    "slug"
+                    "code"
+                    "uuid"
+                    "is_published"
+                ]
+            )
+    ): [Product]
+        @paginate(
+            model: "Kanvas\\Inventory\\Products\\Models\\Products"
+            scopes: ["app", "company"]
+            defaultCount: 10
         )
-    ): [Product] @paginate(
-        model: "Kanvas\\Inventory\\Products\\Models\\Products"
-        scopes: ["app", "company"]
-        defaultCount: 10
-    )
 }

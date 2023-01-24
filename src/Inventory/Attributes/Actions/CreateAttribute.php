@@ -1,28 +1,39 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Attributes\Actions;
 
-use Kanvas\Inventory\Attributes\Models\Attributes;
+use Baka\Users\Contracts\UserInterface;
+use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributeDto;
+use Kanvas\Inventory\Attributes\Models\Attributes;
 
 class CreateAttribute
 {
     public function __construct(
-        protected AttributeDto $dto
+        protected AttributeDto $dto,
+        protected UserInterface $user
     ) {
     }
 
     /**
-     * execute
+     * execute.
      *
      * @return Attributes
      */
     public function execute() : Attributes
     {
-        $attribute = new Attributes();
-        $attribute->name = $this->dto->name;
-        $attribute->saveOrFail();
+        CompaniesRepository::userAssociatedToCompany(
+            $this->dto->company,
+            $this->user
+        );
 
-        return $attribute;
+        return Attributes::firstOrCreate([
+            'name' => $this->dto->name,
+            'companies_id' => $this->dto->company->getId(),
+            'apps_id' => $this->dto->app->getId(),
+        ], [
+            'users_id' => $this->user->getId()
+        ]);
     }
 }

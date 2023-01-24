@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Branches\Actions;
 
-use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPostData;
 use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPutData;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;

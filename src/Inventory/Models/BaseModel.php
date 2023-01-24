@@ -1,21 +1,33 @@
 <?php
 
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Models;
 
+use Baka\Traits\KanvasModelTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
+use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Enums\StateEnums;
-use Kanvas\Traits\SoftDeletes;
-use Baka\Traits\BaseModel as BakaBaseModel;
 use Kanvas\Inventory\Traits\AppsIdTrait;
 use Kanvas\Inventory\Traits\CompaniesIdTrait;
 use Kanvas\Inventory\Traits\ScopesTrait;
+use Kanvas\Inventory\Traits\SourceTrait;
+use Kanvas\Traits\SoftDeletes;
 
 class BaseModel extends EloquentModel
 {
-    use HasFactory, BakaBaseModel,AppsIdTrait,CompaniesIdTrait,ScopesTrait;
+    protected $connection = 'inventory';
+
+    use HasFactory;
+    use SourceTrait;
+    use KanvasModelTrait;
+    use AppsIdTrait;
+    use CompaniesIdTrait;
+    use ScopesTrait;
+    use HasCustomFields;
+
     //use SoftDeletes;
 
     protected $attributes = [
@@ -36,9 +48,10 @@ class BaseModel extends EloquentModel
     }
 
     /**
-     * Not deleted scope
+     * Not deleted scope.
      *
      * @param Builder $query
+     *
      * @return Builder
      */
     public function scopeNotDeleted(Builder $query) : Builder

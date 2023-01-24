@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Variants\DataTransferObject;
 
 use Spatie\LaravelData\Data;

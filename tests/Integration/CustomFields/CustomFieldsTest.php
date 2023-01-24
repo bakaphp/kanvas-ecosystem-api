@@ -70,7 +70,6 @@ final class CustomFieldsTest extends TestCase
 
         $template->saveCustomFields();
 
-
         $this->assertCount(3, $template->getAll());
     }
 
@@ -92,7 +91,6 @@ final class CustomFieldsTest extends TestCase
 
         $this->assertCount(4, $template->getAll());
     }
-
 
     public function testDeleteAll()
     {

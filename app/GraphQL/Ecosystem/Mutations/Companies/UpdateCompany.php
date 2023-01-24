@@ -4,8 +4,6 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Mutations\Companies;
 
 use Illuminate\Support\Facades\Auth;
-use Kanvas\Apps\DataTransferObject\AppsPutData;
-use Kanvas\Apps\Actions\UpdateAppsAction;
 use Kanvas\Companies\Actions\UpdateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\CompaniesPutData;
 

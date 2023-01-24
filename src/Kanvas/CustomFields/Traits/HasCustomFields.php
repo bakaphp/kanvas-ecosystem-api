@@ -3,20 +3,19 @@ declare(strict_types=1);
 
 namespace Kanvas\CustomFields\Traits;
 
+use Baka\Support\Str;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\CustomFields\Models\CustomFields;
 use Kanvas\CustomFields\Models\CustomFieldsModules;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Traits\HasSchemaAccessors;
-use Baka\Support\Str;
 
-/**
- * Custom field class.
- */
 trait HasCustomFields
 {
     use HasSchemaAccessors;
@@ -59,7 +58,7 @@ trait HasCustomFields
 
         $results = DB::select('
             SELECT name, value
-                FROM apps_custom_fields
+                FROM ' . DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields
                 WHERE
                     companies_id = ?
                     AND model_name = ?
@@ -299,7 +298,7 @@ trait HasCustomFields
 
         return DB::statement('
             DELETE
-                FROM apps_custom_fields
+                FROM ' . DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields
                     WHERE
                         companies_id = :companies_id
                         AND model_name = :model_name
@@ -354,5 +353,27 @@ trait HasCustomFields
         foreach ($this->getAll() as $key => $value) {
             $this->setInRedis($key, $value);
         }
+    }
+
+    /**
+     * Get a model from a custom field.
+     *
+     * @param  string $name
+     * @param  mixed $value
+     * @param  Companies $company
+     *
+     * @return Model|null
+     */
+    public static function getByCustomField(string $name, mixed $value, ?Companies $company = null) : ?Model
+    {
+        $company = $company ? $company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
+        $table = (new static)->getTable();
+        return self::join(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table . '.id')
+            ->where('apps_custom_fields.companies_id', $company)
+            ->where('apps_custom_fields.model_name', static::class)
+            ->where('apps_custom_fields.name', $name)
+            ->where('apps_custom_fields.value', $value)
+            ->select($table . '.*')
+            ->first();
     }
 }

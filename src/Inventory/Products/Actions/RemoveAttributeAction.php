@@ -1,14 +1,15 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Products\Actions;
 
-use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Attributes\Models\Attributes;
+use Kanvas\Inventory\Products\Models\Products;
 
 class RemoveAttributeAction
 {
     /**
-     * __construct
+     * __construct.
      *
      * @return void
      */
@@ -19,13 +20,13 @@ class RemoveAttributeAction
     }
 
     /**
-     * execute
+     * execute.
      *
      * @return void
      */
-    public function execute(): Products
+    public function execute() : Products
     {
-        $this->product->attributes()->detach($this->attribute->id);
+        $this->product->attributes()->detach($this->attribute->getId());
         return $this->product;
     }
 }

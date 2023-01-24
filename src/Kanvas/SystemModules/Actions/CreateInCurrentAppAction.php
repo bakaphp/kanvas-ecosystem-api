@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\SystemModules\Actions;
 
 use App\Exceptions\InternalServerErrorException;
+use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\SystemModules\Models\SystemModules;
-use Baka\Support\Str;
 
 class CreateInCurrentAppAction
 {

@@ -1,15 +1,16 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Inventory\Variants\Actions;
 
-use Kanvas\Inventory\Warehouses\Models\Warehouses;
-use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
+use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 class AddToWarehouseAction
 {
     /**
-     * __construct
+     * __construct.
      *
      * @return void
      */
@@ -21,16 +22,16 @@ class AddToWarehouseAction
     }
 
     /**
-     * execute
+     * execute.
      *
      * @return Variants
      */
-    public function execute(): Variants
+    public function execute() : Variants
     {
-        if ($this->variants->warehouses()->find($this->warehouses->id)) {
-            $this->variants->warehouses()->syncWithoutDetaching([$this->warehouses->id => $this->variantsWarehouses->toArray()]);
+        if ($this->variants->warehouses()->find($this->warehouses->getId())) {
+            $this->variants->warehouses()->syncWithoutDetaching([$this->warehouses->getId() => $this->variantsWarehouses->toArray()]);
         } else {
-            $this->variants->warehouses()->attach($this->warehouses->id, $this->variantsWarehouses->toArray());
+            $this->variants->warehouses()->attach($this->warehouses->getId(), $this->variantsWarehouses->toArray());
         }
         return $this->variants;
     }

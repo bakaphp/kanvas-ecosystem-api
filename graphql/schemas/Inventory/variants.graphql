@@ -1,19 +1,20 @@
-
-
 type Variant {
     id: Int
-    products_id: Int
+    uuid: String!
+    slug: String!
+    products_id: Int!
     name: String!
     description: String
     short_description: String
     html_description: String
     sku: String
     ean: String
-    warehouses: [WarehouseVariantRelantionship]
+    product: Product
+    warehouses: [WarehouseVariantRelationship]
     attributes: [VariantsAttributes]
     channels: [VariantChannelRelationship]
 }
-type WarehouseVariantRelantionship{
+type WarehouseVariantRelationship {
     quantity: Float
     price: Float
     sku: String
@@ -30,6 +31,7 @@ type WarehouseVariantRelantionship{
     is_variant_published: Boolean
 }
 type VariantsAttributes {
+    name: String!
     value: String
 }
 type VariantChannelRelationship {
@@ -53,10 +55,10 @@ input VariantsWarehousesInput {
     is_coming_soon: Boolean
     is_new: Boolean
     is_published: Boolean
-
 }
 input VariantsAttributesInput {
-    value: String!
+    name: String!
+    value: Mixed!
 }
 input VariantsInput {
     products_id: Int
@@ -69,6 +71,11 @@ input VariantsInput {
     barcode: String
     serial_number: String
     is_published: Boolean
+    slug: String
+    discountPrice: Float
+    price: Float
+    source_id: Mixed
+    attributes: [VariantsAttributesInput]
 }
 input VariantsUpdateInput {
     products_id: Int
@@ -86,18 +93,57 @@ input VariantChannelInput {
     price: Float!
     discounted_price: Float!
     is_published: Boolean!
-
 }
 extend type Mutation @guard {
-    createVariant(input: VariantsInput!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@create")
-    updateVariant(input: VariantsUpdateInput! id: Int!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@update")
-    deleteVariant(id: Int!): Boolean @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@delete")
-    addVariantToWarehouse(id: Int! warehouse_id: Int! input: VariantsWarehousesInput! ): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addToWarehouse")
-    removeVariantToWarehouse(id: Int! warehouse_id: Int!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@removeToWarehouse")
-    addAttributeToVariant(id: Int! attributes_id: Int! input: VariantsAttributesInput! ): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addAttribute")
-    removeAttributeToVariant(id: Int! attributes_id: Int!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@removeAttribute")
-    addVariantToChannel(id: Int! channels_id: Int! warehouses_id: Int! input: VariantChannelInput! ): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addToChannel")
-    removeVariantChannel(id: Int! channels_id:Int!): Variant @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@removeChannel")
+    createVariant(input: VariantsInput!): Variant
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@create"
+        )
+    updateVariant(input: VariantsUpdateInput!, id: Int!): Variant
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@update"
+        )
+    deleteVariant(id: Int!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@delete"
+        )
+    addVariantToWarehouse(
+        id: Int!
+        warehouse_id: Int!
+        input: VariantsWarehousesInput!
+    ): Variant
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addToWarehouse"
+        )
+    removeVariantToWarehouse(id: Int!, warehouse_id: Int!): Variant
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@removeToWarehouse"
+        )
+    addAttributeToVariant(
+        id: Int!
+        attributes_id: Int!
+        input: VariantsAttributesInput!
+    ): Variant
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addAttribute"
+        )
+    removeAttributeToVariant(id: Int!, attributes_id: Int!): Variant
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@removeAttribute"
+        )
+    addVariantToChannel(
+        id: Int!
+        channels_id: Int!
+        warehouses_id: Int!
+        input: VariantChannelInput!
+    ): Variant
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addToChannel"
+        )
+    removeVariantChannel(id: Int!, channels_id: Int!): Variant
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@removeChannel"
+        )
 }
 
 extend type Query @guard {
@@ -105,21 +151,36 @@ extend type Query @guard {
         where: _
             @whereConditions(
                 columns: [
-                    "products_id",
-                    "name",
-                    "description",
-                    "short_description",
-                    "html_description",
-                    "sku",array
-                    "ean",
-                    "barcode",
-                    "serial_number",
+                    "products_id"
+                    "name"
+                    "slug"
+                    "uuid"
+                    "sku"
+                    "serial_number"
                     "is_published"
                 ]
             )
-    ): [Variant] @paginate(
-        defaultCount: 10
-        scopes: ["app","company"]
-        model: "Kanvas\\Inventory\\Variants\\Models\\Variants"
-    )
+    ): [Variant]
+        @paginate(
+            defaultCount: 10
+            scopes: ["app", "company"]
+            model: "Kanvas\\Inventory\\Variants\\Models\\Variants"
+        )
+}
+
+extend type Query {
+    channelVariants(
+        id: String!
+        where: _
+            @whereConditions(
+                columns: [
+                    "slug"
+                    "uuid"
+                ]
+            )
+    ): [Variant!]
+        @paginate(
+            defaultCount: 10
+            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\Variants@allAvailableViaChannel"
+        )
 }

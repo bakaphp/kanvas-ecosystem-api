@@ -79,8 +79,6 @@ services:
         container_name: rabbitmq${APP_CONTAINER_NAME}
         image: rabbitmq:3.9.21-management-alpine
         hostname: "rabbit"
-        env_file:
-            - '.env'
         labels:
             NAME: "rabbitmq1"
         volumes:

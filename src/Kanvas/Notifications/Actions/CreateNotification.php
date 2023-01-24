@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Notifications\Actions;
 
 use Kanvas\Notifications\DataTransferObject\Notifications as NotificationsDto;
@@ -8,22 +9,23 @@ use Kanvas\Notifications\Models\Notifications as NotificationsModel;
 class CreateNotification
 {
     /**
-     * __construct
+     * __construct.
      *
      * @param  NotificationsDto $dto
+     *
      * @return void
      */
-    public function __construct(NotificationsDto $dto)
-    {
-        $this->dto = $dto;
+    public function __construct(
+        protected NotificationsDto $dto
+    ) {
     }
 
     /**
-     * execute
+     * execute.
      *
      * @return void
      */
-    public function execute(): void
+    public function execute() : void
     {
         $notification = new NotificationsModel();
         $notification->fill((array) $this->dto);

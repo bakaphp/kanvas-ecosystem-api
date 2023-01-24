@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Apps\Models;
 
+use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
 use Illuminate\Contracts\Database\Eloquent\Builder;
@@ -11,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Models\BaseModel;
+use Kanvas\Roles\Models\Roles;
 use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -33,7 +35,7 @@ use Kanvas\Users\Models\UsersAssociatedApps;
  * @property string $updated_at
  * @property int $is_deleted
  */
-class Apps extends BaseModel
+class Apps extends BaseModel implements AppInterface
 {
     use HashTableTrait;
 

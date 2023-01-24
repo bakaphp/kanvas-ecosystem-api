@@ -7,10 +7,10 @@ namespace Kanvas\Auth;
 use Baka\Support\Password;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
-use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Hash;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\LoginInput;
+use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Models\Users;
@@ -78,9 +78,9 @@ class Auth
     {
         //load config
         $config = new stdClass();
-        $config->login_reset_time = getenv('AUTH_MAX_AUTOLOGIN_TIME');
-        $config->max_login_attempts = getenv('AUTH_MAX_AUTOLOGIN_ATTEMPS');
-        //$config->max_login_attempts = getenv('AUTH_MAX_AUTOLOGIN_ATTEMPTS');
+        $config->login_reset_time = env('AUTH_MAX_AUTOLOGIN_TIME');
+        $config->max_login_attempts = env('AUTH_MAX_AUTOLOGIN_ATTEMPS');
+        //$config->max_login_attempts = env('AUTH_MAX_AUTOLOGIN_ATTEMPTS');
 
         // If the last login is more than x minutes ago, then reset the login tries/time
         if ($user->user_last_login_try

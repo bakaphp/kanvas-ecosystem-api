@@ -10,6 +10,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
@@ -108,7 +109,7 @@ class UsersRepository
                                 ->where('is_deleted', StateEnums::NO->getValue())
                                 ->firstOrFail();
         } catch (ModelNotFoundException) {
-            throw new ModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
+            throw new ExceptionsModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
         }
     }
 
@@ -131,7 +132,7 @@ class UsersRepository
                                 ->where('is_deleted', StateEnums::NO->getValue())
                                 ->firstOrFail();
         } catch (ModelNotFoundException) {
-            throw new ModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
+            throw new ExceptionsModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
         }
     }
 
@@ -156,7 +157,7 @@ class UsersRepository
                         ->where('is_deleted', StateEnums::NO->getValue())
                         ->firstOrFail();
         } catch (ModelNotFoundException) {
-            throw new ModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
+            throw new ExceptionsModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
         }
     }
 
@@ -178,7 +179,7 @@ class UsersRepository
                         ->where('is_deleted', StateEnums::NO->getValue())
                         ->firstOrFail();
         } catch (ModelNotFoundException) {
-            throw new ModelNotFoundException('User doesn\'t own this app ' . $app->uuid . ' , talk to the Admin');
+            throw new ExceptionsModelNotFoundException('User doesn\'t own this app ' . $app->uuid . ' , talk to the Admin');
         }
     }
 }

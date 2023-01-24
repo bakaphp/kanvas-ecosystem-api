@@ -3,20 +3,21 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Inventory;
 
-use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
 
 class CategoryTest extends TestCase
 {
     /**
-     * testCreateCategory
+     * testCreateCategory.
      *
      * @return void
      */
     public function testCreateCategory(): void
     {
         $data = [
-            'name' => fake()->name
+            'name' => fake()->name,
+            'code' => fake()->name,
+            'position' => 1,
         ];
         $this->graphQL('
             mutation($data: CategoryInput!) {
@@ -24,6 +25,8 @@ class CategoryTest extends TestCase
                 {
                     id
                     name
+                    code,
+                    position
                 }
             }', ['data' => $data])->assertJson([
             'data' => ['createCategory' => $data]
@@ -31,21 +34,26 @@ class CategoryTest extends TestCase
     }
 
     /**
-     * testGetCategory
+     * testGetCategory.
      *
      * @return void
      */
     public function testGetCategory(): void
     {
         $data = [
-            'name' => fake()->name
+            'name' => fake()->name,
+            'code' => fake()->name,
+            'position' => 1,
+
         ];
         $this->graphQL('
             mutation($data: CategoryInput!) {
                 createCategory(input: $data)
                 {
                     id
-                    name
+                    name,
+                    code,
+                    position
                 }
             }', ['data' => $data])->assertJson([
             'data' => ['createCategory' => $data]
@@ -55,6 +63,8 @@ class CategoryTest extends TestCase
                 categories {
                     data {
                         name,
+                        code,
+                        position
                     }
                 }
             }')->assertJson([
@@ -63,21 +73,25 @@ class CategoryTest extends TestCase
     }
 
     /**
-     * testUpdateCategory
+     * testUpdateCategory.
      *
      * @return void
      */
     public function testUpdateCategory(): void
     {
         $data = [
-            'name' => fake()->name
+            'name' => fake()->name,
+            'code' => fake()->name,
+            'position' => 1,
         ];
         $this->graphQL('
             mutation($data: CategoryInput!) {
                 createCategory(input: $data)
                 {
                     id
-                    name
+                    name,
+                    code,
+                    position
                 }
             }', ['data' => $data])->assertJson([
             'data' => ['createCategory' => $data]
@@ -107,21 +121,26 @@ class CategoryTest extends TestCase
     }
 
     /**
-     * testDeleteCategory
+     * testDeleteCategory.
      *
      * @return void
      */
     public function testDeleteCategory(): void
     {
         $data = [
-            'name' => fake()->name
+            'name' => fake()->name,
+            'code' => fake()->name,
+            'position' => 1,
+
         ];
         $this->graphQL('
             mutation($data: CategoryInput!) {
                 createCategory(input: $data)
                 {
                     id
-                    name
+                    name,
+                    code,
+                    position
                 }
             }', ['data' => $data])->assertJson([
             'data' => ['createCategory' => $data]

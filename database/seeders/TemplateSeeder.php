@@ -1,7 +1,7 @@
 <?php
+
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Kanvas\Templates\Models\Templates;
 
@@ -14,7 +14,6 @@ class TemplateSeeder extends Seeder
      */
     public function run()
     {
-        //
         Templates::create([
             'apps_id' => 1,
             'users_id' => 1,

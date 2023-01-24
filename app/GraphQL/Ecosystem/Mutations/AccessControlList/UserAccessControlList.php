@@ -1,20 +1,20 @@
 <?php
 declare(strict_types=1);
+
 namespace App\GraphQL\Ecosystem\Mutations\AccessControlList;
 
-use Kanvas\AccessControlList\Actions\AssignAction;
-use Kanvas\Users\Models\Users;
-use Kanvas\Users\Repositories\UsersRepository;
-use Kanvas\AccessControlList\Actions\AllowAction;
 use Bouncer;
+use Kanvas\AccessControlList\Actions\AssignAction;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class UserAccessControlList
 {
     /**
-     * assignRoleToUser
+     * assignRoleToUser.
      *
      * @param  mixed $rootValue
      * @param  array $request
+     *
      * @return void
      */
     public function assignRoleToUser(mixed $rootValue, array $request): bool
@@ -28,10 +28,11 @@ class UserAccessControlList
     }
 
     /**
-     * removeRoleFromUser
+     * removeRoleFromUser.
      *
      * @param  mixed $rootValue
      * @param  array $request
+     *
      * @return void
      */
     public function removeRoleFromUser(mixed $rootValue, array $request): bool
@@ -43,10 +44,11 @@ class UserAccessControlList
     }
 
     /**
-     * givePermissionToUser
+     * givePermissionToUser.
      *
      * @param  mixed $rootValue
      * @param  array $request
+     *
      * @return bool
      */
     public function givePermissionToUser(mixed $rootValue, array $request): bool
@@ -57,10 +59,11 @@ class UserAccessControlList
     }
 
     /**
-     * removePermissionToUser
+     * removePermissionToUser.
      *
      * @param  mixed $rootValue
      * @param  array $request
+     *
      * @return bool
      */
     public function removePermissionToUser(mixed $rootValue, array $request): bool

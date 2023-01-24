@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Models;
 
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -11,7 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\Defaults;
 use Kanvas\Companies\Factories\CompaniesFactory;
-use Kanvas\CompaniesGroups\Models\CompaniesGroups;
+use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
@@ -39,7 +40,7 @@ use Kanvas\Users\Models\UsersAssociatedCompanies;
  * @property int $has_activities
  * @property string $country_code
  */
-class Companies extends BaseModel
+class Companies extends BaseModel implements CompanyInterface
 {
     // use UsersAssociatedTrait;
 
@@ -84,7 +85,10 @@ class Companies extends BaseModel
      */
     public function defaultBranch() : HasOne
     {
-        return $this->hasOne(CompaniesBranches::class, 'companies_id')->where('is_default', StateEnums::YES->getValue());
+        return $this->hasOne(
+            CompaniesBranches::class,
+            'companies_id'
+        )->where('is_default', StateEnums::YES->getValue());
     }
 
     /**
@@ -96,7 +100,6 @@ class Companies extends BaseModel
     {
         return $this->hasOne(CompaniesBranches::class, 'companies_id');
     }
-
 
     /**
      * CompaniesGroups relationship.
@@ -147,7 +150,7 @@ class Companies extends BaseModel
      */
     public static function cacheKey() : string
     {
-        return Defaults::DEFAULT_COMPANY->getValue() . app(Apps::class)->id;
+        return Defaults::DEFAULT_COMPANY_APP->getValue() . app(Apps::class)->id;
     }
 
     /**
@@ -166,10 +169,11 @@ class Companies extends BaseModel
      * Associate user to this company.
      *
      * @param Users $user
-     * @param integer $isActive
+     * @param int $isActive
      * @param CompaniesBranches $branch
-     * @param integer|null $userRoleId
+     * @param int|null $userRoleId
      * @param string|null $companyUserIdentifier
+     *
      * @return UsersAssociatedCompanies
      */
     public function associateUser(

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\SystemModules\Enums;
 
+use Baka\Contracts\EnumsInterface;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Contracts\EnumsInterface;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Users\Models\Users;
 

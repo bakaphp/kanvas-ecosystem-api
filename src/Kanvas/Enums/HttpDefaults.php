@@ -2,7 +2,7 @@
 
 namespace Kanvas\Enums;
 
-use Kanvas\Contracts\EnumsInterface;
+use Baka\Contracts\EnumsInterface;
 
 enum HttpDefaults implements EnumsInterface
 {

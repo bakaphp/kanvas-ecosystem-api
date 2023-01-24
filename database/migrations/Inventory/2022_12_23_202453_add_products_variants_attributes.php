@@ -13,7 +13,7 @@ return new class extends Migration {
     public function up()
     {
         Schema::create('products_variants_attributes', function (Blueprint $table) {
-            $table->id();
+            $table->primary(['products_variants_id', 'attributes_id'], 'products_variants_attributes_primary');
             $table->bigInteger('products_variants_id')->unsigned();
             $table->bigInteger('attributes_id')->unsigned();
             $table->text('value');
@@ -22,6 +22,9 @@ return new class extends Migration {
             $table->boolean('is_deleted')->default(0);
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
+            $table->index('created_at');
+            $table->index('updated_at');
+            $table->index('is_deleted');
         });
     }
 

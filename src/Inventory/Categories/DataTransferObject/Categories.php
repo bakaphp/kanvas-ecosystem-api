@@ -1,40 +1,53 @@
 <?php
 declare(strict_types=1);
-namespace Kanvas\Inventory\Categories\DataTransferObject;
-use Kanvas\Apps\Models\Apps;
 
-class Categories
+namespace Kanvas\Inventory\Categories\DataTransferObject;
+
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
+use Baka\Enums\StateEnums;
+use Baka\Users\Contracts\UserInterface;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Spatie\LaravelData\Data;
+
+class Categories extends Data
 {
     /**
-     * __construct
+     * __construct.
      *
      * @return void
      */
     public function __construct(
-        public int $apps_id,
-        public int $companies_id,
-        public ?int $parent_id = null,
+        public AppInterface $app,
+        public CompanyInterface $company,
+        public UserInterface $user,
         public string $name,
+        public int $parent_id = 0,
+        public int|string $position = 0,
+        public int $is_published = 1,
         public ?string $code = null,
-        public int $position = 0
     ) {
     }
 
     /**
-     * fromArray
+     * fromArray.
      *
      * @param  array $request
+     *
      * @return self
      */
-    public static function fromArray(array $request): self
+    public static function viaRequest(array $request) : self
     {
         return new self(
-            $request['apps_id'] ?? app(Apps::class)->id,
-            $request['companies_id'] ?? auth()->user()->default_company,
-            $request['parent_id'] ?? null,
+            app(Apps::class),
+            isset($request['company_id']) ? Companies::getById($request['company_id']) : auth()->user()->getCurrentCompany(),
+            auth()->user(),
             $request['name'],
+            $request['parent_id'] ?? 0,
+            $request['position'] ?? 0,
+            $request['is_published'] ?? StateEnums::YES->getValue(),
             $request['code'] ?? null,
-            $request['position'] ?? 0
         );
     }
 }

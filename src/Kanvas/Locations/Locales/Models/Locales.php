@@ -7,14 +7,14 @@ namespace Kanvas\Locations\Locales\Models;
 use Kanvas\Models\BaseModel;
 
 /**
- * Cities Class
+ * Cities Class.
  *
  * @property string $name
  */
 
 class Locales extends BaseModel
 {
-    
+
     /**
      * The table associated with the model.
      *

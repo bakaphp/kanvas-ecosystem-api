@@ -34,7 +34,7 @@ class RolesRepository
     {
         $app = app(Apps::class);
         $user = $user ?? auth()->user();
-        $company = $company ?? Companies::getById($user->currentCompanyId());
+        $company = $company ?? $user->getCurrentCompany();
 
         return RolesEnums::getKey($app, $company);
     }
