@@ -65,7 +65,6 @@ final class FilesystemTest extends TestCase
     {
         $url = 'https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png';
 
-
         $user = Auth::user();
         $user->attachUrl($url, 'newLogo');
 
