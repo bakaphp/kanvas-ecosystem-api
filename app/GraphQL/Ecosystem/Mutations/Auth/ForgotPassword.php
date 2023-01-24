@@ -1,10 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Auth;
 
 use GraphQL\Type\Definition\ResolveInfo;
-use Kanvas\Auth\Actions\ForgotPassword as ForgotPasswordAction;
+use Kanvas\Auth\Services\ForgotPassword as ForgotPasswordService;
 use Kanvas\Auth\Traits\AuthTrait;
 use Kanvas\Auth\Traits\TokenTrait;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
@@ -30,7 +31,7 @@ class ForgotPassword
         GraphQLContext $context = null,
         ResolveInfo $resolveInfo
     ) {
-        $user = new ForgotPasswordAction();
+        $user = new ForgotPasswordService();
 
         $registeredUser = $user->forgot($request['data']);
         $tokenResponse = $registeredUser->createToken('kanvas-login')->toArray();
@@ -59,7 +60,7 @@ class ForgotPassword
         GraphQLContext $context = null,
         ResolveInfo $resolveInfo
     ) {
-        $user = new ForgotPasswordAction();
+        $user = new ForgotPasswordService();
 
         return $user->reset($request['data']);
     }
