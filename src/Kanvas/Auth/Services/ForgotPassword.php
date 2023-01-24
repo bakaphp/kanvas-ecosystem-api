@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Auth\Actions;
+namespace Kanvas\Auth\Services;
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
@@ -58,7 +58,7 @@ class ForgotPassword
                 'user_activation_forgot' => $key,
                 'is_deleted' => 0
             ]
-        )->first();
+        )->firstOrFail();
 
         return $recoverUser->resetPassword($data['new_password']);
     }
