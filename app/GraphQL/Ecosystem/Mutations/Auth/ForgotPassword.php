@@ -33,7 +33,7 @@ class ForgotPassword
     ) {
         $user = new ForgotPasswordService();
 
-        $registeredUser = $user->forgot($request['data']);
+        $registeredUser = $user->forgot($request['data']['email']);
         $tokenResponse = $registeredUser->createToken('kanvas-login')->toArray();
 
         $request = request();
@@ -62,6 +62,6 @@ class ForgotPassword
     ) {
         $user = new ForgotPasswordService();
 
-        return $user->reset($request['data']);
+        return $user->reset($request['data']['new_password'], $request['data']['hash_key']);
     }
 }

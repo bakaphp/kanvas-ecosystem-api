@@ -28,9 +28,9 @@ class ForgotPassword
      *
      * @return Users
      */
-    public function forgot(array $data) : Users
+    public function forgot(string $email) : Users
     {
-        $recoverUser = Users::getByEmail($data['email']);
+        $recoverUser = Users::getByEmail($email);
         $recoverUser->generateForgotHash();
 
         try {
@@ -49,17 +49,15 @@ class ForgotPassword
      *
      * @return bool
      */
-    public function reset(array $data) : bool
+    public function reset(string $newPassword, string $hashKey) : bool
     {
-        $key = $data['hash_key'];
-
         $recoverUser = Users::where(
             [
-                'user_activation_forgot' => $key,
+                'user_activation_forgot' => $hashKey,
                 'is_deleted' => 0
             ]
         )->firstOrFail();
 
-        return $recoverUser->resetPassword($data['new_password']);
+        return $recoverUser->resetPassword($newPassword);
     }
 }
