@@ -23,6 +23,7 @@ type Product {
     html_description: String
     warranty_terms: String
     upc: String
+    files: [Filesystem]
     is_published: Boolean
     created_at: String
     updated_at: String

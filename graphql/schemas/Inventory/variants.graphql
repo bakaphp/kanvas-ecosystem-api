@@ -9,6 +9,7 @@ type Variant {
     html_description: String
     sku: String
     ean: String
+    files: [Filesystem]
     product: Product
     warehouses: [WarehouseVariantRelationship]
     attributes: [VariantsAttributes]

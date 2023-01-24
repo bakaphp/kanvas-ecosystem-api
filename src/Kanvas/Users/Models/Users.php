@@ -9,6 +9,7 @@ use Baka\Traits\KanvasModelTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -21,6 +22,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Notifications\Models\Notifications;
@@ -332,7 +334,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function getCurrentCompany() : Companies
     {
-        return CompaniesRepository::getById($this->currentCompanyId());
+        try {
+            return CompaniesRepository::getById($this->currentCompanyId());
+        } catch (EloquentModelNotFoundException $e) {
+            throw new InternalServerErrorException(
+                'No default company app configured for this user on the current app ' . app(Apps::class)->name . ', please contact support'
+            );
+        }
     }
 
     /**
