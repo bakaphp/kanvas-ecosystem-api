@@ -5,6 +5,7 @@ namespace Tests\GraphQL\Ecosystem;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Auth\DataTransferObject\LoginInput;
+use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 class AuthTest extends TestCase
@@ -166,5 +167,32 @@ class AuthTest extends TestCase
         )
         ->assertSuccessful()
         ->assertSee('forgotPassword');
+    }
+
+    /**
+     * Test the reset password for user.
+     *
+     * @return void
+     */
+    public function test_reset_password() : void
+    {
+        $emailData = self::loginData();
+        $userData = Users::getByEmail($emailData->getEmail());
+
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation resetPassword($data: ResetPasswordInput!) {
+                resetPassword(data: $data)
+            }',
+            [
+                'data' => [
+                    'new_password' => 11223344,
+                    'verify_password' => 11223344,
+                    'hash_key' => $userData->user_activation_forgot
+                ],
+            ]
+        )
+        ->assertSuccessful()
+        ->assertSee('resetPassword');
     }
 }
