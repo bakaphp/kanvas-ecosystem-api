@@ -186,8 +186,8 @@ class AuthTest extends TestCase
             }',
             [
                 'data' => [
-                    'new_password' => 11223344,
-                    'verify_password' => 11223344,
+                    'new_password' => "11223344",
+                    'verify_password' => "11223344",
                     'hash_key' => $userData->user_activation_forgot
                 ],
             ]
