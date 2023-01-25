@@ -15,7 +15,7 @@ class BaseModel extends EloquentModel
     use KanvasModelTrait;
     //use SoftDeletes;
 
-    protected $connection = 'ecosystem';
+    protected $connection = 'mysql';
 
     protected $attributes = [
         'is_deleted' => 0,

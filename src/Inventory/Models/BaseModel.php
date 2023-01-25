@@ -27,7 +27,6 @@ class BaseModel extends EloquentModel
     use ScopesTrait;
     use HasCustomFields;
     use HasFilesystemTrait;
-
     //use SoftDeletes;
 
     protected $attributes = [

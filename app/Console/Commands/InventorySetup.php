@@ -41,8 +41,6 @@ class InventorySetup extends Command
      */
     public function handle()
     {
-        $userId = $this->argument('userId');
-
         $company = Companies::getById((int) $this->argument('companyId'));
         $user = Users::getById((int) $this->argument('userId'));
 
@@ -51,7 +49,6 @@ class InventorySetup extends Command
             $user,
             $company
         ))->run();
-
 
         $this->newLine();
         $this->info('Company ' . $company->name . ' has been setup with inventory');
