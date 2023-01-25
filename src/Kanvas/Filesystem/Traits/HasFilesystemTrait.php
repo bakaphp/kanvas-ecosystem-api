@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Traits;
 
+use Baka\Enums\StateEnums;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ValidationException;
@@ -12,6 +15,7 @@ use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use RuntimeException;
 
 trait HasFilesystemTrait
@@ -92,7 +96,26 @@ trait HasFilesystemTrait
      */
     public function getFiles() : Collection
     {
+        //move to use $this->files();
         return FilesystemEntitiesRepository::getFilesByEntity($this);
+    }
+
+    /**
+     * Get list of files attached to this model.
+     *
+     * @return HasManyThrough
+     */
+    public function files() : HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Filesystem::class,
+            FilesystemEntities::class,
+            'entity_id',
+            'id',
+            'id',
+            'filesystem_id'
+        )->where('filesystem_entities.system_modules_id', SystemModulesRepository::getByModelName(get_class($this))->getId())
+        ->where('filesystem_entities.is_deleted', StateEnums::NO->getValue());
     }
 
     /**

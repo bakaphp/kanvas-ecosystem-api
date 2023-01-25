@@ -19,8 +19,6 @@ use Kanvas\Traits\SoftDeletes;
 
 class BaseModel extends EloquentModel
 {
-    protected $connection = 'inventory';
-
     use HasFactory;
     use SourceTrait;
     use KanvasModelTrait;
@@ -35,6 +33,8 @@ class BaseModel extends EloquentModel
     protected $attributes = [
         'is_deleted' => 0,
     ];
+
+    protected $connection = 'inventory';
 
     /**
      * Current soft delete.

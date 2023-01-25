@@ -82,6 +82,7 @@ extend type Query @guard {
         where: _
             @whereConditions(
                 columns: [
+                    "id"
                     "products_types_id"
                     "name"
                     "slug"

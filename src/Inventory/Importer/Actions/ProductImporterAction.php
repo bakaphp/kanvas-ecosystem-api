@@ -100,6 +100,12 @@ class ProductImporterAction
                 $this->product->set('source', $this->importedProduct->source);
             }
 
+            if (!empty($this->importedProduct->files)) {
+                foreach ($this->importedProduct->files as $file) {
+                    $this->product->attachUrl($file['url'], $file['name']);
+                }
+            }
+
             $this->categories();
 
             if (!empty($this->importedProduct->attributes)) {
@@ -263,6 +269,12 @@ class ProductImporterAction
                 $variantModel = (new CreateVariantsAction($variantDto, $this->user))->execute();
                 if (isset($variant['source_id']) && $this->importedProduct->isFromThirdParty()) {
                     $variantModel->setLinkedSource($this->importedProduct->source, $variant['source_id']);
+                }
+            }
+
+            if (!empty($variant['files'])) {
+                foreach ($variant['files'] as $file) {
+                    $variantModel->attachUrl($file['url'], $file['name']);
                 }
             }
 
