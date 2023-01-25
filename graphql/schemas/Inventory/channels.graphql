@@ -38,7 +38,17 @@ extend type Mutation @guard {
         )
 }
 extend type Query @guard {
-    channels: [Channel!]
+    channels(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "is_published"
+                    "slug"
+                ]
+            )
+    ): [Channel!]
         @paginate(
             model: "Kanvas\\Inventory\\Channels\\Models\\Channels"
             scopes: ["app", "company"]
