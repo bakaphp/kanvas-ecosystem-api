@@ -9,7 +9,10 @@ type Variant {
     html_description: String
     sku: String
     ean: String
-    files: [Filesystem] @paginate(defaultCount: 10)
+    files: [Filesystem] @paginate(
+            defaultCount: 10
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FileRelationship@entityPagination"
+    )
     product: Product
     warehouses: [WarehouseVariantRelationship]
     attributes: [VariantsAttributes]
