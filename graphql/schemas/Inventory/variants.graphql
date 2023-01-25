@@ -180,6 +180,7 @@ extend type Query {
                 columns: [
                     "slug"
                     "uuid"
+                    "name"
                 ]
             )
     ): [Variant!]
