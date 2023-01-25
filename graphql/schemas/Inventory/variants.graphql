@@ -9,6 +9,7 @@ type Variant {
     html_description: String
     sku: String
     ean: String
+    files: [Filesystem]
     product: Product
     warehouses: [WarehouseVariantRelationship]
     attributes: [VariantsAttributes]
@@ -71,6 +72,7 @@ input VariantsInput {
     barcode: String
     serial_number: String
     is_published: Boolean
+    files: [FilesystemInputUrl]
     slug: String
     discountPrice: Float
     price: Float
@@ -83,6 +85,7 @@ input VariantsUpdateInput {
     description: String
     short_description: String
     html_description: String
+    files: [FilesystemInputUrl]
     sku: String
     ean: String
     barcode: String
@@ -151,6 +154,7 @@ extend type Query @guard {
         where: _
             @whereConditions(
                 columns: [
+                    "id"
                     "products_id"
                     "name"
                     "slug"

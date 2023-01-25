@@ -42,6 +42,8 @@ DB_INVENTORY_USERNAME=root
 DB_INVENTORY_PASSWORD=password
 ```
 
+`php artisan inventory:setup` to create initialize the inventory module for a current company
+
 ## Running the project with Laravel Octane
 
 After doing all the steps above, you could run the project with Laravel Octane by using the command ```php artisan octane:start --port 8080 --host=0.0.0.0```. 

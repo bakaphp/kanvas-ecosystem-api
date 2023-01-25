@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Inventory\Traits\AppsIdTrait;
 use Kanvas\Inventory\Traits\CompaniesIdTrait;
 use Kanvas\Inventory\Traits\ScopesTrait;
@@ -18,8 +19,6 @@ use Kanvas\Traits\SoftDeletes;
 
 class BaseModel extends EloquentModel
 {
-    protected $connection = 'inventory';
-
     use HasFactory;
     use SourceTrait;
     use KanvasModelTrait;
@@ -27,12 +26,14 @@ class BaseModel extends EloquentModel
     use CompaniesIdTrait;
     use ScopesTrait;
     use HasCustomFields;
-
+    use HasFilesystemTrait;
     //use SoftDeletes;
 
     protected $attributes = [
         'is_deleted' => 0,
     ];
+
+    protected $connection = 'inventory';
 
     /**
      * Current soft delete.

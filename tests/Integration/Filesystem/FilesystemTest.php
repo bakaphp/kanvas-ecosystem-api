@@ -60,4 +60,15 @@ final class FilesystemTest extends TestCase
 
         $this->assertGreaterThan(0, $user->deleteFiles());
     }
+
+    public function testAttachedFileViaUrl()
+    {
+        $url = 'https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png';
+
+        $user = Auth::user();
+        $user->attachUrl($url, 'newLogo');
+
+        $this->assertGreaterThan(0, $user->getFiles()->count());
+        $this->assertGreaterThan(0, $user->getFiles()->first()->delete());
+    }
 }
