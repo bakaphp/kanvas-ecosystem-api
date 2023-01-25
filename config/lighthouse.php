@@ -174,7 +174,8 @@ return [
     'namespaces' => [
         'models' => [
             'App',
-            'App\\Models'
+            'App\\Models',
+            'Kanvas\\Filesystem\\Models',
         ],
         'queries' => [
             'App\\GraphQL\\Ecosystem\\Queries',
