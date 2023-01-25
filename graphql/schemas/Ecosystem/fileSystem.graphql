@@ -6,8 +6,9 @@ type Filesystem {
     size: Float!
 }
 
-type FilesystemInputUrl{
+input FilesystemInputUrl {
     url: String!
+    name: String!
 }
 
 type Mutation @guard {

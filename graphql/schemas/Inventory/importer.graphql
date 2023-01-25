@@ -1,3 +1,5 @@
+
+
 input ImporterProductInput {
     name: String!
     description: String!
@@ -11,6 +13,7 @@ input ImporterProductInput {
     short_description: String
     html_description: String
     warranty_terms: String
+    files: [FilesystemInputUrl]
     upc: String
     isPublished: Boolean
     warehouses: [Int]
