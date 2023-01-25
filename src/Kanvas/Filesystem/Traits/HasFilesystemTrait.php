@@ -6,7 +6,6 @@ namespace Kanvas\Filesystem\Traits;
 
 use Baka\Enums\StateEnums;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
