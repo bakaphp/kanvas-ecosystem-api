@@ -1,6 +1,5 @@
 <?php
 declare(strict_types=1);
-
 namespace App\GraphQL\Inventory\Mutations\Variants;
 
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
@@ -58,7 +57,7 @@ class Variants
      */
     public function delete(mixed $root, array $req) : bool
     {
-        $variant = VariantsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
+        $variant = VariantsRepository::getById($req['id'], auth()->user()->getCurrentCompany()->id);
 
         return $variant->delete();
     }
