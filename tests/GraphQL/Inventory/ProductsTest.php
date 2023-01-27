@@ -223,6 +223,11 @@ class ProductsTest extends TestCase
         ]);
     }
 
+    /**
+     * testDeleteVariantToProduct
+     *
+     * @return void
+     */
     public function testDeleteVariantToProduct(): void
     {
         $data = [

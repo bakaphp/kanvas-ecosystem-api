@@ -102,7 +102,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@create"
         )
-    updateVariant(input: VariantsUpdateInput!, id: Int!): Variant
+    updateVariant(input: VariantsUpdateInput! id: Int!): Variant
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@update"
         )
