@@ -14,6 +14,7 @@ use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Laravel\Scout\Searchable;
 
 /**
  * Class Products.
@@ -38,6 +39,8 @@ class Products extends BaseModel
 {
     use UuidTrait;
     use SlugTrait;
+    use Searchable;
+
     protected $table = 'products';
     protected $guarded = [];
 
