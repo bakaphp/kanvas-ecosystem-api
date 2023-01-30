@@ -75,7 +75,8 @@
             "@php artisan key:generate --ansi"
         ],
         "test": "vendor/bin/phpunit",
-        "sail": "vendor/bin/sail"
+        "sail": "vendor/bin/sail",
+        "php-cs-fixer": "php-cs-fixer --config=./.php-cs-fixer.php"
     },
     "extra": {
         "laravel": {
