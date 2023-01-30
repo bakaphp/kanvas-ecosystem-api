@@ -28,7 +28,7 @@ jobs:
       AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
       AWS_BUCKET: ${{ secrets.AWS_BUCKET }}
       AWS_URL: ${{ secrets.AWS_URL }}
-      SCOUT_DRIVER: null
+      SCOUT_DRIVER: database
       #APP_DEBUG: true
     strategy:
       fail-fast: false
