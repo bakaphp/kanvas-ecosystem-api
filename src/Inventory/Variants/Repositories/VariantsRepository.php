@@ -8,4 +8,9 @@ use Baka\Traits\SearchableTrait;
 class VariantsRepository
 {
     use SearchableTrait;
+
+    public static function getModel() : Variants
+    {
+        return new Variants();
+    }
 }
