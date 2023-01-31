@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+
 namespace Tests\GraphQL\Inventory;
 
 use Tests\TestCase;
@@ -7,7 +8,7 @@ use Tests\TestCase;
 class VariantAttributeTest extends TestCase
 {
     /**
-     * testAddAttributeToVariant
+     * testAddAttributeToVariant.
      *
      * @return void
      */
@@ -77,12 +78,12 @@ class VariantAttributeTest extends TestCase
                 'value' => fake()->name,
                 'name' => fake()->name,
             ]
-            ]);
+        ]);
         $this->assertArrayHasKey('data', $response->json());
     }
 
     /**
-     * testRemoveAttributeFromVariant
+     * testRemoveAttributeFromVariant.
      *
      * @return void
      */
@@ -152,7 +153,7 @@ class VariantAttributeTest extends TestCase
                 'value' => fake()->name,
                 'name' => fake()->name,
             ]
-            ]);
+        ]);
         $this->assertArrayHasKey('data', $response->json());
         $response = $this->graphQL('
         mutation($id: Int! $attributesId: Int!) {
@@ -162,8 +163,8 @@ class VariantAttributeTest extends TestCase
                 name
             }
         }', [
-                'id' => $variantId,
-                'attributesId' => $attributeId,
+            'id' => $variantId,
+            'attributesId' => $attributeId,
         ]);
         $this->assertArrayHasKey('data', $response->json());
     }

@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+
 namespace Tests\GraphQL\Inventory;
 
 use Tests\TestCase;
@@ -7,7 +8,7 @@ use Tests\TestCase;
 class VariantsChannelsTest extends TestCase
 {
     /**
-     * testVariantToChannel
+     * testVariantToChannel.
      *
      * @return void
      */
