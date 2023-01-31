@@ -1,6 +1,5 @@
 <?php
 declare(strict_types=1);
-
 namespace App\GraphQL\Inventory\Mutations\Products;
 
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
@@ -54,7 +53,7 @@ class Products
     public function delete(mixed $root, array $req) : bool
     {
         $product = ProductsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
-        return $product->delete();
+        return $product->softDelete();
     }
 
     /**

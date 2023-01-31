@@ -132,37 +132,24 @@ class ProductsTest extends TestCase
             'name' => fake()->name,
             'description' => fake()->text,
         ];
-        $this->graphQL('
+        $response = $this->graphQL('
         mutation($data: ProductInput!) {
             createProduct(input: $data)
             {
+                id
                 name
                 description
             }
-        }', ['data' => $data])->assertJson([
+        }', ['data' => $data]);
+
+        $response->assertJson([
             'data' => ['createProduct' => $data]
         ]);
-
-        $response = $this->graphQL('
-        query {
-            products {
-                data {
-                    id
-                    name
-                    description
-                }
-            }
-        }');
-        $this->assertArrayHasKey('data', $response->json());
-        $this->assertArrayHasKey('products', $response->json()['data']);
-        $this->assertArrayHasKey('data', $response->json()['data']['products']);
-        $this->assertArrayHasKey('id', $response->json()['data']['products']['data'][0]);
-
-        $id = $response->json()['data']['products']['data'][0]['id'];
+        $id = $response->json()['data']['createProduct']['id'];
         $this->graphQL('
-        mutation($id: Int!) {
-            deleteProduct(id: $id)
-        }', ['id' => $id])->assertJson([
+                mutation($id: Int!) {
+                    deleteProduct(id: $id)
+                }', ['id' => $id])->assertJson([
             'data' => ['deleteProduct' => true]
         ]);
     }

@@ -57,7 +57,7 @@ class Variants
      */
     public function delete(mixed $root, array $req) : bool
     {
-        $variant = VariantsRepository::getById($req['id'], auth()->user()->getCurrentCompany()->id->id);
+        $variant = VariantsRepository::getById($req['id'], auth()->user()->getCurrentCompany()->id);
 
         return $variant->delete();
     }
