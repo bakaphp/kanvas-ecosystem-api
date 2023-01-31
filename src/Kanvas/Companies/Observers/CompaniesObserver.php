@@ -60,17 +60,17 @@ class CompaniesObserver
         //associate to all branches of this company
         $tempBranch = new CompaniesBranches();
         $tempBranch->id = 0;
-        // $company->associateUser(
-        //     $user,
-        //     StateEnums::ON->getValue(),
-        //     $tempBranch
-        // );
+        $company->associateUser(
+            $user,
+            StateEnums::ON->getValue(),
+            $tempBranch
+        );
 
-        // $company->associateUser(
-        //     $user,
-        //     StateEnums::ON->getValue(),
-        //     $branch
-        // );
+        $company->associateUser(
+            $user,
+            StateEnums::ON->getValue(),
+            $branch
+        );
 
         $company->associateUserApp(
             $user,
