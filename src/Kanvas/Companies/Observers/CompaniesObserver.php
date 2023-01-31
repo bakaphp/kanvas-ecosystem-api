@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Companies\Observers;
 
 use Illuminate\Support\Str;

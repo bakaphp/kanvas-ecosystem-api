@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+
 namespace App\GraphQL\Inventory\Mutations\Products;
 
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
