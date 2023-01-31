@@ -168,9 +168,9 @@ class VariantTest extends TestCase
         $variantId = $response->json()['data']['createVariant']['id'];
         $data = [
 
-            'price' => 10.00,
-            'quantity' => 1,
-            'position' => 1,
+            'price' => rand(1, 1000),
+            'quantity' => rand(1, 5),
+            'position' => rand(1, 4),
         ];
         $this->graphQL('
         mutation($data: VariantsWarehousesInput! $id: Int! $warehouse_id: Int!) {
