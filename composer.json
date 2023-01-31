@@ -54,6 +54,7 @@
             "Baka\\": "src/Baka",
             "Domains\\": "src/Domains",
             "Kanvas\\Inventory\\": "src/Inventory",
+            "Kanvas\\Social\\": "src/Social",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }
