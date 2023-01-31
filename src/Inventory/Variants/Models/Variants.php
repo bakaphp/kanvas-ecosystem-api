@@ -12,6 +12,7 @@ use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Laravel\Scout\Searchable;
 
 /**
  * Class Attributes.
@@ -35,6 +36,7 @@ class Variants extends BaseModel
 {
     use SlugTrait;
     use UuidTrait;
+    use Searchable;
 
     protected $table = 'products_variants';
     protected $guarded = [];
@@ -67,22 +69,22 @@ class Variants extends BaseModel
             'products_variants_id',
             'warehouses_id'
         )
-        ->withPivot(
-            'quantity',
-            'price',
-            'sku',
-            'position',
-            'serial_number',
-            'is_oversellable',
-            'is_default',
-            'is_default',
-            'is_best_seller',
-            'is_on_sale',
-            'is_on_promo',
-            'can_pre_order',
-            'is_new',
-            'is_published'
-        );
+            ->withPivot(
+                'quantity',
+                'price',
+                'sku',
+                'position',
+                'serial_number',
+                'is_oversellable',
+                'is_default',
+                'is_default',
+                'is_best_seller',
+                'is_on_sale',
+                'is_on_promo',
+                'can_pre_order',
+                'is_new',
+                'is_published'
+            );
     }
 
     /**
