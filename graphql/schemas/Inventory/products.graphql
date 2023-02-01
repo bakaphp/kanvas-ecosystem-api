@@ -2,7 +2,6 @@ input ProductInput {
     products_types_id: Int
     name: String!
     description: String!
-    slug: String!
     short_description: String
     html_description: String
     warranty_terms: String
@@ -17,7 +16,7 @@ type Product {
     products_types_id: Int
     uuid: String
     name: String!
-    slug: String
+    slug: String!
     description: String!
     short_description: String
     html_description: String
