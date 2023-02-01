@@ -54,7 +54,7 @@ class Products
     public function delete(mixed $root, array $req) : bool
     {
         $product = ProductsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
-        return $product->delete();
+        return $product->softDelete();
     }
 
     /**

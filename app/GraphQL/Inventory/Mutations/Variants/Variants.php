@@ -93,7 +93,7 @@ class Variants
         $variant = VariantsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
 
         $warehouse = WarehouseRepository::getById($req['warehouse_id']);
-        $variant->warehouses()->detach($warehouse->id);
+        $variant->warehouses()->detach($warehouse);
         return $variant;
     }
 
@@ -127,7 +127,7 @@ class Variants
         $variant = VariantsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
 
         $attribute = AttributesRepository::getById($req['attributes_id']);
-        $variant->attributes()->detach($attribute->id);
+        $variant->attributes()->detach($attribute);
         return $variant;
     }
 
