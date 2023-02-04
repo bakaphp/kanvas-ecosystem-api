@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Tests\Integration\SystemModules;
+namespace Tests\Integration\Filesystem;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;

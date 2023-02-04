@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Tests\Feature\Apps\Actions;
+namespace Tests\Feature\Companies\Actions;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Enums\Defaults;

@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Tests\Integration\SystemModules;
+namespace Tests\Integration\CustomFields;
 
 use Kanvas\Templates\Models\Templates;
 use Tests\TestCase;

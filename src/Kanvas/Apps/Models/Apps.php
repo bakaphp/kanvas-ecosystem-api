@@ -83,7 +83,7 @@ class Apps extends BaseModel implements AppInterface
      */
     public function usesSubscriptions() : bool
     {
-        return (bool) $this->payments_active;
+        return (bool)$this->payments_active;
     }
 
     /**
@@ -118,7 +118,7 @@ class Apps extends BaseModel implements AppInterface
      */
     public function isActive() : bool
     {
-        return (bool) $this->is_actived;
+        return (bool)$this->is_actived;
     }
 
     /**
@@ -129,7 +129,7 @@ class Apps extends BaseModel implements AppInterface
      */
     public function usesEcosystemLogin() : bool
     {
-        return (bool) $this->ecosystem_auth;
+        return (bool)$this->ecosystem_auth;
     }
 
     /**
@@ -193,6 +193,6 @@ class Apps extends BaseModel implements AppInterface
                 ->where('users_associated_apps.users_id', '=', $user->getKey())
                 ->where('users_associated_apps.is_deleted', '=', 0);
         })
-        ->where('apps.is_deleted', '=', 0);
+            ->where('apps.is_deleted', '=', 0);
     }
 }
