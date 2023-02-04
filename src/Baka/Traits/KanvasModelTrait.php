@@ -91,16 +91,4 @@ trait KanvasModelTrait
         $this->is_deleted = StateEnums::YES->getValue();
         return $this->saveOrFail();
     }
-
-    /**
-     * Not deleted scope.
-     *
-     * @param Builder $query
-     *
-     * @return Builder
-     */
-    public function scopeNotDeleted(Builder $query) : Builder
-    {
-        return $query->where('is_deleted', '=', StateEnums::NO->getValue());
-    }
 }

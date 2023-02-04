@@ -10,14 +10,10 @@ use Kanvas\Social\Models\BaseModel;
  *
  * @property int $id
  * @property int $apps_id
- * @property int $users_id
- * @property string $name
+ * @property string $ame
  * @property string $title
  * @property string $icon
- * @property int $is_published
- * @property int $is_deleted
- * @property string $created_at
- * @property string $updated_at
+ * @property string $description
  */
 class Interactions extends BaseModel
 {

@@ -18,6 +18,9 @@ jobs:
       DB_INVENTORY_DATABASE: test
       DB_INVENTORY_USERNAME: root
       DB_INVENTORY_PASSWORD: password
+      DB_SOCIAL_DATABASE: test
+      DB_SOCIAL_USERNAME: root
+      DB_SOCIAL_PASSWORD: password
       KANVAS_APP_ID: 059ddaaf-89b5-4158-a85a-90cbd69aa34b
       APP_KEY: base64:4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY=
       APP_JWT_TOKEN: 4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY
