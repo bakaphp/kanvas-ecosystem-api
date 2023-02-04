@@ -37,12 +37,25 @@ Todo:
 ```
 DB_INVENTORY_HOST=mysql
 DB_INVENTORY_PORT=3306
-DB_INVENTORY_DATABASE=kanvas_laravel
+DB_INVENTORY_DATABASE=inventory
 DB_INVENTORY_USERNAME=root
 DB_INVENTORY_PASSWORD=password
 ```
 
 `php artisan inventory:setup` to create initialize the inventory module for a current company
+
+### Setup Social
+1. php artisan migrate --path database/migrations/Social/ --database name_database
+2. Set env var in .env
+```
+DB_SOCIAL_HOST=mysql
+DB_SOCIAL_PORT=3306
+DB_SOCIAL_DATABASE=social
+DB_SOCIAL_USERNAME=root
+DB_SOCIAL_PASSWORD=password
+```
+
+`php artisan social:setup` to create initialize the inventory module for a current company
 
 ## Running the project with Laravel Octane
 
