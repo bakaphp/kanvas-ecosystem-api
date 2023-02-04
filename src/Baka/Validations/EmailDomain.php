@@ -6,7 +6,7 @@ namespace Baka\Validations;
 
 use Illuminate\Validation\ValidationException;
 
-class Email
+class EmailDomain
 {
     /**
      * Verify if email domain is valid.
