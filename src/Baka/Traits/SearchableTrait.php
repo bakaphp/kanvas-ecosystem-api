@@ -18,8 +18,8 @@ trait SearchableTrait
         $company = $company ?? auth()->user()->getCurrentCompany();
 
         try {
-            return self::getModel()::company($company)
-                ->app()
+            return self::getModel()::fromCompany($company)
+                ->fromApp()
                 ->notDeleted()
                 ->where('id', $id)
                 ->firstOrFail();
@@ -33,7 +33,7 @@ trait SearchableTrait
         $company = $company ?? auth()->user()->getCurrentCompany();
 
         try {
-            return self::getModel()::company($company)
+            return self::getModel()::fromCompany($company)
                 ->app()
                 ->notDeleted()
                 ->where('uuid', $uuid)
@@ -48,8 +48,8 @@ trait SearchableTrait
         $company = $company ?? auth()->user()->getCurrentCompany();
 
         try {
-            return self::getModel()::company($company)
-                ->app()
+            return self::getModel()::fromCompany($company)
+                ->fromApp()
                 ->notDeleted()
                 ->where('name', $name)
                 ->firstOrFail();
