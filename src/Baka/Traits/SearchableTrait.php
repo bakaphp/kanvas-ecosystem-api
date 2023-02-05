@@ -20,7 +20,7 @@ trait SearchableTrait
         try {
             return self::getModel()::company($company)
                 ->app()
-                ->notDelete()
+                ->notDeleted()
                 ->where('id', $id)
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
@@ -35,7 +35,7 @@ trait SearchableTrait
         try {
             return self::getModel()::company($company)
                 ->app()
-                ->notDelete()
+                ->notDeleted()
                 ->where('uuid', $uuid)
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
@@ -50,7 +50,7 @@ trait SearchableTrait
         try {
             return self::getModel()::company($company)
                 ->app()
-                ->notDelete()
+                ->notDeleted()
                 ->where('name', $name)
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
