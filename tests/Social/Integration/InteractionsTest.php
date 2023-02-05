@@ -20,6 +20,7 @@ final class InteractionsTest extends TestCase
             auth()->user(),
             $company
         );
+        $setupCompany->run();
 
         $warehouse = Warehouses::firstOrFail();
         $product = Products::firstOrFail();
