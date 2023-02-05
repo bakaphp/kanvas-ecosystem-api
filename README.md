@@ -32,7 +32,7 @@ Todo:
 7. To check if the API is working just make a GET request to  ```http://localhost:80/v1/``` and see if the response returns ```"Woot Kanvas"```
 
 ### Setup Inventory
-1. php artisan migrate --path database/migrations/Inventory/ --database name_database
+1. php artisan migrate --path database/migrations/Inventory/ --database inventory
 2. Set env var in .env
 ```
 DB_INVENTORY_HOST=mysql
@@ -45,7 +45,7 @@ DB_INVENTORY_PASSWORD=password
 `php artisan inventory:setup` to create initialize the inventory module for a current company
 
 ### Setup Social
-1. php artisan migrate --path database/migrations/Social/ --database name_database
+1. php artisan migrate --path database/migrations/Social/ --database social
 2. Set env var in .env
 ```
 DB_SOCIAL_HOST=mysql
