@@ -14,11 +14,11 @@ jobs:
       REDIS_HOST: 127.0.0.1
       DB_USERNAME: root
       DB_PASSWORD: password
-      DB_DATABASE: test
-      DB_INVENTORY_DATABASE: test
+      DB_DATABASE: kanvas
+      DB_INVENTORY_DATABASE: inventory
       DB_INVENTORY_USERNAME: root
       DB_INVENTORY_PASSWORD: password
-      DB_SOCIAL_DATABASE: test
+      DB_SOCIAL_DATABASE: social
       DB_SOCIAL_USERNAME: root
       DB_SOCIAL_PASSWORD: password
       KANVAS_APP_ID: 059ddaaf-89b5-4158-a85a-90cbd69aa34b
@@ -42,7 +42,7 @@ jobs:
         image: mariadb:10.4
         env:
           MYSQL_ROOT_PASSWORD: password
-          MYSQL_DATABASE: test
+          MYSQL_DATABASE: kanvas
         ports:
           - 3306:3306
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
@@ -81,6 +81,14 @@ jobs:
           path: ${{ steps.composer-cache.outputs.dir }}
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
           restore-keys: ${{ runner.os }}-composer-
+
+      - name: Setup Inventory DB
+        run: |
+          mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS inventory;'
+
+      - name: Setup Social DB
+        run: |
+          mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS social;'
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-suggest

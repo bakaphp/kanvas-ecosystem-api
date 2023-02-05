@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Baka\Traits;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
