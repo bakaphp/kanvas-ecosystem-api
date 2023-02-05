@@ -23,7 +23,6 @@ class EntityInteractions
         $likeEntityInput = LikeEntityInput::from($req['input']);
         $createEntityInteraction = new CreateEntityInteraction($likeEntityInput, app(Apps::class));
 
-
         return $createEntityInteraction->execute('like') instanceof ModelsEntityInteractions;
     }
 }
