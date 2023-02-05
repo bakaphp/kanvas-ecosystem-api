@@ -170,7 +170,7 @@ extend type Query @guard {
     ): [Variant]
     @paginate(
         defaultCount: 10
-        scopes: ["app", "company"]
+        scopes: ["fromApp", "fromCompany"]
         model: "Kanvas\\Inventory\\Variants\\Models\\Variants"
     )
 }

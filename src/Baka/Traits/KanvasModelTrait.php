@@ -53,7 +53,7 @@ trait KanvasModelTrait
      *
      * @return BelongsTo<Companies>
      */
-    public function companyEntity() : BelongsTo
+    public function company() : BelongsTo
     {
         return $this->setConnection('ecosystem')->belongsTo(
             Companies::class,
@@ -76,7 +76,7 @@ trait KanvasModelTrait
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function appEntity() : BelongsTo
+    public function app() : BelongsTo
     {
         return  $this->setConnection('ecosystem')->belongsTo(
             Apps::class,
