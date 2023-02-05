@@ -18,6 +18,7 @@ enum StateEnums implements EnumsInterface
     case MENTION;
     case TAG;
     case REPLY;
+    case PIN;
 
     /**
      * Get value.
@@ -38,6 +39,7 @@ enum StateEnums implements EnumsInterface
             self::MENTION => 'mention',
             self::TAG => 'tag',
             self::REPLY => 'reply',
+            self::PIN => 'pin',
         };
     }
 }

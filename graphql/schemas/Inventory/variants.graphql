@@ -17,6 +17,7 @@ type Variant {
     warehouses: [WarehouseVariantRelationship]
     attributes: [VariantsAttributes]
     channels: [VariantChannelRelationship]
+    interactions: Interactions
 }
 type WarehouseVariantRelationship {
     quantity: Float
