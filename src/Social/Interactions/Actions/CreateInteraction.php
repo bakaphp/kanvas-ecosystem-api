@@ -12,6 +12,7 @@ class CreateInteraction
         protected Interaction $interaction,
     ) {
     }
+
     /**
      * execute.
      *

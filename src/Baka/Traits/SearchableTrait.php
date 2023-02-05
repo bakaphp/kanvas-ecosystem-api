@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Baka\Traits;
 
 use Baka\Contracts\CompanyInterface;
-use Baka\Enums\StateEnums;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 
 trait SearchableTrait
