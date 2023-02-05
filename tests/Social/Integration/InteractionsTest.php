@@ -4,15 +4,22 @@ declare(strict_types=1);
 namespace Tests\Social\Integration;
 
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Models\EntityInteractions;
+use Kanvas\Social\Support\Setup;
 use Tests\TestCase;
 
 final class InteractionsTest extends TestCase
 {
     public function testEntityLikeOtherEntity() : void
     {
+        $company = auth()->user()->getCurrentCompany();
+        $setupCompany = new Setup(
+            app(Apps::class),
+            auth()->user(),
+            $company
+        );
+
         $warehouse = Warehouses::firstOrFail();
         $product = Products::firstOrFail();
 
@@ -54,5 +61,4 @@ final class InteractionsTest extends TestCase
             $product->unLike($warehouse)
         );
     }
-
 }
