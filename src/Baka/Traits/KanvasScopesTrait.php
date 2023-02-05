@@ -13,26 +13,28 @@ trait KanvasScopesTrait
     /**
      * scopeCompany.
      *
-     * @param  Builder $query
+     * @param Builder $query
+     * @param mixed $company
      *
      * @return Builder
      */
-    public function scopeCompany(Builder $query, ?Companies $company = null) : Builder
+    public function scopeCompany(Builder $query, mixed $company) : Builder
     {
-        $company = $company ?? auth()->user()->getCurrentCompany();
+        $company = $company instanceof Companies ? $company : auth()->user()->getCurrentCompany();
         return $query->where('companies_id', $company->getId());
     }
 
     /**
      * scopeApp.
      *
-     * @param  Builder $query
+     * @param Builder $query
+     * @param mixed $app
      *
      * @return Builder
      */
-    public function scopeApp(Builder $query, ?Apps $app = null) : Builder
+    public function scopeApp(Builder $query, mixed $app) : Builder
     {
-        $app = $app ?? app(Apps::class);
+        $app = $app instanceof Apps ? $app : app(Apps::class);
         return $query->where('apps_id', $app->getId());
     }
 
