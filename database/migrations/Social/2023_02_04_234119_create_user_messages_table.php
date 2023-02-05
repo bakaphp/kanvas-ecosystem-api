@@ -22,8 +22,8 @@ class CreateUserMessagesTable extends Migration
             $table->boolean('is_saved')->default(false)->index('is_saved');
             $table->boolean('is_shared')->default(false)->index('is_shared');
             $table->boolean('is_reported')->default(false)->index('is_reported');
-            $table->longText('reactions')->nullable()->index('reactions');
-            $table->longText('saved_lists')->nullable()->index('saved_lists');
+            $table->longText('reactions')->nullable();
+            $table->longText('saved_lists')->nullable();
             $table->dateTime('created_at')->index('created_at');
             $table->tinyInteger('is_deleted')->default(0)->index('is_deleted');
 

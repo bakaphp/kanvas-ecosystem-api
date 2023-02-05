@@ -18,7 +18,7 @@ class AppSetup extends Command
     /**
      * The console command description.
      *
-     * @var string
+     * @var string|null
      */
     protected $description = 'Add default settings to new App';
 
@@ -35,7 +35,7 @@ class AppSetup extends Command
     /**
      * Execute the console command.
      *
-     * @return int
+     * @return mixed
      */
     public function handle()
     {

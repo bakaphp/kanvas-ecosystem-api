@@ -16,7 +16,7 @@ class CreateDistributionChannelsTable extends Migration
         Schema::connection('social')->create('distribution_channels', function (Blueprint $table) {
             $table->bigInteger('id', true);
             $table->string('channel')->index('channel');
-            $table->longText('queues')->index('queues');
+            $table->longText('queues');
         });
     }
 

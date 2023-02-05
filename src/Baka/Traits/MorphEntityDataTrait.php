@@ -17,7 +17,7 @@ trait MorphEntityDataTrait
      *
      * @return Model|null
      */
-    public function retrieveEntityData() : ?Model
+    public function entityData() : ?Model
     {
         return $this->entity_namespace::getById($this->entity_id);
     }
