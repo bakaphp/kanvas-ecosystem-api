@@ -67,30 +67,6 @@ class Channels extends BaseModel
     }
 
     /**
-     * scopeCompany.
-     *
-     * @param  Builder $query
-     *
-     * @return Builder
-     */
-    public function scopeCompany(Builder $query) : Builder
-    {
-        return $query->where('companies_id', auth()->user()->default_company);
-    }
-
-    /**
-     * scopeApp.
-     *
-     * @param  Builder $query
-     *
-     * @return Builder
-     */
-    public function scopeApp(Builder $query) : Builder
-    {
-        return $query->where('apps_id', app(Apps::class)->id);
-    }
-
-    /**
      * Get the user's first name.
      *
      * @return Attribute

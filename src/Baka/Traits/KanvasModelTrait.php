@@ -49,9 +49,11 @@ trait KanvasModelTrait
     }
 
     /**
+     * can't use the name company since the scope is also using the same name.
+     *
      * @return BelongsTo<Companies>
      */
-    public function company() : BelongsTo
+    public function companyEntity() : BelongsTo
     {
         return $this->setConnection('ecosystem')->belongsTo(
             Companies::class,
@@ -69,9 +71,14 @@ trait KanvasModelTrait
         );
     }
 
-    public function app() : BelongsTo
+    /**
+     * cant use app because of the scope name.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function appEntity() : BelongsTo
     {
-        return $this->setConnection('ecosystem')->belongsTo(
+        return  $this->setConnection('ecosystem')->belongsTo(
             Apps::class,
             'apps_id',
             'id'

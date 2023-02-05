@@ -6,6 +6,7 @@ namespace Baka\Traits;
 use Baka\Enums\StateEnums;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 
 trait KanvasScopesTrait
 {
@@ -16,9 +17,10 @@ trait KanvasScopesTrait
      *
      * @return Builder
      */
-    public function scopeCompany(Builder $query) : Builder
+    public function scopeCompany(Builder $query, ?Companies $company = null) : Builder
     {
-        return $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
+        $company = $company ?? auth()->user()->getCurrentCompany();
+        return $query->where('companies_id', $company->getId());
     }
 
     /**
@@ -28,9 +30,10 @@ trait KanvasScopesTrait
      *
      * @return Builder
      */
-    public function scopeApp(Builder $query) : Builder
+    public function scopeApp(Builder $query, ?Apps $app = null) : Builder
     {
-        return $query->where('apps_id', app(Apps::class)->getId());
+        $app = $app ?? app(Apps::class);
+        return $query->where('apps_id', $app->getId());
     }
 
     /**

@@ -20,9 +20,9 @@ trait SearchableTrait
         $company = $company ?? auth()->user()->getCurrentCompany();
 
         try {
-            return self::getModel()::where('companies_id', $company->getId())
-                ->where('apps_id', app(Apps::class)->id)
-                ->where('is_deleted', StateEnums::NO->getValue())
+            return self::getModel()::company($company)
+                ->app()
+                ->notDelete()
                 ->where('id', $id)
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
@@ -35,10 +35,10 @@ trait SearchableTrait
         $company = $company ?? auth()->user()->getCurrentCompany();
 
         try {
-            return self::getModel()::where('companies_id', $company->getId())
-                ->where('apps_id', app(Apps::class)->getId())
+            return self::getModel()::company($company)
+                ->app()
+                ->notDelete()
                 ->where('uuid', $uuid)
-                ->where('is_deleted', StateEnums::NO->getValue())
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             throw new ExceptionsModelNotFoundException($e->getMessage());
@@ -50,9 +50,9 @@ trait SearchableTrait
         $company = $company ?? auth()->user()->getCurrentCompany();
 
         try {
-            return self::getModel()::where('companies_id', $company->getId())
-                ->where('apps_id', app(Apps::class)->getId())
-                ->where('is_deleted', StateEnums::NO->getValue())
+            return self::getModel()::company($company)
+                ->app()
+                ->notDelete()
                 ->where('name', $name)
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
