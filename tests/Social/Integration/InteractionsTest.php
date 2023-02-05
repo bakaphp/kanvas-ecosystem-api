@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Tests\Social\Integration;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Models\EntityInteractions;
