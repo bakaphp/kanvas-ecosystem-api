@@ -100,7 +100,7 @@ class Variants extends BaseModel
             'products_variants_id',
             'attributes_id'
         )
-            ->withPivot('value')
+            ->withPivot('value');
     }
 
     /**
