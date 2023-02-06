@@ -29,7 +29,9 @@ class ProductsAttributes extends BaseModel
         'value'
     ];
 
-
+    protected $casts = [
+        'value' => 'array'
+    ];
 
     protected $primaryKey = ['products_id', 'attributes_id'];
 
