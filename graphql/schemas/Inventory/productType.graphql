@@ -54,6 +54,6 @@ extend type Query {
         @paginate(
             model: "Kanvas\\Inventory\\ProductsTypes\\Models\\ProductsTypes"
             defaultCount: 10
-            scopes: ["app", "company"]
+            scopes: ["fromApp", "fromCompany"]
         )
 }

@@ -51,7 +51,7 @@ extend type Query @guard {
     ): [Channel!]
         @paginate(
             model: "Kanvas\\Inventory\\Channels\\Models\\Channels"
-            scopes: ["app", "company"]
+            scopes: ["fromApp", "fromCompany"]
             defaultCount: 10
         )
 }

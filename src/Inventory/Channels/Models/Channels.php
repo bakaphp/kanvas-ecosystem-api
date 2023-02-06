@@ -5,7 +5,6 @@ namespace Kanvas\Inventory\Channels\Models;
 
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
@@ -64,30 +63,6 @@ class Channels extends BaseModel
     public function users() : BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
-    }
-
-    /**
-     * scopeCompany.
-     *
-     * @param  Builder $query
-     *
-     * @return Builder
-     */
-    public function scopeCompany(Builder $query) : Builder
-    {
-        return $query->where('companies_id', auth()->user()->default_company);
-    }
-
-    /**
-     * scopeApp.
-     *
-     * @param  Builder $query
-     *
-     * @return Builder
-     */
-    public function scopeApp(Builder $query) : Builder
-    {
-        return $query->where('apps_id', app(Apps::class)->id);
     }
 
     /**

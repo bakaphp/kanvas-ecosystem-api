@@ -139,7 +139,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Default Company relationship.
      *
-     * @return hasMany
+     * @return HasOne
      */
     public function defaultCompany() : HasOne
     {

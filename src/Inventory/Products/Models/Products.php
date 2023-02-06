@@ -14,6 +14,7 @@ use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Laravel\Scout\Searchable;
 
 /**
@@ -40,6 +41,7 @@ class Products extends BaseModel
     use UuidTrait;
     use SlugTrait;
     use Searchable;
+    use LikableTrait;
 
     protected $table = 'products';
     protected $guarded = [];

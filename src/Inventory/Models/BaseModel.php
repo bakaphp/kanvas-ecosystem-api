@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Models;
 
 use Baka\Traits\KanvasModelTrait;
+use Baka\Traits\KanvasScopesTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
@@ -13,7 +14,6 @@ use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Inventory\Traits\AppsIdTrait;
 use Kanvas\Inventory\Traits\CompaniesIdTrait;
-use Kanvas\Inventory\Traits\ScopesTrait;
 use Kanvas\Inventory\Traits\SourceTrait;
 use Kanvas\Traits\SoftDeletes;
 
@@ -24,7 +24,7 @@ class BaseModel extends EloquentModel
     use KanvasModelTrait;
     use AppsIdTrait;
     use CompaniesIdTrait;
-    use ScopesTrait;
+    use KanvasScopesTrait;
     use HasCustomFields;
     use HasFilesystemTrait;
     //use SoftDeletes;

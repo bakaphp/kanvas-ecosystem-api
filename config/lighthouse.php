@@ -181,7 +181,8 @@ return [
             'App\\GraphQL\\Ecosystem\\Queries',
             'App\\GraphQL\\CRM\\Queries',
             'App\\GraphQL\\Social\\Queries',
-            'App\\GraphQL\\Inventory\\Queries'
+            'App\\GraphQL\\Inventory\\Queries',
+            'App\\GraphQL\\Social\\Queries'
         ],
         'mutations' => [
             'App\\GraphQL\\Ecosystem\\Mutations',
