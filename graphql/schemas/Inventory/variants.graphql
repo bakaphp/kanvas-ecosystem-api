@@ -37,7 +37,7 @@ type WarehouseVariantRelationship {
 }
 type VariantsAttributes {
     name: String!
-    value: String
+    value: Mixed
 }
 type VariantChannelRelationship {
     warehouses_id: Int

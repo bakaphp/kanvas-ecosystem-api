@@ -29,6 +29,8 @@ class ProductsAttributes extends BaseModel
         'value'
     ];
 
+
+
     protected $primaryKey = ['products_id', 'attributes_id'];
 
     /**
