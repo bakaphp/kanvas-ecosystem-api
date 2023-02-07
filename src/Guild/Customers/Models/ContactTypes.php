@@ -3,9 +3,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Models;
 
-use Baka\Traits\UuidTrait;
 use Kanvas\Inventory\Models\BaseModel;
-use Laravel\Scout\Searchable;
 
 /**
  * Class ContactTypes.
