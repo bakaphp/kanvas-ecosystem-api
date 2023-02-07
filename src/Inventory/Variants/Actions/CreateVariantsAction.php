@@ -45,7 +45,7 @@ class CreateVariantsAction
             $search['slug'] = $this->variantDto->slug;
         }
 
-        return Variants::firstOrCreate(
+        return Variants::updateOrCreate(
             $search,
             [
                 'name' => $this->variantDto->name,

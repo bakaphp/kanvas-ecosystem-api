@@ -54,7 +54,7 @@ class CreateProductAction
                 $search['slug'] = $this->productDto->slug;
             }
 
-            $products = Products::firstOrCreate(
+            $products = Products::updateOrCreate(
                 $search,
                 [
                     'products_types_id' => $productType,
