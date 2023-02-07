@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Inventory\Models\BaseModel;
 
 /**
- * Class Peoples.
+ * Class Contacts.
  *
  * @property int $id
  * @property int $contacts_types_id
