@@ -55,7 +55,20 @@ DB_SOCIAL_USERNAME=root
 DB_SOCIAL_PASSWORD=password
 ```
 
-`php artisan social:setup` to create initialize the inventory module for a current company
+`php artisan social:setup` to create initialize the social module for a current company
+
+### Setup Guild
+1. php artisan migrate --path database/migrations/Guild/ --database crm
+2. Set env var in .env
+```
+DB_CRM_HOST=mysql
+DB_CRM_PORT=3306
+DB_CRM_DATABASE=cr
+DB_CRM_USERNAME=root
+DB_CRM_PASSWORD=password
+```
+
+`php artisan guild:setup` to create initialize the crm module for a current company
 
 ## Running the project with Laravel Octane
 

@@ -96,7 +96,7 @@ class Variants extends BaseModel
     {
         return $this->belongsToMany(
             Attributes::class,
-            'products_variants_attributes',
+            VariantsAttributes::class,
             'products_variants_id',
             'attributes_id'
         )
@@ -112,7 +112,7 @@ class Variants extends BaseModel
     {
         return $this->belongsToMany(
             Channels::class,
-            'products_variants_channels',
+            VariantsChannels::class,
             'products_variants_id',
             'channels_id'
         )

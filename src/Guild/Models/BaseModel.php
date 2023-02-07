@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Inventory\Models;
+namespace Kanvas\Guild\Models;
 
 use Baka\Traits\KanvasModelTrait;
 use Baka\Traits\KanvasScopesTrait;
@@ -31,5 +31,5 @@ class BaseModel extends EloquentModel
         'is_deleted' => 0,
     ];
 
-    protected $connection = 'inventory';
+    protected $connection = 'crm';
 }
