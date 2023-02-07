@@ -6,9 +6,9 @@ Welcome to our niche app ecosystem for developers! Our platform is designed to h
 Todo:
 - [x] Ecosystem (in progress)
 - [x] Inventory (in progress)
-- [ ] CRM
-- [ ] Social
-- [ ] Workflow
+- [ ] CRM (in progress)
+- [ ] Social (in progress)
+- [ ] Workflow (in progress)
 
 ## Prerequisites
 
