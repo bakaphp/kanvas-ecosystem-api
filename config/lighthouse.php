@@ -59,7 +59,7 @@ return [
     |
     */
 
-    'guard' => 'sanctum',
+    'guard' => 'api',
 
     /*
     |--------------------------------------------------------------------------
@@ -215,16 +215,10 @@ return [
             'App\\GraphQL\\Inventory\\Scalars',
         ],
         'directives' => [
-            'App\\GraphQL\\Ecosystem\\Directives',
-            'App\\GraphQL\\CRM\\Directives',
-            'App\\GraphQL\\Social\\Directives',
-            'App\\GraphQL\\Inventory\\Directives',
+            'App\\GraphQL\\Directives',
         ],
         'validators' => [
-            'App\\GraphQL\\Ecosystem\\Validators',
-            'App\\GraphQL\\CRM\\Validators',
-            'App\\GraphQL\\Social\\Validators',
-            'App\\GraphQL\\Inventory\\Validators',
+            'App\\GraphQL\\Validators',
         ],
     ],
 

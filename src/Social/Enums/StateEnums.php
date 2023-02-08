@@ -8,6 +8,7 @@ use Baka\Contracts\EnumsInterface;
 enum StateEnums implements EnumsInterface
 {
     case LIKE;
+    case DISLIKE;
     case FOLLOW;
     case FOLLOWERS;
     case FOLLOWING;
@@ -29,6 +30,7 @@ enum StateEnums implements EnumsInterface
     {
         return match ($this) {
             self::LIKE => 'like',
+            self::DISLIKE => 'dislike',
             self::FOLLOW => 'follow',
             self::FOLLOWERS => 'followers',
             self::FOLLOWING => 'following',

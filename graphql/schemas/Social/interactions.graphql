@@ -10,7 +10,7 @@ type Interactions {
     saved: Boolean
 }
 
-extend type Mutation @guard {
+extend type Mutation @guardByAuthOrCompany {
     likeEntity(input: LikeEntityInput!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractions@likeEntity"
@@ -18,5 +18,9 @@ extend type Mutation @guard {
     unLikeEntity(input: LikeEntityInput!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractions@unLikeEntity"
+        )
+    disLikeEntity(input: LikeEntityInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractions@disLikeEntity"
         )
 }
