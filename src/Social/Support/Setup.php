@@ -50,6 +50,16 @@ class Setup
 
         $createInteractions = new CreateInteraction(
             new Interaction(
+                (string) StateEnums::DISLIKE->getValue(),
+                $this->app,
+                ucfirst((string) StateEnums::DISLIKE->getValue()),
+            )
+        );
+
+        $defaultInteraction = $createInteractions->execute();
+
+        $createInteractions = new CreateInteraction(
+            new Interaction(
                 (string) StateEnums::SAVE->getValue(),
                 $this->app,
                 ucfirst((string) StateEnums::SAVE->getValue()),
