@@ -4,6 +4,7 @@ namespace App\GraphQL\Directives;
 
 use Closure;
 use Kanvas\Companies\Models\Companies;
+use Nuwave\Lighthouse\Auth\AuthServiceProvider;
 use Nuwave\Lighthouse\Auth\GuardDirective;
 use Nuwave\Lighthouse\Execution\ResolveInfo;
 use Nuwave\Lighthouse\Schema\Values\FieldValue;
