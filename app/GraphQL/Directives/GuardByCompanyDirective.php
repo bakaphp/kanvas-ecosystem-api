@@ -2,13 +2,13 @@
 
 namespace App\GraphQL\Directives;
 
+use Closure;
 use Kanvas\Companies\Models\Companies;
 use Nuwave\Lighthouse\Auth\GuardDirective;
 use Nuwave\Lighthouse\Execution\ResolveInfo;
 use Nuwave\Lighthouse\Schema\Values\FieldValue;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 use Throwable;
-use Closure;
 
 class GuardByCompanyDirective extends GuardDirective
 {
@@ -43,7 +43,8 @@ GRAPHQL;
 
             try {
                 Companies::getByUuid(
-                    $request->headers->get('Company-Authorization'));
+                    $request->headers->get('Company-Authorization')
+                );
             } catch (Throwable $e) {
                 $this->unauthenticated(['Invalid Company']);
             }
