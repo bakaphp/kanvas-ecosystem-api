@@ -44,6 +44,16 @@ final class ImporterTest extends TestCase
             'price' => fake()->randomNumber(2),
             'quantity' => fake()->randomNumber(2),
             'isPublished' => true,
+            'files' => [
+                [
+                    'url' => fake()->imageUrl(),
+                    'name' => fake()->word(),
+                ],
+                [
+                    'url' => fake()->imageUrl(),
+                    'name' => fake()->word(),
+                ]
+            ],
             'variants' => [
                 [
                     'name' => fake()->word(),
@@ -53,6 +63,16 @@ final class ImporterTest extends TestCase
                     'is_published' => true,
                     'slug' => fake()->slug(),
                     ...$attributes,
+                    'files' => [
+                        [
+                            'url' => fake()->imageUrl(),
+                            'name' => fake()->word(),
+                        ],
+                        [
+                            'url' => fake()->imageUrl(),
+                            'name' => fake()->word(),
+                        ]
+                    ],
                 ],
                 [
                     'name' => fake()->word(),

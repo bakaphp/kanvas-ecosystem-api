@@ -19,3 +19,4 @@ package.json
 /storage/app/*
 /storage/logs/*
 package-lock.json
+.php-cs-fixer.cache

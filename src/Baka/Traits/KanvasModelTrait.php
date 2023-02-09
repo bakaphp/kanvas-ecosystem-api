@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Baka\Traits;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
@@ -50,6 +49,8 @@ trait KanvasModelTrait
     }
 
     /**
+     * can't use the name company since the scope is also using the same name.
+     *
      * @return BelongsTo<Companies>
      */
     public function company() : BelongsTo
@@ -70,9 +71,14 @@ trait KanvasModelTrait
         );
     }
 
+    /**
+     * cant use app because of the scope name.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function app() : BelongsTo
     {
-        return $this->setConnection('ecosystem')->belongsTo(
+        return  $this->setConnection('ecosystem')->belongsTo(
             Apps::class,
             'apps_id',
             'id'
@@ -90,17 +96,5 @@ trait KanvasModelTrait
     {
         $this->is_deleted = StateEnums::YES->getValue();
         return $this->saveOrFail();
-    }
-
-    /**
-     * Not deleted scope.
-     *
-     * @param Builder $query
-     *
-     * @return Builder
-     */
-    public function scopeNotDeleted(Builder $query) : Builder
-    {
-        return $query->where('is_deleted', '=', StateEnums::NO->getValue());
     }
 }

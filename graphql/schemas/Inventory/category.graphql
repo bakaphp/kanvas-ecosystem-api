@@ -58,6 +58,6 @@ extend type Query @guard {
         @paginate(
             model: "Kanvas\\Inventory\\Categories\\Models\\Categories"
             defaultCount: 10
-            scopes: ["app", "company"]
+            scopes: ["fromApp", "fromCompany"]
         )
 }

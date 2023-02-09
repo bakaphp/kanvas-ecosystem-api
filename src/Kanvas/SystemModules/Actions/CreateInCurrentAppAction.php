@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\SystemModules\Actions;
 
 use App\Exceptions\InternalServerErrorException;
+use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\SystemModules\Models\SystemModules;
 
 class CreateInCurrentAppAction
@@ -15,14 +15,14 @@ class CreateInCurrentAppAction
      * Construct function.
      */
     public function __construct(
-        protected Apps $app
+        protected AppInterface $app
     ) {
     }
 
     /**
      * Invoke function.
      *
-     * @return Apps
+     * @return SystemModules
      */
     public function execute(string $class) : SystemModules
     {

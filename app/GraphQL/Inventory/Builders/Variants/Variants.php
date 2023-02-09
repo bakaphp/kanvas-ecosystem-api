@@ -20,6 +20,9 @@ class Variants
         $variants = new ModelsVariants();
         $variantsChannel = new VariantsChannels();
 
+        /**
+         * @var Builder
+         */
         return ModelsVariants::join($variantsChannel->getTable(), $variantsChannel->getTable() . '.products_variants_id', '=', $variants->getTable() . '.id')
             ->where($variantsChannel->getTable() . '.channels_id', $channel->getId())
             ->where($variantsChannel->getTable() . '.is_deleted', 0)

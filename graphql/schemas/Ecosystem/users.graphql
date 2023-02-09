@@ -45,7 +45,13 @@ input LoginInput {
 }
 
 input ForgotPasswordInput {
-    email: String!
+    email: String! @rules(apply: ["required","email"])
+}
+
+input ResetPasswordInput {
+    new_password: String! @rules(apply: ["required","min:8"])
+    verify_password: String! @rules(apply: ["required","same:new_password"])
+    hash_key: String! @rules(apply: ["required"])
 }
 
 input RegisterInput {
@@ -74,6 +80,14 @@ extend type Mutation {
     ): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagement@changePassword"
+        )
+    forgotPassword(data: ForgotPasswordInput!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\ForgotPassword@forgot"
+        )
+    resetPassword(data: ResetPasswordInput!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\ForgotPassword@reset"
         )
 }
 

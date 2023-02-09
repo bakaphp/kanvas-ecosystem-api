@@ -20,6 +20,9 @@
         <testsuite name="Inventory">
             <directory suffix="Test.php">./tests/Inventory</directory>
         </testsuite>
+        <testsuite name="Social">
+            <directory suffix="Test.php">./tests/Social</directory>
+        </testsuite>
     </testsuites>
     <coverage processUncoveredFiles="true">
         <include>

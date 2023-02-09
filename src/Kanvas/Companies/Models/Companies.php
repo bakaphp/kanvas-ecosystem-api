@@ -150,7 +150,7 @@ class Companies extends BaseModel implements CompanyInterface
      */
     public static function cacheKey() : string
     {
-        return Defaults::DEFAULT_COMPANY->getValue() . app(Apps::class)->id;
+        return Defaults::DEFAULT_COMPANY_APP->getValue() . app(Apps::class)->id;
     }
 
     /**
