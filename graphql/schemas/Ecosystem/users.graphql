@@ -75,8 +75,7 @@ extend type Mutation {
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\Register@resolve"
         )
     changePassword(
-        new_password: String!
-        new_password_confirmation: String!
+        new_password: String! @rules(apply: ["string", "confirmed"])
     ): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagement@changePassword"
