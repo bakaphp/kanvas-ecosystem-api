@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+
 namespace Kanvas\Notifications\Templates;
 
 use Kanvas\Notifications\Notification;
@@ -10,9 +11,10 @@ class ChangePasswordUserLogged extends Notification
     public string $templateName = 'change-password';
 
     /**
-     * __construct
+     * __construct.
      *
      * @param  Users $user
+     *
      * @return void
      */
     public function __construct(Users $user)

@@ -1,22 +1,24 @@
 <?php
 declare(strict_types=1);
+
 namespace App\GraphQL\Ecosystem\Mutations\Users;
 
-use Illuminate\Support\Facades\Auth as AuthFacade;
 use Exception;
-use Kanvas\Users\Repositories\UsersRepository;
+use Illuminate\Support\Facades\Auth as AuthFacade;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
 use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class UserManagement
 {
     /**
-     * changePassword
+     * changePassword.
      *
      * @param  mixed $root
      * @param  array $req
+     *
      * @return void
      */
     public function changePassword(mixed $root, array $req): bool
