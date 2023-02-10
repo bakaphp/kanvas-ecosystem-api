@@ -19,20 +19,19 @@ class UserManagement
      * @param  array $req
      * @return void
      */
-    public function changePassword(mixed $root, array $req)
+    public function changePassword(mixed $root, array $req): bool
     {
         $validator = Validator::make($req, [
             'new_password' => ['required', 'confirmed', Password::min(8)],
         ]);
-        if ($validator->validate()) {
-            $user = UsersRepository::getByEmail(AuthFacade::user()->email);
-            $user->password = Hash::make($req['new_password']);
-            $user->save();
-            $user->notify(new ChangePasswordUserLogged($user));
-            return true;
-        } else {
+        if (!$validator->validate()) {
             throw new Exception('New password and confirmation password do not match');
             return false;
         }
+        $user = UsersRepository::getByEmail(AuthFacade::user()->email);
+        $user->password = Hash::make($req['new_password']);
+        $user->save();
+        $user->notify(new ChangePasswordUserLogged($user));
+        return true;
     }
 }
