@@ -1,6 +1,5 @@
 <?php
 declare(strict_types=1);
-
 namespace App\GraphQL\Ecosystem\Mutations\Users;
 
 use Exception;
@@ -32,7 +31,7 @@ class UserManagement
         }
         $user = UsersRepository::getByEmail(AuthFacade::user()->email);
         $user->password = Hash::make($req['new_password']);
-        $user->save();
+        $user->saveOrFail();
         $user->notify(new ChangePasswordUserLogged($user));
         return true;
     }
