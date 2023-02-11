@@ -5,7 +5,7 @@ namespace Kanvas\Guild\Customers\Models;
 
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Guild\Models\BaseModel;
 use Laravel\Scout\Searchable;
 
 /**

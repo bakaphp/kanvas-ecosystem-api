@@ -14,7 +14,7 @@ type Variant {
             defaultCount: 10
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FileRelationship@entityPagination"
         )
-    interactions(visitor: VisitorInput!): Interactions
+    interactions(visitor: VisitorEntityInput!): Interactions
         @method(name: "getEntitySocialInteractions")
     product: Product
     warehouses: [WarehouseVariantRelationship]
@@ -182,7 +182,7 @@ extend type Query {
     channelVariants(
         id: String!
         search: String @search
-        visitor: VisitorInput
+        visitor: VisitorEntityInput
         where: _ @whereConditions(columns: ["slug", "uuid", "name"])
     ): [Variant!]
         @paginate(

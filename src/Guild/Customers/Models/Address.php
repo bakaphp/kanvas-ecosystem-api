@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Customers\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Guild\Models\BaseModel;
 
 /**
  * Class Address.

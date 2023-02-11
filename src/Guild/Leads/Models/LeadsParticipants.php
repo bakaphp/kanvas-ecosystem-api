@@ -3,10 +3,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
 
-use Baka\Traits\UuidTrait;
+use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Kanvas\Guild\Customers\Models\Peoples;
+use Kanvas\Guild\Customers\Models\PeoplesRelationships;
 use Kanvas\Guild\Models\BaseModel;
 use Laravel\Scout\Searchable;
 
@@ -39,27 +39,38 @@ use Laravel\Scout\Searchable;
  * @property string $third_party_sync_status @deprecated version 0.3
  *
  */
-class Leads extends BaseModel
+class LeadsParticipants extends BaseModel
 {
-    use UuidTrait;
     use Searchable;
+    use HasCompositePrimaryKeyTrait;
 
-    protected $table = 'leads';
+    protected $primaryKey = ['leads_id', 'people_id'];
+    protected $table = 'leads_participants';
     protected $guarded = [];
 
     public function people() : BelongsTo
     {
-        return $this->belongsTo(Peoples::class, 'people_id', 'id');
+        return $this->belongsTo(
+            Peoples::class,
+            'people_id',
+            'id'
+        );
     }
 
-    public function participants() : HasManyThrough
+    public function lead() : BelongsTo
     {
-        return $this->hasManyThrough(
-            Peoples::class,
-            LeadsParticipants::class,
-            'peoples_id',
+        return $this->belongsTo(
+            Leads::class,
             'leads_id',
-            'id',
+            'id'
+        );
+    }
+
+    public function type() : BelongsTo
+    {
+        return $this->belongsTo(
+            PeoplesRelationships::class,
+            'participants_types_id',
             'id'
         );
     }

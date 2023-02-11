@@ -1,0 +1,24 @@
+type PeopleRelationship {
+    id: Int!
+    name: String!
+    description: String
+    company: Company!
+}
+
+extend type Query @guard {
+    peopleRelationships(
+        where: _
+            @whereConditions(
+                columns: [
+                    "name"
+                    "description"
+                    "id"
+                ]
+            )
+    ): [PeopleRelationship!]!
+        @paginate(
+            model: "Kanvas\\Guild\\Customers\\Models\\PeoplesRelationships"
+            defaultCount: 10
+            scopes: ["fromApp", "fromCompany"]
+        )
+}
