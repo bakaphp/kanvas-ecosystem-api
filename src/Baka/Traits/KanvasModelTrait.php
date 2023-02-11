@@ -97,4 +97,25 @@ trait KanvasModelTrait
         $this->is_deleted = StateEnums::YES->getValue();
         return $this->saveOrFail();
     }
+
+    /**
+     * Get the table name with the connection name.
+     *
+     * @return string
+     */
+    public static function getFullTableName() : string
+    {
+        $model = new static();
+        return $model->getConnectionName() . '.' . $model->getTable();
+    }
+
+    /**
+     * Get the table name.
+     *
+     * @return string
+     */
+    public static function getTableName() : string
+    {
+        return ((new self)->getTable());
+    }
 }

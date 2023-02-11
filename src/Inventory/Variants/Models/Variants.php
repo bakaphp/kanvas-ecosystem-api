@@ -12,6 +12,8 @@ use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Social\Interactions\Models\EntityInteractions;
+use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Laravel\Scout\Searchable;
 
 /**
@@ -37,6 +39,7 @@ class Variants extends BaseModel
     use SlugTrait;
     use UuidTrait;
     use Searchable;
+    use SocialInteractionsTrait;
 
     protected $table = 'products_variants';
     protected $guarded = [];
@@ -123,4 +126,6 @@ class Variants extends BaseModel
                 'warehouses_id'
             );
     }
+
+
 }

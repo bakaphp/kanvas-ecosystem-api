@@ -1,0 +1,4 @@
+input VisitorInput {
+    id: String!
+    type: String!
+}
