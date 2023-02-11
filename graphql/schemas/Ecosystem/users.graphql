@@ -9,19 +9,7 @@ type User {
     user_active: Boolean!
     created_at: DateTime
     updated_at: DateTime
-    branches: [Branch]
-}
-
-type Branch {
-    id: Int!
-    companies_id: Int!
-    users_id: Int!
-    name: String!
-    address: String
-    email: String
-    phone: String
-    zipcode: String
-    is_default: String
+    branches: [CompanyBranch]
 }
 
 type TokenResponse {

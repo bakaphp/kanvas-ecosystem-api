@@ -42,6 +42,7 @@ type CompanyBranch {
     email: String
     phone: String
     zipcode: Int
+    company: Company!
     is_default: Boolean!
     created_at: DateTime
     updated_at: DateTime
