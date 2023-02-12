@@ -12,7 +12,7 @@ class UsersTest extends TestCase
         $this->graphQL(/** @lang GraphQL */ '
             mutation changePassword(
                 $new_password: String!
-                $new_password_confirmation: String!
+                $new_password_confirmation: String
             ) {
                 changePassword(
                     new_password: $new_password
