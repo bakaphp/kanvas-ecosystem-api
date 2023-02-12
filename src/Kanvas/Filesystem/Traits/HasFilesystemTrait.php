@@ -28,7 +28,7 @@ trait HasFilesystemTrait
      *
      * @return bool
      */
-    public function attach(Filesystem $files, string $fieldName) : bool
+    public function addFile(Filesystem $files, string $fieldName) : bool
     {
         $attachFilesystem = new AttachFilesystemAction($files, $this);
         $attachFilesystem->execute($fieldName);
@@ -46,7 +46,7 @@ trait HasFilesystemTrait
      *
      * @return bool
      */
-    public function attachUrl(string $url, string $fieldName) : bool
+    public function addFileFromUrl(string $url, string $fieldName) : bool
     {
         $fileSystem = new Filesystem();
         $fileSystem->companies_id = $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
@@ -74,7 +74,7 @@ trait HasFilesystemTrait
      *
      * @return bool
      */
-    public function attachMultiple(array $files) : bool
+    public function addMultipleFiles(array $files) : bool
     {
         foreach ($files as $file) {
             if (!isset($file['file']) || !isset($file['fieldName'])) {

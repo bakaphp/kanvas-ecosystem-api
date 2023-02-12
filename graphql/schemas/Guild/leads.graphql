@@ -4,14 +4,18 @@ type LeadsParticipants {
 }
 
 input LeadsParticipantsInput {
-    leads_id: Int!
-    peoples_id: Int!
-    people_relationships_id: Int!
+    lead_id: Int!
+    people_id: Int!
+    relationship_id: Int!
 }
 
 extend type Mutation @guard {
-    addLeadParticipant(input: LeadsParticipantsInput!): [LeadsParticipants]
+    addLeadParticipant(input: LeadsParticipantsInput!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\Participants@add"
+        )
+    removeLeadParticipant(input: LeadsParticipantsInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\Participants@remove"
         )
 }

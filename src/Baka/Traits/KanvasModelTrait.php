@@ -14,6 +14,8 @@ use Kanvas\Users\Models\Users;
 
 trait KanvasModelTrait
 {
+    use KanvasScopesTrait;
+
     public function getId() : mixed
     {
         return $this->getKey();
@@ -28,7 +30,7 @@ trait KanvasModelTrait
     {
         try {
             return self::where('uuid', $uuid)
-                ->where('is_deleted', StateEnums::NO->getValue())
+                ->notDeleted()
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
@@ -40,7 +42,7 @@ trait KanvasModelTrait
     {
         try {
             return self::where('id', $id)
-                ->where('is_deleted', StateEnums::NO->getValue())
+                ->notDeleted()
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg

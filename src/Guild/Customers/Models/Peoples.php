@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Models;
 
+use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Guild\Models\BaseModel;
@@ -29,6 +30,7 @@ class Peoples extends BaseModel
 {
     use UuidTrait;
     use Searchable;
+    use NoAppRelationshipTrait;
 
     protected $table = 'peoples';
     protected $guarded = [];

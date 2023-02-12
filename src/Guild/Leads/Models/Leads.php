@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
 
+use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Kanvas\Guild\Customers\Models\Peoples;
@@ -43,6 +45,7 @@ class Leads extends BaseModel
 {
     use UuidTrait;
     use Searchable;
+    use NoAppRelationshipTrait;
 
     protected $table = 'leads';
     protected $guarded = [];
