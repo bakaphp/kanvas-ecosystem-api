@@ -15,7 +15,7 @@ class Str extends IlluminateStr
      *
      * @return string
      */
-    public static function cleanup(string $string) : string
+    public static function cleanup(string $string): string
     {
         return preg_replace("/[^a-zA-Z0-9_\s]/", '', $string);
     }
@@ -27,7 +27,7 @@ class Str extends IlluminateStr
      *
      * @return mixed
      */
-    public static function jsonToArray($string) : mixed
+    public static function jsonToArray($string): mixed
     {
         return is_string($string) && self::isJson($string) ? json_decode($string, true) : $string;
     }
@@ -39,7 +39,7 @@ class Str extends IlluminateStr
      *
      * @return string
      */
-    public static function simpleSlug(string $string) : string
+    public static function simpleSlug(string $string): string
     {
         return strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $string)));
     }

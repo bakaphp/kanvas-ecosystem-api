@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Http\Controllers;
@@ -16,7 +17,7 @@ class IndexController extends BaseController
      *
      * @return Response
      */
-    public function index() : JsonResponse
+    public function index(): JsonResponse
     {
         return response()->json(['Woot Kanvas Ecosystem']);
     }
@@ -29,7 +30,7 @@ class IndexController extends BaseController
      *
      * @return Response
      */
-    public function status() : JsonResponse
+    public function status(): JsonResponse
     {
         return response()->json(['Ok']);
     }

@@ -47,7 +47,7 @@ class CompaniesBranches extends BaseModel
      *
      * @return BelongsTo
      */
-    public function company() : BelongsTo
+    public function company(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }
@@ -57,7 +57,7 @@ class CompaniesBranches extends BaseModel
      *
      * @return BelongsTo
      */
-    public function user() : BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
     }
@@ -67,7 +67,7 @@ class CompaniesBranches extends BaseModel
      *
      * @return bool
      */
-    public function isDefault() : bool
+    public function isDefault(): bool
     {
         return (bool) $this->is_default;
     }
@@ -79,7 +79,7 @@ class CompaniesBranches extends BaseModel
      *
      * @return Builder
      */
-    public function scopeUserAssociated(Builder $query) : Builder
+    public function scopeUserAssociated(Builder $query): Builder
     {
         $user = Auth::user();
 
@@ -96,7 +96,7 @@ class CompaniesBranches extends BaseModel
      *
      * @return self
      */
-    public static function getGlobalBranch() : self
+    public static function getGlobalBranch(): self
     {
         $branch = new self();
         $branch->id = 0;

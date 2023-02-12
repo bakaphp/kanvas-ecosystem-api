@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Integration\SystemModules;
@@ -11,7 +12,7 @@ use Tests\TestCase;
 
 final class SystemModulesActionsTest extends TestCase
 {
-    public function testCreateInCurrentApp() : void
+    public function testCreateInCurrentApp(): void
     {
         $systemModules = new CreateInCurrentAppAction(app(Apps::class));
 

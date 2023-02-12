@@ -36,7 +36,7 @@ class SetupAppsAction
      *
      * @return Apps
      */
-    public function execute() : Apps
+    public function execute(): Apps
     {
         $this->initSSettings();
         $this->initSystemModules();
@@ -51,7 +51,7 @@ class SetupAppsAction
      *
      * @return void
      */
-    protected function initSSettings() : void
+    protected function initSSettings(): void
     {
         foreach (AppSettingsEnums::cases() as $case) {
             $this->app->set($case->getValue(), AppEnums::fromName($case->name));
@@ -63,7 +63,7 @@ class SetupAppsAction
      *
      * @return void
      */
-    protected function initSystemModules() : void
+    protected function initSystemModules(): void
     {
         foreach (SystemModulesDefaults::cases() as $case) {
             $data = $case->getValue();
@@ -79,7 +79,7 @@ class SetupAppsAction
      *
      * @return void
      */
-    protected function initRoles() : void
+    protected function initRoles(): void
     {
         foreach (DefaultRoles::cases() as $case) {
             $createRole = new CreateAppRoleAction(
@@ -96,7 +96,7 @@ class SetupAppsAction
      *
      * @return void
      */
-    protected function initTemplates() : void
+    protected function initTemplates(): void
     {
         foreach (DefaultTemplates::cases() as $case) {
             $createTemplate = new CreateTemplate(

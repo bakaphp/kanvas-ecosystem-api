@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Queries\Users;
@@ -16,7 +17,7 @@ final class UsersList
      *
      * @return Users
      */
-    public function getFromCurrentCompany($rootValue, array $request) : Users
+    public function getFromCurrentCompany($rootValue, array $request): Users
     {
         return UsersRepository::getUserOfCompanyById(
             auth()->user()->getCurrentCompany(),

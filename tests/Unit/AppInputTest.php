@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Unit;
@@ -13,7 +14,7 @@ final class AppInputTest extends TestCaseUnit
      *
      * @return void
      */
-    public function testCreateAppsPostDataDto() : void
+    public function testCreateAppsPostDataDto(): void
     {
         $data = [
             'url' => 'example.com',

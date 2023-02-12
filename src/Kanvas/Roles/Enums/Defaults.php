@@ -13,7 +13,7 @@ enum Defaults implements EnumsInterface
     case DEFAULT;
     case DEFAULT_ROLES_NAMES;
 
-    public function getValue() : mixed
+    public function getValue(): mixed
     {
         return match ($this) {
             self::DEFAULT_ACL_COMPANY_ID => 1,

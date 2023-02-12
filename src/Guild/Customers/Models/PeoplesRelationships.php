@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Models;
@@ -25,7 +26,7 @@ class PeoplesRelationships extends BaseModel
     protected $table = 'leads_participants_types';
     protected $guarded = [];
 
-    public function company() : BelongsTo
+    public function company(): BelongsTo
     {
         return $this->belongsTo(
             Companies::class,

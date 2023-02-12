@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Models;
@@ -35,7 +36,7 @@ class Peoples extends BaseModel
     protected $table = 'peoples';
     protected $guarded = [];
 
-    public function address() : HasMany
+    public function address(): HasMany
     {
         return $this->hasMany(
             Address::class,
@@ -44,7 +45,7 @@ class Peoples extends BaseModel
         );
     }
 
-    public function contacts() : HasMany
+    public function contacts(): HasMany
     {
         return $this->hasMany(
             Contacts::class,

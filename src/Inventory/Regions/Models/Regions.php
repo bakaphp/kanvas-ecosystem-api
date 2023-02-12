@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Regions\Models;
@@ -41,7 +42,7 @@ class Regions extends BaseModel
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function companies() : BelongsTo
+    public function companies(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }
@@ -50,7 +51,7 @@ class Regions extends BaseModel
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function apps() : BelongsTo
+    public function apps(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
@@ -59,7 +60,7 @@ class Regions extends BaseModel
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function currencies() : BelongsTo
+    public function currencies(): BelongsTo
     {
         return $this->belongsTo(Currencies::class, 'currency_id');
     }

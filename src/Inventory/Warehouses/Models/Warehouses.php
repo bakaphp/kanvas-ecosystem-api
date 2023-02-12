@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Warehouses\Models;
@@ -41,7 +42,7 @@ class Warehouses extends BaseModel
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function companies() : BelongsTo
+    public function companies(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }
@@ -50,7 +51,7 @@ class Warehouses extends BaseModel
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function apps() : BelongsTo
+    public function apps(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
@@ -59,7 +60,7 @@ class Warehouses extends BaseModel
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function regions() : BelongsTo
+    public function regions(): BelongsTo
     {
         return $this->belongsTo(Regions::class, 'regions_id');
     }
@@ -69,7 +70,7 @@ class Warehouses extends BaseModel
      *
      * @return void
      */
-    public function quantity() : Attribute
+    public function quantity(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->quantity,
@@ -81,7 +82,7 @@ class Warehouses extends BaseModel
      *
      * @return Attribute
      */
-    public function price() : Attribute
+    public function price(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->price,
@@ -93,7 +94,7 @@ class Warehouses extends BaseModel
      *
      * @return Attribute
      */
-    public function sku() : Attribute
+    public function sku(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->sku,
@@ -105,77 +106,77 @@ class Warehouses extends BaseModel
      *
      * @return Attributre
      */
-    public function position() : Attribute
+    public function position(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->position,
         );
     }
 
-    public function serialNumber() : Attribute
+    public function serialNumber(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->serial_number,
         );
     }
 
-    public function isOversellable() : Attribute
+    public function isOversellable(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->is_oversellable,
         );
     }
 
-    public function isVariantDefault() : ?Attribute
+    public function isVariantDefault(): ?Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->is_default,
         );
     }
 
-    public function isBestSeller() : Attribute
+    public function isBestSeller(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->is_best_seller ?? 0,
         );
     }
 
-    public function isOnSale() : Attribute
+    public function isOnSale(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->is_on_sale ?? 0,
         );
     }
 
-    public function isOnPromo() : Attribute
+    public function isOnPromo(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->is_on_promo ?? 0,
         );
     }
 
-    public function canPreOrder() : Attribute
+    public function canPreOrder(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->can_pre_order ?? 0,
         );
     }
 
-    public function isComingSoon() : Attribute
+    public function isComingSoon(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->is_coming_soon ?? 0,
         );
     }
 
-    public function isNew() : Attribute
+    public function isNew(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->is_new ?? 0,
         );
     }
 
-    public function isVariantPublished() : ?Attribute
+    public function isVariantPublished(): ?Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->is_published

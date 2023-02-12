@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\DataTransferObject;
@@ -24,7 +25,7 @@ class Variants extends Data
     ) {
     }
 
-    public static function viaRequest(array $request) : self
+    public static function viaRequest(array $request): self
     {
         return new self(
             ProductsRepository::getById($request['products_id'], auth()->user()->getCurrentCompany()),

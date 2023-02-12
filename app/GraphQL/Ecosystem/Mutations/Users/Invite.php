@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Users;
@@ -21,7 +22,7 @@ class Invite
      *
      * @return UsersInvite
      */
-    public function insertInvite($rootValue, array $request) : UsersInvite
+    public function insertInvite($rootValue, array $request): UsersInvite
     {
         $request = $request['input'];
         $invite = new CreateInviteAction(
@@ -46,7 +47,7 @@ class Invite
      *
      * @return bool
      */
-    public function deleteInvite($rootValue, array $request) : bool
+    public function deleteInvite($rootValue, array $request): bool
     {
         $invite = UsersInviteRepository::getById(
             $request['id'],
@@ -65,7 +66,7 @@ class Invite
      *
      * @return UsersInvite
      */
-    public function get($rootValue, array $request) : UsersInvite
+    public function get($rootValue, array $request): UsersInvite
     {
         //$action = new ProcessInviteAction($request['hash'], $request['password']);
         return UsersInviteRepository::getByHash($request['hash']);
@@ -79,7 +80,7 @@ class Invite
      *
      * @return Users
      */
-    public function process($rootValue, array $request) : Users
+    public function process($rootValue, array $request): Users
     {
         $action = new ProcessInviteAction(
             CompleteInviteInput::from($request['input'])

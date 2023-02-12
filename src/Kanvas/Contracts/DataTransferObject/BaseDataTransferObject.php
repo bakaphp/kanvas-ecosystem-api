@@ -19,7 +19,7 @@ abstract class BaseDataTransferObject extends DataTransferObject
      *
      * @return self
      */
-    abstract public static function viaRequest(Request $request) : self;
+    abstract public static function viaRequest(Request $request): self;
 
     /**
      * Create new instance of DTO from array of data.
@@ -28,14 +28,14 @@ abstract class BaseDataTransferObject extends DataTransferObject
      *
      * @return self
      */
-    abstract public static function fromArray(array $data) : self;
+    abstract public static function fromArray(array $data): self;
 
     /**
      * Spit all filled fields as an array.
      *
      * @return array
      */
-    public function spitFilledAsArray() : array
+    public function spitFilledAsArray(): array
     {
         foreach ($this as $key => $value) {
             if (empty($value)) {

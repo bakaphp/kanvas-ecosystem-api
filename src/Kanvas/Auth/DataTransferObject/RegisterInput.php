@@ -42,7 +42,7 @@ class RegisterInput extends Data
      *
      * @return self
      */
-    public static function viaRequest(Request $request) : self
+    public static function viaRequest(Request $request): self
     {
         return new self(
             firstname: $request->get('firstname') ?? '',
@@ -61,7 +61,7 @@ class RegisterInput extends Data
      *
      * @return self
      */
-    public static function fromArray(array $request) : self
+    public static function fromArray(array $request): self
     {
         return new self(
             firstname: $request['firstname'] ?? '',

@@ -13,7 +13,7 @@ class Timestamp
      *
      * @return bool
      */
-    public static function isValid(?int $timestamp = null) : bool
+    public static function isValid(?int $timestamp = null): bool
     {
         return ((string) (int) $timestamp === $timestamp)
         && ($timestamp <= PHP_INT_MAX)

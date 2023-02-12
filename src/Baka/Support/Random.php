@@ -14,7 +14,7 @@ class Random
      *
      * @return string
      */
-    public static function generateDisplayName(string $displayname, $randNo = 200) : string
+    public static function generateDisplayName(string $displayname, $randNo = 200): string
     {
         $displayname = Str::cleanup($displayname);
         $usernameParts = array_filter(explode(' ', strtolower($displayname))); //explode and lowercase name
@@ -35,7 +35,7 @@ class Random
      *
      * @return string
      */
-    public static function generateDisplayNameFromEmail(string $email) : string
+    public static function generateDisplayNameFromEmail(string $email): string
     {
         return self::generateDisplayName($email);
     }

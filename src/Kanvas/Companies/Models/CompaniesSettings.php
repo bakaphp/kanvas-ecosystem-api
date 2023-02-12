@@ -29,7 +29,7 @@ class CompaniesSettings extends BaseModel
      *
      * @return Companies
      */
-    public function companies() : BelongsTo
+    public function companies(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Social\Interactions\Models;
@@ -24,7 +25,7 @@ class UsersInteractions extends BaseModel
     protected $table = 'users_interactions';
     protected $guarded = [];
 
-    public function interaction() : BelongsTo
+    public function interaction(): BelongsTo
     {
         return $this->belongsTo(Interactions::class, 'interactions_id', 'id');
     }

@@ -21,7 +21,7 @@ class CreateRole extends Command
      */
     protected $description = 'Command description';
 
-    public function handle() : void
+    public function handle(): void
     {
         $role = Bouncer::role()->firstOrCreate([
             'name' => $this->argument('name'),

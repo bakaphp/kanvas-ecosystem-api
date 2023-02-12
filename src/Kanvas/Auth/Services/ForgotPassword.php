@@ -28,7 +28,7 @@ class ForgotPassword
      *
      * @return Users
      */
-    public function forgot(string $email) : Users
+    public function forgot(string $email): Users
     {
         $recoverUser = Users::getByEmail($email);
         $recoverUser->generateForgotHash();
@@ -49,7 +49,7 @@ class ForgotPassword
      *
      * @return bool
      */
-    public function reset(string $newPassword, string $hashKey) : bool
+    public function reset(string $newPassword, string $hashKey): bool
     {
         $recoverUser = Users::where(
             [

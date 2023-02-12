@@ -11,9 +11,9 @@ use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException
 
 trait SearchableTrait
 {
-    abstract public static function getModel() : Model;
+    abstract public static function getModel(): Model;
 
-    public static function getById(int $id, ?CompanyInterface $company = null) : Model
+    public static function getById(int $id, ?CompanyInterface $company = null): Model
     {
         $company = $company ?? auth()->user()->getCurrentCompany();
 
@@ -28,7 +28,7 @@ trait SearchableTrait
         }
     }
 
-    public static function getByUuid(string $uuid, ?CompanyInterface $company = null) : Model
+    public static function getByUuid(string $uuid, ?CompanyInterface $company = null): Model
     {
         $company = $company ?? auth()->user()->getCurrentCompany();
 
@@ -43,7 +43,7 @@ trait SearchableTrait
         }
     }
 
-    public static function getByName(string $name, ?CompanyInterface $company = null) : Model
+    public static function getByName(string $name, ?CompanyInterface $company = null): Model
     {
         $company = $company ?? auth()->user()->getCurrentCompany();
 

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Products;
@@ -21,7 +22,7 @@ class Products
      *
      * @return ProductsModel
      */
-    public function create(mixed $root, array $req) : ProductsModel
+    public function create(mixed $root, array $req): ProductsModel
     {
         $productDto = ProductDto::viaRequest($req['input']);
         $action = new CreateProductAction($productDto, auth()->user());
@@ -36,7 +37,7 @@ class Products
      *
      * @return ProductsModel
      */
-    public function update(mixed $root, array $req) : ProductsModel
+    public function update(mixed $root, array $req): ProductsModel
     {
         $product = ProductsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
         $product->update($req['input']);
@@ -51,7 +52,7 @@ class Products
      *
      * @return bool
      */
-    public function delete(mixed $root, array $req) : bool
+    public function delete(mixed $root, array $req): bool
     {
         $product = ProductsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
         return $product->softDelete();
@@ -65,7 +66,7 @@ class Products
      *
      * @return ProductsModel
      */
-    public function addAttribute(mixed $root, array $req) : ProductsModel
+    public function addAttribute(mixed $root, array $req): ProductsModel
     {
         $product = ProductsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
         $attribute = AttributesRepository::getById($req['attribute_id'], auth()->user()->getCurrentCompany());
@@ -81,7 +82,7 @@ class Products
      *
      * @return ProductsModel
      */
-    public function removeAttribute(mixed $root, array $req) : ProductsModel
+    public function removeAttribute(mixed $root, array $req): ProductsModel
     {
         $product = ProductsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
         $attribute = AttributesRepository::getById($req['attribute_id'], auth()->user()->getCurrentCompany());
@@ -97,7 +98,7 @@ class Products
      *
      * @return ProductsModel
      */
-    public function addWarehouse(mixed $root, array $req) : ProductsModel
+    public function addWarehouse(mixed $root, array $req): ProductsModel
     {
         $product = ProductsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
         $product->warehouses()->attach($req['warehouse_id']);
@@ -112,7 +113,7 @@ class Products
      *
      * @return ProductsModel
      */
-    public function removeWarehouse(mixed $root, array $req) : ProductsModel
+    public function removeWarehouse(mixed $root, array $req): ProductsModel
     {
         $product = ProductsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
         $product->warehouses()->detach($req['warehouse_id']);
@@ -127,7 +128,7 @@ class Products
      *
      * @return ProductsModel
      */
-    public function addCategory(mixed $root, array $req) : ProductsModel
+    public function addCategory(mixed $root, array $req): ProductsModel
     {
         $product = ProductsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
         $product->categories()->attach($req['category_id']);
@@ -142,7 +143,7 @@ class Products
      *
      * @return ProductsModel
      */
-    public function removeCategory(mixed $root, array $req) : ProductsModel
+    public function removeCategory(mixed $root, array $req): ProductsModel
     {
         $product = ProductsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
         $product->categories()->detach($req['category_id']);

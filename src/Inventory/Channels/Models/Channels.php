@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Channels\Models;
@@ -41,7 +42,7 @@ class Channels extends BaseModel
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function companies() : BelongsTo
+    public function companies(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }
@@ -50,7 +51,7 @@ class Channels extends BaseModel
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function apps() : BelongsTo
+    public function apps(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
@@ -60,7 +61,7 @@ class Channels extends BaseModel
      *
      * @return BelongsTo
      */
-    public function users() : BelongsTo
+    public function users(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
     }
@@ -70,7 +71,7 @@ class Channels extends BaseModel
      *
      * @return Attribute
      */
-    protected function warehousesId() : Attribute
+    protected function warehousesId(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->warehouses_id,
@@ -82,7 +83,7 @@ class Channels extends BaseModel
      *
      * @return Attribute
      */
-    protected function discountedPrice() : Attribute
+    protected function discountedPrice(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->discounted_price,
@@ -94,7 +95,7 @@ class Channels extends BaseModel
      *
      * @return Attribute
      */
-    protected function price() : Attribute
+    protected function price(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->price,
@@ -106,7 +107,7 @@ class Channels extends BaseModel
      *
      * @return Attribute
      */
-    protected function isPublished() : Attribute
+    protected function isPublished(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->is_published,

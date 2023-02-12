@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Users\Repositories;
@@ -24,7 +25,7 @@ class UsersRepository
      *
      * @return Users
      */
-    public static function getById(int $id, int $companiesId) : Users
+    public static function getById(int $id, int $companiesId): Users
     {
         return Users::join('users_associated_company', 'users_associated_company.users_id', 'users.id')
             ->where('users_associated_company.companies_id', $companiesId)
@@ -39,7 +40,7 @@ class UsersRepository
      *
      * @return Users
      */
-    public static function getByEmail(string $email) : Users
+    public static function getByEmail(string $email): Users
     {
         return Users::where('email', $email)
             ->firstOrFail();
@@ -53,7 +54,7 @@ class UsersRepository
      *
      * @return Users
      */
-    public static function getUserOfCompanyById(Companies $company, int $id) : Users
+    public static function getUserOfCompanyById(Companies $company, int $id): Users
     {
         return Users::join('users_associated_company', 'users_associated_company.users_id', 'users.id')
             ->where('users_associated_company.companies_id', $company->getKey())
@@ -68,7 +69,7 @@ class UsersRepository
      *
      * @return Users
      */
-    public static function getUserOfAppById(int $id) : Users
+    public static function getUserOfAppById(int $id): Users
     {
         return Users::join('users_associated_apps', 'users_associated_apps.users_id', 'users.id')
             ->where('users_associated_apps.apps_id', app(Apps::class))
@@ -83,7 +84,7 @@ class UsersRepository
      *
      * @return Users
      */
-    public static function getAll(int $companiesId) : Collection
+    public static function getAll(int $companiesId): Collection
     {
         return Users::join('users_associated_company', 'users_associated_company.users_id', 'users.id')
             ->where('users_associated_company.companies_id', $companiesId)
@@ -102,7 +103,7 @@ class UsersRepository
      * @throws Exception
      *
      */
-    public static function belongsToCompany(Users $user, Companies $company) : UsersAssociatedCompanies
+    public static function belongsToCompany(Users $user, Companies $company): UsersAssociatedCompanies
     {
         try {
             return UsersAssociatedCompanies::where('users_id', $user->getKey())
@@ -125,7 +126,7 @@ class UsersRepository
      * @throws Exception
      *
      */
-    public static function belongsToCompanyBranch(Users $user, Companies $company, CompaniesBranches $branch) : UsersAssociatedCompanies
+    public static function belongsToCompanyBranch(Users $user, Companies $company, CompaniesBranches $branch): UsersAssociatedCompanies
     {
         try {
             return UsersAssociatedCompanies::where('users_id', $user->getKey())
@@ -150,7 +151,7 @@ class UsersRepository
      * @throws ExceptionsModelNotFoundException
      *
      */
-    public static function belongsToThisApp(Users $user, Apps $app, ?Companies $company = null) : UsersAssociatedApps
+    public static function belongsToThisApp(Users $user, Apps $app, ?Companies $company = null): UsersAssociatedApps
     {
         try {
             $companies = $company ? [AppEnums::GLOBAL_COMPANY_ID->getValue(), $company->getKey()] : [AppEnums::GLOBAL_COMPANY_ID->getValue()];
@@ -174,7 +175,7 @@ class UsersRepository
      *
      * @throws ExceptionsModelNotFoundException
      */
-    public static function userOwnsThisApp(Users $user, Apps $app) : UsersAssociatedApps
+    public static function userOwnsThisApp(Users $user, Apps $app): UsersAssociatedApps
     {
         try {
             //for now user who own / created the app have global company id assign the tthem

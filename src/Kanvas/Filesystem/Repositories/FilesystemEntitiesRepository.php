@@ -22,7 +22,7 @@ class FilesystemEntitiesRepository
      *
      * @return FilesystemEntities
      */
-    public static function getByIdAdnEntity(int $id, Model $entity, bool $isDeleted = false) : FilesystemEntities
+    public static function getByIdAdnEntity(int $id, Model $entity, bool $isDeleted = false): FilesystemEntities
     {
         $app = app(Apps::class);
         $systemModule = SystemModulesRepository::getByModelName($entity::class);
@@ -48,7 +48,7 @@ class FilesystemEntitiesRepository
      *
      * @return Collection<FilesystemEntities>
      */
-    public static function getFilesByEntity(Model $entity) : Collection
+    public static function getFilesByEntity(Model $entity): Collection
     {
         $systemModule = SystemModulesRepository::getByModelName($entity::class);
 
@@ -67,7 +67,7 @@ class FilesystemEntitiesRepository
      *
      * @return int
      */
-    public static function deleteAllFilesFromEntity(Model $entity) : int
+    public static function deleteAllFilesFromEntity(Model $entity): int
     {
         $systemModule = SystemModulesRepository::getByModelName($entity::class);
 
