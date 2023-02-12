@@ -74,6 +74,13 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\Register@resolve"
         )
+    changePassword(
+        new_password: String! @rules(apply: ["string", "confirmed"])
+        new_password_confirmation: String
+    ): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagement@changePassword"
+        )
     forgotPassword(data: ForgotPasswordInput!): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\ForgotPassword@forgot"
@@ -83,6 +90,8 @@ extend type Mutation {
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\ForgotPassword@reset"
         )
 }
+
+
 
 type Query @guard {
     me: User! @auth

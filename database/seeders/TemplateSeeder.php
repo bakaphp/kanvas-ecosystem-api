@@ -1,5 +1,4 @@
 <?php
-
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
@@ -27,6 +26,14 @@ class TemplateSeeder extends Seeder
             'users_id' => 1,
             'companies_id' => 1,
             'name' => 'users-invite',
+            'template' => '{{$name}}',
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+        Templates::create([
+            'apps_id' => 1,
+            'users_id' => 1,
+            'companies_id' => 1,
+            'name' => 'change-password',
             'template' => '{{$name}}',
             'created_at' => date('Y-m-d H:i:s'),
         ]);
