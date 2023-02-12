@@ -81,8 +81,7 @@ class Notification extends LaravelNotification implements EmailInterfaces
     {
         return Blade::render(
             TemplatesRepository::getByName($this->templateName)->template,
-            $this->getData(),
-            true
+            $this->getData()
         );
     }
 
