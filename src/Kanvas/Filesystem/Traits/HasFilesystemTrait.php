@@ -77,7 +77,7 @@ trait HasFilesystemTrait
     public function addMultipleFiles(array $files): bool
     {
         foreach ($files as $file) {
-            if (!isset($file['file']) || !isset($file['fieldName'])) {
+            if (! isset($file['file']) || ! isset($file['fieldName'])) {
                 throw new ValidationException('Missing file || fieldName index');
             }
 
@@ -113,8 +113,14 @@ trait HasFilesystemTrait
             'id',
             'id',
             'filesystem_id'
-        )->where('filesystem_entities.system_modules_id', SystemModulesRepository::getByModelName(get_class($this))->getId())
-        ->where('filesystem_entities.is_deleted', StateEnums::NO->getValue());
+        )->where(
+            'filesystem_entities.system_modules_id',
+            SystemModulesRepository::getByModelName(get_class($this))->getId()
+        )
+        ->where(
+            'filesystem_entities.is_deleted',
+            StateEnums::NO->getValue()
+        );
     }
 
     /**

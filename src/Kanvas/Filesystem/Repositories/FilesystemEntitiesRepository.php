@@ -37,7 +37,9 @@ class FilesystemEntitiesRepository
         return FilesystemEntities::where('id', $id)
                                 ->where('system_modules_id', $systemModule->getKey())
                                 ->where('is_deleted', StateEnums::NO->getValue())
-                                ->whereRaw("filesystem_id in (SELECT s.id from Filesystem s WHERE s.apps_id = {$app->getKey()}")
+                                ->whereRaw(
+                                    "filesystem_id in (SELECT s.id from Filesystem s WHERE s.apps_id = {$app->getKey()}"
+                                )
                                 ->firstOrFail();
     }
 
