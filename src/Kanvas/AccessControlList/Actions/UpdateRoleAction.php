@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\AccessControlList\Actions;
@@ -32,7 +33,7 @@ class UpdateRoleAction
      *
      * @return Role
      */
-    public function execute(?Companies $company = null) : Role
+    public function execute(?Companies $company = null): Role
     {
         $role = Role::find($this->id);
 

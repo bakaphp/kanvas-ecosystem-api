@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Channels\Repositories;
@@ -10,7 +11,7 @@ class ChannelRepository
 {
     use SearchableTrait;
 
-    public static function getModel() : Channels
+    public static function getModel(): Channels
     {
         return new Channels();
     }

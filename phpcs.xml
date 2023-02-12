@@ -3,11 +3,6 @@
     <description>Phalcon Coding Standards</description>
     <arg value="-colors" />
     <arg value="s" />
-    <rule ref="PSR2">
-        <exclude name="PSR2.Methods.MethodDeclaration.Underscore" />
-        <exclude name="Generic.Files.LineLength.TooLong" />
-        <exclude name="PSR1.Files.SideEffects.FoundWithSymbols" />
-    </rule>
 
     <!-- 2.3 Lines -->
 
@@ -30,6 +25,19 @@
     <!-- Visibility MUST be declared on all methods. -->
     <rule ref="Squiz.Scope.MethodScope" />
     <rule ref="Squiz.WhiteSpace.ScopeKeywordSpacing" />
+
+    <!-- Ban some functions -->
+    <rule ref="Generic.PHP.ForbiddenFunctions">
+        <properties>
+            <property name="forbiddenFunctions" type="array">
+                <element key="sizeof" value="count"/>
+                <element key="delete" value="unset"/>
+                <element key="print" value="echo"/>
+                <element key="is_null" value="null"/>
+                <element key="create_function" value="null"/>
+            </property>
+        </properties>
+    </rule>
 
     <!-- 5. Control Structures -->
 

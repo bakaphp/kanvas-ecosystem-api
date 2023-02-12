@@ -6,7 +6,7 @@ namespace Baka\Contracts;
 
 interface AppInterface
 {
-    public function getId() : mixed;
+    public function getId(): mixed;
 
-    public function getUuid() : string;
+    public function getUuid(): string;
 }

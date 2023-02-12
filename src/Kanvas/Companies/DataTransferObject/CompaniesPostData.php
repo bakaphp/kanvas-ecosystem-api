@@ -42,7 +42,7 @@ class CompaniesPostData extends Data
      *
      * @return self
      */
-    public static function viaRequest(Request $request) : self
+    public static function viaRequest(Request $request): self
     {
         return new self(
             users_id: Auth::user()->id,
@@ -57,7 +57,7 @@ class CompaniesPostData extends Data
      *
      * @return self
      */
-    public static function fromConsole(array $data) : self
+    public static function fromConsole(array $data): self
     {
         return new self(
             name: $data['name'],
@@ -81,7 +81,7 @@ class CompaniesPostData extends Data
      *
      * @return self
      */
-    public static function fromArray(array $data) : self
+    public static function fromArray(array $data): self
     {
         return new self(
             name: $data['name'],

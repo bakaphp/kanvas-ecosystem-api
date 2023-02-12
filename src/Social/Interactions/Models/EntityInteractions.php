@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Social\Interactions\Models;
@@ -26,7 +27,7 @@ class EntityInteractions extends BaseModel
     protected $table = 'entity_interactions';
     protected $guarded = [];
 
-    public function interaction() : BelongsTo
+    public function interaction(): BelongsTo
     {
         return $this->belongsTo(Interactions::class, 'interactions_id', 'id');
     }
@@ -36,7 +37,7 @@ class EntityInteractions extends BaseModel
      *
      * @return Model|null
      */
-    public function interactedEntityData() : ?Model
+    public function interactedEntityData(): ?Model
     {
         return $this->interacted_entity_namespace::getById($this->interacted_entity_id);
     }

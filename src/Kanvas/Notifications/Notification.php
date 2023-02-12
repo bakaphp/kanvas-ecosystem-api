@@ -1,8 +1,10 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Notifications;
 
+use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification as LaravelNotification;
 use Illuminate\Support\Facades\Blade;
@@ -10,23 +12,26 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Channels\KanvasDatabase as KanvasDatabaseChannel;
 use Kanvas\Notifications\Interfaces\EmailInterfaces;
 use Kanvas\Notifications\Models\NotificationTypes;
-use Kanvas\Templates\Models\Templates;
 use Kanvas\Templates\Repositories\TemplatesRepository;
 
 class Notification extends LaravelNotification implements EmailInterfaces
 {
+    use Queueable;
+
     public object $entity;
     public object $type;
     public string $templateName = 'default';
 
     /**
-     * via.
+     * Create a new notification channel.
      *
      * @return array
      */
     public function via(): array
     {
-        return [KanvasDatabaseChannel::class];
+        return [
+            KanvasDatabaseChannel::class
+        ];
     }
 
     /**
@@ -38,7 +43,7 @@ class Notification extends LaravelNotification implements EmailInterfaces
      */
     public function toMail($notifiable): MailMessage
     {
-        return (new MailMessage)
+        return (new MailMessage())
                 ->from(config('mail.from.address'), config('mail.from.name'))
                 ->view('emails.layout', ['html' => $this->message()]);
     }
@@ -46,11 +51,11 @@ class Notification extends LaravelNotification implements EmailInterfaces
     /**
      * toKanvasDatabase.
      *
-     * @param  mixed $notifiable
+     * @param object $notifiable
      *
-     * @return void
+     * @return array
      */
-    public function toKanvasDatabase($notifiable)
+    public function toKanvasDatabase(object $notifiable): array
     {
         return [
             'users_id' => $notifiable->id ?? auth()->user()->id,
@@ -75,9 +80,10 @@ class Notification extends LaravelNotification implements EmailInterfaces
      */
     public function message(): string
     {
-        $template = new Templates();
-        $html = Blade::render(TemplatesRepository::getByName($this->templateName)->template, $this->getData());
-        return $html;
+        return Blade::render(
+            TemplatesRepository::getByName($this->templateName)->template,
+            $this->getData()
+        );
     }
 
     /**
@@ -94,7 +100,7 @@ class Notification extends LaravelNotification implements EmailInterfaces
     /**
      * setType.
      *
-     * @param  string $type
+     * @param string $type
      *
      * @return void
      */

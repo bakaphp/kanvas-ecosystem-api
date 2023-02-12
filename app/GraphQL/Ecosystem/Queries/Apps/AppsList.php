@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Queries\Apps;
@@ -16,7 +17,7 @@ final class AppsList
      *
      * @return Users
      */
-    public function getAppSettings($rootValue, array $request) : array
+    public function getAppSettings($rootValue, array $request): array
     {
         $app = AppsRepository::findFirstByKey($request['key']);
 

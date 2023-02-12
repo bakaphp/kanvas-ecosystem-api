@@ -17,7 +17,7 @@ trait AuthTrait
      *
      * @return Users
      */
-    protected function login(LoginInput $loginInput) : Users
+    protected function login(LoginInput $loginInput): Users
     {
         $remember = 1;
         $admin = 0;

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\GraphQL\Inventory;
@@ -85,7 +86,7 @@ class VariantTest extends TestCase
      *
      * @return void
      */
-    public function testAddVariantToWarehouse():void
+    public function testAddVariantToWarehouse(): void
     {
         $dataRegion = [
             'name' => 'Test Region',

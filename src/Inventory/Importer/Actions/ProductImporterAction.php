@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Importer\Actions;
@@ -69,7 +70,7 @@ class ProductImporterAction
      *
      * @return bool
      */
-    public function execute() : bool
+    public function execute(): bool
     {
         try {
             DB::connection('inventory')->beginTransaction();
@@ -102,7 +103,7 @@ class ProductImporterAction
 
             if (!empty($this->importedProduct->files)) {
                 foreach ($this->importedProduct->files as $file) {
-                    $this->product->attachUrl($file['url'], $file['name']);
+                    $this->product->addFileFromUrl($file['url'], $file['name']);
                 }
             }
 
@@ -133,7 +134,7 @@ class ProductImporterAction
      *
      * @return void
      */
-    protected function productType() : void
+    protected function productType(): void
     {
         $productType = null;
 
@@ -166,7 +167,7 @@ class ProductImporterAction
      *
      * @return void
      */
-    public function categories() : void
+    public function categories(): void
     {
         foreach ($this->importedProduct->categories as $category) {
             $categoryModel = null;
@@ -201,7 +202,7 @@ class ProductImporterAction
      *
      * @return void
      */
-    public function attributes() : void
+    public function attributes(): void
     {
         foreach ($this->importedProduct->attributes as $attribute) {
             $attributeModel = null;
@@ -226,7 +227,7 @@ class ProductImporterAction
         }
     }
 
-    public function productWarehouse() : void
+    public function productWarehouse(): void
     {
         foreach ($this->importedProduct->warehouses as $warehouseLocation) {
             $warehouseData = Warehouses::from([
@@ -249,7 +250,7 @@ class ProductImporterAction
      *
      * @return void
      */
-    public function variants() : void
+    public function variants(): void
     {
         foreach ($this->importedProduct->variants as $variant) {
             $variantModel = null;
@@ -274,7 +275,7 @@ class ProductImporterAction
 
             if (!empty($variant['files'])) {
                 foreach ($variant['files'] as $file) {
-                    $variantModel->attachUrl($file['url'], $file['name']);
+                    $variantModel->addFileFromUrl($file['url'], $file['name']);
                 }
             }
 
@@ -284,7 +285,7 @@ class ProductImporterAction
         }
     }
 
-    public function variantsAttributes(VariantsModel $variantModel, array $variantData) : void
+    public function variantsAttributes(VariantsModel $variantModel, array $variantData): void
     {
         if (isset($variantData['attributes']) && !empty($variantData['attributes'])) {
             foreach ($variantData['attributes'] as $attribute) {
@@ -318,7 +319,7 @@ class ProductImporterAction
      *
      * @return void
      */
-    public function addVariantsToLocation(VariantsModel $variantModel) : void
+    public function addVariantsToLocation(VariantsModel $variantModel): void
     {
         //add to warehouse
         foreach ($this->importedProduct->warehouses as $warehouseLocation) {

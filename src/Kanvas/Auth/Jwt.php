@@ -22,7 +22,7 @@ class Jwt
      *
      * @return Configuration
      */
-    public static function getConfig() : Configuration
+    public static function getConfig(): Configuration
     {
         return  Configuration::forSymmetricSigner(
             // You may use any HMAC variations (256, 384, and 512)
@@ -39,7 +39,7 @@ class Jwt
      *
      * @return Plain
      */
-    public static function createToken(string $sessionId, string $email, float $expirationAt = 0) : Plain
+    public static function createToken(string $sessionId, string $email, float $expirationAt = 0): Plain
     {
         $now = new DateTimeImmutable();
         $config = self::getConfig();
@@ -70,7 +70,7 @@ class Jwt
      *
      * @return bool
      */
-    public static function validateToken(Token $token) : bool
+    public static function validateToken(Token $token): bool
     {
         $config = Jwt::getConfig();
 

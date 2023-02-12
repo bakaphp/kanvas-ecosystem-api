@@ -10,7 +10,8 @@ use Kanvas\Users\Models\Users;
 
 class Mail extends Mailable
 {
-    use Queueable, SerializesModels;
+    use Queueable;
+    use SerializesModels;
 
     /**
      * The user instance.

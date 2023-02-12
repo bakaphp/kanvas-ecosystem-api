@@ -29,7 +29,7 @@ class AttachFilesystemAction
      *
      * @return FilesystemEntities
      */
-    public function execute(string $fieldName, ?int $id = null) : FilesystemEntities
+    public function execute(string $fieldName, ?int $id = null): FilesystemEntities
     {
         $systemModule = SystemModulesRepository::getByModelName($this->entity::class);
         $update = (int) $id > 0;

@@ -32,7 +32,7 @@ class FilesystemSettings extends BaseModel
      *
      * @return Filesystem
      */
-    public function filesystem() : BelongsTo
+    public function filesystem(): BelongsTo
     {
         return $this->belongsTo(Filesystem::class, 'filesystem_id');
     }

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\ProductsTypes\Actions;
@@ -27,7 +28,7 @@ class CreateProductTypeAction
      *
      * @return ProductsTypes
      */
-    public function execute() : ProductsTypes
+    public function execute(): ProductsTypes
     {
         CompaniesRepository::userAssociatedToCompany(
             $this->data->company,

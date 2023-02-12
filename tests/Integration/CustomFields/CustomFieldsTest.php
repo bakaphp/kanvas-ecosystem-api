@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Integration\CustomFields;
@@ -8,7 +9,7 @@ use Tests\TestCase;
 
 final class CustomFieldsTest extends TestCase
 {
-    public function createTemplate() : Templates
+    public function createTemplate(): Templates
     {
         return Templates::firstOrCreate([
             'users_id' => 1,

@@ -18,7 +18,7 @@ class CompaniesGroupsRepository
      *
      * @return CompaniesAssociations
      */
-    public static function associate(CompaniesGroups $companyGroup, Companies $company, int $isDefault = 1) : CompaniesAssociations
+    public static function associate(CompaniesGroups $companyGroup, Companies $company, int $isDefault = 1): CompaniesAssociations
     {
         $companiesAssoc = new CompaniesAssociations();
         $companiesAssoc->companies_id = $company->getKey();

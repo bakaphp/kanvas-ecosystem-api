@@ -47,7 +47,7 @@ class UsersAssociatedCompanies extends BaseModel
      *
      * @return Users
      */
-    public function user() : BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
     }
@@ -57,7 +57,7 @@ class UsersAssociatedCompanies extends BaseModel
      *
      * @return Companies
      */
-    public function company() : BelongsTo
+    public function company(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem;
@@ -13,7 +14,7 @@ class NotificationSettingTest extends TestCase
      *
      * @return void
      */
-    public function testListAllSetting() : void
+    public function testListAllSetting(): void
     {
         $email = fake()->email;
 
@@ -66,7 +67,7 @@ class NotificationSettingTest extends TestCase
      *
      * @return void
      */
-    public function testMuteAll() : void
+    public function testMuteAll(): void
     {
         $email = fake()->email;
 
@@ -114,7 +115,7 @@ class NotificationSettingTest extends TestCase
      *
      * @return void
      */
-    public function testSetNotificationSettings() : void
+    public function testSetNotificationSettings(): void
     {
         $email = fake()->email;
 

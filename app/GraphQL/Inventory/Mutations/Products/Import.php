@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Products;
@@ -20,7 +21,7 @@ class Import
      *
      * @return string
      */
-    public function product(mixed $root, array $req) : string
+    public function product(mixed $root, array $req): string
     {
         $company = Companies::getById($req['companyId']);
 

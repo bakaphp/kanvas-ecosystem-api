@@ -1,11 +1,13 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Models;
 
+use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Guild\Models\BaseModel;
 use Laravel\Scout\Searchable;
 
 /**
@@ -29,11 +31,12 @@ class Peoples extends BaseModel
 {
     use UuidTrait;
     use Searchable;
+    use NoAppRelationshipTrait;
 
     protected $table = 'peoples';
     protected $guarded = [];
 
-    public function address() : HasMany
+    public function address(): HasMany
     {
         return $this->hasMany(
             Address::class,
@@ -42,7 +45,7 @@ class Peoples extends BaseModel
         );
     }
 
-    public function contacts() : HasMany
+    public function contacts(): HasMany
     {
         return $this->hasMany(
             Contacts::class,

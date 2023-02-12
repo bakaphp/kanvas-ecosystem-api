@@ -16,7 +16,7 @@ class SystemModulesRepository
      *
      * @return SystemModules
      */
-    public static function getByModelName(string $modelName, ?Apps $app = null) : SystemModules
+    public static function getByModelName(string $modelName, ?Apps $app = null): SystemModules
     {
         $app = $app === null ? app(Apps::class) : $app;
 
@@ -39,7 +39,7 @@ class SystemModulesRepository
      *
      * @return SystemModules
      */
-    public static function getByName(string $name, ?Apps $app = null) : SystemModules
+    public static function getByName(string $name, ?Apps $app = null): SystemModules
     {
         $app = $app === null ? app(Apps::class) : $app;
         return SystemModules::where('name', $name)
@@ -54,7 +54,7 @@ class SystemModulesRepository
      *
      * @return ModelInterface
      */
-    public static function getById(int $id, ?Apps $app = null) : SystemModules
+    public static function getById(int $id, ?Apps $app = null): SystemModules
     {
         $app = $app === null ? app(Apps::class) : $app;
         return SystemModules::where('id', $id)
@@ -69,7 +69,7 @@ class SystemModulesRepository
      *
      * @return ModelInterface
      */
-    public static function getBySlug(string $slug, ?Apps $app = null) : SystemModules
+    public static function getBySlug(string $slug, ?Apps $app = null): SystemModules
     {
         $app = $app === null ? app(Apps::class) : $app;
         return SystemModules::where('string', $slug)

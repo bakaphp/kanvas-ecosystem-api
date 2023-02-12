@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Enums;
@@ -16,7 +17,7 @@ enum SubscriptionTypeEnums implements EnumsInterface
      *
      * @return mixed
      */
-    public function getValue() : mixed
+    public function getValue(): mixed
     {
         return match ($this) {
             self::GROUP => 1,
