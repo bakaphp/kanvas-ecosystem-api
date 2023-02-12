@@ -103,7 +103,7 @@ class ProductImporterAction
 
             if (!empty($this->importedProduct->files)) {
                 foreach ($this->importedProduct->files as $file) {
-                    $this->product->attachUrl($file['url'], $file['name']);
+                    $this->product->addFileFromUrl($file['url'], $file['name']);
                 }
             }
 
@@ -275,7 +275,7 @@ class ProductImporterAction
 
             if (!empty($variant['files'])) {
                 foreach ($variant['files'] as $file) {
-                    $variantModel->attachUrl($file['url'], $file['name']);
+                    $variantModel->addFileFromUrl($file['url'], $file['name']);
                 }
             }
 
