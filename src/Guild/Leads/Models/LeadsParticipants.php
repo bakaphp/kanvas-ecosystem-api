@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
@@ -30,7 +31,7 @@ class LeadsParticipants extends BaseModel
     protected $table = 'leads_participants';
     protected $guarded = [];
 
-    public function people() : BelongsTo
+    public function people(): BelongsTo
     {
         return $this->belongsTo(
             Peoples::class,
@@ -39,7 +40,7 @@ class LeadsParticipants extends BaseModel
         );
     }
 
-    public function lead() : BelongsTo
+    public function lead(): BelongsTo
     {
         return $this->belongsTo(
             Leads::class,
@@ -48,7 +49,7 @@ class LeadsParticipants extends BaseModel
         );
     }
 
-    public function type() : BelongsTo
+    public function type(): BelongsTo
     {
         return $this->belongsTo(
             PeoplesRelationships::class,

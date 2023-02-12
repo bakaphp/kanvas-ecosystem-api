@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Inventory\Integration;
@@ -10,7 +11,7 @@ use Tests\TestCase;
 
 final class SetupTest extends TestCase
 {
-    public function testInitializeANewCompany() : void
+    public function testInitializeANewCompany(): void
     {
         $company = auth()->user()->getCurrentCompany();
         $setupCompany = new Setup(

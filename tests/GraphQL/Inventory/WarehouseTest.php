@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\GraphQL\Inventory;
@@ -12,7 +13,7 @@ class WarehouseTest extends TestCase
      *
      * @return void
      */
-    public function testCreateWarehouse() : void
+    public function testCreateWarehouse(): void
     {
         $data = [
             'name' => 'Test Region',
@@ -69,7 +70,7 @@ class WarehouseTest extends TestCase
      *
      * @return void
      */
-    public function testFindWarehouse() : void
+    public function testFindWarehouse(): void
     {
         $data = [
             'name' => 'Test Region',
@@ -144,7 +145,7 @@ class WarehouseTest extends TestCase
      *
      * @return void
      */
-    public function testUpdateWarehouse() : void
+    public function testUpdateWarehouse(): void
     {
         $data = [
             'name' => 'Test Region',
@@ -226,7 +227,7 @@ class WarehouseTest extends TestCase
         ]);
     }
 
-    public function testDeleteWarehouse() : void
+    public function testDeleteWarehouse(): void
     {
         $data = [
             'name' => 'Test Region',

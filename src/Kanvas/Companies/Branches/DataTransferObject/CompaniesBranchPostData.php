@@ -39,7 +39,7 @@ class CompaniesBranchPostData extends BaseDataTransferObject
      *
      * @return self
      */
-    public static function viaRequest(Request $request) : self
+    public static function viaRequest(Request $request): self
     {
         return new self(
             name: $request->get('name'),
@@ -57,7 +57,7 @@ class CompaniesBranchPostData extends BaseDataTransferObject
      *
      * @return self
      */
-    public static function fromArray(array $data) : self
+    public static function fromArray(array $data): self
     {
         return new self(
             name: $data['name'],

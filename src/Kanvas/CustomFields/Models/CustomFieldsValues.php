@@ -34,7 +34,7 @@ class CustomFieldsValues extends BaseModel
      *
      * @return BelongsTo
      */
-    public function customField() : BelongsTo
+    public function customField(): BelongsTo
     {
         return $this->belongsTo(CustomFields::class, 'id', 'custom_fields_id');
     }

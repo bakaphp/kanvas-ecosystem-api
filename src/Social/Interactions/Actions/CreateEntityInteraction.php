@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Social\Interactions\Actions;
@@ -21,7 +22,7 @@ class CreateEntityInteraction
      *
      * @return EntityInteractions
      */
-    public function execute(string $interactionType = 'like') : EntityInteractions
+    public function execute(string $interactionType = 'like'): EntityInteractions
     {
         $createInteractions = new CreateInteraction(
             new Interaction(

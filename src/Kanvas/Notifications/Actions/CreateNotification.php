@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Notifications\Actions;
@@ -25,7 +26,7 @@ class CreateNotification
      *
      * @return void
      */
-    public function execute() : void
+    public function execute(): void
     {
         $notification = new NotificationsModel();
         $notification->fill((array) $this->dto);

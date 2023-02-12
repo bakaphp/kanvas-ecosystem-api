@@ -25,7 +25,7 @@ class CreateCompanyGroupActions
      *
      * @return Companies
      */
-    public function execute(string $name, int $isDefault) : CompaniesGroups
+    public function execute(string $name, int $isDefault): CompaniesGroups
     {
         $companyGroup = CompaniesGroups::firstOrCreate([
             'apps_id' => $this->app->getKey(),

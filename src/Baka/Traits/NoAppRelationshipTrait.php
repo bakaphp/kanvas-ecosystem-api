@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Baka\Traits;
@@ -10,7 +11,7 @@ trait NoAppRelationshipTrait
     /**
      * @override Entity doesn't have apps_id
      */
-    public function scopeFromApp(Builder $query, mixed $app = null) : Builder
+    public function scopeFromApp(Builder $query, mixed $app = null): Builder
     {
         return $query;
     }

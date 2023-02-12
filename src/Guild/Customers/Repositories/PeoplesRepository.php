@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Repositories;
@@ -15,12 +16,12 @@ class PeoplesRepository
 {
     use SearchableTrait;
 
-    public static function getModel() : Model
+    public static function getModel(): Model
     {
         return new Peoples();
     }
 
-    public static function getRelationshipTypeById(int $id, CompanyInterface $company) : PeoplesRelationships
+    public static function getRelationshipTypeById(int $id, CompanyInterface $company): PeoplesRelationships
     {
         try {
             return PeoplesRelationships::fromCompany($company)

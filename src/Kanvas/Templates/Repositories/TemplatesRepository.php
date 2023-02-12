@@ -15,7 +15,7 @@ class TemplatesRepository
      *
      * @return Templates
      */
-    public static function getByName(string $name) : Templates
+    public static function getByName(string $name): Templates
     {
         // $companyId = userData->currentCompanyId() ?? 0;
 

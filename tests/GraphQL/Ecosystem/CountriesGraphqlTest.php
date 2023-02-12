@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem;
@@ -14,7 +15,7 @@ class CountriesGraphqlTest extends TestCase
      *
      * @return void
      */
-    public function test_save() : void
+    public function test_save(): void
     {
         $name = fake()->name;
         $stateName = fake()->name;
@@ -65,7 +66,7 @@ class CountriesGraphqlTest extends TestCase
      *
      * @return void
      */
-    public function test_get() : void
+    public function test_get(): void
     {
         $response = $this->graphQL(/** @lang GraphQL */ '
             query{
@@ -98,7 +99,7 @@ class CountriesGraphqlTest extends TestCase
      *
      * @return void
      */
-    public function test_update() : void
+    public function test_update(): void
     {
         $country = Countries::orderBy('id', 'desc')->first();
         $name = fake()->name;

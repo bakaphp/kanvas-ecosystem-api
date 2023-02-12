@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Warehouses;
@@ -19,7 +20,7 @@ class Warehouse
      *
      * @return Warehouses
      */
-    public function create(mixed $root, array $request) : Warehouses
+    public function create(mixed $root, array $request): Warehouses
     {
         $request = $request['input'];
 
@@ -37,7 +38,7 @@ class Warehouse
      *
      * @return Warehouses
      */
-    public function update(mixed $root, array $request) : Warehouses
+    public function update(mixed $root, array $request): Warehouses
     {
         $warehouse = WarehouseRepository::getById($request['id'], auth()->user()->getCurrentCompany());
         $request = $request['input'];
@@ -59,7 +60,7 @@ class Warehouse
      *
      * @return bool
      */
-    public function delete(mixed $root, array $request) : bool
+    public function delete(mixed $root, array $request): bool
     {
         $warehouse = WarehouseRepository::getById($request['id'], auth()->user()->getCurrentCompany());
         return $warehouse->delete();

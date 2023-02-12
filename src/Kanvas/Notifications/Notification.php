@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Notifications;
@@ -26,7 +27,7 @@ class Notification extends LaravelNotification implements EmailInterfaces
      *
      * @return array
      */
-    public function via() : array
+    public function via(): array
     {
         return [
             KanvasDatabaseChannel::class
@@ -40,9 +41,9 @@ class Notification extends LaravelNotification implements EmailInterfaces
      *
      * @return \Illuminate\Notifications\Messages\MailMessage
      */
-    public function toMail($notifiable) : MailMessage
+    public function toMail($notifiable): MailMessage
     {
-        return (new MailMessage)
+        return (new MailMessage())
                 ->from(config('mail.from.address'), config('mail.from.name'))
                 ->view('emails.layout', ['html' => $this->message()]);
     }
@@ -54,7 +55,7 @@ class Notification extends LaravelNotification implements EmailInterfaces
      *
      * @return array
      */
-    public function toKanvasDatabase(object $notifiable) : array
+    public function toKanvasDatabase(object $notifiable): array
     {
         return [
             'users_id' => $notifiable->id ?? auth()->user()->id,
@@ -77,7 +78,7 @@ class Notification extends LaravelNotification implements EmailInterfaces
      *
      * @return string
      */
-    public function message() : string
+    public function message(): string
     {
         return Blade::render(
             TemplatesRepository::getByName($this->templateName)->template,
@@ -90,7 +91,7 @@ class Notification extends LaravelNotification implements EmailInterfaces
      *
      * @return array
      */
-    public function getData() : array
+    public function getData(): array
     {
         return [
         ];
@@ -103,7 +104,7 @@ class Notification extends LaravelNotification implements EmailInterfaces
      *
      * @return void
      */
-    public function setType(string $type) : void
+    public function setType(string $type): void
     {
         $this->type = NotificationTypes::getByName($type);
     }

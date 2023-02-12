@@ -74,7 +74,7 @@ class SystemModules extends BaseModel
      *
      * @return Apps
      */
-    public function app() : BelongsTo
+    public function app(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
@@ -84,7 +84,7 @@ class SystemModules extends BaseModel
      *
      * @return self
      */
-    public function parent() : BelongsTo
+    public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parents_id');
     }
@@ -96,7 +96,7 @@ class SystemModules extends BaseModel
      *
      * @return Builder
      */
-    public function scopeFilterByApp(Builder $query) : Builder
+    public function scopeFilterByApp(Builder $query): Builder
     {
         return $query->where('apps_id', app(Apps::class)->id)
                 ->where('is_deleted', 0);

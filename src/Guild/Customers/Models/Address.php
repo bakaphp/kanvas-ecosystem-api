@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Models;
@@ -26,7 +27,7 @@ class Address extends BaseModel
     protected $table = 'peoples_address';
     protected $guarded = [];
 
-    public function people() : BelongsTo
+    public function people(): BelongsTo
     {
         return $this->belongsTo(
             Peoples::class,

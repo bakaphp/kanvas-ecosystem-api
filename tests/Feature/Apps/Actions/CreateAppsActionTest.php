@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Feature\Apps\Actions;
@@ -15,7 +16,7 @@ final class CreateAppsActionTest extends TestCase
      *
      * @return void
      */
-    public function testCreateAppsAction() : void
+    public function testCreateAppsAction(): void
     {
         $data = [
             'url' => 'example.com',

@@ -31,7 +31,7 @@ class AssignRole
      *
      * @return Users
      */
-    public function execute(string $roleName) : UserRoles
+    public function execute(string $roleName): UserRoles
     {
         /**
          * check if we have a dot, that means it legacy and sending the app name

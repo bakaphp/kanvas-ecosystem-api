@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem;
@@ -12,7 +13,7 @@ class AccessControlListTest extends TestCase
      *
      * @return void
      */
-    public function testCreateRole() : void
+    public function testCreateRole(): void
     {
         $user = auth()->user();
 

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Filesystem;
@@ -17,7 +18,7 @@ final class Upload
      *
      * @return string|null
      */
-    public function singleFile($_, array $args) : Filesystem
+    public function singleFile($_, array $args): Filesystem
     {
         /** @var \Illuminate\Http\UploadedFile $file */
         $file = $args['file'];
@@ -35,7 +36,7 @@ final class Upload
      *
      * @return array<Filesystem>
      */
-    public function multiFile($_, array $args) : array
+    public function multiFile($_, array $args): array
     {
         /** @var \Illuminate\Http\UploadedFile $file */
         $files = $args['files'];

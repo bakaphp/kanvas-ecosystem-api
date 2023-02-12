@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Baka\Traits;
@@ -29,7 +30,7 @@ trait SlugTrait
      *
      * @return self
      */
-    public static function getBySlug(string $slug, CompanyInterface $company) : self
+    public static function getBySlug(string $slug, CompanyInterface $company): self
     {
         return self::where('slug', $slug)
             ->where('companies_id', $company->getId())

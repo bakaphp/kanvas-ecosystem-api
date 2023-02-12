@@ -29,7 +29,7 @@ class CreateFilesystemAction
      *
      * @return Filesystem
      */
-    public function execute(string $uploadUrl, string $uploadPath) : Filesystem
+    public function execute(string $uploadUrl, string $uploadPath): Filesystem
     {
         $app = app(Apps::class);
 

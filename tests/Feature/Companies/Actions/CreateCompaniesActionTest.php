@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Feature\Companies\Actions;
@@ -17,7 +18,7 @@ final class CreateCompaniesActionTest extends TestCase
      *
      * @return void
      */
-    public function testCreateCompaniesAction() : void
+    public function testCreateCompaniesAction(): void
     {
         $faker = \Faker\Factory::create();
         $user = Users::factory(1)->create()->first();

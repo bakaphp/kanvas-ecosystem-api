@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Categories\Actions;
@@ -26,7 +27,7 @@ class CreateCategory
      *
      * @return Categories
      */
-    public function execute() : Categories
+    public function execute(): Categories
     {
         CompaniesRepository::userAssociatedToCompany(
             $this->dto->company,

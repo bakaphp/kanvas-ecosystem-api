@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Companies;
@@ -20,7 +21,7 @@ final class UserManagement
      *
      * @return UsersInvite
      */
-    public function addUserToBranch($rootValue, array $request) : bool
+    public function addUserToBranch($rootValue, array $request): bool
     {
         $user = Users::getById($request['users_id']);
         $branch = CompaniesBranches::getById($request['id']);
@@ -52,7 +53,7 @@ final class UserManagement
      *
      * @return UsersInvite
      */
-    public function addUserToCompany($rootValue, array $request) : bool
+    public function addUserToCompany($rootValue, array $request): bool
     {
         $user = Users::getById($request['users_id']);
         $company = Companies::getById($request['id']);
@@ -83,7 +84,7 @@ final class UserManagement
      *
      * @return UsersInvite
      */
-    public function removeUserFromCompany($rootValue, array $request) : bool
+    public function removeUserFromCompany($rootValue, array $request): bool
     {
         $user = Users::getById($request['users_id']);
         $company = Companies::getById($request['id']);
@@ -114,7 +115,7 @@ final class UserManagement
      *
      * @return UsersInvite
      */
-    public function removeUserFromBranch($rootValue, array $request) : bool
+    public function removeUserFromBranch($rootValue, array $request): bool
     {
         $user = Users::getById($request['users_id']);
         $branch = CompaniesBranches::getById($request['id']);

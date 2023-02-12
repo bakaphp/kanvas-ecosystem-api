@@ -24,7 +24,7 @@ class CreateCompaniesAction
      *
      * @return Companies
      */
-    public function execute() : Companies
+    public function execute(): Companies
     {
         $companies = new Companies();
         $companies->name = $this->data->name;

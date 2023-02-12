@@ -34,7 +34,7 @@ class Settings extends BaseModel
      *
      * @return Apps
      */
-    public function app() : BelongsTo
+    public function app(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }

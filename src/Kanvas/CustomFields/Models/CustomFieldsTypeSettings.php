@@ -31,7 +31,7 @@ class CustomFieldsTypeSettings extends BaseModel
      *
      * @return BelongsTo
      */
-    public function customFieldType() : BelongsTo
+    public function customFieldType(): BelongsTo
     {
         return $this->belongsTo(CustomFieldsTypes::class, 'id', 'custom_fields_types_id');
     }

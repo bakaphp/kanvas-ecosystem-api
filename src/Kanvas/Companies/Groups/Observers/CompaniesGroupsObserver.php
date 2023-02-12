@@ -14,7 +14,7 @@ class CompaniesGroupsObserver
      *
      * @return void
      */
-    public function saving(CompaniesGroups $companyGroup) : void
+    public function saving(CompaniesGroups $companyGroup): void
     {
         $companyGroup->uuid = Str::uuid()->toString();
     }

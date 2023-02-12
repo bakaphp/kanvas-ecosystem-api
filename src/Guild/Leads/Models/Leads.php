@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
@@ -50,12 +51,12 @@ class Leads extends BaseModel
     protected $table = 'leads';
     protected $guarded = [];
 
-    public function people() : BelongsTo
+    public function people(): BelongsTo
     {
         return $this->belongsTo(Peoples::class, 'people_id', 'id');
     }
 
-    public function participants() : HasManyThrough
+    public function participants(): HasManyThrough
     {
         return $this->hasManyThrough(
             Peoples::class,
