@@ -9,7 +9,8 @@ type User {
     user_active: Boolean!
     created_at: DateTime
     updated_at: DateTime
-    branches: [CompanyBranch]
+    branches: [CompanyBranch!] @HasManyThrough
+    companies: [Company!] @HasManyThrough
 }
 
 type TokenResponse {

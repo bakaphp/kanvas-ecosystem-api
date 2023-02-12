@@ -1,0 +1,17 @@
+type LeadsParticipants {
+    people: People! @belongsTo
+    relationship: PeopleRelationship @belongsTo
+}
+
+input LeadsParticipantsInput {
+    leads_id: Int!
+    peoples_id: Int!
+    people_relationships_id: Int!
+}
+
+extend type Mutation @guard {
+    addLeadParticipant(input: LeadsParticipantsInput!): [LeadsParticipants]
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\Participants@add"
+        )
+}
