@@ -316,7 +316,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function currentCompanyId() : int
     {
-        return  (int) $this->default_company;
+        return (int) $this->get(Companies::cacheKey());
     }
 
     /**
