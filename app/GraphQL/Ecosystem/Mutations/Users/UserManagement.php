@@ -1,12 +1,10 @@
 <?php
 declare(strict_types=1);
+
 namespace App\GraphQL\Ecosystem\Mutations\Users;
 
-use Exception;
 use Illuminate\Support\Facades\Auth as AuthFacade;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rules\Password;
 use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
 use Kanvas\Users\Repositories\UsersRepository;
 
