@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Integration\CustomFields;
+namespace Tests\Ecosystem\Integration\CustomFields;
 
 use Kanvas\Templates\Models\Templates;
 use Tests\TestCase;

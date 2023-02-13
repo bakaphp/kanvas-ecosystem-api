@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature\Companies\Actions;
+namespace Tests\Ecosystem\Integration\Companies;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Enums\Defaults;

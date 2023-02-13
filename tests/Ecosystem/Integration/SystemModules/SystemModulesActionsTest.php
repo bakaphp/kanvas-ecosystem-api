@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Integration\SystemModules;
+namespace Tests\Ecosystem\Integration\SystemModules;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Models\Notifications;
