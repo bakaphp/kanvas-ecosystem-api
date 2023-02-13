@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Categories;
@@ -18,7 +19,7 @@ class Category
      *
      * @return Categories
      */
-    public function create(mixed $root, array $request) : Categories
+    public function create(mixed $root, array $request): Categories
     {
         $dto = CategoriesDto::viaRequest($request['input']);
         $category = new CreateCategory($dto, auth()->user());
@@ -33,7 +34,7 @@ class Category
      *
      * @return Categories
      */
-    public function update(mixed $root, array $request) : Categories
+    public function update(mixed $root, array $request): Categories
     {
         $category = CategoriesRepository::getById($request['id'], auth()->user()->getCurrentCompany());
         $category->update($request['input']);
@@ -48,7 +49,7 @@ class Category
      *
      * @return bool
      */
-    public function delete(mixed $root, array $request) : bool
+    public function delete(mixed $root, array $request): bool
     {
         $category = CategoriesRepository::getById($request['id'], auth()->user()->getCurrentCompany());
         return $category->delete();

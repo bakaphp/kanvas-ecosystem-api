@@ -25,7 +25,7 @@ class CreateAppRoleAction
      *
      * @return AppRoles
      */
-    public function execute() : AppRoles
+    public function execute(): AppRoles
     {
         $appRoles = new AppRoles();
         $appRoles->apps_id = $this->app->getKey();

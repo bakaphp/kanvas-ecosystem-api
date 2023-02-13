@@ -81,7 +81,7 @@ class Apps extends BaseModel implements AppInterface
      *
      * @return bool
      */
-    public function usesSubscriptions() : bool
+    public function usesSubscriptions(): bool
     {
         return (bool)$this->payments_active;
     }
@@ -91,7 +91,7 @@ class Apps extends BaseModel implements AppInterface
      *
      * @return void
      */
-    protected function createSettingsModel() : void
+    protected function createSettingsModel(): void
     {
         $this->settingsModel = new Settings();
     }
@@ -103,7 +103,7 @@ class Apps extends BaseModel implements AppInterface
      *
      * @return UserCompanyApps
      */
-    public function associateCompany(Companies $company) : UserCompanyApps
+    public function associateCompany(Companies $company): UserCompanyApps
     {
         return UserCompanyApps::firstOrCreate([
             'apps_id' => $this->id,
@@ -116,7 +116,7 @@ class Apps extends BaseModel implements AppInterface
      *
      * @return bool
      */
-    public function isActive() : bool
+    public function isActive(): bool
     {
         return (bool)$this->is_actived;
     }
@@ -127,7 +127,7 @@ class Apps extends BaseModel implements AppInterface
      *
      * @return bool
      */
-    public function usesEcosystemLogin() : bool
+    public function usesEcosystemLogin(): bool
     {
         return (bool)$this->ecosystem_auth;
     }
@@ -137,7 +137,7 @@ class Apps extends BaseModel implements AppInterface
      *
      * @return string
      */
-    public function defaultCurrency() : string
+    public function defaultCurrency(): string
     {
         return $this->get('currency');
     }
@@ -161,7 +161,7 @@ class Apps extends BaseModel implements AppInterface
         string $password = null,
         string $companyUserIdentifier = null,
         string $configuration = null
-    ) : UsersAssociatedApps {
+    ): UsersAssociatedApps {
         return UsersAssociatedApps::firstOrCreate([
             'users_id' => $user->getKey(),
             'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
@@ -185,7 +185,7 @@ class Apps extends BaseModel implements AppInterface
      *
      * @return Builder
      */
-    public function scopeUserAssociated(Builder $query) : Builder
+    public function scopeUserAssociated(Builder $query): Builder
     {
         $user = Auth::user();
         return $query->join('users_associated_apps', function ($join) use ($user) {

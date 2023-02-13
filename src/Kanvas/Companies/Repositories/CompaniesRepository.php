@@ -26,7 +26,7 @@ class CompaniesRepository
      *
      * @throws Exception
      */
-    public static function getById(int $id) : Companies
+    public static function getById(int $id): Companies
     {
         return Companies::where('id', $id)
                 ->where('is_deleted', StateEnums::NO->getValue())
@@ -40,7 +40,7 @@ class CompaniesRepository
      *
      * @return Companies
      */
-    public static function getByUuid(string $uuid) : Companies
+    public static function getByUuid(string $uuid): Companies
     {
         return Companies::where('uuid', $uuid)
                 ->where('is_deleted', StateEnums::NO->getValue())
@@ -57,7 +57,7 @@ class CompaniesRepository
      *
      * @return UsersAssociatedCompanies
      */
-    public static function userAssociatedToCompany(Companies $company, Users $user) : UsersAssociatedCompanies
+    public static function userAssociatedToCompany(Companies $company, Users $user): UsersAssociatedCompanies
     {
         try {
             return UsersAssociatedCompanies::where('users_id', $user->getKey())
@@ -79,7 +79,7 @@ class CompaniesRepository
      *
      * @return UsersAssociatedCompanies
      */
-    public static function userAssociatedToCompanyAndBranch(Companies $company, CompaniesBranches $branch, Users $user) : UsersAssociatedCompanies
+    public static function userAssociatedToCompanyAndBranch(Companies $company, CompaniesBranches $branch, Users $user): UsersAssociatedCompanies
     {
         try {
             return UsersAssociatedCompanies::where('users_id', $user->getKey())
@@ -103,7 +103,7 @@ class CompaniesRepository
      *
      * @return UsersAssociatedApps
      */
-    public static function userAssociatedToCompanyInThisApp(Apps $app, Companies $company, Users $user) : UsersAssociatedApps
+    public static function userAssociatedToCompanyInThisApp(Apps $app, Companies $company, Users $user): UsersAssociatedApps
     {
         try {
             return UsersAssociatedApps::where('users_id', $user->getKey())

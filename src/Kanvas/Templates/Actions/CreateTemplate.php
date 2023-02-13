@@ -23,7 +23,7 @@ class CreateTemplate
      *
      * @return Templates
      */
-    public function execute() : Templates
+    public function execute(): Templates
     {
         $template = new Templates();
         $template->apps_id = $this->template->app->getKey();

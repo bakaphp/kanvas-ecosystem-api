@@ -14,22 +14,6 @@ class TemplateSeeder extends Seeder
      */
     public function run()
     {
-        Templates::create([
-            'apps_id' => 1,
-            'users_id' => 1,
-            'companies_id' => 1,
-            'name' => 'user-signup',
-            'template' => '{{$name}}',
-            'created_at' => date('Y-m-d H:i:s'),
-        ]);
-        Templates::create([
-            'apps_id' => 1,
-            'users_id' => 1,
-            'companies_id' => 1,
-            'name' => 'users-invite',
-            'template' => '{{$name}}',
-            'created_at' => date('Y-m-d H:i:s'),
-        ]);
         $defaultTemplate = '<!DOCTYPE html>
         <html lang="en">
         <head>
@@ -47,7 +31,7 @@ class TemplateSeeder extends Seeder
         </head>
         <body style="font-family: Arial, sans-serif, \'Inter\';">
         ​
-            <table 
+            <table
                 cellpadding="0"
                 cellspacing="0"
                 width="700"
@@ -95,7 +79,7 @@ class TemplateSeeder extends Seeder
                         <table style="margin: 17px 0 0px" cellspacing="0" cellpadding="0">
                             <tr>
                                 <td>
-                                    
+
                                 </td>
                             </tr>
                         </table>
@@ -159,9 +143,28 @@ class TemplateSeeder extends Seeder
                     </td>
                 </tr>
             </table>
-            
+
         </body>
         </html>';
+
+        Templates::create([
+            'apps_id' => 1,
+            'users_id' => 1,
+            'companies_id' => 1,
+            'name' => 'user-signup',
+            'template' => '{{$name}}',
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        Templates::create([
+            'apps_id' => 1,
+            'users_id' => 1,
+            'companies_id' => 1,
+            'name' => 'users-invite',
+            'template' => '{{$name}}',
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
         Templates::create([
             'apps_id' => 1,
             'users_id' => 1,
@@ -170,6 +173,5 @@ class TemplateSeeder extends Seeder
             'template' => $defaultTemplate,
             'created_at' => date('Y-m-d H:i:s'),
         ]);
-        
     }
 }

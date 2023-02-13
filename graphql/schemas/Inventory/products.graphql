@@ -12,6 +12,7 @@ input ProductInput {
     warehouses: [Int]
     source_id: Mixed
 }
+
 type Product {
     id: Int!
     products_types_id: Int
@@ -33,6 +34,7 @@ type Product {
     variants: [Variant]
     productsTypes: ProductType
 }
+
 input ProductInputUpdate {
     products_types_id: Int
     name: String
@@ -43,6 +45,7 @@ input ProductInputUpdate {
     upc: String
     is_published: Boolean
 }
+
 extend type Mutation @guard {
     createProduct(input: ProductInput!): Product
         @field(
@@ -77,6 +80,7 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addCategory"
         )
 }
+
 extend type Query @guard {
     products(
         where: _

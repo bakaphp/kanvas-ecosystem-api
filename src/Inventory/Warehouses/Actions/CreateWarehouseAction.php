@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Warehouses\Actions;
@@ -28,7 +29,7 @@ class CreateWarehouseAction
      *
      * @return Warehouses
      */
-    public function execute() : Warehouses
+    public function execute(): Warehouses
     {
         CompaniesRepository::userAssociatedToCompany(
             $this->data->company,

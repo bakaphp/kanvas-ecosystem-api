@@ -1,14 +1,15 @@
 <?php
+
 declare(strict_types=1);
 
-namespace Tests\Integration\CustomFields;
+namespace Tests\Ecosystem\Integration\CustomFields;
 
 use Kanvas\Templates\Models\Templates;
 use Tests\TestCase;
 
 final class CustomFieldsTest extends TestCase
 {
-    public function createTemplate() : Templates
+    public function createTemplate(): Templates
     {
         return Templates::firstOrCreate([
             'users_id' => 1,

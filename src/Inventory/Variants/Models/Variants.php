@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Models;
@@ -12,6 +13,7 @@ use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Laravel\Scout\Searchable;
 
 /**
@@ -37,6 +39,7 @@ class Variants extends BaseModel
     use SlugTrait;
     use UuidTrait;
     use Searchable;
+    use SocialInteractionsTrait;
 
     protected $table = 'products_variants';
     protected $guarded = [];
@@ -46,12 +49,12 @@ class Variants extends BaseModel
      *
      * @return BelongsTo
      */
-    public function products() : BelongsTo
+    public function products(): BelongsTo
     {
         return $this->belongsTo(Products::class, 'products_id');
     }
 
-    public function product() : BelongsTo
+    public function product(): BelongsTo
     {
         return $this->belongsTo(Products::class, 'products_id');
     }
@@ -61,7 +64,7 @@ class Variants extends BaseModel
      *
      * @return BelongsToMany
      */
-    public function warehouses() : BelongsToMany
+    public function warehouses(): BelongsToMany
     {
         return $this->belongsToMany(
             Warehouses::class,
@@ -92,7 +95,7 @@ class Variants extends BaseModel
      *
      * @return BelongsToMany
      */
-    public function attributes() : BelongsToMany
+    public function attributes(): BelongsToMany
     {
         return $this->belongsToMany(
             Attributes::class,
@@ -108,7 +111,7 @@ class Variants extends BaseModel
      *
      * @return BelongsToMany
      */
-    public function channels() : BelongsToMany
+    public function channels(): BelongsToMany
     {
         return $this->belongsToMany(
             Channels::class,

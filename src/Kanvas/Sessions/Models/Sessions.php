@@ -86,7 +86,7 @@ class Sessions extends PersonalAccessToken
      *
      * @return BelongsTo
      */
-    public function user() : BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id', 'id');
     }
@@ -96,7 +96,7 @@ class Sessions extends PersonalAccessToken
      *
      * @return BelongsTo
      */
-    public function keys() : BelongsTo
+    public function keys(): BelongsTo
     {
         return $this->belongsTo(SessionKeys::class);
     }
@@ -107,7 +107,7 @@ class Sessions extends PersonalAccessToken
      *
      * @return bool
      */
-    public function getIncrementing() : bool
+    public function getIncrementing(): bool
     {
         return false;
     }
@@ -117,7 +117,7 @@ class Sessions extends PersonalAccessToken
      *
      * @return string
      */
-    public function getKeyType() : string
+    public function getKeyType(): string
     {
         return 'string';
     }
@@ -142,7 +142,7 @@ class Sessions extends PersonalAccessToken
         string $userIp,
         array $ability = ['*'],
         int $pageId = 0,
-    ) : self {
+    ): self {
         $last_visit = 0;
         $currentTime = time();
 
@@ -240,7 +240,7 @@ class Sessions extends PersonalAccessToken
      *
      * @return Users
      */
-    public function check(Users $user, string $sessionId, string $userIp, int $pageId) : Users
+    public function check(Users $user, string $sessionId, string $userIp, int $pageId): Users
     {
         $currentTime = time();
         $pageId = (int) $pageId;
@@ -356,7 +356,7 @@ class Sessions extends PersonalAccessToken
      *
      * @return bool
      */
-    public function end(Users $user, ?string $sessionId = null) : bool
+    public function end(Users $user, ?string $sessionId = null): bool
     {
         if (is_null($sessionId)) {
             return $this->endAll($user);
@@ -380,7 +380,7 @@ class Sessions extends PersonalAccessToken
      *
      * @return bool
      */
-    public function endAll(Users $user) : bool
+    public function endAll(Users $user): bool
     {
         $this->find([
             'conditions' => 'users_id = :users_id:',

@@ -15,7 +15,7 @@ class InternalServerErrorException extends LightHouseCustomException
      *
      * @return string
      */
-    public function getCategory() : string
+    public function getCategory(): string
     {
         return 'internal';
     }

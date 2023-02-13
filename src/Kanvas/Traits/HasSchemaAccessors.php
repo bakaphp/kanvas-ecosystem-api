@@ -18,7 +18,7 @@ trait HasSchemaAccessors
      *
      * @return Model
      */
-    protected static function schemaInstance() : Model
+    protected static function schemaInstance(): Model
     {
         if (empty(static::$schemaInstance)) {
             static::$schemaInstance = new static();
@@ -31,7 +31,7 @@ trait HasSchemaAccessors
      *
      * @return string
      */
-    public static function getSchemaTableName() : string
+    public static function getSchemaTableName(): string
     {
         if (empty(static::$schemaTableName)) {
             static::$schemaTableName = static::schemaInstance()->getTable();
@@ -44,7 +44,7 @@ trait HasSchemaAccessors
      *
      * @return array
      */
-    public static function getSchemaColumnNames() : array
+    public static function getSchemaColumnNames(): array
     {
         if (empty(static::$schemaColumnNames)) {
             static::$schemaColumnNames = Schema::getColumnListing(static::getSchemaTableName());
@@ -59,7 +59,7 @@ trait HasSchemaAccessors
      *
      * @return bool
      */
-    public static function schemaHasColumn(string $name) : bool
+    public static function schemaHasColumn(string $name): bool
     {
         return in_array($name, static::getSchemaColumnNames());
     }

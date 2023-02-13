@@ -22,7 +22,7 @@ class RolesRepository
      *
      * @todo Need to fetch app and company id from ACL on container instead of apps and userdata from DI.
      */
-    public static function getByName(string $name, Apps $app, Companies $company) : Roles
+    public static function getByName(string $name, Apps $app, Companies $company): Roles
     {
         $role = Roles::where('name', $name)
                 ->where('apps_id', $app->id)

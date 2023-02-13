@@ -30,7 +30,7 @@ class Auth
      */
     public static function login(
         LoginInput $loginInput
-    ) : UserInterface {
+    ): UserInterface {
         $user = Users::getByEmail($loginInput->getEmail());
 
         //first we find the user
@@ -74,7 +74,7 @@ class Auth
      *
      * @return bool
      */
-    protected static function loginAttemptsValidation(UserInterface $user) : bool
+    protected static function loginAttemptsValidation(UserInterface $user): bool
     {
         //load config
         $config = new stdClass();
@@ -114,7 +114,7 @@ class Auth
      *
      * @return bool
      */
-    protected static function resetLoginTries(UserInterface $user) : bool
+    protected static function resetLoginTries(UserInterface $user): bool
     {
         $user->lastvisit = date('Y-m-d H:i:s');
         $user->user_login_tries = 0;
@@ -127,7 +127,7 @@ class Auth
      *
      * @return bool
      */
-    protected static function updateLoginTries(UserInterface $user) : bool
+    protected static function updateLoginTries(UserInterface $user): bool
     {
         if ($user->getId() !== StatusEnums::ANONYMOUS->getValue()) {
             $user->user_login_tries += 1;
@@ -146,7 +146,7 @@ class Auth
      *
      * @return bool
      */
-    public static function logout(UserInterface $user, Token $token) : bool
+    public static function logout(UserInterface $user, Token $token): bool
     {
         $sessionId = $token->claims()->get('sessionId') ?? null;
 

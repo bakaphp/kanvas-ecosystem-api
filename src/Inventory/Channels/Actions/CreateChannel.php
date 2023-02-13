@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Channels\Actions;
@@ -27,7 +28,7 @@ class CreateChannel
      *
      * @return Channels
      */
-    public function execute() : Channels
+    public function execute(): Channels
     {
         CompaniesRepository::userAssociatedToCompany(
             $this->dto->company,

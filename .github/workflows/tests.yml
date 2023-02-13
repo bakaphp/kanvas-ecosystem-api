@@ -98,7 +98,7 @@ jobs:
           mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS crm;'
 
       - name: Install Composer dependencies
-        run: composer install --prefer-dist --no-suggest
+        run: composer install --prefer-dist --no-interaction --no-progress
 
       - name: Run Migrations
         run: php artisan migrate

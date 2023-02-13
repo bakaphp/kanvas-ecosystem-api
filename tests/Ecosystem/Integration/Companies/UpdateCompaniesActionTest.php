@@ -1,7 +1,8 @@
 <?php
+
 declare(strict_types=1);
 
-namespace Tests\Feature\Companies\Actions;
+namespace Tests\Ecosystem\Integration\Companies;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Enums\Defaults;
@@ -19,7 +20,7 @@ final class UpdateCompaniesActionTest extends TestCase
      *
      * @return void
      */
-    public function testUpdateCompaniesAction() : void
+    public function testUpdateCompaniesAction(): void
     {
         $company = Companies::factory(1)->create()->first();
         $company->associateUser(Auth::user(), StateEnums::YES->getValue(), $company->branch()->first());

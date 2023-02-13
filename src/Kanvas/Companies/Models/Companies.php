@@ -83,7 +83,7 @@ class Companies extends BaseModel implements CompanyInterface
      *
      * @return HasOne
      */
-    public function defaultBranch() : HasOne
+    public function defaultBranch(): HasOne
     {
         return $this->hasOne(
             CompaniesBranches::class,
@@ -116,7 +116,7 @@ class Companies extends BaseModel implements CompanyInterface
      *
      * @return Users
      */
-    public function user() : BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
     }
@@ -126,7 +126,7 @@ class Companies extends BaseModel implements CompanyInterface
      *
      * @return SystemModules
      */
-    public function systemModule() : BelongsTo
+    public function systemModule(): BelongsTo
     {
         return $this->belongsTo(SystemModules::class, 'system_modules_id');
     }
@@ -136,7 +136,7 @@ class Companies extends BaseModel implements CompanyInterface
      *
      * @return Currencies
      */
-    public function currency() : BelongsTo
+    public function currency(): BelongsTo
     {
         return $this->belongsTo(Currencies::class, 'currency_id');
     }
@@ -148,7 +148,7 @@ class Companies extends BaseModel implements CompanyInterface
      *
      * @return string
      */
-    public static function cacheKey() : string
+    public static function cacheKey(): string
     {
         return Defaults::DEFAULT_COMPANY_APP->getValue() . app(Apps::class)->id;
     }
@@ -160,7 +160,7 @@ class Companies extends BaseModel implements CompanyInterface
      *
      * @return string
      */
-    public function branchCacheKey() : string
+    public function branchCacheKey(): string
     {
         return  Defaults::DEFAULT_COMPANY_BRANCH_APP->getValue() . app(Apps::class)->id . '_' . $this->getKey();
     }
@@ -182,7 +182,7 @@ class Companies extends BaseModel implements CompanyInterface
         CompaniesBranches $branch,
         ?int $userRoleId = null,
         string $companyUserIdentifier = null
-    ) : UsersAssociatedCompanies {
+    ): UsersAssociatedCompanies {
         return UsersAssociatedCompanies::firstOrCreate([
             'users_id' => $user->getKey(),
             'companies_id' => $this->getKey(),
@@ -216,7 +216,7 @@ class Companies extends BaseModel implements CompanyInterface
         ?int $userRoleId = null,
         string $password = null,
         string $companyUserIdentifier = null
-    ) : UsersAssociatedApps {
+    ): UsersAssociatedApps {
         return UsersAssociatedApps::firstOrCreate([
             'users_id' => $user->getKey(),
             'companies_id' => $this->getKey(),
@@ -239,7 +239,7 @@ class Companies extends BaseModel implements CompanyInterface
      *
      * @return bool
      */
-    public function isOwner(Users $user) : bool
+    public function isOwner(Users $user): bool
     {
         return $this->users_id === $user->getKey();
     }
@@ -251,7 +251,7 @@ class Companies extends BaseModel implements CompanyInterface
      *
      * @return Builder
      */
-    public function scopeUserAssociated(Builder $query) : Builder
+    public function scopeUserAssociated(Builder $query): Builder
     {
         $user = Auth::user();
         return $query->join('users_associated_company', function ($join) use ($user) {

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Auth;
@@ -56,7 +57,7 @@ class TokenGuard extends AuthTokenGuard
      *
      * @return Users
      */
-    protected function sessionUser(Token $token, Request $request) : Users
+    protected function sessionUser(Token $token, Request $request): Users
     {
         $session = new Sessions();
         $userData = new Users();

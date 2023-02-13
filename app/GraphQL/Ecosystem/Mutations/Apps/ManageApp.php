@@ -65,7 +65,7 @@ final class ManageApp
      *
      * @return Apps
      */
-    public function restore(mixed $root, array $req) : Apps
+    public function restore(mixed $root, array $req): Apps
     {
         $app = Apps::where('key', $req['id'])->firstOrFail();
 
@@ -82,7 +82,7 @@ final class ManageApp
     /**
      * Save app setting.
      */
-    public function saveSettings(mixed $root, array $req) : mixed
+    public function saveSettings(mixed $root, array $req): mixed
     {
         $app = AppsRepository::findFirstByKey($req['id']);
 

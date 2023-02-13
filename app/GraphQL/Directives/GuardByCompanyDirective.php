@@ -12,7 +12,7 @@ use Throwable;
 
 class GuardByCompanyDirective extends GuardDirective
 {
-    public static function definition() : string
+    public static function definition(): string
     {
         return /** @lang GraphQL */ <<<'GRAPHQL'
 directive @guardByCompany(
@@ -25,7 +25,7 @@ directive @guardByCompany(
 GRAPHQL;
     }
 
-    public function handleField(FieldValue $fieldValue, Closure $next) : FieldValue
+    public function handleField(FieldValue $fieldValue, Closure $next): FieldValue
     {
         $previousResolver = $fieldValue->getResolver();
 

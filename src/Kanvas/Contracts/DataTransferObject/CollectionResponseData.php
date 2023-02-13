@@ -31,7 +31,7 @@ abstract class CollectionResponseData extends DataTransferObject
      *
      * @return self
      */
-    public static function fromModelCollection(LengthAwarePaginator $paginatedCollection) : self
+    public static function fromModelCollection(LengthAwarePaginator $paginatedCollection): self
     {
         return self;
     }
@@ -41,7 +41,7 @@ abstract class CollectionResponseData extends DataTransferObject
      *
      * @return array
      */
-    public function formatResponse() : array
+    public function formatResponse(): array
     {
         return [
             'data' => $this->data,

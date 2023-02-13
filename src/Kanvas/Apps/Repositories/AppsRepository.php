@@ -15,7 +15,7 @@ class AppsRepository
      *
      * @return Apps
      */
-    public static function findFirstByKey(string $key) : ?Apps
+    public static function findFirstByKey(string $key): ?Apps
     {
         return Apps::where('key', $key)->where('is_deleted', 0)->firstOrFail();
     }
@@ -27,7 +27,7 @@ class AppsRepository
      *
      * @return Apps
      */
-    public static function getByDomainName(string $domainName) : ?Apps
+    public static function getByDomainName(string $domainName): ?Apps
     {
         return Apps::where('domain', $domainName)->where('domain_based', 1)->first();
     }

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Warehouses\Repositories;
@@ -10,7 +11,7 @@ class WarehouseRepository
 {
     use SearchableTrait;
 
-    public static function getModel() : Warehouses
+    public static function getModel(): Warehouses
     {
         return new Warehouses();
     }

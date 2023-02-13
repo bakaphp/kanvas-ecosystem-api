@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Regions\DataTransferObject;
@@ -36,7 +37,7 @@ class Region
      *
      * @return self
      */
-    public static function viaRequest(array $data) : self
+    public static function viaRequest(array $data): self
     {
         return new self(
             isset($data['companies_id']) ? Companies::getById($data['companies_id']) : auth()->user()->getCurrentCompany(),

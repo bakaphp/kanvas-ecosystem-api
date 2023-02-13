@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Social\Interactions\Traits;
@@ -13,7 +14,7 @@ use Kanvas\Users\Models\Users;
 
 trait LikableTrait
 {
-    public function like(Model $entity, ?string $note = null) : UsersInteractions|EntityInteractions
+    public function like(Model $entity, ?string $note = null): UsersInteractions|EntityInteractions
     {
         $interaction = Interactions::fromApp()->where('name', StateEnums::LIKE->getValue())->firstOrFail();
 
@@ -41,7 +42,7 @@ trait LikableTrait
         ]);
     }
 
-    public function unLike(Model $entity, ?string $note = null) : bool
+    public function unLike(Model $entity, ?string $note = null): bool
     {
         $interaction = Interactions::fromApp()->where('name', StateEnums::LIKE->getValue())->firstOrFail();
 
@@ -63,7 +64,7 @@ trait LikableTrait
         return $entityInteraction ? $entityInteraction->softDelete() : false;
     }
 
-    public function hasLiked(Model $entity) : bool
+    public function hasLiked(Model $entity): bool
     {
         $interaction = Interactions::fromApp()->where('name', StateEnums::LIKE->getValue())->firstOrFail();
 
@@ -83,7 +84,7 @@ trait LikableTrait
             ->count() > 0;
     }
 
-    public function likes() : HasMany
+    public function likes(): HasMany
     {
         $interaction = Interactions::fromApp()->where('name', StateEnums::LIKE->getValue())->firstOrFail();
 

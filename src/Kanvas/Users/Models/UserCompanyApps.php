@@ -41,7 +41,7 @@ class UserCompanyApps extends BaseModel
      *
      * @return Users
      */
-    public function user() : BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
     }
@@ -51,7 +51,7 @@ class UserCompanyApps extends BaseModel
      *
      * @return Users
      */
-    public function company() : BelongsTo
+    public function company(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }
@@ -61,7 +61,7 @@ class UserCompanyApps extends BaseModel
      *
      * @return Users
      */
-    public function app() : BelongsTo
+    public function app(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Actions;
@@ -26,7 +27,7 @@ class AddToWarehouseAction
      *
      * @return Variants
      */
-    public function execute() : Variants
+    public function execute(): Variants
     {
         if ($this->variants->warehouses()->find($this->warehouses->getId())) {
             $this->variants->warehouses()->syncWithoutDetaching([$this->warehouses->getId() => $this->variantsWarehouses->toArray()]);

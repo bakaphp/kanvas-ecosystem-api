@@ -25,7 +25,7 @@ trait PermissionsTrait
      *
      * @return bool
      */
-    public function assignRole(string $role, ?Companies $company = null) : bool
+    public function assignRole(string $role, ?Companies $company = null): bool
     {
         /**
          * check if we have a dot, that means it legacy and sending the app name
@@ -67,7 +67,7 @@ trait PermissionsTrait
      *
      * @return bool
      */
-    public function assignRoleById(int $id, ?Companies $company = null) : bool
+    public function assignRoleById(int $id, ?Companies $company = null): bool
     {
         $company = $company !== null ? $company : $this->defaultCompany();
         $role = Roles::getById($id, $company);
@@ -102,7 +102,7 @@ trait PermissionsTrait
      *
      * @return bool
      */
-    public function removeRole(string $role, ?Companies $company = null) : bool
+    public function removeRole(string $role, ?Companies $company = null): bool
     {
         $company = $company !== null ? $company : $this->defaultCompany();
         $role = Roles::getByAppName($role, $company);
@@ -135,7 +135,7 @@ trait PermissionsTrait
      *
      * @return bool
      */
-    public function hasRole(string $role, ?Companies $company = null) : bool
+    public function hasRole(string $role, ?Companies $company = null): bool
     {
         $company = $company !== null ? $company : $this->defaultCompany();
         $role = Roles::getByAppName($role, $company);
@@ -166,7 +166,7 @@ trait PermissionsTrait
      *
      * @return bool
      */
-    public function can(string $action, bool $throwException = false) : bool
+    public function can(string $action, bool $throwException = false): bool
     {
         //we expect the can to have resource.action
         if (!Str::contains($action, '.')) {
@@ -200,7 +200,7 @@ trait PermissionsTrait
      *
      * @return bool
      */
-    public function isAdmin(bool $throw = true) : bool
+    public function isAdmin(bool $throw = true): bool
     {
         if (!$this->hasRole("{$this->getDI()->get('app')->name}.Admins")) {
             if ($throw) {

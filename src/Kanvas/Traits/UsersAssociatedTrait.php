@@ -20,7 +20,7 @@ trait UsersAssociatedTrait
      *
      * @todo Find a better way to handle namespaces for models
      */
-    public function associate(Users $user, Companies $company) : array
+    public function associate(Users $user, Companies $company): array
     {
         $app = app(Apps::class);
         $class = str_replace('UsersAssociated\\', 'UsersAssociated', substr_replace(get_class($this), '\UsersAssociated', strrpos(get_class($this), '\\'), 0));

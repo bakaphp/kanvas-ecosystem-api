@@ -1,7 +1,8 @@
 <?php
+
 declare(strict_types=1);
 
-namespace Tests\Integration\Filesystem;
+namespace Tests\Ecosystem\Integration\Filesystem;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -40,7 +41,7 @@ final class FilesystemTest extends TestCase
     {
         $file = UploadedFile::fake()->image('avatar.jpg');
         $user = Auth::user();
-        $user->attach(
+        $user->addFile(
             (new UploadFileAction($user))->execute($file),
             'avatar'
         );
@@ -53,7 +54,7 @@ final class FilesystemTest extends TestCase
     {
         $file = UploadedFile::fake()->image('avatar.jpg');
         $user = Auth::user();
-        $user->attach(
+        $user->addFile(
             (new UploadFileAction($user))->execute($file),
             'avatar'
         );
@@ -66,7 +67,7 @@ final class FilesystemTest extends TestCase
         $url = 'https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png';
 
         $user = Auth::user();
-        $user->attachUrl($url, 'newLogo');
+        $user->addFileFromUrl($url, 'newLogo');
 
         $this->assertGreaterThan(0, $user->getFiles()->count());
         $this->assertGreaterThan(0, $user->getFiles()->first()->delete());

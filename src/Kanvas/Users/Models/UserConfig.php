@@ -31,7 +31,7 @@ class UserConfig extends BaseModel
      *
      * @return Users
      */
-    public function user() : BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
     }
