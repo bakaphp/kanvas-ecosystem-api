@@ -65,6 +65,12 @@ input RegisterInput {
     roles_id: Int
 }
 
+input UpdateUserInput {
+    firstname: String
+    lastname: String
+    displayname: String @rules(apply: ["unique:Kanvas\\Users\\Models\\Users,displayname"])
+}
+
 extend type Mutation {
     login(data: LoginInput!): TokenResponse!
         @field(
@@ -81,6 +87,11 @@ extend type Mutation {
     resetPassword(data: ResetPasswordInput!): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\ForgotPassword@reset"
+        )
+
+    updateUser(data: UpdateUserInput!): User
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\Update@updateUser"
         )
 }
 
