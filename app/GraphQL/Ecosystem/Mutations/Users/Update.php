@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Users;
@@ -24,7 +25,6 @@ class Update
         GraphQLContext $context = null,
         ResolveInfo $resolveInfo
     ) {
-
         $userManagement = new UserManagementService(Users::getById(auth()->user()->id));
         $user = $userManagement->update($request['data']);
 
