@@ -29,6 +29,7 @@ class TemplateSeeder extends Seeder
             'template' => '{{$name}}',
             'created_at' => date('Y-m-d H:i:s'),
         ]);
+
         $defaultTemplate = '<!DOCTYPE html>
         <html lang="en">
         <head>
@@ -46,7 +47,7 @@ class TemplateSeeder extends Seeder
         </head>
         <body style="font-family: Arial, sans-serif, \'Inter\';">
         ​
-            <table 
+            <table
                 cellpadding="0"
                 cellspacing="0"
                 width="700"
@@ -84,12 +85,8 @@ class TemplateSeeder extends Seeder
                 <tr>
                     <td style="padding-right: 120px;">
                         <p style="color: #9b9b9b; font-size: 14px; ">
-                            Hi {{toUser.firstname}} {{toUser.lastname}},
+                            Kanvas Default Email Templates {{change it}}
                         </h2>
-        ​
-                        <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
-                            You have been invited to {{fromUser.getCurrentBranch().name}} by {{fromUser.firstname}} {{fromUser.lastname}}. Please click the button below to create your account.
-                        </p>
                     </td>
                 </tr>
         ​
@@ -98,9 +95,7 @@ class TemplateSeeder extends Seeder
                         <table style="margin: 17px 0 0px" cellspacing="0" cellpadding="0">
                             <tr>
                                 <td>
-                                    <a href="{{invitationUrl}}" target="_blank" style="display: inline-block;">
-                                        <img style="border-radius: 4px;" src="https://cdn.Kanvas.io/emails/create-account.png" alt="Join Now">
-                                    </a>
+
                                 </td>
                             </tr>
                         </table>
@@ -164,7 +159,7 @@ class TemplateSeeder extends Seeder
                     </td>
                 </tr>
             </table>
-            
+
         </body>
         </html>';
         Templates::create([
