@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Users\Observers;
@@ -29,7 +30,7 @@ class UsersObserver
      *
      * @return void
      */
-    public function creating(Users $user) : void
+    public function creating(Users $user): void
     {
         $user->uuid = Str::uuid()->toString();
         //$user->system_modules_id = SystemModules::first()->id;
@@ -42,7 +43,7 @@ class UsersObserver
      *
      * @return void
      */
-    public function created(Users $user) : void
+    public function created(Users $user): void
     {
         $app = app(Apps::class);
 

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Importer\DataTransferObjects;
@@ -40,12 +41,12 @@ class ProductImporter extends Data
     /**
      * is this product from shopify , bigcommerce or any other source.
      */
-    public function isFromThirdParty() : bool
+    public function isFromThirdParty(): bool
     {
         return $this->source && $this->sourceId;
     }
 
-    public function getSourceKey() : string
+    public function getSourceKey(): string
     {
         return $this->source . '_id';
     }

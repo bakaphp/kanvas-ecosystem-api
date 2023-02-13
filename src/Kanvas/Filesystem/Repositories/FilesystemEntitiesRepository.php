@@ -22,7 +22,7 @@ class FilesystemEntitiesRepository
      *
      * @return FilesystemEntities
      */
-    public static function getByIdAdnEntity(int $id, Model $entity, bool $isDeleted = false) : FilesystemEntities
+    public static function getByIdAdnEntity(int $id, Model $entity, bool $isDeleted = false): FilesystemEntities
     {
         $app = app(Apps::class);
         $systemModule = SystemModulesRepository::getByModelName($entity::class);
@@ -37,7 +37,9 @@ class FilesystemEntitiesRepository
         return FilesystemEntities::where('id', $id)
                                 ->where('system_modules_id', $systemModule->getKey())
                                 ->where('is_deleted', StateEnums::NO->getValue())
-                                ->whereRaw("filesystem_id in (SELECT s.id from Filesystem s WHERE s.apps_id = {$app->getKey()}")
+                                ->whereRaw(
+                                    "filesystem_id in (SELECT s.id from Filesystem s WHERE s.apps_id = {$app->getKey()}"
+                                )
                                 ->firstOrFail();
     }
 
@@ -48,7 +50,7 @@ class FilesystemEntitiesRepository
      *
      * @return Collection<FilesystemEntities>
      */
-    public static function getFilesByEntity(Model $entity) : Collection
+    public static function getFilesByEntity(Model $entity): Collection
     {
         $systemModule = SystemModulesRepository::getByModelName($entity::class);
 
@@ -67,7 +69,7 @@ class FilesystemEntitiesRepository
      *
      * @return int
      */
-    public static function deleteAllFilesFromEntity(Model $entity) : int
+    public static function deleteAllFilesFromEntity(Model $entity): int
     {
         $systemModule = SystemModulesRepository::getByModelName($entity::class);
 

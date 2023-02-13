@@ -6,8 +6,9 @@ input LikeEntityInput {
 }
 
 type Interactions {
-    liked: Boolean
-    saved: Boolean
+    like: Boolean
+    save: Boolean
+    dislike: Boolean
 }
 
 extend type Mutation @guardByAuthOrCompany {
@@ -22,5 +23,9 @@ extend type Mutation @guardByAuthOrCompany {
     disLikeEntity(input: LikeEntityInput!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractions@disLikeEntity"
+        )
+    getInteractionByEntity(input: LikeEntityInput!): Interactions!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractions@getInteractionByEntity"
         )
 }

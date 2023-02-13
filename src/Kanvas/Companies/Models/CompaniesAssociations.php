@@ -29,7 +29,7 @@ class CompaniesAssociations extends BaseModel
      *
      * @return BelongsTo
      */
-    public function companiesGroups() : BelongsTo
+    public function companiesGroups(): BelongsTo
     {
         return $this->belongsTo(CompaniesGroups::class, 'companies_groups_id');
     }
@@ -39,7 +39,7 @@ class CompaniesAssociations extends BaseModel
      *
      * @return BelongsTo
      */
-    public function companies() : BelongsTo
+    public function companies(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }

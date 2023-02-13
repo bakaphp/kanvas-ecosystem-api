@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Social\Interactions\Actions;
@@ -18,7 +19,7 @@ class CreateInteraction
      *
      * @return Interactions
      */
-    public function execute() : Interactions
+    public function execute(): Interactions
     {
         return Interactions::firstOrCreate([
             'apps_id' => $this->interaction->app->getId(),

@@ -39,7 +39,7 @@ class SessionKeys extends BaseModel
      *
      * @return BelongsTo
      */
-    public function session() : BelongsTo
+    public function session(): BelongsTo
     {
         return $this->belongsTo(Sessions::class, 'sessions_id');
     }
@@ -49,7 +49,7 @@ class SessionKeys extends BaseModel
      *
      * @return BelongsTo
      */
-    public function user() : BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
     }

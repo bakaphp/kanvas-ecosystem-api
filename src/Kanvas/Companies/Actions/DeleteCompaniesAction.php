@@ -28,7 +28,7 @@ class DeleteCompaniesAction
      *
      * @return Companies
      */
-    public function execute(int $id) : Companies
+    public function execute(int $id): Companies
     {
         $companies = Companies::getById($id);
 

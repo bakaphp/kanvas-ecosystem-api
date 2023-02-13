@@ -37,7 +37,7 @@ class FilesystemEntities extends BaseModel
      *
      * @return Filesystem
      */
-    public function filesystem() : BelongsTo
+    public function filesystem(): BelongsTo
     {
         return $this->belongsTo(Filesystem::class, 'filesystem_id');
     }
@@ -47,7 +47,7 @@ class FilesystemEntities extends BaseModel
      *
      * @return Companies
      */
-    public function company() : BelongsTo
+    public function company(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }
@@ -57,7 +57,7 @@ class FilesystemEntities extends BaseModel
      *
      * @return Apps
      */
-    public function app() : BelongsTo
+    public function app(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
@@ -67,7 +67,7 @@ class FilesystemEntities extends BaseModel
      *
      * @return SystemModules
      */
-    public function systemModule() : BelongsTo
+    public function systemModule(): BelongsTo
     {
         return $this->belongsTo(SystemModules::class, 'system_modules_id');
     }

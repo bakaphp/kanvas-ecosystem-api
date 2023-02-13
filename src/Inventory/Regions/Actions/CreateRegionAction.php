@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Regions\Actions;
@@ -22,7 +23,7 @@ class CreateRegionAction
      *
      * @return RegionModel
      */
-    public function execute() : RegionModel
+    public function execute(): RegionModel
     {
         CompaniesRepository::userAssociatedToCompany(
             Companies::getById($this->data->company->getId()),

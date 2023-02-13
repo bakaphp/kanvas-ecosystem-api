@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Users\Models;
@@ -36,7 +37,7 @@ class UsersInvite extends BaseModel
      *
      * @return Builder
      */
-    public function scopeCompany(Builder $query) : Builder
+    public function scopeCompany(Builder $query): Builder
     {
         return $query->where('companies_id', auth()->user()->defaultCompany->id);
     }
@@ -46,7 +47,7 @@ class UsersInvite extends BaseModel
      *
      * @return BelongsTo
      */
-    public function user() : BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
     }
@@ -56,7 +57,7 @@ class UsersInvite extends BaseModel
      *
      * @return BelongsTo
      */
-    public function company() : BelongsTo
+    public function company(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }
@@ -66,7 +67,7 @@ class UsersInvite extends BaseModel
      *
      * @return BelongsTo
      */
-    public function branch() : BelongsTo
+    public function branch(): BelongsTo
     {
         return $this->belongsTo(CompaniesBranches::class, 'companies_branches_id');
     }

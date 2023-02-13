@@ -9,19 +9,8 @@ type User {
     user_active: Boolean!
     created_at: DateTime
     updated_at: DateTime
-    branches: [Branch]
-}
-
-type Branch {
-    id: Int!
-    companies_id: Int!
-    users_id: Int!
-    name: String!
-    address: String
-    email: String
-    phone: String
-    zipcode: String
-    is_default: String
+    branches: [CompanyBranch!] @HasManyThrough
+    companies: [Company!] @HasManyThrough
 }
 
 type TokenResponse {
@@ -80,6 +69,13 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\Register@resolve"
         )
+    changePassword(
+        new_password: String! @rules(apply: ["string", "confirmed"])
+        new_password_confirmation: String
+    ): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagement@changePassword"
+        )
     forgotPassword(data: ForgotPasswordInput!): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\ForgotPassword@forgot"
@@ -94,6 +90,8 @@ extend type Mutation {
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\Update@updateUser"
         )
 }
+
+
 
 type Query @guard {
     me: User! @auth

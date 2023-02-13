@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\ProductsTypes\Models;
@@ -38,7 +39,7 @@ class ProductsTypes extends BaseModel
      *
      * @return BelongsTo
      */
-    public function companies() : BelongsTo
+    public function companies(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }

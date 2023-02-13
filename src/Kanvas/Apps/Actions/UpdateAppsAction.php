@@ -30,7 +30,7 @@ class UpdateAppsAction
      *
      * @return Apps
      */
-    public function execute(string $id) : Apps
+    public function execute(string $id): Apps
     {
         /**
          * @todo only super admins can modify apps

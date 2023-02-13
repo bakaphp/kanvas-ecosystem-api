@@ -12,27 +12,27 @@ use Kanvas\Users\Models\UsersAssociatedApps;
 
 interface UserInterface extends Authenticatable
 {
-    public static function getByEmail(string $email) : self;
+    public static function getByEmail(string $email): self;
 
-    public function getId() : int;
+    public function getId(): int;
 
-    public function getUuid() : string;
+    public function getUuid(): string;
 
-    public function isActive() : bool;
+    public function isActive(): bool;
 
-    public function isBanned() : bool;
+    public function isBanned(): bool;
 
-    public function getEmail() : string;
+    public function getEmail(): string;
 
-    public function defaultCompany() : HasOne;
+    public function defaultCompany(): HasOne;
 
-    public function apps() : HasManyThrough;
+    public function apps(): HasManyThrough;
 
-    public function companies() : HasManyThrough;
+    public function companies(): HasManyThrough;
 
-    public function branches() : HasManyThrough;
+    public function branches(): HasManyThrough;
 
-    public function notifications() : HasMany;
+    public function notifications(): HasMany;
 
-    public function currentAppInfo() : UsersAssociatedApps;
+    public function currentAppInfo(): UsersAssociatedApps;
 }

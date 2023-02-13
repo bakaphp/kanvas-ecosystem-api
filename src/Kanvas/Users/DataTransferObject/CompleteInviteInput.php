@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Users\DataTransferObject;
@@ -28,7 +29,7 @@ class CompleteInviteInput extends Data
      *
      * @return string
      */
-    public function getInviteHash() : string
+    public function getInviteHash(): string
     {
         return $this->invite_hash;
     }

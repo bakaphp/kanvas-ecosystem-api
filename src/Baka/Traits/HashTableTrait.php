@@ -17,7 +17,7 @@ trait HashTableTrait
      *
      * @return string
      */
-    private function getSettingsPrimaryKey() : string
+    private function getSettingsPrimaryKey(): string
     {
         return $this->table . '_' . $this->getKeyName();
     }
@@ -27,7 +27,7 @@ trait HashTableTrait
      *
      * @return void
      */
-    protected function createSettingsModel() : void
+    protected function createSettingsModel(): void
     {
         $class = get_class($this) . 'Settings';
 
@@ -42,7 +42,7 @@ trait HashTableTrait
      *
      * @return bool
      */
-    public function set(string $key, mixed $value) : bool
+    public function set(string $key, mixed $value): bool
     {
         $this->createSettingsModel();
 
@@ -71,7 +71,7 @@ trait HashTableTrait
      *
      * @return mixed
      */
-    protected function getSettingsByKey(string $key) : mixed
+    protected function getSettingsByKey(string $key): mixed
     {
         return $this->settingsModel
             ->where($this->getSettingsPrimaryKey(), $this->getKey())
@@ -83,7 +83,7 @@ trait HashTableTrait
      *
      * @return array
      */
-    public function getAllSettings() : array
+    public function getAllSettings(): array
     {
         $this->createSettingsModel();
 
@@ -104,7 +104,7 @@ trait HashTableTrait
      *
      * @return mixed
      */
-    public function get(string $key) : mixed
+    public function get(string $key): mixed
     {
         $this->createSettingsModel();
         $value = $this->getSettingsByKey($key);
@@ -123,7 +123,7 @@ trait HashTableTrait
      *
      * @return bool
      */
-    public function deleteHash(string $key) : bool
+    public function deleteHash(string $key): bool
     {
         $this->createSettingsModel();
         if ($record = $this->getSettingsByKey($key)) {

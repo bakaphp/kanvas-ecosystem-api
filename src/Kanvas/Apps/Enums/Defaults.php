@@ -26,7 +26,7 @@ enum Defaults implements EnumsInterface
     case DEFAULT_LANGUAGE;
     case DEFAULT_ROLE_ID;
 
-    public function getValue() : mixed
+    public function getValue(): mixed
     {
         return match ($this) {
             self::CORE_APP_ID => 1,

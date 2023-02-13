@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Actions;
@@ -20,7 +21,7 @@ class AddAttributeAction
      *
      * @return Variants
      */
-    public function execute() : Variants
+    public function execute(): Variants
     {
         if ($this->variants->attributes()->find($this->attributes->getId())) {
             $this->variants->attributes()->syncWithoutDetaching([$this->attributes->getId() => ['value' => $this->value]]);

@@ -26,7 +26,7 @@ trait HasJwtToken
         string $name,
         array $abilities = ['*'],
         ?DateTimeInterface $expiresAt = null
-    ) : NewAccessToken {
+    ): NewAccessToken {
         $userIp = request()->ip();
         $pageId = 1;
 

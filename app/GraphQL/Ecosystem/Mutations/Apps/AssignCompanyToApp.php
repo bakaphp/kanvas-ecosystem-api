@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Apps;
@@ -36,7 +37,7 @@ final class AssignCompanyToApp
      * @param  null  $_
      * @param  array{}  $args
      */
-    public function remove($_, array $request) : Companies
+    public function remove($_, array $request): Companies
     {
         $id = $request['id'];
         $companyId = $request['companyId'];

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Attributes;
@@ -18,7 +19,7 @@ class Attributes
      *
      * @return AttributeModel
      */
-    public function create(mixed $root, array $req) : AttributeModel
+    public function create(mixed $root, array $req): AttributeModel
     {
         $dto = AttributeDto::viaRequest($req['input']);
         $action = new CreateAttribute($dto, auth()->user());
@@ -33,7 +34,7 @@ class Attributes
      *
      * @return AttributeModel
      */
-    public function update(mixed $root, array $req) : AttributeModel
+    public function update(mixed $root, array $req): AttributeModel
     {
         $attribute = AttributesRepository::getById($req['id'], auth()->user()->getCurrentCompany());
         $attribute->update($req['input']);
@@ -48,7 +49,7 @@ class Attributes
      *
      * @return bool
      */
-    public function delete(mixed $root, array $req) : bool
+    public function delete(mixed $root, array $req): bool
     {
         $attribute = AttributesRepository::getById($req['id'], auth()->user()->getCurrentCompany());
         return $attribute->delete();

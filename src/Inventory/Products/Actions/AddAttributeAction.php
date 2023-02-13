@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Products\Actions;
@@ -25,7 +26,7 @@ class AddAttributeAction
      *
      * @return Products
      */
-    public function execute() : Products
+    public function execute(): Products
     {
         if ($this->product->attributes()->find($this->attribute->getId())) {
             $this->product->attributes()->syncWithoutDetaching([$this->attribute->getId() => ['value' => $this->value]]);

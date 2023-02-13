@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Locations;
@@ -12,7 +13,7 @@ final class CreateCountry
      * @param  null  $_
      * @param  array{}  $args
      */
-    public function __invoke($_, array $request) : Countries
+    public function __invoke($_, array $request): Countries
     {
         // TODO implement the resolver
 

@@ -1,9 +1,10 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Models;
 
-use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Guild\Models\BaseModel;
 
 /**
  * Class ContactTypes.

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem;
@@ -7,7 +8,7 @@ use Tests\TestCase;
 
 class HelloTest extends TestCase
 {
-    public function testHelloKanvas() : void
+    public function testHelloKanvas(): void
     {
         $response = $this->graphQL(/** @lang GraphQL */ '
         {

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Social\Integration;
@@ -12,7 +13,7 @@ use Tests\TestCase;
 
 final class InteractionsTest extends TestCase
 {
-    public function testEntityLikeOtherEntity() : void
+    public function testEntityLikeOtherEntity(): void
     {
         $company = auth()->user()->getCurrentCompany();
         $setupCompany = new Setup(
@@ -31,7 +32,7 @@ final class InteractionsTest extends TestCase
         );
     }
 
-    public function testEntityHasLikedOtherEntity() : void
+    public function testEntityHasLikedOtherEntity(): void
     {
         $warehouse = Warehouses::firstOrFail();
         $product = Products::firstOrFail();
@@ -42,7 +43,7 @@ final class InteractionsTest extends TestCase
         );
     }
 
-    public function testEntityTotalLikesOfOtherEntity() : void
+    public function testEntityTotalLikesOfOtherEntity(): void
     {
         $warehouse = Warehouses::firstOrFail();
         $product = Products::firstOrFail();
@@ -54,7 +55,7 @@ final class InteractionsTest extends TestCase
         );
     }
 
-    public function testEntityUnLikeOtherEntity() : void
+    public function testEntityUnLikeOtherEntity(): void
     {
         $warehouse = Warehouses::firstOrFail();
         $product = Products::firstOrFail();

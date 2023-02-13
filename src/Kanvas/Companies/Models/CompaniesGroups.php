@@ -43,7 +43,7 @@ class CompaniesGroups extends BaseModel
      *
      * @return hasMany
      */
-    public function companiesAssoc() : HasMany
+    public function companiesAssoc(): HasMany
     {
         return $this->hasMany(CompaniesAssociations::class, 'companies_groups_id');
     }
@@ -53,7 +53,7 @@ class CompaniesGroups extends BaseModel
      *
      * @return BelongsToMany
      */
-    public function companies() : BelongsToMany
+    public function companies(): BelongsToMany
     {
         return $this->belongsToMany(Companies::class, 'companies_associations');
     }
@@ -63,7 +63,7 @@ class CompaniesGroups extends BaseModel
      *
      * @return Users
      */
-    public function user() : BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
     }

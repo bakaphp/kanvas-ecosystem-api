@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Users\Repositories;
@@ -17,7 +18,7 @@ class UsersInviteRepository
      *
      * @return UsersInvite
      */
-    public static function getById(int $id, Companies $company) : UsersInviteModel
+    public static function getById(int $id, Companies $company): UsersInviteModel
     {
         return UsersInviteModel::where('apps_id', app(Apps::class)->id)
             ->where('companies_id', $company->getKey())
@@ -33,7 +34,7 @@ class UsersInviteRepository
      *
      * @return UsersInviteModel
      */
-    public static function getByHash(string $hash) : UsersInviteModel
+    public static function getByHash(string $hash): UsersInviteModel
     {
         return UsersInviteModel::where('invite_hash', $hash)
             ->where('apps_id', app(Apps::class)->id)
