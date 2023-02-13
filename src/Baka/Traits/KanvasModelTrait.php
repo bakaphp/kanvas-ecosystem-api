@@ -97,6 +97,7 @@ trait KanvasModelTrait
     public function softDelete(): bool
     {
         $this->is_deleted = StateEnums::YES->getValue();
+
         return $this->saveOrFail();
     }
 
@@ -108,7 +109,8 @@ trait KanvasModelTrait
     public static function getFullTableName(): string
     {
         $model = new static();
-        return $model->getConnectionName() . '.' . $model->getTable();
+
+        return $model->getConnection()->getName() . '.' . $model->getTable();
     }
 
     /**
