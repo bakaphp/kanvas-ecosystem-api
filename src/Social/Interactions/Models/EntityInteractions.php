@@ -39,6 +39,9 @@ class EntityInteractions extends BaseModel
      */
     public function interactedEntityData(): ?Model
     {
+        /**
+         * @var Model
+         */
         return $this->interacted_entity_namespace::getById($this->interacted_entity_id);
     }
 }

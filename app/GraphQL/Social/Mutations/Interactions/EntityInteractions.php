@@ -9,6 +9,7 @@ use Kanvas\Social\Enums\StateEnums;
 use Kanvas\Social\Interactions\Actions\CreateEntityInteraction;
 use Kanvas\Social\Interactions\DataTransferObject\LikeEntityInput;
 use Kanvas\Social\Interactions\Models\EntityInteractions as ModelsEntityInteractions;
+use Kanvas\Social\Interactions\Repositories\EntityInteractionsRepository;
 
 class EntityInteractions
 {
@@ -73,5 +74,20 @@ class EntityInteractions
         return $createEntityInteraction->execute(
             (string)  StateEnums::DISLIKE->getValue()
         ) instanceof ModelsEntityInteractions;
+    }
+
+    /**
+     * Given a like entity input get the social interactions for the entity.
+     *
+     * @param mixed $root
+     * @param array $req
+     *
+     * @return array
+     */
+    public function getInteractionByEntity(mixed $root, array $req): array
+    {
+        return EntityInteractionsRepository::getEntityInteractions(
+            LikeEntityInput::from($req['input'])
+        );
     }
 }
