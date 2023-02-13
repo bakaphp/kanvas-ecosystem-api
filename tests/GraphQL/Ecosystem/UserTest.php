@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem;
@@ -15,7 +16,7 @@ class UserTest extends TestCase
      *
      * @return LoginInput
      */
-    public static function loginData() : LoginInput
+    public static function loginData(): LoginInput
     {
         if (empty(self::$loginData)) {
             self::$loginData = LoginInput::from([
@@ -54,8 +55,8 @@ class UserTest extends TestCase
             ]
         )
         ->assertSuccessful()
-        ->assertSee('firstname',$firstname)
-        ->assertSee('lastname',$lastname)
-        ->assertSee('displayname',$displayname);
+        ->assertSee('firstname', $firstname)
+        ->assertSee('lastname', $lastname)
+        ->assertSee('displayname', $displayname);
     }
 }

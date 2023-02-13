@@ -28,7 +28,7 @@ class UserManagement
      *
      * @return Users
      */
-    public function update(array $data) : Users
+    public function update(array $data): Users
     {
         try {
             $this->user->update(array_filter($data));
