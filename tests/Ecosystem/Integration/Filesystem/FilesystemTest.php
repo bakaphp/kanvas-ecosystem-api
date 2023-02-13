@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Integration\Filesystem;
+namespace Tests\Ecosystem\Integration\Filesystem;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;

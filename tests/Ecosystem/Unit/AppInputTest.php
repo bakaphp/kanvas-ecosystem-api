@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Unit;
+namespace Tests\Ecosystem\Unit;
 
 use Kanvas\Apps\DataTransferObject\AppInput;
 use Tests\TestCaseUnit;
