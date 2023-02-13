@@ -110,7 +110,7 @@ trait KanvasModelTrait
     {
         $model = new static();
 
-        return $model->getConnection()->getName() . '.' . $model->getTable();
+        return $model->getConnection()->getDatabaseName() . '.' . $model->getTable();
     }
 
     /**
