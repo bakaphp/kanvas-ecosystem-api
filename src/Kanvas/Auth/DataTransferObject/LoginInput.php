@@ -30,7 +30,7 @@ class LoginInput extends Data
      *
      * @return string
      */
-    public function getEmail() : string
+    public function getEmail(): string
     {
         return ltrim(trim($this->email));
     }
@@ -40,7 +40,7 @@ class LoginInput extends Data
      *
      * @return string
      */
-    public function getPassword() : string
+    public function getPassword(): string
     {
         return ltrim(trim($this->password));
     }

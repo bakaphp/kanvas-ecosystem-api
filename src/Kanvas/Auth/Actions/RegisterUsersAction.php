@@ -36,7 +36,7 @@ class RegisterUsersAction
      *
      * @return Users
      */
-    public function execute() : Users
+    public function execute(): Users
     {
         $user = Users::where(
             [

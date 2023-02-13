@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Notifications\Templates;
@@ -28,7 +29,7 @@ class Invite extends Notification
      *
      * @return array
      */
-    public function via() : array
+    public function via(): array
     {
         return [...parent::via(), 'mail'];
     }
@@ -38,7 +39,7 @@ class Invite extends Notification
      *
      * @return array
      */
-    public function getData() : array
+    public function getData(): array
     {
         return [
             'name' => "{$this->entity->firstname} {$this->entity->lastname}",

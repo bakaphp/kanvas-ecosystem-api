@@ -13,7 +13,7 @@ enum DefaultRoles implements EnumsInterface
     case AGENT;
     case MANAGER;
 
-    public function getValue() : mixed
+    public function getValue(): mixed
     {
         return match ($this) {
             self::ADMIN => 'Admin',

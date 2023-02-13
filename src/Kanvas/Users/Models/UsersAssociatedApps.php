@@ -46,7 +46,7 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable
      *
      * @return Users
      */
-    public function user() : BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
     }
@@ -56,7 +56,7 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable
      *
      * @return Companies
      */
-    public function company() : BelongsTo
+    public function company(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }
@@ -66,7 +66,7 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable
      *
      * @return Apps
      */
-    public function app() : BelongsTo
+    public function app(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
@@ -79,7 +79,7 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable
      *
      * @return void
      */
-    public function set(string $key, mixed $value) : void
+    public function set(string $key, mixed $value): void
     {
         if (Str::isJson($this->configuration)) {
             $configuration = json_decode($this->configuration, true);
@@ -101,7 +101,7 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable
      *
      * @return mixed
      */
-    public function get(string $key) : mixed
+    public function get(string $key): mixed
     {
         if (Str::isJson($this->configuration)) {
             $configuration = json_decode($this->configuration, true);

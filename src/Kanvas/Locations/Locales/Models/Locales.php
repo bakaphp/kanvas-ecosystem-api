@@ -14,7 +14,6 @@ use Kanvas\Models\BaseModel;
 
 class Locales extends BaseModel
 {
-
     /**
      * The table associated with the model.
      *

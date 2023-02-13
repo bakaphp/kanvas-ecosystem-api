@@ -33,7 +33,7 @@ class CustomFieldsSettings extends BaseModel
      *
      * @return BelongsTo
      */
-    public function app() : BelongsTo
+    public function app(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Social\Support;
@@ -33,7 +34,7 @@ class Setup
      *
      * @return bool
      */
-    public function run() : bool
+    public function run(): bool
     {
         $createSystemModule = new CreateInCurrentAppAction($this->app);
         $createSystemModule->execute(Interactions::class);

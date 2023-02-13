@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Queries\Filesystem;
@@ -22,10 +23,13 @@ class FileRelationship
      *
      * @return Builder
      */
-    public function entityPagination(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo) : Builder
+    public function entityPagination(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
     {
         $systemModule = SystemModulesRepository::getByModelName($root::class);
 
+        /**
+         * @var Builder
+         */
         return Filesystem::join('filesystem_entities', 'filesystem_entities.filesystem_id', '=', 'filesystem.id')
                     ->where('filesystem_entities.entity_id', '=', $root->getKey())
                     ->where('filesystem_entities.system_modules_id', '=', $systemModule->getKey())

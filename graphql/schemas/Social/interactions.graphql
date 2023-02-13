@@ -6,8 +6,8 @@ input LikeEntityInput {
 }
 
 type Interactions {
-    liked: Boolean
-    saved: Boolean
+    like: Boolean
+    save: Boolean
 }
 
 extend type Mutation @guardByAuthOrCompany {

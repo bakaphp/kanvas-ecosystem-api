@@ -16,7 +16,7 @@ class AppsObserver
      *
      * @return void
      */
-    public function creating(Apps $app) : void
+    public function creating(Apps $app): void
     {
         if (empty($app->key)) {
             $app->key = Str::uuid();
@@ -38,7 +38,7 @@ class AppsObserver
      *
      * @return void
      */
-    public function created(Apps $app) : void
+    public function created(Apps $app): void
     {
         $setup = new SetupAppsAction($app);
         $setup->execute();

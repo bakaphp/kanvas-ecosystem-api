@@ -15,7 +15,7 @@ enum Defaults implements EnumsInterface
     case USERS;
     case ROLES;
 
-    public function getValue() : mixed
+    public function getValue(): mixed
     {
         return match ($this) {
             self::COMPANIES => [

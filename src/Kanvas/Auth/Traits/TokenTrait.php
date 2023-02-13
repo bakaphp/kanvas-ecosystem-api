@@ -31,7 +31,7 @@ trait TokenTrait
      *
      * @throws ModelException
      */
-    public function getToken() : array
+    public function getToken(): array
     {
         $sessionId = (string)Str::uuid();
 
@@ -59,7 +59,7 @@ trait TokenTrait
      *
      * @return array
      */
-    public function format(array $token) : array
+    public function format(array $token): array
     {
         return [
             'sessionId' => $token['sessionId'],
@@ -80,7 +80,7 @@ trait TokenTrait
      *
      * @deprecated 0.2
      */
-    public function getValidationData(Token $token) : bool
+    public function getValidationData(Token $token): bool
     {
         return self::validateJwtToken($token);
     }
@@ -95,7 +95,7 @@ trait TokenTrait
      *
      * @return bool
      */
-    public static function validateJwtToken(Token $token) : bool
+    public static function validateJwtToken(Token $token): bool
     {
         $config = Jwt::getConfig();
 
@@ -114,7 +114,7 @@ trait TokenTrait
      *
      * @return array
      */
-    public static function createJwtToken(string $sessionId, string $email, float $expirationAt = 0) : array
+    public static function createJwtToken(string $sessionId, string $email, float $expirationAt = 0): array
     {
         $now = new DateTimeImmutable();
         $config = Jwt::getConfig();
@@ -148,7 +148,7 @@ trait TokenTrait
      *
      * @return array
      */
-    protected function generateToken(Request $request) : array
+    protected function generateToken(Request $request): array
     {
         $userIp = $request->ip();
         $pageId = 1;

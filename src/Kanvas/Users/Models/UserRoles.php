@@ -39,7 +39,7 @@ class UserRoles extends BaseModel
      *
      * @return Users
      */
-    public function user() : BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
     }
@@ -49,7 +49,7 @@ class UserRoles extends BaseModel
      *
      * @return Users
      */
-    public function role() : BelongsTo
+    public function role(): BelongsTo
     {
         return $this->belongsTo(Roles::class, 'roles_id');
     }
@@ -59,7 +59,7 @@ class UserRoles extends BaseModel
      *
      * @return Users
      */
-    public function app() : BelongsTo
+    public function app(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'users_id');
     }
@@ -69,7 +69,7 @@ class UserRoles extends BaseModel
      *
      * @return Users
      */
-    public function company() : BelongsTo
+    public function company(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'users_id');
     }

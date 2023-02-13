@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Inventory\Integration;
@@ -12,7 +13,7 @@ use Tests\TestCase;
 
 final class ImporterTest extends TestCase
 {
-    public function testImportAction() : void
+    public function testImportAction(): void
     {
         $company = auth()->user()->getCurrentCompany();
 

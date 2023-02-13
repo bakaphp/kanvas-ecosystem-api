@@ -24,7 +24,7 @@ class DeleteCompanyBranchActions
      *
      * @return Companies
      */
-    public function execute(int $companyBranchId) : CompaniesBranches
+    public function execute(int $companyBranchId): CompaniesBranches
     {
         $companyBranch = CompaniesBranches::getById($companyBranchId);
         $company = $companyBranch->company()->first();

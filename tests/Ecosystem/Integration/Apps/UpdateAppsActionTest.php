@@ -1,7 +1,8 @@
 <?php
+
 declare(strict_types=1);
 
-namespace Tests\Feature\Apps\Actions;
+namespace Tests\Ecosystem\Integration\Apps;
 
 use Kanvas\Apps\Actions\CreateAppsAction;
 use Kanvas\Apps\Actions\UpdateAppsAction;
@@ -16,7 +17,7 @@ final class UpdateAppsActionTest extends TestCase
      *
      * @return void
      */
-    public function testCreateAppsAction() : void
+    public function testCreateAppsAction(): void
     {
         $data = [
             'url' => 'example.com',

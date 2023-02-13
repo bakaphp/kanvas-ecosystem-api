@@ -27,7 +27,7 @@ class CreateAppsAction
      *
      * @throws Throwable
      */
-    public function execute() : Apps
+    public function execute(): Apps
     {
         $app = new Apps();
         $app->fill([

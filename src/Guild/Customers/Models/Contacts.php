@@ -1,10 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Guild\Models\BaseModel;
 
 /**
  * Class Contacts.
@@ -21,7 +22,7 @@ class Contacts extends BaseModel
     protected $table = 'peoples_contacts';
     protected $guarded = [];
 
-    public function people() : BelongsTo
+    public function people(): BelongsTo
     {
         return $this->belongsTo(
             Peoples::class,
@@ -30,7 +31,7 @@ class Contacts extends BaseModel
         );
     }
 
-    public function contactType() : BelongsTo
+    public function contactType(): BelongsTo
     {
         return $this->belongsTo(
             ContactTypes::class,

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Companies\Observers;
@@ -23,7 +24,7 @@ class CompaniesObserver
      *
      * @return void
      */
-    public function creating(Companies $company) : void
+    public function creating(Companies $company): void
     {
         $company->uuid = Str::uuid()->toString();
     }
@@ -35,7 +36,7 @@ class CompaniesObserver
      *
      * @return void
      */
-    public function created(Companies $company) : void
+    public function created(Companies $company): void
     {
         $app = app(Apps::class);
         $user = $company->user()->first();

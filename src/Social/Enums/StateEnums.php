@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Social\Enums;
@@ -26,7 +27,7 @@ enum StateEnums implements EnumsInterface
      *
      * @return mixed
      */
-    public function getValue() : mixed
+    public function getValue(): mixed
     {
         return match ($this) {
             self::LIKE => 'like',

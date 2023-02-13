@@ -1,19 +1,22 @@
 <?php
+
 declare(strict_types=1);
 
-namespace Tests\Unit;
+namespace Tests\Ecosystem\Integration\Apps;
 
+use Kanvas\Apps\Actions\CreateAppsAction;
 use Kanvas\Apps\DataTransferObject\AppInput;
-use Tests\TestCaseUnit;
+use Kanvas\Apps\Models\Apps;
+use Tests\TestCase;
 
-final class AppInputTest extends TestCaseUnit
+final class CreateAppsActionTest extends TestCase
 {
     /**
-     * Test Create AppsPostData Dto.
+     * Test Create Apps Action.
      *
      * @return void
      */
-    public function testCreateAppsPostDataDto() : void
+    public function testCreateAppsAction(): void
     {
         $data = [
             'url' => 'example.com',
@@ -26,10 +29,14 @@ final class AppInputTest extends TestCaseUnit
             'description' => 'Kanvas Application',
             'domain' => 'example.com',
         ];
+        //Create new AppInput
+        $dtoData = AppInput::from($data);
+
+        $app = new CreateAppsAction($dtoData, auth()->user());
 
         $this->assertInstanceOf(
-            AppInput::class,
-            AppInput::from($data)
+            Apps::class,
+            $app->execute()
         );
     }
 }

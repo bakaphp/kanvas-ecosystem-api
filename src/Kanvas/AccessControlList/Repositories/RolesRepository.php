@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\AccessControlList\Repositories;
@@ -17,7 +18,7 @@ class RolesRepository
      *
      * @return ?Collection
      */
-    public static function getAllRoles() : ?Collection
+    public static function getAllRoles(): ?Collection
     {
         return Role::whereNull('scope')
             ->orWhere('scope', self::getScope())
@@ -30,7 +31,7 @@ class RolesRepository
      *
      * @return string
      */
-    public static function getScope(?Model $user = null, ?Companies $company = null) : string
+    public static function getScope(?Model $user = null, ?Companies $company = null): string
     {
         $app = app(Apps::class);
         $user = $user ?? auth()->user();
@@ -46,7 +47,7 @@ class RolesRepository
      *
      * @return Collection
      */
-    public static function getAppRoles(Apps $app) : Collection
+    public static function getAppRoles(Apps $app): Collection
     {
         return Role::where('scope', RolesEnums::getKey($app))->get();
     }

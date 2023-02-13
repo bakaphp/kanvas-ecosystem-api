@@ -28,7 +28,7 @@ trait HasFilesystemTrait
      *
      * @return bool
      */
-    public function attach(Filesystem $files, string $fieldName) : bool
+    public function addFile(Filesystem $files, string $fieldName): bool
     {
         $attachFilesystem = new AttachFilesystemAction($files, $this);
         $attachFilesystem->execute($fieldName);
@@ -46,7 +46,7 @@ trait HasFilesystemTrait
      *
      * @return bool
      */
-    public function attachUrl(string $url, string $fieldName) : bool
+    public function addFileFromUrl(string $url, string $fieldName): bool
     {
         $fileSystem = new Filesystem();
         $fileSystem->companies_id = $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
@@ -74,10 +74,10 @@ trait HasFilesystemTrait
      *
      * @return bool
      */
-    public function attachMultiple(array $files) : bool
+    public function addMultipleFiles(array $files): bool
     {
         foreach ($files as $file) {
-            if (!isset($file['file']) || !isset($file['fieldName'])) {
+            if (! isset($file['file']) || ! isset($file['fieldName'])) {
                 throw new ValidationException('Missing file || fieldName index');
             }
 
@@ -93,7 +93,7 @@ trait HasFilesystemTrait
      *
      * @return Collection<FilesystemEntities>
      */
-    public function getFiles() : Collection
+    public function getFiles(): Collection
     {
         //move to use $this->files();
         return FilesystemEntitiesRepository::getFilesByEntity($this);
@@ -104,7 +104,7 @@ trait HasFilesystemTrait
      *
      * @return HasManyThrough
      */
-    public function files() : HasManyThrough
+    public function files(): HasManyThrough
     {
         return $this->hasManyThrough(
             Filesystem::class,
@@ -113,8 +113,14 @@ trait HasFilesystemTrait
             'id',
             'id',
             'filesystem_id'
-        )->where('filesystem_entities.system_modules_id', SystemModulesRepository::getByModelName(get_class($this))->getId())
-        ->where('filesystem_entities.is_deleted', StateEnums::NO->getValue());
+        )->where(
+            'filesystem_entities.system_modules_id',
+            SystemModulesRepository::getByModelName(get_class($this))->getId()
+        )
+        ->where(
+            'filesystem_entities.is_deleted',
+            StateEnums::NO->getValue()
+        );
     }
 
     /**
@@ -122,7 +128,7 @@ trait HasFilesystemTrait
      *
      * @return int
      */
-    public function deleteFiles() : int
+    public function deleteFiles(): int
     {
         return FilesystemEntitiesRepository::deleteAllFilesFromEntity($this);
     }

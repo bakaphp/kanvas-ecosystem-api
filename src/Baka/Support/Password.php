@@ -17,7 +17,7 @@ class Password extends Hash
      *
      * @return bool
      */
-    public static function rehash(string $password, Authenticatable $entity) : bool
+    public static function rehash(string $password, Authenticatable $entity): bool
     {
         if (self::needsRehash($entity->password)) {
             $entity->password = self::make($password);

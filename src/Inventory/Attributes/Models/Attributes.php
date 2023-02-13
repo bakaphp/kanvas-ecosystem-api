@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Attributes\Models;
@@ -30,7 +31,7 @@ class Attributes extends BaseModel
      *
      * @return BelongsTo
      */
-    public function companies() : BelongsTo
+    public function companies(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }
@@ -40,7 +41,7 @@ class Attributes extends BaseModel
      *
      * @return BelongsTo
      */
-    public function apps() : BelongsTo
+    public function apps(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
@@ -50,7 +51,7 @@ class Attributes extends BaseModel
      *
      * @return Attribute
      */
-    protected function value() : Attribute
+    protected function value(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->value,

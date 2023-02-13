@@ -15,7 +15,7 @@ enum Defaults implements EnumsInterface
     case DEFAULT_COMPANY_BRANCH_APP;
     case GLOBAL_COMPANIES_ID;
 
-    public function getValue() : mixed
+    public function getValue(): mixed
     {
         $appDefaults = AppsDefaults::GLOBAL_COMPANY_ID;
         return match ($this) {

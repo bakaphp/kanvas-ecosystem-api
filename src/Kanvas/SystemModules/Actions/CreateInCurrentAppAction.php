@@ -24,7 +24,7 @@ class CreateInCurrentAppAction
      *
      * @return SystemModules
      */
-    public function execute(string $class) : SystemModules
+    public function execute(string $class): SystemModules
     {
         if (!class_exists($class)) {
             throw new InternalServerErrorException('Class not found in this app');

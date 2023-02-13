@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Social\Mutations\Interactions;
@@ -19,7 +20,7 @@ class EntityInteractions
      *
      * @return bool
      */
-    public function likeEntity(mixed $root, array $req) : bool
+    public function likeEntity(mixed $root, array $req): bool
     {
         $likeEntityInput = LikeEntityInput::from($req['input']);
         $createEntityInteraction = new CreateEntityInteraction(
@@ -40,7 +41,7 @@ class EntityInteractions
      *
      * @return bool
      */
-    public function unLikeEntity(mixed $root, array $req) : bool
+    public function unLikeEntity(mixed $root, array $req): bool
     {
         $likeEntityInput = LikeEntityInput::from($req['input']);
         $createEntityInteraction = new CreateEntityInteraction(
@@ -61,7 +62,7 @@ class EntityInteractions
      *
      * @return bool
      */
-    public function disLikeEntity(mixed $root, array $req) : bool
+    public function disLikeEntity(mixed $root, array $req): bool
     {
         $likeEntityInput = LikeEntityInput::from($req['input']);
         $createEntityInteraction = new CreateEntityInteraction(

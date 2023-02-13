@@ -15,7 +15,7 @@ class EmailDomain
      *
      * @return bool
      */
-    public static function verifyDomain(string $email) : bool
+    public static function verifyDomain(string $email): bool
     {
         if (!checkdnsrr(array_pop(explode('@', $email . '.')), 'MX')) {
             throw new ValidationException('Email domain is not valid.');

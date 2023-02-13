@@ -27,7 +27,7 @@ class CreateCompanyBranchActions
      *
      * @return CompaniesBranches
      */
-    public function execute() : CompaniesBranches
+    public function execute(): CompaniesBranches
     {
         $company = Companies::getById($this->data->companies_id);
 

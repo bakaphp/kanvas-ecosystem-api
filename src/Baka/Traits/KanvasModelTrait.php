@@ -14,21 +14,23 @@ use Kanvas\Users\Models\Users;
 
 trait KanvasModelTrait
 {
-    public function getId() : mixed
+    use KanvasScopesTrait;
+
+    public function getId(): mixed
     {
         return $this->getKey();
     }
 
-    public function getUuid() : string
+    public function getUuid(): string
     {
         return $this->uuid;
     }
 
-    public static function getByUuid(string $uuid) : self
+    public static function getByUuid(string $uuid): self
     {
         try {
             return self::where('uuid', $uuid)
-                ->where('is_deleted', StateEnums::NO->getValue())
+                ->notDeleted()
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
@@ -36,11 +38,11 @@ trait KanvasModelTrait
         }
     }
 
-    public static function getById(mixed $id) : self
+    public static function getById(mixed $id): self
     {
         try {
             return self::where('id', $id)
-                ->where('is_deleted', StateEnums::NO->getValue())
+                ->notDeleted()
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
@@ -53,7 +55,7 @@ trait KanvasModelTrait
      *
      * @return BelongsTo<Companies>
      */
-    public function company() : BelongsTo
+    public function company(): BelongsTo
     {
         return $this->setConnection('ecosystem')->belongsTo(
             Companies::class,
@@ -62,7 +64,7 @@ trait KanvasModelTrait
         );
     }
 
-    public function user() : BelongsTo
+    public function user(): BelongsTo
     {
         return $this->setConnection('ecosystem')->belongsTo(
             Users::class,
@@ -76,7 +78,7 @@ trait KanvasModelTrait
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function app() : BelongsTo
+    public function app(): BelongsTo
     {
         return  $this->setConnection('ecosystem')->belongsTo(
             Apps::class,
@@ -92,9 +94,30 @@ trait KanvasModelTrait
      *
      * @return bool
      */
-    public function softDelete() : bool
+    public function softDelete(): bool
     {
         $this->is_deleted = StateEnums::YES->getValue();
         return $this->saveOrFail();
+    }
+
+    /**
+     * Get the table name with the connection name.
+     *
+     * @return string
+     */
+    public static function getFullTableName(): string
+    {
+        $model = new static();
+        return $model->getConnectionName() . '.' . $model->getTable();
+    }
+
+    /**
+     * Get the table name.
+     *
+     * @return string
+     */
+    public static function getTableName(): string
+    {
+        return ((new self())->getTable());
     }
 }
