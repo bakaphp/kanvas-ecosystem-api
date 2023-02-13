@@ -29,8 +29,6 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Roles\Models\Roles;
-use Kanvas\Traits\PermissionsTrait;
-use Kanvas\Traits\UsersAssociatedTrait;
 use Kanvas\Users\Factories\UsersFactory;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 
@@ -87,8 +85,6 @@ use Silber\Bouncer\Database\HasRolesAndAbilities;
 class Users extends Authenticatable implements UserInterface, ContractsAuthenticatable
 {
     use HashTableTrait;
-    use UsersAssociatedTrait;
-    //use PermissionsTrait;
     use Notifiable;
     use HasFactory;
     use HasApiTokens;
@@ -255,11 +251,11 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $user = self::where(
             [
                 'email' => $email,
-                'is_deleted' => 0
+                'is_deleted' => 0,
             ]
         )->first();
 
-        if (!$user) {
+        if (! $user) {
             throw new ModelNotFoundException('No User Found');
         }
 
@@ -283,7 +279,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function isBanned(): bool
     {
-        return !$this->isActive() && $this->banned === 'Y';
+        return ! $this->isActive() && $this->banned === 'Y';
     }
 
     /**

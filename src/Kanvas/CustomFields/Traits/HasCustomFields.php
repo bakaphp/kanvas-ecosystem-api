@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\CustomFields\Traits;
 
 use Baka\Support\Str;
+use Baka\Traits\HasSchemaAccessors;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +16,6 @@ use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\CustomFields\Models\CustomFields;
 use Kanvas\CustomFields\Models\CustomFieldsModules;
 use Kanvas\Enums\AppEnums;
-use Kanvas\Traits\HasSchemaAccessors;
 
 trait HasCustomFields
 {

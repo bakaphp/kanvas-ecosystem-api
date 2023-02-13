@@ -16,7 +16,6 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
-use Kanvas\Traits\UsersAssociatedTrait;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
@@ -42,8 +41,6 @@ use Kanvas\Users\Models\UsersAssociatedCompanies;
  */
 class Companies extends BaseModel implements CompanyInterface
 {
-    // use UsersAssociatedTrait;
-
     /**
      * The table associated with the model.
      *
@@ -228,7 +225,7 @@ class Companies extends BaseModel implements CompanyInterface
             'identify_id' => $companyUserIdentifier ?? $user->id,
             'user_active' => $isActive,
             'user_role' => $userRoleId ?? $user->roles_id,
-            'password' => $password
+            'password' => $password,
         ]);
     }
 
@@ -254,6 +251,7 @@ class Companies extends BaseModel implements CompanyInterface
     public function scopeUserAssociated(Builder $query): Builder
     {
         $user = Auth::user();
+
         return $query->join('users_associated_company', function ($join) use ($user) {
             $join->on('companies.id', '=', 'users_associated_company.companies_id')
                 ->where('users_associated_company.users_id', '=', $user->getKey())

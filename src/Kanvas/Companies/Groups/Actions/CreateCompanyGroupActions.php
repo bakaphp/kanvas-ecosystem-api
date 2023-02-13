@@ -23,7 +23,7 @@ class CreateCompanyGroupActions
     /**
      * Invoke function.
      *
-     * @return Companies
+     * @return CompaniesGroups
      */
     public function execute(string $name, int $isDefault): CompaniesGroups
     {
@@ -44,6 +44,9 @@ class CreateCompanyGroupActions
             (int) $companyGroup->companiesAssoc()->count() === 0 ? $isDefault : StateEnums::NO->getValue()
         );
 
+        /**
+         * @var CompaniesGroups
+         */
         return $companyGroup;
     }
 }
