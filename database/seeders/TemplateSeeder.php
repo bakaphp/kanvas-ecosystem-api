@@ -165,7 +165,7 @@ class TemplateSeeder extends Seeder
         Templates::create([
             'apps_id' => 1,
             'users_id' => 1,
-            'companies_id' => 1,
+            'companies_id' => 0,
             'name' => 'Default',
             'template' => $defaultTemplate,
             'created_at' => date('Y-m-d H:i:s'),
