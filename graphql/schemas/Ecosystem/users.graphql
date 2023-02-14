@@ -4,8 +4,17 @@ type User {
     firstname: String!
     lastname: String!
     displayname: String!
+    description: String
+    city_id: Int
+    state_id: Int
+    country_id: Int
     email: String!
-    phone: String
+    phone_number: String
+    cell_phone_number: String
+    address_1: String
+    address_2: String
+    zip_code: Int
+    sex: String
     user_active: Boolean!
     created_at: DateTime
     updated_at: DateTime
@@ -58,6 +67,16 @@ input UpdateUserInput {
     firstname: String
     lastname: String
     displayname: String @rules(apply: ["unique:Kanvas\\Users\\Models\\Users,displayname"])
+    description: String
+    sex: String
+    phone_number: String
+    cell_phone_number: String
+    address_1: String
+    address_2: String
+    zip_code: Int
+    city_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Cities\\Models\\Cities,id"])
+    state_id: Int @rules(apply: ["exists:Kanvas\\Locations\\States\\Models\\States,id"])
+    country_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Countries\\Models\\Countries,id"])
 }
 
 extend type Mutation {
