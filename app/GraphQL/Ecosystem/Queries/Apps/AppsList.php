@@ -18,7 +18,7 @@ class AppsList
      */
     public function getAppSettings($rootValue, array $request): array
     {
-        $app = AppsRepository::findFirstByKey((String) $request['key']);
+        $app = AppsRepository::findFirstByKey((string) $request['key']);
 
         return [
             'name' => $app->name,
