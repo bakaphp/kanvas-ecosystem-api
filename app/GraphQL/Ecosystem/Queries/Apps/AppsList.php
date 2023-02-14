@@ -15,7 +15,7 @@ final class AppsList
      * @param mixed $rootValue
      * @param array $request
      *
-     * @return Users
+     * @return array
      */
     public function getAppSettings($rootValue, array $request): array
     {

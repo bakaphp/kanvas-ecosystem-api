@@ -13,11 +13,11 @@ class AppsRepository
      *
      * @param string $key
      *
-     * @return Apps
+     * @return Apps|null
      */
     public static function findFirstByKey(string $key): ?Apps
     {
-        return Apps::where('key', $key)->where('is_deleted', 0)->firstOrFail();
+        return Apps::where('key', $key)->notDeleted()->firstOrFail();
     }
 
     /**
@@ -25,10 +25,10 @@ class AppsRepository
      *
      * @param string $domainName
      *
-     * @return Apps
+     * @return Apps|null
      */
     public static function getByDomainName(string $domainName): ?Apps
     {
-        return Apps::where('domain', $domainName)->where('domain_based', 1)->first();
+        return Apps::where('domain', $domainName)->notDeleted()->where('domain_based', 1)->first();
     }
 }

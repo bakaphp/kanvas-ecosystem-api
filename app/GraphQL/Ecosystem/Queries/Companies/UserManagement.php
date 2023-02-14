@@ -23,6 +23,9 @@ class UserManagement
      */
     public function getAllCompanyUsers(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
     {
+        /**
+         * @var Builder
+         */
         return  Users::join('users_associated_company', 'users_associated_company.users_id', 'users.id')
                 ->where('users_associated_company.companies_id', auth()->user()->currentCompanyId());
     }
@@ -39,6 +42,9 @@ class UserManagement
      */
     public function getAllCompanyBranchUsers(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
     {
+        /**
+         * @var Builder
+         */
         return  Users::join('users_associated_company', 'users_associated_company.users_id', 'users.id')
                 ->where('users_associated_company.companies_branches_id', auth()->user()->currentBranchId());
     }
