@@ -2,12 +2,14 @@
 
 namespace App\Providers;
 
-use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Schema as FacadesSchema;
 use Illuminate\Support\ServiceProvider;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Repositories\AppsRepository;
+use Kanvas\Exceptions\InternalServerErrorException;
+use Throwable;
 
 class KanvasAppsProvider extends ServiceProvider
 {
@@ -39,9 +41,9 @@ class KanvasAppsProvider extends ServiceProvider
                 $this->app->bind(Apps::class, function () use ($app) {
                     return $app;
                 });
-            } catch (Exception $e) {
-                $msg = !$domainBasedApp ? 'No App configure with this key ' . $appKey : 'No App configure for this domain ' . $domainName;
-                throw new Exception($msg);
+            } catch (Throwable $e) {
+                $msg = ! $domainBasedApp ? 'No App configure with this key ' . $appKey : 'No App configure for this domain ' . $domainName;
+                throw new InternalServerErrorException($msg, $e->getMessage());
             }
         }
     }

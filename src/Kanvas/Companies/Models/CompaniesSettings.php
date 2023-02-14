@@ -17,17 +17,16 @@ use Kanvas\Models\BaseModel;
  */
 class CompaniesSettings extends BaseModel
 {
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
     protected $table = 'companies_settings';
+
+    protected $casts = [
+        'value' => 'array',
+    ];
 
     /**
      * Companies relationship.
      *
-     * @return Companies
+     * @return BelongsTo
      */
     public function companies(): BelongsTo
     {

@@ -82,6 +82,11 @@ input CompanyBranchInput {
     phone: String
 }
 
+type CompanySettings {
+    name: String!
+    value: Mixed
+}
+
 extend type Query @guard {
     companies(
         where: _
@@ -168,6 +173,19 @@ extend type Query @guard {
     ): [User!]!
         @paginate(
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagement@getAllCompanyBranchUsers"
+            defaultCount: 10
+        )
+
+    companySettings(
+        where: _
+            @whereConditions(
+                columns: [
+                    "name"
+                ]
+            )
+    ): [CompanySettings!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\CompanySettings@getAllSettings"
             defaultCount: 10
         )
 }
