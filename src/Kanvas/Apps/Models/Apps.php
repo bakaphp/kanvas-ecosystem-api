@@ -62,7 +62,7 @@ class Apps extends BaseModel implements AppInterface
      *
      * @return hasMany
      */
-    public function settings() : hasMany
+    public function settings(): hasMany
     {
         return $this->hasMany(Settings::class, 'apps_id');
     }
@@ -72,7 +72,7 @@ class Apps extends BaseModel implements AppInterface
      *
      * @return hasMany
      */
-    public function roles() : HasMany
+    public function roles(): HasMany
     {
         return $this->hasMany(Roles::class, 'apps_id');
     }
@@ -108,7 +108,7 @@ class Apps extends BaseModel implements AppInterface
     {
         return UserCompanyApps::firstOrCreate([
             'apps_id' => $this->id,
-            'companies_id' => $company->getKey()
+            'companies_id' => $company->getKey(),
         ]);
     }
 
@@ -175,7 +175,7 @@ class Apps extends BaseModel implements AppInterface
             'user_active' => $isActive,
             'user_role' => $userRoleId ?? $user->roles_id,
             'password' => $password,
-            'configuration' => Str::isJson($configuration) ? json_encode($configuration) : $configuration
+            'configuration' => Str::isJson($configuration) ? json_encode($configuration) : $configuration,
         ]);
     }
 
@@ -189,6 +189,7 @@ class Apps extends BaseModel implements AppInterface
     public function scopeUserAssociated(Builder $query): Builder
     {
         $user = Auth::user();
+
         return $query->join('users_associated_apps', function ($join) use ($user) {
             $join->on('apps.id', '=', 'users_associated_apps.apps_id')
                 ->where('users_associated_apps.users_id', '=', $user->getKey())
