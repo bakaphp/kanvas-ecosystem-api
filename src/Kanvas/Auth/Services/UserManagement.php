@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\Services;
 
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Users\Models\Users;
 
 class UserManagement
@@ -32,8 +32,8 @@ class UserManagement
     {
         try {
             $this->user->update(array_filter($data));
-        } catch (ModelNotFoundException $e) {
-            //no email sent
+        } catch (InternalServerErrorException $e) {
+            throw new InternalServerErrorException($e->getMessage());
         }
 
         return $this->user;
