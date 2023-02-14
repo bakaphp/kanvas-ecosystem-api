@@ -87,7 +87,7 @@ extend type Mutation {
 
     updateUser(data: UpdateUserInput!): User
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\Update@updateUser"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagement@updateUser"
         )
 }
 
