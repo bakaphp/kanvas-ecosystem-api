@@ -32,7 +32,7 @@ class Settings extends BaseModel
     /**
      * Apps relationship.
      *
-     * @return Apps
+     * @return BelongsTo
      */
     public function app(): BelongsTo
     {

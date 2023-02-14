@@ -4,31 +4,24 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Queries\Companies;
 
-use GraphQL\Type\Definition\ResolveInfo;
-use Illuminate\Database\Eloquent\Builder;
-use Kanvas\Companies\Models\CompaniesSettings;
-use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
-
 class CompanySettings
 {
     /**
-     * all.
+     * Get user from the current company.
      *
-     * @param  mixed $root
-     * @param  array $args
-     * @param  GraphQLContext $context
-     * @param  ResolveInfo $resolveInfo
+     * @param mixed $rootValue
+     * @param array $request
      *
-     * @return Builder
+     * @return array
      */
-    public function getAllSettings(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
+    public function getAllSettings($rootValue, array $request): array
     {
-        /**
-         * @var Builder
-         */
-        return  CompaniesSettings::select('name', 'value')
-            ->notDeleted()
-            ->isPublic()
-            ->fromCompany(auth()->user()->getCurrentCompany());
+        $company = auth()->user()->getCurrentCompany();
+
+        return [
+            'name' => $company->name,
+            'description' => $company->description,
+            'settings' => $company->getAllSettings(onlyPublicSettings: true),
+        ];
     }
 }
