@@ -49,7 +49,7 @@ input templateInput {
 type AppSettings {
     name: String!
     description: String
-    settings: [Mixed!]!
+    settings: Mixed!
 }
 
 extend type Query @guard {

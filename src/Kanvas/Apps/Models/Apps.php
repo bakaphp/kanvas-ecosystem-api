@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
 use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
@@ -61,7 +62,7 @@ class Apps extends BaseModel implements AppInterface
      *
      * @return hasMany
      */
-    public function settings()
+    public function settings() : hasMany
     {
         return $this->hasMany(Settings::class, 'apps_id');
     }
@@ -69,9 +70,9 @@ class Apps extends BaseModel implements AppInterface
     /**
      * Roles relationship.
      *
-     * @return Roles
+     * @return hasMany
      */
-    public function roles()
+    public function roles() : HasMany
     {
         return $this->hasMany(Roles::class, 'apps_id');
     }
@@ -152,7 +153,7 @@ class Apps extends BaseModel implements AppInterface
      * @param string|null $password
      * @param string|null $companyUserIdentifier
      *
-     * @return void
+     * @return UsersAssociatedApps
      */
     public function associateUser(
         Users $user,

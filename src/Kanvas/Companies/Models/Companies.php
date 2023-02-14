@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Companies\Models;
 
 use Baka\Contracts\CompanyInterface;
+use Baka\Traits\HashTableTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -41,11 +42,8 @@ use Kanvas\Users\Models\UsersAssociatedCompanies;
  */
 class Companies extends BaseModel implements CompanyInterface
 {
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
+    use HashTableTrait;
+
     protected $table = 'companies';
 
     /**

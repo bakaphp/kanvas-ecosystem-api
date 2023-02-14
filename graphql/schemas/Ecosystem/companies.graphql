@@ -84,7 +84,7 @@ input CompanyBranchInput {
 
 type CompanySettings {
     name: String!
-    value: Mixed
+    settings: Mixed
 }
 
 extend type Query @guard {
@@ -176,17 +176,9 @@ extend type Query @guard {
             defaultCount: 10
         )
 
-    companySettings(
-        where: _
-            @whereConditions(
-                columns: [
-                    "name"
-                ]
-            )
-    ): [CompanySettings!]!
-        @paginate(
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\CompanySettings@getAllSettings"
-            defaultCount: 10
+    companySettings: CompanySettings
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\CompanySettings@getAllSettings"
         )
 }
 
