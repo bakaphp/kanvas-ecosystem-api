@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Apps\Models;
 
 use Baka\Contracts\AppInterface;
+use Baka\Enums\StateEnums;
 use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
 use Illuminate\Contracts\Database\Eloquent\Builder;
@@ -190,11 +191,16 @@ class Apps extends BaseModel implements AppInterface
     {
         $user = Auth::user();
 
-        return $query->join('users_associated_apps', function ($join) use ($user) {
-            $join->on('apps.id', '=', 'users_associated_apps.apps_id')
-                ->where('users_associated_apps.users_id', '=', $user->getKey())
-                ->where('users_associated_apps.is_deleted', '=', 0);
-        })
-            ->where('apps.is_deleted', '=', 0);
+        return $query->select('apps.*')
+            ->join(
+                'users_associated_apps',
+                'users_associated_apps.apps_id',
+                '=',
+                'apps.id'
+            )
+            ->where('users_associated_apps.users_id', '=', $user->getKey())
+            ->where('users_associated_apps.is_deleted', '=', StateEnums::NO->getValue())
+            ->where('apps.is_deleted', '=', StateEnums::NO->getValue())
+            ->groupBy('users_associated_apps.apps_id');
     }
 }

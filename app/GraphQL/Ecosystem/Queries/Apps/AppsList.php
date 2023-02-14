@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Queries\Apps;
 
 use Kanvas\Apps\Repositories\AppsRepository;
-use Kanvas\Users\Models\Users;
 
-final class AppsList
+class AppsList
 {
     /**
      * Get user from the current company.
@@ -19,7 +18,7 @@ final class AppsList
      */
     public function getAppSettings($rootValue, array $request): array
     {
-        $app = AppsRepository::findFirstByKey($request['key']);
+        $app = AppsRepository::findFirstByKey((String) $request['key']);
 
         return [
             'name' => $app->name,

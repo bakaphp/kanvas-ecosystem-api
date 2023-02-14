@@ -202,7 +202,7 @@ class Companies extends BaseModel implements CompanyInterface
      * @param string|null $password
      * @param string|null $companyUserIdentifier
      *
-     * @return void
+     * @return UsersAssociatedApps
      */
     public function associateUserApp(
         Users $user,
@@ -250,11 +250,14 @@ class Companies extends BaseModel implements CompanyInterface
     {
         $user = Auth::user();
 
-        return $query->join('users_associated_company', function ($join) use ($user) {
-            $join->on('companies.id', '=', 'users_associated_company.companies_id')
-                ->where('users_associated_company.users_id', '=', $user->getKey())
-                ->where('users_associated_company.is_deleted', '=', 0);
-        })
-        ->where('companies.is_deleted', '=', 0);
+        return $query->join(
+            'users_associated_company',
+            'users_associated_company.companies_id',
+            '=',
+            'companies.id'
+        )
+        ->where('users_associated_company.users_id', '=', $user->getKey())
+        ->where('users_associated_company.is_deleted', '=', StateEnums::NO->getValue())
+        ->where('companies.is_deleted', '=', StateEnums::NO->getValue());
     }
 }
