@@ -22,6 +22,7 @@ trait KanvasScopesTrait
     public function scopeFromCompany(Builder $query, mixed $company = null): Builder
     {
         $company = $company instanceof Companies ? $company : auth()->user()->getCurrentCompany();
+
         return $query->where('companies_id', $company->getId());
     }
 
@@ -36,6 +37,7 @@ trait KanvasScopesTrait
     public function scopeFromApp(Builder $query, mixed $app = null): Builder
     {
         $app = $app instanceof Apps ? $app : app(Apps::class);
+
         return $query->where('apps_id', $app->getId());
     }
 
@@ -49,5 +51,17 @@ trait KanvasScopesTrait
     public function scopeNotDeleted(Builder $query): Builder
     {
         return $query->where('is_deleted', '=', StateEnums::NO->getValue());
+    }
+
+    /**
+     * Is public scope.
+     *
+     * @param Builder $query
+     *
+     * @return Builder
+     */
+    public function scopeIsPublic(Builder $query): Builder
+    {
+        return $query->where('is_public', '=', StateEnums::YES->getValue());
     }
 }

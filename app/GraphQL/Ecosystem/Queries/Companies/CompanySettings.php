@@ -28,6 +28,7 @@ class CompanySettings
          */
         return  CompaniesSettings::select('name', 'value')
             ->notDeleted()
+            ->isPublic()
             ->fromCompany(auth()->user()->getCurrentCompany());
     }
 }
