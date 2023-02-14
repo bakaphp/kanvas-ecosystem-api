@@ -25,7 +25,7 @@ final class AppsList
             'name' => $app->name,
             'description' => $app->description,
             'settings' => [
-                'data' => $app->getAllSettings(),
+                'data' => $app->getAllSettings(onlyPublicSettings: true),
             ]
         ];
     }
