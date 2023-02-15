@@ -32,7 +32,7 @@ class KanvasAppsProvider extends ServiceProvider
     {
         $request = new Request();
         $domainName = $request->getHttpHost();
-        $appKey = $request->hasHeader(AppEnums::KANVAS_APP_HEADER->getValue()) ? $request->header(AppEnums::KANVAS_APP_HEADER->getValue()) : config('kanvas.app.id');
+        $appKey = $request->header(AppEnums::KANVAS_APP_HEADER->getValue(), config('kanvas.app.id'));
 
         if (FacadesSchema::hasTable('apps') && Apps::count() > 0) {
             try {
