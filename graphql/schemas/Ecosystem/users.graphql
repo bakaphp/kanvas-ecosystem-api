@@ -5,9 +5,6 @@ type User {
     lastname: String!
     displayname: String!
     description: String
-    city_id: Int
-    state_id: Int
-    country_id: Int
     email: String!
     phone_number: String
     cell_phone_number: String
@@ -20,6 +17,29 @@ type User {
     updated_at: DateTime
     branches: [CompanyBranch!] @HasManyThrough
     companies: [Company!] @HasManyThrough
+    city: City @belongsTo
+    state: State @belongsTo
+    country: Country @belongsTo
+}
+
+type City {
+    id: Int!
+    name: String!
+    latitude: Float
+    longitude: Float
+}
+
+type State {
+    id: Int!
+    name: String!
+    code: String
+}
+
+type Country {
+    id: Int!
+    name: String!
+    code: String
+    flag: String
 }
 
 type TokenResponse {
