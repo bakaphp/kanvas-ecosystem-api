@@ -54,7 +54,8 @@ RUN chmod -R ug+w /app/storage
 
 # Copy nginx/php/supervisor configs
 # RUN cp docker/supervisor.conf /etc/supervisord.conf
-RUN cp docker/php.ini /usr/local/etc/php/conf.d/app.ini
+RUN cp docker/docker-php-ext-opcache.ini /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
+RUN cp docker/php.ini /usr/local/etc/php/conf.d/zx-app-config.ini
 # RUN cp docker/nginx.conf /etc/nginx/sites-enabled/default
 
 # PHP Error Log Files
