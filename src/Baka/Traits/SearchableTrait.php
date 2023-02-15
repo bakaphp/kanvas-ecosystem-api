@@ -5,24 +5,22 @@ declare(strict_types=1);
 namespace Baka\Traits;
 
 use Baka\Contracts\CompanyInterface;
-use Baka\Enums\StateEnums;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 
 trait SearchableTrait
 {
-    abstract public static function getModel() : Model;
+    abstract public static function getModel(): Model;
 
-    public static function getById(int $id, ?CompanyInterface $company = null) : Model
+    public static function getById(int $id, ?CompanyInterface $company = null): Model
     {
         $company = $company ?? auth()->user()->getCurrentCompany();
 
         try {
-            return self::getModel()::where('companies_id', $company->getId())
-                ->where('apps_id', app(Apps::class)->id)
-                ->where('is_deleted', StateEnums::NO->getValue())
+            return self::getModel()::fromCompany($company)
+                ->fromApp()
+                ->notDeleted()
                 ->where('id', $id)
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
@@ -30,29 +28,29 @@ trait SearchableTrait
         }
     }
 
-    public static function getByUuid(string $uuid, ?CompanyInterface $company = null) : Model
+    public static function getByUuid(string $uuid, ?CompanyInterface $company = null): Model
     {
         $company = $company ?? auth()->user()->getCurrentCompany();
 
         try {
-            return self::getModel()::where('companies_id', $company->getId())
-                ->where('apps_id', app(Apps::class)->getId())
+            return self::getModel()::fromCompany($company)
+                ->app()
+                ->notDeleted()
                 ->where('uuid', $uuid)
-                ->where('is_deleted', StateEnums::NO->getValue())
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             throw new ExceptionsModelNotFoundException($e->getMessage());
         }
     }
 
-    public static function getByName(string $name, ?CompanyInterface $company = null) : Model
+    public static function getByName(string $name, ?CompanyInterface $company = null): Model
     {
         $company = $company ?? auth()->user()->getCurrentCompany();
 
         try {
-            return self::getModel()::where('companies_id', $company->getId())
-                ->where('apps_id', app(Apps::class)->getId())
-                ->where('is_deleted', StateEnums::NO->getValue())
+            return self::getModel()::fromCompany($company)
+                ->fromApp()
+                ->notDeleted()
                 ->where('name', $name)
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Enums;
@@ -40,13 +41,15 @@ enum AppEnums implements EnumsInterface
     case DELETE_IMAGES_ON_EMPTY_FILES_FIELD;
     case PUBLIC_IMAGES;
     case DEFAULT_FEEDS_COMMENTS;
+    case KANVAS_APP_HEADER;
+    case KANVAS_APP_KEY_HEADER;
 
     /**
      * Get value.
      *
      * @return mixed
      */
-    public function getValue() : mixed
+    public function getValue(): mixed
     {
         return match ($this) {
             self::DEFAULT_TIMEZONE => 'America/New_York',
@@ -82,6 +85,8 @@ enum AppEnums implements EnumsInterface
             self::DELETE_IMAGES_ON_EMPTY_FILES_FIELD => 1,
             self::PUBLIC_IMAGES => 0,
             self::DEFAULT_FEEDS_COMMENTS => 3,
+            self::KANVAS_APP_HEADER => 'X-Kanvas-App',
+            self::KANVAS_APP_KEY_HEADER => 'X-Kanvas-Key',
         };
     }
 
@@ -92,7 +97,7 @@ enum AppEnums implements EnumsInterface
      *
      * @return mixed
      */
-    public static function fromName(string $name) : mixed
+    public static function fromName(string $name): mixed
     {
         return constant("self::$name")->getValue();
     }

@@ -7,6 +7,7 @@ namespace Kanvas\Apps\Actions;
 use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Models\Users;
+use Throwable;
 
 class CreateAppsAction
 {
@@ -22,11 +23,11 @@ class CreateAppsAction
     /**
      * Invoke function.
      *
-     * @param AppInput $data
-     *
      * @return Apps
+     *
+     * @throws Throwable
      */
-    public function execute() : Apps
+    public function execute(): Apps
     {
         $app = new Apps();
         $app->fill([

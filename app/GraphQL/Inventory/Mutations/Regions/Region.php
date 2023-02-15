@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Regions;
@@ -19,7 +20,7 @@ class Region
      *
      * @return Regions
      */
-    public function create(mixed $root, array $request) : RegionModel
+    public function create(mixed $root, array $request): RegionModel
     {
         $request = $request['input'];
         $currency = Currencies::findOrFail($request['currency_id']);
@@ -35,7 +36,7 @@ class Region
      *
      * @return Regions
      */
-    public function update(mixed $root, array $request) : RegionModel
+    public function update(mixed $root, array $request): RegionModel
     {
         $id = $request['id'];
         $request = $request['input'];
@@ -52,7 +53,7 @@ class Region
      *
      * @return bool
      */
-    public function delete(mixed $root, array $request) : bool
+    public function delete(mixed $root, array $request): bool
     {
         $id = $request['id'];
         $region = RegionRepository::getById($id, auth()->user()->getCurrentCompany());

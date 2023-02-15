@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Products\Actions;
@@ -31,7 +32,7 @@ class CreateProductAction
      *
      * @return Products
      */
-    public function execute() : Products
+    public function execute(): Products
     {
         CompaniesRepository::userAssociatedToCompany(
             $this->productDto->company,
@@ -54,7 +55,7 @@ class CreateProductAction
                 $search['slug'] = $this->productDto->slug;
             }
 
-            $products = Products::firstOrCreate(
+            $products = Products::updateOrCreate(
                 $search,
                 [
                     'products_types_id' => $productType,

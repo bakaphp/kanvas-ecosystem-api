@@ -26,7 +26,7 @@ class LightHouseCustomException extends Exception implements RendersErrorsExtens
      *
      * @return bool
      */
-    public function isClientSafe() : bool
+    public function isClientSafe(): bool
     {
         return true;
     }
@@ -38,7 +38,7 @@ class LightHouseCustomException extends Exception implements RendersErrorsExtens
      *
      * @return string
      */
-    public function getCategory() : string
+    public function getCategory(): string
     {
         return 'external';
     }
@@ -49,7 +49,7 @@ class LightHouseCustomException extends Exception implements RendersErrorsExtens
      *
      * @return array
      */
-    public function extensionsContent() : array
+    public function extensionsContent(): array
     {
         return [
             'reason' => $this->reason,

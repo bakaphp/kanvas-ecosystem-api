@@ -20,7 +20,7 @@ use Kanvas\Models\BaseModel;
  * @property string $updated_at
  * @property int $is_delete
  */
-class CustomFieldsValue extends BaseModel
+class CustomFieldsValues extends BaseModel
 {
     /**
      * The table associated with the model.
@@ -34,7 +34,7 @@ class CustomFieldsValue extends BaseModel
      *
      * @return BelongsTo
      */
-    public function customField() : BelongsTo
+    public function customField(): BelongsTo
     {
         return $this->belongsTo(CustomFields::class, 'id', 'custom_fields_id');
     }

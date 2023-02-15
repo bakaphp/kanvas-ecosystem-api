@@ -10,7 +10,7 @@
 >
     <projectFiles>
         <directory name="app" />
-        <directory name="domains" />
+        <directory name="src" />
         <ignoreFiles>
             <directory name="vendor" />
         </ignoreFiles>

@@ -1,11 +1,10 @@
 name: static analysis
 
-on: ["push"]
+on: [ "push" ]
 
 jobs:
   run-tests:
     name: PHP ${{ matrix.php-versions }}
-
     runs-on: ubuntu-latest
     env:
       extensions: mbstring, intl, json, redis, swoole
@@ -15,10 +14,16 @@ jobs:
       REDIS_HOST: 127.0.0.1
       DB_USERNAME: root
       DB_PASSWORD: password
-      DB_DATABASE: test
-      DB_INVENTORY_DATABASE: test
+      DB_DATABASE: kanvas
+      DB_INVENTORY_DATABASE: inventory
       DB_INVENTORY_USERNAME: root
       DB_INVENTORY_PASSWORD: password
+      DB_SOCIAL_DATABASE: social
+      DB_SOCIAL_USERNAME: root
+      DB_SOCIAL_PASSWORD: password
+      DB_CRM_DATABASE: social
+      DB_CRM_USERNAME: root
+      DB_CRM_PASSWORD: password
       KANVAS_APP_ID: 059ddaaf-89b5-4158-a85a-90cbd69aa34b
       APP_KEY: base64:4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY=
       APP_JWT_TOKEN: 4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY
@@ -29,17 +34,18 @@ jobs:
       AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
       AWS_BUCKET: ${{ secrets.AWS_BUCKET }}
       AWS_URL: ${{ secrets.AWS_URL }}
+      SCOUT_DRIVER: database
       #APP_DEBUG: true
     strategy:
       fail-fast: false
       matrix:
-        php-versions: ["8.1", "8.2"]
+        php-versions: [ "8.1", "8.2" ]
     services:
       mysql:
         image: mariadb:10.4
         env:
           MYSQL_ROOT_PASSWORD: password
-          MYSQL_DATABASE: test
+          MYSQL_DATABASE: kanvas
         ports:
           - 3306:3306
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
@@ -58,7 +64,6 @@ jobs:
         image: rabbitmq
         ports:
           - 5672:5672
-
     steps:
       - uses: actions/checkout@v2
 
@@ -80,14 +85,32 @@ jobs:
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
           restore-keys: ${{ runner.os }}-composer-
 
+      - name: Setup Inventory DB
+        run: |
+          mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS inventory;'
+
+      - name: Setup Social DB
+        run: |
+          mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS social;'
+
+      - name: Setup CRM DB
+        run: |
+          mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS crm;'
+
       - name: Install Composer dependencies
-        run: composer install --prefer-dist --no-suggest
+        run: composer install --prefer-dist --no-interaction --no-progress
 
       - name: Run Migrations
         run: php artisan migrate
 
       - name: Run Inventory Migrations
-        run: php artisan migrate --path database/migrations/Inventory/
+        run: php artisan migrate --path database/migrations/Inventory/ --database inventory
+
+      - name: Run Social Migrations
+        run: php artisan migrate --path database/migrations/Social/ --database social
+
+      - name: Run Guild Migrations
+        run: php artisan migrate --path database/migrations/Guild/ --database crm
 
       - name: Run Seeders
         run: php artisan db:seed

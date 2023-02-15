@@ -47,7 +47,7 @@ class Templates extends BaseModel
      *
      * @return BelongsTo
      */
-    public function user() : BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
     }
@@ -57,7 +57,7 @@ class Templates extends BaseModel
      *
      * @return BelongsTo
      */
-    public function company() : BelongsTo
+    public function company(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }
@@ -67,7 +67,7 @@ class Templates extends BaseModel
      *
      * @return BelongsTo
      */
-    public function app() : BelongsTo
+    public function app(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }

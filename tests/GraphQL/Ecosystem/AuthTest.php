@@ -1,10 +1,12 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Auth\DataTransferObject\LoginInput;
+use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 class AuthTest extends TestCase
@@ -16,7 +18,7 @@ class AuthTest extends TestCase
      *
      * @return LoginInput
      */
-    public static function loginData() : LoginInput
+    public static function loginData(): LoginInput
     {
         if (empty(self::$loginData)) {
             self::$loginData = LoginInput::from([
@@ -34,7 +36,7 @@ class AuthTest extends TestCase
      *
      * @return void
      */
-    public function test_signup() : void
+    public function test_signup(): void
     {
         $loginData = self::loginData();
         $email = $loginData->getEmail();
@@ -84,7 +86,7 @@ class AuthTest extends TestCase
      *
      * @return void
      */
-    public function test_login() : void
+    public function test_login(): void
     {
         $loginData = self::loginData();
         $email = $loginData->getEmail();
@@ -119,7 +121,7 @@ class AuthTest extends TestCase
         ->assertSee('refresh_token');
     }
 
-    public function test_auth_user() : void
+    public function test_auth_user(): void
     {
         $userData = Auth::user();
         $response = $this->graphQL(/** @lang GraphQL */ '
@@ -141,5 +143,57 @@ class AuthTest extends TestCase
                 ]
             ],
         ]);
+    }
+
+    /**
+     * Test the forgot password hash creation and email.
+     *
+     * @return void
+     */
+    public function test_forgot_password(): void
+    {
+        $loginData = self::loginData();
+        $email = $loginData->getEmail();
+
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation forgotPassword($data: ForgotPasswordInput!) {
+                forgotPassword(data: $data)
+            }',
+            [
+                'data' => [
+                    'email' => $email
+                ],
+            ]
+        )
+        ->assertSuccessful()
+        ->assertSee('forgotPassword');
+    }
+
+    /**
+     * Test the reset password for user.
+     *
+     * @return void
+     */
+    public function test_reset_password(): void
+    {
+        $emailData = self::loginData();
+        $userData = Users::getByEmail($emailData->getEmail());
+
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation resetPassword($data: ResetPasswordInput!) {
+                resetPassword(data: $data)
+            }',
+            [
+                'data' => [
+                    'new_password' => '11223344',
+                    'verify_password' => '11223344',
+                    'hash_key' => $userData->user_activation_forgot
+                ],
+            ]
+        )
+        ->assertSuccessful()
+        ->assertSee('resetPassword');
     }
 }

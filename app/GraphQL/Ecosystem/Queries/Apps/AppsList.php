@@ -1,12 +1,12 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Queries\Apps;
 
 use Kanvas\Apps\Repositories\AppsRepository;
-use Kanvas\Users\Models\Users;
 
-final class AppsList
+class AppsList
 {
     /**
      * Get user from the current company.
@@ -14,18 +14,16 @@ final class AppsList
      * @param mixed $rootValue
      * @param array $request
      *
-     * @return Users
+     * @return array
      */
-    public function getAppSettings($rootValue, array $request) : array
+    public function getAppSettings($rootValue, array $request): array
     {
-        $app = AppsRepository::findFirstByKey($request['key']);
+        $app = AppsRepository::findFirstByKey((string) $request['key']);
 
         return [
             'name' => $app->name,
             'description' => $app->description,
-            'settings' => [
-                'data' => $app->getAllSettings(),
-            ]
+            'settings' => $app->getAllSettings(onlyPublicSettings: true),
         ];
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Auth;
@@ -28,7 +29,6 @@ class TokenGuard extends AuthTokenGuard
         if (!is_null($this->user)) {
             return $this->user;
         }
-
         $user = null;
 
         $requestToken = $this->getTokenForRequest();
@@ -50,16 +50,14 @@ class TokenGuard extends AuthTokenGuard
     /**
      * Get the real from the JWT Token.
      *
-     * @param Micro $api
-     * @param Config $config
      * @param Token $token
-     * @param RequestInterface $request
+     * @param Request $request
      *
-     * @throws UnauthorizedException
+     * @throws AuthorizationException
      *
      * @return Users
      */
-    protected function sessionUser(Token $token, Request $request) : Users
+    protected function sessionUser(Token $token, Request $request): Users
     {
         $session = new Sessions();
         $userData = new Users();

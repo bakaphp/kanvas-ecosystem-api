@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Products\Actions;
@@ -24,7 +25,7 @@ class RemoveAttributeAction
      *
      * @return void
      */
-    public function execute() : Products
+    public function execute(): Products
     {
         $this->product->attributes()->detach($this->attribute->getId());
         return $this->product;

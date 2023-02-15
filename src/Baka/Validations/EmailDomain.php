@@ -6,7 +6,7 @@ namespace Baka\Validations;
 
 use Illuminate\Validation\ValidationException;
 
-class Email
+class EmailDomain
 {
     /**
      * Verify if email domain is valid.
@@ -15,7 +15,7 @@ class Email
      *
      * @return bool
      */
-    public static function verifyDomain(string $email) : bool
+    public static function verifyDomain(string $email): bool
     {
         if (!checkdnsrr(array_pop(explode('@', $email . '.')), 'MX')) {
             throw new ValidationException('Email domain is not valid.');

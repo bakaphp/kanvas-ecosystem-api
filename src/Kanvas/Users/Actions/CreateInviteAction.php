@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Users\Actions;
@@ -25,7 +26,7 @@ class CreateInviteAction
      *
      * @return bool
      */
-    public function execute() : UsersInvite
+    public function execute(): UsersInvite
     {
         $companyBranch = CompaniesBranches::getById($this->inviteDto->companies_branches_id);
         $company = $companyBranch->company()->get()->first();

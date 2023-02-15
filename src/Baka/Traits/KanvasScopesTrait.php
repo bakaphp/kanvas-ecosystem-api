@@ -1,34 +1,67 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Baka\Traits;
 
+use Baka\Enums\StateEnums;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 
 trait KanvasScopesTrait
 {
     /**
      * scopeCompany.
      *
-     * @param  Builder $query
+     * @param Builder $query
+     * @param mixed $company
      *
      * @return Builder
      */
-    public function scopeCompany(Builder $query) : Builder
+    public function scopeFromCompany(Builder $query, mixed $company = null): Builder
     {
-        return $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
+        $company = $company instanceof Companies ? $company : auth()->user()->getCurrentCompany();
+
+        return $query->where('companies_id', $company->getId());
     }
 
     /**
      * scopeApp.
      *
-     * @param  Builder $query
+     * @param Builder $query
+     * @param mixed $app
      *
      * @return Builder
      */
-    public function scopeApp(Builder $query) : Builder
+    public function scopeFromApp(Builder $query, mixed $app = null): Builder
     {
-        return $query->where('apps_id', app(Apps::class)->getId());
+        $app = $app instanceof Apps ? $app : app(Apps::class);
+
+        return $query->where('apps_id', $app->getId());
+    }
+
+    /**
+     * Not deleted scope.
+     *
+     * @param Builder $query
+     *
+     * @return Builder
+     */
+    public function scopeNotDeleted(Builder $query): Builder
+    {
+        return $query->where('is_deleted', '=', StateEnums::NO->getValue());
+    }
+
+    /**
+     * Is public scope.
+     *
+     * @param Builder $query
+     *
+     * @return Builder
+     */
+    public function scopeIsPublic(Builder $query): Builder
+    {
+        return $query->where('is_public', '=', StateEnums::YES->getValue());
     }
 }

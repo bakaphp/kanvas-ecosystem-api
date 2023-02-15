@@ -2,7 +2,7 @@ input ProductInput {
     products_types_id: Int
     name: String!
     description: String!
-    slug: String!
+    slug: String
     short_description: String
     html_description: String
     warranty_terms: String
@@ -12,16 +12,19 @@ input ProductInput {
     warehouses: [Int]
     source_id: Mixed
 }
+
 type Product {
     id: Int!
     products_types_id: Int
     uuid: String
     name: String!
+    slug: String!
     description: String!
     short_description: String
     html_description: String
     warranty_terms: String
     upc: String
+    files: [Filesystem]
     is_published: Boolean
     created_at: String
     updated_at: String
@@ -31,6 +34,7 @@ type Product {
     variants: [Variant]
     productsTypes: ProductType
 }
+
 input ProductInputUpdate {
     products_types_id: Int
     name: String
@@ -41,6 +45,7 @@ input ProductInputUpdate {
     upc: String
     is_published: Boolean
 }
+
 extend type Mutation @guard {
     createProduct(input: ProductInput!): Product
         @field(
@@ -75,11 +80,13 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addCategory"
         )
 }
+
 extend type Query @guard {
     products(
         where: _
             @whereConditions(
                 columns: [
+                    "id"
                     "products_types_id"
                     "name"
                     "slug"
@@ -91,7 +98,7 @@ extend type Query @guard {
     ): [Product]
         @paginate(
             model: "Kanvas\\Inventory\\Products\\Models\\Products"
-            scopes: ["app", "company"]
+            scopes: ["fromApp", "fromCompany"]
             defaultCount: 10
         )
 }

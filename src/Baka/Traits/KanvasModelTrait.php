@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Baka\Traits;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
@@ -15,21 +14,23 @@ use Kanvas\Users\Models\Users;
 
 trait KanvasModelTrait
 {
-    public function getId() : mixed
+    use KanvasScopesTrait;
+
+    public function getId(): mixed
     {
         return $this->getKey();
     }
 
-    public function getUuid() : string
+    public function getUuid(): string
     {
         return $this->uuid;
     }
 
-    public static function getByUuid(string $uuid) : self
+    public static function getByUuid(string $uuid): self
     {
         try {
             return self::where('uuid', $uuid)
-                ->where('is_deleted', StateEnums::NO->getValue())
+                ->notDeleted()
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
@@ -37,11 +38,11 @@ trait KanvasModelTrait
         }
     }
 
-    public static function getById(mixed $id) : self
+    public static function getById(mixed $id): self
     {
         try {
             return self::where('id', $id)
-                ->where('is_deleted', StateEnums::NO->getValue())
+                ->notDeleted()
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
@@ -50,9 +51,11 @@ trait KanvasModelTrait
     }
 
     /**
+     * can't use the name company since the scope is also using the same name.
+     *
      * @return BelongsTo<Companies>
      */
-    public function company() : BelongsTo
+    public function company(): BelongsTo
     {
         return $this->setConnection('ecosystem')->belongsTo(
             Companies::class,
@@ -61,7 +64,7 @@ trait KanvasModelTrait
         );
     }
 
-    public function user() : BelongsTo
+    public function user(): BelongsTo
     {
         return $this->setConnection('ecosystem')->belongsTo(
             Users::class,
@@ -70,9 +73,14 @@ trait KanvasModelTrait
         );
     }
 
-    public function app() : BelongsTo
+    /**
+     * cant use app because of the scope name.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function app(): BelongsTo
     {
-        return $this->setConnection('ecosystem')->belongsTo(
+        return  $this->setConnection('ecosystem')->belongsTo(
             Apps::class,
             'apps_id',
             'id'
@@ -86,21 +94,32 @@ trait KanvasModelTrait
      *
      * @return bool
      */
-    public function softDelete() : bool
+    public function softDelete(): bool
     {
         $this->is_deleted = StateEnums::YES->getValue();
+
         return $this->saveOrFail();
     }
 
     /**
-     * Not deleted scope.
+     * Get the table name with the connection name.
      *
-     * @param Builder $query
-     *
-     * @return Builder
+     * @return string
      */
-    public function scopeNotDeleted(Builder $query) : Builder
+    public static function getFullTableName(): string
     {
-        return $query->where('is_deleted', '=', StateEnums::NO->getValue());
+        $model = new static();
+
+        return $model->getConnection()->getDatabaseName() . '.' . $model->getTable();
+    }
+
+    /**
+     * Get the table name.
+     *
+     * @return string
+     */
+    public static function getTableName(): string
+    {
+        return ((new self())->getTable());
     }
 }

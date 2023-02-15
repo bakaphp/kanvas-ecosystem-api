@@ -20,7 +20,7 @@ trait TokenTrait
      *
      * @return Token
      */
-    protected function getToken(string $token) : Token
+    protected function getToken(string $token): Token
     {
         $config = Jwt::getConfig();
 
@@ -32,7 +32,7 @@ trait TokenTrait
      *
      * @return string
      */
-    protected function getTokenAudience() : string
+    protected function getTokenAudience(): string
     {
         /** @var string $audience */
         $audience = env('TOKEN_AUDIENCE', '');
@@ -45,7 +45,7 @@ trait TokenTrait
      *
      * @return int
      */
-    protected function getTokenTimeIssuedAt() : int
+    protected function getTokenTimeIssuedAt(): int
     {
         return time();
     }
@@ -55,7 +55,7 @@ trait TokenTrait
      *
      * @return int
      */
-    protected function getTokenTimeNotBefore() : int
+    protected function getTokenTimeNotBefore(): int
     {
         return (time() + env('TOKEN_NOT_BEFORE', 10));
     }
@@ -65,7 +65,7 @@ trait TokenTrait
      *
      * @return int
      */
-    protected function getTokenTimeExpiration() : int
+    protected function getTokenTimeExpiration(): int
     {
         return (time() + env('TOKEN_EXPIRATION', 86400));
     }
@@ -80,7 +80,7 @@ trait TokenTrait
      *
      * @return bool
      */
-    public static function validateJwtToken(Token $token) : bool
+    public static function validateJwtToken(Token $token): bool
     {
         $config = Jwt::getConfig();
 

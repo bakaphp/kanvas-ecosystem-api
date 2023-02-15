@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Queries\Companies;
@@ -20,8 +21,11 @@ class UserManagement
      *
      * @return Builder
      */
-    public function getAllCompanyUsers(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo) : Builder
+    public function getAllCompanyUsers(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
     {
+        /**
+         * @var Builder
+         */
         return  Users::join('users_associated_company', 'users_associated_company.users_id', 'users.id')
                 ->where('users_associated_company.companies_id', auth()->user()->currentCompanyId());
     }
@@ -36,8 +40,11 @@ class UserManagement
      *
      * @return Builder
      */
-    public function getAllCompanyBranchUsers(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo) : Builder
+    public function getAllCompanyBranchUsers(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
     {
+        /**
+         * @var Builder
+         */
         return  Users::join('users_associated_company', 'users_associated_company.users_id', 'users.id')
                 ->where('users_associated_company.companies_branches_id', auth()->user()->currentBranchId());
     }

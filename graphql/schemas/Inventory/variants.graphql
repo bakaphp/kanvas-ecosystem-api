@@ -9,6 +9,13 @@ type Variant {
     html_description: String
     sku: String
     ean: String
+    files: [Filesystem]
+        @paginate(
+            defaultCount: 10
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FileRelationship@entityPagination"
+        )
+    interactions(visitor: VisitorEntityInput!): Interactions
+        @method(name: "getEntitySocialInteractions")
     product: Product
     warehouses: [WarehouseVariantRelationship]
     attributes: [VariantsAttributes]
@@ -32,7 +39,7 @@ type WarehouseVariantRelationship {
 }
 type VariantsAttributes {
     name: String!
-    value: String
+    value: Mixed
 }
 type VariantChannelRelationship {
     warehouses_id: Int
@@ -71,6 +78,7 @@ input VariantsInput {
     barcode: String
     serial_number: String
     is_published: Boolean
+    files: [FilesystemInputUrl]
     slug: String
     discountPrice: Float
     price: Float
@@ -83,6 +91,7 @@ input VariantsUpdateInput {
     description: String
     short_description: String
     html_description: String
+    files: [FilesystemInputUrl]
     sku: String
     ean: String
     barcode: String
@@ -151,6 +160,7 @@ extend type Query @guard {
         where: _
             @whereConditions(
                 columns: [
+                    "id"
                     "products_id"
                     "name"
                     "slug"
@@ -163,7 +173,7 @@ extend type Query @guard {
     ): [Variant]
         @paginate(
             defaultCount: 10
-            scopes: ["app", "company"]
+            scopes: ["fromApp", "fromCompany"]
             model: "Kanvas\\Inventory\\Variants\\Models\\Variants"
         )
 }
@@ -171,13 +181,9 @@ extend type Query @guard {
 extend type Query {
     channelVariants(
         id: String!
-        where: _
-            @whereConditions(
-                columns: [
-                    "slug"
-                    "uuid"
-                ]
-            )
+        search: String @search
+        visitor: VisitorEntityInput
+        where: _ @whereConditions(columns: ["slug", "uuid", "name"])
     ): [Variant!]
         @paginate(
             defaultCount: 10

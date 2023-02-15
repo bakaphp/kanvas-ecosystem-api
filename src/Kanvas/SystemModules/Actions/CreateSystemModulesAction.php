@@ -22,7 +22,7 @@ class CreateSystemModulesAction
      *
      * @return Apps
      */
-    public function execute() : SystemModules
+    public function execute(): SystemModules
     {
         $systemModule = new SystemModules();
         $systemModule->name = $this->data->name;

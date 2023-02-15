@@ -32,9 +32,9 @@ class Settings extends BaseModel
     /**
      * Apps relationship.
      *
-     * @return Apps
+     * @return BelongsTo
      */
-    public function app() : BelongsTo
+    public function app(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }

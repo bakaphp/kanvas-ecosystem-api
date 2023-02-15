@@ -17,11 +17,11 @@ class CreateRole extends Command
     /**
      * The console command description.
      *
-     * @var string
+     * @var string|null
      */
     protected $description = 'Command description';
 
-    public function handle() : void
+    public function handle(): void
     {
         $role = Bouncer::role()->firstOrCreate([
             'name' => $this->argument('name'),

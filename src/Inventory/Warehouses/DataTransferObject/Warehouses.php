@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Warehouses\DataTransferObject;
@@ -40,7 +41,7 @@ class Warehouses extends Data
      *
      * @return self
      */
-    public static function viaRequest(array $request) : self
+    public static function viaRequest(array $request): self
     {
         $company = auth()->user()->getCurrentCompany();
 

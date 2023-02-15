@@ -6,6 +6,11 @@ type Filesystem {
     size: Float!
 }
 
+input FilesystemInputUrl {
+    url: String!
+    name: String!
+}
+
 type Mutation @guard {
     "Upload a file that is publicly available."
     upload(file: Upload!): Filesystem!

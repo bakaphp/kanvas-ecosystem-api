@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Users\Actions;
@@ -30,7 +31,7 @@ class ProcessInviteAction
      *
      * @return void
      */
-    public function execute() : Users
+    public function execute(): Users
     {
         $invite = UsersInviteRepository::getByHash($this->userInvite->getInviteHash());
 

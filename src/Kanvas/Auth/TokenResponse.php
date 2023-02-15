@@ -13,7 +13,7 @@ class TokenResponse
      *
      * @return array
      */
-    public static function create(Users $user) : array
+    public static function create(Users $user): array
     {
         $token = $user->getToken();
 
@@ -28,7 +28,7 @@ class TokenResponse
      *
      * @return array
      */
-    public static function format(Users $user, array $token) : array
+    public static function format(Users $user, array $token): array
     {
         return [
             'sessionId' => $token['sessionId'],

@@ -17,7 +17,6 @@ use Kanvas\Models\BaseModel;
 
 class Languages extends BaseModel
 {
-
     /**
      * The table associated with the model.
      *

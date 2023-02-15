@@ -1,10 +1,10 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Models;
 
 use Baka\Traits\HasCompositePrimaryKeyTrait;
-use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Models\BaseModel;
 
 /**
@@ -28,4 +28,8 @@ class VariantsAttributes extends BaseModel
     ];
 
     protected $primaryKey = ['products_variants_id', 'attributes_id'];
+
+    protected $casts = [
+        'value' => 'array'
+    ];
 }

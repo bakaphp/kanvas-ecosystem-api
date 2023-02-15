@@ -43,7 +43,7 @@ class CustomFields extends BaseModel
         'fields_type_id',
     ];
 
-    public function company() : BelongsTo
+    public function company(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'id', 'companies_id');
     }
@@ -53,7 +53,7 @@ class CustomFields extends BaseModel
      *
      * @return BelongsTo
      */
-    public function customFieldModule() : BelongsTo
+    public function customFieldModule(): BelongsTo
     {
         return $this->belongsTo(CustomFieldsModules::class, 'id', 'custom_fields_modules_id');
     }
@@ -63,7 +63,7 @@ class CustomFields extends BaseModel
      *
      * @return BelongsTo
      */
-    public function fieldType() : BelongsTo
+    public function fieldType(): BelongsTo
     {
         return $this->belongsTo(CustomFieldsTypes::class, 'id', 'fields_type_id');
     }

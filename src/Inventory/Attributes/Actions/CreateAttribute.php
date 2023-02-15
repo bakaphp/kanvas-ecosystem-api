@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Attributes\Actions;
@@ -21,7 +22,7 @@ class CreateAttribute
      *
      * @return Attributes
      */
-    public function execute() : Attributes
+    public function execute(): Attributes
     {
         CompaniesRepository::userAssociatedToCompany(
             $this->dto->company,

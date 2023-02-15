@@ -17,7 +17,7 @@ trait HashTableTrait
      *
      * @return string
      */
-    private function getSettingsPrimaryKey() : string
+    private function getSettingsPrimaryKey(): string
     {
         return $this->table . '_' . $this->getKeyName();
     }
@@ -27,7 +27,7 @@ trait HashTableTrait
      *
      * @return void
      */
-    protected function createSettingsModel() : void
+    protected function createSettingsModel(): void
     {
         $class = get_class($this) . 'Settings';
 
@@ -42,11 +42,11 @@ trait HashTableTrait
      *
      * @return bool
      */
-    public function set(string $key, mixed $value) : bool
+    public function set(string $key, mixed $value): bool
     {
         $this->createSettingsModel();
 
-        if (!is_object($this->settingsModel)) {
+        if (! is_object($this->settingsModel)) {
             throw new ConfigurationException('ModelSettingsTrait need to have a settings model configure, check the model setting exists for this class' . get_class($this));
         }
 
@@ -60,7 +60,7 @@ trait HashTableTrait
         }
 
         $this->settingsModel->name = $key;
-        $this->settingsModel->value = !is_array($value) ? (string) $value : json_encode($value);
+        $this->settingsModel->value = ! is_array($value) ? (string) $value : json_encode($value);
         $this->settingsModel->save();
 
         return true;
@@ -71,7 +71,7 @@ trait HashTableTrait
      *
      * @return mixed
      */
-    protected function getSettingsByKey(string $key) : mixed
+    protected function getSettingsByKey(string $key): mixed
     {
         return $this->settingsModel
             ->where($this->getSettingsPrimaryKey(), $this->getKey())
@@ -81,17 +81,25 @@ trait HashTableTrait
     /**
      * Get all the setting of a given record.
      *
+     * @param bool $all
+     *
      * @return array
      */
-    public function getAllSettings() : array
+    public function getAllSettings(bool $onlyPublicSettings = false): array
     {
         $this->createSettingsModel();
 
         $allSettings = [];
-        $settings = $this->settingsModel::where($this->getSettingsPrimaryKey(), $this->getId())->get();
+        if ($onlyPublicSettings) {
+            $settings = $this->settingsModel::where($this->getSettingsPrimaryKey(), $this->getId())
+                ->isPublic()
+                ->get();
+        } else {
+            $settings = $this->settingsModel::where($this->getSettingsPrimaryKey(), $this->getId())->get();
+        }
 
         foreach ($settings as $setting) {
-            $allSettings[$setting->name] = !Str::isJson($setting->value) ? $setting->value : json_decode($setting->value, true);
+            $allSettings[$setting->name] = ! Str::isJson($setting->value) ? $setting->value : json_decode($setting->value, true);
         }
 
         return $allSettings;
@@ -104,13 +112,13 @@ trait HashTableTrait
      *
      * @return mixed
      */
-    public function get(string $key) : mixed
+    public function get(string $key): mixed
     {
         $this->createSettingsModel();
         $value = $this->getSettingsByKey($key);
 
         if (is_object($value)) {
-            return !Str::isJson($value->value) ? $value->value : json_decode($value->value, true);
+            return ! Str::isJson($value->value) ? $value->value : json_decode($value->value, true);
         }
 
         return null;
@@ -123,7 +131,7 @@ trait HashTableTrait
      *
      * @return bool
      */
-    public function deleteHash(string $key) : bool
+    public function deleteHash(string $key): bool
     {
         $this->createSettingsModel();
         if ($record = $this->getSettingsByKey($key)) {

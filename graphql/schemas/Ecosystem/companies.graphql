@@ -42,6 +42,7 @@ type CompanyBranch {
     email: String
     phone: String
     zipcode: Int
+    company: Company!
     is_default: Boolean!
     created_at: DateTime
     updated_at: DateTime
@@ -79,6 +80,11 @@ input CompanyBranchInput {
     language: String
     timezone: String
     phone: String
+}
+
+type CompanySettings {
+    name: String!
+    settings: Mixed
 }
 
 extend type Query @guard {
@@ -168,6 +174,11 @@ extend type Query @guard {
         @paginate(
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagement@getAllCompanyBranchUsers"
             defaultCount: 10
+        )
+
+    companySettings: CompanySettings
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\CompanySettings@getAllSettings"
         )
 }
 

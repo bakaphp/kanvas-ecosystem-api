@@ -1,0 +1,31 @@
+input LikeEntityInput {
+    entity_id: Mixed!
+    entity_namespace: String!
+    interacted_entity_id: Mixed!
+    interacted_entity_namespace: String!
+}
+
+type Interactions {
+    like: Boolean
+    save: Boolean
+    dislike: Boolean
+}
+
+extend type Mutation @guardByAuthOrCompany {
+    likeEntity(input: LikeEntityInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractions@likeEntity"
+        )
+    unLikeEntity(input: LikeEntityInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractions@unLikeEntity"
+        )
+    disLikeEntity(input: LikeEntityInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractions@disLikeEntity"
+        )
+    getInteractionByEntity(input: LikeEntityInput!): Interactions!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractions@getInteractionByEntity"
+        )
+}

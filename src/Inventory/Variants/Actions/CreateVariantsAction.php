@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Actions;
@@ -26,7 +27,7 @@ class CreateVariantsAction
      *
      * @return Variants
      */
-    public function execute() : Variants
+    public function execute(): Variants
     {
         CompaniesRepository::userAssociatedToCompany(
             $this->variantDto->product->company()->get()->first(),
@@ -45,7 +46,7 @@ class CreateVariantsAction
             $search['slug'] = $this->variantDto->slug;
         }
 
-        return Variants::firstOrCreate(
+        return Variants::updateOrCreate(
             $search,
             [
                 'name' => $this->variantDto->name,

@@ -32,7 +32,7 @@ class CreateRoleAction
      *
      * @return SilberRole
      */
-    public function execute(?Companies $company = null) : SilberRole
+    public function execute(?Companies $company = null): SilberRole
     {
         Bouncer::scope()->to(RolesEnums::getKey($this->app, $company));
 

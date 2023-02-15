@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Variants;
@@ -26,7 +27,7 @@ class Variants
      *
      * @return VariantModel
      */
-    public function create(mixed $root, array $req) : VariantModel
+    public function create(mixed $root, array $req): VariantModel
     {
         $variantDto = VariantDto::viaRequest($req['input']);
         $action = new CreateVariantsAction($variantDto, auth()->user());
@@ -41,7 +42,7 @@ class Variants
      *
      * @return VariantModel
      */
-    public function update(mixed $root, array $req) : VariantModel
+    public function update(mixed $root, array $req): VariantModel
     {
         $variant = VariantsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
         $variant->update($req['input']);
@@ -56,7 +57,7 @@ class Variants
      *
      * @return bool
      */
-    public function delete(mixed $root, array $req) : bool
+    public function delete(mixed $root, array $req): bool
     {
         $variant = VariantsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
 
@@ -71,7 +72,7 @@ class Variants
      *
      * @return VariantModel
      */
-    public function addToWarehouse(mixed $root, array $req) : VariantModel
+    public function addToWarehouse(mixed $root, array $req): VariantModel
     {
         $variant = VariantsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
 
@@ -88,12 +89,12 @@ class Variants
      *
      * @return VariantModel
      */
-    public function removeToWarehouse(mixed $root, array $req) : VariantModel
+    public function removeToWarehouse(mixed $root, array $req): VariantModel
     {
         $variant = VariantsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
 
         $warehouse = WarehouseRepository::getById($req['warehouse_id']);
-        $variant->warehouses()->detach($warehouse->id);
+        $variant->warehouses()->detach($warehouse);
         return $variant;
     }
 
@@ -105,7 +106,7 @@ class Variants
      *
      * @return VariantModel
      */
-    public function addAttribute(mixed $root, array $req) : VariantModel
+    public function addAttribute(mixed $root, array $req): VariantModel
     {
         $variant = VariantsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
 
@@ -122,12 +123,12 @@ class Variants
      *
      * @return VariantModel
      */
-    public function removeAttribute(mixed $root, array $req) : VariantModel
+    public function removeAttribute(mixed $root, array $req): VariantModel
     {
         $variant = VariantsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
 
         $attribute = AttributesRepository::getById($req['attributes_id']);
-        $variant->attributes()->detach($attribute->id);
+        $variant->attributes()->detach($attribute);
         return $variant;
     }
 
@@ -139,7 +140,7 @@ class Variants
      *
      * @return VariantModel
      */
-    public function addToChannel(mixed $root, array $req) : VariantModel
+    public function addToChannel(mixed $root, array $req): VariantModel
     {
         $variant = VariantsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
 
@@ -158,7 +159,7 @@ class Variants
      *
      * @return VariantModel
      */
-    public function removeChannel(mixed $root, array $req) : VariantModel
+    public function removeChannel(mixed $root, array $req): VariantModel
     {
         $variant = VariantsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
 

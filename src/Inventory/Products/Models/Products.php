@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Products\Models;
@@ -14,6 +15,8 @@ use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Social\Interactions\Traits\LikableTrait;
+use Laravel\Scout\Searchable;
 
 /**
  * Class Products.
@@ -38,6 +41,9 @@ class Products extends BaseModel
 {
     use UuidTrait;
     use SlugTrait;
+    use Searchable;
+    use LikableTrait;
+
     protected $table = 'products';
     protected $guarded = [];
 
@@ -46,7 +52,7 @@ class Products extends BaseModel
      *
      * @return BelongsToMany
      */
-    public function categories() : BelongsToMany
+    public function categories(): BelongsToMany
     {
         return $this->belongsToMany(
             Categories::class,
@@ -61,7 +67,7 @@ class Products extends BaseModel
      *
      * @return BelongsToMany
      */
-    public function warehouses() : BelongsToMany
+    public function warehouses(): BelongsToMany
     {
         return $this->belongsToMany(
             Warehouses::class,
@@ -76,7 +82,7 @@ class Products extends BaseModel
      *
      * @return BelongsToMany
      */
-    public function attributes() : BelongsToMany
+    public function attributes(): BelongsToMany
     {
         return $this->belongsToMany(
             Attributes::class,
@@ -91,7 +97,7 @@ class Products extends BaseModel
      *
      * @return HasMany
      */
-    public function variants() : HasMany
+    public function variants(): HasMany
     {
         return $this->hasMany(Variants::class, 'products_id');
     }
@@ -101,7 +107,7 @@ class Products extends BaseModel
      *
      * @return BelongsTo
      */
-    public function productsTypes() : BelongsTo
+    public function productsTypes(): BelongsTo
     {
         return $this->belongsTo(ProductsTypes::class, 'products_types_id');
     }

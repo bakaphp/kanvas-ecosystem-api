@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\ProductsTypes\Repositories;
@@ -11,7 +12,7 @@ class ProductsTypesRepository
 {
     use SearchableTrait;
 
-    public static function getModel() : Model
+    public static function getModel(): Model
     {
         return new ProductsTypes();
     }
@@ -23,7 +24,7 @@ class ProductsTypesRepository
      *
      * @return ProductsTypes
      */
-    public static function getBySourceKey(string $key, string $id) : ProductsTypes
+    public static function getBySourceKey(string $key, string $id): ProductsTypes
     {
         $key = $key . '_id';
         return ProductsTypes::getByCustomField($key, $id);

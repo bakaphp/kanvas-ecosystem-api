@@ -23,7 +23,7 @@ class UploadFileAction
      *
      * @return Filesystem
      */
-    public function execute(UploadedFile $file) : Filesystem
+    public function execute(UploadedFile $file): Filesystem
     {
         $uploadPath = config('filesystems.disks.s3.path');
 

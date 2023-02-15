@@ -4,16 +4,19 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Models;
 
+use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\KanvasModelTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Hash;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Contracts\Authenticatable as ContractsAuthenticatable;
 use Kanvas\Auth\Traits\HasApiTokens;
@@ -21,12 +24,11 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Roles\Models\Roles;
-use Kanvas\Traits\PermissionsTrait;
-use Kanvas\Traits\UsersAssociatedTrait;
 use Kanvas\Users\Factories\UsersFactory;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 
@@ -83,8 +85,6 @@ use Silber\Bouncer\Database\HasRolesAndAbilities;
 class Users extends Authenticatable implements UserInterface, ContractsAuthenticatable
 {
     use HashTableTrait;
-    use UsersAssociatedTrait;
-    //use PermissionsTrait;
     use Notifiable;
     use HasFactory;
     use HasApiTokens;
@@ -107,7 +107,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      *
      * @return int
      */
-    public function getId() : int
+    public function getId(): int
     {
         return (int) $this->getKey();
     }
@@ -117,7 +117,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      *
      * @return string
      */
-    public function getUuid() : string
+    public function getUuid(): string
     {
         return $this->uuid;
     }
@@ -135,9 +135,9 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Default Company relationship.
      *
-     * @return hasMany
+     * @return HasOne
      */
-    public function defaultCompany() : HasOne
+    public function defaultCompany(): HasOne
     {
         return $this->hasOne(Companies::class, 'id', 'default_company');
     }
@@ -148,7 +148,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      *
      * @return HasManyThrough
      */
-    public function apps() : HasManyThrough
+    public function apps(): HasManyThrough
     {
         //return $this->hasMany(Companies::class, 'users_id');
         return $this->hasManyThrough(
@@ -167,7 +167,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      *
      * @return HasManyThrough
      */
-    public function companies() : HasManyThrough
+    public function companies(): HasManyThrough
     {
         //return $this->hasMany(Companies::class, 'users_id');
         return $this->hasManyThrough(
@@ -185,7 +185,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      *
      * @return UsersAssociatedApps
      */
-    public function currentAppInfo() : UsersAssociatedApps
+    public function currentAppInfo(): UsersAssociatedApps
     {
         return UsersAssociatedApps::where('users_id', $this->getId())
             ->where('apps_id', app(Apps::class)->getKey())
@@ -197,7 +197,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      *
      * @return HasManyThrough
      */
-    public function branches() : HasManyThrough
+    public function branches(): HasManyThrough
     {
         return $this->hasManyThrough(
             CompaniesBranches::class,
@@ -214,7 +214,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      *
      * @return void
      */
-    public function role() : HasOne
+    public function role(): HasOne
     {
         return $this->hasOne(Roles::class, 'id', 'roles_id');
     }
@@ -224,7 +224,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      *
      * @return HasMany
      */
-    public function notifications() : HasMany
+    public function notifications(): HasMany
     {
         return $this->hasMany(Notifications::class, 'users_id')
             ->where('is_deleted', StateEnums::NO->getValue())
@@ -236,7 +236,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      *
      * @return string
      */
-    public function getEmail() : string
+    public function getEmail(): string
     {
         return $this->email;
     }
@@ -246,16 +246,16 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      *
      * @return self
      */
-    public static function getByEmail(string $email) : self
+    public static function getByEmail(string $email): self
     {
         $user = self::where(
             [
                 'email' => $email,
-                'is_deleted' => 0
+                'is_deleted' => 0,
             ]
         )->first();
 
-        if (!$user) {
+        if (! $user) {
             throw new ModelNotFoundException('No User Found');
         }
 
@@ -267,7 +267,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      *
      * @return bool
      */
-    public function isActive() : bool
+    public function isActive(): bool
     {
         return (bool) $this->user_active;
     }
@@ -277,9 +277,9 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      *
      * @return bool
      */
-    public function isBanned() : bool
+    public function isBanned(): bool
     {
-        return !$this->isActive() && $this->banned === 'Y';
+        return ! $this->isActive() && $this->banned === 'Y';
     }
 
     /**
@@ -287,7 +287,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      *
      * @return void
      */
-    protected function createSettingsModel() : void
+    protected function createSettingsModel(): void
     {
         $this->settingsModel = new UserConfig();
     }
@@ -299,7 +299,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      *
      * @return bool
      */
-    public function isFirstSignup() : bool
+    public function isFirstSignup(): bool
     {
         return empty($this->default_company);
     }
@@ -310,9 +310,9 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      *
      * @return int
      */
-    public function currentCompanyId() : int
+    public function currentCompanyId(): int
     {
-        return  (int) $this->get(Companies::cacheKey());
+        return (int) $this->get(Companies::cacheKey());
     }
 
     /**
@@ -320,7 +320,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      *
      * @return int
      */
-    public function currentBranchId() : int
+    public function currentBranchId(): int
     {
         return  (int) $this->get($this->getCurrentCompany()->branchCacheKey());
     }
@@ -330,9 +330,15 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      *
      * @return Companies
      */
-    public function getCurrentCompany() : Companies
+    public function getCurrentCompany(): Companies
     {
-        return CompaniesRepository::getById($this->currentCompanyId());
+        try {
+            return CompaniesRepository::getById($this->currentCompanyId());
+        } catch (EloquentModelNotFoundException $e) {
+            throw new InternalServerErrorException(
+                'No default company app configured for this user on the current app ' . app(Apps::class)->name . ', please contact support'
+            );
+        }
     }
 
     /**
@@ -340,8 +346,39 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      *
      * @return object
      */
-    public function unReadNotification() : Collection
+    public function unReadNotification(): Collection
     {
         return $this->notifications()->where('read', 0)->get();
+    }
+
+    /**
+     * Generate new forgot password hash.
+     *
+     * @return string
+     */
+    public function generateForgotHash(): string
+    {
+        $this->user_activation_forgot = Str::random(50);
+        $this->updateOrFail();
+
+        return $this->user_activation_forgot;
+    }
+
+    /**
+     * Generate a hash password and updated for the user model.
+     *
+     * @param string $newPassword
+     *
+     * @return bool
+     */
+    public function resetPassword(string $newPassword): bool
+    {
+        $this->password = Hash::make($newPassword);
+        $this->saveOrFail();
+
+        $this->user_activation_forgot = '';
+        $this->saveOrFail();
+
+        return true;
     }
 }

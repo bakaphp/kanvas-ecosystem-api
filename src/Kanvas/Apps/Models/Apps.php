@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Apps\Models;
 
 use Baka\Contracts\AppInterface;
+use Baka\Enums\StateEnums;
 use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
 use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
@@ -61,7 +63,7 @@ class Apps extends BaseModel implements AppInterface
      *
      * @return hasMany
      */
-    public function settings()
+    public function settings(): hasMany
     {
         return $this->hasMany(Settings::class, 'apps_id');
     }
@@ -69,9 +71,9 @@ class Apps extends BaseModel implements AppInterface
     /**
      * Roles relationship.
      *
-     * @return Roles
+     * @return hasMany
      */
-    public function roles()
+    public function roles(): HasMany
     {
         return $this->hasMany(Roles::class, 'apps_id');
     }
@@ -81,9 +83,9 @@ class Apps extends BaseModel implements AppInterface
      *
      * @return bool
      */
-    public function usesSubscriptions() : bool
+    public function usesSubscriptions(): bool
     {
-        return (bool) $this->payments_active;
+        return (bool)$this->payments_active;
     }
 
     /**
@@ -91,7 +93,7 @@ class Apps extends BaseModel implements AppInterface
      *
      * @return void
      */
-    protected function createSettingsModel() : void
+    protected function createSettingsModel(): void
     {
         $this->settingsModel = new Settings();
     }
@@ -103,11 +105,11 @@ class Apps extends BaseModel implements AppInterface
      *
      * @return UserCompanyApps
      */
-    public function associateCompany(Companies $company) : UserCompanyApps
+    public function associateCompany(Companies $company): UserCompanyApps
     {
         return UserCompanyApps::firstOrCreate([
             'apps_id' => $this->id,
-            'companies_id' => $company->getKey()
+            'companies_id' => $company->getKey(),
         ]);
     }
 
@@ -116,9 +118,9 @@ class Apps extends BaseModel implements AppInterface
      *
      * @return bool
      */
-    public function isActive() : bool
+    public function isActive(): bool
     {
-        return (bool) $this->is_actived;
+        return (bool)$this->is_actived;
     }
 
     /**
@@ -127,9 +129,9 @@ class Apps extends BaseModel implements AppInterface
      *
      * @return bool
      */
-    public function usesEcosystemLogin() : bool
+    public function usesEcosystemLogin(): bool
     {
-        return (bool) $this->ecosystem_auth;
+        return (bool)$this->ecosystem_auth;
     }
 
     /**
@@ -137,7 +139,7 @@ class Apps extends BaseModel implements AppInterface
      *
      * @return string
      */
-    public function defaultCurrency() : string
+    public function defaultCurrency(): string
     {
         return $this->get('currency');
     }
@@ -152,7 +154,7 @@ class Apps extends BaseModel implements AppInterface
      * @param string|null $password
      * @param string|null $companyUserIdentifier
      *
-     * @return void
+     * @return UsersAssociatedApps
      */
     public function associateUser(
         Users $user,
@@ -161,7 +163,7 @@ class Apps extends BaseModel implements AppInterface
         string $password = null,
         string $companyUserIdentifier = null,
         string $configuration = null
-    ) : UsersAssociatedApps {
+    ): UsersAssociatedApps {
         return UsersAssociatedApps::firstOrCreate([
             'users_id' => $user->getKey(),
             'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
@@ -174,7 +176,7 @@ class Apps extends BaseModel implements AppInterface
             'user_active' => $isActive,
             'user_role' => $userRoleId ?? $user->roles_id,
             'password' => $password,
-            'configuration' => Str::isJson($configuration) ? json_encode($configuration) : $configuration
+            'configuration' => Str::isJson($configuration) ? json_encode($configuration) : $configuration,
         ]);
     }
 
@@ -185,14 +187,20 @@ class Apps extends BaseModel implements AppInterface
      *
      * @return Builder
      */
-    public function scopeUserAssociated(Builder $query) : Builder
+    public function scopeUserAssociated(Builder $query): Builder
     {
         $user = Auth::user();
-        return $query->join('users_associated_apps', function ($join) use ($user) {
-            $join->on('apps.id', '=', 'users_associated_apps.apps_id')
-                ->where('users_associated_apps.users_id', '=', $user->getKey())
-                ->where('users_associated_apps.is_deleted', '=', 0);
-        })
-        ->where('apps.is_deleted', '=', 0);
+
+        return $query->select('apps.*')
+            ->join(
+                'users_associated_apps',
+                'users_associated_apps.apps_id',
+                '=',
+                'apps.id'
+            )
+            ->where('users_associated_apps.users_id', '=', $user->getKey())
+            ->where('users_associated_apps.is_deleted', '=', StateEnums::NO->getValue())
+            ->where('apps.is_deleted', '=', StateEnums::NO->getValue())
+            ->groupBy('users_associated_apps.apps_id');
     }
 }

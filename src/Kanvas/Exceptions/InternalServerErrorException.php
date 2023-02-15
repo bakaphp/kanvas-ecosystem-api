@@ -4,28 +4,19 @@ declare(strict_types=1);
 
 namespace Kanvas\Exceptions;
 
-use Exception;
+use Baka\Exceptions\LightHouseCustomException;
 
-class InternalServerErrorException extends Exception
+class InternalServerErrorException extends LightHouseCustomException
 {
     /**
-     * Report the exception.
+     * Returns string describing a category of the error.
      *
-     * @return bool|null
+     * Value "graphql" is reserved for errors produced by query parsing or validation, do not use it.
+     *
+     * @return string
      */
-    public function report()
+    public function getCategory(): string
     {
-    }
-
-    /**
-     * Render the exception into an HTTP response.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function render($request)
-    {
-        return response(/* ... */);
+        return 'internal';
     }
 }

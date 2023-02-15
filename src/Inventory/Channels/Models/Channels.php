@@ -1,11 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Inventory\Channels\Models;
 
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
@@ -42,7 +42,7 @@ class Channels extends BaseModel
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function companies() : BelongsTo
+    public function companies(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }
@@ -51,7 +51,7 @@ class Channels extends BaseModel
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function apps() : BelongsTo
+    public function apps(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
@@ -61,33 +61,9 @@ class Channels extends BaseModel
      *
      * @return BelongsTo
      */
-    public function users() : BelongsTo
+    public function users(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
-    }
-
-    /**
-     * scopeCompany.
-     *
-     * @param  Builder $query
-     *
-     * @return Builder
-     */
-    public function scopeCompany(Builder $query) : Builder
-    {
-        return $query->where('companies_id', auth()->user()->default_company);
-    }
-
-    /**
-     * scopeApp.
-     *
-     * @param  Builder $query
-     *
-     * @return Builder
-     */
-    public function scopeApp(Builder $query) : Builder
-    {
-        return $query->where('apps_id', app(Apps::class)->id);
     }
 
     /**
@@ -95,7 +71,7 @@ class Channels extends BaseModel
      *
      * @return Attribute
      */
-    protected function warehousesId() : Attribute
+    protected function warehousesId(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->warehouses_id,
@@ -107,7 +83,7 @@ class Channels extends BaseModel
      *
      * @return Attribute
      */
-    protected function discountedPrice() : Attribute
+    protected function discountedPrice(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->discounted_price,
@@ -119,7 +95,7 @@ class Channels extends BaseModel
      *
      * @return Attribute
      */
-    protected function price() : Attribute
+    protected function price(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->price,
@@ -131,7 +107,7 @@ class Channels extends BaseModel
      *
      * @return Attribute
      */
-    protected function isPublished() : Attribute
+    protected function isPublished(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->is_published,

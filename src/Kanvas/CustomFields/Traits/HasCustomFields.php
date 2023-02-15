@@ -1,9 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\CustomFields\Traits;
 
 use Baka\Support\Str;
+use Baka\Traits\HasSchemaAccessors;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +16,6 @@ use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\CustomFields\Models\CustomFields;
 use Kanvas\CustomFields\Models\CustomFieldsModules;
 use Kanvas\Enums\AppEnums;
-use Kanvas\Traits\HasSchemaAccessors;
 
 trait HasCustomFields
 {
@@ -28,7 +29,7 @@ trait HasCustomFields
      *
      * @return string
      */
-    public function getCustomFieldPrimaryKey() : string
+    public function getCustomFieldPrimaryKey(): string
     {
         return Str::simpleSlug(get_class($this) . ' ' . $this->getKey());
     }
@@ -38,7 +39,7 @@ trait HasCustomFields
      *
      * @return  array
      */
-    public function getAllCustomFields() : array
+    public function getAllCustomFields(): array
     {
         return $this->getAll();
     }
@@ -48,7 +49,7 @@ trait HasCustomFields
      *
      * @return array
      */
-    public function getAll() : array
+    public function getAll(): array
     {
         if (!empty($listOfCustomFields = $this->getAllFromRedis())) {
             return $listOfCustomFields;
@@ -83,7 +84,7 @@ trait HasCustomFields
      *
      * @return array
      */
-    public function getAllFromRedis() : array
+    public function getAllFromRedis(): array
     {
         $fields = Redis::hGetAll(
             $this->getCustomFieldPrimaryKey(),
@@ -123,7 +124,7 @@ trait HasCustomFields
      *
      * @return bool
      */
-    public function del(string $name) : bool
+    public function del(string $name): bool
     {
         if ($field = $this->getCustomField($name)) {
             $field->delete();
@@ -144,7 +145,7 @@ trait HasCustomFields
      *
      * @return AppsCustomFields|null
      */
-    public function getCustomField(string $name) : ?AppsCustomFields
+    public function getCustomField(string $name): ?AppsCustomFields
     {
         return AppsCustomFields::where('companies_id', $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue())
                                 ->where('model_name', get_class($this))
@@ -160,7 +161,7 @@ trait HasCustomFields
      *
      * @return mixed
      */
-    protected function getFromRedis(string $name) : mixed
+    protected function getFromRedis(string $name): mixed
     {
         $value = Redis::hGet(
             $this->getCustomFieldPrimaryKey(),
@@ -178,7 +179,7 @@ trait HasCustomFields
      *
      * @return AppsCustomFields
      */
-    public function set(string $name, $value) : AppsCustomFields
+    public function set(string $name, $value): AppsCustomFields
     {
         $companyId = $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
         $modelName = get_class($this);
@@ -211,7 +212,7 @@ trait HasCustomFields
      *
      * @return CustomFields
      */
-    public function createCustomField(string $name) : CustomFields
+    public function createCustomField(string $name): CustomFields
     {
         $appsId = app(Apps::class)->id;
         $companiesId = Auth::user() !== null ? Auth::user()->defaultCompany()->first()->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
@@ -254,7 +255,7 @@ trait HasCustomFields
      *
      * @return bool
      */
-    protected function setInRedis(string $name, mixed $value) : bool
+    protected function setInRedis(string $name, mixed $value): bool
     {
         return (bool) Redis::hSet(
             $this->getCustomFieldPrimaryKey(),
@@ -270,7 +271,7 @@ trait HasCustomFields
      *
      * @return void
      */
-    public function saveCustomFields() : bool
+    public function saveCustomFields(): bool
     {
         if ($this->hasCustomFields()) {
             foreach ($this->customFields as $key => $value) {
@@ -290,7 +291,7 @@ trait HasCustomFields
      *
      * @return bool
      */
-    public function deleteAllCustomFields() : bool
+    public function deleteAllCustomFields(): bool
     {
         $companyId = $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
 
@@ -314,7 +315,7 @@ trait HasCustomFields
      *
      * @return bool
      */
-    protected function deleteAllCustomFieldsFromRedis() : bool
+    protected function deleteAllCustomFieldsFromRedis(): bool
     {
         return (bool) Redis::del(
             $this->getCustomFieldPrimaryKey(),
@@ -336,7 +337,7 @@ trait HasCustomFields
      *
      * @return bool
      */
-    public function hasCustomFields() : bool
+    public function hasCustomFields(): bool
     {
         return !empty($this->customFields);
     }
@@ -348,7 +349,7 @@ trait HasCustomFields
      *
      * @return void
      */
-    public function reCacheCustomFields() : void
+    public function reCacheCustomFields(): void
     {
         foreach ($this->getAll() as $key => $value) {
             $this->setInRedis($key, $value);
@@ -364,10 +365,10 @@ trait HasCustomFields
      *
      * @return Model|null
      */
-    public static function getByCustomField(string $name, mixed $value, ?Companies $company = null) : ?Model
+    public static function getByCustomField(string $name, mixed $value, ?Companies $company = null): ?Model
     {
         $company = $company ? $company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
-        $table = (new static)->getTable();
+        $table = (new static())->getTable();
         return self::join(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table . '.id')
             ->where('apps_custom_fields.companies_id', $company)
             ->where('apps_custom_fields.model_name', static::class)
