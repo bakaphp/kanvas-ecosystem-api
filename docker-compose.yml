@@ -2,7 +2,7 @@ version: '3'
 services:
     php:
         container_name: php${APP_CONTAINER_NAME}
-        image: mctekk/kanvasapp:8.1-alpine
+        image: mctekk/kanvasapp:8.2-alpine
         extra_hosts:
             - 'host.docker.internal:host-gateway'
         ports:
