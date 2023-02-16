@@ -43,6 +43,7 @@ enum AppEnums implements EnumsInterface
     case DEFAULT_FEEDS_COMMENTS;
     case KANVAS_APP_HEADER;
     case KANVAS_APP_KEY_HEADER;
+    case KANVAS_APP_BRANCH_HEADER;
 
     /**
      * Get value.
@@ -87,6 +88,7 @@ enum AppEnums implements EnumsInterface
             self::DEFAULT_FEEDS_COMMENTS => 3,
             self::KANVAS_APP_HEADER => 'X-Kanvas-App',
             self::KANVAS_APP_KEY_HEADER => 'X-Kanvas-Key',
+            self::KANVAS_APP_BRANCH_HEADER => 'X-Kanvas-Location',
         };
     }
 

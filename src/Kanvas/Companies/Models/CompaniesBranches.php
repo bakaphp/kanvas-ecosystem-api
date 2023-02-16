@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Models;
 
+use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Auth;
@@ -25,6 +26,8 @@ use Kanvas\Users\Models\Users;
  */
 class CompaniesBranches extends BaseModel
 {
+    use UuidTrait;
+
     /**
      * The table associated with the model.
      *
