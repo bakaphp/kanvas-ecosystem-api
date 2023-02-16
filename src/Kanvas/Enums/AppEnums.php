@@ -41,6 +41,9 @@ enum AppEnums implements EnumsInterface
     case DELETE_IMAGES_ON_EMPTY_FILES_FIELD;
     case PUBLIC_IMAGES;
     case DEFAULT_FEEDS_COMMENTS;
+    case KANVAS_APP_HEADER;
+    case KANVAS_APP_KEY_HEADER;
+    case KANVAS_APP_BRANCH_HEADER;
 
     /**
      * Get value.
@@ -83,6 +86,9 @@ enum AppEnums implements EnumsInterface
             self::DELETE_IMAGES_ON_EMPTY_FILES_FIELD => 1,
             self::PUBLIC_IMAGES => 0,
             self::DEFAULT_FEEDS_COMMENTS => 3,
+            self::KANVAS_APP_HEADER => 'X-Kanvas-App',
+            self::KANVAS_APP_KEY_HEADER => 'X-Kanvas-Key',
+            self::KANVAS_APP_BRANCH_HEADER => 'X-Kanvas-Location',
         };
     }
 

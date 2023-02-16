@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Apps\Models;
 
 use Baka\Contracts\AppInterface;
+use Baka\Enums\StateEnums;
 use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
 use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
@@ -61,7 +63,7 @@ class Apps extends BaseModel implements AppInterface
      *
      * @return hasMany
      */
-    public function settings()
+    public function settings(): hasMany
     {
         return $this->hasMany(Settings::class, 'apps_id');
     }
@@ -69,9 +71,9 @@ class Apps extends BaseModel implements AppInterface
     /**
      * Roles relationship.
      *
-     * @return Roles
+     * @return hasMany
      */
-    public function roles()
+    public function roles(): HasMany
     {
         return $this->hasMany(Roles::class, 'apps_id');
     }
@@ -107,7 +109,7 @@ class Apps extends BaseModel implements AppInterface
     {
         return UserCompanyApps::firstOrCreate([
             'apps_id' => $this->id,
-            'companies_id' => $company->getKey()
+            'companies_id' => $company->getKey(),
         ]);
     }
 
@@ -152,7 +154,7 @@ class Apps extends BaseModel implements AppInterface
      * @param string|null $password
      * @param string|null $companyUserIdentifier
      *
-     * @return void
+     * @return UsersAssociatedApps
      */
     public function associateUser(
         Users $user,
@@ -174,7 +176,7 @@ class Apps extends BaseModel implements AppInterface
             'user_active' => $isActive,
             'user_role' => $userRoleId ?? $user->roles_id,
             'password' => $password,
-            'configuration' => Str::isJson($configuration) ? json_encode($configuration) : $configuration
+            'configuration' => Str::isJson($configuration) ? json_encode($configuration) : $configuration,
         ]);
     }
 
@@ -188,11 +190,17 @@ class Apps extends BaseModel implements AppInterface
     public function scopeUserAssociated(Builder $query): Builder
     {
         $user = Auth::user();
-        return $query->join('users_associated_apps', function ($join) use ($user) {
-            $join->on('apps.id', '=', 'users_associated_apps.apps_id')
-                ->where('users_associated_apps.users_id', '=', $user->getKey())
-                ->where('users_associated_apps.is_deleted', '=', 0);
-        })
-            ->where('apps.is_deleted', '=', 0);
+
+        return $query->select('apps.*')
+            ->join(
+                'users_associated_apps',
+                'users_associated_apps.apps_id',
+                '=',
+                'apps.id'
+            )
+            ->where('users_associated_apps.users_id', '=', $user->getKey())
+            ->where('users_associated_apps.is_deleted', '=', StateEnums::NO->getValue())
+            ->where('apps.is_deleted', '=', StateEnums::NO->getValue())
+            ->groupBy('users_associated_apps.apps_id');
     }
 }

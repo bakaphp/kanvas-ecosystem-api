@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Companies\Models;
 
 use Baka\Contracts\CompanyInterface;
+use Baka\Traits\HashTableTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -16,7 +17,6 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
-use Kanvas\Traits\UsersAssociatedTrait;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
@@ -42,13 +42,8 @@ use Kanvas\Users\Models\UsersAssociatedCompanies;
  */
 class Companies extends BaseModel implements CompanyInterface
 {
-    // use UsersAssociatedTrait;
+    use HashTableTrait;
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
     protected $table = 'companies';
 
     /**
@@ -162,7 +157,7 @@ class Companies extends BaseModel implements CompanyInterface
      */
     public function branchCacheKey(): string
     {
-        return  Defaults::DEFAULT_COMPANY_BRANCH_APP->getValue() . app(Apps::class)->id . '_' . $this->getKey();
+        return Defaults::DEFAULT_COMPANY_BRANCH_APP->getValue() . app(Apps::class)->id . '_' . $this->getKey();
     }
 
     /**
@@ -207,7 +202,7 @@ class Companies extends BaseModel implements CompanyInterface
      * @param string|null $password
      * @param string|null $companyUserIdentifier
      *
-     * @return void
+     * @return UsersAssociatedApps
      */
     public function associateUserApp(
         Users $user,
@@ -228,7 +223,7 @@ class Companies extends BaseModel implements CompanyInterface
             'identify_id' => $companyUserIdentifier ?? $user->id,
             'user_active' => $isActive,
             'user_role' => $userRoleId ?? $user->roles_id,
-            'password' => $password
+            'password' => $password,
         ]);
     }
 
@@ -254,11 +249,15 @@ class Companies extends BaseModel implements CompanyInterface
     public function scopeUserAssociated(Builder $query): Builder
     {
         $user = Auth::user();
-        return $query->join('users_associated_company', function ($join) use ($user) {
-            $join->on('companies.id', '=', 'users_associated_company.companies_id')
-                ->where('users_associated_company.users_id', '=', $user->getKey())
-                ->where('users_associated_company.is_deleted', '=', 0);
-        })
-        ->where('companies.is_deleted', '=', 0);
+
+        return $query->join(
+            'users_associated_company',
+            'users_associated_company.companies_id',
+            '=',
+            'companies.id'
+        )
+        ->where('users_associated_company.users_id', '=', $user->getKey())
+        ->where('users_associated_company.is_deleted', '=', StateEnums::NO->getValue())
+        ->where('companies.is_deleted', '=', StateEnums::NO->getValue());
     }
 }

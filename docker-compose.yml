@@ -2,7 +2,7 @@ version: '3'
 services:
     php:
         container_name: php${APP_CONTAINER_NAME}
-        image: mctekk/kanvasapp:8.1-alpine
+        image: mctekk/kanvasapp:8.2-alpine
         extra_hosts:
             - 'host.docker.internal:host-gateway'
         ports:
@@ -16,7 +16,8 @@ services:
         volumes:
             - '.:/var/www/html'
             - ../kanvas-core:/var/www/kanvas-core
-            - ./docker/php.ini:/usr/local/etc/php/conf.d/custom.ini
+            - ./docker/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
+            - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
         networks:
             - sail
         depends_on:
