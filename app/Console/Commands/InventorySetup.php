@@ -15,7 +15,7 @@ class InventorySetup extends Command
      *
      * @var string
      */
-    protected $signature = 'inventory:setup {userId} {companyId}';
+    protected $signature = 'inventory:setup {appId} {userId} {companyId}';
 
     /**
      * The console command description.
@@ -41,11 +41,12 @@ class InventorySetup extends Command
      */
     public function handle()
     {
+        $app = Apps::getById((int) $this->argument('appId'));
         $company = Companies::getById((int) $this->argument('companyId'));
         $user = Users::getById((int) $this->argument('userId'));
 
         (new Setup(
-            app(Apps::class),
+            $app,
             $user,
             $company
         ))->run();
