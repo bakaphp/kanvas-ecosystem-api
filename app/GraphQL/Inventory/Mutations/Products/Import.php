@@ -40,10 +40,11 @@ class Import
         ImporterJob::dispatch(
             $jobUuid,
             $req['input'],
-            auth()->user()->getCurrentCompany(),
+            $company,
             auth()->user(),
             $region
         );
+
         return $jobUuid;
     }
 }
