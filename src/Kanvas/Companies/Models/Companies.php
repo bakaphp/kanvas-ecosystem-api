@@ -157,7 +157,7 @@ class Companies extends BaseModel implements CompanyInterface
      */
     public function branchCacheKey(): string
     {
-        return  Defaults::DEFAULT_COMPANY_BRANCH_APP->getValue() . app(Apps::class)->id . '_' . $this->getKey();
+        return Defaults::DEFAULT_COMPANY_BRANCH_APP->getValue() . app(Apps::class)->id . '_' . $this->getKey();
     }
 
     /**
