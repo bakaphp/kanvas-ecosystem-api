@@ -344,7 +344,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * unReadNotification.
      *
-     * @return object
+     * @return Collection
      */
     public function unReadNotification(): Collection
     {
