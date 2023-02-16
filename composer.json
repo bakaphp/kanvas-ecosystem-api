@@ -80,9 +80,19 @@
         "post-create-project-cmd": [
             "@php artisan key:generate --ansi"
         ],
-        "test": "vendor/bin/phpunit",
-        "sail": "vendor/bin/sail",
-        "php-cs-fixer": "php-cs-fixer --config=./.php-cs-fixer.php"
+        "test": "php artisan test",
+        "migrate-kanvas": [
+            "php artisan migrate"
+        ],
+        "migrate-inventory": [
+            "php artisan migrate --path database/migrations/Inventory/ --database inventory"
+        ],
+        "migrate-social": [
+            "php artisan migrate --path database/migrations/Social/ --database social"
+        ],
+        "migrate-crm": [
+            "php artisan migrate --path database/migrations/Guild/ --database crm"
+        ]
     },
     "extra": {
         "laravel": {
