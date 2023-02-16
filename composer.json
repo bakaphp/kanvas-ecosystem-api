@@ -27,7 +27,7 @@
         "mll-lab/laravel-graphiql": "^1.0",
         "nuwave/lighthouse": "^5.57",
         "phpclassic/php-shopify": "^1.2",
-        "sentry/sentry-laravel": "^2.13",
+        "sentry/sentry-laravel": "^3.2",
         "shopify/shopify-api": "^4.1",
         "silber/bouncer": "^1.0",
         "spatie/data-transfer-object": "^3.7",

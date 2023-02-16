@@ -212,7 +212,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Role relationship.
      *
-     * @return void
+     * @return HasOne
      */
     public function role(): HasOne
     {
