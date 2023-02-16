@@ -3,7 +3,6 @@
 namespace App\Providers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Schema as FacadesSchema;
 use Illuminate\Support\ServiceProvider;
 use Kanvas\Apps\Models\Apps;
@@ -30,9 +29,9 @@ class KanvasAppsProvider extends ServiceProvider
      */
     public function boot()
     {
-        $request = new Request();
-        $domainName = $request->getHttpHost();
-        $appKey = $request->header(AppEnums::KANVAS_APP_HEADER->getValue(), config('kanvas.app.id'));
+        //$request = new Request();
+        //$domainName = $request->getHttpHost();
+        $appKey = request()->header(AppEnums::KANVAS_APP_HEADER->getValue(), config('kanvas.app.id'));
 
         if (FacadesSchema::hasTable('apps') && Apps::count() > 0) {
             try {
@@ -43,6 +42,7 @@ class KanvasAppsProvider extends ServiceProvider
                 });
             } catch (Throwable $e) {
                 $msg = 'No App configure with this key ' . $appKey;
+
                 throw new InternalServerErrorException($msg, $e->getMessage());
             }
         }
