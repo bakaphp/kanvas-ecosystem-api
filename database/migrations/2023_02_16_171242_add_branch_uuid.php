@@ -20,7 +20,7 @@ return new class () extends Migration {
                 ->index('uuid');
         });
 
-        DB::raw('UPDATE companies_branches SET uuid = UUID()');
+        DB::statement('UPDATE companies_branches SET uuid = UUID()');
     }
 
     /**
