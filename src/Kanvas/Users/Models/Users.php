@@ -248,7 +248,8 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public static function getByEmail(string $email): self
     {
-        $user = self::where(
+        $user = self::notDeleted()
+            ->where(
             [
                 'email' => $email,
                 'is_deleted' => 0,
