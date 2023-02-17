@@ -8,15 +8,19 @@ type User {
     email: String!
     phone_number: String
     cell_phone_number: String
-    address_1: String
-    address_2: String
-    zip_code: Int
+    address: AddressType @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\Users@userAddress")
     sex: String
     user_active: Boolean!
     created_at: DateTime
     updated_at: DateTime
     branches: [CompanyBranch!] @HasManyThrough
     companies: [Company!] @HasManyThrough
+}
+
+type AddressType{
+    address_1: String
+    address_2: String
+    zip_code: String
     city: Cities @belongsTo
     state: States @belongsTo
     country: Country @belongsTo

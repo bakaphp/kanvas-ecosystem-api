@@ -47,7 +47,6 @@ class UserTest extends TestCase
                     description
                     sex
                     phone_number
-                    address_1
                 }
             }',
             [
@@ -68,7 +67,6 @@ class UserTest extends TestCase
         ->assertSee('displayname', $displayname)
         ->assertSee('description')
         ->assertSee('sex')
-        ->assertSee('phone_number')
-        ->assertSee('address_1');
+        ->assertSee('phone_number');
     }
 }
