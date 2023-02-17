@@ -69,6 +69,10 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\Register@resolve"
         )
+    refreshToken(refresh_token: String!): TokenResponse 
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\RefreshToken@resolve"
+        )
     changePassword(
         new_password: String! @rules(apply: ["string", "confirmed"])
         new_password_confirmation: String

@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace Kanvas\Users\Models;
 
 use Baka\Support\Str;
@@ -255,7 +254,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             ]
         )->first();
 
-        if (! $user) {
+        if (!$user) {
             throw new ModelNotFoundException('No User Found');
         }
 
@@ -279,7 +278,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function isBanned(): bool
     {
-        return ! $this->isActive() && $this->banned === 'Y';
+        return !$this->isActive() && $this->banned === 'Y';
     }
 
     /**
@@ -312,7 +311,8 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function currentCompanyId(): int
     {
-        return (int) $this->get(Companies::cacheKey());
+        $currentCompanyId = $this->get(Companies::cacheKey());
+        return $currentCompanyId ? (int)$currentCompanyId : $this->default_company;
     }
 
     /**
