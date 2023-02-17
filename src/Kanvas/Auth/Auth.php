@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Hash;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Models\Users;
@@ -31,16 +32,24 @@ class Auth
     public static function login(
         LoginInput $loginInput
     ): UserInterface {
-        $user = Users::getByEmail($loginInput->getEmail());
+        $app = app(Apps::class);
 
-        //first we find the user
-        if (!$user) {
+        if ($app->get(AppEnums::DISPLAYNAME_LOGIN->getValue())) {
+            $user = Users::notDeleted()
+                ->where('email', $loginInput->getEmail())
+                ->orWhere('displayname', $loginInput->getEmail())
+                ->first();
+        } else {
+            $user = Users::notDeleted()
+            ->where('email', $loginInput->getEmail())
+            ->first();
+        }
+
+        if (! $user) {
             throw new AuthenticationException('Invalid email or password.');
         }
 
         self::loginAttemptsValidation($user);
-
-        $app = app(Apps::class);
 
         $authentically = $user;
         /*
@@ -56,7 +65,7 @@ class Auth
             self::resetLoginTries($user);
 
             return $user;
-        } elseif (!$user->isActive()) {
+        } elseif (! $user->isActive()) {
             throw new AuthenticationException('Invalid email or password.');
         } elseif ($user->isBanned()) {
             throw new AuthenticationException('User has been banned, please contact support.');
@@ -119,6 +128,7 @@ class Auth
         $user->lastvisit = date('Y-m-d H:i:s');
         $user->user_login_tries = 0;
         $user->user_last_login_try = 0;
+
         return $user->updateOrFail();
     }
 
@@ -132,6 +142,7 @@ class Auth
         if ($user->getId() !== StatusEnums::ANONYMOUS->getValue()) {
             $user->user_login_tries += 1;
             $user->user_last_login_try = time();
+
             return $user->updateOrFail();
         }
 
