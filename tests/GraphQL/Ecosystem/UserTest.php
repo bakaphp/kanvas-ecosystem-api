@@ -46,7 +46,7 @@ class UserTest extends TestCase
                     displayname
                     description
                     sex
-                    phone_number
+                    contact
                 }
             }',
             [
