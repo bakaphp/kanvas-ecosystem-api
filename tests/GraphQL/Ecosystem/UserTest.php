@@ -36,7 +36,7 @@ class UserTest extends TestCase
         $lastname = fake()->lastName();
         $displayname = fake()->firstName();
 
-        $response = $this->graphQL( /** @lang GraphQL */
+        $this->graphQL( /** @lang GraphQL */
             '
             mutation updateUser($data: UpdateUserInput!) {
                 updateUser(data: $data)
