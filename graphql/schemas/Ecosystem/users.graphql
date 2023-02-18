@@ -6,8 +6,8 @@ type User {
     displayname: String!
     description: String
     email: String!
-    contact: ContactInfo @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\Users@userContact")
-    address: AddressType @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\Users@userAddress")
+    contact: ContactInfo @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@contact")
+    address: AddressType @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@address")
     sex: String
     user_active: Boolean!
     created_at: DateTime

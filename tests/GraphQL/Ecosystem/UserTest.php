@@ -29,7 +29,7 @@ class UserTest extends TestCase
         return self::$loginData;
     }
 
-    public function test_edit_user_data(): void
+    public function editUserdata(): void
     {
         $loginData = self::loginData();
         $firstname = fake()->firstName();

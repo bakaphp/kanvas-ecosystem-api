@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Types;
 
-use Kanvas\Users\Models\Users as ModelsUsers;
+use Kanvas\Users\Models\Users;
 
-class Users
+class UserType
 {
     /**
      * Return the user address formatted for the response type.
      *
-     * @param ModelsUsers $user
+     * @param Users $user
      * @param array $request
-     * @return ModelsUsers
+     * @return Users
      */
-    public function userAddress(ModelsUsers $user, array $request): ModelsUsers
+    public function address(Users $user, array $request): Users
     {
         $user->address = [
             "address_1" => $user->address_1,
@@ -29,11 +29,11 @@ class Users
     /**
      * Return the user contact info formatted for the response type.
      *
-     * @param ModelsUsers $user
+     * @param Users $user
      * @param array $request
-     * @return ModelsUsers
+     * @return Users
      */
-    public function userContact(ModelsUsers $user, array $request): ModelsUsers
+    public function contact(Users $user, array $request): Users
     {
         $user->contact = [
             "phone_number" => $user->phone_number,
