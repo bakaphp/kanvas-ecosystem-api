@@ -26,14 +26,14 @@ class AppInput extends Data
      */
     public function __construct(
         public string $name,
-        public ?string $url = null,
         public string $description,
         public string $domain,
         public int $is_actived,
         public int $ecosystem_auth,
         public int $payments_active,
         public int $is_public,
-        public int $domain_based
+        public int $domain_based,
+        public ?string $url = null
     ) {
     }
 }
