@@ -6,8 +6,7 @@ type User {
     displayname: String!
     description: String
     email: String!
-    phone_number: String
-    cell_phone_number: String
+    contact: ContactInfo @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\Users@userContact")
     address: AddressType @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\Users@userAddress")
     sex: String
     user_active: Boolean!
@@ -24,6 +23,11 @@ type AddressType{
     city: Cities @belongsTo
     state: States @belongsTo
     country: Country @belongsTo
+}
+
+type ContactInfo{
+    phone_number: String
+    cell_phone_number: String
 }
 
 type TokenResponse {
