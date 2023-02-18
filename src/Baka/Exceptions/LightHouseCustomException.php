@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace Baka\Exceptions;
 
 use Exception;
-use Nuwave\Lighthouse\Exceptions\RendersErrorsExtensions;
+use GraphQL\Error\ClientAware;
+use GraphQL\Error\ProvidesExtensions;
 
-class LightHouseCustomException extends Exception implements RendersErrorsExtensions
+class LightHouseCustomException extends Exception implements ClientAware, ProvidesExtensions
 {
     /**
      * @var @string
@@ -49,7 +50,7 @@ class LightHouseCustomException extends Exception implements RendersErrorsExtens
      *
      * @return array
      */
-    public function extensionsContent(): array
+    public function getExtensions(): array
     {
         return [
             'reason' => $this->reason,

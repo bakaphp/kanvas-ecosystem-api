@@ -19,7 +19,7 @@ class UserManagement
      * @param  mixed $root
      * @param  array $req
      *
-     * @return void
+     * @return bool
      */
     public function changePassword(mixed $root, array $req): bool
     {

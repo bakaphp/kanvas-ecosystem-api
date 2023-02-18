@@ -29,7 +29,7 @@ class UserTest extends TestCase
         return self::$loginData;
     }
 
-    public function test_edit_user_data(): void
+    public function testEditUserData(): void
     {
         $loginData = self::loginData();
         $firstname = fake()->firstName();
@@ -58,5 +58,26 @@ class UserTest extends TestCase
         ->assertSee('firstname', $firstname)
         ->assertSee('lastname', $lastname)
         ->assertSee('displayname', $displayname);
+    }
+
+    public function testChangePassword()
+    {
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation changePassword(
+                $new_password: String!
+                $new_password_confirmation: String
+            ) {
+                changePassword(
+                    new_password: $new_password
+                    new_password_confirmation: $new_password_confirmation)
+            }
+        ', [
+            'new_password' => 'abc123456',
+            'new_password_confirmation' => 'abc123456'
+        ])->assertJson([
+            'data' => [
+                'changePassword' => true
+            ]
+        ]);
     }
 }
