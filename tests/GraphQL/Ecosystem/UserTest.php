@@ -46,7 +46,6 @@ class UserTest extends TestCase
                     displayname
                     description
                     sex
-                    contact
                 }
             }',
             [
