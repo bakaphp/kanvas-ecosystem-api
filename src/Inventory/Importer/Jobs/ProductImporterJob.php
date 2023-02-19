@@ -12,7 +12,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
@@ -45,7 +44,6 @@ class ProductImporterJob implements ShouldQueue
         public Regions $region,
         public AppInterface $app
     ) {
-        $this->overwriteAppService($app);
     }
 
     /**
@@ -56,6 +54,7 @@ class ProductImporterJob implements ShouldQueue
     public function handle()
     {
         Auth::loginUsingId($this->user->getId());
+        $this->overwriteAppService($this->app);
 
         foreach ($this->importer as $request) {
             (new ProductImporterAction(
