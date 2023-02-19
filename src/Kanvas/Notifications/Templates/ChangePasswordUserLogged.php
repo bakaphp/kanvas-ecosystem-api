@@ -9,20 +9,7 @@ use Kanvas\Users\Models\Users;
 
 class ChangePasswordUserLogged extends Notification
 {
-    public string $templateName = 'change-password';
-
-    /**
-     * __construct.
-     *
-     * @param  Users $user
-     *
-     * @return void
-     */
-    public function __construct(Users $user)
-    {
-        $this->entity = $user;
-        $this->setType('users');
-    }
+    public ?string $templateName = 'change-password';
 
     /**
      * via.

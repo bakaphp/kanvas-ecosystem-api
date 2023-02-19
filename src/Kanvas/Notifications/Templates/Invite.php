@@ -9,20 +9,7 @@ use Kanvas\Users\Models\UsersInvite;
 
 class Invite extends Notification
 {
-    public string $templateName = 'users-invite';
-
-    /**
-     * __construct.
-     *
-     * @param  Invites $user
-     *
-     * @return void
-     */
-    public function __construct(UsersInvite $invite)
-    {
-        $this->entity = $invite;
-        $this->setType('users');
-    }
+    public ?string $templateName = 'users-invite';
 
     /**
      * via.

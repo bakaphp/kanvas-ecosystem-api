@@ -2,15 +2,8 @@
 
 namespace Kanvas\Notifications\Templates;
 
-class Welcome extends Mail
+use Kanvas\Notifications\Notification;
+
+class Welcome extends Notification
 {
-    /**
-     * Build the message.
-     *
-     * @return $this
-     */
-    public function build()
-    {
-        return $this->view('welcome-template');
-    }
 }

@@ -11,20 +11,7 @@ class UserSignUp extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public string $templateName = 'user-signup';
-
-    /**
-     * __construct.
-     *
-     * @param  Users $user
-     *
-     * @return void
-     */
-    public function __construct(Users $user)
-    {
-        $this->entity = $user;
-        $this->setType('users');
-    }
+    public ?string $templateName = 'user-signup';
 
     /**
      * via.

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Models;
 
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\KanvasModelTrait;
@@ -330,9 +331,9 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Get the current company in the user session.
      *
-     * @return Companies
+     * @return CompanyInterface
      */
-    public function getCurrentCompany(): Companies
+    public function getCurrentCompany(): CompanyInterface
     {
         try {
             return CompaniesRepository::getById($this->currentCompanyId());
