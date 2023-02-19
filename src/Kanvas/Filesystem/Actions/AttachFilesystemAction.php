@@ -37,10 +37,14 @@ class AttachFilesystemAction
         if ($update) {
             $fileEntity = FilesystemEntitiesRepository::getByIdAdnEntity($id, $this->entity);
         } else {
-            $fileEntity = new FilesystemEntities();
-            $fileEntity->system_modules_id = $systemModule->getKey();
-            $fileEntity->companies_id = $this->filesystem->companies_id;
-            $fileEntity->entity_id = $this->entity->getKey();
+            $fileEntity = FilesystemEntities::firstOrCreate([
+                'filesystem_id' => $this->filesystem->getKey(),
+                'entity_id' => $this->entity->getKey(),
+                'system_modules_id' => $systemModule->getKey(),
+                'companies_id' => $this->filesystem->companies_id,
+            ], [
+                'field_name' => $fieldName,
+            ]);
         }
 
         $fileEntity->filesystem_id = $this->filesystem->getKey();

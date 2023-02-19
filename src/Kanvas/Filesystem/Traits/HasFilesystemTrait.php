@@ -48,16 +48,20 @@ trait HasFilesystemTrait
      */
     public function addFileFromUrl(string $url, string $fieldName): bool
     {
-        $fileSystem = new Filesystem();
-        $fileSystem->companies_id = $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
-        $fileSystem->apps_id = app(Apps::class)->getId();
-        $fileSystem->users_id = $this->users_id ?? (auth()->check() ? auth()->user()->getKey() : 0);
-        $fileSystem->path = $url;
-        $fileSystem->url = $url;
-        $fileSystem->name = $url;
-        $fileSystem->file_type = 'unknown';
-        $fileSystem->size = 0;
-        $fileSystem->saveOrFail();
+        $fileSystem = Filesystem::fromApp()->where('url', $url)->first();
+
+        if (!$fileSystem) {
+            $fileSystem = new Filesystem();
+            $fileSystem->companies_id = $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
+            $fileSystem->apps_id = app(Apps::class)->getId();
+            $fileSystem->users_id = $this->users_id ?? (auth()->check() ? auth()->user()->getKey() : 0);
+            $fileSystem->path = $url;
+            $fileSystem->url = $url;
+            $fileSystem->name = $url;
+            $fileSystem->file_type = 'unknown';
+            $fileSystem->size = 0;
+            $fileSystem->saveOrFail();
+        }
 
         $attachFilesystem = new AttachFilesystemAction($fileSystem, $this);
         $attachFilesystem->execute($fieldName);

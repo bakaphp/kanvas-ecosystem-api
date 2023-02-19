@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Importer\Jobs;
 
 use Baka\Contracts\AppInterface;
+use Baka\Traits\KanvasJobsTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
@@ -24,6 +26,7 @@ class ProductImporterJob implements ShouldQueue
     use InteractsWithQueue;
     use Queueable;
     use SerializesModels;
+    use KanvasJobsTrait;
 
     /**
      * constructor.
@@ -42,6 +45,7 @@ class ProductImporterJob implements ShouldQueue
         public Regions $region,
         public AppInterface $app
     ) {
+        $this->overwriteAppService($app);
     }
 
     /**
