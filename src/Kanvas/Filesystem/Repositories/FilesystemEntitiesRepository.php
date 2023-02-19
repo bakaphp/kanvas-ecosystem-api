@@ -34,9 +34,9 @@ class FilesystemEntitiesRepository
         //     $bind['companies_id'] = $companyId;
         // }
 
-        return FilesystemEntities::notDeleted()
-                                ->where('id', $id)
+        return FilesystemEntities::where('id', $id)
                                 ->where('system_modules_id', $systemModule->getKey())
+                                ->where('is_deleted', StateEnums::NO->getValue())
                                 ->whereRaw(
                                     "filesystem_id in (SELECT s.id from Filesystem s WHERE s.apps_id = {$app->getKey()}"
                                 )
