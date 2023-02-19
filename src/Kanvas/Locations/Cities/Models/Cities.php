@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Locations\Cities\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Locations\Countries\Models\Countries;
 use Kanvas\Locations\States\Models\States;
 use Kanvas\Models\BaseModel;
+use Kanvas\Users\Models\Users;
 
 /**
  * Cities Class.
@@ -54,5 +56,15 @@ class Cities extends BaseModel
     public function state(): BelongsTo
     {
         return $this->belongsTo(States::class, 'states_id');
+    }
+
+    /**
+     * Users relationship.
+     *
+     * @return HasMany
+     */
+    public function users(): HasMany
+    {
+        return $this->hasMany(Users::class, 'city_id');
     }
 }
