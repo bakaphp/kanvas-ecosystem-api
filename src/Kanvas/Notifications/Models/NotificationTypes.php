@@ -35,7 +35,7 @@ class NotificationTypes extends BaseModel
         'icon_url',
         'with_realtime',
         'parent_id',
-        'is_published'
+        'is_published',
     ];
 
     /**
@@ -50,6 +50,10 @@ class NotificationTypes extends BaseModel
         return self::where('name', $name)->firstOrFail();
     }
 
+    /**
+     * Verify this notification type uses email template.
+     * @return bool
+     */
     public function hasEmailTemplate(): bool
     {
         return ! empty($this->template);
