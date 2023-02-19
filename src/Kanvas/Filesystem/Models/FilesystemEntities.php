@@ -32,6 +32,15 @@ class FilesystemEntities extends BaseModel
      */
     protected $table = 'filesystem_entities';
 
+    protected $fillable = [
+        'filesystem_id',
+        'companies_id',
+        'system_modules_id',
+        'entity_id',
+        'field_name',
+        'is_deleted',
+    ];
+
     /**
      * Filesystem relationship.
      *

@@ -40,9 +40,10 @@ class AttachFilesystemAction
             $fileEntity = FilesystemEntities::firstOrCreate([
                 'filesystem_id' => $this->filesystem->getKey(),
                 'entity_id' => $this->entity->getKey(),
-                'field_name' => $fieldName,
                 'system_modules_id' => $systemModule->getKey(),
                 'companies_id' => $this->filesystem->companies_id,
+            ], [
+                'field_name' => $fieldName,
             ]);
         }
 
