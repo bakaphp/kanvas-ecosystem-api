@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Importer\Jobs;
 
+use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -38,7 +39,8 @@ class ProductImporterJob implements ShouldQueue
         public array $importer,
         public Companies $company,
         public UserInterface $user,
-        public Regions $region
+        public Regions $region,
+        public AppInterface $app
     ) {
     }
 
@@ -56,7 +58,8 @@ class ProductImporterJob implements ShouldQueue
                 ProductImporter::from($request),
                 $this->company,
                 $this->user,
-                $this->region
+                $this->region,
+                $this->app
             ))->execute();
         }
     }
