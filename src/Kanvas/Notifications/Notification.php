@@ -131,6 +131,13 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      */
     protected function getEmailTemplate(): string
     {
+        if (! $this->getType()->hasEmailTemplate()) {
+            throw new Exception('This notification type does not have an email template');
+        }
+
+        /**
+         * @psalm-suppress PossiblyNullArgument
+         */
         $template = TemplatesRepository::getByName($this->getTemplateName(), $this->app);
         $notificationTemplate = $template->template;
 
@@ -153,9 +160,9 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     /**
      * Get notification template Name
      *
-     * @return string
+     * @return string|null
      */
-    public function getTemplateName(): string
+    public function getTemplateName(): ?string
     {
         return $this->templateName === null ? $this->getType()->template : $this->templateName;
     }
@@ -197,6 +204,9 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
             return $this->type;
         }
 
+        /**
+         * @var NotificationTypes
+         */
         return NotificationTypes::firstOrCreate([
             'apps_id' => $this->app->getId(),
             'key' => self::class,
