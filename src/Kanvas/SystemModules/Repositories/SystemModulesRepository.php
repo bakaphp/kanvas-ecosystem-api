@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\SystemModules\Repositories;
 
+use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\SystemModules\Models\SystemModules;
 
 class SystemModulesRepository
 {
     /**
-     * Get System Module by its model_name.
-     *
-     * @param string $model_name
+     * Get System Module by its model name.
      *
      * @return SystemModules
      */
@@ -26,8 +25,7 @@ class SystemModulesRepository
                 'apps_id' => $app->getKey()
             ],
             [
-                'model_name' => $modelName,
-                'apps_id' => $app->getKey()
+                'slug' => Str::simpleSlug($modelName),
             ]
         );
     }
@@ -52,7 +50,7 @@ class SystemModulesRepository
      *
      * @param int $id
      *
-     * @return ModelInterface
+     * @return SystemModules
      */
     public static function getById(int $id, ?Apps $app = null): SystemModules
     {
@@ -67,7 +65,7 @@ class SystemModulesRepository
      *
      * @param int $id
      *
-     * @return ModelInterface
+     * @return SystemModules
      */
     public static function getBySlug(string $slug, ?Apps $app = null): SystemModules
     {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Templates\Repositories;
 
+use Baka\Contracts\AppInterface;
 use Kanvas\Templates\Models\Templates;
 
 class TemplatesRepository
@@ -15,13 +16,14 @@ class TemplatesRepository
      *
      * @return Templates
      */
-    public static function getByName(string $name): Templates
+    public static function getByName(string $name, AppInterface $app): Templates
     {
-        // $companyId = userData->currentCompanyId() ?? 0;
-
+        /**
+         * @psalm-suppress MixedReturnStatement
+         */
         return Templates::fromApp()
                             ->notDeleted()
-                            // ->where('companies_id',$companyId)
+                            ->fromApp($app)
                             ->where('name', $name)
                             ->orderBy('id', 'desc')
                             ->firstOrFail();

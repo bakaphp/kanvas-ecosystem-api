@@ -23,15 +23,5 @@ class ResetPassword extends Notification implements ShouldQueue
         return [...parent::via(), 'mail'];
     }
 
-    /**
-     * getData.
-     *
-     * @return array
-     */
-    public function getData(): array
-    {
-        return [
-            'name' => "{$this->entity->displayname}",
-        ];
-    }
+
 }

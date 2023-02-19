@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Notifications;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification as LaravelNotification;
@@ -16,10 +18,11 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Channels\KanvasDatabase as KanvasDatabaseChannel;
 use Kanvas\Notifications\Interfaces\EmailInterfaces;
 use Kanvas\Notifications\Models\NotificationTypes;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Templates\Repositories\TemplatesRepository;
 use Kanvas\Users\Models\Users;
 
-class Notification extends LaravelNotification implements EmailInterfaces
+class Notification extends LaravelNotification implements EmailInterfaces, ShouldQueue
 {
     use Queueable;
 
@@ -28,6 +31,7 @@ class Notification extends LaravelNotification implements EmailInterfaces
     protected ?NotificationTypes $type = null;
     protected ?string $templateName = null;
     protected ?UserInterface $fromUser = null;
+    protected ?UserInterface $toUser = null;
 
     /**
      * Set the entity
@@ -65,6 +69,7 @@ class Notification extends LaravelNotification implements EmailInterfaces
     {
         $fromEmail = $this->app->get('from_email_address') ?? config('mail.from.address');
         $fromName = $this->app->get('from_email_name') ?? config('mail.from.name');
+        $this->toUser = $notifiable;
 
         return (new MailMessage())
                 ->from($fromEmail, $fromName)
@@ -80,6 +85,8 @@ class Notification extends LaravelNotification implements EmailInterfaces
      */
     public function toKanvasDatabase(UserInterface $notifiable): array
     {
+        $this->toUser = $notifiable;
+
         try {
             $fromUserId = $this->getFromUser()->getId();
         } catch (Exception $e) {
@@ -104,14 +111,41 @@ class Notification extends LaravelNotification implements EmailInterfaces
     }
 
     /**
-     * generateHtml.
+     * Notification message the user will get.
      *
      * @return string
      */
     public function message(): string
     {
+        if ($this->getType()->hasEmailTemplate()) {
+            return $this->getEmailTemplate();
+        }
+
+        return '';
+    }
+
+    /**
+     * Given the HTML for the current email notification
+     *
+     * @return string
+     */
+    protected function getEmailTemplate(): string
+    {
+        $template = TemplatesRepository::getByName($this->getTemplateName(), $this->app);
+        $notificationTemplate = $template->template;
+
+        if ($template->hasParentTemplate()) {
+            $parentTemplate = $template->parentTemplate()->firstOrFail();
+
+            $notificationTemplate = str_replace(
+                '@body',
+                $notificationTemplate,
+                $parentTemplate->template
+            );
+        }
+
         return Blade::render(
-            TemplatesRepository::getByName($this->getTemplateName())->template,
+            $notificationTemplate,
             $this->getData()
         );
     }
@@ -136,7 +170,7 @@ class Notification extends LaravelNotification implements EmailInterfaces
         return [
             'entity' => $this->entity,
             'app' => $this->app,
-            'user',
+            'user' => $this->toUser ? $this->toUser : null,
         ];
     }
 
@@ -163,13 +197,19 @@ class Notification extends LaravelNotification implements EmailInterfaces
             return $this->type;
         }
 
-        return NotificationTypes::notDeleted()
-            ->fromApp($this->app)
-            ->where('key', self::class)
-            ->firstOrFail();
+        return NotificationTypes::firstOrCreate([
+            'apps_id' => $this->app->getId(),
+            'key' => self::class,
+            'name' => Str::slug(self::class),
+            'system_modules_id' => SystemModulesRepository::getByModelName(self::class, $this->app)->getId(),
+            'is_deleted' => 0,
+        ]);
     }
 
-    public function setUser(UserInterface $user): void
+    /**
+     * Set the user who is sending the notification
+     */
+    public function setFromUser(UserInterface $user): void
     {
         $this->fromUser = $user;
     }

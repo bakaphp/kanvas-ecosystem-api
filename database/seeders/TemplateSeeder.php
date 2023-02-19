@@ -1,4 +1,5 @@
 <?php
+
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
@@ -13,23 +14,6 @@ class TemplateSeeder extends Seeder
      */
     public function run()
     {
-        Templates::create([
-            'apps_id' => 1,
-            'users_id' => 1,
-            'companies_id' => 1,
-            'name' => 'user-signup',
-            'template' => '{{$name}}',
-            'created_at' => date('Y-m-d H:i:s'),
-        ]);
-        Templates::create([
-            'apps_id' => 1,
-            'users_id' => 1,
-            'companies_id' => 1,
-            'name' => 'users-invite',
-            'template' => '{{$name}}',
-            'created_at' => date('Y-m-d H:i:s'),
-        ]);
-
         $defaultTemplate = '<!DOCTYPE html>
         <html lang="en">
         <head>
@@ -82,34 +66,7 @@ class TemplateSeeder extends Seeder
                     </td>
                 </tr>
         ​
-                <tr>
-                    <td style="padding-right: 120px;">
-                        <p style="color: #9b9b9b; font-size: 14px; ">
-                            Kanvas Default Email Templates {{change it}}
-                        </h2>
-                    </td>
-                </tr>
-        ​
-                <tr>
-                    <td>
-                        <table style="margin: 17px 0 0px" cellspacing="0" cellpadding="0">
-                            <tr>
-                                <td>
-
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-        ​
-                <tr>
-                    <td style="padding-right: 120px;">
-                        <p style="color: #9b9b9b; font-size: 14px; margin: 20px 0;">
-                            Thanks,
-                            <br>Kanvas
-                        </p>
-                    </td>
-                </tr>
+                [body]
         ​
                 <tr>
                     <td>
@@ -164,20 +121,97 @@ class TemplateSeeder extends Seeder
         </html>';
 
         Templates::create([
-            'apps_id' => 1,
+            'apps_id' => 0,
             'users_id' => 1,
-            'companies_id' => 1,
-            'name' => 'change-password',
+            'companies_id' => 0,
+            'parent_template_id' => 0,
+            'name' => 'Default',
+            'template' => $defaultTemplate,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        Templates::create([
+            'apps_id' => 0,
+            'users_id' => 1,
+            'companies_id' => 0,
+            'name' => 'user-signup',
+            'parent_template_id' => 1,
             'template' => '{{$name}}',
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
         Templates::create([
-            'apps_id' => 1,
+            'apps_id' => 0,
             'users_id' => 1,
-            'companies_id' => 1,
-            'name' => 'Default',
-            'template' => $defaultTemplate,
+            'companies_id' => 0,
+            'name' => 'users-invite',
+            'parent_template_id' => 1,
+            'template' => '<tr>
+            <td style="padding-right: 120px;">
+                <p style="color: #9b9b9b; font-size: 14px; ">
+                    Hi {{ $user.firstname}} {{ $user.lastname}},
+                </h2>
+
+                <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
+                    You have been invited to {{ $fromUser.getCurrentBranch().name}} by {{ $fromUser.firstname}} {{ $fromUser.lastname}}. Please click the button below to create your account.
+                </p>
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <table style="margin: 17px 0 0px" cellspacing="0" cellpadding="0">
+                    <tr>
+                        <td>
+                            <a href="{{invitationUrl}}" target="_blank" style="display: inline-block;">
+                                <img style="border-radius: 4px;" src="https://cdn.salesassist.io/emails/create-account.png" alt="Join Now">
+                            </a>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        ',
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        Templates::create([
+            'apps_id' => 0,
+            'users_id' => 1,
+            'companies_id' => 0,
+            'name' => 'change-password',
+            'parent_template_id' => 1,
+            'template' => '<tr>
+            <td style="padding-right: 120px;">
+                <p style="color: #9b9b9b; font-size: 14px; ">
+                    Hi {{ $user->firstname }} {{ $user->lastname }},
+                </h2>
+
+                <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
+                    Your {{ $app->name }} password was successfully updated.
+                </p>
+            </td>
+            </tr>',
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        Templates::create([
+            'apps_id' => 0,
+            'users_id' => 1,
+            'companies_id' => 0,
+            'name' => 'reset-password',
+            'parent_template_id' => 1,
+            'template' => '{{$name}}',
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        Templates::create([
+            'apps_id' => 0,
+            'users_id' => 1,
+            'companies_id' => 0,
+            'name' => 'welcome',
+            'parent_template_id' => 1,
+            'template' => '{{$name}}',
             'created_at' => date('Y-m-d H:i:s'),
         ]);
     }

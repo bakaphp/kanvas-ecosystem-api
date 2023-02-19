@@ -24,7 +24,7 @@ class CreateInviteAction
     /**
      * execute.
      *
-     * @return bool
+     * @return UsersInvite
      */
     public function execute(): UsersInvite
     {
@@ -61,7 +61,10 @@ class CreateInviteAction
             'companies_id' => auth()->user()->defaultCompany->id,
         ]);
 
-        $userTemp->notify(new InviteTemplate($invite));
+        $inviteEmail = new InviteTemplate($invite);
+        $inviteEmail->setFromUser($this->user);
+
+        $userTemp->notify($inviteEmail);
 
         return $invite;
     }

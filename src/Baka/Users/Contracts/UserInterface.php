@@ -9,7 +9,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Users\Models\UsersAssociatedApps;
 
 interface UserInterface extends Authenticatable
@@ -39,4 +39,7 @@ interface UserInterface extends Authenticatable
     public function currentAppInfo(): UsersAssociatedApps;
 
     public function getCurrentCompany(): CompanyInterface;
+
+    //@todo user a branch interface
+    public function getCurrentBranch(): CompaniesBranches;
 }

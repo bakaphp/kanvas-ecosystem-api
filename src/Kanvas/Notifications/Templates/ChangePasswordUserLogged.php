@@ -20,16 +20,4 @@ class ChangePasswordUserLogged extends Notification
     {
         return [...parent::via(), 'mail'];
     }
-
-    /**
-     * getData.
-     *
-     * @return array
-     */
-    public function getData(): array
-    {
-        return [
-            'name' => "{$this->entity->displayname}",
-        ];
-    }
 }
