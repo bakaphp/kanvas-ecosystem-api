@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\GraphQL\Inventory\Mutations\Products;
 
 use Baka\Support\Str;
+use Illuminate\Support\Facades\App;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
@@ -42,7 +44,8 @@ class Import
             $req['input'],
             $company,
             auth()->user(),
-            $region
+            $region,
+            app(Apps::class)
         );
 
         return $jobUuid;
