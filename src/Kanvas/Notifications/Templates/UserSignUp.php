@@ -5,7 +5,6 @@ namespace Kanvas\Notifications\Templates;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Kanvas\Notifications\Notification;
-use Kanvas\Users\Models\Users;
 
 class UserSignUp extends Notification implements ShouldQueue
 {
@@ -22,5 +21,4 @@ class UserSignUp extends Notification implements ShouldQueue
     {
         return [...parent::via(), 'mail'];
     }
-
 }
