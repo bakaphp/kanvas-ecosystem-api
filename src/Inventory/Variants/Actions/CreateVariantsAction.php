@@ -42,11 +42,6 @@ class CreateVariantsAction
             'apps_id' => $this->variantDto->product->apps_id
         ];
 
-        if ($this->variantDto->slug) {
-            unset($search['name']);
-            $search['slug'] = $this->variantDto->slug;
-        }
-
         return Variants::updateOrCreate(
             $search,
             [

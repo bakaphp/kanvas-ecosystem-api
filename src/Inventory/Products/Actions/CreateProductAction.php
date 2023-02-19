@@ -51,11 +51,6 @@ class CreateProductAction
                 'companies_id' => $this->productDto->company->getId(),
             ];
 
-            if ($this->productDto->slug) {
-                unset($search['name']);
-                $search['slug'] = $this->productDto->slug;
-            }
-
             $products = Products::updateOrCreate(
                 $search,
                 [
