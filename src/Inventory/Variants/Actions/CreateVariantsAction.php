@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Actions;
 
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
@@ -36,7 +37,7 @@ class CreateVariantsAction
 
         $search = [
             'products_id' => $this->variantDto->product->getId(),
-            'name' => trim($this->variantDto->name),
+            'slug' => $this->variantDto->slug ?? Str::slug($this->variantDto->name),
             'companies_id' => $this->variantDto->product->companies_id,
             'apps_id' => $this->variantDto->product->apps_id
         ];
