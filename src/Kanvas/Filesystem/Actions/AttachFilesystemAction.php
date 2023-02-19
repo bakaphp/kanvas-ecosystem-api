@@ -5,12 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Actions;
 
 use Illuminate\Database\Eloquent\Model as EloquentModel;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
-use Throwable;
 
 class AttachFilesystemAction
 {
@@ -37,16 +35,15 @@ class AttachFilesystemAction
         $update = (int) $id > 0;
 
         if ($update) {
-            $fileEntity = FilesystemEntitiesRepository::getByIdAdnEntity((int) $id, $this->entity);
+            $fileEntity = FilesystemEntitiesRepository::getByIdAdnEntity($id, $this->entity);
         } else {
-            try {
-                $fileEntity = FilesystemEntitiesRepository::getByIdAdnEntity((int) $this->entity->getKey(), $this->entity);
-            } catch (ModelNotFoundException $e) {
-                $fileEntity = new FilesystemEntities();
-                $fileEntity->system_modules_id = $systemModule->getKey();
-                $fileEntity->companies_id = $this->filesystem->companies_id;
-                $fileEntity->entity_id = $this->entity->getKey();
-            }
+            $fileEntity = FilesystemEntities::firstOrCreate([
+                'filesystem_id' => $this->filesystem->getKey(),
+                'entity_id' => $this->entity->getKey(),
+                'field_name' => $fieldName,
+                'system_modules_id' => $systemModule->getKey(),
+                'companies_id' => $this->filesystem->companies_id,
+            ]);
         }
 
         $fileEntity->filesystem_id = $this->filesystem->getKey();
