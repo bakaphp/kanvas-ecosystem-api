@@ -4,13 +4,30 @@ type User {
     firstname: String!
     lastname: String!
     displayname: String!
+    description: String
     email: String!
-    phone: String
+    contact: ContactInfo @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@contact")
+    address: AddressType @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@address")
+    sex: String
     user_active: Boolean!
     created_at: DateTime
     updated_at: DateTime
     branches: [CompanyBranch!] @HasManyThrough
     companies: [Company!] @HasManyThrough
+}
+
+type AddressType{
+    address_1: String
+    address_2: String
+    zip_code: String
+    city: Cities @belongsTo
+    state: States @belongsTo
+    country: Country @belongsTo
+}
+
+type ContactInfo{
+    phone_number: String
+    cell_phone_number: String
 }
 
 type TokenResponse {
@@ -58,6 +75,16 @@ input UpdateUserInput {
     firstname: String
     lastname: String
     displayname: String @rules(apply: ["unique:Kanvas\\Users\\Models\\Users,displayname"])
+    description: String
+    sex: String
+    phone_number: String
+    cell_phone_number: String
+    address_1: String
+    address_2: String
+    zip_code: Int
+    city_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Cities\\Models\\Cities,id"])
+    state_id: Int @rules(apply: ["exists:Kanvas\\Locations\\States\\Models\\States,id"])
+    country_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Countries\\Models\\Countries,id"])
 }
 
 extend type Mutation {
@@ -68,6 +95,10 @@ extend type Mutation {
     register(data: RegisterInput!): RegisterResponse!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\Register@resolve"
+        )
+    refreshToken(refresh_token: String!): TokenResponse 
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\RefreshToken@resolve"
         )
     changePassword(
         new_password: String! @rules(apply: ["string", "confirmed"])

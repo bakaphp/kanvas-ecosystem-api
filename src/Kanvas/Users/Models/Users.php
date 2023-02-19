@@ -11,6 +11,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFoundException;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -27,6 +28,9 @@ use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Locations\Cities\Models\Cities;
+use Kanvas\Locations\Countries\Models\Countries;
+use Kanvas\Locations\States\Models\States;
 use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Users\Factories\UsersFactory;
@@ -181,6 +185,36 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
+     * User city relationship.
+     *
+     * @return BelongsTo
+     */
+    public function city(): BelongsTo
+    {
+        return $this->belongsTo(Cities::class, 'city_id');
+    }
+
+    /**
+     * User state relationship.
+     *
+     * @return BelongsTo
+     */
+    public function state(): BelongsTo
+    {
+        return $this->belongsTo(States::class, 'state_id');
+    }
+
+    /**
+     * User country relationship.
+     *
+     * @return BelongsTo
+     */
+    public function country(): BelongsTo
+    {
+        return $this->belongsTo(Countries::class, 'country_id');
+    }
+
+    /**
      * Get the current user information for the running app.
      *
      * @return UsersAssociatedApps
@@ -256,7 +290,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
                 ]
             )->first();
 
-        if (! $user) {
+        if (!$user) {
             throw new ModelNotFoundException('No User Found');
         }
 
@@ -280,7 +314,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function isBanned(): bool
     {
-        return ! $this->isActive() && $this->banned === 'Y';
+        return !$this->isActive() && $this->banned === 'Y';
     }
 
     /**
@@ -313,7 +347,8 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function currentCompanyId(): int
     {
-        return (int) $this->get(Companies::cacheKey());
+        $currentCompanyId = $this->get(Companies::cacheKey());
+        return $currentCompanyId ? (int)$currentCompanyId : $this->default_company;
     }
 
     /**

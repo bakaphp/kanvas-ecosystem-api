@@ -121,6 +121,61 @@ class AuthTest extends TestCase
         ->assertSee('refresh_token');
     }
 
+    /**
+     * test_refresh_token
+     *
+     * @return void
+     */
+    public function test_refresh_token(): void
+    {
+        $loginData = self::loginData();
+        $email = $loginData->getEmail();
+        $password = $loginData->getPassword();
+
+        $response = $this->graphQL(/** @lang GraphQL */ '
+            mutation login($data: LoginInput!) {
+                login(data: $data) {
+                  id
+                  token
+                  refresh_token
+                  token_expires
+                  refresh_token_expires
+                  time
+                  timezone
+                }
+              }
+
+        ', [
+            'data' => [
+                'email' => $email,
+                'password' => $password
+            ],
+        ]);
+        $refreshToken = $response['data']['login']['refresh_token'];
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation refreshToken($refresh_token: String!) {
+                refreshToken(refresh_token: $refresh_token) {
+                  id
+                  token
+                  refresh_token
+                  token_expires
+                  refresh_token_expires
+                  time
+                  timezone
+                }
+              }', [
+            'refresh_token' => $refreshToken
+        ])
+        ->assertSuccessful()
+        ->assertSee('id')
+        ->assertSee('token')
+        ->assertSee('token_expires')
+        ->assertSee('refresh_token_expires')
+        ->assertSee('time')
+        ->assertSee('timezone')
+        ->assertSee('refresh_token');
+    }
+
     public function test_auth_user(): void
     {
         $userData = Auth::user();
