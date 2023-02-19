@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Locations\Countries\Models;
 
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Locations\Cities\Models\Cities;
 use Kanvas\Locations\States\Models\States;
 use Kanvas\Models\BaseModel;
+use Kanvas\Users\Models\Users;
 
 /**
  * Countries Class.
@@ -49,5 +51,15 @@ class Countries extends BaseModel
     public function states()
     {
         return $this->hasMany(States::class, 'countries_id');
+    }
+
+    /**
+     * Users relationship.
+     *
+     * @return HasMany
+     */
+    public function users(): HasMany
+    {
+        return $this->hasMany(Users::class, 'country_id');
     }
 }

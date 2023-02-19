@@ -29,7 +29,7 @@ class UserTest extends TestCase
         return self::$loginData;
     }
 
-    public function testEditUserData(): void
+    public function editUserdata(): void
     {
         $loginData = self::loginData();
         $firstname = fake()->firstName();
@@ -44,20 +44,28 @@ class UserTest extends TestCase
                     firstname
                     lastname
                     displayname
+                    description
+                    sex
                 }
             }',
             [
                 'data' => [
                     'firstname' => $firstname,
                     'lastname' => $lastname,
-                    'displayname' => $displayname
+                    'displayname' => $displayname,
+                    'description' => fake()->text(30),
+                    'sex' => 'U',
+                    'phone_number' => fake()->phoneNumber(),
+                    'address_1' => fake()->address()
                 ],
             ]
         )
         ->assertSuccessful()
         ->assertSee('firstname', $firstname)
         ->assertSee('lastname', $lastname)
-        ->assertSee('displayname', $displayname);
+        ->assertSee('displayname', $displayname)
+        ->assertSee('description')
+        ->assertSee('sex');
     }
 
     public function testChangePassword()
