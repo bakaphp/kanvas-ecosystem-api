@@ -12,7 +12,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Enums\StateEnums;
-use Kanvas\Notifications\Templates\UserSignUp;
+use Kanvas\Notifications\Templates\Welcome;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Models\Users;
 
@@ -79,7 +79,7 @@ class RegisterUsersAction
         $user->saveOrFail();
 
         try {
-            $user->notify(new UserSignUp($user));
+            $user->notify(new Welcome($user));
         } catch (ModelNotFoundException $e) {
             //no email sent
         }

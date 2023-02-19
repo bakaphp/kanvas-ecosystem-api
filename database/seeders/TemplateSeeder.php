@@ -134,16 +134,6 @@ class TemplateSeeder extends Seeder
             'apps_id' => 0,
             'users_id' => 1,
             'companies_id' => 0,
-            'name' => 'user-signup',
-            'parent_template_id' => 1,
-            'template' => '{{$name}}',
-            'created_at' => date('Y-m-d H:i:s'),
-        ]);
-
-        Templates::create([
-            'apps_id' => 0,
-            'users_id' => 1,
-            'companies_id' => 0,
             'name' => 'users-invite',
             'parent_template_id' => 1,
             'template' => '<tr>
@@ -201,7 +191,30 @@ class TemplateSeeder extends Seeder
             'companies_id' => 0,
             'name' => 'reset-password',
             'parent_template_id' => 1,
-            'template' => '{{$name}}',
+            'template' => '<tr>
+            <td style="padding-right: 120px;">
+                <p style="color: #9b9b9b; font-size: 14px; ">
+                    Hi {{ $user->firstname}} {{ $user->lastname}},
+                </h2>
+                <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
+                    You recently requested to reset your password for your SalesAssist account. Click the button below to reset it.
+                </p>
+            </td>
+        </tr>
+
+        <tr>
+            <td>
+                <table style="margin: 17px 0 30px" cellspacing="0" cellpadding="0">
+                    <tr>
+                        <td>
+                            <a href="{{resetUrl}}" target="_blank" style="display: inline-block;">
+                                <img style="border-radius: 4px;" src="https://cdn.salesassist.io/emails/reset-password.png" alt="Join Now">
+                            </a>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>',
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -211,7 +224,17 @@ class TemplateSeeder extends Seeder
             'companies_id' => 0,
             'name' => 'welcome',
             'parent_template_id' => 1,
-            'template' => '{{$name}}',
+            'template' => '<tr>
+            <td style="padding-right: 120px;">
+                <p style="color: #9b9b9b; font-size: 14px; ">
+                    Hi {{ $user->firstname }} {{ $user->lastname }},
+                </h2>
+
+                <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
+                   Welcome to {{ $app->name }} .
+                </p>
+            </td>
+            </tr>',
             'created_at' => date('Y-m-d H:i:s'),
         ]);
     }

@@ -2,14 +2,10 @@
 
 namespace Kanvas\Notifications\Templates;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Kanvas\Notifications\Notification;
 
-class ResetPassword extends Notification implements ShouldQueue
+class ResetPassword extends Notification
 {
-    use Queueable;
-
     public ?string $templateName = 'reset-password';
 
     /**
@@ -20,5 +16,13 @@ class ResetPassword extends Notification implements ShouldQueue
     public function via(): array
     {
         return [...parent::via(), 'mail'];
+    }
+
+    public function getData(): array
+    {
+        return [
+           ...parent::getData(),
+            'resetUrl' => $this->app->url . '/users/reset-password/' . $this->toUser->user_activation_forgot,
+        ];
     }
 }
