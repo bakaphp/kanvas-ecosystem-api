@@ -138,4 +138,25 @@ class AuthManagement
             'token' => $tokenResponse
         ];
     }
+
+    /**
+     * resolve
+     *
+     * @param  mixed $rootValue
+     * @param  array $req
+     * @return void
+     */
+    public function refreshToken(mixed $rootValue, array $req)
+    {
+        try {
+            $token = $this->decodeToken($req['refresh_token']);
+            if ($token->isExpired(now())) {
+                throw new AuthorizationException('Expired refresh token');
+            }
+            $user = UsersRepository::getByEmail($token->claims()->get('email'));
+            return $user->createToken('kanvas-login')->toArray();
+        } catch (\Throwable $e) {
+            throw new Exception($e->getMessage());
+        }
+    }
 }
