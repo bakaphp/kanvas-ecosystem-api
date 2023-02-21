@@ -1,6 +1,6 @@
 <br />
 <p align="center">
-    <img width="260" height="39" src="https://kanvas.dev/img/logo.png" alt="Kanvas Logo"></a>
+    <img  src="https://kanvas.dev/img/logo.png" alt="Kanvas Logo"></a>
     <br />
     <br />
 </p>
