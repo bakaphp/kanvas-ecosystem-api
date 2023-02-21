@@ -12,6 +12,9 @@ use Illuminate\Validation\Rules\Password;
 use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\DataTransferObject\LoginInput;
+use Kanvas\Users\Repositories\UsersRepository;
+use Throwable;
+use Exception;
 
 class AuthManagement
 {
@@ -155,7 +158,7 @@ class AuthManagement
             }
             $user = UsersRepository::getByEmail($token->claims()->get('email'));
             return $user->createToken('kanvas-login')->toArray();
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             throw new Exception($e->getMessage());
         }
     }
