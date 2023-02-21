@@ -1,4 +1,10 @@
-# Kanvas Niche App's
+<br />
+<p align="center">
+    <img width="260" height="39" src="https://kanvas.dev/img/logo.png" alt="Kanvas Logo"></a>
+    <br />
+    <br />
+</p>
+
 
 [![static analysis](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/static-analysis.yml/badge.svg)](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/static-analysis.yml)
 [![CI](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/tests.yml/badge.svg)](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/tests.yml)
