@@ -1,6 +1,16 @@
 # Kanvas Niche App Ecosystem
 
-Welcome to our niche app ecosystem for developers! Our platform is designed to help developers build powerful and innovative applications that solve real business challenges. With our comprehensive set of headless Graph API's, you can easily add key functionality such as user and team management, CRM, inventory management, social graph integration, and workflow automation to your app. Whether you're looking to streamline your sales pipeline, manage product inventory across multiple regions, or add social features to your app, our platform has you covered. Join us and revolutionize the way you build applications!
+Kanvas Niche is a headless set of modules designed to help you develop headless apps more quickly. This is not a replacement for your backend-as-a-service or your preferred development framework. Instead, we focus on providing graph APIs for common problems that you may encounter in your day-to-day development, or that we have encountered while developing products at MC, and we believe that our solution can help others.
+
+We call it Niche because we focus on specific solutions for problems that we see every day:
+
+- Ecosystem (authentication, teams, company)
+- Inventory: products, variants, distribution channels
+- Social: follows, comments, reactions, messaging
+- CRM: leads, deals, pipelines
+- Workflow: connecting your app with others
+
+The idea is that, instead of developing these solutions yourself, you can install our ecosystem in your workspace and complement your existing backend-as-a-service. With our specific modules, you don't have to redevelop them - you can simply use them ;)
 
 
 Todo:
