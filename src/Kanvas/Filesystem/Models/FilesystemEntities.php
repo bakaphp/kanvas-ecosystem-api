@@ -11,7 +11,7 @@ use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
 
 /**
- * Apps Model.
+ * FilesystemEntities Model.
  *
  * @property int $id
  * @property int $filesystem_id
@@ -32,10 +32,19 @@ class FilesystemEntities extends BaseModel
      */
     protected $table = 'filesystem_entities';
 
+    protected $fillable = [
+        'filesystem_id',
+        'companies_id',
+        'system_modules_id',
+        'entity_id',
+        'field_name',
+        'is_deleted',
+    ];
+
     /**
      * Filesystem relationship.
      *
-     * @return Filesystem
+     * @return BelongsTo
      */
     public function filesystem(): BelongsTo
     {
@@ -45,7 +54,7 @@ class FilesystemEntities extends BaseModel
     /**
      * Companies relationship.
      *
-     * @return Companies
+     * @return BelongsTo
      */
     public function company(): BelongsTo
     {
@@ -55,7 +64,7 @@ class FilesystemEntities extends BaseModel
     /**
      * Apps relationship.
      *
-     * @return Apps
+     * @return BelongsTo
      */
     public function app(): BelongsTo
     {
@@ -65,7 +74,7 @@ class FilesystemEntities extends BaseModel
     /**
      * SystemModules relationship.
      *
-     * @return SystemModules
+     * @return BelongsTo
      */
     public function systemModule(): BelongsTo
     {
