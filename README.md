@@ -1,8 +1,10 @@
-# Kanvas Niche App Ecosystem
+# Kanvas Niche App's
 
-Kanvas Niche is a headless set of modules designed to help you develop headless apps more quickly. This is not a replacement for your backend-as-a-service or your preferred development framework. Instead, we focus on providing graph APIs for common problems that you may encounter in your day-to-day development, or that we have encountered while developing products at MC, and we believe that our solution can help others.
+Kanvas Niche is a set of headless modules designed to optimize the development of headless apps. Our solution provides graph APIs for common problems encountered during development, allowing you to focus on building your product instead of worrying about the backend infrastructure.
 
-We call it Niche because we focus on specific solutions for problems that we see every day:
+Kanvas Niche is not a replacement for your existing backend-as-a-service or development framework. Instead, it complements them by providing specific modules for common problems that you would otherwise need to develop yourself. 
+
+We call it Niche because we focus on specific solutions for common problems, including:
 
 - Ecosystem (authentication, teams, company)
 - Inventory: products, variants, distribution channels
@@ -10,8 +12,9 @@ We call it Niche because we focus on specific solutions for problems that we see
 - CRM: leads, deals, pipelines
 - Workflow: connecting your app with others
 
-The idea is that, instead of developing these solutions yourself, you can install our ecosystem in your workspace and complement your existing backend-as-a-service. With our specific modules, you don't have to redevelop them - you can simply use them ;)
+With Kanvas Niche, you can install our ecosystem in your workspace and optimize the development of headless apps with faster development times and more reliable performance without having to rewrite existing backend code.
 
+To get started, check out our documentation and installation instructions. If you have any questions or feedback, don't hesitate to get in touch with our team.
 
 Todo:
 - [x] Ecosystem (in progress)
