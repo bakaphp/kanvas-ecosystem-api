@@ -16,7 +16,7 @@ use Kanvas\Users\Repositories\UsersRepository;
 use Throwable;
 use Exception;
 
-class AuthManagement
+class AuthManagementMutation
 {
     use TokenTrait;
     use AuthTrait;
