@@ -133,9 +133,9 @@ class Channels extends BaseModel
     /**
      * Update all variants doesn't matter the location from this channel
      *
-     * @return boolean
+     * @return bool
      */
-    public function unPublishAllVariants() : bool
+    public function unPublishAllVariants(): bool
     {
         return $this->availableProducts()->update(['is_published' => 0]) > 0;
     }
