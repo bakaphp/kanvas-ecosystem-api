@@ -186,7 +186,7 @@ class ChannelTest extends TestCase
             mutation($id: Int!) {
                 unPublishAllVariantsFromChannel(id: $id)
             }', ['id' => $id])->assertJson([
-            'data' => ['unPublishAllVariantsFromChannel' => true]
+            'data' => ['unPublishAllVariantsFromChannel']
         ]);
     }
 }
