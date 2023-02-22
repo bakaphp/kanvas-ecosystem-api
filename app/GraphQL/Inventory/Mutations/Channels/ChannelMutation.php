@@ -9,7 +9,7 @@ use Kanvas\Inventory\Channels\DataTransferObject\Channels as ChannelsDto;
 use Kanvas\Inventory\Channels\Models\Channels as ChannelsModel;
 use Kanvas\Inventory\Channels\Repositories\ChannelRepository;
 
-class Channel
+class ChannelMutation
 {
     /**
      * create.
@@ -24,6 +24,7 @@ class Channel
         $data = $request['input'];
         $dto = ChannelsDto::viaRequest($data);
         $channel = (new CreateChannel($dto, auth()->user()))->execute();
+
         return $channel;
     }
 
@@ -41,6 +42,7 @@ class Channel
         $data = $request['input'];
         $channel = ChannelRepository::getById($id, auth()->user()->getCurrentCompany());
         $channel->update($data);
+
         return $channel;
     }
 
@@ -56,6 +58,24 @@ class Channel
     {
         $id = $request['id'];
         $channel = ChannelRepository::getById($id, auth()->user()->getCurrentCompany());
+
         return $channel->delete();
+    }
+
+    /**
+     * Unpublish all variants from channel.
+     *
+     * @param mixed $rootValue
+     * @param array $request
+     * @return bool
+     */
+    public function unPublishAllVariantsFromChannel(mixed $rootValue, array $request): bool
+    {
+        $id = $request['id'];
+        $channel = ChannelRepository::getById($id, auth()->user()->getCurrentCompany());
+
+        //print_r($channel->availableProducts()->get()->toArray()); die();
+
+        return $channel->unPublishAllVariants();
     }
 }
