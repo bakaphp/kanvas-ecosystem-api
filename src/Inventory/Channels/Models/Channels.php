@@ -8,9 +8,11 @@ use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -112,5 +114,29 @@ class Channels extends BaseModel
         return Attribute::make(
             get: fn () => $this->pivot->is_published,
         );
+    }
+
+    /**
+     * Available products in this channel
+     *
+     * @return HasMany
+     */
+    public function availableProducts(): HasMany
+    {
+        return $this->hasMany(
+            VariantsChannels::class,
+            'channels_id',
+            'id'
+        );
+    }
+
+    /**
+     * Update all variants doesn't matter the location from this channel
+     *
+     * @return boolean
+     */
+    public function unPublishAllVariants() : bool
+    {
+        return $this->availableProducts()->update(['is_published' => 0]) > 0;
     }
 }
