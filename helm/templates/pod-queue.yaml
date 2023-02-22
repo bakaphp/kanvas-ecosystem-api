@@ -55,7 +55,7 @@ spec:
                chmod -R 777 /var/www/html/bootstrap/cache && \
                cd /var/www/html \
                && composer install \
-               && php artisan queue:work --timeout=300"
+               && php artisan queue:work --timeout=400"
             ]
       securityContext:
         fsGroup: 65533
