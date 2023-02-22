@@ -56,7 +56,7 @@ spec:
                cd /var/www/html \
                && composer install \
                && php artisan config:cache \
-               && php artisan queue:work"
+               && php artisan queue:work --timeout=300"
             ]
       securityContext:
         fsGroup: 65533
