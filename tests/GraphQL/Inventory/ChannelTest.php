@@ -148,4 +148,45 @@ class ChannelTest extends TestCase
             'data' => ['deleteChannel' => true]
         ]);
     }
+
+    /**
+     * testUnpublishProducts.
+     *
+     * @return void
+     */
+    public function testUnpublishProductsFromChannel(): void
+    {
+        $data = [
+            'name' => fake()->name,
+        ];
+        $this->graphQL('
+            mutation($data: CreateChannelInput!) {
+                createChannel(input: $data)
+                {
+                    id
+                    name
+                }
+            }', ['data' => $data])->assertJson([
+            'data' => ['createChannel' => $data]
+        ]);
+        $response = $this->graphQL('
+        query {
+            channels {
+                data {
+                    id,
+                    name
+                }
+            }
+        }')->assertJson([
+            'data' => ['channels' => ['data' => [$data]]]
+        ]);
+        $id = $response['data']['channels']['data'][0]['id'];
+
+        $this->graphQL('
+            mutation($id: Int!) {
+                unPublishAllVariantsFromChannel(id: $id)
+            }', ['id' => $id])->assertJson([
+            'data' => ['unPublishAllVariantsFromChannel' => false] //doesn't have any product
+        ]);
+    }
 }
