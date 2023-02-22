@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace Kanvas\Users\Observers;
 
 use Bouncer;
@@ -20,6 +19,7 @@ use Kanvas\Enums\StateEnums;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Actions\AssignRole;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Actions\SwitchCompanyAction;
 
 class UsersObserver
 {
@@ -102,5 +102,20 @@ class UsersObserver
 
         $assignRoleLegacy = new AssignRole($user, $company, $app);
         $assignRoleLegacy->execute($roleLegacy);
+    }
+
+    /**
+     * updated
+     *
+     * @param  Users $user
+     * @return void
+     */
+    public function updated(Users $user): void
+    {
+        $changes = $user->getChanges();
+        if (key_exists('default_company_branch', $changes)) {
+            $switchCompany = new SwitchCompanyAction($user, $user->default_company_branch);
+            $switchCompany->handle();
+        }
     }
 }
