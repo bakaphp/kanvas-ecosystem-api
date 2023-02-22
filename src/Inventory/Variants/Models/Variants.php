@@ -43,13 +43,24 @@ class Variants extends BaseModel
 
     protected $table = 'products_variants';
     protected $guarded = [];
+    protected static ?string $overWriteSearchIndex = null;
 
     /**
       * Get the name of the index associated with the model.
       */
     public function searchableAs(): string
     {
-        return 'products_variants_company_' . $this->companies_id;
+        return self::$overWriteSearchIndex !== null
+            ? self::$overWriteSearchIndex
+            : 'products_variants_company_' . (string) $this->companies_id;
+    }
+
+    /**
+     * Overwrite the search index when calling the method via static methods
+     */
+    public static function setSearchIndex(int $companyId): void
+    {
+        self::$overWriteSearchIndex = 'products_variants_company_' . $companyId;
     }
 
     /**
