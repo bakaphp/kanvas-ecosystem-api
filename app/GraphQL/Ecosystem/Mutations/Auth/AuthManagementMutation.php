@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace App\GraphQL\Ecosystem\Mutations\Auth;
 
 use GraphQL\Type\Definition\ResolveInfo;
@@ -17,6 +16,7 @@ use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Users\Repositories\UsersRepository;
 use Throwable;
 use Exception;
+use Illuminate\Auth\Access\AuthorizationException;
 
 class AuthManagementMutation
 {
