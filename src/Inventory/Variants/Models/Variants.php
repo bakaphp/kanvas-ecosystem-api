@@ -45,6 +45,14 @@ class Variants extends BaseModel
     protected $guarded = [];
 
     /**
+      * Get the name of the index associated with the model.
+      */
+    public function searchableAs(): string
+    {
+        return 'products_variants_company_' . $this->companies_id;
+    }
+
+    /**
      * Get the user that owns the Variants.
      *
      * @return BelongsTo
