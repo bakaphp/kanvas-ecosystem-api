@@ -50,7 +50,7 @@ class Variants extends BaseModel
       */
     public function searchableAs(): string
     {
-        return self::$overWriteSearchIndex !== null
+        return (!isset($this->companies_id) || $this->companies_id === null) && self::$overWriteSearchIndex !== null
             ? self::$overWriteSearchIndex
             : 'products_variants_company_' . (string) $this->companies_id;
     }
