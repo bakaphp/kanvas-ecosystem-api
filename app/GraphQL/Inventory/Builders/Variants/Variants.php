@@ -21,6 +21,9 @@ class Variants
         $variants = new ModelsVariants();
         $variantsChannel = new VariantsChannels();
 
+        //set index
+        ModelsVariants::setSearchIndex((int) $channel->companies_id);
+
         /**
          * @var Builder
          */
