@@ -57,6 +57,4 @@ class Variants
             ->where($variantWarehouse->getTable() . '.is_deleted', 0)
             ->where($variantWarehouse->getTable() . '.is_published', 1);
     }
-
-
 }
