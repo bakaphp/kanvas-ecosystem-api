@@ -186,7 +186,7 @@ extend type Query @guard {
     ): [Variant!]
         @paginate(
             defaultCount: 25
-            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\Variants@allInWarehouse"
+            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\Variants@allVariantsInWarehouse"
         )
 }
 
@@ -199,6 +199,6 @@ extend type Query {
     ): [Variant!]
         @paginate(
             defaultCount: 25
-            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\Variants@allPublishedInChannel"
+            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\Variants@allVariantsPublishedInChannel"
         )
 }
