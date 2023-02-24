@@ -36,7 +36,7 @@ class Variants
          * maybe send it denormalized to a third party vender supabase or something
          */
         if (app(Apps::class)->get('inventory_social_integration')) {
-            return ModelsVariants::select($variants->getFullTableName().'.*')
+            return ModelsVariants::select($variants->getFullTableName() . '.*')
                ->join($variantsChannel->getFullTableName(), $variantsChannel->getFullTableName() . '.products_variants_id', '=', $variants->getFullTableName() . '.id')
                ->leftJoin($entityInteractions->getFullTableName(), $entityInteractions->getFullTableName() . '.interacted_entity_id', '=', $variants->getFullTableName() . '.uuid')
                ->where($variantsChannel->getFullTableName() . '.channels_id', $channel->getId())
