@@ -38,7 +38,7 @@ class AuthManagementMutation
         array $request,
         GraphQLContext $context = null,
         ResolveInfo $resolveInfo
-    ) {
+    ): bool {
         $user = new ForgotPasswordService();
 
         $registeredUser = $user->forgot($request['data']['email']);
@@ -46,10 +46,7 @@ class AuthManagementMutation
 
         $request = request();
 
-        return [
-            'user' => $registeredUser,
-            'token' => $tokenResponse
-        ];
+        return true;
     }
 
     /**
@@ -67,10 +64,11 @@ class AuthManagementMutation
         array $request,
         GraphQLContext $context = null,
         ResolveInfo $resolveInfo
-    ) {
+    ): bool {
         $user = new ForgotPasswordService();
 
-        return $user->reset($request['data']['new_password'], $request['data']['hash_key']);
+        $user->reset($request['data']['new_password'], $request['data']['hash_key']);
+        return true;
     }
 
     /**
@@ -88,7 +86,7 @@ class AuthManagementMutation
         array $request,
         GraphQLContext $context = null,
         ResolveInfo $resolveInfo
-    ) {
+    ): array {
         $email = $request['data']['email'];
         $password = $request['data']['password'];
         $request = request();
@@ -119,7 +117,7 @@ class AuthManagementMutation
         array $request,
         GraphQLContext $context = null,
         ResolveInfo $resolveInfo
-    ) {
+    ): array {
         Validator::make(
             $request['data'],
             [
@@ -151,17 +149,13 @@ class AuthManagementMutation
      * @param  array $req
      * @return void
      */
-    public function refreshToken(mixed $rootValue, array $req)
+    public function refreshToken(mixed $rootValue, array $req): array
     {
-        try {
-            $token = $this->decodeToken($req['refresh_token']);
-            if ($token->isExpired(now())) {
-                throw new AuthorizationException('Expired refresh token');
-            }
-            $user = UsersRepository::getByEmail($token->claims()->get('email'));
-            return $user->createToken('kanvas-login')->toArray();
-        } catch (Throwable $e) {
-            throw new Exception($e->getMessage());
+        $token = $this->decodeToken($req['refresh_token']);
+        if ($token->isExpired(now())) {
+            throw new AuthorizationException('Expired refresh token');
         }
+        $user = UsersRepository::getByEmail($token->claims()->get('email'));
+        return $user->createToken('kanvas-login')->toArray();
     }
 }
