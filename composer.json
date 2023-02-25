@@ -34,6 +34,7 @@
         "spatie/laravel-data": "^2.0",
         "spatie/laravel-health": "^1.22",
         "spatie/laravel-queueable-action": "^2.14",
+        "spatie/laravel-webhook-server": "^3.4",
         "symfony/http-client": "^6.1",
         "symfony/mailgun-mailer": "^6.1",
         "vladimir-yuldashev/laravel-queue-rabbitmq": "^13.0",
