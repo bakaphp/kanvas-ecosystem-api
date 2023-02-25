@@ -32,6 +32,7 @@
         "silber/bouncer": "^1.0",
         "spatie/data-transfer-object": "^3.7",
         "spatie/laravel-data": "^2.0",
+        "spatie/laravel-health": "^1.22",
         "spatie/laravel-queueable-action": "^2.14",
         "symfony/http-client": "^6.1",
         "symfony/mailgun-mailer": "^6.1",
