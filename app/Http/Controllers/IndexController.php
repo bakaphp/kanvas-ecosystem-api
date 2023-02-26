@@ -21,17 +21,4 @@ class IndexController extends BaseController
     {
         return response()->json(['Woot Kanvas Ecosystem']);
     }
-
-    /**
-     * Show the status of the different services.
-     *
-     * @method GET
-     * @url /status
-     *
-     * @return Response
-     */
-    public function status(): JsonResponse
-    {
-        return response()->json(['Ok']);
-    }
 }
