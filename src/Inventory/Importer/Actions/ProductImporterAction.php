@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Importer\Actions;
 
+use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
@@ -40,7 +41,6 @@ use Throwable;
 class ProductImporterAction
 {
     protected ?ProductsModel $product = null;
-    protected Apps $app;
 
     /**
      * __construct.
@@ -50,7 +50,8 @@ class ProductImporterAction
         public ProductImporter $importedProduct,
         public Companies $company,
         public UserInterface $user,
-        public Regions $region
+        public Regions $region,
+        public ?AppInterface $app = null
     ) {
         if ($this->importedProduct->isFromThirdParty()) {
             $this->product = ProductsModel::getByCustomField(
@@ -60,13 +61,13 @@ class ProductImporterAction
             );
         }
 
-        $this->app = app(Apps::class);
+        $this->app = $this->app ?? app(Apps::class);
     }
 
     /**
      * Run all method dor a specify product.
      *
-     * @throws Exception
+     * @throws Throwable
      *
      * @return bool
      */
@@ -101,7 +102,7 @@ class ProductImporterAction
                 $this->product->set('source', $this->importedProduct->source);
             }
 
-            if (!empty($this->importedProduct->files)) {
+            if (! empty($this->importedProduct->files)) {
                 foreach ($this->importedProduct->files as $file) {
                     $this->product->addFileFromUrl($file['url'], $file['name']);
                 }
@@ -109,7 +110,7 @@ class ProductImporterAction
 
             $this->categories();
 
-            if (!empty($this->importedProduct->attributes)) {
+            if (! empty($this->importedProduct->attributes)) {
                 $this->attributes();
             }
 
@@ -117,12 +118,13 @@ class ProductImporterAction
 
             $this->variants();
 
-            if (!empty($this->importedProduct->productType)) {
+            if (! empty($this->importedProduct->productType)) {
                 $this->productType();
             }
             DB::connection('inventory')->commit();
         } catch (Throwable $e) {
             DB::connection('inventory')->rollback();
+
             throw $e;
         }
 
@@ -210,7 +212,7 @@ class ProductImporterAction
                 $attributeModel = Attributes::getByCustomField($this->importedProduct->getSourceKey(), $attribute['source_id'], $this->company);
             }
 
-            if (!$attributeModel) {
+            if (! $attributeModel) {
                 $attributesDto = AttributesDto::from([
                     'app' => $this->app,
                     'user' => $this->user,
@@ -236,7 +238,7 @@ class ProductImporterAction
                 'app' => $this->app,
                 'region' => $this->region,
                 'regions_id' => $this->region->getId(),
-                'name' => $warehouseLocation['warehouse']
+                'name' => $warehouseLocation['warehouse'],
             ]);
 
             $warehouse = (new CreateWarehouseAction($warehouseData, $this->user))->execute();
@@ -265,7 +267,7 @@ class ProductImporterAction
                 $variantDto = VariantsDto::from([
                     'product' => $this->product,
                     'products_id' => $this->product->getId(),
-                    ...$variant
+                    ...$variant,
                 ]);
                 $variantModel = (new CreateVariantsAction($variantDto, $this->user))->execute();
                 if (isset($variant['source_id']) && $this->importedProduct->isFromThirdParty()) {
@@ -273,7 +275,7 @@ class ProductImporterAction
                 }
             }
 
-            if (!empty($variant['files'])) {
+            if (! empty($variant['files'])) {
                 foreach ($variant['files'] as $file) {
                     $variantModel->addFileFromUrl($file['url'], $file['name']);
                 }
@@ -287,14 +289,14 @@ class ProductImporterAction
 
     public function variantsAttributes(VariantsModel $variantModel, array $variantData): void
     {
-        if (isset($variantData['attributes']) && !empty($variantData['attributes'])) {
+        if (isset($variantData['attributes']) && ! empty($variantData['attributes'])) {
             foreach ($variantData['attributes'] as $attribute) {
                 $attributeModel = null;
                 if (isset($attribute['source_id'])) {
                     $attributeModel = Attributes::getByCustomField($this->importedProduct->getSourceKey(), $attribute['source_id'], $this->company);
                 }
 
-                if (!$attributeModel) {
+                if (! $attributeModel) {
                     $attributesDto = AttributesDto::from([
                         'app' => $this->app,
                         'user' => $this->user,
@@ -329,7 +331,7 @@ class ProductImporterAction
                 'app' => $this->app,
                 'region' => $this->region,
                 'regions_id' => $this->region->getId(),
-                'name' => $warehouseLocation['warehouse']
+                'name' => $warehouseLocation['warehouse'],
             ]);
 
             $warehouse = (new CreateWarehouseAction($warehouseData, $this->user))->execute();
@@ -355,7 +357,7 @@ class ProductImporterAction
                 VariantsWarehouses::from([
                     'quantity' => $this->importedProduct->quantity,
                     'price' => $this->importedProduct->price,
-                    'sku' => $variantModel->sku
+                    'sku' => $variantModel->sku,
                 ]),
             ))->execute();
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Products\Actions;
 
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -45,15 +46,10 @@ class CreateProductAction
             $productType = $this->productDto?->productsType?->getId();
 
             $search = [
-                'name' => $this->productDto->name,
+                'slug' => $this->productDto->slug ?? Str::slug($this->productDto->name),
                 'apps_id' => $this->productDto->app->getId(),
                 'companies_id' => $this->productDto->company->getId(),
             ];
-
-            if ($this->productDto->slug) {
-                unset($search['name']);
-                $search['slug'] = $this->productDto->slug;
-            }
 
             $products = Products::updateOrCreate(
                 $search,

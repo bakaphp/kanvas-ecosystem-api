@@ -1,7 +1,29 @@
-# Kanvas Niche App Ecosystem
+<br />
+<p align="center">
+    <img  src="https://kanvas.dev/img/logo.png" alt="Kanvas Logo"></a>
+    <br />
+    <br />
+</p>
 
-Welcome to our niche app ecosystem for developers! Our platform is designed to help developers build powerful and innovative applications that solve real business challenges. With our comprehensive set of headless Graph API's, you can easily add key functionality such as user and team management, CRM, inventory management, social graph integration, and workflow automation to your app. Whether you're looking to streamline your sales pipeline, manage product inventory across multiple regions, or add social features to your app, our platform has you covered. Join us and revolutionize the way you build applications!
 
+[![static analysis](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/static-analysis.yml/badge.svg)](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/static-analysis.yml)
+[![CI](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/tests.yml/badge.svg)](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/tests.yml)
+
+Kanvas Niche is a set of headless modules designed to optimize the development of headless apps. Our solution provides graph APIs for common problems encountered during development, allowing you to focus on building your product instead of worrying about the backend infrastructure.
+
+Kanvas Niche is not a replacement for your existing backend-as-a-service or development framework. Instead, it complements them by providing specific modules for common problems that you would otherwise need to develop yourself. 
+
+We call it Niche because we focus on specific solutions for common problems, including:
+
+- Ecosystem (authentication, teams, company)
+- Inventory: products, variants, distribution channels
+- Social: follows, comments, reactions, messaging
+- CRM: leads, deals, pipelines
+- Workflow: connecting your app with others
+
+With Kanvas Niche, you can install our ecosystem in your workspace and optimize the development of headless apps with faster development times and more reliable performance without having to rewrite existing backend code.
+
+To get started, check out our documentation and installation instructions. If you have any questions or feedback, don't hesitate to get in touch with our team.
 
 Todo:
 - [x] Ecosystem (in progress)
