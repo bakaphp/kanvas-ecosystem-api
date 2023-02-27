@@ -156,7 +156,7 @@ class EntityInteractionsTest extends TestCase
             '
         {
             entityInteractions(
-                    entity_id: "'.$uuid.'",
+                    entity_id: "' . $uuid . '",
                     entity_namespace: "Leads"
                     ) {
                     data {
