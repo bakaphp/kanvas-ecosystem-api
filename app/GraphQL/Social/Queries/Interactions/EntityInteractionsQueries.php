@@ -30,7 +30,6 @@ class EntityInteractionsQueries
             'entity_interactions.entity_namespace',
             'entity_interactions.interacted_entity_id',
             'entity_interactions.interacted_entity_namespace',
-
         );
     }
 }
