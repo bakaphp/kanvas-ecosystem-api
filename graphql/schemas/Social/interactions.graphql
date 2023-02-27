@@ -23,7 +23,10 @@ type EntityInteractions
     entity_namespace: String!
     interacted_entity_id: Mixed!
     interacted_entity_namespace: String!
-    interactions: InteractionType! @belongsTo(relation: "interaction")
+    interactions: Interactions
+        @method(name: "getGroupInteractions")
+    entity: Mixed
+        @method(name: "interactedEntityData")
 }
 
 extend type Mutation @guardByAuthOrCompany {

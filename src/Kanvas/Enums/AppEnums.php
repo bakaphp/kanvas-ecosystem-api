@@ -44,6 +44,7 @@ enum AppEnums implements EnumsInterface
     case KANVAS_APP_HEADER;
     case KANVAS_APP_KEY_HEADER;
     case KANVAS_APP_BRANCH_HEADER;
+    case KANVAS_APP_COMPANY_AUTH_HEADER;
     case DISPLAYNAME_LOGIN;
 
     /**
@@ -90,6 +91,7 @@ enum AppEnums implements EnumsInterface
             self::KANVAS_APP_HEADER => 'X-Kanvas-App',
             self::KANVAS_APP_KEY_HEADER => 'X-Kanvas-Key',
             self::KANVAS_APP_BRANCH_HEADER => 'X-Kanvas-Location',
+            self::KANVAS_APP_COMPANY_AUTH_HEADER => 'Company-Authorization',
             self::DISPLAYNAME_LOGIN => 'displayname_login'
         };
     }
