@@ -152,7 +152,8 @@ class EntityInteractionsTest extends TestCase
             'data' => ['likeEntity' => true],
         ]);
 
-        $this->graphQL('
+        $this->graphQL(
+            '
         {
             entityInteractions(
                     entity_id: "'.$uuid.'",
@@ -179,9 +180,9 @@ class EntityInteractionsTest extends TestCase
                                 'like' => true,
                                 'save' => false,
                             ],
-                        ]
-                    ]
-                ]
+                        ],
+                    ],
+                ],
             ],
         ]);
     }
