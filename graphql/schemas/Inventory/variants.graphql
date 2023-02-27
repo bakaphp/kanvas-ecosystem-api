@@ -21,6 +21,7 @@ type Variant {
     attributes: [VariantsAttributes]
     channels: [VariantChannelRelationship]
 }
+
 type WarehouseVariantRelationship {
     id: Int!
     uuid: String!
