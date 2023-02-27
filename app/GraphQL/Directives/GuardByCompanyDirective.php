@@ -2,10 +2,10 @@
 
 namespace App\GraphQL\Directives;
 
-use Closure;
 use Kanvas\Companies\Models\Companies;
 use Nuwave\Lighthouse\Auth\GuardDirective;
 use Nuwave\Lighthouse\Execution\ResolveInfo;
+
 use Nuwave\Lighthouse\Schema\Values\FieldValue;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 use Throwable;
@@ -25,38 +25,31 @@ directive @guardByCompany(
 GRAPHQL;
     }
 
-    public function handleField(FieldValue $fieldValue, Closure $next): FieldValue
+    public function handleField(FieldValue $fieldValue): void
     {
-        $previousResolver = $fieldValue->getResolver();
-
-        $fieldValue->setResolver(function (
-            $root,
-            array $args,
-            GraphQLContext $context,
-            ResolveInfo $resolveInfo
-        ) use ($previousResolver) {
-            $request = $context->request();
-
-            if (!$request->headers->has('Company-Authorization')) {
-                $this->unauthenticated(['No Company Specified']);
-            }
-
-            try {
-                Companies::getByUuid(
-                    $request->headers->get('Company-Authorization')
-                );
-            } catch (Throwable $e) {
-                $this->unauthenticated(['Invalid Company']);
-            }
-
-            return $previousResolver(
+        $fieldValue->wrapResolver(
+            fn (callable $previousResolver) => function (
                 $root,
-                $args,
-                $context,
-                $resolveInfo
-            );
-        });
+                array $args,
+                GraphQLContext $context,
+                ResolveInfo $resolveInfo
+            ) use ($previousResolver) {
+                $request = $context->request();
 
-        return $next($fieldValue);
+                if (! $request->headers->has('Company-Authorization')) {
+                    $this->unauthenticated(['No Company Specified']);
+                }
+
+                try {
+                    Companies::getByUuid(
+                        $request->headers->get('Company-Authorization')
+                    );
+                } catch (Throwable $e) {
+                    $this->unauthenticated(['Invalid Company']);
+                }
+
+                return $previousResolver($root, $args, $context, $resolveInfo);
+            }
+        );
     }
 }
