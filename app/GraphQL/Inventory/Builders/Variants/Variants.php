@@ -11,13 +11,16 @@ use Kanvas\Inventory\Variants\Models\Variants as ModelsVariants;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
-use Kanvas\Social\Interactions\Models\EntityInteractions;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class Variants
 {
-    public function allVariantsPublishedInChannel(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
-    {
+    public function allVariantsPublishedInChannel(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): Builder {
         $channelUuid = $args['id'];
 
         $channel = Channels::getByUuid($channelUuid);
@@ -33,8 +36,12 @@ class Variants
                 ->where($variantsChannel->getTable() . '.is_published', 1);
     }
 
-    public function allVariantsInWarehouse(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
-    {
+    public function allVariantsInWarehouse(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): Builder {
         $warehouseId = $args['warehouseId'];
 
         $warehouse = Warehouses::fromApp()
