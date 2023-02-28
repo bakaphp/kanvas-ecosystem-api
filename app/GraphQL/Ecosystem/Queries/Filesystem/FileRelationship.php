@@ -23,8 +23,12 @@ class FileRelationship
      *
      * @return Builder
      */
-    public function entityPagination(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
-    {
+    public function entityPagination(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): Builder {
         $systemModule = SystemModulesRepository::getByModelName($root::class);
 
         /**

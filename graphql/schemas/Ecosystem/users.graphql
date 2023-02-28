@@ -90,15 +90,15 @@ input UpdateUserInput {
 extend type Mutation {
     login(data: LoginInput!): TokenResponse!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\Login@resolve"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@loginMutation"
         )
     register(data: RegisterInput!): RegisterResponse!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\Register@resolve"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@register"
         )
     refreshToken(refresh_token: String!): TokenResponse 
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\RefreshToken@resolve"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@refreshToken"
         )
     changePassword(
         new_password: String! @rules(apply: ["string", "confirmed"])
@@ -109,11 +109,11 @@ extend type Mutation {
         )
     forgotPassword(data: ForgotPasswordInput!): Boolean
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\ForgotPassword@forgot"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@forgot"
         )
     resetPassword(data: ResetPasswordInput!): Boolean
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\ForgotPassword@reset"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@reset"
         )
 
     updateUser(data: UpdateUserInput!): User

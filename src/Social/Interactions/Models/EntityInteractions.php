@@ -7,6 +7,8 @@ namespace Kanvas\Social\Interactions\Models;
 use Baka\Traits\MorphEntityDataTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Social\Interactions\DataTransferObject\LikeEntityInput;
+use Kanvas\Social\Interactions\Repositories\EntityInteractionsRepository;
 use Kanvas\Social\Models\BaseModel;
 
 /**
@@ -42,6 +44,24 @@ class EntityInteractions extends BaseModel
         /**
          * @var Model
          */
-        return $this->interacted_entity_namespace::getById($this->interacted_entity_id);
+        return $this->interacted_entity_namespace::notDeleted()
+            ->where('uuid', $this->interacted_entity_id)->first();
+    }
+
+    /**
+     * Get the grouped interactions for this current entity.
+     *
+     * @return array
+     */
+    public function getGroupInteractions(): array
+    {
+        return EntityInteractionsRepository::getEntityInteractions(
+            LikeEntityInput::from([
+                'entity_id' => $this->entity_id,
+                'entity_namespace' => $this->entity_namespace,
+                'interacted_entity_id' => $this->interacted_entity_id,
+                'interacted_entity_namespace' => $this->interacted_entity_namespace,
+            ])
+        );
     }
 }

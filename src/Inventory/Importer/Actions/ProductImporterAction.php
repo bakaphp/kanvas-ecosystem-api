@@ -67,7 +67,7 @@ class ProductImporterAction
     /**
      * Run all method dor a specify product.
      *
-     * @throws Exception
+     * @throws Throwable
      *
      * @return bool
      */

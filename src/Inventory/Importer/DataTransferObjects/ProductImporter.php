@@ -32,8 +32,8 @@ class ProductImporter extends Data
         public array $warehouses = [
             [
                 'warehouse' => 'default',
-                'channel' => 'default'
-            ]
+                'channel' => 'default',
+            ],
         ]
     ) {
     }

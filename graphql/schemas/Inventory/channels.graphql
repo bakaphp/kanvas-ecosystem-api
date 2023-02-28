@@ -26,15 +26,19 @@ input UpdateChannelInput {
 extend type Mutation @guard {
     createChannel(input: CreateChannelInput!): Channel!
         @field(
-            resolver: "App\\GraphQL\\Inventory\\Mutations\\Channels\\Channel@create"
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Channels\\ChannelMutation@create"
         )
     updateChannel(id: Int!, input: UpdateChannelInput!): Channel!
         @field(
-            resolver: "App\\GraphQL\\Inventory\\Mutations\\Channels\\Channel@update"
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Channels\\ChannelMutation@update"
         )
     deleteChannel(id: Int!): Boolean!
         @field(
-            resolver: "App\\GraphQL\\Inventory\\Mutations\\Channels\\Channel@delete"
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Channels\\ChannelMutation@delete"
+        )
+    unPublishAllVariantsFromChannel(id: Int!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Channels\\ChannelMutation@unPublishAllVariantsFromChannel"
         )
 }
 extend type Query @guard {

@@ -22,8 +22,12 @@ class Region
      *
      * @return Builder
      */
-    public function all(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
-    {
+    public function all(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): Builder {
         return RegionModel::where('companies_id', $context->user()->getCurrentCompany()->getId())
                 ->where('apps_id', app(Apps::class)->id);
     }

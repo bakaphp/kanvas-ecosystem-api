@@ -21,7 +21,10 @@ type Variant {
     attributes: [VariantsAttributes]
     channels: [VariantChannelRelationship]
 }
+
 type WarehouseVariantRelationship {
+    id: Int!
+    uuid: String!
     quantity: Float
     price: Float
     sku: String
@@ -172,9 +175,19 @@ extend type Query @guard {
             )
     ): [Variant]
         @paginate(
-            defaultCount: 10
+            defaultCount: 25
             scopes: ["fromApp", "fromCompany"]
             model: "Kanvas\\Inventory\\Variants\\Models\\Variants"
+        )
+
+    warehouseVariants(
+        warehouseId: Int!
+        search: String @search
+        where: _ @whereConditions(columns: ["quantity", "price", "sku"])
+    ): [Variant!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\Variants@allVariantsInWarehouse"
         )
 }
 
@@ -186,7 +199,7 @@ extend type Query {
         where: _ @whereConditions(columns: ["slug", "uuid", "name"])
     ): [Variant!]
         @paginate(
-            defaultCount: 10
-            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\Variants@allAvailableViaChannel"
+            defaultCount: 25
+            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\Variants@allVariantsPublishedInChannel"
         )
 }
