@@ -1,6 +1,6 @@
 name: Deploy To GCP
 
-on: 
+on:
   workflow_dispatch:
     inputs:
       environment:
@@ -11,13 +11,12 @@ jobs:
   Build:
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name }}
-
     permissions:
       contents: read
       packages: write
-
     steps:
-      - name: Checkout
+      - id: checkout
+        name: Checkout
         uses: actions/checkout@v3
 
       - id: auth
