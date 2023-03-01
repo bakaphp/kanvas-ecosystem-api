@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace Baka\Traits;
 
 use Baka\Support\Str;
@@ -46,7 +45,7 @@ trait HashTableTrait
     {
         $this->createSettingsModel();
 
-        if (! is_object($this->settingsModel)) {
+        if (!is_object($this->settingsModel)) {
             throw new ConfigurationException('ModelSettingsTrait need to have a settings model configure, check the model setting exists for this class' . get_class($this));
         }
 
@@ -58,11 +57,12 @@ trait HashTableTrait
             $this->createSettingsModel();
             $this->settingsModel->{$this->getSettingsPrimaryKey()} = $this->getKey();
         }
-
-        $this->settingsModel->name = $key;
-        $this->settingsModel->value = ! is_array($value) ? (string) $value : json_encode($value);
-        $this->settingsModel->save();
-
+        $this->settingsModel::where($this->getSettingsPrimaryKey(), $this->getKey())
+            ->where('name', $key)
+            ->update([
+                'value' => !is_array($value) ? (string) $value : json_encode($value),
+                'name' => $key,
+            ]);
         return true;
     }
 
@@ -99,7 +99,7 @@ trait HashTableTrait
         }
 
         foreach ($settings as $setting) {
-            $allSettings[$setting->name] = ! Str::isJson($setting->value) ? $setting->value : json_decode($setting->value, true);
+            $allSettings[$setting->name] = !Str::isJson($setting->value) ? $setting->value : json_decode($setting->value, true);
         }
 
         return $allSettings;
@@ -118,7 +118,7 @@ trait HashTableTrait
         $value = $this->getSettingsByKey($key);
 
         if (is_object($value)) {
-            return ! Str::isJson($value->value) ? $value->value : json_decode($value->value, true);
+            return !Str::isJson($value->value) ? $value->value : json_decode($value->value, true);
         }
 
         return null;
