@@ -1,5 +1,4 @@
 name: Deploy To GCP
-
 on: workflow_dispatch
 
 jobs:
@@ -40,50 +39,3 @@ jobs:
           tags: |
             ${{ secrets.GCP_IMAGE_TAG }}:${{ steps.get-tag.outputs.short_ref }}
             ${{ secrets.GCP_IMAGE_TAG }}:latest
-
-  # Deploy:
-  #   runs-on: ubuntu-latest
-  #   environment: ${{ github.ref_name }}
-  #   needs: Build
-  #   permissions:
-  #     contents: read
-  #     packages: write
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v2
-  #     - name: set-vars
-  #       run: |
-  #         cat .github/workflows/${GITHUB_REF##*/}-destinations >> $GITHUB_ENV
-  #     - name: Install Kubernetes toolset
-  #       uses: stefanprodan/kube-tools@v1.6.0
-  #       with:
-  #         kubectl: 1.23.0
-  #     - name: Download Configmap
-  #       uses: keithweaver/aws-s3-github-action@v1.0.0
-  #       with:
-  #         command: cp
-  #         source: ${{ secrets.CONFIGMAP }}
-  #         destination: helm/templates/envconfigmap.yaml
-  #         aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_CICD }}
-  #         aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY_CICD }}
-  #         aws_region: ${{ secrets.AWS_REGION }}
-
-  #     - name: Deploy helm chart
-  #       run: |
-  #           #configure aws login
-  #           if rm -rf /home/runner/.aws
-  #           then
-  #           echo old credentials removed
-  #           fi
-
-  #           aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_CICD }}
-  #           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY_CICD }}
-  #           aws eks update-kubeconfig   --region ${{ secrets.AWS_REGION }}   --name ${{ secrets.CLUSTER_NAME }}
-
-  #           #deploy or upgrade helm chart
-  #           helm upgrade --install ${{ secrets.INSTANCE_NAME }} helm \
-  #           --namespace ${{ secrets.INSTANCE_NAME }} \
-  #           --create-namespace \
-  #           --set apiImage=${{ secrets.API_IMAGE }}:${{ github.run_number }} \
-  #           --set services.loadBalancer.name=${{ secrets.SERVICE_LOADBALANCER }} \
-  #           --set services.loadBalancer.lbSSLCert=${{ secrets.LB_SSLCERT }}
