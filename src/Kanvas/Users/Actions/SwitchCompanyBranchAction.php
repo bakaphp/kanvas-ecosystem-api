@@ -38,5 +38,6 @@ class SwitchCompanyBranchAction
                 return $this->user;
             }
         }
+        return $this->user;
     }
 }
