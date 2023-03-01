@@ -1,8 +1,9 @@
 name: Deploy To GCP
+
 on:
   push:
     branches:
-      - none
+      - command-schedule-cron
 
   workflow_dispatch:
 
