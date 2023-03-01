@@ -25,22 +25,22 @@ jobs:
         with:
           credentials_json: "${{ secrets.GOOGLE_CREDENTIALS }}"
 
-      # - name: Login to Artifact Registry
-      #   uses: docker/login-action@v1
-      #   with:
-      #     registry: us-west2-docker.pkg.dev
-      #     username: oauth2accesstoken
-      #     password: ${{ steps.auth.outputs.access_token }}
+      - name: Login to Artifact Registry
+        uses: docker/login-action@v1
+        with:
+          registry: us-west2-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
 
-      # - name: Get tag
-      #   id: get-tag
-      #   run: echo ::set-output name=short_ref::${GITHUB_REF#refs/*/}
+      - name: Get tag
+        id: get-tag
+        run: echo ::set-output name=short_ref::${GITHUB_REF#refs/*/}
 
-      # - id: docker-push-tagged
-      #   name: Tag Docker image and push to Google Artifact Registry
-      #   uses: docker/build-push-action@v2
-      #   with:
-      #     push: true
-      #     tags: |
-      #       ${{ secrets.GCP_IMAGE_TAG }}:${{ steps.get-tag.outputs.short_ref }}
-      #       ${{ secrets.GCP_IMAGE_TAG }}:latest
+      - id: docker-push-tagged
+        name: Tag Docker image and push to Google Artifact Registry
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: |
+            ${{ secrets.GCP_IMAGE_TAG }}:${{ steps.get-tag.outputs.short_ref }}
+            ${{ secrets.GCP_IMAGE_TAG }}:latest
