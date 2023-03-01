@@ -2,7 +2,7 @@ name: CD
 on:
   push:
     branches:
-    - none
+      - none
 
   workflow_dispatch:
 
@@ -18,13 +18,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-     
+
       - id: auth
-        name: 'Authenticate to Google Cloud'
-        uses: 'google-github-actions/auth@v1'
+        name: "Authenticate to Google Cloud"
+        uses: "google-github-actions/auth@v1"
         with:
-         credentials_json: '${{ secrets.GOOGLE_CREDENTIALS }}'
-      
+          credentials_json: "${{ secrets.GOOGLE_CREDENTIALS }}"
+
       - name: Login to Artifact Registry
         uses: docker/login-action@v1
         with:
@@ -42,8 +42,8 @@ jobs:
         with:
           push: true
           tags: |
-             ${{ secrets.GCP_IMAGE_TAG }}:${{ steps.get-tag.outputs.short_ref }}
-             ${{ secrets.GCP_IMAGE_TAG }}:latest
+            ${{ secrets.GCP_IMAGE_TAG }}:${{ steps.get-tag.outputs.short_ref }}
+            ${{ secrets.GCP_IMAGE_TAG }}:latest
 
   # Deploy:
   #   runs-on: ubuntu-latest
@@ -55,9 +55,9 @@ jobs:
   #   steps:
   #     - name: Checkout repository
   #       uses: actions/checkout@v2
-  #     - name: set-vars 
+  #     - name: set-vars
   #       run: |
-  #         cat .github/workflows/${GITHUB_REF##*/}-destinations >> $GITHUB_ENV 
+  #         cat .github/workflows/${GITHUB_REF##*/}-destinations >> $GITHUB_ENV
   #     - name: Install Kubernetes toolset
   #       uses: stefanprodan/kube-tools@v1.6.0
   #       with:
@@ -83,7 +83,7 @@ jobs:
   #           aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_CICD }}
   #           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY_CICD }}
   #           aws eks update-kubeconfig   --region ${{ secrets.AWS_REGION }}   --name ${{ secrets.CLUSTER_NAME }}
-            
+
   #           #deploy or upgrade helm chart
   #           helm upgrade --install ${{ secrets.INSTANCE_NAME }} helm \
   #           --namespace ${{ secrets.INSTANCE_NAME }} \
@@ -91,5 +91,3 @@ jobs:
   #           --set apiImage=${{ secrets.API_IMAGE }}:${{ github.run_number }} \
   #           --set services.loadBalancer.name=${{ secrets.SERVICE_LOADBALANCER }} \
   #           --set services.loadBalancer.lbSSLCert=${{ secrets.LB_SSLCERT }}
-
-    
