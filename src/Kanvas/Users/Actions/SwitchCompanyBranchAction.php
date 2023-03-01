@@ -21,6 +21,11 @@ class SwitchCompanyBranchAction
     ) {
     }
 
+    /**
+     * execute
+     *
+     * @return Users
+     */
     public function execute(): Users
     {
         if ($branch = CompaniesBranchesRepository::getById((int)$this->companyBranchId, $this->user->id)) {
