@@ -50,9 +50,9 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Throwable $exception): JsonResponse
     {
-        if (env('APP_ENV') == 'production') {
+        if (env('APP_ENV') === 'production') {
             return response()->json([
-                'message' => "something went wrong",
+                'message' => "A server error has occurred. We are looking into it",
             ], 500);
         }
 
