@@ -5,8 +5,9 @@ namespace Kanvas\Users\Actions;
 use Kanvas\Users\Models\Users;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Branches\Repositories\CompaniesBranches;
 
-class SwitchCompanyAction
+class SwitchCompanyBranchAction
 {
     /**
      * __construct
@@ -22,7 +23,7 @@ class SwitchCompanyAction
 
     public function handle(): Users
     {
-        if ($branch = CompaniesBranches::findFirst($this->companyId)) {
+        if ($branch = CompaniesBranches::getById((int)$this->companyBranchId)) {
             if ($branch->company) {
                 $this->user->default_company = $branch->company->id;
                 $this->user->default_company_branch = $branch->id;
