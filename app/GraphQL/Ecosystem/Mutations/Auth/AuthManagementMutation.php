@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace App\GraphQL\Ecosystem\Mutations\Auth;
 
 use GraphQL\Type\Definition\ResolveInfo;
@@ -161,7 +160,6 @@ class AuthManagementMutation
         return $user->createToken('kanvas-login')->toArray();
     }
 
-    
     /**
      * switchCompanyBranch
      *
@@ -171,7 +169,7 @@ class AuthManagementMutation
      */
     public function switchCompanyBranch(mixed $root, array $req): bool
     {
-        $action = new SwitchCompanyBranchAction(auth()->user, $req['company_branch_id']);
+        $action = new SwitchCompanyBranchAction(auth()->user(), $req['company_branch_id']);
         $action->execute();
         return true;
     }

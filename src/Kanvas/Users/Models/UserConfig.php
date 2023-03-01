@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace Kanvas\Users\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,9 +21,9 @@ class UserConfig extends BaseModel
      * @var string
      */
     protected $table = 'user_config';
-
-    protected $attributes = [
-    ];
+    protected $primaryKey = ['users_id', 'name '];
+    public $incrementing = false;
+    protected $guarded = [];
 
     /**
      * Users relationship.

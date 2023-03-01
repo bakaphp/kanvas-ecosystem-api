@@ -5,7 +5,7 @@ namespace Kanvas\Users\Actions;
 use Kanvas\Users\Models\Users;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Companies\Branches\Repositories\CompaniesBranches;
+use Kanvas\Companies\Branches\Repositories\CompaniesBranches as CompaniesBranchesRepository;
 
 class SwitchCompanyBranchAction
 {
@@ -21,15 +21,16 @@ class SwitchCompanyBranchAction
     ) {
     }
 
-    public function handle(): Users
+    public function execute(): Users
     {
-        if ($branch = CompaniesBranches::getById((int)$this->companyBranchId)) {
+        if ($branch = CompaniesBranchesRepository::getById((int)$this->companyBranchId, $this->user->id)) {
             if ($branch->company) {
                 $this->user->default_company = $branch->company->id;
                 $this->user->default_company_branch = $branch->id;
                 $this->user->saveOrFail();
                 $this->user->set(Companies::cacheKey(), $branch->company->id);
                 $this->user->set($branch->company->branchCacheKey(), $branch->id);
+                return $this->user;
             }
         }
     }

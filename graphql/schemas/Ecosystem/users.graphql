@@ -120,10 +120,11 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagement@updateUser"
         )
-    switchCompanyBranch(company_branch_id: Int!): Boolean
+    switchCompanyBranch(company_branch_id: Int!): Boolean 
+        @guard
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\AuthManagementMutation@switchCompanyBranch"
-        )
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@switchCompanyBranch"
+        ) 
 }
 
 
