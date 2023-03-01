@@ -1,5 +1,7 @@
 <?php
+
 declare(strict_types=1);
+
 namespace Kanvas\Companies\Branches\Repositories;
 
 use Kanvas\Companies\Models\CompaniesBranches as CompaniesBranchesModel;

@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+
 namespace Kanvas\Users\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
