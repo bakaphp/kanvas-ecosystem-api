@@ -41,3 +41,49 @@ jobs:
           tags: |
             ${{ secrets.GCP_IMAGE_TAG }}:${{ github.run_number }}
             ${{ secrets.GCP_IMAGE_TAG }}:latest
+
+    Deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name }}
+    needs: Build
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v1'
+        with:
+          version: '>= 363.0.0'
+      
+      - name: Install Kubernetes toolset
+        uses: stefanprodan/kube-tools@v1.6.0
+        with:
+          kubectl: 1.23.0
+
+      - name: set-vars 
+        run: |
+          cat .github/workflows/${GITHUB_REF##*/}-destinations >> $GITHUB_ENV 
+        
+      - name: Download Configmap
+        run: | 
+
+          gcloud storage cp gs://${{secrets.GCP_BUCKET_NAME}}/${{ secrets.CONFIGMAP }} helm/templates/envconfigmap.yaml
+        
+
+      # - name: Deploy helm chart
+      #   run: |
+
+      #       gcloud container clusters get-credentials ${{ secrets.CLUSTER_NAME }} --region ${{ secrets.GOOGLE_LOCATION }} --project ${{ secrets.GCP_PROJECT_ID }}
+        
+      #       #deploy or upgrade helm chart
+      #       helm upgrade --install ${{ secrets.INSTANCE_NAME }} helm \
+      #       --namespace ${{ secrets.INSTANCE_NAME }} \
+      #       --create-namespace \
+      #       --set apiImage=${{ secrets.API_IMAGE }}:${{ github.run_number }} \
+      #       --set services.loadBalancer.name=${{ secrets.SERVICE_LOADBALANCER }} \
+      #       --set services.loadBalancer.lbSSLCert=${{ secrets.LB_SSLCERT }}
+
+  
