@@ -60,7 +60,7 @@ class Handler extends ExceptionHandler
             'type' => get_class($exception),
             'message' => $exception->getMessage(),
             'trace' => $exception->getTrace()
-        ], 500);
+        ], 503);
     }
 
     /**
