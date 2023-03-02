@@ -1,17 +1,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{.Values.deployments.queue.name}}
+  name: {{.Values.deployments.healthcheck.name}}
   namespace: {{.Values.namespace}}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{.Values.deployments.queue.name}}
+      app: {{.Values.deployments.healthcheck.name}}
   template:
     metadata:
       labels:
-        app: {{.Values.deployments.queue.name}}
+        app: {{.Values.deployments.healthcheck.name}}
         type: api
     spec:
       volumes:
@@ -25,7 +25,7 @@ spec:
         - name: webroot
           emptyDir: {}
       containers:
-        - name: {{.Values.deployments.queue.containerName}}
+        - name: {{.Values.deployments.healthcheck.containerName}}
           image: {{.Values.apiImage}}
           imagePullPolicy: Always
           ports:
@@ -55,7 +55,7 @@ spec:
                chmod -R 777 /var/www/html/bootstrap/cache && \
                cd /var/www/html \
                && composer install \
-               && php artisan queue:work --timeout=400"
+               && php artisan schedule:run 1>> /dev/null 2>&1"
             ]
       securityContext:
         fsGroup: 65533
