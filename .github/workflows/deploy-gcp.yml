@@ -76,13 +76,15 @@ jobs:
       - name: Download Configmap
         run: | 
           gcloud storage cp gs://${{secrets.GCP_BUCKET_NAME}}/${{ github.ref_name }}/${{ secrets.GCP_CONFIGMAP_FILENAME }} helm/templates/envconfigmap.yaml
+
+      - id: 'get-credentials'
+        uses: 'google-github-actions/get-gke-credentials@v1'
+        with:
+          cluster_name: ${{ secrets.GCP_CLUSTER_NAME }}
+          location: ${{ secrets.GOOGLE_LOCATION }}
         
       - name: Deploy helm chart
         run: |
-
-            gcloud container clusters get-credentials ${{ secrets.GCP_CLUSTER_NAME }} --region us-east1 --project ${{ secrets.GCP_PROJECT_ID }}
-        
-            #deploy or upgrade helm chart
             helm upgrade --install ${{ secrets.INSTANCE_NAME }} helm \
             --namespace ${{ secrets.INSTANCE_NAME }} \
             --create-namespace \
