@@ -75,7 +75,7 @@ jobs:
         
       - name: Download Configmap
         run: | 
-          gcloud storage cp gs://${{secrets.GCP_BUCKET_NAME}}/${{ github.ref_name }}/${{ secrets.CONFIGMAP }} helm/templates/envconfigmap.yaml
+          gcloud storage cp gs://${{secrets.GCP_BUCKET_NAME}}/${{ github.ref_name }}/${{ secrets.GCP_CONFIGMAP_FILENAME }} helm/templates/envconfigmap.yaml
         
 
       # - name: Deploy helm chart
