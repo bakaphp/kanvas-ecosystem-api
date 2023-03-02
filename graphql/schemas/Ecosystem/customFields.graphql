@@ -1,0 +1,29 @@
+type CustomField {
+    name: String!
+    data: String!
+    systemModule: SystemModule!
+    entityId: String!
+}
+
+input CustomFieldInput {
+    name: String!
+    data: String!
+    systemModuleId: Int!
+    entityId: String!
+}
+
+type Mutation @guard {
+    "Upload a file that is publicly available."
+    setCustomField(customField: CustomFieldInput!): CustomField!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomField\\CustomFieldMutation@create"
+        )
+    getCustomField(customField: CustomFieldInput!): CustomField!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomField\\CustomFieldMutation@get"
+        )
+    deleteCustomField(customField: CustomFieldInput!): CustomField!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomField\\CustomFieldMutation@delete"
+        )
+}
