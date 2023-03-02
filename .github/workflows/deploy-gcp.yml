@@ -43,34 +43,33 @@ jobs:
             ${{ secrets.GCP_IMAGE_TAG }}:latest
 
     Deploy:
-    runs-on: ubuntu-latest
-    environment: ${{ github.ref_name }}
-    needs: Build
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      runs-on: ubuntu-latest
+      environment: ${{ github.ref_name }}
+      needs: Build
+      permissions:
+        contents: read
+        packages: write
+      steps:
+        - name: Checkout repository
+          uses: actions/checkout@v2
 
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v1'
-        with:
-          version: '>= 363.0.0'
+        - name: 'Set up Cloud SDK'
+          uses: 'google-github-actions/setup-gcloud@v1'
+          with:
+            version: '>= 363.0.0'
       
-      - name: Install Kubernetes toolset
-        uses: stefanprodan/kube-tools@v1.6.0
-        with:
-          kubectl: 1.23.0
+        - name: Install Kubernetes toolset
+          uses: stefanprodan/kube-tools@v1.6.0
+          with:
+            kubectl: 1.23.0
 
-      - name: set-vars 
-        run: |
-          cat .github/workflows/${GITHUB_REF##*/}-destinations >> $GITHUB_ENV 
+        - name: set-vars 
+          run: |
+            cat .github/workflows/${GITHUB_REF##*/}-destinations >> $GITHUB_ENV 
         
-      - name: Download Configmap
-        run: | 
-
-          gcloud storage cp gs://${{secrets.GCP_BUCKET_NAME}}/${{ secrets.CONFIGMAP }} helm/templates/envconfigmap.yaml
+        - name: Download Configmap
+          run: | 
+            gcloud storage cp gs://${{secrets.GCP_BUCKET_NAME}}/${{ secrets.CONFIGMAP }} helm/templates/envconfigmap.yaml
         
 
       # - name: Deploy helm chart
