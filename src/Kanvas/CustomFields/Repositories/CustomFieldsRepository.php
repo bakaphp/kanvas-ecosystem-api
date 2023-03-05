@@ -21,7 +21,7 @@ class CustomFieldsRepository
      * @param CustomFieldInput $customFieldInput
      * @return Model
      */
-    public static function getEntityFromInput(CustomFieldInput $customFieldInput): Model
+    public static function getEntityFromInput(CustomFieldInput $customFieldInput, Users $user): Model
     {
         $systemModule = SystemModules::where('uuid', $customFieldInput->systemModuleUuid)
                         ->fromApp()
@@ -43,40 +43,43 @@ class CustomFieldsRepository
         if (! $hasAppId && ! $hasCompanyId && (! $isUser && ! $isCompany)) {
             throw new InternalServerErrorException('This system module doesn\'t allow external custom fields');
         }
+        $field = $hasUuid ? 'uuid' : 'id';
 
         if ($isUser || $isCompany) {
             $entity = $entityModel::where('uuid', $customFieldInput->entityId)
                     ->notDeleted()
                     ->firstOrFail();
 
+            if ($user->isAppOwner()) {
+                return $entity;
+            }
+
             //check if the user belongs to the company
             if ($entity instanceof Users) {
                 UsersRepository::belongsToCompany(
                     $entity,
-                    auth()->user()->getCurrentCompany()
+                    $user->getCurrentCompany()
                 );
             } elseif ($entity instanceof Companies) {
                 UsersRepository::belongsToCompany(
-                    auth()->user(),
+                    $user,
                     $entity
                 );
             }
         } else {
-            if ($hasUuid) {
-                $entity = $entityModel::where('uuid', $customFieldInput->entityId)
+            if ($user->isAppOwner()) {
+                $entity = $entityModel::where($field, $customFieldInput->entityId)
                         ->fromApp()
-                        ->fromCompany(auth()->user()->getCurrentCompany())
                         ->notDeleted()
                         ->firstOrFail();
             } else {
-                $entity = $entityModel::where('id', $customFieldInput->entityId)
+                $entity = $entityModel::where($field, $customFieldInput->entityId)
                         ->fromApp()
-                        ->fromCompany(auth()->user()->getCurrentCompany())
+                        ->fromCompany($user->getCurrentCompany())
                         ->notDeleted()
                         ->firstOrFail();
             }
         }
-
         return $entity;
     }
 }

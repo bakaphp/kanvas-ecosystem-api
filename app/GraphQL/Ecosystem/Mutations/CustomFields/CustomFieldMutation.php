@@ -21,13 +21,15 @@ class CustomFieldMutation
     {
         $customFieldInput = CustomFieldInput::viaRequest($request['input']);
 
-        $entity = CustomFieldsRepository::getEntityFromInput($customFieldInput);
+        $entity = CustomFieldsRepository::getEntityFromInput($customFieldInput, auth()->user());
 
         if (method_exists($entity, 'set')) {
-            return $entity->set(
+            $customField =  $entity->set(
                 $customFieldInput->name,
                 $customFieldInput->data
-            ) instanceof CustomFields;
+            );
+
+            return $customField instanceof CustomFields || $customField === true;
         }
 
         return false;
@@ -44,7 +46,7 @@ class CustomFieldMutation
     {
         $customFieldInput = CustomFieldInput::viaRequest($request['input']);
 
-        $entity = CustomFieldsRepository::getEntityFromInput($customFieldInput);
+        $entity = CustomFieldsRepository::getEntityFromInput($customFieldInput, auth()->user());
 
         if (method_exists($entity, 'get')) {
             return $entity->get(
@@ -66,7 +68,7 @@ class CustomFieldMutation
     {
         $customFieldInput = CustomFieldInput::viaRequest($request['input']);
 
-        $entity = CustomFieldsRepository::getEntityFromInput($customFieldInput);
+        $entity = CustomFieldsRepository::getEntityFromInput($customFieldInput, auth()->user());
 
         if (method_exists($entity, 'del')) {
             return (bool) $entity->del(
