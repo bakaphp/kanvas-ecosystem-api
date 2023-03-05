@@ -5,19 +5,19 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Mutations\CustomFields;
 
 use Kanvas\CustomFields\DataTransferObject\CustomFieldInput;
+use Kanvas\CustomFields\Models\CustomFields;
 use Kanvas\CustomFields\Repositories\CustomFieldsRepository;
 
 class CustomFieldMutation
 {
     /**
-     * insertInvite.
+     * Set custom field
      *
-     * @param  mixed $rootValue
-     * @param  array $request
-     *
-     * @return
+     * @param mixed $rootValue
+     * @param array $request
+     * @return bool
      */
-    public function create($rootValue, array $request)
+    public function create(mixed $rootValue, array $request): bool
     {
         $customFieldInput = CustomFieldInput::viaRequest($request['input']);
 
@@ -27,13 +27,20 @@ class CustomFieldMutation
             return $entity->set(
                 $customFieldInput->name,
                 $customFieldInput->data
-            );
+            ) instanceof CustomFields;
         }
 
         return false;
     }
 
-    public function get($rootValue, array $request)
+    /**
+     * Get custom field
+     *
+     * @param mixed $rootValue
+     * @param array $request
+     * @return mixed
+     */
+    public function get(mixed $rootValue, array $request): mixed
     {
         $customFieldInput = CustomFieldInput::viaRequest($request['input']);
 
@@ -45,17 +52,24 @@ class CustomFieldMutation
             );
         }
 
-        return false;
+        return null;
     }
 
-    public function delete($rootValue, array $request)
+    /**
+     * Delete custom field
+     *
+     * @param mixed $rootValue
+     * @param array $request
+     * @return bool
+     */
+    public function delete(mixed $rootValue, array $request): bool
     {
         $customFieldInput = CustomFieldInput::viaRequest($request['input']);
 
         $entity = CustomFieldsRepository::getEntityFromInput($customFieldInput);
 
-        if (method_exists($entity, 'get')) {
-            return $entity->del(
+        if (method_exists($entity, 'del')) {
+            return (bool) $entity->del(
                 $customFieldInput->name
             );
         }
