@@ -5,6 +5,7 @@ namespace Kanvas\Users\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
+use Baka\Traits\HasCompositePrimaryKeyTrait;
 
 /**
  * Companies Model.
@@ -15,6 +16,7 @@ use Kanvas\Models\BaseModel;
  */
 class UserConfig extends BaseModel
 {
+    use HasCompositePrimaryKeyTrait;
     /**
      * The table associated with the model.
      *

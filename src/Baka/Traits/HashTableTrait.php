@@ -57,12 +57,9 @@ trait HashTableTrait
             $this->createSettingsModel();
             $this->settingsModel->{$this->getSettingsPrimaryKey()} = $this->getKey();
         }
-        $this->settingsModel::where($this->getSettingsPrimaryKey(), $this->getKey())
-            ->where('name', $key)
-            ->update([
-                'value' => !is_array($value) ? (string) $value : json_encode($value),
-                'name' => $key,
-            ]);
+        $this->settingsModel->name = $key;
+        $this->settingsModel->value = !is_array($value) ? (string) $value : json_encode($value);
+        $this->settingsModel->save();
         return true;
     }
 
