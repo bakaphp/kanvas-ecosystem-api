@@ -12,9 +12,10 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Models\BaseModel;
 
 /**
- * Apps Model.
+ * SystemModules Model.
  *
  * @property string $name
+ * @property string $uuid
  * @property string $slug
  * @property string $model_name
  * @property int $apps_id
@@ -72,7 +73,7 @@ class SystemModules extends BaseModel
     /**
      * Apps relationship.
      *
-     * @return Apps
+     * @return BelongsTo
      */
     public function app(): BelongsTo
     {
@@ -82,7 +83,7 @@ class SystemModules extends BaseModel
     /**
      * Apps relationship.
      *
-     * @return self
+     * @return BelongsTo
      */
     public function parent(): BelongsTo
     {
