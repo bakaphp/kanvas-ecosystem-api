@@ -56,11 +56,7 @@ class Handler extends ExceptionHandler
             ], 503);
         }
 
-        return response()->json([
-            'type' => get_class($exception),
-            'message' => $exception->getMessage(),
-            'trace' => $exception->getTrace()
-        ], 503);
+        return parent::render($request, $exception);
     }
 
     /**

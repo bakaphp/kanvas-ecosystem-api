@@ -82,7 +82,7 @@ class UsersRepository
      *
      * @param int $companiesId
      *
-     * @return Users
+     * @return Collection
      */
     public static function getAll(int $companiesId): Collection
     {
@@ -100,7 +100,7 @@ class UsersRepository
      *
      * @return UsersAssociatedCompanies
      *
-     * @throws Exception
+     * @throws ExceptionsModelNotFoundException
      *
      */
     public static function belongsToCompany(Users $user, Companies $company): UsersAssociatedCompanies
@@ -123,7 +123,7 @@ class UsersRepository
      *
      * @return UsersAssociatedCompanies
      *
-     * @throws Exception
+     * @throws ExceptionsModelNotFoundException
      *
      */
     public static function belongsToCompanyBranch(Users $user, Companies $company, CompaniesBranches $branch): UsersAssociatedCompanies

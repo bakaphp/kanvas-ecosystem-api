@@ -6,10 +6,10 @@ namespace App\GraphQL\Ecosystem\Mutations\Users;
 
 use Illuminate\Support\Facades\Auth as AuthFacade;
 use Illuminate\Support\Facades\Hash;
-use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
-use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Auth\Services\UserManagement as UserManagementService;
+use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class UserManagement
 {
@@ -19,7 +19,7 @@ class UserManagement
      * @param  mixed $root
      * @param  array $req
      *
-     * @return void
+     * @return bool
      */
     public function changePassword(mixed $root, array $req): bool
     {
@@ -27,6 +27,7 @@ class UserManagement
         $user->password = Hash::make($req['new_password']);
         $user->saveOrFail();
         $user->notify(new ChangePasswordUserLogged($user));
+
         return true;
     }
 
