@@ -1,13 +1,13 @@
 <?php
 
 declare(strict_types=1);
-
 namespace Kanvas\Users\Actions;
 
 use Kanvas\Users\Models\Users;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Branches\Repositories\CompaniesBranches as CompaniesBranchesRepository;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class SwitchCompanyBranchAction
 {
@@ -30,7 +30,10 @@ class SwitchCompanyBranchAction
      */
     public function execute(): Users
     {
-        if ($branch = CompaniesBranchesRepository::getById((int)$this->companyBranchId, $this->user->id)) {
+        $branch = CompaniesBranches::find($this->companyBranchId);
+        $company = Companies::find($branch->companies_id);
+
+        if (UsersRepository::belongsToCompanyBranch($this->user, $company, $branch)) {
             if ($branch->company) {
                 $this->user->default_company = $branch->company->id;
                 $this->user->default_company_branch = $branch->id;
