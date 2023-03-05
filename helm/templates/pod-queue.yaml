@@ -25,7 +25,7 @@ spec:
         - name: webroot
           emptyDir: {}
       containers:
-        - name: {{.Values.deployments.api.containerName}}
+        - name: {{.Values.deployments.queue.containerName}}
           image: {{.Values.apiImage}}
           imagePullPolicy: Always
           ports:
