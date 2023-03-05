@@ -27,7 +27,7 @@ class UserManagement
         /**
          * @var Builder
          */
-        return  Users::select('users.*' )
+        return  Users::select('users.*')
                 ->join('users_associated_company', 'users_associated_company.users_id', 'users.id')
                 ->where('users_associated_company.companies_id', auth()->user()->currentCompanyId())
                 ->where('users_associated_company.is_deleted', StateEnums::NO->getValue())
