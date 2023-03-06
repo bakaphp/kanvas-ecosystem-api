@@ -80,7 +80,7 @@ jobs:
       - id: 'get-credentials'
         uses: 'google-github-actions/get-gke-credentials@v1'
         with:
-          cluster_name: ${{ secrets.GCP_CLUSTER_NAME }}
+          cluster_name: ${{ secrets.GCP_CLUSTER_NAME }}-${GITHUB_REF##*/} 
           location: ${{ secrets.GOOGLE_LOCATION }}
         
       - name: Deploy helm chart
