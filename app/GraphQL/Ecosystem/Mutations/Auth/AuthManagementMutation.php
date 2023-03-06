@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace App\GraphQL\Ecosystem\Mutations\Auth;
 
 use GraphQL\Type\Definition\ResolveInfo;
@@ -171,7 +170,6 @@ class AuthManagementMutation
     public function switchCompanyBranch(mixed $root, array $req): bool
     {
         $action = new SwitchCompanyBranchAction(auth()->user(), $req['company_branch_id']);
-        $action->execute();
-        return true;
+        return $action->execute();
     }
 }
