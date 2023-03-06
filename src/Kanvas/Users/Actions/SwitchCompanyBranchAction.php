@@ -26,9 +26,9 @@ class SwitchCompanyBranchAction
     /**
      * execute
      *
-     * @return Users
+     * @return bool
      */
-    public function execute(): Users
+    public function execute(): bool
     {
         $branch = CompaniesBranches::find($this->companyBranchId);
         if (UsersRepository::belongsToCompanyBranch($this->user, $branch->company->first(), $branch)) {
@@ -38,9 +38,9 @@ class SwitchCompanyBranchAction
                 $this->user->saveOrFail();
                 $this->user->set(Companies::cacheKey(), $branch->company->id);
                 $this->user->set($branch->company->branchCacheKey(), $branch->id);
-                return $this->user;
+                return true;
             }
         }
-        return $this->user;
+        return false;
     }
 }
