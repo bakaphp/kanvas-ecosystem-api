@@ -26,6 +26,8 @@ class UserConfig extends BaseModel
     protected $primaryKey = ['users_id', 'name'];
     public $incrementing = false;
     protected $guarded = [];
+    protected $attributes = [
+    ];
 
     /**
      * Users relationship.
