@@ -43,7 +43,7 @@ class UsersRepository
     public static function getByEmail(string $email): Users
     {
         return Users::where('email', $email)
-            ->firstOrFail();
+                ->firstOrFail();
     }
 
     /**
@@ -111,7 +111,9 @@ class UsersRepository
                 ->where('is_deleted', StateEnums::NO->getValue())
                 ->firstOrFail();
         } catch (ModelNotFoundException) {
-            throw new ExceptionsModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
+            throw new ExceptionsModelNotFoundException(
+                'User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin'
+            );
         }
     }
 
@@ -135,7 +137,9 @@ class UsersRepository
                 ->where('is_deleted', StateEnums::NO->getValue())
                 ->firstOrFail();
         } catch (ModelNotFoundException) {
-            throw new ExceptionsModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
+            throw new ExceptionsModelNotFoundException(
+                'User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin'
+            );
         }
     }
 
@@ -154,14 +158,19 @@ class UsersRepository
     public static function belongsToThisApp(Users $user, Apps $app, ?Companies $company = null): UsersAssociatedApps
     {
         try {
-            $companies = $company ? [AppEnums::GLOBAL_COMPANY_ID->getValue(), $company->getKey()] : [AppEnums::GLOBAL_COMPANY_ID->getValue()];
+            $companies = $company
+                        ? [AppEnums::GLOBAL_COMPANY_ID->getValue(), $company->getKey()]
+                        : [AppEnums::GLOBAL_COMPANY_ID->getValue()];
+
             return UsersAssociatedApps::where('users_id', $user->getKey())
                 ->where('apps_id', $app->getKey())
                 ->whereIn('companies_id', $companies)
                 ->where('is_deleted', StateEnums::NO->getValue())
                 ->firstOrFail();
         } catch (ModelNotFoundException) {
-            throw new ExceptionsModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
+            throw new ExceptionsModelNotFoundException(
+                'User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin'
+            );
         }
     }
 
@@ -178,14 +187,16 @@ class UsersRepository
     public static function userOwnsThisApp(Users $user, Apps $app): UsersAssociatedApps
     {
         try {
-            //for now user who own / created the app have global company id assign the tthem
+            //for now user who own / created the app have global company id assign the them
             return UsersAssociatedApps::where('users_id', $user->getKey())
                 ->where('apps_id', $app->getKey())
                 ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
                 ->where('is_deleted', StateEnums::NO->getValue())
                 ->firstOrFail();
         } catch (ModelNotFoundException) {
-            throw new ExceptionsModelNotFoundException('User doesn\'t own this app ' . $app->uuid . ' , talk to the Admin');
+            throw new ExceptionsModelNotFoundException(
+                'User doesn\'t own this app ' . $app->uuid . ' , talk to the Admin'
+            );
         }
     }
 }

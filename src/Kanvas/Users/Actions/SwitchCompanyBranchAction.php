@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Actions;
 
-use Kanvas\Users\Models\Users;
-use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Companies\Branches\Repositories\CompaniesBranches as CompaniesBranchesRepository;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 
 class SwitchCompanyBranchAction
@@ -31,17 +30,17 @@ class SwitchCompanyBranchAction
      */
     public function execute(): bool
     {
-        $branch = CompaniesBranches::find($this->companyBranchId);
-        if (UsersRepository::belongsToCompanyBranch($this->user, $branch->company->first(), $branch)) {
-            if ($branch->company) {
-                $this->user->default_company = $branch->company->id;
-                $this->user->default_company_branch = $branch->id;
-                $this->user->saveOrFail();
-                $this->user->set(Companies::cacheKey(), $branch->company->id);
-                $this->user->set($branch->company->branchCacheKey(), $branch->id);
-                return true;
-            }
-        }
-        return false;
+        $branch = CompaniesBranches::getById($this->companyBranchId);
+        $company = $branch->company()->firstOrFail();
+        UsersRepository::belongsToCompanyBranch($this->user, $company, $branch);
+
+        $this->user->default_company = $company->getId();
+        $this->user->default_company_branch = $branch->getId();
+        $this->user->saveOrFail();
+
+        $this->user->set(Companies::cacheKey(), $branch->company->getId());
+        $this->user->set($company->branchCacheKey(), $branch->getId());
+
+        return true;
     }
 }
