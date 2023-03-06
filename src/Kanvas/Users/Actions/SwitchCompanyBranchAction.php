@@ -31,9 +31,7 @@ class SwitchCompanyBranchAction
     public function execute(): Users
     {
         $branch = CompaniesBranches::find($this->companyBranchId);
-        $company = Companies::find($branch->companies_id);
-
-        if (UsersRepository::belongsToCompanyBranch($this->user, $company, $branch)) {
+        if (UsersRepository::belongsToCompanyBranch($this->user, $branch->company->first(), $branch)) {
             if ($branch->company) {
                 $this->user->default_company = $branch->company->id;
                 $this->user->default_company_branch = $branch->id;
