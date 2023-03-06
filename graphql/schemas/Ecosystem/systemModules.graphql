@@ -1,11 +1,12 @@
 type SystemModule {
     id: Int!
+    uuid: String!
     name: String!
     slug: String!
     model_name: String!
     apps_id: Int!
     parent: SystemModule
-    menu_order: Int!
+    menu_order: Int
     show: Int!
 }
 

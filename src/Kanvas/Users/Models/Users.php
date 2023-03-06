@@ -372,7 +372,8 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             return CompaniesRepository::getById($this->currentCompanyId());
         } catch (EloquentModelNotFoundException $e) {
             throw new InternalServerErrorException(
-                'No default company app configured for this user on the current app ' . app(Apps::class)->name . ', please contact support'
+                'No default company app configured for this user on the current app ' .
+                app(Apps::class)->name . ', please contact support'
             );
         }
     }
@@ -416,5 +417,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $this->saveOrFail();
 
         return true;
+    }
+
+    /**
+     * Is the creator of the current app
+     */
+    public function isAppOwner(): bool
+    {
+        return $this->getId() === app(Apps::class)->users_id;
     }
 }

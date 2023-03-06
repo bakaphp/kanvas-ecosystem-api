@@ -35,4 +35,6 @@ interface UserInterface extends Authenticatable
     public function notifications(): HasMany;
 
     public function currentAppInfo(): UsersAssociatedApps;
+
+    public function isAppOwner(): bool;
 }

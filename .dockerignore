@@ -1,0 +1,14 @@
+# Files
+.env
+.gitignore
+.gitattributes
+docker-compose.yml
+phpunit.xml
+.phpunit.result.cache
+compose-dev.yaml
+
+# Folders
+node_modules/
+vendor/
+.github/
+.vscode/
