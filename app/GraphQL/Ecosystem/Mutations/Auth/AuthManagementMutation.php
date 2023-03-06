@@ -18,6 +18,7 @@ use Kanvas\Users\Repositories\UsersRepository;
 use Throwable;
 use Exception;
 use Illuminate\Auth\Access\AuthorizationException;
+use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 
 class AuthManagementMutation
 {
@@ -158,5 +159,18 @@ class AuthManagementMutation
         }
         $user = UsersRepository::getByEmail($token->claims()->get('email'));
         return $user->createToken('kanvas-login')->toArray();
+    }
+
+    /**
+     * switchCompanyBranch
+     *
+     * @param  mixed $root
+     * @param  array $req
+     * @return array
+     */
+    public function switchCompanyBranch(mixed $root, array $req): bool
+    {
+        $action = new SwitchCompanyBranchAction(auth()->user(), $req['company_branch_id']);
+        return $action->execute();
     }
 }
