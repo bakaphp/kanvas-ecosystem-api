@@ -19,11 +19,6 @@ class UserConfig extends BaseModel
 {
     use HasCompositePrimaryKeyTrait;
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
     protected $table = 'user_config';
 
     protected $primaryKey = ['users_id', 'name'];
