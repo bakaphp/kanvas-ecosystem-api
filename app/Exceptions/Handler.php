@@ -53,14 +53,10 @@ class Handler extends ExceptionHandler
         if (env('APP_ENV') === 'production') {
             return response()->json([
                 'message' => "A server error has occurred. We are looking into it",
-            ], 500);
+            ], 503);
         }
 
-        return response()->json([
-            'type' => get_class($exception),
-            'message' => $exception->getMessage(),
-            'trace' => $exception->getTrace()
-        ], 500);
+        return parent::render($request, $exception);
     }
 
     /**

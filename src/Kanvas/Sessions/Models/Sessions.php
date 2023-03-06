@@ -13,7 +13,7 @@ use Laravel\Sanctum\PersonalAccessToken;
 use Lcobucci\JWT\Token\Plain;
 
 /**
- * Apps Model.
+ * Sessions Model.
  *
  * @property int $users_id
  * @property string $token
@@ -181,7 +181,9 @@ class Sessions extends PersonalAccessToken
 
         if ($banInfo) {
             if ($banInfo['ip'] || $banInfo['users_id'] || $banInfo['email']) {
-                throw new AuthenticationException(_('This account has been banned. Please contact the administrators.'));
+                throw new AuthenticationException(_(
+                    'This account has been banned. Please contact the administrators.'
+                ));
             }
         }
 
@@ -243,10 +245,9 @@ class Sessions extends PersonalAccessToken
     public function check(Users $user, string $sessionId, string $userIp, int $pageId): Users
     {
         $currentTime = time();
-        $pageId = (int) $pageId;
 
         $params = [
-            'session_id' => $sessionId
+            'session_id' => $sessionId,
         ];
 
         $result = DB::select(
@@ -278,7 +279,7 @@ class Sessions extends PersonalAccessToken
                 $session->time = $currentTime;
                 $session->page = $pageId;
 
-                if (!$session->save()) {
+                if (! $session->save()) {
                     throw new AuthenticationException('Unable to update session');
                 }
 
@@ -291,7 +292,7 @@ class Sessions extends PersonalAccessToken
                 //$this->clean($sessionId);
             }
 
-            $user->session_id = $sessionId;
+            //$user->session_id = $sessionId;
 
             return $user;
         }
@@ -343,7 +344,7 @@ class Sessions extends PersonalAccessToken
      */
     public function cant($ability)
     {
-        return !$this->can($ability);
+        return ! $this->can($ability);
     }
 
     /**
@@ -358,7 +359,7 @@ class Sessions extends PersonalAccessToken
      */
     public function end(Users $user, ?string $sessionId = null): bool
     {
-        if (is_null($sessionId)) {
+        if ($sessionId === null) {
             return $this->endAll($user);
         }
 
@@ -367,8 +368,8 @@ class Sessions extends PersonalAccessToken
             ->delete();
 
         SessionKeys::where('sessions_id', $sessionId)
-        ->where('users_id', $user->getId())
-        ->delete();
+            ->where('users_id', $user->getId())
+            ->delete();
 
         return true;
     }

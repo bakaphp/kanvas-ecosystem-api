@@ -6,6 +6,7 @@ namespace Baka\Traits;
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Schema;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\StateEnums;
@@ -120,6 +121,18 @@ trait KanvasModelTrait
      */
     public static function getTableName(): string
     {
-        return ((new self())->getTable());
+        return ((new static())->getTable());
+    }
+
+    /**
+     * Those the given entity have the given column.
+     *
+     * @param string $name
+     * @return bool
+     */
+    public function hasColumn(string $name): bool
+    {
+        return Schema::connection($this->getConnectionName())
+                ->hasColumn($this->getTableName(), $name);
     }
 }
