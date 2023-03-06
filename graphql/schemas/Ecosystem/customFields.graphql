@@ -1,0 +1,28 @@
+type CustomField {
+    name: String!
+    data: Mixed
+    systemModule: SystemModule!
+    entity_id: String!
+}
+
+input CustomFieldInput {
+    name: String!
+    data: Mixed
+    system_module_uuid: String!
+    entity_id: String!
+}
+
+extend type Mutation @guard {
+    setCustomField(input: CustomFieldInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@create"
+        )
+    getCustomField(input: CustomFieldInput!): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@get"
+        )
+    deleteCustomField(input: CustomFieldInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@delete"
+        )
+}

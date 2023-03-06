@@ -24,6 +24,9 @@ deployments:
   queue:
     name: queue
     containerName: queue
+  healthcheck:
+    name: healthcheck
+    containerName: healthcheck
 
 # Services Values
 

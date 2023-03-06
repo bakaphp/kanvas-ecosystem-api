@@ -66,11 +66,11 @@ class Auth
 
             return $user;
         } elseif (! $user->isActive()) {
-            throw new AuthenticationException('Invalid email or password.');
+            throw new AuthenticationException('User is not active, please contact support.');
         } elseif ($user->isBanned()) {
             throw new AuthenticationException('User has been banned, please contact support.');
         } else {
-            throw new AuthenticationException('User is not active, please contact support.');
+            throw new AuthenticationException('Invalid email or password.');
         }
     }
 

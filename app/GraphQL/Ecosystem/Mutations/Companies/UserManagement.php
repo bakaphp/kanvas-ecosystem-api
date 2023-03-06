@@ -19,17 +19,13 @@ final class UserManagement
      * @param  mixed $rootValue
      * @param  array $request
      *
-     * @return UsersInvite
+     * @return bool
      */
     public function addUserToBranch($rootValue, array $request): bool
     {
         $user = Users::getById($request['users_id']);
         $branch = CompaniesBranches::getById($request['id']);
         $company = $branch->company()->get()->first();
-
-        if ($company->users_id == auth()->user()->getKey()) {
-            throw new AuthenticationException('You can not remove yourself from the company');
-        }
 
         CompaniesRepository::userAssociatedToCompany(
             $company,
@@ -51,16 +47,12 @@ final class UserManagement
      * @param  mixed $rootValue
      * @param  array $request
      *
-     * @return UsersInvite
+     * @return bool
      */
     public function addUserToCompany($rootValue, array $request): bool
     {
         $user = Users::getById($request['users_id']);
         $company = Companies::getById($request['id']);
-
-        if ($company->users_id == auth()->user()->getKey()) {
-            throw new AuthenticationException('You can not remove yourself from the company');
-        }
 
         CompaniesRepository::userAssociatedToCompany(
             $company,
@@ -82,14 +74,14 @@ final class UserManagement
      * @param  mixed $rootValue
      * @param  array $request
      *
-     * @return UsersInvite
+     * @return bool
      */
     public function removeUserFromCompany($rootValue, array $request): bool
     {
         $user = Users::getById($request['users_id']);
         $company = Companies::getById($request['id']);
 
-        if ($company->users_id == auth()->user()->getKey()) {
+        if ($company->users_id == $user->getId()) {
             throw new AuthenticationException('You can not remove yourself from the company');
         }
 
@@ -113,7 +105,7 @@ final class UserManagement
      * @param  mixed $rootValue
      * @param  array $request
      *
-     * @return UsersInvite
+     * @return bool
      */
     public function removeUserFromBranch($rootValue, array $request): bool
     {
@@ -121,7 +113,7 @@ final class UserManagement
         $branch = CompaniesBranches::getById($request['id']);
         $company = $branch->company()->get()->first();
 
-        if ($company->users_id == auth()->user()->getKey()) {
+        if ($company->users_id == $user->getId()) {
             throw new AuthenticationException('You can not remove yourself from the company');
         }
 
