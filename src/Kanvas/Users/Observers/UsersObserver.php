@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace Kanvas\Users\Observers;
 
 use Bouncer;
@@ -20,7 +19,6 @@ use Kanvas\Enums\StateEnums;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Actions\AssignRole;
 use Kanvas\Users\Models\Users;
-use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 
 class UsersObserver
 {
