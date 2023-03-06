@@ -15,9 +15,9 @@ use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Users\Repositories\UsersRepository;
-use Throwable;
 use Exception;
 use Illuminate\Auth\Access\AuthorizationException;
+use Kanvas\Sessions\Models\Sessions;
 
 class AuthManagementMutation
 {
@@ -101,6 +101,19 @@ class AuthManagementMutation
         );
 
         return $user->createToken('kanvas-login')->toArray();
+    }
+
+    /**
+     * Logout the current user
+     *
+     * @param mixed $rootValue
+     * @param array $request
+     * @return boolean
+     */
+    public function logout(mixed $rootValue, array $request): bool
+    {
+        $session = new Sessions();
+        return $session->end(auth()->user());
     }
 
     /**
