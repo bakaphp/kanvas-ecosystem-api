@@ -1,4 +1,4 @@
-name: CD
+name: Deploy To AWS
 on:
   push:
     branches:
