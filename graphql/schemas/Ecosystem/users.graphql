@@ -40,6 +40,7 @@ type TokenResponse {
     refresh_token_expires: DateTime!
     time: String!
     timezone: String!
+    sessionId: String!
 }
 
 type RegisterResponse {
@@ -99,6 +100,10 @@ extend type Mutation {
     login(data: LoginInput!): TokenResponse!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@loginMutation"
+        )
+    logout(sessionId: String): Boolean @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@logout"
         )
     register(data: RegisterInput!): RegisterResponse!
         @field(

@@ -32,6 +32,24 @@ class AuthTest extends TestCase
     }
 
     /**
+     * Test the logout function to remove sessions
+     *
+     * @return void
+     */
+    public function testLogoutData(): void
+    {
+        $loginData = self::loginData();
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation {
+                logout
+            }'
+        )
+        ->assertSuccessful()
+        ->assertSee('logout');
+    }
+
+    /**
      * test_save.
      *
      * @return void
