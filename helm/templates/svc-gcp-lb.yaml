@@ -1,22 +1,15 @@
-apiVersion: v1
-kind: Service
+apiVersion: networking.k8s.io/v1
+kind: Ingress
 metadata:
   name: graphapidev2
-  namespace: {{.Values.namespace}}
+  namespace: kanvas-api
   annotations:
-    kubernetes.io/ingress.global-static-ip-name: graphapidev2.kanvas.dev
+    kubernetes.io/ingress.global-static-ip-name: kanvas-cluster-development-static-ip-address
     networking.gke.io/managed-certificates: managed-cert
     kubernetes.io/ingress.class: "gce"
 spec:
-  selector:
-    app: {{.Values.services.loadBalancer.appName}}
-  type: LoadBalancer
-  ports:
-    - name: http
-      protocol: TCP
-      port: 80
-      targetPort: 80
-    - name: https
-      protocol: TCP
-      port: 443
-      targetPort: 80
+  defaultBackend:
+    service:
+      name: kanvas-api
+      port:
+        number: 80
