@@ -114,7 +114,7 @@ class AuthManagementMutation
     public function logout(mixed $rootValue, array $request): bool
     {
         $session = new Sessions();
-        return $session->end(auth()->user());
+        return $session->end(auth()->user(), $request['sessionId'] ?? null);
     }
 
     /**
