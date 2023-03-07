@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: kanvas-api-ingress
-  namespace: {{.Values.services.loadBalancer.appName}}
+  namespace: {{.Values.namespace}}
   annotations:
     kubernetes.io/ingress.global-static-ip-name: kanvas-cluster-development-static-ip-address
     networking.gke.io/managed-certificates: managed-cert
