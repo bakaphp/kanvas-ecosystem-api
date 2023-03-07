@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Enums\StateEnums;
 use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
+use Baka\Traits\UuidTrait;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Auth;
@@ -40,6 +41,7 @@ use Kanvas\Users\Models\UsersAssociatedApps;
 class Apps extends BaseModel implements AppInterface
 {
     use HashTableTrait;
+    use UuidTrait;
 
     /**
      * The table associated with the model.
@@ -54,9 +56,6 @@ class Apps extends BaseModel implements AppInterface
      * @var array
      */
     protected $guarded = [];
-
-    protected array $settings = [];
-    protected ?Companies $company = null;
 
     /**
      * Settings relationship.
