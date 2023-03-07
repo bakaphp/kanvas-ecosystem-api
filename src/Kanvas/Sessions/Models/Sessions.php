@@ -363,7 +363,7 @@ class Sessions extends PersonalAccessToken
             return $this->endAll($user);
         }
 
-        self::where('id', $sessionId)
+        $this->where('id', $sessionId)
             ->where('users_id', $user->getId())
             ->delete();
 
@@ -383,20 +383,10 @@ class Sessions extends PersonalAccessToken
      */
     public function endAll(Users $user): bool
     {
-        $this->find([
-            'conditions' => 'users_id = :users_id:',
-            'bind' => [
-                'users_id' => $user->getId(),
-            ],
-        ])
+        $this->where('users_id', $user->getId())
         ->delete();
 
-        SessionKeys::find([
-            'conditions' => 'users_id = :users_id: ',
-            'bind' => [
-                'users_id' => $user->getId(),
-            ],
-        ])
+        SessionKeys::where('users_id', $user->getId())
         ->delete();
 
         return true;
