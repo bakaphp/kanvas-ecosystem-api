@@ -1,11 +1,11 @@
 name: Deploy To GCP
 
 on:
+  push:
+    branches:
+      - 'development'
+
   workflow_dispatch:
-    inputs:
-      environment:
-        type: environment
-        description: Select the environment
 
 jobs:
   Build:

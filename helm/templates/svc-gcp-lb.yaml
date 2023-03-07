@@ -1,14 +1,18 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{.Values.services.loadBalancer.appName}}
+  name: {{.Values.services.loadBalancer.name}}
   namespace: {{.Values.namespace}}
 spec:
   selector:
-    app: {{.Values.services.loadBalancer.appName}}
+    app: {{.Values.services.loadBalancer.name}}
   type: NodePort
   ports:
     - name: http
       protocol: TCP
       port: 80
+      targetPort: 80
+    - name: https
+      protocol: TCP
+      port: 443
       targetPort: 80
