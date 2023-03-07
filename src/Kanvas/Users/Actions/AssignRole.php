@@ -29,7 +29,7 @@ class AssignRole
      *
      * @param RegisterInput $data
      *
-     * @return Users
+     * @return UserRoles
      */
     public function execute(string $roleName): UserRoles
     {

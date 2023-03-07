@@ -13,14 +13,12 @@ use Kanvas\Roles\Models\Roles;
 class RolesRepository
 {
     /**
-     * Get the entity by its name.
+     * Get the role from the current app
      *
      * @param string $name
-     * @param Companies|null $company
-     *
+     * @param Apps $app
+     * @param Companies $company
      * @return Roles
-     *
-     * @todo Need to fetch app and company id from ACL on container instead of apps and userdata from DI.
      */
     public static function getByName(string $name, Apps $app, Companies $company): Roles
     {
@@ -31,7 +29,7 @@ class RolesRepository
                 ->orderBy('apps_id', 'DESC')
                 ->first();
 
-        if (!is_object($role)) {
+        if (! $role instanceof Roles) {
             throw new InternalServerErrorException(
                 'Roles ' . $name . ' not found on this app ' . $app->getKey() . ' AND Company ' . $company->id
             );

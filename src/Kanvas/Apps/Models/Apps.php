@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Enums\StateEnums;
 use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
+use Baka\Traits\UuidTrait;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Auth;
@@ -55,8 +56,16 @@ class Apps extends BaseModel implements AppInterface
      */
     protected $guarded = [];
 
-    protected array $settings = [];
-    protected ?Companies $company = null;
+    /**
+     * Boot function from Laravel.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+        static::creating(function ($model) {
+            $model->key = $model->key ?? Str::uuid();
+        });
+    }
 
     /**
      * Settings relationship.

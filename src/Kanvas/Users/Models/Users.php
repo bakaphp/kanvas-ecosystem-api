@@ -37,7 +37,7 @@ use Kanvas\Users\Factories\UsersFactory;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 
 /**
- * Apps Model.
+ * Users Model.
  *
  * @property string $uuid
  * @property string $email
@@ -290,7 +290,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
                 ]
             )->first();
 
-        if (!$user) {
+        if (! $user) {
             throw new ModelNotFoundException('No User Found');
         }
 
@@ -314,7 +314,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function isBanned(): bool
     {
-        return !$this->isActive() && $this->banned === 'Y';
+        return ! $this->isActive() && $this->banned === 'Y';
     }
 
     /**
@@ -347,7 +347,12 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function currentCompanyId(): int
     {
-        $currentCompanyId = $this->get(Companies::cacheKey());
+        if (! app()->bound(CompaniesBranches::class)) {
+            $currentCompanyId = $this->get(Companies::cacheKey());
+        } else {
+            $currentCompanyId = app(CompaniesBranches::class)->getCompany()->first()->getId();
+        }
+
         return $currentCompanyId ? (int)$currentCompanyId : $this->default_company;
     }
 
@@ -358,7 +363,11 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function currentBranchId(): int
     {
-        return  (int) $this->get($this->getCurrentCompany()->branchCacheKey());
+        if (! app()->bound(CompaniesBranches::class)) {
+            return (int) $this->get($this->getCurrentCompany()->branchCacheKey());
+        } else {
+            return app(CompaniesBranches::class)->getCompany()->first()->getId();
+        }
     }
 
     /**
@@ -369,7 +378,24 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function getCurrentCompany(): Companies
     {
         try {
-            return CompaniesRepository::getById($this->currentCompanyId());
+            return Companies::getById($this->currentCompanyId());
+        } catch (EloquentModelNotFoundException $e) {
+            throw new InternalServerErrorException(
+                'No default company app configured for this user on the current app ' .
+                app(Apps::class)->name . ', please contact support'
+            );
+        }
+    }
+
+    /**
+     * Get the current company in the user session.
+     *
+     * @return CompaniesBranches
+     */
+    public function getCurrentBranch(): CompaniesBranches
+    {
+        try {
+            return CompaniesBranches::getById($this->currentBranchId());
         } catch (EloquentModelNotFoundException $e) {
             throw new InternalServerErrorException(
                 'No default company app configured for this user on the current app ' .
