@@ -6,6 +6,7 @@ namespace Kanvas\Apps\Actions;
 
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\DataTransferObject\AppInput;
+use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Roles\Models\Roles;
@@ -143,9 +144,9 @@ class CreateAppsAction
     {
         $roles = [
             'Admins',
-            'Users',
-            'Managers',
-            'Developers',
+            DefaultRoles::USER->getValue(),
+            DefaultRoles::MANAGER->getValue(),
+            DefaultRoles::DEVELOPER->getValue(),
         ];
 
         foreach ($roles as $role) {

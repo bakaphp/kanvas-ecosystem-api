@@ -8,7 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Models\BaseModel;
 
 /**
- * Apps Model.
+ * Roles Model Legacy
  *
  * @property int $companies_id
  * @property int $apps_id
