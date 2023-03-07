@@ -26,4 +26,14 @@ class Roles extends BaseModel
      * @var string
      */
     protected $table = 'roles_kanvas_legacy';
+
+    protected $fillable = [
+        'companies_id',
+        'apps_id',
+        'name',
+        'description',
+        'scope',
+        'is_actived',
+        'is_default',
+    ];
 }

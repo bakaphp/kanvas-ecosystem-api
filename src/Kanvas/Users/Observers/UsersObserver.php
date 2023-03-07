@@ -96,6 +96,7 @@ class UsersObserver
             $assignRole = new AssignAction($user, DefaultRoles::ADMIN->getValue());
             $assignRole->execute();
         }
+
         if (!$roleLegacy = $app->get(AppSettingsEnums::DEFAULT_ROLE_NAME->getValue())) {
             $roleLegacy = $app->name . '.' . $user->role()->first()->name;
         }
