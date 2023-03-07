@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Companies\Enums;
 
 use Baka\Contracts\EnumsInterface;
-use Kanvas\Apps\Enums\Defaults as AppsDefaults;
+use Kanvas\Enums\AppEnums;
 
 enum Defaults implements EnumsInterface
 {
@@ -17,7 +17,8 @@ enum Defaults implements EnumsInterface
 
     public function getValue(): mixed
     {
-        $appDefaults = AppsDefaults::GLOBAL_COMPANY_ID;
+        $appDefaults = AppEnums::GLOBAL_COMPANY_ID;
+
         return match ($this) {
             self::DEFAULT_COMPANY => 'DefaulCompany',
             self::DEFAULT_COMPANY_APP => 'DefaulCompanyApp_',
