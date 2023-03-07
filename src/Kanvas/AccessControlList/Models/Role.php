@@ -8,5 +8,4 @@ use Silber\Bouncer\Database\Role as SilberRole;
 
 class Role extends SilberRole
 {
-
 }

@@ -10,6 +10,9 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Roles\Models\Roles;
 
+/**
+ * Legacy Roles Repository
+ */
 class RolesRepository
 {
     /**
