@@ -2,6 +2,9 @@
 # namespace:
 # apiImage:
 
+cert:
+  apiDomain:
+
 services:
   loadBalancer:
     name: graph
