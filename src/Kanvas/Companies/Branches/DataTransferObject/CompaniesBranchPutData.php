@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Companies\Branches\DataTransferObject;
 
 use Illuminate\Http\Request;
-use Kanvas\Contracts\DataTransferObject\BaseDataTransferObject;
+use Spatie\LaravelData\Data;
 
 /**
  * CompaniesBranchPostData class.
  */
-class CompaniesBranchPutData extends BaseDataTransferObject
+class CompaniesBranchPutData extends Data
 {
     /**
      * Construct function.
