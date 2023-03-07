@@ -1,0 +1,8 @@
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: managed-cert
+  namespace: {{.Values.namespace}}
+spec:
+  domains:
+    - graphapidev2.kanvas.dev
