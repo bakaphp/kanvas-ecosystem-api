@@ -79,7 +79,7 @@ class AppSetup extends Command
         $app = $createApp->execute();
 
         $this->newLine();
-        $this->info("App {$app->name} successfully created! : Api Key ".$app->key);
+        $this->info("App {$app->name} successfully created! : Api Key " . $app->key);
         $this->newLine();
 
         return;
