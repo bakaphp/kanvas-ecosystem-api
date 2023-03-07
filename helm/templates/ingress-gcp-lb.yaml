@@ -10,6 +10,6 @@ metadata:
 spec:
   defaultBackend:
     service:
-      name: {{.Values.services.loadBalancer.appName}}
+      name: {{.Values.services.loadBalancer.name}}
       port:
         number: 80
