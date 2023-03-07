@@ -3,7 +3,7 @@
 # apiImage:
 
 cert:
-  apiDomain:
+  apiDomain: graphapidev2.kanvas.dev
 
 services:
   loadBalancer:
