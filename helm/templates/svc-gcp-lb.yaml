@@ -4,7 +4,7 @@ metadata:
   name: graphapidev2
   namespace: {{.Values.namespace}}
   annotations:
-    kubernetes.io/ingress.global-static-ip-name: kanvas-cluster-development-static-ip-address
+    kubernetes.io/ingress.regional-static-ip-name: kanvas-cluster-development-static-ip-address
     networking.gke.io/managed-certificates: managed-cert
     kubernetes.io/ingress.class: "gce"
 spec:
