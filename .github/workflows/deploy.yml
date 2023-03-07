@@ -78,6 +78,7 @@ jobs:
             # For now ignore managed-cert file to avoid conflict with gcp
             touch helm/.helmignore
             echo "managed-cert.yaml" >> helm/.helmignore
+            echo "svc-gcp-lb.yaml" >> helm/.helmignore
             
             #deploy or upgrade helm chart
             helm upgrade --install ${{ secrets.INSTANCE_NAME }} helm \
