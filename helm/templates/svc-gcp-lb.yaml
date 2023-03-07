@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: graphapidev2
+  name: {{.Values.services.loadBalancer.appName}}
   namespace: {{.Values.namespace}}
 spec:
   selector:
-    app: graphapidev2
+    app: {{.Values.services.loadBalancer.appName}}
   type: NodePort
   ports:
     - name: http
