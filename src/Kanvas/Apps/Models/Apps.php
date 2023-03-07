@@ -41,7 +41,6 @@ use Kanvas\Users\Models\UsersAssociatedApps;
 class Apps extends BaseModel implements AppInterface
 {
     use HashTableTrait;
-    use UuidTrait;
 
     /**
      * The table associated with the model.
@@ -56,6 +55,17 @@ class Apps extends BaseModel implements AppInterface
      * @var array
      */
     protected $guarded = [];
+
+    /**
+     * Boot function from Laravel.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+        static::creating(function ($model) {
+            $model->key = $model->key ?? Str::uuid();
+        });
+    }
 
     /**
      * Settings relationship.
