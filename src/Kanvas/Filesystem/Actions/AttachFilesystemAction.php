@@ -35,8 +35,11 @@ class AttachFilesystemAction
         $update = (int) $id > 0;
 
         if ($update) {
-            $fileEntity = FilesystemEntitiesRepository::getByIdAdnEntity($id, $this->entity);
+            $fileEntity = FilesystemEntitiesRepository::getByIdAdnEntity((int) $id, $this->entity);
         } else {
+            /**
+             * @var FilesystemEntities
+             */
             $fileEntity = FilesystemEntities::firstOrCreate([
                 'filesystem_id' => $this->filesystem->getKey(),
                 'entity_id' => $this->entity->getKey(),

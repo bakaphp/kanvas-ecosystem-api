@@ -4,46 +4,43 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Filesystem;
 
-use Illuminate\Support\Facades\Auth;
 use Kanvas\Filesystem\Actions\UploadFileAction;
 use Kanvas\Filesystem\Models\Filesystem;
 
-final class Upload
+class UploadMutation
 {
     /**
      * Upload a file, store it on the server and return the path.
      *
-     * @param  mixed  $root
-     * @param  array<string, mixed>  $args
-     *
-     * @return string|null
+     * @param mixed $rootValue
+     * @param array $request
+     * @return Filesystem
      */
-    public function singleFile($_, array $args): Filesystem
+    public function singleFile(mixed $rootValue, array $request): Filesystem
     {
         /** @var \Illuminate\Http\UploadedFile $file */
-        $file = $args['file'];
+        $file = $request['file'];
 
-        $uploadFile = new UploadFileAction(Auth::user());
+        $uploadFile = new UploadFileAction(auth()->user());
 
         return $uploadFile->execute($file);
     }
 
     /**
-     * Multiple Upload.
+     * Multiple Upload a file, store it on the server and return the path.
      *
-     * @param mixed $_
-     * @param array $args
-     *
-     * @return array<Filesystem>
+     * @param mixed $rootValue
+     * @param array $request
+     * @return array
      */
-    public function multiFile($_, array $args): array
+    public function multiFile(mixed $rootValue, array $request): array
     {
         /** @var \Illuminate\Http\UploadedFile $file */
-        $files = $args['files'];
+        $files = $request['files'];
         $fileSystems = [];
 
         foreach ($files as $file) {
-            $uploadFile = new UploadFileAction(Auth::user());
+            $uploadFile = new UploadFileAction(auth()->user());
 
             $fileSystems[] = $uploadFile->execute($file);
         }

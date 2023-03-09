@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Models;
 
+use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -14,6 +15,7 @@ use Kanvas\SystemModules\Models\SystemModules;
  * FilesystemEntities Model.
  *
  * @property int $id
+ * @property string $uuid;
  * @property int $filesystem_id
  * @property int $companies_id
  * @property int $system_modules_id
@@ -25,6 +27,8 @@ use Kanvas\SystemModules\Models\SystemModules;
  */
 class FilesystemEntities extends BaseModel
 {
+    use UuidTrait;
+
     /**
      * The table associated with the model.
      *

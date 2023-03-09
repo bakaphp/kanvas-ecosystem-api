@@ -21,6 +21,9 @@ class CreateInteraction
      */
     public function execute(): Interactions
     {
+        /**
+         * @var Interactions
+         */
         return Interactions::firstOrCreate([
             'apps_id' => $this->interaction->app->getId(),
             'name' => $this->interaction->name,
