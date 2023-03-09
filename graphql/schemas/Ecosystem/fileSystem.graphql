@@ -52,4 +52,8 @@ type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\AttachmentMutation@attachFile"
         )
+    deAttachFile(uuid: String!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\AttachmentMutation@deAttachFile"
+        )
 }

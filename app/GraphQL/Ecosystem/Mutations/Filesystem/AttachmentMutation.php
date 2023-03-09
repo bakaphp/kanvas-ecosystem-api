@@ -9,6 +9,7 @@ use Kanvas\CustomFields\Repositories\CustomFieldsRepository;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\DataTransferObject\FilesystemAttachInput;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Models\FilesystemEntities;
 
 class AttachmentMutation
 {
@@ -38,5 +39,22 @@ class AttachmentMutation
         $fileSystemEntity = $attachFile->execute($filesystemAttachmentInput->fieldName);
 
         return (string) $fileSystemEntity->uuid;
+    }
+
+    /**
+     * deAttach a file from filesystem
+     *
+     * @param mixed $rootValue
+     * @param array $request
+     * @return bool
+     */
+    public function deAttachFile(mixed $rootValue, array $request): bool
+    {
+        $fileEntity = FilesystemEntities::where('uuid', $request['uuid'])
+            ->fromCompany(auth()->user()->getCurrentCompany())
+            ->notDeleted()
+            ->firstOrFail();
+
+        return $fileEntity->softDelete();
     }
 }
