@@ -38,14 +38,14 @@ class FilesystemQueries
          * @var Builder
          */
         return Filesystem::select(
-                    'filesystem_entities.uuid',
-                    'filesystem_entities.field_name',
-                    'filesystem.name',
-                    'filesystem.url',
-                    'filesystem.size',
-                    'filesystem.file_type',
-                    'size'
-                    )
+            'filesystem_entities.uuid',
+            'filesystem_entities.field_name',
+            'filesystem.name',
+            'filesystem.url',
+            'filesystem.size',
+            'filesystem.file_type',
+            'size'
+        )
                     ->join('filesystem_entities', 'filesystem_entities.filesystem_id', '=', 'filesystem.id')
                     ->where('filesystem_entities.entity_id', '=', $root->getKey())
                     ->where('filesystem_entities.system_modules_id', '=', $systemModule->getKey())
@@ -84,14 +84,14 @@ class FilesystemQueries
          * @var Builder
          */
         return Filesystem::select(
-                    'filesystem_entities.uuid',
-                    'filesystem_entities.field_name',
-                    'filesystem.name',
-                    'filesystem.url',
-                    'filesystem.size',
-                    'filesystem.file_type',
-                    'size'
-                    )
+            'filesystem_entities.uuid',
+            'filesystem_entities.field_name',
+            'filesystem.name',
+            'filesystem.url',
+            'filesystem.size',
+            'filesystem.file_type',
+            'size'
+        )
                     ->join('filesystem_entities', 'filesystem_entities.filesystem_id', '=', 'filesystem.id')
                     ->where('filesystem_entities.entity_id', '=', $entity->getKey())
                     ->where('filesystem_entities.system_modules_id', '=', $systemModule->getKey())
