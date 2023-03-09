@@ -1,9 +1,12 @@
 type Filesystem {
+    id: Int!
     uuid: String!
     name: String!
     url: String!
     type: String!
     size: Float!
+    field_name: String!
+    attributes: JSON
 }
 
 input FilesystemInputUrl {
@@ -16,6 +19,23 @@ input FilesystemAttachInput {
     field_name: String!
     system_module_uuid: String!
     entity_id: String!
+}
+
+extend type Query @guard {
+    entityFiles(
+        entity: SystemModuleEntityInput!
+        where: _
+            @whereConditions(
+                columns: [
+                    "field_name"
+                    "uuid"
+                ]
+            )
+    ): [Filesystem!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQueries@getFilesFromSystemModuleEntity"
+            defaultCount: 10
+        )
 }
 
 type Mutation @guard {

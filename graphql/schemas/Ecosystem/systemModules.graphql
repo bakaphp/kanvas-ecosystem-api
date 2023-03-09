@@ -10,6 +10,11 @@ type SystemModule {
     show: Int!
 }
 
+input SystemModuleEntityInput{
+    system_module_uuid: String!
+    entity_id: String!
+}
+
 extend type Query @guard {
     systemModels(
         where: _
