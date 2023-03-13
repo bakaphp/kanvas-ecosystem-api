@@ -213,7 +213,7 @@ trait TokenTrait
      */
     protected function getTokenTimeNotBefore(): int
     {
-        return (time() + confi('auth.token_not_before'));
+        return (time() + config('auth.token_not_before'));
     }
 
     /**
