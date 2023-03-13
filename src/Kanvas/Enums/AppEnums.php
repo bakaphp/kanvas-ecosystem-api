@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace Kanvas\Enums;
 
 use Baka\Contracts\EnumsInterface;
@@ -75,10 +74,10 @@ enum AppEnums implements EnumsInterface
             self::CURRENCY => 'USD',
             self::FILESYSTEM => 's3',
             self::ALLOW_USER_REGISTRATION => 1,
-            self::BACKGROUND_IMAGE => env('FILESYSTEM_CDN_URL') . '/default-background-auth.jpg',
-            self::LOGO => env('FILESYSTEM_CDN_URL') . '/gewaer-logo-dark.png',
+            self::BACKGROUND_IMAGE => config('filesystem.cdn_url') . '/default-background-auth.jpg',
+            self::LOGO => config('filesystem.cdn_url') . '/gewaer-logo-dark.png',
             self::REGISTERED => 1,
-            self::FAVICON => env('FILESYSTEM_CDN_URL') . '/gewaer-logo-dark.png',
+            self::FAVICON => config('filesystem.cdn_url') . '/gewaer-logo-dark.png',
             self::BASE_COLOR => '#61c2cc',
             self::SECONDARY_COLOR => '#9ee5b5',
             self::ALLOW_SOCIAL_AUTH => 1,

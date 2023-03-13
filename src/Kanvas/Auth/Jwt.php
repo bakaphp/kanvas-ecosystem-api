@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace Kanvas\Auth;
 
 use DateTimeImmutable;
@@ -48,8 +47,8 @@ class Jwt
 
         //https://lcobucci-jwt.readthedocs.io/en/latest/issuing-tokens/
         return $config->builder()
-                ->issuedBy(env('TOKEN_AUDIENCE'))
-                ->permittedFor(env('TOKEN_AUDIENCE'))
+                ->issuedBy(config('auth.token_audience'))
+                ->permittedFor(config('auth.token_audience'))
                 ->identifiedBy($sessionId)
                 ->issuedAt($now)
                 ->canOnlyBeUsedAfter($now)
@@ -76,7 +75,7 @@ class Jwt
 
         return $config->validator()->validate(
             $token,
-            new IssuedBy(env('TOKEN_AUDIENCE')),
+            new IssuedBy(config('auth.token_audience')),
             new SignedWith($config->signer(), $config->verificationKey())
         );
     }

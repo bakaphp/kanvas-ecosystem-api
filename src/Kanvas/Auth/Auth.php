@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace Kanvas\Auth;
 
 use Baka\Support\Password;
@@ -45,7 +44,7 @@ class Auth
             ->first();
         }
 
-        if (! $user) {
+        if (!$user) {
             throw new AuthenticationException('Invalid email or password.');
         }
 
@@ -65,7 +64,7 @@ class Auth
             self::resetLoginTries($user);
 
             return $user;
-        } elseif (! $user->isActive()) {
+        } elseif (!$user->isActive()) {
             throw new AuthenticationException('User is not active, please contact support.');
         } elseif ($user->isBanned()) {
             throw new AuthenticationException('User has been banned, please contact support.');
@@ -87,8 +86,8 @@ class Auth
     {
         //load config
         $config = new stdClass();
-        $config->login_reset_time = env('AUTH_MAX_AUTOLOGIN_TIME');
-        $config->max_login_attempts = env('AUTH_MAX_AUTOLOGIN_ATTEMPS');
+        $config->login_reset_time = config('auth.max_autologin_time');
+        $config->max_login_attempts = config('max_autologin_attempts');
         //$config->max_login_attempts = env('AUTH_MAX_AUTOLOGIN_ATTEMPTS');
 
         // If the last login is more than x minutes ago, then reset the login tries/time
