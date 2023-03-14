@@ -339,7 +339,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         } catch (EloquentModelNotFoundException $e) {
             throw new InternalServerErrorException(
                 'No default company app configured for this user on 
-                the current app '.app(Apps::class)->name.', 
+                the current app ' . app(Apps::class)->name . ', 
                 please contact support'
             );
         }
@@ -355,7 +355,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         } catch (EloquentModelNotFoundException $e) {
             throw new InternalServerErrorException(
                 'No default company app configured 
-                for this user on the current app '.app(Apps::class)->name.', 
+                for this user on the current app ' . app(Apps::class)->name . ', 
                 please contact support'
             );
         }
