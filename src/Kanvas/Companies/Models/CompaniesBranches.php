@@ -47,8 +47,6 @@ class CompaniesBranches extends BaseModel
 
     /**
      * Companies relationship.
-     *
-     * @return BelongsTo
      */
     public function company(): BelongsTo
     {
@@ -57,8 +55,6 @@ class CompaniesBranches extends BaseModel
 
     /**
      * Users relationship.
-     *
-     * @return BelongsTo
      */
     public function user(): BelongsTo
     {
@@ -67,8 +63,6 @@ class CompaniesBranches extends BaseModel
 
     /**
      * Is default?
-     *
-     * @return bool
      */
     public function isDefault(): bool
     {
@@ -77,10 +71,6 @@ class CompaniesBranches extends BaseModel
 
     /**
      * Filter what the user can see.
-     *
-     * @param Builder $query
-     *
-     * @return Builder
      */
     public function scopeUserAssociated(Builder $query): Builder
     {
@@ -96,8 +86,6 @@ class CompaniesBranches extends BaseModel
 
     /**
      * Get a branch with id 0 , representing the global branch.
-     *
-     * @return self
      */
     public static function getGlobalBranch(): self
     {
