@@ -261,7 +261,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
                 ]
             )->first();
 
-        if (!$user) {
+        if (! $user) {
             throw new ModelNotFoundException('No User Found');
         }
 
@@ -281,7 +281,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function isBanned(): bool
     {
-        return !$this->isActive() && $this->banned === 'Y';
+        return ! $this->isActive() && $this->banned === 'Y';
     }
 
     /**
@@ -308,10 +308,10 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function currentCompanyId(): int
     {
-        if (!app()->bound(CompaniesBranches::class)) {
+        if (! app()->bound(CompaniesBranches::class)) {
             $currentCompanyId = $this->get(Companies::cacheKey());
         } else {
-            $currentCompanyId = app(CompaniesBranches::class)->getCompany()->first()->getId();
+            $currentCompanyId = app(CompaniesBranches::class)->company()->first()->getId();
         }
 
         return $currentCompanyId ? (int) $currentCompanyId : $this->default_company;
@@ -322,10 +322,10 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function currentBranchId(): int
     {
-        if (!app()->bound(CompaniesBranches::class)) {
+        if (! app()->bound(CompaniesBranches::class)) {
             return (int) $this->get($this->getCurrentCompany()->branchCacheKey());
         } else {
-            return app(CompaniesBranches::class)->getCompany()->first()->getId();
+            return app(CompaniesBranches::class)->company()->first()->getId();
         }
     }
 
@@ -337,7 +337,11 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         try {
             return Companies::getById($this->currentCompanyId());
         } catch (EloquentModelNotFoundException $e) {
-            throw new InternalServerErrorException('No default company app configured for this user on the current app '.app(Apps::class)->name.', please contact support');
+            throw new InternalServerErrorException(
+                'No default company app configured for this user on 
+                the current app '.app(Apps::class)->name.', 
+                please contact support'
+            );
         }
     }
 
@@ -349,7 +353,11 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         try {
             return CompaniesBranches::getById($this->currentBranchId());
         } catch (EloquentModelNotFoundException $e) {
-            throw new InternalServerErrorException('No default company app configured for this user on the current app '.app(Apps::class)->name.', please contact support');
+            throw new InternalServerErrorException(
+                'No default company app configured 
+                for this user on the current app '.app(Apps::class)->name.', 
+                please contact support'
+            );
         }
     }
 
