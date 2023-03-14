@@ -1,12 +1,14 @@
 <?php
 
 declare(strict_types=1);
+
 namespace Kanvas\Traits;
 
 use Kanvas\Auth\Jwt;
 use Lcobucci\JWT\Token;
 use Lcobucci\JWT\Validation\Constraint\IssuedBy;
 use Lcobucci\JWT\Validation\Constraint\SignedWith;
+
 use function time;
 
 trait TokenTrait
