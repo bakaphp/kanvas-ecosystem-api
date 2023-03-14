@@ -5,6 +5,7 @@
  * you can change this configuration by importing this file.
  */
 $config = new PhpCsFixer\Config();
+
 return $config
     ->setRules([
         '@PSR12' => true,
@@ -27,7 +28,7 @@ return $config
         'phpdoc_var_without_name' => true,
         'class_attributes_separation' => [
             'elements' => [
-                'method' => 'one'
+                'method' => 'one',
             ],
         ],
         'method_argument_space' => [
