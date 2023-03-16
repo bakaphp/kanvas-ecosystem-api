@@ -11,10 +11,6 @@ class UploadMutation
 {
     /**
      * Upload a file, store it on the server and return the path.
-     *
-     * @param mixed $rootValue
-     * @param array $request
-     * @return Filesystem
      */
     public function singleFile(mixed $rootValue, array $request): Filesystem
     {
@@ -28,10 +24,6 @@ class UploadMutation
 
     /**
      * Multiple Upload a file, store it on the server and return the path.
-     *
-     * @param mixed $rootValue
-     * @param array $request
-     * @return array
      */
     public function multiFile(mixed $rootValue, array $request): array
     {

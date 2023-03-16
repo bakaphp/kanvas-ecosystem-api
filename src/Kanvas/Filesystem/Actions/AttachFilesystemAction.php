@@ -23,11 +23,6 @@ class AttachFilesystemAction
 
     /**
      * Attached a filesystem to a Eloquent model.
-     *
-     * @param string $fieldName
-     * @param int|null $id
-     *
-     * @return FilesystemEntities
      */
     public function execute(string $fieldName, ?int $id = null): FilesystemEntities
     {
