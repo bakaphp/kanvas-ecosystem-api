@@ -7,9 +7,8 @@ namespace App\GraphQL\Ecosystem\Queries\Filesystem;
 use Baka\Enums\StateEnums;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
-use Kanvas\CustomFields\DataTransferObject\CustomFieldInput;
-use Kanvas\CustomFields\Repositories\CustomFieldsRepository;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
@@ -18,13 +17,6 @@ class FilesystemQueries
 {
     /**
      * Get all file from a entity tied to the graph
-     *
-     * @param  mixed $root
-     * @param  array $args
-     * @param  GraphQLContext $context
-     * @param  ResolveInfo $resolveInfo
-     *
-     * @return Builder
      */
     public function getFileByGraphType(
         mixed $root,
@@ -55,13 +47,6 @@ class FilesystemQueries
 
     /**
      * Get all file from a specific system module entity
-     *
-     * @param  mixed $root
-     * @param  array $args
-     * @param  GraphQLContext $context
-     * @param  ResolveInfo $resolveInfo
-     *
-     * @return Builder
      */
     public function getFilesFromSystemModuleEntity(
         mixed $root,
@@ -72,10 +57,10 @@ class FilesystemQueries
         $args['entity']['name'] = 'filesystem';
         $args['entity']['data'] = [];
 
-        $customFieldInput = CustomFieldInput::viaRequest($args['entity']);
+        $entityInput = SystemModuleEntityInput::viaRequest($args['entity']);
 
-        $entity = CustomFieldsRepository::getEntityFromInput($customFieldInput, auth()->user());
-        $systemModule = SystemModules::where('uuid', $customFieldInput->systemModuleUuid)
+        $entity = SystemModulesRepository::getEntityFromInput($entityInput, auth()->user());
+        $systemModule = SystemModules::where('uuid', $entityInput->systemModuleUuid)
                                 ->fromApp()
                                 ->notDeleted()
                                 ->firstOrFail();

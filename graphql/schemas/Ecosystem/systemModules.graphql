@@ -10,7 +10,9 @@ type SystemModule {
     show: Int!
 }
 
-input SystemModuleEntityInput{
+input SystemModuleEntityInput {
+    name: String
+    data: Mixed
     system_module_uuid: String!
     entity_id: String!
 }
