@@ -62,11 +62,7 @@ class FilesystemQueries
 
         $entity = SystemModulesRepository::getEntityFromInput($entityInput, auth()->user());
 
-        $systemModuleSearchField = Uuid::isValid($entityInput->systemModuleUuid) ? 'uuid' : 'model_name';
-        $systemModule = SystemModules::where($systemModuleSearchField, $entityInput->systemModuleUuid)
-                                ->fromApp()
-                                ->notDeleted()
-                                ->firstOrFail();
+        $systemModule = SystemModulesRepository::getByUuidOrModelName($entityInput->systemModuleUuid);
 
         /**
          * @var Builder

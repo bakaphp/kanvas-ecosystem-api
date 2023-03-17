@@ -62,11 +62,7 @@ class SystemModulesRepository
      */
     public static function getEntityFromInput(SystemModuleInputInterface $entityInput, Users $user): Model
     {
-        $systemModuleSearchField = Uuid::isValid($entityInput->systemModuleUuid) ? 'uuid' : 'model_name';
-        $systemModule = SystemModules::where($systemModuleSearchField, $entityInput->systemModuleUuid)
-                        ->fromApp()
-                        ->notDeleted()
-                        ->firstOrFail();
+        $systemModule = self::getByUuidOrModelName($entityInput->systemModuleUuid);
 
         /**
         * @var BaseModel
@@ -122,5 +118,21 @@ class SystemModulesRepository
         }
 
         return $entity;
+    }
+
+    /**
+     * Get System Module by its uuid or model_name.
+     */
+    public static function getByUuidOrModelName(string $uuidOrModelName): SystemModules
+    {
+        $systemModuleSearchField = Uuid::isValid($uuidOrModelName) ? 'uuid' : 'model_name';
+
+        /**
+         * @var SystemModules
+         */
+        return SystemModules::where($systemModuleSearchField, $uuidOrModelName)
+            ->fromApp()
+            ->notDeleted()
+            ->firstOrFail();
     }
 }
