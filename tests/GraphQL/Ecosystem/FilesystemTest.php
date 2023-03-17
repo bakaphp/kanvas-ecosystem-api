@@ -130,12 +130,42 @@ class FilesystemTest extends TestCase
                     'filesystem_uuid' => $filesystemUuid,
                     'field_name' => 'avatar',
                     'system_module_uuid' => get_class(auth()->user()),
-                    'entity_id' =>  auth()->user()->uuid,
+                    'entity_id' => auth()->user()->uuid,
                 ],
             ]
         );
         $response->assertSuccessful()
         ->assertSee('attachFile');
+    }
+
+    public function testGetEntityFiles()
+    {
+        $response = $this->graphQL(
+            /** @lang GraphQL */
+            '
+            query entityFiles ($input: SystemModuleEntityInput!){
+                entityFiles(entity: $input) {
+                    data {
+                        uuid,
+                        url,
+                        name,
+                        field_name
+                    },
+                    paginatorInfo {
+                      currentPage
+                      lastPage
+                    }
+                }
+            }',
+            [
+                'input' => [
+                    'system_module_uuid' => get_class(auth()->user()),
+                    'entity_id' => auth()->user()->uuid,
+                ],
+            ]
+        );
+
+        $this->assertArrayHasKey('data', $response);
     }
 
     public function testDeAttachFile(): void
@@ -180,11 +210,11 @@ class FilesystemTest extends TestCase
                     'filesystem_uuid' => $filesystemUuid,
                     'field_name' => 'avatar',
                     'system_module_uuid' => get_class(auth()->user()),
-                    'entity_id' =>  auth()->user()->uuid,
+                    'entity_id' => auth()->user()->uuid,
                 ],
             ]
         );
-        
+
         $results = $response->assertSuccessful()->json();
 
         $response = $this->graphQL(/** @lang GraphQL */ '
@@ -200,4 +230,5 @@ class FilesystemTest extends TestCase
             ]
         );
     }
+
 }

@@ -12,6 +12,7 @@ use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
+use Ramsey\Uuid\Uuid;
 
 class FilesystemQueries
 {
@@ -60,7 +61,9 @@ class FilesystemQueries
         $entityInput = SystemModuleEntityInput::viaRequest($args['entity']);
 
         $entity = SystemModulesRepository::getEntityFromInput($entityInput, auth()->user());
-        $systemModule = SystemModules::where('uuid', $entityInput->systemModuleUuid)
+
+        $systemModuleSearchField = Uuid::isValid($entityInput->systemModuleUuid) ? 'uuid' : 'model_name';
+        $systemModule = SystemModules::where($systemModuleSearchField, $entityInput->systemModuleUuid)
                                 ->fromApp()
                                 ->notDeleted()
                                 ->firstOrFail();
