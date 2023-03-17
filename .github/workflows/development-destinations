@@ -6,3 +6,4 @@ aws_region=us-east-1
 service_loadbalancer=graphapi
 cluster_name=development-kanvas-cluster
 api_image=617498580299.dkr.ecr.us-east-1.amazonaws.com/kanvas-api
+kanvas_api_domain=graphapidev2.kanvas.dev

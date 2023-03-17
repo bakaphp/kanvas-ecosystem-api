@@ -2,6 +2,9 @@
 # namespace:
 # apiImage:
 
+cert:
+  apiDomain: graphapidev2.kanvas.dev
+
 services:
   loadBalancer:
     name: graph

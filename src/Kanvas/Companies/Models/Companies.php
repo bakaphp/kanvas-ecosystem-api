@@ -8,6 +8,8 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Traits\HashTableTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
@@ -65,18 +67,14 @@ class Companies extends BaseModel implements CompanyInterface
 
     /**
      * CompaniesBranches relationship.
-     *
-     * @return hasMany
      */
-    public function branches()
+    public function branches(): HasMany
     {
         return $this->hasMany(CompaniesBranches::class, 'companies_id');
     }
 
     /**
      * Default Branch.
-     *
-     * @return HasOne
      */
     public function defaultBranch(): HasOne
     {
@@ -88,10 +86,8 @@ class Companies extends BaseModel implements CompanyInterface
 
     /**
      * CompaniesBranches relationship.
-     *
-     * @return hasOne
      */
-    public function branch()
+    public function branch(): HasOne
     {
         return $this->hasOne(CompaniesBranches::class, 'companies_id');
     }
@@ -101,15 +97,13 @@ class Companies extends BaseModel implements CompanyInterface
      *
      * @return hasMany
      */
-    public function groups()
+    public function groups(): BelongsToMany
     {
         return $this->belongsToMany(CompaniesGroups::class, 'companies_associations');
     }
 
     /**
      * Users relationship.
-     *
-     * @return Users
      */
     public function user(): BelongsTo
     {
@@ -118,8 +112,6 @@ class Companies extends BaseModel implements CompanyInterface
 
     /**
      * SystemModules relationship.
-     *
-     * @return SystemModules
      */
     public function systemModule(): BelongsTo
     {
@@ -128,8 +120,6 @@ class Companies extends BaseModel implements CompanyInterface
 
     /**
      * Currencies relationship.
-     *
-     * @return Currencies
      */
     public function currency(): BelongsTo
     {
@@ -140,8 +130,6 @@ class Companies extends BaseModel implements CompanyInterface
      * Get the default company key for the current app
      * this is use to store in redis the default company id for the current
      * user in session every time they switch between companies on the diff apps.
-     *
-     * @return string
      */
     public static function cacheKey(): string
     {
@@ -152,8 +140,6 @@ class Companies extends BaseModel implements CompanyInterface
      * Get the default company key for the current app
      * this is use to store in redis the default company id for the current
      * user in session every time they switch between companies on the diff apps.
-     *
-     * @return string
      */
     public function branchCacheKey(): string
     {
@@ -162,14 +148,6 @@ class Companies extends BaseModel implements CompanyInterface
 
     /**
      * Associate user to this company.
-     *
-     * @param Users $user
-     * @param int $isActive
-     * @param CompaniesBranches $branch
-     * @param int|null $userRoleId
-     * @param string|null $companyUserIdentifier
-     *
-     * @return UsersAssociatedCompanies
      */
     public function associateUser(
         Users $user,
@@ -194,15 +172,6 @@ class Companies extends BaseModel implements CompanyInterface
 
     /**
      * Associate user to the app.
-     *
-     * @param Users $user
-     * @param Apps $app
-     * @param int $isActive
-     * @param int|null $userRoleId
-     * @param string|null $password
-     * @param string|null $companyUserIdentifier
-     *
-     * @return UsersAssociatedApps
      */
     public function associateUserApp(
         Users $user,
@@ -229,10 +198,6 @@ class Companies extends BaseModel implements CompanyInterface
 
     /**
      * Is this user the owner of this company?
-     *
-     * @param Users $user
-     *
-     * @return bool
      */
     public function isOwner(Users $user): bool
     {
@@ -241,10 +206,6 @@ class Companies extends BaseModel implements CompanyInterface
 
     /**
      * Not deleted scope.
-     *
-     * @param Builder $query
-     *
-     * @return Builder
      */
     public function scopeUserAssociated(Builder $query): Builder
     {

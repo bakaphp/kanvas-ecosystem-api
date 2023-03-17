@@ -71,5 +71,6 @@ return [
     'links' => [
         public_path('storage') => storage_path('app/public'),
     ],
-
+    // Kanvas keys
+    'cdn_url' => env('FILESYSTEM_CDN_URL')
 ];

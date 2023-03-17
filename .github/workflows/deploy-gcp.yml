@@ -1,11 +1,11 @@
 name: Deploy To GCP
 
 on:
+  push:
+    branches:
+      - 'development'
+
   workflow_dispatch:
-    inputs:
-      environment:
-        type: environment
-        description: Select the environment
 
 jobs:
   Build:
@@ -90,6 +90,7 @@ jobs:
             --create-namespace \
             --set apiImage=${{ secrets.GCP_API_IMAGE }}:${{ github.run_number }} \
             --set services.loadBalancer.name=graphapidev2 \
-            --set services.loadBalancer.lbSSLCert=${{ secrets.LB_SSLCERT }}
+            --set services.loadBalancer.lbSSLCert=${{ secrets.LB_SSLCERT }} \
+            --set cert.apiDomain=${{ secrets.GCP_KANVAS_API_DOMAIN }}
 
   
