@@ -10,7 +10,7 @@ use Tests\TestCase;
 
 class AppsCrudTest extends TestCase
 {
-    public function test_save()
+    public function testCreate()
     {
         $input = [
             'name' => fake()->name,
@@ -53,7 +53,7 @@ class AppsCrudTest extends TestCase
         ]);
     }
 
-    public function test_get()
+    public function testGet()
     {
         $response = $this->graphQL(
             /** @lang GraphQL */
@@ -84,7 +84,7 @@ class AppsCrudTest extends TestCase
      *
      * @return void
      */
-    public function test_updated()
+    public function testUpdate()
     {
         $apps = Apps::orderBy('id', 'desc')->first();
         $user = auth()->user();

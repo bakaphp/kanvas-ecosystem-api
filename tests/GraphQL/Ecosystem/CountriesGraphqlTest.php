@@ -15,7 +15,7 @@ class CountriesGraphqlTest extends TestCase
      *
      * @return void
      */
-    public function test_save(): void
+    public function testCreate(): void
     {
         $name = fake()->name;
         $stateName = fake()->name;
@@ -66,7 +66,7 @@ class CountriesGraphqlTest extends TestCase
      *
      * @return void
      */
-    public function test_get(): void
+    public function testGet(): void
     {
         $response = $this->graphQL(/** @lang GraphQL */ '
             query{
@@ -99,7 +99,7 @@ class CountriesGraphqlTest extends TestCase
      *
      * @return void
      */
-    public function test_update(): void
+    public function testUpdate(): void
     {
         $country = Countries::orderBy('id', 'desc')->first();
         $name = fake()->name;
@@ -134,7 +134,7 @@ class CountriesGraphqlTest extends TestCase
      *
      * @return void
      */
-    public function test_where()
+    public function testFilter()
     {
         $country = Countries::orderBy('id', 'desc')->first();
         $response = $this->graphQL(/** @lang GraphQL */ '
@@ -178,7 +178,7 @@ class CountriesGraphqlTest extends TestCase
         ]);
     }
 
-    public function test_has_state()
+    public function testHasState()
     {
         $country = Countries::orderBy('id', 'desc')->first();
         $state = States::first();
