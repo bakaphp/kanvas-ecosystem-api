@@ -13,6 +13,7 @@ use Kanvas\SystemModules\Contracts\SystemModuleInputInterface;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
+use Ramsey\Uuid\Uuid;
 
 class SystemModulesRepository
 {
@@ -61,7 +62,8 @@ class SystemModulesRepository
      */
     public static function getEntityFromInput(SystemModuleInputInterface $entityInput, Users $user): Model
     {
-        $systemModule = SystemModules::where('uuid', $entityInput->systemModuleUuid)
+        $systemModuleSearchField = Uuid::isValid($entityInput->systemModuleUuid) ? 'uuid' : 'model_name';
+        $systemModule = SystemModules::where($systemModuleSearchField, $entityInput->systemModuleUuid)
                         ->fromApp()
                         ->notDeleted()
                         ->firstOrFail();
