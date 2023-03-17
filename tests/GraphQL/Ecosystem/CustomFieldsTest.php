@@ -37,7 +37,8 @@ class CustomFieldsTest extends TestCase
         $key = fake()->word;
         $value = fake()->numberBetween(1, 100);
 
-        $results = $this->graphQL( /** @lang GraphQL */'
+        $results = $this->graphQL( /** @lang GraphQL */
+            '
             mutation ($input: CustomFieldInput!) {
                 setCustomField(input: $input)
             }',
@@ -53,7 +54,8 @@ class CustomFieldsTest extends TestCase
         ],
         )->json();
 
-        $this->graphQL( /** @lang GraphQL */'
+        $this->graphQL( /** @lang GraphQL */
+            '
             mutation ($input: CustomFieldInput!) {
                 getCustomField(input: $input)
             }',
