@@ -14,10 +14,7 @@ trait KanvasScopesTrait
     /**
      * scopeCompany.
      *
-     * @param Builder $query
      * @param mixed $company
-     *
-     * @return Builder
      */
     public function scopeFromCompany(Builder $query, mixed $company = null): Builder
     {
@@ -29,10 +26,7 @@ trait KanvasScopesTrait
     /**
      * scopeApp.
      *
-     * @param Builder $query
      * @param mixed $app
-     *
-     * @return Builder
      */
     public function scopeFromApp(Builder $query, mixed $app = null): Builder
     {
@@ -43,10 +37,6 @@ trait KanvasScopesTrait
 
     /**
      * Not deleted scope.
-     *
-     * @param Builder $query
-     *
-     * @return Builder
      */
     public function scopeNotDeleted(Builder $query): Builder
     {
@@ -55,10 +45,6 @@ trait KanvasScopesTrait
 
     /**
      * Is public scope.
-     *
-     * @param Builder $query
-     *
-     * @return Builder
      */
     public function scopeIsPublic(Builder $query): Builder
     {
