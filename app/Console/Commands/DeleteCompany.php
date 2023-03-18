@@ -34,7 +34,6 @@ class DeleteCompany extends Command
     {
         $companyId = $this->ask("What's the companyId?");
 
-
         try {
             $company = Companies::getById($companyId);
         } catch (ModelNotFoundException $e) {
