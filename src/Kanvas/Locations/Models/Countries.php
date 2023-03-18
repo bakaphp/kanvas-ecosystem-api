@@ -19,7 +19,7 @@ use Kanvas\Users\Models\Users;
 class Countries extends BaseModel
 {
     use Cachable;
-    
+
     /**
      * The table associated with the model.
      *
