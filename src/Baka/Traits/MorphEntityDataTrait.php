@@ -9,13 +9,10 @@ use Illuminate\Database\Eloquent\Model;
 trait MorphEntityDataTrait
 {
     /**
-     * Kanvas morph tables don't follow laravel convention for naming.
+     * Kanvas morph tables don't follow laravel naming convention.
      * So we add this method to retrieve the entity data.
      *
-     * @todo in future version we should change the naming convention for the tables
-     * to follow laravel convention.
-     *
-     * @return Model|null
+     * @todo in future version will correct this
      */
     public function entityData(): ?Model
     {

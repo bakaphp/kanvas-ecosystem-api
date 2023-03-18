@@ -15,12 +15,6 @@ class FilesystemEntitiesRepository
 {
     /**
      * Get a filesystem entity.
-     *
-     * @param int $id
-     * @param Model $entity
-     * @param bool $isDeleted
-     *
-     * @return FilesystemEntities
      */
     public static function getByIdAdnEntity(int $id, Model $entity, bool $isDeleted = false): FilesystemEntities
     {
@@ -46,8 +40,6 @@ class FilesystemEntitiesRepository
     /**
      * Get files for the given entity.
      *
-     * @param Model $entity
-     *
      * @return Collection<FilesystemEntities>
      */
     public static function getFilesByEntity(Model $entity): Collection
@@ -64,10 +56,6 @@ class FilesystemEntitiesRepository
 
     /**
      * Given the entity delete all related files.
-     *
-     * @param Model $entity
-     *
-     * @return int
      */
     public static function deleteAllFilesFromEntity(Model $entity): int
     {
