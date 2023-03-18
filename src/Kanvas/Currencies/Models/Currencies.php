@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Currencies\Models;
 
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Currencies\Factories\CurrenciesFactory;
 use Kanvas\Models\BaseModel;
@@ -18,6 +19,8 @@ use Kanvas\Models\BaseModel;
  */
 class Currencies extends BaseModel
 {
+    use Cachable;
+
     /**
      * The table associated with the model.
      *
