@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Models;
 
 use Baka\Traits\UuidTrait;
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -31,6 +32,7 @@ use Kanvas\Users\Models\Users;
 class Filesystem extends BaseModel
 {
     use UuidTrait;
+    use Cachable;
 
     /**
      * The table associated with the model.

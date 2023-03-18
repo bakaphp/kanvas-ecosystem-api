@@ -31,9 +31,9 @@ extend type Query {
         hasStates: _ @whereHasConditions(columns: ["name"])
         hasCities: _ @whereHasConditions(columns: ["name"])
     ): [Country]
-        @paginate(model: "\\Kanvas\\Locations\\Countries\\Models\\Countries")
+        @paginate(model: "\\Kanvas\\Locations\\Models\\Countries")
     country(id: Int! @eq): Country
-        @find(model: "\\Kanvas\\Locations\\Countries\\Models\\Countries")
+        @find(model: "\\Kanvas\\Locations\\Models\\Countries")
 }
 
 input CreateCountryInput {
@@ -69,7 +69,7 @@ extend type Mutation {
         code: String!
         flag: String
     ): Country
-        @update(model: "\\Kanvas\\Locations\\Countries\\Models\\Countries")
+        @update(model: "\\Kanvas\\Locations\\Models\\Countries")
     deleteCountry(id: Int!): Country!
-        @delete(model: "\\Kanvas\\Locations\\Countries\\Models\\Countries")
+        @delete(model: "\\Kanvas\\Locations\\Models\\Countries")
 }

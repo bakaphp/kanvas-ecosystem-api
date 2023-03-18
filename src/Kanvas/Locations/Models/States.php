@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Locations\States\Models;
+namespace Kanvas\Locations\Models;
 
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Kanvas\Locations\Cities\Models\Cities;
-use Kanvas\Locations\Countries\Models\Countries;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 
@@ -21,6 +20,8 @@ use Kanvas\Users\Models\Users;
 
 class States extends BaseModel
 {
+    use Cachable;
+
     /**
      * The table associated with the model.
      *
@@ -31,7 +32,7 @@ class States extends BaseModel
     protected $fillable = [
         'countries_id',
         'name',
-        'code'
+        'code',
     ];
 
     /**
@@ -46,8 +47,6 @@ class States extends BaseModel
 
     /**
      * Countries relationship.
-     *
-     * @return Countries
      */
     public function country(): BelongsTo
     {
@@ -56,8 +55,6 @@ class States extends BaseModel
 
     /**
      * Users relationship.
-     *
-     * @return HasMany
      */
     public function users(): HasMany
     {

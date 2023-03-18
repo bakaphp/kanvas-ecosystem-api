@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem;
 
-use Kanvas\Locations\Countries\Models\Countries;
-use Kanvas\Locations\States\Models\States;
+use Kanvas\Locations\Models\Countries;
+use Kanvas\Locations\Models\States;
 use Tests\TestCase;
 
 class CountriesGraphqlTest extends TestCase
