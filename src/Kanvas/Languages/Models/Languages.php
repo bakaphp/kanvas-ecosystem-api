@@ -9,17 +9,16 @@ use Kanvas\Locations\Models\Cities;
 use Kanvas\Models\BaseModel;
 
 /**
- * Cities Class.
+ * Languages Class.
  *
  * @property string $name
  * @property string $title
  * @property string $order
  */
-
 class Languages extends BaseModel
 {
     use Cachable;
-    
+
     /**
      * The table associated with the model.
      *

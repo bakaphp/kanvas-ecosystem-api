@@ -22,7 +22,7 @@ use Kanvas\Users\Models\Users;
 class Cities extends BaseModel
 {
     use Cachable;
-    
+
     /**
      * The table associated with the model.
      *

@@ -21,7 +21,7 @@ use Kanvas\Users\Models\Users;
 class States extends BaseModel
 {
     use Cachable;
-    
+
     /**
      * The table associated with the model.
      *

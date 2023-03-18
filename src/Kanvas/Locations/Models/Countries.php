@@ -19,6 +19,7 @@ use Kanvas\Users\Models\Users;
 class Countries extends BaseModel
 {
     use Cachable;
+    
     /**
      * The table associated with the model.
      *
@@ -29,7 +30,7 @@ class Countries extends BaseModel
     protected $fillable = [
         'name',
         'code',
-        'flag'
+        'flag',
     ];
 
     /**
@@ -54,8 +55,6 @@ class Countries extends BaseModel
 
     /**
      * Users relationship.
-     *
-     * @return HasMany
      */
     public function users(): HasMany
     {
