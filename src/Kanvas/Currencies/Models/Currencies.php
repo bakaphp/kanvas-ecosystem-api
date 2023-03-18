@@ -41,7 +41,7 @@ class Currencies extends BaseModel
     /**
      * Companies relationship.
      *
-     * @return hasMany
+     * @return hasMany[j[[j[]]]]
      */
     public function companies()
     {
