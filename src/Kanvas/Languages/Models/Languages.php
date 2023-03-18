@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Languages\Models;
 
-use Kanvas\Locations\Cities\Models\Cities;
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
+use Kanvas\Locations\Models\Cities;
 use Kanvas\Models\BaseModel;
 
 /**
@@ -17,6 +18,8 @@ use Kanvas\Models\BaseModel;
 
 class Languages extends BaseModel
 {
+    use Cachable;
+    
     /**
      * The table associated with the model.
      *

@@ -2,11 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Locations\Countries\Models;
+namespace Kanvas\Locations\Models;
 
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Kanvas\Locations\Cities\Models\Cities;
-use Kanvas\Locations\States\Models\States;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 
@@ -17,9 +16,9 @@ use Kanvas\Users\Models\Users;
  * @property string $code
  * @property string $flag
  */
-
 class Countries extends BaseModel
 {
+    use Cachable;
     /**
      * The table associated with the model.
      *

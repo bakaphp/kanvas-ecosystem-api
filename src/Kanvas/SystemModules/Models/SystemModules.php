@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Models\BaseModel;
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 
 /**
  * SystemModules Model.
@@ -33,6 +34,7 @@ use Kanvas\Models\BaseModel;
 class SystemModules extends BaseModel
 {
     use SlugTrait;
+    use Cachable;
 
     /**
      * The table associated with the model.
