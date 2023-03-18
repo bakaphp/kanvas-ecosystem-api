@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Languages\Models;
 
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
-use Kanvas\Locations\Models\Cities;
 use Kanvas\Models\BaseModel;
 
 /**
