@@ -17,7 +17,7 @@ use Kanvas\Models\BaseModel;
 class NotificationChannel extends BaseModel
 {
     use Cachable;
-    
+
     public $table = 'notification_channels';
 
     /**

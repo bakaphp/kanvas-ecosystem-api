@@ -27,7 +27,7 @@ use Kanvas\SystemModules\Models\SystemModules;
 class NotificationTypes extends BaseModel
 {
     use Cachable;
-    
+
     public $table = 'notification_types';
 
     /**

@@ -75,6 +75,21 @@ extend type Query {
             model: "Kanvas\\Notifications\\Models\\NotificationTypes"
             scopes: ["fromApp", "notDeleted"]
         )
+    notificationChannels(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "slug"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id"])
+    ): [NotificationChannel]!
+        @paginate(
+            model: "Kanvas\\Notifications\\Models\\NotificationChannel"
+            scopes: ["notDeleted"]
+        )
 }
 
 extend type Mutation {

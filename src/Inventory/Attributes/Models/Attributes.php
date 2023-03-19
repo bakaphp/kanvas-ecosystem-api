@@ -23,7 +23,7 @@ use Kanvas\Inventory\Models\BaseModel;
 class Attributes extends BaseModel
 {
     use UuidTrait;
-    
+
     public $table = 'attributes';
     public $guarded = [];
 
