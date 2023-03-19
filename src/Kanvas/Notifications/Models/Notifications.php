@@ -12,6 +12,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
+use Throwable;
 
 /**
  * Notifications Model.
@@ -99,6 +100,25 @@ class Notifications extends BaseModel
         return $query->where('users_id', auth()->user()->id)
                 ->where('is_deleted', StateEnums::NO->getValue())
                 ->where('apps_id', app(Apps::class)->id);
+    }
+
+    /**
+     * Get the entity related to the notification.
+     */
+    public function getEntityData(): mixed
+    {
+        try {
+            $systemModule = $this->systemModule()->firstOrFail();
+            $modelName = $systemModule->model_name;
+
+            /**
+             * @todo cache
+             */
+            return $modelName::getById($this->entity_id);
+        } catch (Throwable $e) {
+        }
+
+        return null;
     }
 
     /**

@@ -6,6 +6,7 @@ type Notification {
     systemModule: SystemModule!
     types: NotificationType!
     entity_id: String!
+    entity(fields: JSON): Mixed  @method(name: "getEntityData")
     content: String
     read: Int!
     content_group: String
@@ -28,7 +29,7 @@ type NotificationType {
     updated_at: String
 }
 
-type NotificationChannel{
+type NotificationChannel {
     id: Int!
     name: String!
     slug: String!

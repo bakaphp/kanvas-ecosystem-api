@@ -9,7 +9,7 @@ use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
 
 /**
- * Notifications Model.
+ * NotificationTypes Model.
  *
  * @property int $apps_id
  * @property int $system_modules_id
@@ -35,7 +35,7 @@ class NotificationTypes extends BaseModel
         return self::where('name', $name)->firstOrFail();
     }
 
-    public function systemModules(): BelongsTo
+    public function systemModule(): BelongsTo
     {
         return $this->belongsTo(SystemModules::class, 'system_modules_id');
     }

@@ -50,7 +50,7 @@ class Variants extends BaseModel
       */
     public function searchableAs(): string
     {
-        return (!isset($this->companies_id) || $this->companies_id === null) && self::$overWriteSearchIndex !== null
+        return (! isset($this->companies_id) || $this->companies_id === null) && self::$overWriteSearchIndex !== null
             ? self::$overWriteSearchIndex
             : 'products_variants_company_' . (string) $this->companies_id;
     }
@@ -65,8 +65,6 @@ class Variants extends BaseModel
 
     /**
      * Get the user that owns the Variants.
-     *
-     * @return BelongsTo
      */
     public function products(): BelongsTo
     {
@@ -80,8 +78,6 @@ class Variants extends BaseModel
 
     /**
      * The warehouses that belong to the Variants.
-     *
-     * @return BelongsToMany
      */
     public function warehouses(): BelongsToMany
     {
@@ -111,8 +107,6 @@ class Variants extends BaseModel
 
     /**
      * attributes.
-     *
-     * @return BelongsToMany
      */
     public function attributes(): BelongsToMany
     {
@@ -127,8 +121,6 @@ class Variants extends BaseModel
 
     /**
      * channels.
-     *
-     * @return BelongsToMany
      */
     public function channels(): BelongsToMany
     {

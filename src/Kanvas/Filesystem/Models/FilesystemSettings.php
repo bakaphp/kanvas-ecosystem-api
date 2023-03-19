@@ -32,8 +32,6 @@ class FilesystemSettings extends BaseModel
 
     /**
      * Filesystem relationship.
-     *
-     * @return Filesystem
      */
     public function filesystem(): BelongsTo
     {
