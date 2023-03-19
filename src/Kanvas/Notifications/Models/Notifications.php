@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Notifications\Models;
 
 use Baka\Enums\StateEnums;
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
@@ -25,11 +26,12 @@ use Throwable;
  * @property int $notification_types_id
  * @property int $entity_id
  * @property string $content
+ * @property ?string $entity_content = null
+ * @property string content_group
  * @property int $read
  * @property string $created_at
  * @property string $updated_at
  * @property string $is_deleted
- * @property string content_group
  */
 class Notifications extends BaseModel
 {
@@ -107,6 +109,10 @@ class Notifications extends BaseModel
      */
     public function getEntityData(): mixed
     {
+        if ($this->entity_content !== null && Str::isJson($this->entity_content)) {
+            return $this->entity_content;
+        }
+
         try {
             $systemModule = $this->systemModule()->firstOrFail();
             $modelName = $systemModule->model_name;
