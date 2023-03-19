@@ -6,6 +6,7 @@ namespace Kanvas\Inventory\Variants\Models;
 
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Inventory\Attributes\Models\Attributes;
@@ -40,6 +41,7 @@ class Variants extends BaseModel
     use UuidTrait;
     use Searchable;
     use SocialInteractionsTrait;
+    use Cachable;
 
     protected $table = 'products_variants';
     protected $guarded = [];

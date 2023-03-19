@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Models;
 
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Kanvas\Models\BaseModel;
 
 /**
@@ -15,6 +16,8 @@ use Kanvas\Models\BaseModel;
  */
 class NotificationChannel extends BaseModel
 {
+    use Cachable;
+    
     public $table = 'notification_channels';
 
     /**

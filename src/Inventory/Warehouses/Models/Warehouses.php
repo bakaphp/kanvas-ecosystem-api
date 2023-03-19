@@ -39,8 +39,6 @@ class Warehouses extends BaseModel
 
     /**
      * Get the companies that owns the Warehouses.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function companies(): BelongsTo
     {
@@ -49,7 +47,6 @@ class Warehouses extends BaseModel
 
     /**
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function apps(): BelongsTo
     {
@@ -58,7 +55,6 @@ class Warehouses extends BaseModel
 
     /**
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function regions(): BelongsTo
     {
@@ -79,8 +75,6 @@ class Warehouses extends BaseModel
 
     /**
      * price.
-     *
-     * @return Attribute
      */
     public function price(): Attribute
     {
@@ -91,8 +85,6 @@ class Warehouses extends BaseModel
 
     /**
      * sku.
-     *
-     * @return Attribute
      */
     public function sku(): Attribute
     {

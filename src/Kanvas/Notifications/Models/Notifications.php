@@ -6,6 +6,7 @@ namespace Kanvas\Notifications\Models;
 
 use Baka\Enums\StateEnums;
 use Baka\Support\Str;
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
@@ -36,6 +37,7 @@ use Throwable;
 class Notifications extends BaseModel
 {
     public $table = 'notifications';
+    use Cachable;
 
     /**
      * The attributes that aren't mass assignable.
