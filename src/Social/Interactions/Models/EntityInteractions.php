@@ -36,8 +36,6 @@ class EntityInteractions extends BaseModel
 
     /**
      * Allow to access the interacted entity data.
-     *
-     * @return Model|null
      */
     public function interactedEntityData(): ?Model
     {
@@ -50,8 +48,6 @@ class EntityInteractions extends BaseModel
 
     /**
      * Get the grouped interactions for this current entity.
-     *
-     * @return array
      */
     public function getGroupInteractions(): array
     {

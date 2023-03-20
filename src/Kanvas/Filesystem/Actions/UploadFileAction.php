@@ -18,10 +18,6 @@ class UploadFileAction
 
     /**
      * Upload.
-     *
-     * @param UploadedFile $file
-     *
-     * @return Filesystem
      */
     public function execute(UploadedFile $file): Filesystem
     {

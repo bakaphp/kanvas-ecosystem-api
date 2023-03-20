@@ -6,6 +6,7 @@ namespace Kanvas\Inventory\Variants\Models;
 
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Inventory\Attributes\Models\Attributes;
@@ -40,6 +41,7 @@ class Variants extends BaseModel
     use UuidTrait;
     use Searchable;
     use SocialInteractionsTrait;
+    use Cachable;
 
     protected $table = 'products_variants';
     protected $guarded = [];
@@ -50,7 +52,7 @@ class Variants extends BaseModel
       */
     public function searchableAs(): string
     {
-        return (!isset($this->companies_id) || $this->companies_id === null) && self::$overWriteSearchIndex !== null
+        return (! isset($this->companies_id) || $this->companies_id === null) && self::$overWriteSearchIndex !== null
             ? self::$overWriteSearchIndex
             : 'products_variants_company_' . (string) $this->companies_id;
     }
@@ -65,8 +67,6 @@ class Variants extends BaseModel
 
     /**
      * Get the user that owns the Variants.
-     *
-     * @return BelongsTo
      */
     public function products(): BelongsTo
     {
@@ -80,8 +80,6 @@ class Variants extends BaseModel
 
     /**
      * The warehouses that belong to the Variants.
-     *
-     * @return BelongsToMany
      */
     public function warehouses(): BelongsToMany
     {
@@ -111,8 +109,6 @@ class Variants extends BaseModel
 
     /**
      * attributes.
-     *
-     * @return BelongsToMany
      */
     public function attributes(): BelongsToMany
     {
@@ -127,8 +123,6 @@ class Variants extends BaseModel
 
     /**
      * channels.
-     *
-     * @return BelongsToMany
      */
     public function channels(): BelongsToMany
     {

@@ -13,7 +13,7 @@ class NotificationTest extends TestCase
      *
      * @return void
      */
-    public function test_notification()
+    public function testNotification()
     {
         $email = fake()->email;
 
@@ -37,7 +37,7 @@ class NotificationTest extends TestCase
             'data' => [
                 'email' => fake()->email,
                 'password' => 'password',
-                'password_confirmation' => 'password'
+                'password_confirmation' => 'password',
             ],
         ])->decodeResponseJson();
         $token = $response['data']['register']['token']['token'];
@@ -67,7 +67,7 @@ class NotificationTest extends TestCase
      *
      * @return void
      */
-    public function test_readAll()
+    public function testReadAll()
     {
         $email = fake()->email;
 
@@ -92,7 +92,7 @@ class NotificationTest extends TestCase
             'data' => [
                 'email' => fake()->email,
                 'password' => 'password',
-                'password_confirmation' => 'password'
+                'password_confirmation' => 'password',
             ],
         ])->decodeResponseJson();
         $token = $response['data']['register']['token']['token'];
@@ -107,7 +107,7 @@ class NotificationTest extends TestCase
         $this->assertArrayHasKey('data', $response);
         $response->assertJson([
             'data' => [
-                'readAllNotifications' => true
+                'readAllNotifications' => true,
             ],
         ]);
     }

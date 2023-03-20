@@ -9,6 +9,7 @@ use Baka\Enums\StateEnums;
 use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\UuidTrait;
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Auth;
@@ -41,6 +42,7 @@ use Kanvas\Users\Models\UsersAssociatedApps;
 class Apps extends BaseModel implements AppInterface
 {
     use HashTableTrait;
+    use Cachable;
 
     /**
      * The table associated with the model.

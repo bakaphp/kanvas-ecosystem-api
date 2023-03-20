@@ -6,7 +6,7 @@ namespace App\GraphQL\Ecosystem\Mutations\CustomFields;
 
 use Kanvas\CustomFields\DataTransferObject\CustomFieldInput;
 use Kanvas\CustomFields\Models\CustomFields;
-use Kanvas\CustomFields\Repositories\CustomFieldsRepository;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 class CustomFieldMutation
 {
@@ -21,7 +21,7 @@ class CustomFieldMutation
     {
         $customFieldInput = CustomFieldInput::viaRequest($request['input']);
 
-        $entity = CustomFieldsRepository::getEntityFromInput($customFieldInput, auth()->user());
+        $entity = SystemModulesRepository::getEntityFromInput($customFieldInput, auth()->user());
 
         if (method_exists($entity, 'set')) {
             $customField =  $entity->set(
@@ -46,7 +46,7 @@ class CustomFieldMutation
     {
         $customFieldInput = CustomFieldInput::viaRequest($request['input']);
 
-        $entity = CustomFieldsRepository::getEntityFromInput($customFieldInput, auth()->user());
+        $entity = SystemModulesRepository::getEntityFromInput($customFieldInput, auth()->user());
 
         if (method_exists($entity, 'get')) {
             return $entity->get(
@@ -68,7 +68,7 @@ class CustomFieldMutation
     {
         $customFieldInput = CustomFieldInput::viaRequest($request['input']);
 
-        $entity = CustomFieldsRepository::getEntityFromInput($customFieldInput, auth()->user());
+        $entity = SystemModulesRepository::getEntityFromInput($customFieldInput, auth()->user());
 
         if (method_exists($entity, 'del')) {
             return (bool) $entity->del(
