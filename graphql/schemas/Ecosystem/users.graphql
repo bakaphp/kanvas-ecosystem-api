@@ -53,6 +53,11 @@ input LoginInput {
     password: String!
 }
 
+input SocialLoginInput {
+    token: String!
+    provider: String!
+}
+
 input ForgotPasswordInput {
     email: String! @rules(apply: ["required", "email"])
 }
@@ -139,6 +144,10 @@ extend type Mutation {
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@switchCompanyBranch"
+        )
+    socialLogin(data: SocialLoginInput!): TokenResponse
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@socialLogin"
         )
 }
 

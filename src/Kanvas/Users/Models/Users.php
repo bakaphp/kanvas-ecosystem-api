@@ -241,6 +241,16 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
+     * User linked sources.
+     *
+     * @return HasMany
+     */
+    public function linkedSources(): HasMany
+    {
+        return $this->hasMany(UserLinkedSources::class, 'users_id');
+    }
+
+    /**
      * Get User's email.
      */
     public function getEmail(): string

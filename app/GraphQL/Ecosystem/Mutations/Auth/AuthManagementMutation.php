@@ -17,8 +17,11 @@ use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Users\Repositories\UsersRepository;
 use Exception;
 use Illuminate\Auth\Access\AuthorizationException;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Services\UserManagement;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
+use Laravel\Socialite\Facades\Socialite;
 
 class AuthManagementMutation
 {
@@ -185,5 +188,26 @@ class AuthManagementMutation
     {
         $action = new SwitchCompanyBranchAction(auth()->user(), $req['company_branch_id']);
         return $action->execute();
+    }
+
+    /**
+     * Login with social login
+     *
+     * @param  mixed $root
+     * @param  array $req
+     * @return array
+     */
+    public function socialLogin(mixed $root, array $req): array
+    {
+        $data = $req['data'];
+        $token = $data['token'];
+        $provider = $data['provider'];
+        // dd(app(Apps::class));
+
+        $user = Socialite::driver($provider)->userFromToken($token);
+        $loggedUser = UserManagement::socialLogin($user, $provider);
+        $tokenResponse = $loggedUser->createToken('kanvas-login')->toArray();
+
+        return $tokenResponse;
     }
 }
