@@ -17,6 +17,7 @@ final class ReadAllNotification
         try {
             $action = new ReadAllNotificationAction(auth()->user());
             $action->execute();
+
             return true;
         } catch (Exception $e) {
             return false;
