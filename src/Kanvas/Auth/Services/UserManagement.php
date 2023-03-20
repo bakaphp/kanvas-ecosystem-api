@@ -41,7 +41,6 @@ class UserManagement
         } catch (InternalServerErrorException $e) {
             throw new InternalServerErrorException($e->getMessage());
         }
-        // dd(app(Apps::class));
 
         return $this->user;
     }
@@ -59,7 +58,7 @@ class UserManagement
         $userLinkedSource = UserLinkedSources::where('source_users_id',$socialUser->id)->where('source_id',$source->id)->first();
 
         if(!$userLinkedSource) {
-            $existedUser = Users::getByEmail($socialUser->email);
+            $existedUser = Users::getByEmail($socialUser->email, false);
 
             if(!$existedUser) {
                 $userData = [
