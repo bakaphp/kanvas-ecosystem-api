@@ -120,7 +120,7 @@ extend type Mutation {
     ): Boolean!
         @guard
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagement@changePassword"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@changePassword"
         )
     forgotPassword(data: ForgotPasswordInput!): Boolean
         @field(
@@ -133,7 +133,7 @@ extend type Mutation {
     updateUser(data: UpdateUserInput!): User
         @guard
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagement@updateUser"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updateUser"
         )
     switchCompanyBranch(company_branch_id: Int!): Boolean
         @guard

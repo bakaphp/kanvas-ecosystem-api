@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-
 namespace App\GraphQL\Ecosystem\Mutations\Apps;
 
 use Kanvas\Apps\Actions\CreateAppsAction;
