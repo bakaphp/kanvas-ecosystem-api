@@ -55,7 +55,7 @@ class UserManagement
     public static function socialLogin(SocialiteUser $socialUser, string $provider): Users
     {
         $source = Sources::where('title', $provider)->firstOrFail();
-        $userLinkedSource = UserLinkedSources::where('source_users_id', $socialUser->id)->where('source_id',$source->id)->first();
+        $userLinkedSource = UserLinkedSources::where('source_users_id', $socialUser->id)->where('source_id', $source->id)->first();
 
         if (!$userLinkedSource) {
             $existedUser = Users::getByEmail($socialUser->email, false);
