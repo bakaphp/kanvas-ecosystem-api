@@ -1,7 +1,5 @@
 <?php
 
-use App\Providers\SocialiteServiceProvider;
-
 return [
 
     /*
@@ -32,22 +30,28 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
-    // 'github' => [
-    //     'client_id' => env('GITHUB_CLIENT_ID'),
-    //     'client_secret' => env('GITHUB_CLIENT_SECRET'),
-    //     'redirect' => 'http://localhost/auth/callback/github',
-    // ],
+    'github' => [
+        'client_id' => '',
+        'client_secret' => '',
+        'redirect' => '',
+    ],
 
-    'github' => SocialiteServiceProvider::getGithubSocialiteConfig(),
+    'google' => [
+        'client_id' => '',
+        'client_secret' => '',
+        'redirect' => '',
+    ],
 
-    'twitter' => SocialiteServiceProvider::getTwitterSocialiteConfig(),
-
-    'facebook' => SocialiteServiceProvider::getFacebookSocialiteConfig(),
+    'facebook' => [
+        'client_id' => '',
+        'client_secret' => '',
+        'redirect' => ''
+    ],
 
     'twitter-oauth-2' => [
-        'client_id' => env('TWITTER_CLIENT_ID'),
-        'client_secret' => env('TWITTER_CLIENT_SECRET'),
-        'redirect' => 'http://localhost/auth/callback/twitter',
+        'client_id' => '',
+        'client_secret' => '',
+        'redirect' => '',
     ],
 
 ];
