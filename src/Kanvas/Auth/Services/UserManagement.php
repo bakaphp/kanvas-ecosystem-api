@@ -55,12 +55,12 @@ class UserManagement
     public static function socialLogin(SocialiteUser $socialUser, string $provider): Users
     {
         $source = Sources::where('title', $provider)->firstOrFail();
-        $userLinkedSource = UserLinkedSources::where('source_users_id',$socialUser->id)->where('source_id',$source->id)->first();
+        $userLinkedSource = UserLinkedSources::where('source_users_id', $socialUser->id)->where('source_id',$source->id)->first();
 
-        if(!$userLinkedSource) {
+        if (!$userLinkedSource) {
             $existedUser = Users::getByEmail($socialUser->email, false);
 
-            if(!$existedUser) {
+            if (!$existedUser) {
                 $userData = [
                     'firstname' => $socialUser->name,
                     'email' => $socialUser->email,
@@ -68,7 +68,7 @@ class UserManagement
                     'displayname' => $socialUser->nickname
                 ];
                 $userData = RegisterInput::fromArray($userData);
-    
+
                 $registeredUser = new RegisterUsersAction($userData);
                 $existedUser = $registeredUser->execute();
             }
