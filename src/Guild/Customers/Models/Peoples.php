@@ -7,6 +7,7 @@ namespace Kanvas\Guild\Customers\Models;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Models\BaseModel;
 use Laravel\Scout\Searchable;
 
@@ -25,7 +26,6 @@ use Laravel\Scout\Searchable;
  * @property string $twitter_contact_id
  * @property string $instagram_contact_id
  * @property string $apple_contact_id
- *
  */
 class Peoples extends BaseModel
 {
@@ -35,6 +35,16 @@ class Peoples extends BaseModel
 
     protected $table = 'peoples';
     protected $guarded = [];
+
+    /**
+    * Create a new factory instance for the model.
+    *
+    * @return \Illuminate\Database\Eloquent\Factories\Factory
+    */
+    protected static function newFactory()
+    {
+        return PeopleFactory::new();
+    }
 
     public function address(): HasMany
     {

@@ -19,24 +19,19 @@ final class LeadParticipantsTest extends TestCase
     {
         $company = auth()->user()->getCurrentCompany();
 
-        /**
-         * @todo move to factory
-         */
-        $people = new Peoples();
-        $people->users_id = auth()->user()->getId();
-        $people->companies_id = $company->getId();
-        $people->name = 'Test People';
-        $people->saveOrFail();
+        $people = Peoples::factory()->create([
+            'companies_id' => $company->getId(),
+            'users_id' => auth()->user()->getId(),
+        ]);
 
-        $lead = new Leads();
-        $lead->companies_id = $company->getId();
-        $lead->companies_branches_id = $company->branch()->firstOrFail()->getId();
-        $lead->users_id = auth()->user()->getId();
-        $lead->people_id = $people->getId();
-        $lead->title = 'Test Lead';
-        $lead->leads_receivers_id = 0;
-        $lead->leads_owner_id = $lead->users_id;
-        $lead->saveOrFail();
+        $lead = Leads::factory()->create([
+            'companies_id' => $company->getId(),
+            'companies_branches_id' => $company->branch()->firstOrFail()->getId(),
+            'users_id' => auth()->user()->getId(),
+            'people_id' => $people->getId(),
+            'leads_receivers_id' => 0,
+            'leads_owner_id' => auth()->user()->getId(),
+        ]);
 
         $addParticipant = new AddLeadParticipantAction(
             new LeadsParticipant(
@@ -55,24 +50,19 @@ final class LeadParticipantsTest extends TestCase
     {
         $company = auth()->user()->getCurrentCompany();
 
-        /**
-         * @todo move to factory
-         */
-        $people = new Peoples();
-        $people->users_id = auth()->user()->getId();
-        $people->companies_id = $company->getId();
-        $people->name = 'Test People';
-        $people->saveOrFail();
+        $people = Peoples::factory()->create([
+            'companies_id' => $company->getId(),
+            'users_id' => auth()->user()->getId(),
+        ]);
 
-        $lead = new Leads();
-        $lead->companies_id = $company->getId();
-        $lead->companies_branches_id = $company->branch()->firstOrFail()->getId();
-        $lead->users_id = auth()->user()->getId();
-        $lead->people_id = $people->getId();
-        $lead->title = 'Test Lead';
-        $lead->leads_receivers_id = 0;
-        $lead->leads_owner_id = $lead->users_id;
-        $lead->saveOrFail();
+        $lead = Leads::factory()->create([
+            'companies_id' => $company->getId(),
+            'companies_branches_id' => $company->branch()->firstOrFail()->getId(),
+            'users_id' => auth()->user()->getId(),
+            'people_id' => $people->getId(),
+            'leads_receivers_id' => 0,
+            'leads_owner_id' => auth()->user()->getId(),
+        ]);
 
         $leadParticipant = new LeadsParticipant(
             app(Apps::class),

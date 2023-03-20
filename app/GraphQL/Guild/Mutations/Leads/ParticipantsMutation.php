@@ -8,15 +8,10 @@ use Kanvas\Guild\Leads\Actions\AddLeadParticipantAction;
 use Kanvas\Guild\Leads\Actions\RemoveLeadParticipantAction;
 use Kanvas\Guild\Leads\DataTransferObject\LeadsParticipant;
 
-class Participants
+class ParticipantsMutation
 {
     /**
      * Add participant to a lead.
-     *
-     * @param  mixed $root
-     * @param  array $req
-     *
-     * @return bool
      */
     public function add(mixed $root, array $req): bool
     {
@@ -29,11 +24,6 @@ class Participants
 
     /**
      * Remove participant
-     *
-     * @param  mixed $root
-     * @param  array $req
-     *
-     * @return bool
      */
     public function remove(mixed $root, array $req): bool
     {

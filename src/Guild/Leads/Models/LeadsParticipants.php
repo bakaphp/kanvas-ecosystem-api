@@ -11,15 +11,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Customers\Models\Peoples;
 use Kanvas\Guild\Customers\Models\PeoplesRelationships;
 use Kanvas\Guild\Models\BaseModel;
-use Laravel\Scout\Searchable;
 
 /**
- * Class Leads.
+ * Class Participants.
  *
  * @property int $leads_id
  * @property int $peoples_id
  * @property int $participants_types_id
- *
  */
 class LeadsParticipants extends BaseModel
 {
