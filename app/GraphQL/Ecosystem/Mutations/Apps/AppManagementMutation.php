@@ -13,6 +13,7 @@ use Kanvas\Templates\DataTransferObject\TemplateInput;
 use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Actions\UpdateAppsAction;
 use Kanvas\Apps\DataTransferObject\AppSettingsInput;
+use Kanvas\Apps\Models\Apps;
 
 class AppManagementMutation
 {
