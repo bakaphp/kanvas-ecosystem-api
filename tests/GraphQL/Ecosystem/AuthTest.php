@@ -50,6 +50,17 @@ class AuthTest extends TestCase
     }
 
     /**
+     * Test if the user is allow to login using social media
+     * @todo Look for a way to generate and pass the user token for the login using
+     * a test account.
+     *
+     * @return void
+     */
+    public function testSocialLogin(): void
+    {
+    }
+
+    /**
      * test_save.
      *
      * @return void
