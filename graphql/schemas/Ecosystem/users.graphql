@@ -34,6 +34,7 @@ type ContactInfo {
 
 type TokenResponse {
     id: Int!
+    uuid: String!
     token: String!
     refresh_token: String!
     token_expires: DateTime!

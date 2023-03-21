@@ -10,8 +10,6 @@ class TokenResponse
 {
     /**
      * Get the Token  Auth Response for JWT auth.
-     *
-     * @return array
      */
     public static function create(Users $user): array
     {
@@ -24,9 +22,6 @@ class TokenResponse
      * Given a token format it to the standard response.
      *
      * @param UserInterface $user
-     * @param array $token
-     *
-     * @return array
      */
     public static function format(Users $user, array $token): array
     {
@@ -38,7 +33,8 @@ class TokenResponse
             'expires' => $token['token_expiration'],
             'refresh_token_expires' => $token['refresh_token_expiration'],
             'id' => $user->getId(),
-            'timezone' => $user->timezone
+            'uuid' => $user->uuid,
+            'timezone' => $user->timezone,
         ];
     }
 }
