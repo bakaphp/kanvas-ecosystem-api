@@ -21,6 +21,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@get"
         )
+    getAllCustomField(input: CustomFieldInput!): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@getAll"
+        )
     deleteCustomField(input: CustomFieldInput!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@delete"

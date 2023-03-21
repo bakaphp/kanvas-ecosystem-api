@@ -12,10 +12,6 @@ class CustomFieldMutation
 {
     /**
      * Set custom field
-     *
-     * @param mixed $rootValue
-     * @param array $request
-     * @return bool
      */
     public function create(mixed $rootValue, array $request): bool
     {
@@ -24,7 +20,7 @@ class CustomFieldMutation
         $entity = SystemModulesRepository::getEntityFromInput($customFieldInput, auth()->user());
 
         if (method_exists($entity, 'set')) {
-            $customField =  $entity->set(
+            $customField = $entity->set(
                 $customFieldInput->name,
                 $customFieldInput->data
             );
@@ -37,10 +33,6 @@ class CustomFieldMutation
 
     /**
      * Get custom field
-     *
-     * @param mixed $rootValue
-     * @param array $request
-     * @return mixed
      */
     public function get(mixed $rootValue, array $request): mixed
     {
@@ -58,11 +50,23 @@ class CustomFieldMutation
     }
 
     /**
+     * Get custom field
+     */
+    public function getAll(mixed $rootValue, array $request): array
+    {
+        $customFieldInput = CustomFieldInput::viaRequest($request['input']);
+
+        $entity = SystemModulesRepository::getEntityFromInput($customFieldInput, auth()->user());
+
+        if (method_exists($entity, 'getAll')) {
+            return $entity->getAll();
+        }
+
+        return [];
+    }
+
+    /**
      * Delete custom field
-     *
-     * @param mixed $rootValue
-     * @param array $request
-     * @return bool
      */
     public function delete(mixed $rootValue, array $request): bool
     {
