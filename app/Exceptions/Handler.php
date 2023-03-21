@@ -3,6 +3,7 @@
 namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Http\JsonResponse;
 use Sentry\Laravel\Integration;
 use Throwable;
 
@@ -38,5 +39,34 @@ class Handler extends ExceptionHandler
         $this->reportable(function (Throwable $e) {
             Integration::captureUnhandledException($e);
         });
+    }
+
+    /**
+     * Render an exception into an HTTP response.
+     *
+     * @param mixed $request
+     * @param Throwable $exception
+     * @return JsonResponse
+     */
+    public function render($request, Throwable $exception): JsonResponse
+    {
+        if (env('APP_ENV') === 'production') {
+            return response()->json([
+                'message' => "A server error has occurred. We are looking into it",
+            ], 503);
+        }
+
+        return parent::render($request, $exception);
+    }
+
+    /**
+     * Send the exception to the error log.
+     *
+     * @param Throwable $exception
+     * @return void
+     */
+    public function report(Throwable $exception): void
+    {
+        parent::report($exception);
     }
 }

@@ -101,7 +101,7 @@ trait TokenTrait
 
         return $config->validator()->validate(
             $token,
-            new IssuedBy(env('TOKEN_AUDIENCE')),
+            new IssuedBy(config('auth.token_audience')),
             new SignedWith($config->signer(), $config->verificationKey())
         );
     }
@@ -123,8 +123,8 @@ trait TokenTrait
 
         //https://lcobucci-jwt.readthedocs.io/en/latest/issuing-tokens/
         $token = $config->builder()
-                ->issuedBy(env('TOKEN_AUDIENCE'))
-                ->permittedFor(env('TOKEN_AUDIENCE'))
+                ->issuedBy(config('auth.token_audience'))
+                ->permittedFor(config('auth.token_audience'))
                 ->identifiedBy($sessionId)
                 ->issuedAt($now)
                 ->canOnlyBeUsedAfter($now)
@@ -168,5 +168,62 @@ trait TokenTrait
 
         unset($tokenResponse['sessionId']);
         return $tokenResponse;
+    }
+
+    /**
+     * Returns the JWT token object.
+     *
+     * @param string $token
+     *
+     * @return Token
+     */
+    protected function decodeToken(string $token): Token
+    {
+        $config = Jwt::getConfig();
+
+        return $config->parser()->parse($token);
+    }
+
+    /**
+     * Returns the default audience for the tokens.
+     *
+     * @return string
+     */
+    protected function getTokenAudience(): string
+    {
+        /** @var string $audience */
+        $audience = config('auth.token_audience') ?? '';
+
+        return $audience;
+    }
+
+    /**
+     * Returns the time the token is issued at.
+     *
+     * @return int
+     */
+    protected function getTokenTimeIssuedAt(): int
+    {
+        return time();
+    }
+
+    /**
+     * Returns the time drift i.e. token will be valid not before.
+     *
+     * @return int
+     */
+    protected function getTokenTimeNotBefore(): int
+    {
+        return (time() + config('auth.token_not_before'));
+    }
+
+    /**
+     * Returns the expiry time for the token.
+     *
+     * @return int
+     */
+    protected function getTokenTimeExpiration(): int
+    {
+        return (time() + config('auth.token_expiration'));
     }
 }

@@ -10,28 +10,12 @@ use Illuminate\Routing\Controller as BaseController;
 class IndexController extends BaseController
 {
     /**
-     * Index.
+     * Welcome to Kanvas
      *
-     * @method GET
-     * @url /
-     *
-     * @return Response
+     * @return JsonResponse
      */
     public function index(): JsonResponse
     {
         return response()->json(['Woot Kanvas Ecosystem']);
-    }
-
-    /**
-     * Show the status of the different services.
-     *
-     * @method GET
-     * @url /status
-     *
-     * @return Response
-     */
-    public function status(): JsonResponse
-    {
-        return response()->json(['Ok']);
     }
 }

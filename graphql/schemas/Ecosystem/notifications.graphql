@@ -1,8 +1,24 @@
+type Notification {
+    id: Int!
+    users: User!
+    fromUsers: User!
+    companies: Company!
+    systemModule: SystemModule!
+    types: NotificationType!
+    entity_id: String!
+    entity(fields: JSON): Mixed  @method(name: "getEntityData")
+    content: String
+    read: Int!
+    content_group: String
+    created_at: String!
+    updated_at: String
+}
+
 type NotificationType {
     id: Int!
-    app: App!
     systemModule: SystemModule!
     parent: NotificationType
+    channel: NotificationChannel
     name: String!
     key: String!
     description: String
@@ -13,20 +29,10 @@ type NotificationType {
     updated_at: String
 }
 
-type Notification {
+type NotificationChannel {
     id: Int!
-    users: User!
-    fromUsers: User!
-    companies: Company!
-    apps: App!
-    systemModule: SystemModule!
-    types: NotificationType!
-    entity_id: String!
-    content: String
-    read: Int!
-    content_group: String
-    created_at: String!
-    updated_at: String
+    name: String!
+    slug: String!
 }
 
 extend type Query {
@@ -35,28 +41,60 @@ extend type Query {
             @whereConditions(
                 columns: [
                     "id"
-                    "users_id"
                     "from_users_id"
                     "companies_id"
-                    "apps_id"
                     "system_modules_id"
                     "notification_types_id"
                     "entity_id"
-                    "content"
                     "read"
-                    "created_at"
-                    "updated_at"
-                    "is_deleted"
                     "content_group"
                 ]
             )
-        orderBy: _ @orderBy(columns: ["id"])
-    ): [Notification] @paginate(
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
+    ): [Notification]!
+        @paginate(
             model: "Kanvas\\Notifications\\Models\\Notifications"
-            scopes: [ "allNotifications" ]
+            scopes: ["allNotifications"]
+        )
+    notificationTypes(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "system_modules_id"
+                    "parent_id"
+                    "notification_channel_id"
+                    "key"
+                    "name"
+                    "weight"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id", "weight"])
+    ): [NotificationType]!
+        @paginate(
+            model: "Kanvas\\Notifications\\Models\\NotificationTypes"
+            scopes: ["fromApp", "notDeleted"]
+        )
+    notificationChannels(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "slug"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id"])
+    ): [NotificationChannel]!
+        @paginate(
+            model: "Kanvas\\Notifications\\Models\\NotificationChannel"
+            scopes: ["notDeleted"]
         )
 }
 
 extend type Mutation {
-    readAllNotifications: Boolean @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\ReadAllNotification")
+    readAllNotifications: Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\ReadAllNotification"
+        )
 }

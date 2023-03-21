@@ -49,8 +49,6 @@ class Products extends BaseModel
 
     /**
      * categories.
-     *
-     * @return BelongsToMany
      */
     public function categories(): BelongsToMany
     {
@@ -64,8 +62,6 @@ class Products extends BaseModel
 
     /**
      * warehouses.
-     *
-     * @return BelongsToMany
      */
     public function warehouses(): BelongsToMany
     {
@@ -79,8 +75,6 @@ class Products extends BaseModel
 
     /**
      * attributes.
-     *
-     * @return BelongsToMany
      */
     public function attributes(): BelongsToMany
     {
@@ -94,8 +88,6 @@ class Products extends BaseModel
 
     /**
      * variants.
-     *
-     * @return HasMany
      */
     public function variants(): HasMany
     {
@@ -104,8 +96,6 @@ class Products extends BaseModel
 
     /**
      * productsTypes.
-     *
-     * @return BelongsTo
      */
     public function productsTypes(): BelongsTo
     {

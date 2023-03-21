@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Models;
 
+use Baka\Traits\UuidTrait;
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -14,6 +16,7 @@ use Kanvas\Users\Models\Users;
  * Filesystem Model.
  *
  * @property int $id
+ * @property string $uuid;
  * @property int $users_id
  * @property int $companies_id
  * @property int $apps_id
@@ -28,6 +31,9 @@ use Kanvas\Users\Models\Users;
  */
 class Filesystem extends BaseModel
 {
+    use UuidTrait;
+    use Cachable;
+
     /**
      * The table associated with the model.
      *
@@ -38,7 +44,7 @@ class Filesystem extends BaseModel
     /**
      * Users relationship.
      *
-     * @return Users
+     * @return BelongsTo
      */
     public function user(): BelongsTo
     {
@@ -48,7 +54,7 @@ class Filesystem extends BaseModel
     /**
      * Companies relationship.
      *
-     * @return Companies
+     * @return BelongsTo
      */
     public function company(): BelongsTo
     {
@@ -58,7 +64,7 @@ class Filesystem extends BaseModel
     /**
      * Apps relationship.
      *
-     * @return Apps
+     * @return BelongsTo
      */
     public function app(): BelongsTo
     {

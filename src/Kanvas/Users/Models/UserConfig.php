@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Models;
 
+use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
 
@@ -16,12 +17,15 @@ use Kanvas\Models\BaseModel;
  */
 class UserConfig extends BaseModel
 {
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
+    use HasCompositePrimaryKeyTrait;
+
     protected $table = 'user_config';
+
+    protected $primaryKey = ['users_id', 'name'];
+
+    public $incrementing = false;
+
+    protected $guarded = [];
 
     protected $attributes = [
     ];
@@ -29,7 +33,7 @@ class UserConfig extends BaseModel
     /**
      * Users relationship.
      *
-     * @return Users
+     * @return BelongsTo
      */
     public function user(): BelongsTo
     {

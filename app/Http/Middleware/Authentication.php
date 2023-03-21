@@ -7,7 +7,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Kanvas\Sessions\Models\Sessions;
-use Kanvas\Traits\TokenTrait;
+use Kanvas\Auth\Traits\TokenTrait;
 use Kanvas\Users\Models\Users;
 use Lcobucci\JWT\Token;
 
@@ -21,7 +21,7 @@ class Authentication
     public function handle(Request $request, Closure $next)
     {
         if (!empty($request->bearerToken())) {
-            $token = $this->getToken($request->bearerToken());
+            $token = $this->decodeToken($request->bearerToken());
         } else {
             throw new Exception('Missing Token');
         }

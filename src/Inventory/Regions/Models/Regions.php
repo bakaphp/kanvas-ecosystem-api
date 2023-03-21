@@ -39,8 +39,6 @@ class Regions extends BaseModel
 
     /**
      * Get the companies that owns the Warehouses.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function companies(): BelongsTo
     {
@@ -49,7 +47,6 @@ class Regions extends BaseModel
 
     /**
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function apps(): BelongsTo
     {
@@ -58,7 +55,6 @@ class Regions extends BaseModel
 
     /**
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function currencies(): BelongsTo
     {

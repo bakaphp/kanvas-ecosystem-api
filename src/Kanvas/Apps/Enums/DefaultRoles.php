@@ -12,6 +12,7 @@ enum DefaultRoles implements EnumsInterface
     case USER;
     case AGENT;
     case MANAGER;
+    case DEVELOPER;
 
     public function getValue(): mixed
     {
@@ -19,7 +20,8 @@ enum DefaultRoles implements EnumsInterface
             self::ADMIN => 'Admin',
             self::USER => 'Users',
             self::AGENT => 'Agents',
-            self::MANAGER => 'Manager',
+            self::MANAGER => 'Managers',
+            self::DEVELOPER => 'Developer',
         };
     }
 }

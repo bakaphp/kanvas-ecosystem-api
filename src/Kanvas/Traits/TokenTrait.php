@@ -35,7 +35,7 @@ trait TokenTrait
     protected function getTokenAudience(): string
     {
         /** @var string $audience */
-        $audience = env('TOKEN_AUDIENCE', '');
+        $audience = config('auth.token_audience');
 
         return $audience;
     }
@@ -57,7 +57,7 @@ trait TokenTrait
      */
     protected function getTokenTimeNotBefore(): int
     {
-        return (time() + env('TOKEN_NOT_BEFORE', 10));
+        return (time() + config('auth.token_not_before'));
     }
 
     /**
@@ -67,7 +67,7 @@ trait TokenTrait
      */
     protected function getTokenTimeExpiration(): int
     {
-        return (time() + env('TOKEN_EXPIRATION', 86400));
+        return (time() + config('auth.token_expiration'));
     }
 
     /**
@@ -86,7 +86,7 @@ trait TokenTrait
 
         return $config->validator()->validate(
             $token,
-            new IssuedBy(env('TOKEN_AUDIENCE')),
+            new IssuedBy(config('auth.token_audience')),
             new SignedWith($config->signer(), $config->verificationKey())
         );
     }

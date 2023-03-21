@@ -6,15 +6,17 @@ namespace Kanvas\SystemModules\Models;
 
 use Baka\Support\Str;
 use Baka\Traits\SlugTrait;
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Models\BaseModel;
 
 /**
- * Apps Model.
+ * SystemModules Model.
  *
  * @property string $name
+ * @property string $uuid
  * @property string $slug
  * @property string $model_name
  * @property int $apps_id
@@ -32,6 +34,7 @@ use Kanvas\Models\BaseModel;
 class SystemModules extends BaseModel
 {
     use SlugTrait;
+    use Cachable;
 
     /**
      * The table associated with the model.
@@ -71,8 +74,6 @@ class SystemModules extends BaseModel
 
     /**
      * Apps relationship.
-     *
-     * @return Apps
      */
     public function app(): BelongsTo
     {
@@ -81,8 +82,6 @@ class SystemModules extends BaseModel
 
     /**
      * Apps relationship.
-     *
-     * @return self
      */
     public function parent(): BelongsTo
     {
@@ -91,10 +90,6 @@ class SystemModules extends BaseModel
 
     /**
      * Not deleted scope and app filter.
-     *
-     * @param Builder $query
-     *
-     * @return Builder
      */
     public function scopeFilterByApp(Builder $query): Builder
     {

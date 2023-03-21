@@ -6,20 +6,20 @@ type StateInput {
 extend type Query {
     states(
         where: _ @whereConditions(columns: ["name", "code", "id"])
-    ): [States] @paginate(model: "\\Kanvas\\Locations\\States\\Models\\States")
+    ): [States] @paginate(model: "\\Kanvas\\Locations\\Models\\States")
     state(id: Int!): States
-        @find(model: "\\Kanvas\\Locations\\States\\Models\\States")
+        @find(model: "\\Kanvas\\Locations\\Models\\States")
 }
 
 extend type Mutation {
     createState(countries_id: Int!, name: String!, code: String!): States
-        @create(model: "\\Kanvas\\Locations\\States\\Models\\States")
+        @create(model: "\\Kanvas\\Locations\\Models\\States")
     updateState(
         id: Int!
         countries_id: Int!
         name: String!
         code: String
-    ): States @update(model: "\\Kanvas\\Locations\\States\\Models\\States")
+    ): States @update(model: "\\Kanvas\\Locations\\Models\\States")
     deleteState(id: Int!): States
-        @delete(model: "\\Kanvas\\Locations\\States\\Models\\States")
+        @delete(model: "\\Kanvas\\Locations\\Models\\States")
 }

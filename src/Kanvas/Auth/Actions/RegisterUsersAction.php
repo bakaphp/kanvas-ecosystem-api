@@ -6,11 +6,10 @@ namespace Kanvas\Auth\Actions;
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Hash;
-use Kanvas\AccessControlList\Enums\RolesEnums;
-use Kanvas\Apps\Enums\Defaults;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Notifications\Templates\UserSignUp;
 use Kanvas\Users\Enums\StatusEnums;
@@ -41,7 +40,7 @@ class RegisterUsersAction
         $user = Users::where(
             [
                 'email' => $this->data->email,
-                'is_deleted' => 0
+                'is_deleted' => 0,
             ]
         )->first();
 
@@ -59,11 +58,11 @@ class RegisterUsersAction
         $user->email = $this->data->email;
         $user->password = $this->data->password;
         $user->default_company = $this->data->default_company;
-        $user->sex = Defaults::DEFAULT_SEX->getValue();
+        $user->sex = AppEnums::DEFAULT_SEX->getValue();
         $user->dob = date('Y-m-d');
         $user->lastvisit = date('Y-m-d H:i:s');
         $user->registered = date('Y-m-d H:i:s');
-        $user->timezone = Defaults::DEFAULT_TIMEZONE->getValue();
+        $user->timezone = AppEnums::DEFAULT_TIMEZONE->getValue();
         $user->user_active = StatusEnums::ACTIVE->getValue();
         $user->status = StatusEnums::ACTIVE->getValue();
         $user->banned = StateEnums::NO->getValue();
@@ -73,9 +72,9 @@ class RegisterUsersAction
         $user->session_time = time();
         $user->session_page = StateEnums::NO->getValue();
         $user->password = $this->data->password;
-        $user->language = $user->language ?: Defaults::DEFAULT_LANGUAGE->getValue();
+        $user->language = $user->language ?: AppEnums::DEFAULT_LANGUAGE->getValue();
         $user->user_activation_key = Hash::make(time());
-        $user->roles_id = $this->data->roles_id ?? RolesEnums::ADMIN;
+        $user->roles_id = $this->data->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue();
         $user->saveOrFail();
 
         try {

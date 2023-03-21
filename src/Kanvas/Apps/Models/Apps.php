@@ -8,6 +8,8 @@ use Baka\Contracts\AppInterface;
 use Baka\Enums\StateEnums;
 use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
+use Baka\Traits\UuidTrait;
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Auth;
@@ -40,6 +42,7 @@ use Kanvas\Users\Models\UsersAssociatedApps;
 class Apps extends BaseModel implements AppInterface
 {
     use HashTableTrait;
+    use Cachable;
 
     /**
      * The table associated with the model.
@@ -55,8 +58,16 @@ class Apps extends BaseModel implements AppInterface
      */
     protected $guarded = [];
 
-    protected array $settings = [];
-    protected ?Companies $company = null;
+    /**
+     * Boot function from Laravel.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+        static::creating(function ($model) {
+            $model->key = $model->key ?? Str::uuid();
+        });
+    }
 
     /**
      * Settings relationship.

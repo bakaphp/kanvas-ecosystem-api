@@ -6,12 +6,12 @@ namespace Kanvas\Companies\Branches\DataTransferObject;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Kanvas\Contracts\DataTransferObject\BaseDataTransferObject;
+use Spatie\LaravelData\Data;
 
 /**
  * CompaniesBranchPostData class.
  */
-class CompaniesBranchPostData extends BaseDataTransferObject
+class CompaniesBranchPostData extends Data
 {
     /**
      * Construct function.

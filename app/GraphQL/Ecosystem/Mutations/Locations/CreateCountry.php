@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Mutations\Locations;
 
 use Illuminate\Support\Arr;
-use Kanvas\Locations\Countries\Models\Countries;
+use Kanvas\Locations\Models\Countries;
 
 final class CreateCountry
 {
