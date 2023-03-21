@@ -185,42 +185,42 @@ extend type Query @guard {
 extend type Mutation @guard {
     createCompany(input: CompanyInput): Company!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagement@createCompany"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagementMutation@createCompany"
         )
     updateCompany(id: Int!, input: CompanyInput): Company!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagement@updateCompany"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagementMutation@updateCompany"
         )
     deleteCompany(id: Int!): Boolean!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagement@deleteCompany"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagementMutation@deleteCompany"
         )
     createCompaniesBranch(input: CompanyBranchInput): CompanyBranch!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagement@createCompaniesBranch"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagementMutation@createCompaniesBranch"
         )
     updateCompanyBranch(id: Int!, input: CompanyBranchInput): CompanyBranch!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagement@updateCompanyBranch"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagementMutation@updateCompanyBranch"
         )
     deleteCompanyBranch(id: Int!): String!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagement@deleteCompanyBranch"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagementMutation@deleteCompanyBranch"
         )
     addUserToBranch(id: Int!, users_id: Int!): Boolean!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\UserManagement@addUserToBranch"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagementMutation@addUserToBranch"
         )
     removeUserFromBranch(id: Int!, users_id: Int!): Boolean!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\UserManagement@removeUserFromBranch"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagementMutation@removeUserFromBranch"
         )
     addUserToCompany(id: Int!, users_id: Int!): Boolean!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\UserManagement@addUserToCompany"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagementMutation@addUserToCompany"
         )
     removeUserFromCompany(id: Int!, users_id: Int!): Boolean!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\UserManagement@removeUserFromCompany"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagementMutation@removeUserFromCompany"
         )
 }

@@ -7,8 +7,12 @@ namespace App\GraphQL\Ecosystem\Mutations\AccessControlList;
 use Bouncer;
 use Kanvas\AccessControlList\Actions\AssignAction;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\AccessControlList\Actions\CreateRoleAction;
+use Kanvas\AccessControlList\Actions\UpdateRoleAction;
+use Kanvas\Companies\Models\Companies;
+use Silber\Bouncer\Database\Role as SilberRole;
 
-class UserAccessControlList
+class AccessControlListManagementMutation
 {
     /**
      * assignRoleToUser.
@@ -72,5 +76,40 @@ class UserAccessControlList
         $user = UsersRepository::getById($request['userId'], auth()->user()->defaultCompany->id);
         Bouncer::disallow($user)->to($request['permission']);
         return true;
+    }
+
+    /**
+     * createRole.
+     *
+     * @param  mixed $rootValue
+     * @param  array $request
+     *
+     * @return void
+     */
+    public function createRole(mixed $rootValue, array $request): SilberRole
+    {
+        $role = new CreateRoleAction(
+            $request['name'],
+            $request['title']
+        );
+        return $role->execute(Companies::getById(auth()->user()->currentCompanyId()));
+    }
+
+    /**
+     * updateRole.
+     *
+     * @param  mixed $rootValue
+     * @param  array $request
+     *
+     * @return void
+     */
+    public function updateRole(mixed $rootValue, array $request): SilberRole
+    {
+        $role = new UpdateRoleAction(
+            $request['id'],
+            $request['name'],
+            $request['title'] ?? null
+        );
+        return $role->execute(Companies::getById(auth()->user()->currentCompanyId()));
     }
 }
