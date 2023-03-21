@@ -97,6 +97,11 @@ trait HashTableTrait
         return $allSettings;
     }
 
+    public function getAll(bool $onlyPublicSettings = false): array
+    {
+        return $this->getAllSettings($onlyPublicSettings);
+    }
+
     /**
      * Get the settings base on the key.
      */
