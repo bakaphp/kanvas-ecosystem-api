@@ -28,8 +28,6 @@ class ProcessInviteAction
 
     /**
      * execute.
-     *
-     * @return void
      */
     public function execute(): Users
     {
@@ -41,10 +39,11 @@ class ProcessInviteAction
             'firstname' => $this->userInvite->firstname,
             'lastname' => $this->userInvite->lastname,
             'default_company' => (string)$invite->companies_id,
-            'roles_id' => $invite->role_id
+            'roles_id' => $invite->role_id,
         ]);
 
         DB::beginTransaction();
+
         try {
             $user = (new RegisterUsersAction($dto))->execute();
 
@@ -68,6 +67,7 @@ class ProcessInviteAction
             DB::commit();
         } catch (Throwable $e) {
             DB::rollBack();
+
             throw $e;
         }
 

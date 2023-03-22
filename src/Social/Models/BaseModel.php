@@ -6,6 +6,7 @@ namespace Kanvas\Social\Models;
 
 use Baka\Traits\KanvasModelTrait;
 use Baka\Traits\KanvasScopesTrait;
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
@@ -17,6 +18,7 @@ class BaseModel extends EloquentModel
     use KanvasScopesTrait;
     use HasCustomFields;
     use HasFilesystemTrait;
+    use Cachable;
 
     //use SoftDeletes;
 

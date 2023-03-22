@@ -14,8 +14,6 @@ trait HashTableTrait
 
     /**
      * Get the primary key of this model, this will only work on model with just 1 primary key.
-     *
-     * @return string
      */
     private function getSettingsPrimaryKey(): string
     {
@@ -24,8 +22,6 @@ trait HashTableTrait
 
     /**
      * Set the setting model.
-     *
-     * @return void
      */
     protected function createSettingsModel(): void
     {
@@ -36,11 +32,6 @@ trait HashTableTrait
 
     /**
      * Set the settings.
-     *
-     * @param string $key
-     * @param mixed $value
-     *
-     * @return bool
      */
     public function set(string $key, mixed $value): bool
     {
@@ -71,8 +62,6 @@ trait HashTableTrait
 
     /**
      * Get the settings by its key.
-     *
-     * @return mixed
      */
     protected function getSettingsByKey(string $key): mixed
     {
@@ -85,8 +74,6 @@ trait HashTableTrait
      * Get all the setting of a given record.
      *
      * @param bool $all
-     *
-     * @return array
      */
     public function getAllSettings(bool $onlyPublicSettings = false): array
     {
@@ -110,12 +97,13 @@ trait HashTableTrait
         return $allSettings;
     }
 
+    public function getAll(bool $onlyPublicSettings = false): array
+    {
+        return $this->getAllSettings($onlyPublicSettings);
+    }
+
     /**
      * Get the settings base on the key.
-     *
-     * @param string $key
-     *
-     * @return mixed
      */
     public function get(string $key): mixed
     {
@@ -133,18 +121,19 @@ trait HashTableTrait
 
     /**
      * Delete element.
-     *
-     * @param string $key
-     *
-     * @return bool
      */
     public function deleteHash(string $key): bool
     {
         $this->createSettingsModel();
         if ($record = $this->getSettingsByKey($key)) {
-            return $record->destroy();
+            return $record->delete();
         }
 
         return false;
+    }
+
+    public function del(string $key): bool
+    {
+        return $this->deleteHash($key);
     }
 }

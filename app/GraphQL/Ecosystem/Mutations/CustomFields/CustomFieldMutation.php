@@ -6,25 +6,21 @@ namespace App\GraphQL\Ecosystem\Mutations\CustomFields;
 
 use Kanvas\CustomFields\DataTransferObject\CustomFieldInput;
 use Kanvas\CustomFields\Models\CustomFields;
-use Kanvas\CustomFields\Repositories\CustomFieldsRepository;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 class CustomFieldMutation
 {
     /**
      * Set custom field
-     *
-     * @param mixed $rootValue
-     * @param array $request
-     * @return bool
      */
     public function create(mixed $rootValue, array $request): bool
     {
         $customFieldInput = CustomFieldInput::viaRequest($request['input']);
 
-        $entity = CustomFieldsRepository::getEntityFromInput($customFieldInput, auth()->user());
+        $entity = SystemModulesRepository::getEntityFromInput($customFieldInput, auth()->user());
 
         if (method_exists($entity, 'set')) {
-            $customField =  $entity->set(
+            $customField = $entity->set(
                 $customFieldInput->name,
                 $customFieldInput->data
             );
@@ -37,16 +33,12 @@ class CustomFieldMutation
 
     /**
      * Get custom field
-     *
-     * @param mixed $rootValue
-     * @param array $request
-     * @return mixed
      */
     public function get(mixed $rootValue, array $request): mixed
     {
         $customFieldInput = CustomFieldInput::viaRequest($request['input']);
 
-        $entity = CustomFieldsRepository::getEntityFromInput($customFieldInput, auth()->user());
+        $entity = SystemModulesRepository::getEntityFromInput($customFieldInput, auth()->user());
 
         if (method_exists($entity, 'get')) {
             return $entity->get(
@@ -58,17 +50,29 @@ class CustomFieldMutation
     }
 
     /**
+     * Get custom field
+     */
+    public function getAll(mixed $rootValue, array $request): array
+    {
+        $customFieldInput = CustomFieldInput::viaRequest($request['input']);
+
+        $entity = SystemModulesRepository::getEntityFromInput($customFieldInput, auth()->user());
+
+        if (method_exists($entity, 'getAll')) {
+            return $entity->getAll();
+        }
+
+        return [];
+    }
+
+    /**
      * Delete custom field
-     *
-     * @param mixed $rootValue
-     * @param array $request
-     * @return bool
      */
     public function delete(mixed $rootValue, array $request): bool
     {
         $customFieldInput = CustomFieldInput::viaRequest($request['input']);
 
-        $entity = CustomFieldsRepository::getEntityFromInput($customFieldInput, auth()->user());
+        $entity = SystemModulesRepository::getEntityFromInput($customFieldInput, auth()->user());
 
         if (method_exists($entity, 'del')) {
             return (bool) $entity->del(

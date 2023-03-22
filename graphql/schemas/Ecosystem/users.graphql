@@ -34,6 +34,7 @@ type ContactInfo {
 
 type TokenResponse {
     id: Int!
+    uuid: String!
     token: String!
     refresh_token: String!
     token_expires: DateTime!
@@ -92,12 +93,12 @@ input UpdateUserInput {
     address_2: String
     zip_code: Int
     city_id: Int
-        @rules(apply: ["exists:Kanvas\\Locations\\Cities\\Models\\Cities,id"])
+        @rules(apply: ["exists:Kanvas\\Locations\\Models\\Cities,id"])
     state_id: Int
-        @rules(apply: ["exists:Kanvas\\Locations\\States\\Models\\States,id"])
+        @rules(apply: ["exists:Kanvas\\Locations\\Models\\States,id"])
     country_id: Int
         @rules(
-            apply: ["exists:Kanvas\\Locations\\Countries\\Models\\Countries,id"]
+            apply: ["exists:Kanvas\\Locations\\Models\\Countries,id"]
         )
 }
 
@@ -125,7 +126,7 @@ extend type Mutation {
     ): Boolean!
         @guard
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagement@changePassword"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@changePassword"
         )
     forgotPassword(data: ForgotPasswordInput!): Boolean
         @field(
@@ -138,7 +139,7 @@ extend type Mutation {
     updateUser(data: UpdateUserInput!): User
         @guard
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagement@updateUser"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updateUser"
         )
     switchCompanyBranch(company_branch_id: Int!): Boolean
         @guard

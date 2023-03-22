@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Models;
 
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
 
@@ -20,6 +21,8 @@ use Kanvas\Models\BaseModel;
  */
 class FilesystemSettings extends BaseModel
 {
+    use Cachable;
+
     /**
      * The table associated with the model.
      *
@@ -29,8 +32,6 @@ class FilesystemSettings extends BaseModel
 
     /**
      * Filesystem relationship.
-     *
-     * @return Filesystem
      */
     public function filesystem(): BelongsTo
     {
