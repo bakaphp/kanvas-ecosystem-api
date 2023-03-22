@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
 use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\DataTransferObject\LoginInput;
+use Exception;
+use Laravel\Socialite\Facades\Socialite;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Services\ForgotPassword as ForgotPasswordService;
 use Kanvas\Auth\Traits\AuthTrait;
