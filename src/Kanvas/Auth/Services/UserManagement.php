@@ -44,38 +44,4 @@ class UserManagement
 
         return $this->user;
     }
-
-    /**
-     * Login a user and create if not exist.
-     *
-     * @param SocialiteUser $socialUser
-     * @param string $provider
-     * @return Users
-     */
-    public static function socialLogin(SocialiteUser $socialUser, string $provider): Users
-    {
-        $source = Sources::where('title', $provider)->firstOrFail();
-        $userLinkedSource = UserLinkedSources::where('source_users_id', $socialUser->id)->where('source_id', $source->id)->first();
-
-        if (!$userLinkedSource) {
-            $existedUser = Users::getByEmail($socialUser->email, false);
-
-            if (!$existedUser) {
-                $userData = [
-                    'firstname' => $socialUser->name,
-                    'email' => $socialUser->email,
-                    'password' => Str::random(11),
-                    'displayname' => $socialUser->nickname
-                ];
-                $userData = RegisterInput::fromArray($userData);
-
-                $registeredUser = new RegisterUsersAction($userData);
-                $existedUser = $registeredUser->execute();
-            }
-
-            $userLinkedSource = UserLinkedSources::createSocial($socialUser, $existedUser, $source);
-        }
-
-        return $userLinkedSource->user;
-    }
 }
