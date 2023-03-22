@@ -262,10 +262,9 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      * Get user by there email address.
      *
      * @param string $email
-     * @param boolean $exception
      * @return self
      */
-    public static function getByEmail(string $email, bool $exception = true): self
+    public static function getByEmail(string $email): self
     {
         $user = self::notDeleted()
             ->where(
@@ -275,7 +274,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
                 ]
             )->first();
 
-        if (! $user && $exception) {
+        if (! $user) {
             throw new ModelNotFoundException('No User Found');
         }
 
