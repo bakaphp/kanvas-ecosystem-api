@@ -21,6 +21,7 @@ use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Repositories\UsersRepository;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 use Kanvas\Auth\Actions\SocialLoginAction;
+
 class AuthManagementMutation
 {
     use TokenTrait;
