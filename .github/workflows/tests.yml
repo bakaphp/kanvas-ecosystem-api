@@ -35,6 +35,8 @@ jobs:
       AWS_BUCKET: ${{ secrets.AWS_BUCKET }}
       AWS_URL: ${{ secrets.AWS_URL }}
       SCOUT_DRIVER: database
+      MODEL_CACHE_STORE: model
+
       #APP_DEBUG: true
     strategy:
       fail-fast: false
