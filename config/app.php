@@ -1,3 +1,4 @@
+
 <?php
 
 use App\Providers\SocialiteServiceProvider;
@@ -187,6 +188,7 @@ return [
         // Kanvas\Providers\MigrationsServiceProvider::class,
         App\Providers\KanvasAppsProvider::class,
         Nuwave\Lighthouse\WhereConditions\WhereConditionsServiceProvider::class,
+        \Nuwave\Lighthouse\Scout\ScoutServiceProvider::class,
         App\Providers\HealthProvider::class,
     ],
 

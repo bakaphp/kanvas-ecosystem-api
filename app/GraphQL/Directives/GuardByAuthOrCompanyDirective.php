@@ -40,7 +40,7 @@ GRAPHQL;
                     $this->unauthenticated([]);
                 } elseif ($request->headers->has('Authorization')) {
                     // TODO remove cast in v6
-                    $with = (array) $this->directiveArgValue('with', AuthServiceProvider::guard());
+                    $with = (array) $this->directiveArgValue('with', AuthServiceProvider::guards()['api']);
                     $this->authenticate($with);
                 } else {
                     try {
