@@ -69,6 +69,12 @@ class Templates extends BaseModel
         return $this->belongsTo(Apps::class, 'apps_id');
     }
 
+    public function addParentTemplate(Templates $template): void
+    {
+        $this->parent_template_id = $template->id;
+        $this->saveOrFail();
+    }
+    
     /**
      * Template I'm based from
      *

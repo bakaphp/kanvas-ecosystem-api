@@ -19,6 +19,7 @@ use Kanvas\Notifications\Channels\KanvasDatabase as KanvasDatabaseChannel;
 use Kanvas\Notifications\Interfaces\EmailInterfaces;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Templates\Actions\RenderTemplateAction;
 use Kanvas\Templates\Repositories\TemplatesRepository;
 use Kanvas\Users\Models\Users;
 
@@ -121,24 +122,9 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
             throw new Exception('This notification type does not have an email template');
         }
 
-        /**
-         * @psalm-suppress PossiblyNullArgument
-         */
-        $template = TemplatesRepository::getByName($this->getTemplateName(), $this->app);
-        $notificationTemplate = $template->template;
-
-        if ($template->hasParentTemplate()) {
-            $parentTemplate = $template->parentTemplate()->firstOrFail();
-
-            $notificationTemplate = str_replace(
-                '[body]',
-                $notificationTemplate,
-                $parentTemplate->template
-            );
-        }
-
-        return Blade::render(
-            $notificationTemplate,
+        $renderTemplate = new RenderTemplateAction($this->app);
+        return $renderTemplate->execute(
+            $this->getTemplateName(),
             $this->getData()
         );
     }
