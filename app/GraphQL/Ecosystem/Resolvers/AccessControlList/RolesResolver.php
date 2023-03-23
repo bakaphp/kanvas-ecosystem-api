@@ -22,15 +22,11 @@ class RolesResolver
 
     /**
      * hasRole.
-     *
-     * @param  mixed $_
-     * @param  array $request
-     *
-     * @return bool
      */
     public function hasRole(mixed $_, array $request): bool
     {
         $user = UsersRepository::getById($request['userId'], auth()->user()->defaultCompany->id);
+
         return $user->isAn($request['role']);
     }
 }
