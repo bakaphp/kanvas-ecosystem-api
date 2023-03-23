@@ -23,7 +23,7 @@ class Notifications
         public int $read,
         public string $created_at,
         public ?string $updated_at = null,
-        public int $is_deleted,
+        public int $is_deleted = 0,
         public ?string $content_group = null,
     ) {
     }
@@ -49,7 +49,7 @@ class Notifications
             $data['read'],
             $data['created_at'],
             $data['updated_at'] ?? null,
-            $data['is_deleted'],
+            $data['is_deleted'] ?? 0,
             $data['content_group'] ?? null,
         );
     }

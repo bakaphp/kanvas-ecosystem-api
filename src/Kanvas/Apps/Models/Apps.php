@@ -8,7 +8,6 @@ use Baka\Contracts\AppInterface;
 use Baka\Enums\StateEnums;
 use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
-use Baka\Traits\UuidTrait;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -71,8 +70,6 @@ class Apps extends BaseModel implements AppInterface
 
     /**
      * Settings relationship.
-     *
-     * @return hasMany
      */
     public function settings(): hasMany
     {
@@ -81,8 +78,6 @@ class Apps extends BaseModel implements AppInterface
 
     /**
      * Roles relationship.
-     *
-     * @return hasMany
      */
     public function roles(): HasMany
     {
@@ -91,8 +86,6 @@ class Apps extends BaseModel implements AppInterface
 
     /**
      * Is this app subscription based?
-     *
-     * @return bool
      */
     public function usesSubscriptions(): bool
     {
@@ -101,8 +94,6 @@ class Apps extends BaseModel implements AppInterface
 
     /**
      * Set hashtable settings table, userConfig ;).
-     *
-     * @return void
      */
     protected function createSettingsModel(): void
     {
@@ -111,23 +102,17 @@ class Apps extends BaseModel implements AppInterface
 
     /**
      * Associate company to App.
-     *
-     * @param Companies $company
-     *
-     * @return UserCompanyApps
      */
     public function associateCompany(Companies $company): UserCompanyApps
     {
         return UserCompanyApps::firstOrCreate([
-            'apps_id' => $this->id,
+            'apps_id' => $this->getKey(),
             'companies_id' => $company->getKey(),
         ]);
     }
 
     /**
      * Is active?
-     *
-     * @return bool
      */
     public function isActive(): bool
     {
@@ -137,8 +122,6 @@ class Apps extends BaseModel implements AppInterface
     /**
      * Those this app use ecosystem login or
      * the its own local login?
-     *
-     * @return bool
      */
     public function usesEcosystemLogin(): bool
     {
@@ -147,8 +130,6 @@ class Apps extends BaseModel implements AppInterface
 
     /**
      * Get th default app currency.
-     *
-     * @return string
      */
     public function defaultCurrency(): string
     {
@@ -158,14 +139,7 @@ class Apps extends BaseModel implements AppInterface
     /**
      * Associate user to the app.
      *
-     * @param Users $user
      * @param Apps $app
-     * @param int $isActive
-     * @param int|null $userRoleId
-     * @param string|null $password
-     * @param string|null $companyUserIdentifier
-     *
-     * @return UsersAssociatedApps
      */
     public function associateUser(
         Users $user,
@@ -193,10 +167,6 @@ class Apps extends BaseModel implements AppInterface
 
     /**
      * Not deleted scope.
-     *
-     * @param Builder $query
-     *
-     * @return Builder
      */
     public function scopeUserAssociated(Builder $query): Builder
     {

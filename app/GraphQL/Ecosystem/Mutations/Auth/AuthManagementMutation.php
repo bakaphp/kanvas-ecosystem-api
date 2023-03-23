@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
 use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\DataTransferObject\LoginInput;
+use Exception;
+use Laravel\Socialite\Facades\Socialite;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Services\ForgotPassword as ForgotPasswordService;
 use Kanvas\Auth\Traits\AuthTrait;
@@ -18,6 +20,7 @@ use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Repositories\UsersRepository;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
+use Kanvas\Auth\Actions\SocialLoginAction;
 
 class AuthManagementMutation
 {
@@ -156,5 +159,27 @@ class AuthManagementMutation
         $action = new SwitchCompanyBranchAction(auth()->user(), $req['company_branch_id']);
 
         return $action->execute();
+    }
+
+    /**
+     * Login with social login
+     *
+     * @param  mixed $root
+     * @param  array $req
+     * @return array
+     */
+    public function socialLogin(mixed $root, array $req): array
+    {
+        $data = $req['data'];
+        $token = $data['token'];
+        $provider = $data['provider'];
+
+        $user = Socialite::driver($provider)->userFromToken($token);
+        $socialLogin = new SocialLoginAction($user, $provider);
+
+        $loggedUser = $socialLogin->execute();
+        $tokenResponse = $loggedUser->createToken('kanvas-login')->toArray();
+
+        return $tokenResponse;
     }
 }

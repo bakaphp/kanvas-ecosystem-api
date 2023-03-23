@@ -1,5 +1,6 @@
 <?php
 
+use App\Providers\SocialiteServiceProvider;
 use Illuminate\Support\Facades\Facade;
 
 return [
@@ -167,7 +168,8 @@ return [
         /*
          * Package Service Providers...
          */
-
+        Laravel\Socialite\SocialiteServiceProvider::class,
+        // SocialiteServiceProvider::class,
         /*
          * Application Service Providers...
          */

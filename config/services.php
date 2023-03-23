@@ -30,4 +30,28 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'github' => [
+        'client_id' => '',
+        'client_secret' => '',
+        'redirect' => '',
+    ],
+
+    'google' => [
+        'client_id' => '',
+        'client_secret' => '',
+        'redirect' => '',
+    ],
+
+    'facebook' => [
+        'client_id' => '',
+        'client_secret' => '',
+        'redirect' => ''
+    ],
+
+    'twitter-oauth-2' => [
+        'client_id' => '',
+        'client_secret' => '',
+        'redirect' => '',
+    ],
+
 ];
