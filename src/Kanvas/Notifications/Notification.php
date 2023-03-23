@@ -131,7 +131,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
             $parentTemplate = $template->parentTemplate()->firstOrFail();
 
             $notificationTemplate = str_replace(
-                '@body',
+                '[body]',
                 $notificationTemplate,
                 $parentTemplate->template
             );
