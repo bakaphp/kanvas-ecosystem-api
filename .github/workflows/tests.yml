@@ -39,7 +39,6 @@ jobs:
       MODEL_CACHE_ENABLED: false
       LIGHTHOUSE_CACHE_ENABLE: true
       LIGHTHOUSE_CACHE_VERSION: 2
-
       #APP_DEBUG: true
     strategy:
       fail-fast: false
