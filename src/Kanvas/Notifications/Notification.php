@@ -21,25 +21,33 @@ class Notification extends LaravelNotification implements EmailInterfaces
     public object $entity;
     public object $type;
     public string $templateName = 'default';
+    public array $data = [];
+    public array $via = [
+        KanvasDatabaseChannel::class,
+    ];
+
+    /**
+     * setVia
+     */
+    public function setVia(array $via): self
+    {
+        $this->via = array_merge($via, KanvasDatabaseChannel::class);
+
+        return $this;
+    }
 
     /**
      * Create a new notification channel.
-     *
-     * @return array
      */
     public function via(): array
     {
-        return [
-            KanvasDatabaseChannel::class
-        ];
+        return $this->via;
     }
 
     /**
      * Get the mail representation of the notification.
      *
      * @param  mixed  $notifiable
-     *
-     * @return \Illuminate\Notifications\Messages\MailMessage
      */
     public function toMail($notifiable): MailMessage
     {
@@ -50,10 +58,6 @@ class Notification extends LaravelNotification implements EmailInterfaces
 
     /**
      * toKanvasDatabase.
-     *
-     * @param object $notifiable
-     *
-     * @return array
      */
     public function toKanvasDatabase(object $notifiable): array
     {
@@ -75,8 +79,6 @@ class Notification extends LaravelNotification implements EmailInterfaces
 
     /**
      * generateHtml.
-     *
-     * @return string
      */
     public function message(): string
     {
@@ -87,22 +89,37 @@ class Notification extends LaravelNotification implements EmailInterfaces
     }
 
     /**
-     * getDataMail.
+     * setTemplateName
      *
-     * @return array
+     * @param  mixed $name
+     */
+    public function setTemplateName(string $name): self
+    {
+        $this->templateName = $name;
+
+        return $this;
+    }
+
+    /**
+     * setData
+     */
+    public function setData(array $data): self
+    {
+        $this->data = $data;
+
+        return $this;
+    }
+
+    /**
+     * getData.
      */
     public function getData(): array
     {
-        return [
-        ];
+        return $this->data;
     }
 
     /**
      * setType.
-     *
-     * @param string $type
-     *
-     * @return void
      */
     public function setType(string $type): void
     {
