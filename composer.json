@@ -10,7 +10,7 @@
     ],
     "license": "MIT",
     "require": {
-        "php": "^8.1",
+        "php": "^8.2",
         "guzzlehttp/guzzle": "^7.5",
         "http-interop/http-factory-guzzle": "^1.2",
         "laravel/framework": "^10.0",
@@ -23,7 +23,7 @@
         "meilisearch/meilisearch-php": "^0.27.0",
         "mll-lab/graphql-php-scalars": "^6.0",
         "mll-lab/laravel-graphiql": "^1.2",
-        "nuwave/lighthouse": "dev-master",
+        "nuwave/lighthouse": "^6.0",
         "phpclassic/php-shopify": "^1.2",
         "sentry/sentry-laravel": "^3.2",
         "silber/bouncer": "^1.0",
