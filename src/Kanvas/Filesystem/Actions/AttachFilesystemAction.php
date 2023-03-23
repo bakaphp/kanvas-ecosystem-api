@@ -23,11 +23,6 @@ class AttachFilesystemAction
 
     /**
      * Attached a filesystem to a Eloquent model.
-     *
-     * @param string $fieldName
-     * @param int|null $id
-     *
-     * @return FilesystemEntities
      */
     public function execute(string $fieldName, ?int $id = null): FilesystemEntities
     {
@@ -35,8 +30,11 @@ class AttachFilesystemAction
         $update = (int) $id > 0;
 
         if ($update) {
-            $fileEntity = FilesystemEntitiesRepository::getByIdAdnEntity($id, $this->entity);
+            $fileEntity = FilesystemEntitiesRepository::getByIdAdnEntity((int) $id, $this->entity);
         } else {
+            /**
+             * @var FilesystemEntities
+             */
             $fileEntity = FilesystemEntities::firstOrCreate([
                 'filesystem_id' => $this->filesystem->getKey(),
                 'entity_id' => $this->entity->getKey(),

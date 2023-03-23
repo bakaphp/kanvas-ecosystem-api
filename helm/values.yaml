@@ -2,6 +2,9 @@
 # namespace:
 # apiImage:
 
+cert:
+  apiDomain: graphapidev2.kanvas.dev
+
 services:
   loadBalancer:
     name: graph
@@ -24,6 +27,9 @@ deployments:
   queue:
     name: queue
     containerName: queue
+  healthcheck:
+    name: healthcheck
+    containerName: healthcheck
 
 # Services Values
 

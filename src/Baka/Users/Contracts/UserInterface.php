@@ -42,4 +42,6 @@ interface UserInterface extends Authenticatable
 
     //@todo user a branch interface
     public function getCurrentBranch(): CompaniesBranches;
+
+    public function isAppOwner(): bool;
 }

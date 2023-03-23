@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Templates\Models;
 
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -28,6 +29,7 @@ use Kanvas\Users\Models\Users;
 class Templates extends BaseModel
 {
     use HasCustomFields;
+    use Cachable;
 
     /**
      * The table associated with the model.
@@ -45,8 +47,6 @@ class Templates extends BaseModel
 
     /**
      * Users relationship.
-     *
-     * @return BelongsTo
      */
     public function user(): BelongsTo
     {
@@ -55,8 +55,6 @@ class Templates extends BaseModel
 
     /**
      * Users relationship.
-     *
-     * @return BelongsTo
      */
     public function company(): BelongsTo
     {
@@ -65,8 +63,6 @@ class Templates extends BaseModel
 
     /**
      * Users relationship.
-     *
-     * @return BelongsTo
      */
     public function app(): BelongsTo
     {

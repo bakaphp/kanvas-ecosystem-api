@@ -11,6 +11,24 @@ type Interactions {
     dislike: Boolean
 }
 
+type InteractionType {
+    name: String!
+    title: String!
+    description: String
+}
+
+type EntityInteractions
+{
+    entity_id: Mixed!
+    entity_namespace: String!
+    interacted_entity_id: Mixed!
+    interacted_entity_namespace: String!
+    interactions: Interactions
+        @method(name: "getGroupInteractions")
+    entity: Mixed
+        @method(name: "interactedEntityData")
+}
+
 extend type Mutation @guardByAuthOrCompany {
     likeEntity(input: LikeEntityInput!): Boolean!
         @field(
@@ -27,5 +45,24 @@ extend type Mutation @guardByAuthOrCompany {
     getInteractionByEntity(input: LikeEntityInput!): Interactions!
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractions@getInteractionByEntity"
+        )
+}
+
+extend type Query @guard {
+    entityInteractions(
+        entity_id: String!
+        entity_namespace: String!
+        where: _
+            @whereConditions(
+                columns: [
+                    "interactions_id"
+                    "interacted_entity_id"
+                    "interacted_entity_namespace"
+                ]
+            )
+    ): [EntityInteractions]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Interactions\\EntityInteractionsQueries@getAll"
         )
 }

@@ -19,15 +19,11 @@ trait TokenTrait
 {
     /**
      * User variable.
-     *
-     * @var Users
      */
     protected Users $user;
 
     /**
      * Returns the string token.
-     *
-     * @return array
      *
      * @throws ModelException
      */
@@ -55,9 +51,6 @@ trait TokenTrait
      * Given a token format it to the standard response.
      *
      * @param UserInterface $user
-     * @param array $token
-     *
-     * @return array
      */
     public function format(array $token): array
     {
@@ -69,14 +62,13 @@ trait TokenTrait
             'refresh_token_expires' => $token['refresh_token_expiration'],
             'time' => date('Y-m-d H:i:s'),
             'timezone' => $this->user->timezone,
-            'id' => $this->user->id
+            'id' => $this->user->id,
+            'uuid' => $this->user->uuid,
         ];
     }
 
     /**
      * Returns the ValidationData object for this record (JWT).
-     *
-     * @return bool
      *
      * @deprecated 0.2
      */
@@ -88,12 +80,8 @@ trait TokenTrait
     /**
      * Given a JWT token validate it.
      *
-     * @param Token $token
-     *
      * @throws RequiredConstraintsViolated
      * @throws NoConstraintsGiven
-     *
-     * @return bool
      */
     public static function validateJwtToken(Token $token): bool
     {
@@ -101,18 +89,13 @@ trait TokenTrait
 
         return $config->validator()->validate(
             $token,
-            new IssuedBy(env('TOKEN_AUDIENCE')),
+            new IssuedBy(config('auth.token_audience')),
             new SignedWith($config->signer(), $config->verificationKey())
         );
     }
 
     /**
      * Create a new session based off the refresh token session id.
-     *
-     * @param string $sessionId
-     * @param string $email
-     *
-     * @return array
      */
     public static function createJwtToken(string $sessionId, string $email, float $expirationAt = 0): array
     {
@@ -123,8 +106,8 @@ trait TokenTrait
 
         //https://lcobucci-jwt.readthedocs.io/en/latest/issuing-tokens/
         $token = $config->builder()
-                ->issuedBy(env('TOKEN_AUDIENCE'))
-                ->permittedFor(env('TOKEN_AUDIENCE'))
+                ->issuedBy(config('auth.token_audience'))
+                ->permittedFor(config('auth.token_audience'))
                 ->identifiedBy($sessionId)
                 ->issuedAt($now)
                 ->canOnlyBeUsedAfter($now)
@@ -137,7 +120,7 @@ trait TokenTrait
         return [
             'sessionId' => $sessionId,
             'token' => $token->toString(),
-            'expiration' => $token->claims()->get('exp')
+            'expiration' => $token->claims()->get('exp'),
         ];
     }
 
@@ -145,8 +128,6 @@ trait TokenTrait
      * Get the user Auth Response.
      *
      * @param Users $user
-     *
-     * @return array
      */
     protected function generateToken(Request $request): array
     {
@@ -167,15 +148,12 @@ trait TokenTrait
         );
 
         unset($tokenResponse['sessionId']);
+
         return $tokenResponse;
     }
 
     /**
      * Returns the JWT token object.
-     *
-     * @param string $token
-     *
-     * @return Token
      */
     protected function decodeToken(string $token): Token
     {
@@ -186,21 +164,17 @@ trait TokenTrait
 
     /**
      * Returns the default audience for the tokens.
-     *
-     * @return string
      */
     protected function getTokenAudience(): string
     {
         /** @var string $audience */
-        $audience = env('TOKEN_AUDIENCE', '');
+        $audience = config('auth.token_audience') ?? '';
 
         return $audience;
     }
 
     /**
      * Returns the time the token is issued at.
-     *
-     * @return int
      */
     protected function getTokenTimeIssuedAt(): int
     {
@@ -209,21 +183,17 @@ trait TokenTrait
 
     /**
      * Returns the time drift i.e. token will be valid not before.
-     *
-     * @return int
      */
     protected function getTokenTimeNotBefore(): int
     {
-        return (time() + env('TOKEN_NOT_BEFORE', 10));
+        return (time() + config('auth.token_not_before'));
     }
 
     /**
      * Returns the expiry time for the token.
-     *
-     * @return int
      */
     protected function getTokenTimeExpiration(): int
     {
-        return (time() + env('TOKEN_EXPIRATION', 86400));
+        return (time() + config('auth.token_expiration'));
     }
 }

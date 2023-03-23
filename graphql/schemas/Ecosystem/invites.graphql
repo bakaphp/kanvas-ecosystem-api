@@ -44,22 +44,22 @@ input CompleteInviteInput {
 extend type Mutation @guard {
     inviteUser(input: InviteInput!): Invite!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\Invite@insertInvite"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@insertInvite"
         )
     deleteInvite(id: Int!): Boolean!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\Invite@deleteInvite"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@deleteInvite"
         )
 }
 
 extend type Mutation {
     getInvite(hash: String!): ExternalInvite!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\Invite@get"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@getInvite"
         )
     processInvite(input: CompleteInviteInput!): User!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\Invite@process"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@process"
         )
 }
 extend type Query @guard {

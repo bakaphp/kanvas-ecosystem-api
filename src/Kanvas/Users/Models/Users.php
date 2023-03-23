@@ -24,21 +24,20 @@ use Kanvas\Auth\Contracts\Authenticatable as ContractsAuthenticatable;
 use Kanvas\Auth\Traits\HasApiTokens;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
-use Kanvas\Locations\Cities\Models\Cities;
-use Kanvas\Locations\Countries\Models\Countries;
-use Kanvas\Locations\States\Models\States;
+use Kanvas\Locations\Models\Cities;
+use Kanvas\Locations\Models\Countries;
+use Kanvas\Locations\Models\States;
 use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Users\Factories\UsersFactory;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 
 /**
- * Apps Model.
+ * Users Model.
  *
  * @property string $uuid
  * @property string $email
@@ -46,13 +45,13 @@ use Silber\Bouncer\Database\HasRolesAndAbilities;
  * @property string $firstname
  * @property string $lastname
  * @property string $description
- * @property int $roles_id
+ * @property int    $roles_id
  * @property string $displayname
- * @property int $default_company
- * @property int $default_company_branch
- * @property int $city_id
- * @property int $state_id
- * @property int $country_id
+ * @property int    $default_company
+ * @property int    $default_company_branch
+ * @property int    $city_id
+ * @property int    $state_id
+ * @property int    $country_id
  * @property string $registered
  * @property string $lastvisit
  * @property string $sex
@@ -60,32 +59,32 @@ use Silber\Bouncer\Database\HasRolesAndAbilities;
  * @property string $timezone
  * @property string $phone_number
  * @property string $cell_phone_number
- * @property int $profile_privacy
+ * @property int    $profile_privacy
  * @property string $profile_image
  * @property string $profile_header
  * @property string $profile_header_mobile
- * @property int $user_active
- * @property int $user_login_tries
- * @property int $user_last_login_try
- * @property int $session_time
- * @property int $session_page
- * @property int $welcome
+ * @property int    $user_active
+ * @property int    $user_login_tries
+ * @property int    $user_last_login_try
+ * @property int    $session_time
+ * @property int    $session_page
+ * @property int    $welcome
  * @property string $user_activation_key
  * @property string $user_activation_email
  * @property string $user_activation_forgot
  * @property string $language
- * @property int $karma
- * @property int $votes
- * @property int $votes_points
- * @property int $banned
+ * @property int    $karma
+ * @property int    $votes
+ * @property int    $votes_points
+ * @property int    $banned
  * @property string $location
- * @property int $system_modules_id
- * @property int $status
+ * @property int    $system_modules_id
+ * @property int    $status
  * @property string $address_1
  * @property string $address_2
  * @property string $zip_code
- * @property int $user_recover_code
- * @property int $is_deleted
+ * @property int    $user_recover_code
+ * @property int    $is_deleted
  */
 class Users extends Authenticatable implements UserInterface, ContractsAuthenticatable
 {
@@ -109,8 +108,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * Get id.
-     *
-     * @return int
      */
     public function getId(): int
     {
@@ -119,8 +116,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * Get uuid.
-     *
-     * @return string
      */
     public function getUuid(): string
     {
@@ -139,8 +134,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * Default Company relationship.
-     *
-     * @return HasOne
      */
     public function defaultCompany(): HasOne
     {
@@ -150,12 +143,10 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Apps relationship.
      * use distinct() to avoid duplicate apps.
-     *
-     * @return HasManyThrough
      */
     public function apps(): HasManyThrough
     {
-        //return $this->hasMany(Companies::class, 'users_id');
+        // return $this->hasMany(Companies::class, 'users_id');
         return $this->hasManyThrough(
             Apps::class,
             UsersAssociatedApps::class,
@@ -169,12 +160,10 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Companies relationship.
      * use distinct() to avoid duplicate companies.
-     *
-     * @return HasManyThrough
      */
     public function companies(): HasManyThrough
     {
-        //return $this->hasMany(Companies::class, 'users_id');
+        // return $this->hasMany(Companies::class, 'users_id');
         return $this->hasManyThrough(
             Companies::class,
             UsersAssociatedCompanies::class,
@@ -187,8 +176,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * User city relationship.
-     *
-     * @return BelongsTo
      */
     public function city(): BelongsTo
     {
@@ -197,8 +184,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * User state relationship.
-     *
-     * @return BelongsTo
      */
     public function state(): BelongsTo
     {
@@ -207,8 +192,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * User country relationship.
-     *
-     * @return BelongsTo
      */
     public function country(): BelongsTo
     {
@@ -217,8 +200,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * Get the current user information for the running app.
-     *
-     * @return UsersAssociatedApps
      */
     public function currentAppInfo(): UsersAssociatedApps
     {
@@ -229,8 +210,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * CompaniesBranches relationship.
-     *
-     * @return HasManyThrough
      */
     public function branches(): HasManyThrough
     {
@@ -246,8 +225,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * Role relationship.
-     *
-     * @return HasOne
      */
     public function role(): HasOne
     {
@@ -256,8 +233,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * notifications.
-     *
-     * @return HasMany
      */
     public function notifications(): HasMany
     {
@@ -267,9 +242,17 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
-     * Get User's email.
+     * User linked sources.
      *
-     * @return string
+     * @return HasMany
+     */
+    public function linkedSources(): HasMany
+    {
+        return $this->hasMany(UserLinkedSources::class, 'users_id');
+    }
+
+    /**
+     * Get User's email.
      */
     public function getEmail(): string
     {
@@ -279,6 +262,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Get user by there email address.
      *
+     * @param string $email
      * @return self
      */
     public static function getByEmail(string $email): self
@@ -300,8 +284,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * is the user active?
-     *
-     * @return bool
      */
     public function isActive(): bool
     {
@@ -310,8 +292,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * Determine if a user is banned.
-     *
-     * @return bool
      */
     public function isBanned(): bool
     {
@@ -320,8 +300,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * Set hashtable settings table, userConfig ;).
-     *
-     * @return void
      */
     protected function createSettingsModel(): void
     {
@@ -332,8 +310,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      * A company owner is the first person that register this company
      * This only ocurred when signing up the first time, after that all users invites
      * come with a default_company id attached.
-     *
-     * @return bool
      */
     public function isFirstSignup(): bool
     {
@@ -343,46 +319,48 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * What the current company the users is logged in with
      * in this current session?
-     *
-     * @return int
      */
     public function currentCompanyId(): int
     {
-        $currentCompanyId = $this->get(Companies::cacheKey());
+        if (! app()->bound(CompaniesBranches::class)) {
+            $currentCompanyId = $this->get(Companies::cacheKey());
+        } else {
+            $currentCompanyId = app(CompaniesBranches::class)->company()->first()->getId();
+        }
 
-        return $currentCompanyId ? (int)$currentCompanyId : $this->default_company;
+        return $currentCompanyId ? (int) $currentCompanyId : $this->default_company;
     }
 
     /**
      * What the current branch the users is logged in with.
-     *
-     * @return int
      */
     public function currentBranchId(): int
     {
-        return  (int) $this->get($this->getCurrentCompany()->branchCacheKey());
+        if (! app()->bound(CompaniesBranches::class)) {
+            return (int) $this->get($this->getCurrentCompany()->branchCacheKey());
+        } else {
+            return app(CompaniesBranches::class)->company()->first()->getId();
+        }
     }
 
     /**
      * Get the current company in the user session.
-     *
-     * @return CompanyInterface
      */
     public function getCurrentCompany(): CompanyInterface
     {
         try {
-            return CompaniesRepository::getById($this->currentCompanyId());
+            return Companies::getById($this->currentCompanyId());
         } catch (EloquentModelNotFoundException $e) {
             throw new InternalServerErrorException(
-                'No default company app configured for this user on the current app ' . app(Apps::class)->name . ', please contact support'
+                'No default company app configured for this user on 
+                the current app ' . app(Apps::class)->name . ', 
+                please contact support'
             );
         }
     }
 
     /**
      * Get the current company in the user session.
-     *
-     * @return CompaniesBranches
      */
     public function getCurrentBranch(): CompaniesBranches
     {
@@ -390,15 +368,15 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             return CompaniesBranches::getById($this->currentBranchId());
         } catch (EloquentModelNotFoundException $e) {
             throw new InternalServerErrorException(
-                'No default company app configured for this user on the current app ' . app(Apps::class)->name . ', please contact support'
+                'No default company app configured 
+                for this user on the current app ' . app(Apps::class)->name . ', 
+                please contact support'
             );
         }
     }
 
     /**
      * unReadNotification.
-     *
-     * @return Collection
      */
     public function unReadNotification(): Collection
     {
@@ -407,8 +385,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * Generate new forgot password hash.
-     *
-     * @return string
      */
     public function generateForgotHash(): string
     {
@@ -420,10 +396,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * Generate a hash password and updated for the user model.
-     *
-     * @param string $newPassword
-     *
-     * @return bool
      */
     public function resetPassword(string $newPassword): bool
     {
@@ -434,5 +406,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $this->saveOrFail();
 
         return true;
+    }
+
+    /**
+     * Is the creator of the current app.
+     */
+    public function isAppOwner(): bool
+    {
+        return $this->getId() === app(Apps::class)->users_id;
     }
 }

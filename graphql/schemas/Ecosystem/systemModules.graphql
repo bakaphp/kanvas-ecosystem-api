@@ -1,12 +1,20 @@
 type SystemModule {
     id: Int!
+    uuid: String!
     name: String!
     slug: String!
     model_name: String!
     apps_id: Int!
     parent: SystemModule
-    menu_order: Int!
+    menu_order: Int
     show: Int!
+}
+
+input SystemModuleEntityInput {
+    name: String
+    data: Mixed
+    system_module_uuid: String!
+    entity_id: String!
 }
 
 extend type Query @guard {

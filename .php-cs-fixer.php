@@ -5,6 +5,7 @@
  * you can change this configuration by importing this file.
  */
 $config = new PhpCsFixer\Config();
+
 return $config
     ->setRules([
         '@PSR12' => true,
@@ -16,10 +17,15 @@ return $config
         'phpdoc_scalar' => true,
         'unary_operator_spaces' => true,
         'binary_operator_spaces' => true,
+        'phpdoc_trim_consecutive_blank_line_separation' => true,
+        'phpdoc_trim' => true,
         'logical_operators' => false,
+        'concat_space' => ['spacing' => 'one'],
         'lowercase_cast' => true,
+        'no_empty_comment' => true,
         'ternary_operator_spaces' => true,
         'single_quote' => true,
+        'no_superfluous_phpdoc_tags' => ['allow_mixed' => true, 'allow_unused_params' => true],
         'blank_line_before_statement' => [
             'statements' => ['break', 'continue', 'declare', 'return', 'throw', 'try'],
         ],
@@ -27,7 +33,7 @@ return $config
         'phpdoc_var_without_name' => true,
         'class_attributes_separation' => [
             'elements' => [
-                'method' => 'one'
+                'method' => 'one',
             ],
         ],
         'method_argument_space' => [

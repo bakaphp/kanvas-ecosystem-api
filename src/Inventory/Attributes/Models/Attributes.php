@@ -23,13 +23,12 @@ use Kanvas\Inventory\Models\BaseModel;
 class Attributes extends BaseModel
 {
     use UuidTrait;
+
     public $table = 'attributes';
     public $guarded = [];
 
     /**
      * companies.
-     *
-     * @return BelongsTo
      */
     public function companies(): BelongsTo
     {
@@ -38,8 +37,6 @@ class Attributes extends BaseModel
 
     /**
      * apps.
-     *
-     * @return BelongsTo
      */
     public function apps(): BelongsTo
     {
@@ -48,8 +45,6 @@ class Attributes extends BaseModel
 
     /**
      * Get the user's first name.
-     *
-     * @return Attribute
      */
     protected function value(): Attribute
     {

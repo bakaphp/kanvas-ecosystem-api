@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Tests\Ecosystem\Integration\Companies;
 
 use Illuminate\Support\Facades\Auth;
-use Kanvas\Apps\Enums\Defaults;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\UpdateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\CompaniesPutData;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Tests\TestCase;
 
@@ -35,7 +35,7 @@ final class UpdateCompaniesActionTest extends TestCase
             'address' => $company->address,
             'zipcode' => (int) $company->zipcode,
             'email' => $company->email,
-            'language' =>  Defaults::DEFAULT_LANGUAGE->getValue(),
+            'language' => AppEnums::DEFAULT_LANGUAGE->getValue(),
             'timezone' => $company->timezone,
             'phone' => $company->phone,
             'country_code' => $company->country_code,

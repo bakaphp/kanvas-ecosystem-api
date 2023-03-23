@@ -44,6 +44,7 @@ enum AppEnums implements EnumsInterface
     case KANVAS_APP_HEADER;
     case KANVAS_APP_KEY_HEADER;
     case KANVAS_APP_BRANCH_HEADER;
+    case KANVAS_APP_COMPANY_AUTH_HEADER;
     case DISPLAYNAME_LOGIN;
 
     /**
@@ -74,10 +75,10 @@ enum AppEnums implements EnumsInterface
             self::CURRENCY => 'USD',
             self::FILESYSTEM => 's3',
             self::ALLOW_USER_REGISTRATION => 1,
-            self::BACKGROUND_IMAGE => env('FILESYSTEM_CDN_URL') . '/default-background-auth.jpg',
-            self::LOGO => env('FILESYSTEM_CDN_URL') . '/gewaer-logo-dark.png',
+            self::BACKGROUND_IMAGE => config('filesystem.cdn_url') . '/default-background-auth.jpg',
+            self::LOGO => config('filesystem.cdn_url') . '/gewaer-logo-dark.png',
             self::REGISTERED => 1,
-            self::FAVICON => env('FILESYSTEM_CDN_URL') . '/gewaer-logo-dark.png',
+            self::FAVICON => config('filesystem.cdn_url') . '/gewaer-logo-dark.png',
             self::BASE_COLOR => '#61c2cc',
             self::SECONDARY_COLOR => '#9ee5b5',
             self::ALLOW_SOCIAL_AUTH => 1,
@@ -90,6 +91,7 @@ enum AppEnums implements EnumsInterface
             self::KANVAS_APP_HEADER => 'X-Kanvas-App',
             self::KANVAS_APP_KEY_HEADER => 'X-Kanvas-Key',
             self::KANVAS_APP_BRANCH_HEADER => 'X-Kanvas-Location',
+            self::KANVAS_APP_COMPANY_AUTH_HEADER => 'Company-Authorization',
             self::DISPLAYNAME_LOGIN => 'displayname_login'
         };
     }

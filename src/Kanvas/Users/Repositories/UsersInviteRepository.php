@@ -16,10 +16,13 @@ class UsersInviteRepository
      *
      * @param  int $id
      *
-     * @return UsersInvite
+     * @return UsersInviteModel
      */
     public static function getById(int $id, Companies $company): UsersInviteModel
     {
+        /**
+         * @var UsersInviteModel
+         */
         return UsersInviteModel::where('apps_id', app(Apps::class)->id)
             ->where('companies_id', $company->getKey())
             ->where('is_deleted', StateEnums::NO->getValue())
@@ -36,6 +39,9 @@ class UsersInviteRepository
      */
     public static function getByHash(string $hash): UsersInviteModel
     {
+        /**
+         * @var UsersInviteModel
+         */
         return UsersInviteModel::where('invite_hash', $hash)
             ->where('apps_id', app(Apps::class)->id)
             ->where('is_deleted', StateEnums::NO->getValue())

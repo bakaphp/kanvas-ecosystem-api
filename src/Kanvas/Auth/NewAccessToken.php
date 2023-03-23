@@ -36,7 +36,8 @@ class NewAccessToken
             'refresh_token_expires' => $this->sessionToken->refresh_token_expires_at->format('Y-m-d H:i:s'),
             'time' => $this->sessionToken->time,
             'timezone' => $this->sessionToken->user->timezone,
-            'id' => $this->sessionToken->users_id
+            'id' => $this->sessionToken->users_id,
+            'uuid' => $this->sessionToken->user->uuid,
         ];
     }
 

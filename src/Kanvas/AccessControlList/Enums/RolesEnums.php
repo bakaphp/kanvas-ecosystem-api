@@ -8,10 +8,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
 
-enum RolesEnums : Int
+enum RolesEnums
 {
-    case ADMIN = 1;
-
     /**
      * Get role Key.
      *

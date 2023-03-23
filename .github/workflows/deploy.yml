@@ -1,4 +1,4 @@
-name: CD
+name: Deploy To AWS
 on:
   push:
     branches:
@@ -74,6 +74,11 @@ jobs:
             aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_CICD }}
             aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY_CICD }}
             aws eks update-kubeconfig   --region ${{ secrets.AWS_REGION }}   --name ${{ secrets.CLUSTER_NAME }}
+
+            # For now ignore managed-cert file to avoid conflict with gcp
+            touch helm/.helmignore
+            echo "managed-cert.yaml" >> helm/.helmignore
+            echo "svc-gcp-lb.yaml" >> helm/.helmignore
             
             #deploy or upgrade helm chart
             helm upgrade --install ${{ secrets.INSTANCE_NAME }} helm \

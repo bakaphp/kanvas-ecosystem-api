@@ -15,8 +15,6 @@ class AuthTest extends TestCase
 
     /**
      * Set login credentials.
-     *
-     * @return LoginInput
      */
     public static function loginData(): LoginInput
     {
@@ -24,7 +22,7 @@ class AuthTest extends TestCase
             self::$loginData = LoginInput::from([
                 'email' => fake()->email,
                 'password' => fake()->password(8),
-                'ip' => request()->ip()
+                'ip' => request()->ip(),
             ]);
         }
 
@@ -32,11 +30,36 @@ class AuthTest extends TestCase
     }
 
     /**
-     * test_save.
+     * Test the logout function to remove sessions
+     */
+    public function testLogoutData(): void
+    {
+        $loginData = self::loginData();
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation {
+                logout
+            }'
+        )
+        ->assertSuccessful()
+        ->assertSee('logout');
+    }
+
+    /**
+     * Test if the user is allow to login using social media
+     * @todo Look for a way to generate and pass the user token for the login using
+     * a test account.
      *
      * @return void
      */
-    public function test_signup(): void
+    public function testSocialLogin(): void
+    {
+    }
+
+    /**
+     * test_save.
+     */
+    public function testSignup(): void
     {
         $loginData = self::loginData();
         $email = $loginData->getEmail();
@@ -62,14 +85,14 @@ class AuthTest extends TestCase
             'data' => [
                 'email' => $email,
                 'password' => $password,
-                'password_confirmation' => $password
+                'password_confirmation' => $password,
             ],
         ])->assertJson([
             'data' => [
                 'register' => [
                     'user' => [
                         'email' => $email,
-                    ]
+                    ],
                 ],
             ],
         ])
@@ -83,10 +106,8 @@ class AuthTest extends TestCase
 
     /**
      * test_save.
-     *
-     * @return void
      */
-    public function test_login(): void
+    public function testLogin(): void
     {
         $loginData = self::loginData();
         $email = $loginData->getEmail();
@@ -108,7 +129,7 @@ class AuthTest extends TestCase
         ', [
             'data' => [
                 'email' => $email,
-                'password' => $password
+                'password' => $password,
             ],
         ])
         ->assertSuccessful()
@@ -123,10 +144,8 @@ class AuthTest extends TestCase
 
     /**
      * test_refresh_token
-     *
-     * @return void
      */
-    public function test_refresh_token(): void
+    public function testRefreshToken(): void
     {
         $loginData = self::loginData();
         $email = $loginData->getEmail();
@@ -148,7 +167,7 @@ class AuthTest extends TestCase
         ', [
             'data' => [
                 'email' => $email,
-                'password' => $password
+                'password' => $password,
             ],
         ]);
         $refreshToken = $response['data']['login']['refresh_token'];
@@ -164,7 +183,7 @@ class AuthTest extends TestCase
                   timezone
                 }
               }', [
-            'refresh_token' => $refreshToken
+            'refresh_token' => $refreshToken,
         ])
         ->assertSuccessful()
         ->assertSee('id')
@@ -176,7 +195,7 @@ class AuthTest extends TestCase
         ->assertSee('refresh_token');
     }
 
-    public function test_auth_user(): void
+    public function testAuthUser(): void
     {
         $userData = Auth::user();
         $response = $this->graphQL(/** @lang GraphQL */ '
@@ -194,16 +213,14 @@ class AuthTest extends TestCase
                 'me' => [
                     'id' => $userData->id,
                     'displayname' => $userData->displayname,
-                    'email' => $userData->email
-                ]
+                    'email' => $userData->email,
+                ],
             ],
         ]);
     }
 
     /**
      * Test the forgot password hash creation and email.
-     *
-     * @return void
      */
     public function test_forgot_password(): void
     {
@@ -217,7 +234,7 @@ class AuthTest extends TestCase
             }',
             [
                 'data' => [
-                    'email' => $email
+                    'email' => $email,
                 ],
             ]
         )
@@ -227,10 +244,8 @@ class AuthTest extends TestCase
 
     /**
      * Test the reset password for user.
-     *
-     * @return void
      */
-    public function test_reset_password(): void
+    public function testResetPassword(): void
     {
         $emailData = self::loginData();
         $userData = Users::getByEmail($emailData->getEmail());
@@ -244,7 +259,7 @@ class AuthTest extends TestCase
                 'data' => [
                     'new_password' => '11223344',
                     'verify_password' => '11223344',
-                    'hash_key' => $userData->user_activation_forgot
+                    'hash_key' => $userData->user_activation_forgot,
                 ],
             ]
         )

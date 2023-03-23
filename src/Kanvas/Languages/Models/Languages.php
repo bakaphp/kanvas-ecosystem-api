@@ -4,19 +4,20 @@ declare(strict_types=1);
 
 namespace Kanvas\Languages\Models;
 
-use Kanvas\Locations\Cities\Models\Cities;
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Kanvas\Models\BaseModel;
 
 /**
- * Cities Class.
+ * Languages Class.
  *
  * @property string $name
  * @property string $title
  * @property string $order
  */
-
 class Languages extends BaseModel
 {
+    use Cachable;
+
     /**
      * The table associated with the model.
      *

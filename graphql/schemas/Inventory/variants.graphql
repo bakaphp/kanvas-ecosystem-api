@@ -12,7 +12,7 @@ type Variant {
     files: [Filesystem]
         @paginate(
             defaultCount: 10
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FileRelationship@entityPagination"
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQueries@getFileByGraphType"
         )
     interactions(visitor: VisitorEntityInput!): Interactions
         @method(name: "getEntitySocialInteractions")
@@ -21,6 +21,7 @@ type Variant {
     attributes: [VariantsAttributes]
     channels: [VariantChannelRelationship]
 }
+
 type WarehouseVariantRelationship {
     id: Int!
     uuid: String!

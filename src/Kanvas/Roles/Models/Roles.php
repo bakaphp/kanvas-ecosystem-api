@@ -8,7 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Models\BaseModel;
 
 /**
- * Apps Model.
+ * Roles Model Legacy
  *
  * @property int $companies_id
  * @property int $apps_id
@@ -26,4 +26,14 @@ class Roles extends BaseModel
      * @var string
      */
     protected $table = 'roles_kanvas_legacy';
+
+    protected $fillable = [
+        'companies_id',
+        'apps_id',
+        'name',
+        'description',
+        'scope',
+        'is_actived',
+        'is_default',
+    ];
 }

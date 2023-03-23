@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Actions;
 
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -23,11 +24,6 @@ class CreateFilesystemAction
 
     /**
      * Create a new FileSystem.
-     *
-     * @param string $uploadUrl
-     * @param string $uploadPath
-     *
-     * @return Filesystem
      */
     public function execute(string $uploadUrl, string $uploadPath): Filesystem
     {
@@ -40,7 +36,7 @@ class CreateFilesystemAction
         $fileSystem->users_id = $this->user->getKey();
         $fileSystem->path = $uploadPath;
         $fileSystem->url = $uploadUrl;
-        $fileSystem->file_type = $this->file->getClientOriginalExtension();
+        $fileSystem->file_type = $this->file->guessExtension();
         $fileSystem->size = $this->file->getSize();
         $fileSystem->saveOrFail();
 
