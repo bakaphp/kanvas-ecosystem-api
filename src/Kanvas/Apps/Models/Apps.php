@@ -42,7 +42,7 @@ use Kanvas\Users\Models\UsersAssociatedApps;
 class Apps extends BaseModel implements AppInterface
 {
     use HashTableTrait;
-    use Cachable;
+    //use Cachable;
 
     /**
      * The table associated with the model.
