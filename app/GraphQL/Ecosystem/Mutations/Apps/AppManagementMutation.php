@@ -13,6 +13,7 @@ use Kanvas\Apps\Repositories\AppsRepository;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Templates\Actions\CreateTemplateAction;
 use Kanvas\Templates\DataTransferObject\TemplateInput;
 use Kanvas\Users\Repositories\UsersRepository;
 

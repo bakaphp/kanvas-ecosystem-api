@@ -74,7 +74,7 @@ class Templates extends BaseModel
         $this->parent_template_id = $template->id;
         $this->saveOrFail();
     }
-    
+
     /**
      * Template I'm based from
      *
