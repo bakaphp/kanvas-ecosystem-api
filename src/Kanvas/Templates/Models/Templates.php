@@ -20,6 +20,7 @@ use Kanvas\Users\Models\Users;
  * @property int $companies_id
  * @property int $apps_id
  * @property string $name
+ * @property int $parent_template_id
  * @property string $template
  * @property string $created_at
  * @property string $updated_at
@@ -66,5 +67,23 @@ class Templates extends BaseModel
     public function app(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
+    }
+
+    /**
+     * Template I'm based from
+     *
+     * @return BelongsTo <Templates>
+     */
+    public function parentTemplate(): BelongsTo
+    {
+        return $this->belongsTo(Templates::class, 'parent_template_id');
+    }
+
+    /**
+     * Check if the template has a parent template
+     */
+    public function hasParentTemplate(): bool
+    {
+        return $this->parent_template_id > 0;
     }
 }

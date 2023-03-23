@@ -36,6 +36,8 @@ jobs:
       AWS_URL: ${{ secrets.AWS_URL }}
       SCOUT_DRIVER: database
       MODEL_CACHE_STORE: model
+      LIGHTHOUSE_CACHE_ENABLE: true
+      LIGHTHOUSE_CACHE_VERSION: 2
 
       #APP_DEBUG: true
     strategy:

@@ -30,6 +30,19 @@ class NotificationTypes extends BaseModel
 
     public $table = 'notification_types';
 
+    public $fillable = [
+        'apps_id',
+        'system_modules_id',
+        'name',
+        'key',
+        'description',
+        'template',
+        'icon_url',
+        'with_realtime',
+        'parent_id',
+        'is_published',
+    ];
+
     /**
      * getByName.
      */
@@ -46,5 +59,13 @@ class NotificationTypes extends BaseModel
     public function channel(): BelongsTo
     {
         return $this->belongsTo(NotificationChannel::class, 'notification_channel_id');
+    }
+
+    /**
+     * Verify this notification type uses email template.
+     */
+    public function hasEmailTemplate(): bool
+    {
+        return ! empty($this->template);
     }
 }

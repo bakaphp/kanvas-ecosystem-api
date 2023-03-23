@@ -29,7 +29,6 @@ class CompaniesPutData extends Data
      */
     public function __construct(
         public string $name,
-        public ?int $currency_id = null,
         public ?string $website,
         public ?string $address,
         public ?int $zipcode,
@@ -38,6 +37,7 @@ class CompaniesPutData extends Data
         public ?string $timezone,
         public ?string $phone,
         public ?string $country_code,
+        public ?int $currency_id = null,
         public ?array $files = null
     ) {
     }
@@ -46,8 +46,6 @@ class CompaniesPutData extends Data
      * Create new instance of DTO from request.
      *
      * @param Request $request Request Input data
-     *
-     * @return self
      */
     public static function viaRequest(Request $request): self
     {
@@ -70,8 +68,6 @@ class CompaniesPutData extends Data
      * Create new instance of DTO from array of data.
      *
      * @param array $data Input data
-     *
-     * @return self
      */
     public static function fromArray(array $data): self
     {

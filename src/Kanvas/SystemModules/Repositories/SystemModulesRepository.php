@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\SystemModules\Repositories;
 
+use Baka\Support\Str;
 use Baka\Traits\SearchableTrait;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
@@ -39,8 +40,7 @@ class SystemModulesRepository
                 'apps_id' => $app->getKey(),
             ],
             [
-                'model_name' => $modelName,
-                'apps_id' => $app->getKey(),
+                'slug' => Str::simpleSlug($modelName),
             ]
         );
     }
