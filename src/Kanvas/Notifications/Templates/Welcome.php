@@ -10,8 +10,6 @@ class Welcome extends Notification
 
     /**
      * via.
-     *
-     * @return array
      */
     public function via(): array
     {

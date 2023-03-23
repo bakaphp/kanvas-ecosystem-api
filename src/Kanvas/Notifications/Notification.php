@@ -36,8 +36,6 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     /**
      * Set the entity
      *
-     * @param Model $entity
-     *
      * @return void
      */
     public function __construct(Model $entity)
@@ -48,8 +46,6 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
     /**
      * Create a new notification channel.
-     *
-     * @return array
      */
     public function via(): array
     {
@@ -62,8 +58,6 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      * Get the mail representation of the notification.
      *
      * @param  mixed  $notifiable
-     *
-     * @return \Illuminate\Notifications\Messages\MailMessage
      */
     public function toMail($notifiable): MailMessage
     {
@@ -78,10 +72,6 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
     /**
      * toKanvasDatabase.
-     *
-     * @param UserInterface $notifiable
-     *
-     * @return array
      */
     public function toKanvasDatabase(UserInterface $notifiable): array
     {
@@ -112,8 +102,6 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
     /**
      * Notification message the user will get.
-     *
-     * @return string
      */
     public function message(): string
     {
@@ -126,8 +114,6 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
     /**
      * Given the HTML for the current email notification
-     *
-     * @return string
      */
     protected function getEmailTemplate(): string
     {
@@ -159,8 +145,6 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
     /**
      * Get notification template Name
-     *
-     * @return string|null
      */
     public function getTemplateName(): ?string
     {
@@ -169,8 +153,6 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
     /**
      * getDataMail.
-     *
-     * @return array
      */
     public function getData(): array
     {
@@ -183,10 +165,6 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
     /**
      * setType.
-     *
-     * @param string $type
-     *
-     * @return void
      */
     public function setType(string $type): void
     {
@@ -195,8 +173,6 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
     /**
      * Get the notification type
-     *
-     * @return NotificationTypes
      */
     public function getType(): NotificationTypes
     {
@@ -226,8 +202,6 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
     /**
      * Get the user who is sending the notification
-     *
-     * @return UserInterface
      */
     public function getFromUser(): UserInterface
     {
