@@ -4,13 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Templates;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Kanvas\Notifications\Notification;
 
-class Blank extends Notification 
+class Blank extends Notification
 {
- 
     /**
      * __construct
      */
