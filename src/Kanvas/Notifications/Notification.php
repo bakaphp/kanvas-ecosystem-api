@@ -21,9 +21,9 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Templates\Actions\RenderTemplateAction;
 use Kanvas\Users\Models\Users;
 
-class Notification extends LaravelNotification implements EmailInterfaces //, ShouldQueue
+class Notification extends LaravelNotification implements EmailInterfaces, ShouldQueue
 {
-    // use Queueable;
+    use Queueable;
 
     protected Model $entity;
     protected AppInterface $app;
@@ -43,7 +43,6 @@ class Notification extends LaravelNotification implements EmailInterfaces //, Sh
      */
     public function __construct(Model $entity)
     {
-        dd('Hola Mundo');
         $this->entity = $entity;
         $this->app = app(Apps::class);
         $this->data = [
@@ -53,9 +52,16 @@ class Notification extends LaravelNotification implements EmailInterfaces //, Sh
         ];
     }
 
-    public function setVia(array $via)
+    /**
+     * setVia
+     *
+     * @return void
+     */
+    public function setVia(array $via): self
     {
         $this->via = [KanvasDatabaseChannel::class,...$via];
+
+        return $this;
     }
 
     /**
