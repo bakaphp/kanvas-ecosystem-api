@@ -6,11 +6,11 @@ namespace Kanvas\Notifications\Templates;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Kanvas\Notifications\Notification;
 
-class Blank extends Notification implements ShouldQueue
+class Blank extends Notification 
 {
-    use Queueable;
-
+ 
     /**
      * __construct
      */

@@ -102,7 +102,7 @@ extend type Mutation {
         data: Mixed!
         via: [String]!
         users_id: [Int]!
-    ): Boolean
+    ): Boolean @guard
     @field(
         resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\NotificationsManagementMutation@sendNotificationBaseOnTemplate"
     )
