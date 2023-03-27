@@ -9,7 +9,7 @@ use Kanvas\Companies\Actions\DeleteCompaniesAction;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ModelNotFoundException;
 
-class DeleteCompany extends Command
+class DeleteCompanyCommand extends Command
 {
     /**
      * The name and signature of the console command.
