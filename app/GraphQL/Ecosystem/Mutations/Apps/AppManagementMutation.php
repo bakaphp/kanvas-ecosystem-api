@@ -5,25 +5,23 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Mutations\Apps;
 
 use Kanvas\Apps\Actions\CreateAppsAction;
-use Kanvas\Apps\Repositories\AppsRepository;
-use Kanvas\Enums\StateEnums;
-use Kanvas\Users\Repositories\UsersRepository;
-use Kanvas\Companies\Models\Companies;
-use Kanvas\Companies\Repositories\CompaniesRepository;
-use Kanvas\Templates\Actions\CreateTemplate;
-use Kanvas\Templates\DataTransferObject\TemplateInput;
-use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Actions\UpdateAppsAction;
+use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\DataTransferObject\AppSettingsInput;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Apps\Repositories\AppsRepository;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Enums\StateEnums;
+use Kanvas\Templates\Actions\CreateTemplateAction;
+use Kanvas\Templates\DataTransferObject\TemplateInput;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class AppManagementMutation
 {
     /**
      * activeApp
      *
-     * @param  mixed $root
-     * @param  array $request
      * @return void
      */
     public function activeApp(mixed $root, array $request)
@@ -63,7 +61,6 @@ class AppManagementMutation
     /**
      * assignCompanyToApp
      *
-     * @param  mixed $root
      * @param  array $req
      * @return void
      */
@@ -122,7 +119,7 @@ class AppManagementMutation
 
         UsersRepository::userOwnsThisApp(auth()->user(), $app);
 
-        $createTemplate = new CreateTemplate(
+        $createTemplate = new CreateTemplateAction(
             new TemplateInput(
                 $app,
                 $request['input']['name'],
@@ -182,8 +179,6 @@ class AppManagementMutation
 
     /**
      * restoreApp.
-     *
-     * @return Apps
      */
     public function restoreApp(mixed $root, array $req): Apps
     {

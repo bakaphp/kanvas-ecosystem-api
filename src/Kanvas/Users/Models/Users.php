@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Models;
 
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\KanvasModelTrait;
@@ -241,6 +242,16 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
+     * User linked sources.
+     *
+     * @return HasMany
+     */
+    public function linkedSources(): HasMany
+    {
+        return $this->hasMany(UserLinkedSources::class, 'users_id');
+    }
+
+    /**
      * Get User's email.
      */
     public function getEmail(): string
@@ -250,6 +261,9 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * Get user by there email address.
+     *
+     * @param string $email
+     * @return self
      */
     public static function getByEmail(string $email): self
     {
@@ -332,7 +346,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Get the current company in the user session.
      */
-    public function getCurrentCompany(): Companies
+    public function getCurrentCompany(): CompanyInterface
     {
         try {
             return Companies::getById($this->currentCompanyId());

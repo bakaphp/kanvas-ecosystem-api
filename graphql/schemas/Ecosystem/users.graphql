@@ -34,6 +34,7 @@ type ContactInfo {
 
 type TokenResponse {
     id: Int!
+    uuid: String!
     token: String!
     refresh_token: String!
     token_expires: DateTime!
@@ -51,6 +52,11 @@ type RegisterResponse {
 input LoginInput {
     email: String!
     password: String!
+}
+
+input SocialLoginInput {
+    token: String!
+    provider: String!
 }
 
 input ForgotPasswordInput {
@@ -139,6 +145,10 @@ extend type Mutation {
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@switchCompanyBranch"
+        )
+    socialLogin(data: SocialLoginInput!): TokenResponse
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@socialLogin"
         )
 }
 

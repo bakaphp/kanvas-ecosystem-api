@@ -35,11 +35,15 @@ jobs:
       AWS_BUCKET: ${{ secrets.AWS_BUCKET }}
       AWS_URL: ${{ secrets.AWS_URL }}
       SCOUT_DRIVER: database
+      MODEL_CACHE_STORE: model
+      MODEL_CACHE_ENABLED: false
+      LIGHTHOUSE_CACHE_ENABLE: true
+      LIGHTHOUSE_CACHE_VERSION: 2
       #APP_DEBUG: true
     strategy:
       fail-fast: false
       matrix:
-        php-versions: [ "8.1", "8.2" ]
+        php-versions: ["8.2" ]
     services:
       mysql:
         image: mariadb:10.4

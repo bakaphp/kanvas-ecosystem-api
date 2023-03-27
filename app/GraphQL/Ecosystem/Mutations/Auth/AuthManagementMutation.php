@@ -5,20 +5,22 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Mutations\Auth;
 
 use GraphQL\Type\Definition\ResolveInfo;
-use Kanvas\Auth\Services\ForgotPassword as ForgotPasswordService;
-use Kanvas\Auth\Traits\AuthTrait;
-use Kanvas\Auth\Traits\TokenTrait;
-use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
 use Kanvas\Auth\Actions\RegisterUsersAction;
-use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\DataTransferObject\LoginInput;
-use Kanvas\Users\Repositories\UsersRepository;
 use Exception;
-use Illuminate\Auth\Access\AuthorizationException;
+use Laravel\Socialite\Facades\Socialite;
+use Kanvas\Auth\DataTransferObject\RegisterInput;
+use Kanvas\Auth\Services\ForgotPassword as ForgotPasswordService;
+use Kanvas\Auth\Traits\AuthTrait;
+use Kanvas\Auth\Traits\TokenTrait;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
+use Kanvas\Users\Repositories\UsersRepository;
+use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
+use Kanvas\Auth\Actions\SocialLoginAction;
 
 class AuthManagementMutation
 {
@@ -26,10 +28,7 @@ class AuthManagementMutation
     use AuthTrait;
 
     /**
-     * @param $rootValue
      * @param array $args
-     * @param \Nuwave\Lighthouse\Support\Contracts\GraphQLContext|null $context
-     * @param \GraphQL\Type\Definition\ResolveInfo $resolveInfo
      *
      * @return array
      *
@@ -53,13 +52,6 @@ class AuthManagementMutation
 
     /**
      * Reset user password.
-     *
-     * @param mixed $rootValue
-     * @param array $request
-     * @param GraphQLContext|null $context
-     * @param ResolveInfo $resolveInfo
-     *
-     * @return void
      */
     public function reset(
         mixed $rootValue,
@@ -70,16 +62,12 @@ class AuthManagementMutation
         $user = new ForgotPasswordService();
 
         $user->reset($request['data']['new_password'], $request['data']['hash_key']);
+
         return true;
     }
 
     /**
-     * @param $rootValue
      * @param array $args
-     * @param \Nuwave\Lighthouse\Support\Contracts\GraphQLContext|null $context
-     * @param \GraphQL\Type\Definition\ResolveInfo $resolveInfo
-     *
-     * @return array
      *
      * @throws \Exception
      */
@@ -106,24 +94,16 @@ class AuthManagementMutation
 
     /**
      * Logout the current user
-     *
-     * @param mixed $rootValue
-     * @param array $request
-     * @return boolean
      */
     public function logout(mixed $rootValue, array $request): bool
     {
         $session = new Sessions();
+
         return $session->end(auth()->user(), $request['sessionId'] ?? null);
     }
 
     /**
-     * @param $rootValue
      * @param array $args
-     * @param \Nuwave\Lighthouse\Support\Contracts\GraphQLContext|null $context
-     * @param \GraphQL\Type\Definition\ResolveInfo $resolveInfo
-     *
-     * @return array
      *
      * @throws \Exception
      */
@@ -139,7 +119,7 @@ class AuthManagementMutation
                 'password' => [
                     'required',
                     'confirmed',
-                    Password::min(8)
+                    Password::min(8),
                 ],
             ]
         )->validate();
@@ -153,16 +133,12 @@ class AuthManagementMutation
 
         return [
             'user' => $registeredUser,
-            'token' => $tokenResponse
+            'token' => $tokenResponse,
         ];
     }
 
     /**
      * resolve
-     *
-     * @param  mixed $rootValue
-     * @param  array $req
-     * @return void
      */
     public function refreshToken(mixed $rootValue, array $req): array
     {
@@ -171,19 +147,39 @@ class AuthManagementMutation
             throw new AuthorizationException('Expired refresh token');
         }
         $user = UsersRepository::getByEmail($token->claims()->get('email'));
+
         return $user->createToken('kanvas-login')->toArray();
     }
 
     /**
      * switchCompanyBranch
+     */
+    public function switchCompanyBranch(mixed $root, array $req): bool
+    {
+        $action = new SwitchCompanyBranchAction(auth()->user(), $req['company_branch_id']);
+
+        return $action->execute();
+    }
+
+    /**
+     * Login with social login
      *
      * @param  mixed $root
      * @param  array $req
      * @return array
      */
-    public function switchCompanyBranch(mixed $root, array $req): bool
+    public function socialLogin(mixed $root, array $req): array
     {
-        $action = new SwitchCompanyBranchAction(auth()->user(), $req['company_branch_id']);
-        return $action->execute();
+        $data = $req['data'];
+        $token = $data['token'];
+        $provider = $data['provider'];
+
+        $user = Socialite::driver($provider)->userFromToken($token);
+        $socialLogin = new SocialLoginAction($user, $provider);
+
+        $loggedUser = $socialLogin->execute();
+        $tokenResponse = $loggedUser->createToken('kanvas-login')->toArray();
+
+        return $tokenResponse;
     }
 }
