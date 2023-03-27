@@ -8,7 +8,6 @@ use Kanvas\Notifications\Notification;
 use stdClass;
 use Illuminate\Database\Eloquent\Model;
 
-
 class Blank extends Notification
 {
     /**
