@@ -17,6 +17,7 @@ class NotificationsManagementMutation
      */
     public function sendNotificationBaseOnTemplate(mixed $root, array $request)
     {
+        
         $users = UsersRepository::findUsersByIds($request['users_id']); 
         $notification = new Blank(
             $request['template_name'],
