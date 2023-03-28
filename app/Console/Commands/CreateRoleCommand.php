@@ -7,7 +7,7 @@ namespace App\Console\Commands;
 use Bouncer;
 use Illuminate\Console\Command;
 
-class CreateRole extends Command
+class CreateRoleCommand extends Command
 {
     /**
      * The name and signature of the console command.

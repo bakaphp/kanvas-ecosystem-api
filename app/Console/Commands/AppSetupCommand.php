@@ -9,7 +9,7 @@ use Kanvas\Apps\Actions\CreateAppsAction;
 use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Users\Models\Users;
 
-class AppSetup extends Command
+class AppSetupCommand extends Command
 {
     /**
      * The name and signature of the console command.
