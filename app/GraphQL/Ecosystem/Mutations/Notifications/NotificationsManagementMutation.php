@@ -17,8 +17,7 @@ class NotificationsManagementMutation
      */
     public function sendNotificationBaseOnTemplate(mixed $root, array $request)
     {
-        
-        $users = UsersRepository::findUsersByIds($request['users_id']); 
+        $users = UsersRepository::findUsersByIds($request['users_id']);
         $notification = new Blank(
             $request['template_name'],
             is_string($request['data']) ? json_decode($request['data']) : $request['data'], // This can have more validation like validate if is array o json
