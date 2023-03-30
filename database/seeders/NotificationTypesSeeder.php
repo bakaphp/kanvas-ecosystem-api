@@ -31,5 +31,20 @@ class NotificationTypesSeeder extends Seeder
             'weight' => 0,
             'created_at' => date('Y-m-d H:i:s'),
         ]);
+        NotificationTypes::create([
+            'apps_id' => 1,
+            'system_modules_id' => $systemModule->id,
+            'parent_id' => 0,
+            'name' => 'blank',
+            'key' => 'blank',
+            'description' => 'blank',
+            'template' => 'blank',
+            'icon_url' => 'blank',
+            'with_realtime' => 0,
+            'is_published' => 1,
+            'is_deleted' => 0,
+            'weight' => 0,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
     }
 }

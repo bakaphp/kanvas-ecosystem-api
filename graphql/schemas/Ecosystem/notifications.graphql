@@ -97,4 +97,13 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\ReadAllNotification"
         )
+    sendNotificationBaseOnTemplate(
+        template_name: String!
+        data: Mixed!
+        via: [String]!
+        users_id: [Int]!
+    ): Boolean @guard
+    @field(
+        resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\NotificationsManagementMutation@sendNotificationBaseOnTemplate"
+    )
 }
