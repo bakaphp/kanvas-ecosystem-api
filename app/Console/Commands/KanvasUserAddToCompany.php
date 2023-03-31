@@ -3,7 +3,9 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Users\Actions\AssignCompanyAction;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class KanvasUserAddToCompany extends Command
 {
@@ -12,7 +14,7 @@ class KanvasUserAddToCompany extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:users {email} {company_id}';
+    protected $signature = 'kanvas:users {email} {branch_id}';
 
     /**
      * The console command description.
@@ -26,10 +28,11 @@ class KanvasUserAddToCompany extends Command
      */
     public function handle(): void
     {
-        //
         $email = $this->argument('email');
-        $company_id = $this->argument('company_id');
-        $assignCompanyAction = new AssignCompanyAction($email, $company_id);
+        $branchId = $this->argument('branch_id');
+        $branch = CompaniesBranches::find($branchId);
+
+        $assignCompanyAction = new AssignCompanyAction(UsersRepository::getByEmail($email), $branch);
         $assignCompanyAction->execute();
     }
 }
