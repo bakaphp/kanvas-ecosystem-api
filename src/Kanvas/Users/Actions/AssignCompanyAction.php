@@ -22,13 +22,15 @@ class AssignCompanyAction
     public Companies $company;
     public CompaniesBranches $branch;
     public DefaultRoles $role;
+    public Apps $app;
 
-    public function __construct(Users $user, CompaniesBranches $branch, ?DefaultRoles $role = null)
+    public function __construct(Users $user, CompaniesBranches $branch, ?DefaultRoles $role = null, ?Apps $app = null)
     {
         $this->user = $user;
         $this->company = $branch->company()->first();
         $this->branch = $branch;
         $this->role = $role ?? DefaultRoles::ADMIN;
+        $this->app = $app ?? app(Apps::class);
     }
 
     /**
@@ -36,7 +38,7 @@ class AssignCompanyAction
      */
     public function execute(): void
     {
-        $app = app(Apps::class);
+        $app = $this->app;
         // $branch = $this->company->branch()->first();
         if (! $this->user->get(Companies::cacheKey())) {
             $this->user->set(Companies::cacheKey(), $this->company->id);
