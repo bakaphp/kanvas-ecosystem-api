@@ -21,12 +21,14 @@ class AssignCompanyAction
     public Users $user;
     public Companies $company;
     public CompaniesBranches $branch;
+    public DefaultRoles $role;
 
-    public function __construct(Users $user, CompaniesBranches $branch)
+    public function __construct(Users $user, CompaniesBranches $branch, ?DefaultRoles $role = null)
     {
         $this->user = $user;
         $this->company = $branch->company()->first();
         $this->branch = $branch;
+        $this->role = $role ?? DefaultRoles::ADMIN;
     }
 
     /**
@@ -50,7 +52,6 @@ class AssignCompanyAction
             $this->branch
         );
 
-
         $this->company->associateUserApp(
             $this->user,
             $app,
@@ -62,7 +63,7 @@ class AssignCompanyAction
             $assignRole = new AssignAction($this->user, $role);
             $assignRole->execute();
         } else {
-            $assignRole = new AssignAction($this->user, DefaultRoles::ADMIN->getValue());
+            $assignRole = new AssignAction($this->user, $this->role::ADMIN->getValue());
             $assignRole->execute();
         }
 
