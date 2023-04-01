@@ -172,7 +172,22 @@ class Apps extends BaseModel implements AppInterface
     {
         $user = Auth::user();
 
-        return $query->select('apps.*')
+        return $query->select(
+            'apps.id',
+            'apps.name',
+            'apps.description',
+            'apps.url',
+            'apps.domain',
+            'apps.default_apps_plan_id',
+            'apps.is_actived',
+            'apps.key',
+            'apps.payments_active',
+            'apps.ecosystem_auth',
+            'apps.is_public',
+            'apps.domain_based',
+            'apps.created_at',
+            'apps.updated_at'
+        )
             ->join(
                 'users_associated_apps',
                 'users_associated_apps.apps_id',
