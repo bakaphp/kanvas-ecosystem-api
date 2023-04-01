@@ -21,8 +21,6 @@ class AddLeadParticipantAction
 
     /**
      * execute.
-     *
-     * @return LeadsParticipants
      */
     public function execute(): LeadsParticipants
     {

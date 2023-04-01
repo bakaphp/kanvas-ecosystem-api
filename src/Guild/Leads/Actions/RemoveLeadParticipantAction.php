@@ -21,8 +21,6 @@ class RemoveLeadParticipantAction
 
     /**
      * Execute.
-     *
-     * @return bool
      */
     public function execute(): bool
     {
