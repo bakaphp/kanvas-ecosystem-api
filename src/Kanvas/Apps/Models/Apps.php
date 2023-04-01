@@ -182,6 +182,6 @@ class Apps extends BaseModel implements AppInterface
             ->where('users_associated_apps.users_id', '=', $user->getKey())
             ->where('users_associated_apps.is_deleted', '=', StateEnums::NO->getValue())
             ->where('apps.is_deleted', '=', StateEnums::NO->getValue())
-            ->groupBy('users_associated_apps.apps_id');
+            ->groupBy('apps.id');
     }
 }
