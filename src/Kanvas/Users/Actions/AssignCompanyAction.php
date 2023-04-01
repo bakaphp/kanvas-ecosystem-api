@@ -29,8 +29,7 @@ class AssignCompanyAction
         CompaniesBranches $branch,
         ?DefaultRoles $role = null,
         ?Apps $app = null
-    )
-    {
+    ) {
         $this->user = $user;
         $this->company = $branch->company()->first();
         $this->branch = $branch;
