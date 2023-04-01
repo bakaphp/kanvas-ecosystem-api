@@ -33,25 +33,25 @@ class FilesystemServices
      * @param Users $user
      * @return ModelsFilesystem
      */
-    public function upload(UploadedFile $file, Users $user) : ModelsFilesystem
+    public function upload(UploadedFile $file, Users $user): ModelsFilesystem
     {
-       $uploadedFile = $this->storage->put('/public', $file);
+        $uploadedFile = $this->storage->put('/public', $file);
 
-       $createFileSystem = new CreateFilesystemAction($file, $user);
-       
-       return $createFileSystem->execute(
-           $this->storage->url($uploadedFile),
-           $this->storage->path($uploadedFile)
-       );
+        $createFileSystem = new CreateFilesystemAction($file, $user);
+
+        return $createFileSystem->execute(
+            $this->storage->url($uploadedFile),
+            $this->storage->path($uploadedFile)
+        );
     }
 
     /**
      * Build an on-demand Storage client based on the config filesystem service
      * of the current app.
-     * 
+     *
      * @return Filesystem
      */
-    public function getStorageByDisk() : Filesystem
+    public function getStorageByDisk(): Filesystem
     {
         return match ($this->app->get('filesystem-service')) {
             'gcs' => $this->buildGoogleCloudStorage(),
@@ -65,7 +65,7 @@ class FilesystemServices
      *
      * @return Filesystem
      */
-    public function buildGoogleCloudStorage() : Filesystem
+    public function buildGoogleCloudStorage(): Filesystem
     {
         return Storage::build([
             'driver' => 'gcs',

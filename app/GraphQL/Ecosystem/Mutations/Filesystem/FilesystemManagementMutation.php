@@ -60,7 +60,7 @@ class FilesystemManagementMutation
         /** @var \Illuminate\Http\UploadedFile $file */
         $file = $request['file'];
         $filesystem = new FilesystemServices();
-        
+
         return $filesystem->upload($file, auth()->user());
     }
 
