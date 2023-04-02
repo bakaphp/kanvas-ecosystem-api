@@ -54,6 +54,8 @@ class KanvasAppKey
                 });
 
                 Auth::setUser($kanvasAppKey->user()->firstOrFail());
+                $kanvasAppKey->last_used_date = date('Y-m-d H:i:s');
+                $kanvasAppKey->saveOrFail();
             } catch (Throwable $e) {
                 $msg = 'No App Key configure with this key: ' . $appKey;
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Ecosystem;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Tests\TestCase;
 
@@ -12,6 +13,8 @@ class AppsCrudTest extends TestCase
 {
     public function testCreate()
     {
+        $app = app(Apps::class);
+
         $input = [
             'name' => fake()->name,
             'url' => fake()->url,
@@ -21,7 +24,7 @@ class AppsCrudTest extends TestCase
             'ecosystem_auth' => 0,
             'payments_active' => 0,
             'is_public' => 1,
-            'domain_based' => 0
+            'domain_based' => 0,
         ];
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation(
@@ -43,13 +46,17 @@ class AppsCrudTest extends TestCase
                 }
             }',
             [
-                'input' => $input
+                'input' => $input,
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
             ]
         );
         $response->assertJson([
             'data' => [
-                'createApp' => $input
-            ]
+                'createApp' => $input,
+            ],
         ]);
     }
 
@@ -89,6 +96,7 @@ class AppsCrudTest extends TestCase
         $apps = Apps::orderBy('id', 'desc')->first();
         $user = auth()->user();
         $apps->associateUser($user, StateEnums::ON->getValue());
+        $app = app(Apps::class);
 
         $input = [
             'name' => fake()->name,
@@ -99,7 +107,7 @@ class AppsCrudTest extends TestCase
             'ecosystem_auth' => 0,
             'payments_active' => 0,
             'is_public' => 1,
-            'domain_based' => 0
+            'domain_based' => 0,
         ];
 
         $response = $this->graphQL(/** @lang GraphQL */ '
@@ -122,14 +130,18 @@ class AppsCrudTest extends TestCase
                 }
             }',
             [
-                'input' => $input
+                'input' => $input,
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
             ]
         );
 
         $response->assertJson([
             'data' => [
-                'updateApp' => $input
-            ]
+                'updateApp' => $input,
+            ],
         ]);
     }
 }

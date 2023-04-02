@@ -43,6 +43,8 @@ class AppKey extends BaseModel
      */
     protected $guarded = [];
 
+    protected $primaryKey = 'client_id';
+
     /**
      * Boot function from laravel.
      *
@@ -62,6 +64,6 @@ class AppKey extends BaseModel
 
     public function hasExpired(): bool
     {
-        return !empty($this->expires_at) && $this->expires_at < date('Y-m-d H:i:s');
+        return ! empty($this->expires_at) && $this->expires_at < date('Y-m-d H:i:s');
     }
 }
