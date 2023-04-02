@@ -6,7 +6,9 @@ namespace Kanvas\Apps\Models;
 
 use Baka\Support\Str;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
+use Kanvas\Users\Models\Users;
 
 /**
  * AppPlan Model.
@@ -51,5 +53,10 @@ class AppKey extends BaseModel
         static::creating(function ($model) {
             $model->client_id = $model->client_id ?? Str::uuid();
         });
+    }
+
+    public function user() : BelongsTo 
+    {
+        return $this->belongsTo(Users::class, 'users_id', 'id');
     }
 }

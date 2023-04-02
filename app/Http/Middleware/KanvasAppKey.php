@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
@@ -23,8 +24,8 @@ class KanvasAppKey
         $appKeyHeader = AppEnums::KANVAS_APP_KEY_HEADER->getValue();
 
         if ($request->hasHeader($companyBranchHeader)) {
-
             $companyBranchKey = $request->header($companyBranchHeader);
+
             try {
                 $companyBranch = CompaniesBranches::getByUuid($companyBranchKey);
 
@@ -39,14 +40,16 @@ class KanvasAppKey
         }
 
         if ($request->hasHeader($appKeyHeader)) {
-
             $appKey = $request->header($appKeyHeader);
+
             try {
                 $kanvasAppKey = AppKey::where('client_secret_id', $appKey)->firstOrFail();
 
                 app()->scoped(AppKey::class, function () use ($kanvasAppKey) {
                     return $kanvasAppKey;
                 });
+
+                Auth::setUser($kanvasAppKey->user()->firstOrFail());
             } catch (Throwable $e) {
                 $msg = 'No App Key configure with this key: ' . $appKey;
 
