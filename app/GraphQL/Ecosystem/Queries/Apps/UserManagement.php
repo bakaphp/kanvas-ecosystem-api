@@ -34,8 +34,8 @@ class UserManagement
                 ->where('users_associated_apps.is_deleted', StateEnums::NO->getValue())
                 ->groupBy(
                     'users.id',
-                    'users.first_name',
-                    'users.last_name',
+                    'users.firstname',
+                    'users.lastname',
                     'users.email',
                     'users.created_at',
                     'users.updated_at',
