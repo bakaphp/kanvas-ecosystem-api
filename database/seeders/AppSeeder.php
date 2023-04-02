@@ -30,7 +30,7 @@ class AppSeeder extends Seeder
             'is_deleted' => 0
         ]);
 
-        DB::table('app_keys')->insert([
+        DB::table('apps_keys')->insert([
             'name' => 'Kanvas',
             'client_id' => Str::uuid(),
             'client_secret_id' => Str::random(60),
