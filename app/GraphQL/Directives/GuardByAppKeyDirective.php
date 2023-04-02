@@ -33,7 +33,6 @@ GRAPHQL;
                 GraphQLContext $context,
                 ResolveInfo $resolveInfo
             ) use ($previousResolver) {
-
                 if (! app()->bound(AppKey::class)) {
                     $this->unauthenticated(['No App Key configure with this key']);
                 }

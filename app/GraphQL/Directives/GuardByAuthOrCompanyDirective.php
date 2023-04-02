@@ -34,7 +34,7 @@ GRAPHQL;
                 ResolveInfo $resolveInfo
             ) use ($previousResolver) {
                 $request = $context->request();
-                
+
                 if (! app()->bound(CompaniesBranches::class) && ! $request->headers->has('Authorization')) {
                     $this->unauthenticated(['No Company Branched Specified']);
                 } elseif ($request->headers->has('Authorization')) {
