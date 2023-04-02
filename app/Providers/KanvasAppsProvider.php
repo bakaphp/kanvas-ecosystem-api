@@ -33,49 +33,45 @@ class KanvasAppsProvider extends ServiceProvider
         $companyBranchKey = request()->header(AppEnums::KANVAS_APP_BRANCH_HEADER->getValue(), false);
         $appKey = request()->header(AppEnums::KANVAS_APP_KEY_HEADER->getValue(), false);
 
-        if (! FacadesSchema::hasTable('apps') || ! Apps::count()) {
-            throw new InternalServerErrorException('
-                Kanvas Ecosystem Error no app configured , please setup your app first
-            ');
-        }
-
-        try {
-            $app = AppsRepository::findFirstByKey($appIdentifier);
-
-            $this->app->scoped(Apps::class, function () use ($app) {
-                return $app;
-            });
-        } catch (Throwable $e) {
-            $msg = 'No App configure with this key: ' . $appIdentifier;
-
-            throw new InternalServerErrorException($msg, $e->getMessage());
-        }
-
-        if ($companyBranchKey) {
+        if (FacadesSchema::hasTable('apps') && Apps::count() > 0) {
             try {
-                $companyBranch = CompaniesBranches::getByUuid($companyBranchKey);
+                $app = AppsRepository::findFirstByKey($appIdentifier);
 
-                $this->app->scoped(CompaniesBranches::class, function () use ($companyBranch) {
-                    return $companyBranch;
+                $this->app->scoped(Apps::class, function () use ($app) {
+                    return $app;
                 });
             } catch (Throwable $e) {
-                $msg = 'No Company Branch configure with this key: ' . $companyBranchKey;
+                $msg = 'No App configure with this key: ' . $appIdentifier;
 
                 throw new InternalServerErrorException($msg, $e->getMessage());
             }
-        }
 
-        if ($appKey) {
-            try {
-                $kanvasAppKey = AppKey::where('client_secret_id', $appKey)->firstOrFail();
+            if ($companyBranchKey) {
+                try {
+                    $companyBranch = CompaniesBranches::getByUuid($companyBranchKey);
 
-                $this->app->scoped(AppKey::class, function () use ($kanvasAppKey) {
-                    return $kanvasAppKey;
-                });
-            } catch (Throwable $e) {
-                $msg = 'No App Key configure with this key: ' . $appKey;
+                    $this->app->scoped(CompaniesBranches::class, function () use ($companyBranch) {
+                        return $companyBranch;
+                    });
+                } catch (Throwable $e) {
+                    $msg = 'No Company Branch configure with this key: ' . $companyBranchKey;
 
-                throw new InternalServerErrorException($msg, $e->getMessage());
+                    throw new InternalServerErrorException($msg, $e->getMessage());
+                }
+            }
+
+            if ($appKey) {
+                try {
+                    $kanvasAppKey = AppKey::where('client_secret_id', $appKey)->firstOrFail();
+
+                    $this->app->scoped(AppKey::class, function () use ($kanvasAppKey) {
+                        return $kanvasAppKey;
+                    });
+                } catch (Throwable $e) {
+                    $msg = 'No App Key configure with this key: ' . $appKey;
+
+                    throw new InternalServerErrorException($msg, $e->getMessage());
+                }
             }
         }
     }
