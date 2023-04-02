@@ -31,6 +31,7 @@ return [
             // Logs in a user if they are authenticated. In contrast to Laravel's 'auth'
             // middleware, this delegates auth and permission checks to the field level.
             \Nuwave\Lighthouse\Http\Middleware\AttemptAuthentication::class,
+            \App\Http\Middleware\KanvasAppKey::class,
             //  \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             \Nuwave\Lighthouse\Http\Middleware\AcceptJson::class,
 
@@ -179,7 +180,7 @@ return [
             'App\\GraphQL\\CRM\\Queries',
             'App\\GraphQL\\Social\\Queries',
             'App\\GraphQL\\Inventory\\Queries',
-            'App\\GraphQL\\Social\\Queries'
+            'App\\GraphQL\\Social\\Queries',
         ],
         'mutations' => [
             'App\\GraphQL\\Ecosystem\\Mutations',

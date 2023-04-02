@@ -34,15 +34,13 @@ GRAPHQL;
                 ResolveInfo $resolveInfo
             ) use ($previousResolver) {
                 $request = $context->request();
-
+                
                 if (! app()->bound(CompaniesBranches::class) && ! $request->headers->has('Authorization')) {
                     $this->unauthenticated(['No Company Branched Specified']);
                 } elseif ($request->headers->has('Authorization')) {
                     //position 0 of app service provider guards is API
                     $with = (array) $this->directiveArgValue('with', current(AuthServiceProvider::guards()));
                     $this->authenticate($with);
-                } else {
-                    $this->unauthenticated(['Invalid Company Branched']);
                 }
 
                 return $previousResolver($root, $args, $context, $resolveInfo);
