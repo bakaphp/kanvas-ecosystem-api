@@ -62,6 +62,6 @@ class AppKey extends BaseModel
 
     public function hasExpired(): bool
     {
-        return $this->expires_at < date('Y-m-d H:i:s');
+        return !empty($this->expires_at) && $this->expires_at < date('Y-m-d H:i:s');
     }
 }

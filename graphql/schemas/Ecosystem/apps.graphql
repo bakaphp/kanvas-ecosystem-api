@@ -81,7 +81,7 @@ extend type Query {
         )
 }
 
-extend type Mutation @guard {
+extend type Mutation @guardByAppKey {
     createApp(input: AppInput): App!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppManagementMutation@createApp"
