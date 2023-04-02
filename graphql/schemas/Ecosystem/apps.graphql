@@ -74,6 +74,32 @@ extend type Query @guard {
         )
 }
 
+extend type Query @guardByAppKey
+{
+    appUsers(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "firstname"
+                    "lastname"
+                    "displayname"
+                    "email"
+                    "phone"
+                    "user_active"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id"])
+    ): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\UserManagement@getAllAppUsers"
+            defaultCount: 10
+        )
+}
+
 extend type Query {
     getAppSettings(key: String! @eq): AppSettings
         @field(

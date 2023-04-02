@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\GraphQL\Ecosystem;
+namespace Tests\GraphQL\Ecosystem\Apps;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
