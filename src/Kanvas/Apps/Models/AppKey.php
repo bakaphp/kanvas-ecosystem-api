@@ -55,8 +55,13 @@ class AppKey extends BaseModel
         });
     }
 
-    public function user() : BelongsTo 
+    public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id', 'id');
+    }
+
+    public function hasExpired(): bool
+    {
+        return $this->expires_at < date('Y-m-d H:i:s');
     }
 }
