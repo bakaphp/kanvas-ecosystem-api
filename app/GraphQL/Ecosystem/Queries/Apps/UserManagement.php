@@ -32,6 +32,15 @@ class UserManagement
                 ->join('users_associated_apps', 'users_associated_apps.users_id', 'users.id')
                 ->where('users_associated_apps.apps_id', app(Apps::class)->getId())
                 ->where('users_associated_apps.is_deleted', StateEnums::NO->getValue())
-                ->groupBy('users.id');
+                ->groupBy(
+                    'users.id',
+                    'users.first_name',
+                    'users.last_name',
+                    'users.email',
+                    'users.created_at',
+                    'users.updated_at',
+                    'users.is_deleted',
+                    'users.uuid'
+                );
     }
 }

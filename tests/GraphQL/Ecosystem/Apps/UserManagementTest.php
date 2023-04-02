@@ -6,12 +6,11 @@ namespace Tests\GraphQL\Ecosystem\Apps;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
-use Kanvas\Enums\StateEnums;
 use Tests\TestCase;
 
 class UserManagementTest extends TestCase
 {
-    public function testGet()
+    public function testGetAllAppUsers()
     {
         $app = app(Apps::class);
 
@@ -40,6 +39,4 @@ class UserManagementTest extends TestCase
         );
         $this->assertArrayHasKey('data', $response);
     }
-
-   
 }
