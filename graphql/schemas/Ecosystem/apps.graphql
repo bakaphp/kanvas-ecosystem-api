@@ -74,6 +74,31 @@ extend type Query @guard {
         )
 }
 
+extend type Query @guardByAppKey {
+    appUsers(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "firstname"
+                    "lastname"
+                    "displayname"
+                    "email"
+                    "phone"
+                    "user_active"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id"])
+    ): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\AppUserManagement@getAllAppUsers"
+            defaultCount: 10
+        )
+}
+
 extend type Query {
     getAppSettings(key: String! @eq): AppSettings
         @field(
@@ -81,7 +106,7 @@ extend type Query {
         )
 }
 
-extend type Mutation @guard {
+extend type Mutation @guardByAppKey {
     createApp(input: AppInput): App!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppManagementMutation@createApp"
@@ -100,11 +125,11 @@ extend type Mutation @guard {
         )
     assignCompanyToApp(id: String!, companyId: String!): Company!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppManagementMutation@assignCompanyToApp"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppCompanyMutation@assignCompanyToApp"
         )
     removeCompanyToApp(id: String!, companyId: String!): Company!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppManagementMutation@removeCompanyToApp"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppCompanyMutation@removeCompanyToApp"
         )
     activateApp(id: String!): App!
         @field(
@@ -116,10 +141,18 @@ extend type Mutation @guard {
         )
     saveAppSettings(id: String!, input: appSettingInput): Mixed!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppManagementMutation@saveSettings"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppSettingsMutation@saveSettings"
         )
     addTemplateToApp(id: String!, input: templateInput!): Template
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppManagementMutation@createAppTemplate"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppTemplateMutation@createAppTemplate"
+        )
+    appUserUpdatePassword(uuid: String!, password: String!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@updatePassword"
+        )
+    appUserUpdateEmail(uuid: String!, email: Email!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@updateEmail"
         )
 }

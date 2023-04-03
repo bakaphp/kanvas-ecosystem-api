@@ -88,7 +88,7 @@ enum AppEnums implements EnumsInterface
             self::KANVAS_APP_HEADER => 'X-Kanvas-App',
             self::KANVAS_APP_KEY_HEADER => 'X-Kanvas-Key',
             self::KANVAS_APP_BRANCH_HEADER => 'X-Kanvas-Location',
-            self::KANVAS_APP_COMPANY_AUTH_HEADER => 'Company-Authorization',
+            self::KANVAS_APP_COMPANY_AUTH_HEADER => 'Company-Authorization', //@deprecated
             self::DISPLAYNAME_LOGIN => 'displayname_login',
             self::VERSION => '1.0-BETA-3',
         };

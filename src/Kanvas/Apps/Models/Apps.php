@@ -68,6 +68,11 @@ class Apps extends BaseModel implements AppInterface
         });
     }
 
+    public function keys(): HasMany
+    {
+        return $this->hasMany(AppKey::class, 'apps_id');
+    }
+
     /**
      * Settings relationship.
      */
