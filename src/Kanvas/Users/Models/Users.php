@@ -107,14 +107,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      * @var string
      */
     protected $table = 'users';
-
-    public function rules()
-    {
-        return [
-            'email' => 'required|email|unique:users,email',
-        ];
-    }
-
+    
     /**
      * Get id.
      */
