@@ -79,7 +79,7 @@ class AppUserManagement
                     'users.zip_code',
                     'users.user_recover_code',
                     'users.created_at',
-                    'users.update_at',
+                    'users.updated_at',
                     'users.is_deleted',
                 );
     }
