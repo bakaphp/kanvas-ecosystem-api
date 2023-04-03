@@ -74,8 +74,7 @@ extend type Query @guard {
         )
 }
 
-extend type Query @guardByAppKey
-{
+extend type Query @guardByAppKey {
     appUsers(
         where: _
             @whereConditions(
@@ -95,7 +94,7 @@ extend type Query @guardByAppKey
         orderBy: _ @orderBy(columns: ["id"])
     ): [User!]!
         @paginate(
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\UserManagement@getAllAppUsers"
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\AppUserManagement@getAllAppUsers"
             defaultCount: 10
         )
 }
@@ -126,11 +125,11 @@ extend type Mutation @guardByAppKey {
         )
     assignCompanyToApp(id: String!, companyId: String!): Company!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppManagementMutation@assignCompanyToApp"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppCompanyMutation@assignCompanyToApp"
         )
     removeCompanyToApp(id: String!, companyId: String!): Company!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppManagementMutation@removeCompanyToApp"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppCompanyMutation@removeCompanyToApp"
         )
     activateApp(id: String!): App!
         @field(
@@ -142,10 +141,14 @@ extend type Mutation @guardByAppKey {
         )
     saveAppSettings(id: String!, input: appSettingInput): Mixed!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppManagementMutation@saveSettings"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppSettingsMutation@saveSettings"
         )
     addTemplateToApp(id: String!, input: templateInput!): Template
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppManagementMutation@createAppTemplate"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppTemplateMutation@createAppTemplate"
+        )
+    appUserUpdatePassword(uuid: String!, password: String!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@userUpdatePassword"
         )
 }

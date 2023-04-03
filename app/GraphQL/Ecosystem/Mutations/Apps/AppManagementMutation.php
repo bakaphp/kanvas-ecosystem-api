@@ -7,11 +7,8 @@ namespace App\GraphQL\Ecosystem\Mutations\Apps;
 use Kanvas\Apps\Actions\CreateAppsAction;
 use Kanvas\Apps\Actions\UpdateAppsAction;
 use Kanvas\Apps\DataTransferObject\AppInput;
-use Kanvas\Apps\DataTransferObject\AppSettingsInput;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Repositories\AppsRepository;
-use Kanvas\Companies\Models\Companies;
-use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Templates\Actions\CreateTemplateAction;
 use Kanvas\Templates\DataTransferObject\TemplateInput;
@@ -56,53 +53,6 @@ class AppManagementMutation
         $app->saveOrFail();
 
         return $app;
-    }
-
-    /**
-     * assignCompanyToApp
-     *
-     * @param  array $req
-     * @return void
-     */
-    public function assignCompanyToApp(mixed $root, array $request)
-    {
-        $id = $request['id'];
-        $companyId = $request['companyId'];
-
-        $app = AppsRepository::findFirstByKey($id);
-        $company = CompaniesRepository::getByUuid($companyId);
-
-        UsersRepository::userOwnsThisApp(auth()->user(), $app);
-        UsersRepository::belongsToCompany(auth()->user(), $company);
-
-        //$action = new  CreateAppsAction($dto);
-        $app->associateCompany($company);
-
-        return $company;
-    }
-
-    /**
-     * removeCompanyToApp
-     * @param  null  $_
-     * @param  array{}  $args
-     */
-    public function removeCompanyToApp($_, array $request): Companies
-    {
-        $id = $request['id'];
-        $companyId = $request['companyId'];
-
-        $app = AppsRepository::findFirstByKey($id);
-        $company = CompaniesRepository::getByUuid($companyId);
-
-        UsersRepository::userOwnsThisApp(auth()->user(), $app);
-
-        //if they are super user no need to verify if they belong to the company
-        //UsersRepository::belongsToCompany(auth()->user(), $company);
-
-        //$action = new  CreateAppsAction($dto);
-        $app->associateCompany($company)->delete();
-
-        return $company;
     }
 
     /**
@@ -192,21 +142,5 @@ class AppManagementMutation
         $app->saveOrFail();
 
         return $app;
-    }
-
-    /**
-     * Save app setting.
-     */
-    public function saveSettings(mixed $root, array $req): mixed
-    {
-        $app = AppsRepository::findFirstByKey($req['id']);
-
-        UsersRepository::userOwnsThisApp(auth()->user(), $app);
-
-        $appSetting = AppSettingsInput::from($req['input']);
-
-        $app->set($appSetting->name, $appSetting->value);
-
-        return $app->get($appSetting->name);
     }
 }

@@ -11,7 +11,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
-class UserManagement
+class AppUserManagement
 {
     /**
      * all.
@@ -72,7 +72,6 @@ class UserManagement
                     'users.votes',
                     'users.votes_points',
                     'users.banned',
-                    'users.location',
                     'users.system_modules_id',
                     'users.status',
                     'users.address_1',
