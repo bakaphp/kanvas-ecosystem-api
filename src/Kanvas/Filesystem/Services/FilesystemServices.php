@@ -55,7 +55,7 @@ class FilesystemServices
     {
         return match ($this->app->get('filesystem-service')) {
             'gcs' => $this->buildGoogleCloudStorage(),
-            's3' => 'TODO',
+            's3' => $this->buildS3Storage(),
             'aws' => 'TODO',
         };
     }
@@ -76,6 +76,24 @@ class FilesystemServices
             'visibility' => 'public', // optional: public|private
             'visibility_handler' => \League\Flysystem\GoogleCloudStorage\UniformBucketLevelAccessVisibility::class, // optional: set to \League\Flysystem\GoogleCloudStorage\UniformBucketLevelAccessVisibility::class to enable uniform bucket level access
             'metadata' => ['cacheControl'=> 'public,max-age=86400'], // optional: default metadata
+        ]);
+    }
+
+    /**
+     * Build an on-demand aws s3 storage using the (must) already saved service-account-file
+     *
+     * @return Filesystem
+     */
+    public function buildS3Storage(): Filesystem
+    {
+        $aws = $this->app->get('service-account-file');
+
+        return Storage::build([
+            'driver' => 's3',
+            'key' => $aws['key'],
+            'secret' => $aws['secret'],
+            'region' => $aws['region'],
+            'bucket' => $this->app->get('cloud-bucket'),
         ]);
     }
 }
