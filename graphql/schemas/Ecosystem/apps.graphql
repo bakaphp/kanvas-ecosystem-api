@@ -149,6 +149,10 @@ extend type Mutation @guardByAppKey {
         )
     appUserUpdatePassword(uuid: String!, password: String!): Boolean!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@userUpdatePassword"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@updatePassword"
+        )
+    appUserUpdateEmail(uuid: String!, email: Email!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@updateEmail"
         )
 }

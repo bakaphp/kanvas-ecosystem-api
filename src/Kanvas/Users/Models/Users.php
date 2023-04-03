@@ -19,6 +19,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Contracts\Authenticatable as ContractsAuthenticatable;
 use Kanvas\Auth\Traits\HasApiTokens;
@@ -105,6 +107,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      * @var string
      */
     protected $table = 'users';
+
+    public function rules()
+    {
+        return [
+            'email' => 'required|email|unique:users,email',
+        ];
+    }
 
     /**
      * Get id.
@@ -243,8 +252,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * User linked sources.
-     *
-     * @return HasMany
      */
     public function linkedSources(): HasMany
     {
@@ -261,9 +268,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * Get user by there email address.
-     *
-     * @param string $email
-     * @return self
      */
     public static function getByEmail(string $email): self
     {
@@ -406,6 +410,22 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $this->saveOrFail();
 
         return true;
+    }
+
+    public function updateEmail(string $email): bool
+    {
+        $this->email = $email;
+
+        $validator = Validator::make(
+            ['email' => $email],
+            ['email' => 'required|email|unique:users,email,' . $this->id]
+        );
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
+
+        return $this->saveOrFail();
     }
 
     /**

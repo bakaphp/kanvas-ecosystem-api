@@ -13,11 +13,19 @@ class AppUserManagementMutation
     /**
      * userUpdatePassword.
      */
-    public function userUpdatePassword(mixed $root, array $request): bool
+    public function updatePassword(mixed $root, array $request): bool
     {
         $user = Users::getByUuid($request['uuid']);
         UsersRepository::belongsToThisApp($user, app(Apps::class));
 
         return $user->resetPassword($request['password']);
+    }
+
+    public function updateEmail(mixed $root, array $request): bool
+    {
+        $user = Users::getByUuid($request['uuid']);
+        UsersRepository::belongsToThisApp($user, app(Apps::class));
+
+        return $user->updateEmail($request['email']);
     }
 }

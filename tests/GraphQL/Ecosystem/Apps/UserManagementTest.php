@@ -92,4 +92,57 @@ class UserManagementTest extends TestCase
             ],
         ]);
     }
+
+    public function testUpdateUserEmail()
+    {
+        $app = app(Apps::class);
+
+        $response = $this->graphQL(
+            /** @lang GraphQL */
+            '
+            query {
+                appUsers(first: 10) {
+                    data {
+                        uuid,
+                        email,
+                        created_at
+                    },
+                    paginatorInfo {
+                      currentPage
+                      lastPage
+                    }
+                }
+            }
+            ',
+            [],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        );
+
+        $userList = $response->json();
+
+        $email = fake()->email();
+
+        $response = $this->graphQL(/** @lang GraphQL */ '
+            mutation{
+                appUserUpdateEmail(
+                    uuid: "' . $userList['data']['appUsers']['data'][0]['uuid'] . '",
+                    email: "' . $email . '"
+                ) 
+            }',
+            [],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        );
+
+        $response->assertJson([
+            'data' => [
+                'appUserUpdateEmail' => true,
+            ],
+        ]);
+    }
 }
