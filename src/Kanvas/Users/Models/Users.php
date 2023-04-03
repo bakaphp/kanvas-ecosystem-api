@@ -107,7 +107,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      * @var string
      */
     protected $table = 'users';
-    
+
     /**
      * Get id.
      */
