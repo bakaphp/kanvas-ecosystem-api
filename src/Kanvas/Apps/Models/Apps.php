@@ -68,6 +68,11 @@ class Apps extends BaseModel implements AppInterface
         });
     }
 
+    public function keys(): HasMany
+    {
+        return $this->hasMany(AppKey::class, 'apps_id');
+    }
+
     /**
      * Settings relationship.
      */
@@ -172,7 +177,22 @@ class Apps extends BaseModel implements AppInterface
     {
         $user = Auth::user();
 
-        return $query->select('apps.*')
+        return $query->select(
+            'apps.id',
+            'apps.name',
+            'apps.description',
+            'apps.url',
+            'apps.domain',
+            'apps.default_apps_plan_id',
+            'apps.is_actived',
+            'apps.key',
+            'apps.payments_active',
+            'apps.ecosystem_auth',
+            'apps.is_public',
+            'apps.domain_based',
+            'apps.created_at',
+            'apps.updated_at'
+        )
             ->join(
                 'users_associated_apps',
                 'users_associated_apps.apps_id',
@@ -182,6 +202,21 @@ class Apps extends BaseModel implements AppInterface
             ->where('users_associated_apps.users_id', '=', $user->getKey())
             ->where('users_associated_apps.is_deleted', '=', StateEnums::NO->getValue())
             ->where('apps.is_deleted', '=', StateEnums::NO->getValue())
-            ->groupBy('users_associated_apps.apps_id');
+            ->groupBy(
+                'apps.id',
+                'apps.name',
+                'apps.description',
+                'apps.url',
+                'apps.domain',
+                'apps.default_apps_plan_id',
+                'apps.is_actived',
+                'apps.key',
+                'apps.payments_active',
+                'apps.ecosystem_auth',
+                'apps.is_public',
+                'apps.domain_based',
+                'apps.created_at',
+                'apps.updated_at'
+            );
     }
 }

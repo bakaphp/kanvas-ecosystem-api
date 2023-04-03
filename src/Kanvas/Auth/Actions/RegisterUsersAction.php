@@ -6,6 +6,8 @@ namespace Kanvas\Auth\Actions;
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
@@ -35,18 +37,13 @@ class RegisterUsersAction
      */
     public function execute(): Users
     {
-        $user = Users::where(
-            [
-                'email' => $this->data->email,
-                'is_deleted' => 0,
-            ]
-        )->first();
+        $validator = Validator::make(
+            ['email' => $this->data->email],
+            ['email' => 'required|email|unique:users,email,NULL,id']
+        );
 
-        /**
-         * @todo ecosystemAuth
-         */
-        if ($user) {
-            throw new AuthenticationException('Email already exists');
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
         }
 
         $user = new Users();

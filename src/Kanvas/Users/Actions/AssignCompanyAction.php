@@ -24,8 +24,12 @@ class AssignCompanyAction
     public DefaultRoles $role;
     public Apps $app;
 
-    public function __construct(Users $user, CompaniesBranches $branch, ?DefaultRoles $role = null, ?Apps $app = null)
-    {
+    public function __construct(
+        Users $user,
+        CompaniesBranches $branch,
+        ?DefaultRoles $role = null,
+        ?Apps $app = null
+    ) {
         $this->user = $user;
         $this->company = $branch->company()->first();
         $this->branch = $branch;
@@ -39,7 +43,6 @@ class AssignCompanyAction
     public function execute(): void
     {
         $app = $this->app;
-        // $branch = $this->company->branch()->first();
         if (! $this->user->get(Companies::cacheKey())) {
             $this->user->set(Companies::cacheKey(), $this->company->id);
         }
@@ -59,7 +62,9 @@ class AssignCompanyAction
             $app,
             StateEnums::ON->getValue()
         );
+
         Bouncer::scope()->to(RolesRepository::getScope($this->user));
+
         if ($this->user->roles_id) {
             $role = Role::find($this->user->roles_id)->name;
             $assignRole = new AssignAction($this->user, $role);

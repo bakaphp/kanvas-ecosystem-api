@@ -5,7 +5,7 @@ type User {
     lastname: String!
     displayname: String!
     description: String
-    email: String!
+    email: Email!
     contact: ContactInfo
         @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@contact")
     address: AddressType
@@ -73,9 +73,9 @@ input RegisterInput {
     firstname: String
     lastname: String
     displayname: String
-    email: String @rules(apply: ["required"])
-    password: String @rules(apply: ["required"])
-    password_confirmation: String @rules(apply: ["required"])
+    email: Email! @rules(apply: ["required"])
+    password: String! @rules(apply: ["required"])
+    password_confirmation: String! @rules(apply: ["required"])
     company_name: String
     roles_id: Int
 }
