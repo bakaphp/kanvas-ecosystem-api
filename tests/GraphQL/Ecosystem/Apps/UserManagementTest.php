@@ -67,16 +67,16 @@ class UserManagementTest extends TestCase
                 AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
             ]
         );
-        
+
         $userList = $response->json();
 
         $password = fake()->password(12);
-        
+
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation{
                 appUserUpdatePassword(
-                    uuid: "'. $userList['data']['appUsers']['data'][0]['uuid'] .'",
-                    password: "'. $password .'"
+                    uuid: "' . $userList['data']['appUsers']['data'][0]['uuid'] . '",
+                    password: "' . $password . '"
                 ) 
             }',
             [],
@@ -91,6 +91,5 @@ class UserManagementTest extends TestCase
                 'appUserUpdatePassword' => true,
             ],
         ]);
-        
     }
 }
