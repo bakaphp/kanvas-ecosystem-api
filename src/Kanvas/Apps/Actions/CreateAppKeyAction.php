@@ -6,10 +6,10 @@ namespace Kanvas\Apps\Actions;
 
 use Baka\Support\Str;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Kanvas\Apps\DataTransferObject\AppKeyInput;
 use Kanvas\Apps\Models\AppKey;
-use Illuminate\Validation\Rule;
 
 class CreateAppKeyAction
 {
@@ -26,7 +26,7 @@ class CreateAppKeyAction
      */
     public function execute(): AppKey
     {
-        $data =[
+        $data = [
             'name' => $this->data->name,
             'apps_id' => $this->data->app->getId(),
         ];
@@ -43,7 +43,7 @@ class CreateAppKeyAction
         if ($validator->fails()) {
             throw new ValidationException($validator);
         }
-        
+
         $app = new AppKey();
         $app->client_id = Str::uuid()->toString();
         $app->client_secret_id = Str::random(128);
