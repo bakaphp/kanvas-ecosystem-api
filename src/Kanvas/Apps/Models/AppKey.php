@@ -20,9 +20,9 @@ use Kanvas\Users\Models\Users;
  * @property int $users_id
  * @property string $scope
  * @property string $last_used_date
- * @property string $expires_at
+ * @property ?string $expires_at = null
  * @property string $created_at
- * @property string $updated_at
+ * @property ?string $updated_at = null
  * @property int $is_deleted
  */
 class AppKey extends BaseModel
@@ -44,6 +44,8 @@ class AppKey extends BaseModel
     protected $guarded = [];
 
     protected $primaryKey = 'client_id';
+    public $incrementing = false;
+    protected $keyType = 'string';
 
     /**
      * Boot function from laravel.

@@ -14,7 +14,7 @@ class CreateRoleCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'role:create {name}';
+    protected $signature = 'kanvas:create-role {name}';
 
     /**
      * The console command description.

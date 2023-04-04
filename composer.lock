@@ -62,16 +62,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.263.1",
+            "version": "3.263.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "1f1ca8866e54aabdcde2aba177196ec2f12ee8a2"
+                "reference": "5516a7edae70fff66223b2fd320c20b3b17ced56"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/1f1ca8866e54aabdcde2aba177196ec2f12ee8a2",
-                "reference": "1f1ca8866e54aabdcde2aba177196ec2f12ee8a2",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/5516a7edae70fff66223b2fd320c20b3b17ced56",
+                "reference": "5516a7edae70fff66223b2fd320c20b3b17ced56",
                 "shasum": ""
             },
             "require": {
@@ -150,9 +150,9 @@
             "support": {
                 "forum": "https://forums.aws.amazon.com/forum.jspa?forumID=80",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.263.1"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.263.2"
             },
-            "time": "2023-03-31T18:21:25+00:00"
+            "time": "2023-04-03T18:19:25+00:00"
         },
         {
             "name": "brick/math",
@@ -3781,16 +3781,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.5.0",
+            "version": "v6.6.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "cbf40d84438e80ac3718b33091fc0007d8ba0ee2"
+                "reference": "97536ec54b1326c81c05729f52b2a4622495012e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/cbf40d84438e80ac3718b33091fc0007d8ba0ee2",
-                "reference": "cbf40d84438e80ac3718b33091fc0007d8ba0ee2",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/97536ec54b1326c81c05729f52b2a4622495012e",
+                "reference": "97536ec54b1326c81c05729f52b2a4622495012e",
                 "shasum": ""
             },
             "require": {
@@ -3907,7 +3907,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2023-03-31T10:04:46+00:00"
+            "time": "2023-04-04T08:43:41+00:00"
         },
         {
             "name": "nyholm/psr7",
@@ -4105,16 +4105,16 @@
         },
         {
             "name": "php-amqplib/php-amqplib",
-            "version": "v3.5.2",
+            "version": "v3.5.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/php-amqplib/php-amqplib.git",
-                "reference": "703eef998946f4972e630c3e3d827f7cf020fe68"
+                "reference": "bccaaf8ef8bcf18b4ab41e645e92537752b887bd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/php-amqplib/php-amqplib/zipball/703eef998946f4972e630c3e3d827f7cf020fe68",
-                "reference": "703eef998946f4972e630c3e3d827f7cf020fe68",
+                "url": "https://api.github.com/repos/php-amqplib/php-amqplib/zipball/bccaaf8ef8bcf18b4ab41e645e92537752b887bd",
+                "reference": "bccaaf8ef8bcf18b4ab41e645e92537752b887bd",
                 "shasum": ""
             },
             "require": {
@@ -4180,9 +4180,9 @@
             ],
             "support": {
                 "issues": "https://github.com/php-amqplib/php-amqplib/issues",
-                "source": "https://github.com/php-amqplib/php-amqplib/tree/v3.5.2"
+                "source": "https://github.com/php-amqplib/php-amqplib/tree/v3.5.3"
             },
-            "time": "2023-03-01T18:03:56+00:00"
+            "time": "2023-04-03T18:25:49+00:00"
         },
         {
             "name": "php-http/client-common",
@@ -4929,16 +4929,16 @@
         },
         {
             "name": "phpstan/phpdoc-parser",
-            "version": "1.16.1",
+            "version": "1.17.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpstan/phpdoc-parser.git",
-                "reference": "e27e92d939e2e3636f0a1f0afaba59692c0bf571"
+                "reference": "d3753fcb3abc6f78f5de6f72153d4b9c99c72dee"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpdoc-parser/zipball/e27e92d939e2e3636f0a1f0afaba59692c0bf571",
-                "reference": "e27e92d939e2e3636f0a1f0afaba59692c0bf571",
+                "url": "https://api.github.com/repos/phpstan/phpdoc-parser/zipball/d3753fcb3abc6f78f5de6f72153d4b9c99c72dee",
+                "reference": "d3753fcb3abc6f78f5de6f72153d4b9c99c72dee",
                 "shasum": ""
             },
             "require": {
@@ -4968,9 +4968,9 @@
             "description": "PHPDoc parser with support for nullable, intersection and generic types",
             "support": {
                 "issues": "https://github.com/phpstan/phpdoc-parser/issues",
-                "source": "https://github.com/phpstan/phpdoc-parser/tree/1.16.1"
+                "source": "https://github.com/phpstan/phpdoc-parser/tree/1.17.1"
             },
-            "time": "2023-02-07T18:11:17+00:00"
+            "time": "2023-04-04T11:11:22+00:00"
         },
         {
             "name": "psr/clock",
@@ -5232,25 +5232,25 @@
         },
         {
             "name": "psr/http-message",
-            "version": "1.0.1",
+            "version": "1.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/php-fig/http-message.git",
-                "reference": "f6561bf28d520154e4b0ec72be95418abe6d9363"
+                "reference": "cb6ce4845ce34a8ad9e68117c10ee90a29919eba"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/php-fig/http-message/zipball/f6561bf28d520154e4b0ec72be95418abe6d9363",
-                "reference": "f6561bf28d520154e4b0ec72be95418abe6d9363",
+                "url": "https://api.github.com/repos/php-fig/http-message/zipball/cb6ce4845ce34a8ad9e68117c10ee90a29919eba",
+                "reference": "cb6ce4845ce34a8ad9e68117c10ee90a29919eba",
                 "shasum": ""
             },
             "require": {
-                "php": ">=5.3.0"
+                "php": "^7.2 || ^8.0"
             },
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-master": "1.0.x-dev"
+                    "dev-master": "1.1.x-dev"
                 }
             },
             "autoload": {
@@ -5279,9 +5279,9 @@
                 "response"
             ],
             "support": {
-                "source": "https://github.com/php-fig/http-message/tree/master"
+                "source": "https://github.com/php-fig/http-message/tree/1.1"
             },
-            "time": "2016-08-06T14:39:51+00:00"
+            "time": "2023-04-04T09:50:52+00:00"
         },
         {
             "name": "psr/log",
@@ -6219,16 +6219,16 @@
         },
         {
             "name": "spatie/laravel-data",
-            "version": "3.2.2",
+            "version": "3.3.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-data.git",
-                "reference": "4968b0eebec2aa292fb19bffeb983adbc4ab0283"
+                "reference": "4cbeb639760c96896c15493abbf3aa8c9382ced9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-data/zipball/4968b0eebec2aa292fb19bffeb983adbc4ab0283",
-                "reference": "4968b0eebec2aa292fb19bffeb983adbc4ab0283",
+                "url": "https://api.github.com/repos/spatie/laravel-data/zipball/4cbeb639760c96896c15493abbf3aa8c9382ced9",
+                "reference": "4cbeb639760c96896c15493abbf3aa8c9382ced9",
                 "shasum": ""
             },
             "require": {
@@ -6290,7 +6290,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-data/issues",
-                "source": "https://github.com/spatie/laravel-data/tree/3.2.2"
+                "source": "https://github.com/spatie/laravel-data/tree/3.3.3"
             },
             "funding": [
                 {
@@ -6298,7 +6298,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2023-03-30T15:46:13+00:00"
+            "time": "2023-04-03T07:27:59+00:00"
         },
         {
             "name": "spatie/laravel-health",
@@ -11460,16 +11460,16 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "1.10.9",
+            "version": "1.10.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpstan/phpstan.git",
-                "reference": "9b13dafe3d66693d20fe5729c3dde1d31bb64703"
+                "reference": "f1e22c9b17a879987f8743d81533250a5fff47f9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/9b13dafe3d66693d20fe5729c3dde1d31bb64703",
-                "reference": "9b13dafe3d66693d20fe5729c3dde1d31bb64703",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/f1e22c9b17a879987f8743d81533250a5fff47f9",
+                "reference": "f1e22c9b17a879987f8743d81533250a5fff47f9",
                 "shasum": ""
             },
             "require": {
@@ -11518,7 +11518,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2023-03-30T08:58:01+00:00"
+            "time": "2023-04-01T17:06:15+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
