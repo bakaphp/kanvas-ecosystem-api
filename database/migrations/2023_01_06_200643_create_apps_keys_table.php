@@ -16,6 +16,7 @@ class CreateAppsKeysTable extends Migration
         Schema::create('apps_keys', function (Blueprint $table) {
             $table->char('client_id', 36)->index('client_id');
             $table->char('client_secret_id', 128)->index('client_secret_id');
+            $table->string('name', 100);
             $table->integer('apps_id');
             $table->integer('users_id');
             $table->dateTime('last_used_date')->nullable()->index('last_used_date');
