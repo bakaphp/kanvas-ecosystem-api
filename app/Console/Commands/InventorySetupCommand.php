@@ -17,7 +17,7 @@ class InventorySetupCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'inventory:setup {appId} {userId} {companyId}';
+    protected $signature = 'kanvas-inventory:setup {appId} {userId} {companyId}';
 
     /**
      * The console command description.

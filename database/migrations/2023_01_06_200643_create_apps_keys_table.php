@@ -26,7 +26,7 @@ class CreateAppsKeysTable extends Migration
             //$table->unique(['apps_id', 'users_id']);
             $table->index(['client_id', 'apps_id'], 'client_id_apps_id');
             $table->index(['client_secret_id', 'apps_id'], 'client_secret_id_apps_id');
-            $table->primary(['apps_id', 'users_id']);
+            $table->primary(['apps_id', 'users_id', 'name']);
         });
     }
 
