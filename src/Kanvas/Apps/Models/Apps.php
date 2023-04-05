@@ -10,10 +10,12 @@ use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Models\BaseModel;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Users\Models\UserCompanyApps;
@@ -66,6 +68,23 @@ class Apps extends BaseModel implements AppInterface
         static::creating(function ($model) {
             $model->key = $model->key ?? Str::uuid();
         });
+    }
+
+    public static function getByUuid(string $uuid): self
+    {
+        try {
+            return self::where('key', $uuid)
+                ->notDeleted()
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
+    }
+
+    public function keys(): HasMany
+    {
+        return $this->hasMany(AppKey::class, 'apps_id');
     }
 
     /**
@@ -172,7 +191,22 @@ class Apps extends BaseModel implements AppInterface
     {
         $user = Auth::user();
 
-        return $query->select('apps.*')
+        return $query->select(
+            'apps.id',
+            'apps.name',
+            'apps.description',
+            'apps.url',
+            'apps.domain',
+            'apps.default_apps_plan_id',
+            'apps.is_actived',
+            'apps.key',
+            'apps.payments_active',
+            'apps.ecosystem_auth',
+            'apps.is_public',
+            'apps.domain_based',
+            'apps.created_at',
+            'apps.updated_at'
+        )
             ->join(
                 'users_associated_apps',
                 'users_associated_apps.apps_id',
@@ -182,6 +216,21 @@ class Apps extends BaseModel implements AppInterface
             ->where('users_associated_apps.users_id', '=', $user->getKey())
             ->where('users_associated_apps.is_deleted', '=', StateEnums::NO->getValue())
             ->where('apps.is_deleted', '=', StateEnums::NO->getValue())
-            ->groupBy('users_associated_apps.apps_id');
+            ->groupBy(
+                'apps.id',
+                'apps.name',
+                'apps.description',
+                'apps.url',
+                'apps.domain',
+                'apps.default_apps_plan_id',
+                'apps.is_actived',
+                'apps.key',
+                'apps.payments_active',
+                'apps.ecosystem_auth',
+                'apps.is_public',
+                'apps.domain_based',
+                'apps.created_at',
+                'apps.updated_at'
+            );
     }
 }

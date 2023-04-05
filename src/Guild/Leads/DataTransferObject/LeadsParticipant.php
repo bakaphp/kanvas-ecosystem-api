@@ -20,8 +20,6 @@ class LeadsParticipant extends Data
 {
     /**
      * __construct.
-     *
-     * @return void
      */
     public function __construct(
         public readonly AppInterface $app,

@@ -2,19 +2,19 @@
 
 namespace App\GraphQL\Directives;
 
-use Kanvas\Companies\Models\CompaniesBranches;
-use Nuwave\Lighthouse\Auth\AuthServiceProvider;
+use Kanvas\Apps\Models\AppKey;
 use Nuwave\Lighthouse\Auth\GuardDirective;
 use Nuwave\Lighthouse\Execution\ResolveInfo;
+
 use Nuwave\Lighthouse\Schema\Values\FieldValue;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
-class GuardByAuthOrCompanyDirective extends GuardDirective
+class GuardByAppKeyDirective extends GuardDirective
 {
     public static function definition(): string
     {
         return /** @lang GraphQL */ <<<'GRAPHQL'
-directive @guardByAuthOrCompany(
+directive @guardByAppKey(
   """
   Specify which guards to use, e.g. ["web"].
   When not defined, the default from `lighthouse.php` is used.
@@ -33,14 +33,8 @@ GRAPHQL;
                 GraphQLContext $context,
                 ResolveInfo $resolveInfo
             ) use ($previousResolver) {
-                $request = $context->request();
-
-                if (! app()->bound(CompaniesBranches::class) && ! $request->headers->has('Authorization')) {
-                    $this->unauthenticated(['No Company Branched Specified']);
-                } elseif ($request->headers->has('Authorization')) {
-                    //position 0 of app service provider guards is API
-                    $with = (array) $this->directiveArgValue('with', current(AuthServiceProvider::guards()));
-                    $this->authenticate($with);
+                if (! app()->bound(AppKey::class)) {
+                    $this->unauthenticated(['No App Key configure with this key']);
                 }
 
                 return $previousResolver($root, $args, $context, $resolveInfo);

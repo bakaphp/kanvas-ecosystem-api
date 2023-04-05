@@ -26,48 +26,56 @@ class TokenGuard extends AuthTokenGuard
         // If we've already retrieved the user for the current request we can just
         // return it back immediately. We do not want to fetch the user data on
         // every call to this method because that would be tremendously slow.
-        if (!is_null($this->user)) {
+        if (! is_null($this->user)) {
             return $this->user;
         }
         $user = null;
 
         $requestToken = $this->getTokenForRequest();
 
-        if (!empty($requestToken)) {
-            $token = $this->getToken($requestToken);
-            if ($token instanceof Token) {
-                if (!$this->validateJwtToken($token)) {
-                    throw new AuthorizationException('Invalid Token');
-                }
-
-                $user = $this->sessionUser($token, $this->request);
-            }
+        if (! empty($requestToken)) {
+            $token = $this->getRequestJwtToken();
+            $user = $this->sessionUser($token, $this->request);
         }
 
         return $this->user = $user;
     }
 
+    public function getRequestJwtToken(): Token
+    {
+        $requestToken = $this->getTokenForRequest();
+
+        if (! empty($requestToken)) {
+            $token = $this->getToken($requestToken);
+            if ($token instanceof Token) {
+                if (! $this->validateJwtToken($token)) {
+                    throw new AuthorizationException('Invalid Token');
+                }
+
+                return $token;
+            }
+        }
+
+        throw new AuthorizationException('No Token Provided');
+    }
+
     /**
      * Get the real from the JWT Token.
      *
-     * @param Token $token
-     * @param Request $request
-     *
      * @throws AuthorizationException
-     *
-     * @return Users
      */
     protected function sessionUser(Token $token, Request $request): Users
     {
         $session = new Sessions();
         $userData = new Users();
 
-        if (!empty($token->claims()->get('sessionId'))) {
-            if (!$user = $userData->getByEmail($token->claims()->get('email'))) {
+        if (! empty($token->claims()->get('sessionId'))) {
+            if (! $user = $userData->getByEmail($token->claims()->get('email'))) {
                 throw new AuthorizationException('User not found');
             }
 
-            $ip = !defined('API_TESTS') ? $request->ip() : '127.0.0.1';
+            $ip = ! defined('API_TESTS') ? $request->ip() : '127.0.0.1';
+
             return $session->check(
                 $user,
                 $token->claims()->get('sessionId'),

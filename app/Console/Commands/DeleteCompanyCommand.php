@@ -16,7 +16,7 @@ class DeleteCompanyCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'company:delete';
+    protected $signature = 'kanvas-company:delete';
 
     /**
      * The console command description.

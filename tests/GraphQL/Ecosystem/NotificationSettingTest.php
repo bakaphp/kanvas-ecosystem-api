@@ -93,7 +93,8 @@ class NotificationSettingTest extends TestCase
                 'password' => 'password',
                 'password_confirmation' => 'password'
             ],
-        ])->decodeResponseJson();
+        ])->decodeResponseJson()->json();
+
         $token = $response['data']['register']['token']['token'];
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $token,

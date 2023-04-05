@@ -13,14 +13,12 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification as LaravelNotification;
-use Illuminate\Support\Facades\Blade;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Channels\KanvasDatabase as KanvasDatabaseChannel;
 use Kanvas\Notifications\Interfaces\EmailInterfaces;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Templates\Actions\RenderTemplateAction;
-use Kanvas\Templates\Repositories\TemplatesRepository;
 use Kanvas\Users\Models\Users;
 
 class Notification extends LaravelNotification implements EmailInterfaces, ShouldQueue
@@ -33,6 +31,10 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     protected ?string $templateName = null;
     protected ?UserInterface $fromUser = null;
     protected ?UserInterface $toUser = null;
+    public array $data = [];
+    public array $via = [
+        KanvasDatabaseChannel::class,
+    ];
 
     /**
      * Set the entity
@@ -43,6 +45,23 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     {
         $this->entity = $entity;
         $this->app = app(Apps::class);
+        $this->data = [
+            'entity' => $this->entity,
+            'app' => $this->app,
+            'user' => $this->toUser ? $this->toUser : null,
+        ];
+    }
+
+    /**
+     * setVia
+     *
+     * @return void
+     */
+    public function setVia(array $via): self
+    {
+        $this->via = [KanvasDatabaseChannel::class,...$via];
+
+        return $this;
     }
 
     /**
@@ -50,9 +69,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      */
     public function via(): array
     {
-        return [
-            KanvasDatabaseChannel::class,
-        ];
+        return $this->via;
     }
 
     /**
@@ -123,6 +140,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         }
 
         $renderTemplate = new RenderTemplateAction($this->app);
+
         return $renderTemplate->execute(
             $this->getTemplateName(),
             $this->getData()
@@ -130,23 +148,41 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     }
 
     /**
-     * Get notification template Name
+     * setTemplateName
+     *
+     * @param  mixed $name
      */
-    public function getTemplateName(): ?string
+    public function setTemplateName(string $name): self
     {
-        return $this->templateName === null ? $this->getType()->template : $this->templateName;
+        $this->templateName = $name;
+
+        return $this;
     }
 
     /**
-     * getDataMail.
+     * setData
+     */
+    public function setData(array $data): self
+    {
+        $this->data = $data;
+
+        return $this;
+    }
+
+    /**
+     * getData.
      */
     public function getData(): array
     {
-        return [
-            'entity' => $this->entity,
-            'app' => $this->app,
-            'user' => $this->toUser ? $this->toUser : null,
-        ];
+        return $this->data;
+    }
+
+    /*
+    * Get notification template Name
+    */
+    public function getTemplateName(): ?string
+    {
+        return $this->templateName === null ? $this->getType()->template : $this->templateName;
     }
 
     /**
