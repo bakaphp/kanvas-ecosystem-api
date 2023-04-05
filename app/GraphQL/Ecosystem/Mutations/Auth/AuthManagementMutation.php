@@ -9,9 +9,8 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
 use Kanvas\Auth\Actions\RegisterUsersAction;
+use Kanvas\Auth\Actions\SocialLoginAction;
 use Kanvas\Auth\DataTransferObject\LoginInput;
-use Exception;
-use Laravel\Socialite\Facades\Socialite;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Services\ForgotPassword as ForgotPasswordService;
 use Kanvas\Auth\Traits\AuthTrait;
@@ -19,8 +18,8 @@ use Kanvas\Auth\Traits\TokenTrait;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Repositories\UsersRepository;
+use Laravel\Socialite\Facades\Socialite;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
-use Kanvas\Auth\Actions\SocialLoginAction;
 
 class AuthManagementMutation
 {
@@ -29,8 +28,6 @@ class AuthManagementMutation
 
     /**
      * @param array $args
-     *
-     * @return array
      *
      * @throws \Exception
      */
@@ -93,13 +90,28 @@ class AuthManagementMutation
     }
 
     /**
-     * Logout the current user
+     * Logout from the current JWT token
      */
     public function logout(mixed $rootValue, array $request): bool
     {
         $session = new Sessions();
 
-        return $session->end(auth()->user(), $request['sessionId'] ?? null);
+        return $session->end(
+            auth()->user(),
+            auth()->getRequestJwtToken()->claims()->get('sessionId')
+        );
+    }
+
+    /**
+     * Logout from all devices
+     */
+    public function logoutFromAllDevices(mixed $rootValue, array $request): bool
+    {
+        $session = new Sessions();
+
+        return $session->end(
+            auth()->user()
+        );
     }
 
     /**
@@ -163,10 +175,6 @@ class AuthManagementMutation
 
     /**
      * Login with social login
-     *
-     * @param  mixed $root
-     * @param  array $req
-     * @return array
      */
     public function socialLogin(mixed $root, array $req): array
     {
