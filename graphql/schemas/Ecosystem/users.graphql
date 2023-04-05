@@ -107,9 +107,13 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@loginMutation"
         )
-    logout(sessionId: String): Boolean @guard
+    logout(): Boolean @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@logout"
+        )
+    logoutFromAllDevices(): Boolean @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@logoutFromAllDevices"
         )
     register(data: RegisterInput!): RegisterResponse!
         @field(

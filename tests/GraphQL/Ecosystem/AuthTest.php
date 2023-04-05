@@ -32,13 +32,29 @@ class AuthTest extends TestCase
     /**
      * Test the logout function to remove sessions
      */
-    public function testLogoutData(): void
+    public function testLogout(): void
     {
         $loginData = self::loginData();
         $response = $this->graphQL( /** @lang GraphQL */
             '
             mutation {
                 logout
+            }'
+        )
+        ->assertSuccessful()
+        ->assertSee('logout');
+    }
+
+    /**
+     * Test the logout function to remove sessions
+     */
+    public function testLogoutFromAllDevices(): void
+    {
+        $loginData = self::loginData();
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation {
+                logoutFromAllDevices
             }'
         )
         ->assertSuccessful()
