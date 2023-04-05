@@ -120,13 +120,13 @@ jobs:
         run: php artisan db:seed
 
       - name: Create Role Admin
-        run: php artisan role:create Admin
+        run: php artisan kanvas:create-role Admin
 
       - name: Create Role Users
-        run: php artisan role:create Users
+        run: php artisan kanvas:create-role Users
 
       - name: Create Role Agents
-        run: php artisan role:create Agents
+        run: php artisan kanvas:create-role Agents
 
       - name: Execute type checking
         run: vendor/bin/phpstan --configuration="phpstan.src.neon.dist" --xdebug

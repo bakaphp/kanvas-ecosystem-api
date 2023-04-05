@@ -17,7 +17,7 @@ class SocialSetupCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'social:setup {userId} {companyId}';
+    protected $signature = 'kanvas-social:setup {userId} {companyId}';
 
     /**
      * The console command description.

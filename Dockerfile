@@ -13,7 +13,7 @@ COPY --chown=www:www-data . /app
 # add root to www group
 RUN chmod -R ug+w /app/storage
 
-RUN cp docker/docker-php-ext-opcache.ini /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
+RUN cp docker/docker-php-ext-opcache-prod.ini /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
 RUN cp docker/php.ini /usr/local/etc/php/conf.d/zx-app-config.ini
 
 WORKDIR /var/www/html

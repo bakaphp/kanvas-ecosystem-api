@@ -9,14 +9,14 @@ use Kanvas\Apps\Actions\CreateAppsAction;
 use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Users\Models\Users;
 
-class AppSetupCommand extends Command
+class KanvasAppSetupCommand extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'apps:setup';
+    protected $signature = 'kanvas:setup';
 
     /**
      * The console command description.

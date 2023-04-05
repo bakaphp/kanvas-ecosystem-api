@@ -10,10 +10,12 @@ use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Models\BaseModel;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Users\Models\UserCompanyApps;
@@ -66,6 +68,18 @@ class Apps extends BaseModel implements AppInterface
         static::creating(function ($model) {
             $model->key = $model->key ?? Str::uuid();
         });
+    }
+
+    public static function getByUuid(string $uuid): self
+    {
+        try {
+            return self::where('key', $uuid)
+                ->notDeleted()
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
     }
 
     public function keys(): HasMany
