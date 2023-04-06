@@ -128,6 +128,9 @@ jobs:
       - name: Create Role Agents
         run: php artisan role:create Agents
 
+      - name: Set filesystem configs
+        run: php artisan filesystem:disk
+
       - name: Run Tests
         if: success()
         run: php artisan test
