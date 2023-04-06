@@ -34,7 +34,15 @@ input AppInput {
     is_public: Int!
     domain_based: Int!
 }
-
+input appSmtpInput {
+    host: String!
+    port: String!
+    username: String!
+    password: String!
+    encryption: String!
+    fromEmail: String!
+    fromName: String!
+}
 input appSettingInput {
     name: String!
     value: Mixed!
@@ -143,6 +151,13 @@ extend type Mutation @guardByAppKey {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppSettingsMutation@saveSettings"
         )
+    saveAppSmtpSettings(
+        id: String!
+        input: appSmtpInput!
+    ): Boolean!
+    @field(
+        resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppSettingsMutation@saveAppSmtpSettings"
+    )
     addTemplateToApp(id: String!, input: templateInput!): Template
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppTemplateMutation@createAppTemplate"
