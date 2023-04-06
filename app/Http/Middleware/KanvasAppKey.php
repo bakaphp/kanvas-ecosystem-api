@@ -53,7 +53,10 @@ class KanvasAppKey
                     return $kanvasAppKey;
                 });
 
-                Auth::setUser($kanvasAppKey->user()->firstOrFail());
+                if (empty($request->bearerToken())) {
+                    Auth::setUser($kanvasAppKey->user()->firstOrFail());
+                }
+
                 $kanvasAppKey->last_used_date = date('Y-m-d H:i:s');
                 $kanvasAppKey->saveOrFail();
             } catch (Throwable $e) {

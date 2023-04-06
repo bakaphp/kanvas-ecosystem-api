@@ -15,10 +15,6 @@ trait TokenTrait
 {
     /**
      * Returns the JWT token object.
-     *
-     * @param string $token
-     *
-     * @return Token
      */
     protected function getToken(string $token): Token
     {
@@ -29,8 +25,6 @@ trait TokenTrait
 
     /**
      * Returns the default audience for the tokens.
-     *
-     * @return string
      */
     protected function getTokenAudience(): string
     {
@@ -42,8 +36,6 @@ trait TokenTrait
 
     /**
      * Returns the time the token is issued at.
-     *
-     * @return int
      */
     protected function getTokenTimeIssuedAt(): int
     {
@@ -52,8 +44,6 @@ trait TokenTrait
 
     /**
      * Returns the time drift i.e. token will be valid not before.
-     *
-     * @return int
      */
     protected function getTokenTimeNotBefore(): int
     {
@@ -62,8 +52,6 @@ trait TokenTrait
 
     /**
      * Returns the expiry time for the token.
-     *
-     * @return int
      */
     protected function getTokenTimeExpiration(): int
     {
@@ -73,12 +61,8 @@ trait TokenTrait
     /**
      * Given a JWT token validate it.
      *
-     * @param Token $token
-     *
      * @throws RequiredConstraintsViolated
      * @throws NoConstraintsGiven
-     *
-     * @return bool
      */
     public static function validateJwtToken(Token $token): bool
     {

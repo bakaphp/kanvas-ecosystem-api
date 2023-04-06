@@ -20,11 +20,7 @@ class CompaniesRepository
     /**
      * Get company by Id.
      *
-     * @param int $id
-     *
-     * @return Companies
-     *
-     * @throws Exception
+     * @throws ModelNotFoundException
      */
     public static function getById(int $id): Companies
     {
@@ -35,10 +31,6 @@ class CompaniesRepository
 
     /**
      * Get by uuid.
-     *
-     * @param string $uuid
-     *
-     * @return Companies
      */
     public static function getByUuid(string $uuid): Companies
     {
@@ -50,12 +42,7 @@ class CompaniesRepository
     /**
      * User belongs / has permission in this company.
      *
-     * @param Companies $company
-     * @param Users $user
-     *
-     * @throws Exception
-     *
-     * @return UsersAssociatedCompanies
+     * @throws ExceptionsModelNotFoundException
      */
     public static function userAssociatedToCompany(Companies $company, Users $user): UsersAssociatedCompanies
     {
@@ -72,12 +59,7 @@ class CompaniesRepository
     /**
      * User belongs / has permission in this company.
      *
-     * @param Companies $company
-     * @param Users $user
-     *
-     * @throws Exception
-     *
-     * @return UsersAssociatedCompanies
+     * @throws ExceptionsModelNotFoundException
      */
     public static function userAssociatedToCompanyAndBranch(Companies $company, CompaniesBranches $branch, Users $user): UsersAssociatedCompanies
     {
@@ -95,13 +77,7 @@ class CompaniesRepository
     /**
      * User associated to this company on the current app.
      *
-     * @param Apps $app
-     * @param Companies $company
-     * @param Users $user
-     *
-     * @throws Exception
-     *
-     * @return UsersAssociatedApps
+     * @throws ExceptionsModelNotFoundException
      */
     public static function userAssociatedToCompanyInThisApp(Apps $app, Companies $company, Users $user): UsersAssociatedApps
     {
