@@ -8,6 +8,11 @@ use Spatie\LaravelData\Data;
 
 class AppSmtpSettingsInput extends Data
 {
+    /**
+     * __construct
+     *
+     * @return void
+     */
     public function __construct(
         public string $host,
         public string $port,
