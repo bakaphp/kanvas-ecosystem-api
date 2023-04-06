@@ -40,6 +40,37 @@ input appSettingInput {
     value: Mixed!
 }
 
+input s3FilesystemConfig {
+    key: String!
+    secret: String!
+    region: String!
+    bucket: String
+    url: String
+}
+
+input gcsFilesystemConfig {
+    type: String!
+    project_id: String!
+    private_key_id: String!
+    private_key: String!
+    client_email: String!
+    client_id: String!
+    token_uri: String!
+    auth_uri: String!
+    auth_provider_x509_cert_url: String
+    client_x509_cert_url: String
+}
+
+input s3FilesystemConfigInput {
+    name: String!
+    value: s3FilesystemConfig!
+}
+
+input gcsFilesystemConfigInput {
+    name: String!
+    value: gcsFilesystemConfig!
+}
+
 input templateInput {
     name: String!
     template: String!
@@ -154,5 +185,13 @@ extend type Mutation @guardByAppKey {
     appUserUpdateEmail(uuid: String!, email: Email!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@updateEmail"
+        )
+    saveS3Settings(id: String!, input: s3FilesystemConfigInput): Mixed!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppSettingsMutation@saveSettings"
+        )
+    saveGcsSettings(id: String!, input: gcsFilesystemConfigInput): Mixed!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppSettingsMutation@saveSettings"
         )
 }
