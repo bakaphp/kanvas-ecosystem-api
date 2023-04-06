@@ -96,4 +96,15 @@ class FilesystemServices
             'bucket' => $this->app->get('cloud-bucket'),
         ]);
     }
+
+    /**
+     * Delete a file from the filesystem cloud service.
+     *
+     * @param ModelsFilesystem $file
+     * @return boolean
+     */
+    public function delete(ModelsFilesystem $file): bool
+    {
+        return $this->storage->delete($file->path);
+    }
 }
