@@ -10,7 +10,6 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
-use Kanvas\Filesystem\Actions\UploadFileAction;
 use Kanvas\Filesystem\Services\FilesystemServices;
 
 class FilesystemManagementMutation
@@ -74,9 +73,9 @@ class FilesystemManagementMutation
         $fileSystems = [];
 
         foreach ($files as $file) {
-            $uploadFile = new UploadFileAction(auth()->user());
+            $uploadFile = new FilesystemServices();
 
-            $fileSystems[] = $uploadFile->execute($file);
+            $fileSystems[] = $uploadFile->upload($file, auth()->user());
         }
 
         return $fileSystems;
