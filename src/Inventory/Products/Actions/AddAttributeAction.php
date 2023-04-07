@@ -29,7 +29,7 @@ class AddAttributeAction
         if (empty($this->value)) {
             return $this->product;
         }
-        if ($this->product->attributes()->disableCache()->find($this->attribute->getId())) {
+        if ($this->product->attributes()->find($this->attribute->getId())) {
             $this->product->attributes()->syncWithoutDetaching([$this->attribute->getId() => ['value' => $this->value]]);
         } else {
             $this->product->attributes()->attach($this->attribute->getId(), ['value' => $this->value]);

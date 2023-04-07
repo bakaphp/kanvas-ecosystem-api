@@ -55,11 +55,12 @@ class ProductImporterJob implements ShouldQueue
      * @return void
      */
     public function handle()
-    {
+    {   
+        config(['laravel-model-caching.disabled' => true]);
         Auth::loginUsingId($this->user->getId());
         $this->overwriteAppService($this->app);
         $this->overwriteAppServiceLocation($this->branch);
-
+        
         /**
          * @var Companies
          */
