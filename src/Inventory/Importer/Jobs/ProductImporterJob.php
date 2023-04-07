@@ -71,7 +71,5 @@ class ProductImporterJob implements ShouldQueue
                 $this->app
             ))->execute();
         }
-
-        
     }
 }
