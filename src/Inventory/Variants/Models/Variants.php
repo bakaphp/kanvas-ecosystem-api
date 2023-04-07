@@ -41,7 +41,6 @@ class Variants extends BaseModel
     use UuidTrait;
     use Searchable;
     use SocialInteractionsTrait;
-    use Cachable;
 
     protected $table = 'products_variants';
     protected $guarded = [];
