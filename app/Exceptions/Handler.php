@@ -4,7 +4,7 @@ namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\JsonResponse;
-use Kanvas\Exceptions\InternalServerErrorException;
+use Illuminate\Support\Facades\App;
 use Sentry\Laravel\Integration;
 use Throwable;
 
@@ -49,7 +49,7 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Throwable $exception): JsonResponse
     {
-        if (env('APP_ENV') === 'production' && $exception instanceof InternalServerErrorException) {
+        if (App::environment('production')) {
             return response()->json([
                 'message' => 'A server error has occurred. We are looking into it',
             ], 503);
