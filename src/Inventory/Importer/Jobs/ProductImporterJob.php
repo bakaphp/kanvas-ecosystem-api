@@ -33,11 +33,7 @@ class ProductImporterJob implements ShouldQueue
     /**
      * constructor.
      *
-     * @param string $jobUuid
      * @param array<int, ImporterDto> $importer
-     * @param CompaniesBranches $branch
-     * @param UserInterface $user
-     * @param Regions $region
      */
     public function __construct(
         public string $jobUuid,
@@ -56,6 +52,7 @@ class ProductImporterJob implements ShouldQueue
      */
     public function handle()
     {
+        config(['laravel-model-caching.disabled' => true]);
         Auth::loginUsingId($this->user->getId());
         $this->overwriteAppService($this->app);
         $this->overwriteAppServiceLocation($this->branch);
