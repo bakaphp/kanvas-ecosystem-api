@@ -49,7 +49,7 @@ class CreateProductAction
                 'companies_id' => $this->productDto->company->getId(),
             ];
 
-            $products = Products::updateOrCreate(
+            $products = Products::disableCache()->updateOrCreate(
                 $search,
                 [
                     'products_types_id' => $productType,
