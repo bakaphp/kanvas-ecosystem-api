@@ -29,7 +29,7 @@ use Kanvas\SystemModules\Models\SystemModules;
 class FilesystemEntities extends BaseModel
 {
     use UuidTrait;
-    use Cachable;
+    //use Cachable;
 
     /**
      * The table associated with the model.
