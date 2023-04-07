@@ -30,8 +30,6 @@ class CreateProductAction
 
     /**
      * execute.
-     *
-     * @return Products
      */
     public function execute(): Products
     {
@@ -63,7 +61,7 @@ class CreateProductAction
                     'upc' => $this->productDto->upc,
                     'users_id' => $this->user->getId(),
                     'is_published' => $this->productDto->is_published,
-                    'published_at' => Carbon::now()
+                    'published_at' => Carbon::now(),
                 ]
             );
 
@@ -85,6 +83,7 @@ class CreateProductAction
             DB::connection('inventory')->commit();
         } catch (Throwable $e) {
             DB::connection('inventory')->rollback();
+
             throw $e;
         }
 
