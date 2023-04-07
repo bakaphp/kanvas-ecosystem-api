@@ -17,7 +17,7 @@ class InventorySetupCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas-inventory:setup {appId} {userId} {companyId}';
+    protected $signature = 'kanvas-inventory:setup {app_id} {user_id} {company_id}';
 
     /**
      * The console command description.
@@ -33,9 +33,9 @@ class InventorySetupCommand extends Command
      */
     public function handle()
     {
-        $app = Apps::getById((int) $this->argument('appId'));
-        $company = Companies::getById((int) $this->argument('companyId'));
-        $user = Users::getById((int) $this->argument('userId'));
+        $app = Apps::getById((int) $this->argument('app_id'));
+        $company = Companies::getById((int) $this->argument('company_id'));
+        $user = Users::getById((int) $this->argument('user_id'));
 
         (new Setup(
             $app,
