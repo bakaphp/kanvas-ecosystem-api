@@ -2,12 +2,11 @@
 
 namespace App\Exceptions;
 
+use Baka\Exceptions\LightHouseCustomException;
 use Baka\Support\Str;
 use GraphQL\Error\Error;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\App;
-use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
-use Kanvas\Exceptions\ValidationException;
 use Nuwave\Lighthouse\Execution\ErrorHandler;
 
 class CountErrorHandler implements ErrorHandler
@@ -24,8 +23,7 @@ class CountErrorHandler implements ErrorHandler
 
         $underlyingException = $error->getPrevious();
         if ($underlyingException instanceof ModelNotFoundException
-            || $underlyingException instanceof ExceptionsModelNotFoundException
-            || $underlyingException instanceof ValidationException) {
+            || $underlyingException instanceof LightHouseCustomException) {
             $message = $error->getMessage();
             if ($module = Str::contains($error->getMessage(), '\\')) {
                 $module = explode('\\', $error->getMessage());
