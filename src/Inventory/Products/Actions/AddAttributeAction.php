@@ -17,17 +17,18 @@ class AddAttributeAction
     public function __construct(
         private Products $product,
         private Attributes $attribute,
-        private int|string $value
+        private mixed $value
     ) {
     }
 
     /**
      * execute.
-     *
-     * @return Products
      */
     public function execute(): Products
     {
+        if (empty($this->value)) {
+            return $this->product;
+        }
         if ($this->product->attributes()->find($this->attribute->getId())) {
             $this->product->attributes()->syncWithoutDetaching([$this->attribute->getId() => ['value' => $this->value]]);
         } else {
