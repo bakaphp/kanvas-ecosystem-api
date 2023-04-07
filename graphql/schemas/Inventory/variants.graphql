@@ -68,7 +68,7 @@ input VariantsWarehousesInput {
 }
 input VariantsAttributesInput {
     name: String!
-    value: Mixed!
+    value: Mixed
 }
 input VariantsInput {
     products_id: Int

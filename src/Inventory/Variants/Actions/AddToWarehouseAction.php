@@ -24,8 +24,6 @@ class AddToWarehouseAction
 
     /**
      * execute.
-     *
-     * @return Variants
      */
     public function execute(): Variants
     {
@@ -34,6 +32,7 @@ class AddToWarehouseAction
         } else {
             $this->variants->warehouses()->attach($this->warehouses->getId(), $this->variantsWarehouses->toArray());
         }
+
         return $this->variants;
     }
 }
