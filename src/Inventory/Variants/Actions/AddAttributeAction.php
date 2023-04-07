@@ -25,7 +25,7 @@ class AddAttributeAction
             return $this->variants;
         }
 
-        if ($this->variants->attributes()->disableCache()->find($this->attributes->getId())) {
+        if ($this->variants->attributes()->find($this->attributes->getId())) {
             $this->variants->attributes()->syncWithoutDetaching([$this->attributes->getId() => ['value' => $this->value]]);
         } else {
             $this->variants->attributes()->attach($this->attributes->getId(), ['value' => $this->value]);
