@@ -42,7 +42,7 @@ class CreateVariantsAction
             'apps_id' => $this->variantDto->product->apps_id
         ];
 
-        return Variants::updateOrCreate(
+        return Variants::disableCache()->updateOrCreate(
             $search,
             [
                 'name' => $this->variantDto->name,
