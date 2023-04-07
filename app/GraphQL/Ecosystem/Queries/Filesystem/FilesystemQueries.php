@@ -9,10 +9,8 @@ use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
-use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
-use Ramsey\Uuid\Uuid;
 
 class FilesystemQueries
 {
@@ -30,7 +28,7 @@ class FilesystemQueries
         /**
          * @var Builder
          */
-        return Filesystem::select(
+        $files = Filesystem::select(
             'filesystem_entities.uuid',
             'filesystem_entities.field_name',
             'filesystem.name',
@@ -39,11 +37,18 @@ class FilesystemQueries
             'filesystem.file_type',
             'size'
         )
-                    ->join('filesystem_entities', 'filesystem_entities.filesystem_id', '=', 'filesystem.id')
-                    ->where('filesystem_entities.entity_id', '=', $root->getKey())
-                    ->where('filesystem_entities.system_modules_id', '=', $systemModule->getKey())
-                    ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
-                    ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue());
+            ->join('filesystem_entities', 'filesystem_entities.filesystem_id', '=', 'filesystem.id')
+            ->where('filesystem_entities.entity_id', '=', $root->getKey())
+            ->where('filesystem_entities.system_modules_id', '=', $systemModule->getKey())
+            ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
+            ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue());
+
+        //@todo allow to share media between company only of it the apps specifies it
+        $files->when(isset($root->companies_id), function ($query) use ($root) {
+            $query->where('filesystem_entities.companies_id', $root->companies_id);
+        });
+
+        return $files;
     }
 
     /**
@@ -67,7 +72,7 @@ class FilesystemQueries
         /**
          * @var Builder
          */
-        return Filesystem::select(
+        $files = Filesystem::select(
             'filesystem_entities.uuid',
             'filesystem_entities.field_name',
             'filesystem.name',
@@ -76,10 +81,17 @@ class FilesystemQueries
             'filesystem.file_type',
             'size'
         )
-                    ->join('filesystem_entities', 'filesystem_entities.filesystem_id', '=', 'filesystem.id')
-                    ->where('filesystem_entities.entity_id', '=', $entity->getKey())
-                    ->where('filesystem_entities.system_modules_id', '=', $systemModule->getKey())
-                    ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
-                    ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue());
+            ->join('filesystem_entities', 'filesystem_entities.filesystem_id', '=', 'filesystem.id')
+            ->where('filesystem_entities.entity_id', '=', $entity->getKey())
+            ->where('filesystem_entities.system_modules_id', '=', $systemModule->getKey())
+            ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
+            ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue());
+
+        //@todo allow to share media between company only of it the apps specifies it
+        $files->when(isset($entity->companies_id), function ($query) use ($entity) {
+            $query->where('filesystem_entities.companies_id', $entity->companies_id);
+        });
+
+        return $files;
     }
 }
