@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Importer\DataTransferObjects;
 
+use Kanvas\Exceptions\ValidationException;
 use Spatie\LaravelData\Data;
 
 class ProductImporter extends Data
@@ -48,6 +49,10 @@ class ProductImporter extends Data
 
     public function getSourceKey(): string
     {
+        if ($this->source === null) {
+            throw new ValidationException('Importer Source is required');
+        }
+
         return $this->source . '_id';
     }
 }

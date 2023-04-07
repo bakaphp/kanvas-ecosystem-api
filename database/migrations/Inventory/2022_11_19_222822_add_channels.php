@@ -27,8 +27,8 @@ return new class () extends Migration {
             $table->boolean('is_deleted')->default(0);
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
-            $table->index(['slug', 'companies_id']);
-            $table->unique(['slug', 'companies_id']);
+            $table->index(['slug', 'companies_id', 'apps_id']);
+            $table->unique(['slug', 'companies_id', 'apps_id']);
             $table->index('uuid');
             $table->index('slug');
             $table->index('users_id');

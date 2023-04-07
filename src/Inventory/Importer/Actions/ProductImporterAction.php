@@ -44,7 +44,6 @@ class ProductImporterAction
 
     /**
      * __construct.
-     *
      */
     public function __construct(
         public ProductImporter $importedProduct,
@@ -68,8 +67,6 @@ class ProductImporterAction
      * Run all method dor a specify product.
      *
      * @throws Throwable
-     *
-     * @return bool
      */
     public function execute(): bool
     {
@@ -133,15 +130,17 @@ class ProductImporterAction
 
     /**
      * productType.
-     *
-     * @return void
      */
     protected function productType(): void
     {
         $productType = null;
 
         if (isset($this->importedProduct->productType['source_id'])) {
-            $productType = ProductsTypesModel::getByCustomField($this->importedProduct->getSourceKey(), $this->importedProduct->productType['source_id'], $this->company);
+            $productType = ProductsTypesModel::getByCustomField(
+                $this->importedProduct->getSourceKey(),
+                $this->importedProduct->productType['source_id'],
+                $this->company
+            );
         }
         if ($productType) {
             $this->product->update(['products_types_id' => $productType->id]);
@@ -157,7 +156,10 @@ class ProductImporterAction
             $productType = (new CreateProductTypeAction($productTypeDto, $this->user))->execute();
 
             if (isset($this->importedProduct->productType['source_id']) && $this->importedProduct->isFromThirdParty()) {
-                $productType->setLinkedSource($this->importedProduct->source, $this->importedProduct->productType['source_id']);
+                $productType->setLinkedSource(
+                    $this->importedProduct->source,
+                    $this->importedProduct->productType['source_id']
+                );
             }
 
             $this->product->update(['products_types_id' => $productType->id]);
@@ -166,8 +168,6 @@ class ProductImporterAction
 
     /**
      * categories.
-     *
-     * @return void
      */
     public function categories(): void
     {
@@ -175,7 +175,11 @@ class ProductImporterAction
             $categoryModel = null;
 
             if (isset($category['source_id'])) {
-                $categoryModel = Categories::getByCustomField($this->importedProduct->getSourceKey(), $category['source_id'], $this->company);
+                $categoryModel = Categories::getByCustomField(
+                    $this->importedProduct->getSourceKey(),
+                    $category['source_id'],
+                    $this->company
+                );
             }
 
             if ($categoryModel) {
@@ -201,15 +205,17 @@ class ProductImporterAction
 
     /**
      * attributes.
-     *
-     * @return void
      */
     public function attributes(): void
     {
         foreach ($this->importedProduct->attributes as $attribute) {
             $attributeModel = null;
             if (isset($attribute['source_id'])) {
-                $attributeModel = Attributes::getByCustomField($this->importedProduct->getSourceKey(), $attribute['source_id'], $this->company);
+                $attributeModel = Attributes::getByCustomField(
+                    $this->importedProduct->getSourceKey(),
+                    $attribute['source_id'],
+                    $this->company
+                );
             }
 
             if (! $attributeModel) {
@@ -249,8 +255,6 @@ class ProductImporterAction
 
     /**
      * variants.
-     *
-     * @return void
      */
     public function variants(): void
     {
@@ -258,7 +262,11 @@ class ProductImporterAction
             $variantModel = null;
 
             if (isset($variant['source_id'])) {
-                $variantModel = VariantsModel::getByCustomField($this->importedProduct->getSourceKey(), $variant['source_id'], $this->company);
+                $variantModel = VariantsModel::getByCustomField(
+                    $this->importedProduct->getSourceKey(),
+                    $variant['source_id'],
+                    $this->company
+                );
             }
 
             if ($variantModel) {
@@ -293,7 +301,11 @@ class ProductImporterAction
             foreach ($variantData['attributes'] as $attribute) {
                 $attributeModel = null;
                 if (isset($attribute['source_id'])) {
-                    $attributeModel = Attributes::getByCustomField($this->importedProduct->getSourceKey(), $attribute['source_id'], $this->company);
+                    $attributeModel = Attributes::getByCustomField(
+                        $this->importedProduct->getSourceKey(),
+                        $attribute['source_id'],
+                        $this->company
+                    );
                 }
 
                 if (! $attributeModel) {
@@ -316,10 +328,6 @@ class ProductImporterAction
 
     /**
      * Add variant to warehouse and channels.
-     *
-     * @param VariantsModel $variantModel
-     *
-     * @return void
      */
     public function addVariantsToLocation(VariantsModel $variantModel): void
     {
