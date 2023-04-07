@@ -35,7 +35,7 @@ class AttachFilesystemAction
             /**
              * @var FilesystemEntities
              */
-            $fileEntity = FilesystemEntities::firstOrCreate([
+            $fileEntity = FilesystemEntities::disableCache()->firstOrCreate([
                 'filesystem_id' => $this->filesystem->getKey(),
                 'entity_id' => $this->entity->getKey(),
                 'system_modules_id' => $systemModule->getKey(),
