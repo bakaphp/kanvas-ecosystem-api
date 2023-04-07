@@ -7,6 +7,7 @@ namespace Baka\Traits;
 use Baka\Contracts\AppInterface;
 use Illuminate\Support\Facades\App;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 
 trait KanvasJobsTrait
 {
@@ -21,6 +22,13 @@ trait KanvasJobsTrait
     {
         App::scoped(Apps::class, function () use ($app) {
             return $app;
+        });
+    }
+
+    public function overwriteAppServiceLocation(CompaniesBranches $branch): void
+    {
+        App::scoped(CompaniesBranches::class, function () use ($branch) {
+            return $branch;
         });
     }
 }
