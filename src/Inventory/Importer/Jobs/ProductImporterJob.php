@@ -68,7 +68,15 @@ class ProductImporterJob implements ShouldQueue
          * @var \Laravel\Scout\Engines\MeiliSearchEngine
          */
         $meiliSearchEngine = app(EngineManager::class)->engine();
-        //clean index before import
+        
+        /**
+         * @todo 
+         * right now we are cleaning the index for the company but we have a issue
+         * this index is for all variants for a given company , but the search function
+         * is looking for variant of a given public channel
+         * so we need to move the index to be specific of the channel we are importing 
+         * to avoid future issues
+         */
         $meiliSearchEngine->deleteIndex(
             (string) AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue() . $company->getId()
         );
