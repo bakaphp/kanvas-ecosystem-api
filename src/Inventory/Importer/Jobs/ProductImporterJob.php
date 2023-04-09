@@ -15,10 +15,12 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter as ImporterDto;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Laravel\Scout\EngineManager;
 
 class ProductImporterJob implements ShouldQueue
 {
@@ -61,6 +63,15 @@ class ProductImporterJob implements ShouldQueue
          * @var Companies
          */
         $company = $this->branch->company()->firstOrFail();
+
+        /**
+         * @var \Laravel\Scout\Engines\MeiliSearchEngine
+         */
+        $meiliSearchEngine = app(EngineManager::class)->engine();
+        //clean index before import
+        $meiliSearchEngine->deleteIndex(
+            (string) AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue() . $company->getId()
+        );
 
         foreach ($this->importer as $request) {
             (new ProductImporterAction(

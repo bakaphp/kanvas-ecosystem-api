@@ -6,11 +6,11 @@ namespace Kanvas\Inventory\Variants\Models;
 
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
-use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
@@ -53,7 +53,7 @@ class Variants extends BaseModel
     {
         return (! isset($this->companies_id) || $this->companies_id === null) && self::$overWriteSearchIndex !== null
             ? self::$overWriteSearchIndex
-            : 'products_variants_company_' . (string) $this->companies_id;
+            : (string) AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue() . (string) $this->companies_id;
     }
 
     /**
@@ -61,7 +61,17 @@ class Variants extends BaseModel
      */
     public static function setSearchIndex(int $companyId): void
     {
-        self::$overWriteSearchIndex = 'products_variants_company_' . $companyId;
+        self::$overWriteSearchIndex = (string) AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue() . $companyId;
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return $this->isPublished();
+    }
+
+    public function isPublished(): bool
+    {
+        return (bool) $this->is_published;
     }
 
     /**
