@@ -26,7 +26,6 @@ class FilesystemSetupCommand extends Command
 
     public function handle(): void
     {
-        
         $app = AppsRepository::findFirstByKey(env('KANVAS_APP_ID'));
 
         $app->set('filesystem-service', 's3');
