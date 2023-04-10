@@ -29,7 +29,7 @@ class FilesystemSetupCommand extends Command
         $app = AppsRepository::findFirstByKey(env('KANVAS_APP_ID'));
 
         $app->set('filesystem-service', 's3');
-        $app->set('cloud-bucket', config('filesystems.s3.disks.bucket'));
+        $app->set('cloud-bucket', config('filesystems.s3.cicd.bucket'));
         $app->set('service-account-file', $this->createConfigFile());
     }
 
@@ -41,9 +41,9 @@ class FilesystemSetupCommand extends Command
     public function createConfigFile(): array
     {
         return [
-            'key' => config('filesystems.s3.disks.key'),
-            'secret' => config('filesystems.s3.disks.secret'),
-            'region' => config('filesystems.s3.disks.region'),
+            'key' => config('filesystems.s3.cicd.key'),
+            'secret' => config('filesystems.s3.cicd.secret'),
+            'region' => config('filesystems.s3.cicd.region'),
         ];
     }
 }
