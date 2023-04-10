@@ -71,7 +71,7 @@ return [
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
             'throw' => true, // with that you enabled the exception when you are writing a file
         ],
-    ]
+    ],
 
     /*
     |--------------------------------------------------------------------------
