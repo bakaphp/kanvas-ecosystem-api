@@ -26,19 +26,25 @@ class FilesystemSetupCommand extends Command
 
     public function handle(): void
     {
+        
         $app = AppsRepository::findFirstByKey(env('KANVAS_APP_ID'));
 
         $app->set('filesystem-service', 's3');
-        $app->set('cloud-bucket', env('AWS_BUCKET'));
+        $app->set('cloud-bucket', config('filesystems.s3.bucket'));
         $app->set('service-account-file', $this->createConfigFile());
     }
 
-    public function createConfigFile()
+    /**
+     * Create a config file for the setup in testing command.
+     *
+     * @return array
+     */
+    public function createConfigFile(): array
     {
         return [
-            'key' => env('AWS_ACCESS_KEY_ID'),
-            'secret' => env('AWS_SECRET_ACCESS_KEY'),
-            'region' => env('AWS_DEFAULT_REGION'),
+            'key' => config('filesystems.s3.disks.key'),
+            'secret' => config('filesystems.s3.disks.secret'),
+            'region' => config('filesystems.s3.disks.region'),
         ];
     }
 }
