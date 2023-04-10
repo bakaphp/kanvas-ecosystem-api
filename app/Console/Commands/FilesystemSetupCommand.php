@@ -29,7 +29,7 @@ class FilesystemSetupCommand extends Command
         $app = AppsRepository::findFirstByKey(env('KANVAS_APP_ID'));
 
         $app->set('filesystem-service', 's3');
-        $app->set('cloud-bucket', config('filesystems.s3.bucket'));
+        $app->set('cloud-bucket', config('filesystems.s3.disks.bucket'));
         $app->set('service-account-file', $this->createConfigFile());
     }
 
