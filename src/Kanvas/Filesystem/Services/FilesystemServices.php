@@ -56,7 +56,6 @@ class FilesystemServices
         return match ($this->app->get('filesystem-service')) {
             'gcs' => $this->buildGoogleCloudStorage(),
             's3' => $this->buildS3Storage(),
-            'aws' => 'TODO',
         };
     }
 
