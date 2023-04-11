@@ -11,6 +11,7 @@ use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Apps\Models\Apps;
 
 class FilesystemManagementMutation
 {
