@@ -6,6 +6,7 @@ namespace Tests\Ecosystem\Integration\Filesystem;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
@@ -17,7 +18,7 @@ final class FilesystemTest extends TestCase
     public function testCreateFilesystem()
     {
         $file = UploadedFile::fake()->image('avatar.jpg');
-        $filesystem = new FilesystemServices();
+        $filesystem = new FilesystemServices(app(Apps::class));
 
         $this->assertInstanceOf(Filesystem::class, $filesystem->upload($file, Auth::user()));
     }
@@ -26,7 +27,7 @@ final class FilesystemTest extends TestCase
     {
         $file = UploadedFile::fake()->image('avatar.jpg');
 
-        $filesystemService = new FilesystemServices();
+        $filesystemService = new FilesystemServices(app(Apps::class));
 
         $fileSystem = $filesystemService->upload($file, Auth::user());
 
@@ -40,7 +41,7 @@ final class FilesystemTest extends TestCase
     public function testGetFiles()
     {
         $file = UploadedFile::fake()->image('avatar.jpg');
-        $filesystem = new FilesystemServices();
+        $filesystem = new FilesystemServices(app(Apps::class));
         $user = Auth::user();
 
         $user->addFile(
@@ -55,7 +56,7 @@ final class FilesystemTest extends TestCase
     public function testDeleteFiles()
     {
         $file = UploadedFile::fake()->image('avatar.jpg');
-        $filesystemService = new FilesystemServices();
+        $filesystemService = new FilesystemServices(app(Apps::class));
         $user = Auth::user();
         $uploadedFile = $filesystemService->upload($file, $user);
 

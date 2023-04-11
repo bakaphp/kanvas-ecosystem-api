@@ -14,15 +14,13 @@ use Kanvas\Users\Models\Users;
 
 class FilesystemServices
 {
-    protected Apps $app;
     protected Filesystem $storage;
     /**
      * Construct function.
      */
-    public function __construct()
-    {
-        $this->app = app(Apps::class);
-
+    public function __construct(
+        protected Apps $app
+    ) {
         $this->storage = $this->getStorageByDisk();
     }
 

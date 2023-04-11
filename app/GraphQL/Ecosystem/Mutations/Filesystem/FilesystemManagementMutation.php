@@ -58,7 +58,7 @@ class FilesystemManagementMutation
     {
         /** @var \Illuminate\Http\UploadedFile $file */
         $file = $request['file'];
-        $filesystem = new FilesystemServices();
+        $filesystem = new FilesystemServices(app(Apps::class));
 
         return $filesystem->upload($file, auth()->user());
     }
@@ -73,7 +73,7 @@ class FilesystemManagementMutation
         $fileSystems = [];
 
         foreach ($files as $file) {
-            $uploadFile = new FilesystemServices();
+            $uploadFile = new FilesystemServices(app(Apps::class));
 
             $fileSystems[] = $uploadFile->upload($file, auth()->user());
         }
