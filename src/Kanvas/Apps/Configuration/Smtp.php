@@ -17,10 +17,8 @@ class Smtp
 
     /**
      * load
-     *
-     * @return void
      */
-    public function load()
+    public function load(): void
     {
         config(['mail.mailers.smtp.host' => $this->app->get('smtp_host')]);
         config(['mail.mailers.smtp.port' => $this->app->get('smtp_port')]);
