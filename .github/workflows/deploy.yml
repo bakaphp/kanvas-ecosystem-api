@@ -79,6 +79,9 @@ jobs:
             touch helm/.helmignore
             echo "managed-cert.yaml" >> helm/.helmignore
             echo "svc-gcp-lb.yaml" >> helm/.helmignore
+
+            # Remove old kubeconfig
+            rm -fr /home/runner/.kube/config
             
             #deploy or upgrade helm chart
             helm upgrade --install ${{ secrets.INSTANCE_NAME }} helm \
