@@ -29,6 +29,7 @@ class FilesystemSetupCommand extends Command
 
         $app->set('filesystem-service', 's3');
         $app->set('cloud-bucket', config('filesystems.disks.s3.bucket'));
+        $app->set('cloud-cdn', config('filesystems.disks.s3.url'));
         $app->set('service-account-file', $this->createConfigFile());
     }
 
