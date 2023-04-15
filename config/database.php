@@ -74,7 +74,17 @@ return [
         'ecosystem' => [
             'driver' => 'mysql',
             'url' => env('DATABASE_URL'),
-            'host' => env('DB_HOST', '127.0.0.1'),
+            'read' => [
+                'host' => [
+                    env('DB_HOST_READ', '127.0.0.1'),
+                ],
+            ],
+            'write' => [
+                'host' => [
+                    env('DB_HOST', '127.0.0.1'),
+                ],
+            ],
+            'sticky' => true,
             'port' => env('DB_PORT', '3306'),
             'database' => env('DB_DATABASE', 'kanvas'),
             'username' => env('DB_USERNAME', 'kanvas'),
@@ -93,7 +103,17 @@ return [
         'inventory' => [
             'driver' => 'mysql',
             'url' => env('DATABASE_INVENTORY_URL'),
-            'host' => env('DB_INVENTORY_HOST', '127.0.0.1'),
+            'read' => [
+                'host' => [
+                    env('DB_HOST_INVENTORY_READ', '127.0.0.1'),
+                ],
+            ],
+            'write' => [
+                'host' => [
+                    env('DB_INVENTORY_HOST', '127.0.0.1'),
+                ],
+            ],
+            'sticky' => true,
             'port' => env('DB_INVENTORY_PORT', '3306'),
             'database' => env('DB_INVENTORY_DATABASE', 'inventory'),
             'username' => env('DB_INVENTORY_USERNAME', 'kanvas'),
@@ -112,7 +132,17 @@ return [
         'social' => [
             'driver' => 'mysql',
             'url' => env('DATABASE_INVENTORY_URL'),
-            'host' => env('DB_SOCIAL_HOST', '127.0.0.1'),
+            'read' => [
+                'host' => [
+                    env('DB_SOCIAL_HOST_READ', '127.0.0.1'),
+                ],
+            ],
+            'write' => [
+                'host' => [
+                    env('DB_SOCIAL_HOST', '127.0.0.1'),
+                ],
+            ],
+            'sticky' => true,
             'port' => env('DB_SOCIAL_PORT', '3306'),
             'database' => env('DB_SOCIAL_DATABASE', 'social'),
             'username' => env('DB_SOCIAL_USERNAME', 'kanvas'),
@@ -131,6 +161,17 @@ return [
         'crm' => [
             'driver' => 'mysql',
             'url' => env('DATABASE_CRM_URL'),
+            'read' => [
+                'host' => [
+                    env('DB_CRM_HOST_READ', '127.0.0.1'),
+                ],
+            ],
+            'write' => [
+                'host' => [
+                    env('DB_CRM_HOST', '127.0.0.1'),
+                ],
+            ],
+            'sticky' => true,
             'host' => env('DB_CRM_HOST', '127.0.0.1'),
             'port' => env('DB_CRM_PORT', '3306'),
             'database' => env('DB_CRM_DATABASE', 'social'),
