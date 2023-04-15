@@ -60,7 +60,7 @@ class FilesystemServices
     public function buildGoogleCloudStorage(): Filesystem
     {
         if (empty($this->app->get('service-account-file')) || empty($this->app->get('cloud-bucket'))) {
-            throw new ValidationException('Invalid Google Cloud Storage credentials');
+            throw new ValidationException('Missing Google Cloud Storage credentials');
         }
 
         return Storage::build([
@@ -83,7 +83,7 @@ class FilesystemServices
         $aws = (array) $this->app->get('service-account-file');
 
         if (empty($aws['key']) || empty($aws['secret']) || empty($aws['region'])) {
-            throw new ValidationException('Invalid AWS credentials');
+            throw new ValidationException('Missing AWS credentials');
         }
 
         return Storage::build([
