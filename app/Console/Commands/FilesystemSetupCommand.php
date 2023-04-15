@@ -47,5 +47,3 @@ class FilesystemSetupCommand extends Command
         ];
     }
 }
-
-//php artisan kanvas:users 2 Valerie.QuinonesPastrana@popular.com 355
