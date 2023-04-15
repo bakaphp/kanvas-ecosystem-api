@@ -31,7 +31,14 @@ class FilesystemServices
      */
     public function upload(UploadedFile $file, Users $user): ModelsFilesystem
     {
-        $uploadedFile = $this->storage->put('/public', $file);
+        $path = $this->app->get('cloud-bucket-path') ?? '/';
+        $uploadedFile = $this->storage->put(
+            $path,
+            $file,
+            [
+                'visibility' => 'public',
+            ]
+        );
 
         $createFileSystem = new CreateFilesystemAction($file, $user);
 
