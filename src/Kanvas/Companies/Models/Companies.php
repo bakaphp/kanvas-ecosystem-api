@@ -200,7 +200,7 @@ class Companies extends BaseModel implements CompanyInterface
     /**
      * Associate company to the app.
      */
-    public function associateApp(Apps $app) : UserCompanyApps
+    public function associateApp(Apps $app): UserCompanyApps
     {
         return UserCompanyApps::findOrCreate([
             'apps_id' => $this->app->getId(),
