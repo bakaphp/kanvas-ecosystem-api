@@ -67,7 +67,7 @@ class FilesystemServices
             'driver' => 'gcs',
             'key_file' => $this->app->get('service-account-file'), // optional: Array of data that substitutes the .json file (see below)
             'bucket' => $this->app->get('cloud-bucket'),
-            'storage_api_uri' => null, // see: Public URLs below
+            'storage_api_uri' => $this->app->get('cloud-cdn'), // see: Public URLs below
             'apiEndpoint' => null, // set storageClient apiEndpoint
             'visibility' => 'public', // optional: public|private
             'visibility_handler' => \League\Flysystem\GoogleCloudStorage\UniformBucketLevelAccessVisibility::class, // optional: set to \League\Flysystem\GoogleCloudStorage\UniformBucketLevelAccessVisibility::class to enable uniform bucket level access
@@ -92,6 +92,7 @@ class FilesystemServices
             'secret' => $aws['secret'],
             'region' => $aws['region'],
             'bucket' => $this->app->get('cloud-bucket'),
+            'url' => $this->app->get('cloud-cdn'),
         ]);
     }
 
