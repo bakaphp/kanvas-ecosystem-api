@@ -19,6 +19,7 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
@@ -193,6 +194,17 @@ class Companies extends BaseModel implements CompanyInterface
             'user_active' => $isActive,
             'user_role' => $userRoleId ?? $user->roles_id,
             'password' => $password,
+        ]);
+    }
+
+    /**
+     * Associate company to the app.
+     */
+    public function associateApp(Apps $app) : UserCompanyApps
+    {
+        return UserCompanyApps::findOrCreate([
+            'apps_id' => $this->app->getId(),
+            'companies_id' => $this->company->getId(),
         ]);
     }
 
