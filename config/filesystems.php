@@ -54,23 +54,6 @@ return [
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
             'throw' => true, // with that you enabled the exception when you are writing a file
         ],
-
-    ],
-
-    'cicd' => [
-
-        's3' => [
-            'driver' => 's3',
-            'key' => env('AWS_ACCESS_KEY_CICD'),
-            'secret' => env('AWS_SECRET_ACCESS_KEY_CICD'),
-            'region' => env('AWS_DEFAULT_REGION_CICD'),
-            'bucket' => env('AWS_BUCKET_CICD'),
-            'url' => env('AWS_URL'),
-            'path' => '/',
-            // 'endpoint' => env('AWS_ENDPOINT'),
-            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
-            'throw' => true, // with that you enabled the exception when you are writing a file
-        ],
     ],
 
     /*
@@ -88,5 +71,5 @@ return [
         public_path('storage') => storage_path('app/public'),
     ],
     // Kanvas keys
-    'cdn_url' => env('FILESYSTEM_CDN_URL')
+    'cdn_url' => env('FILESYSTEM_CDN_URL'),
 ];
