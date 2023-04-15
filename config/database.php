@@ -34,14 +34,6 @@ return [
     */
 
     'connections' => [
-
-        'sqlite' => [
-            'driver' => 'sqlite',
-            'url' => env('DATABASE_URL'),
-            'database' => env('DB_DATABASE', database_path('database.sqlite')),
-            'prefix' => '',
-            'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
-        ],
         'mysql' => [
             'driver' => 'mysql',
             'read' => [
@@ -55,7 +47,6 @@ return [
                 ],
             ],
             'sticky' => true,
-            'url' => env('DATABASE_URL'),
             'port' => env('DB_PORT', '3306'),
             'database' => env('DB_DATABASE', 'kanvas'),
             'username' => env('DB_USERNAME', 'kanvas'),
@@ -73,7 +64,6 @@ return [
         ],
         'ecosystem' => [
             'driver' => 'mysql',
-            'url' => env('DATABASE_URL'),
             'read' => [
                 'host' => [
                     env('DB_HOST_READ', '127.0.0.1'),
@@ -102,10 +92,9 @@ return [
         ],
         'inventory' => [
             'driver' => 'mysql',
-            'url' => env('DATABASE_INVENTORY_URL'),
             'read' => [
                 'host' => [
-                    env('DB_HOST_INVENTORY_READ', '127.0.0.1'),
+                    env('DB_INVENTORY_HOST_READ', '127.0.0.1'),
                 ],
             ],
             'write' => [
@@ -131,7 +120,6 @@ return [
         ],
         'social' => [
             'driver' => 'mysql',
-            'url' => env('DATABASE_INVENTORY_URL'),
             'read' => [
                 'host' => [
                     env('DB_SOCIAL_HOST_READ', '127.0.0.1'),
@@ -160,7 +148,6 @@ return [
         ],
         'crm' => [
             'driver' => 'mysql',
-            'url' => env('DATABASE_CRM_URL'),
             'read' => [
                 'host' => [
                     env('DB_CRM_HOST_READ', '127.0.0.1'),
@@ -172,7 +159,6 @@ return [
                 ],
             ],
             'sticky' => true,
-            'host' => env('DB_CRM_HOST', '127.0.0.1'),
             'port' => env('DB_CRM_PORT', '3306'),
             'database' => env('DB_CRM_DATABASE', 'social'),
             'username' => env('DB_CRM_USERNAME', 'kanvas'),
@@ -188,34 +174,6 @@ return [
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
-        'pgsql' => [
-            'driver' => 'pgsql',
-            'url' => env('DATABASE_URL'),
-            'host' => env('DB_HOST', '127.0.0.1'),
-            'port' => env('DB_PORT', '5432'),
-            'database' => env('DB_DATABASE', 'forge'),
-            'username' => env('DB_USERNAME', 'forge'),
-            'password' => env('DB_PASSWORD', ''),
-            'charset' => 'utf8',
-            'prefix' => '',
-            'prefix_indexes' => true,
-            'search_path' => 'public',
-            'sslmode' => 'prefer',
-        ],
-
-        'sqlsrv' => [
-            'driver' => 'sqlsrv',
-            'url' => env('DATABASE_URL'),
-            'host' => env('DB_HOST', 'localhost'),
-            'port' => env('DB_PORT', '1433'),
-            'database' => env('DB_DATABASE', 'forge'),
-            'username' => env('DB_USERNAME', 'forge'),
-            'password' => env('DB_PASSWORD', ''),
-            'charset' => 'utf8',
-            'prefix' => '',
-            'prefix_indexes' => true,
-        ],
-
     ],
 
     /*
