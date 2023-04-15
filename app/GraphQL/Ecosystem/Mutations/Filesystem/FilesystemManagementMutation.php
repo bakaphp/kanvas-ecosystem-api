@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Filesystem;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\DataTransferObject\FilesystemAttachInput;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
-use Kanvas\Filesystem\Actions\UploadFileAction;
 
 class FilesystemManagementMutation
 {
@@ -58,10 +59,9 @@ class FilesystemManagementMutation
     {
         /** @var \Illuminate\Http\UploadedFile $file */
         $file = $request['file'];
+        $filesystem = new FilesystemServices(app(Apps::class));
 
-        $uploadFile = new UploadFileAction(auth()->user());
-
-        return $uploadFile->execute($file);
+        return $filesystem->upload($file, auth()->user());
     }
 
     /**
@@ -74,9 +74,9 @@ class FilesystemManagementMutation
         $fileSystems = [];
 
         foreach ($files as $file) {
-            $uploadFile = new UploadFileAction(auth()->user());
+            $uploadFile = new FilesystemServices(app(Apps::class));
 
-            $fileSystems[] = $uploadFile->execute($file);
+            $fileSystems[] = $uploadFile->upload($file, auth()->user());
         }
 
         return $fileSystems;

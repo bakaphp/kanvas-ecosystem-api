@@ -36,6 +36,8 @@ class KanvasUserAddToCompany extends Command
         $role = $this->argument('role') ?? DefaultRoles::ADMIN;
 
         $branch = CompaniesBranches::findOrFail($branchId);
+        $company = $branch->company()->get();
+        $company->associateApp($app);
 
         $assignCompanyAction = new AssignCompanyAction(
             UsersRepository::getByEmail($email),

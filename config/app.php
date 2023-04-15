@@ -1,6 +1,5 @@
 <?php
 
-use App\Providers\SocialiteServiceProvider;
 use Illuminate\Support\Facades\Facade;
 
 return [

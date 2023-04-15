@@ -10,6 +10,7 @@ jobs:
       extensions: mbstring, intl, json, redis, swoole, xdebug
       APP_ENV: testing
       DB_HOST: 127.0.0.1
+      DB_HOST_READ: 127.0.0.1
       REDIS_URL: tcp://127.0.0.1:6379?database=0
       REDIS_HOST: 127.0.0.1
       DB_USERNAME: root
@@ -33,6 +34,10 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
       AWS_BUCKET: ${{ secrets.AWS_BUCKET }}
+      AWS_ACCESS_KEY_CICD: ${{ secrets.AWS_ACCESS_KEY_CICD }}
+      AWS_SECRET_ACCESS_KEY_CICD: ${{ secrets.AWS_SECRET_ACCESS_KEY_CICD }}
+      AWS_DEFAULT_REGION_CICD: ${{ secrets.AWS_DEFAULT_REGION_CICD }}
+      AWS_BUCKET_CICD: ${{ secrets.AWS_BUCKET_CICD }}
       AWS_URL: ${{ secrets.AWS_URL }}
       SCOUT_DRIVER: database
       MODEL_CACHE_STORE: model
@@ -127,6 +132,9 @@ jobs:
 
       - name: Create Role Agents
         run: php artisan kanvas:create-role Agents
+
+      - name: Set filesystem configs
+        run: php artisan filesystem:disk
 
       - name: Run Tests
         if: success()

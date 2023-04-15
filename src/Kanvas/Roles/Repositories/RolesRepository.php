@@ -17,16 +17,10 @@ class RolesRepository
 {
     /**
      * Get the role from the current app
-     *
-     * @param string $name
-     * @param Apps $app
-     * @param Companies $company
-     * @return Roles
      */
     public static function getByName(string $name, Apps $app, Companies $company): Roles
     {
         $role = Roles::where('name', $name)
-                ->where('apps_id', $app->id)
                 ->whereIn('apps_id', [$app->id, AppEnums::ECOSYSTEM_APP_ID->getValue()])
                 ->whereIn('companies_id', [$company->id, AppEnums::ECOSYSTEM_COMPANY_ID->getValue()])
                 ->orderBy('apps_id', 'DESC')
