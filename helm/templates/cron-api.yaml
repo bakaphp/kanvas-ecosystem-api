@@ -1,0 +1,73 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: laravel-schedule
+spec:
+  schedule: "* * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          volumes:
+            - name: envconfigmap
+              configMap:
+                name: envconfigmap
+                items:
+                  - key: kanvasconfigmap
+                    path: .env
+                defaultMode: 432
+            - name: webroot
+              emptyDir: {}
+          containers:
+            - name: {{.Values.deployments.api.containerName}}
+              image: {{.Values.apiImage}}
+              imagePullPolicy: Always
+              command:
+                - /bin/sh
+                - -c
+                - >
+                  cd /var/www/html &&
+                  php artisan schedule:run >> /dev/null 2>&1
+              volumeMounts:
+                - name: envconfigmap
+                  mountPath: /app/.env
+                  subPath: .env
+                - name: phpini
+                  mountPath: /usr/local/etc/php/conf.d/phpupdate.ini
+                  subPath: phpupdate.ini
+                - name: phpfpm
+                  mountPath: /usr/local/etc/php-fpm.d/zzz-php-fpm-production.conf
+                  subPath: zzz-php-fpm-production.conf
+                - name: phpwww
+                  mountPath: /usr/local/etc/php-fpm/php-fpm.d/www.conf
+                  subPath: www.conf
+                - name: webroot
+                  mountPath: "/var/www/html"
+              resources:
+                    requests:
+                        memory: "512M"
+                        cpu: "300m"
+                    limits:
+                        memory: "1G"
+                        cpu: "700m"
+              lifecycle:
+                postStart:
+                  exec:
+                    command:
+                      [
+                        "/bin/sh",
+                        "-c",
+                        "cp -R /app/. /var/www/html && \
+                        chmod -R 755 /var/www/html && \
+                        chmod -R 777 /var/www/html/storage && \
+                        chmod -R 777 /var/www/html/storage/logs && \
+                        chmod -R 777 /var/www/html/bootstrap/cache && \
+                        cd /var/www/html \
+                        && composer install \
+                        && php artisan lighthouse:cache \
+                        && php artisan config:cache"
+                      ]
+              securityContext:
+                fsGroup: 65533
+      backoffLimit: 3
+      activeDeadlineSeconds: 3600
