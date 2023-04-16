@@ -65,7 +65,7 @@ jobs:
           version: '>= 363.0.0'
       
       - name: Install Kubernetes toolset
-        uses: stefanprodan/kube-tools@v1.6.0
+        uses: stefanprodan/kube-tools@v1.7.2
         with:
           kubectl: 1.23.0
 

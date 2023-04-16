@@ -50,7 +50,7 @@ jobs:
         run: |
           cat .github/workflows/${GITHUB_REF##*/}-destinations >> $GITHUB_ENV 
       - name: Install Kubernetes toolset
-        uses: stefanprodan/kube-tools@v1.6.0
+        uses: stefanprodan/kube-tools@v1.7.2
         with:
           kubectl: 1.23.0
       - name: Download Configmap
