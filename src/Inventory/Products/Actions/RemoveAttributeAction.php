@@ -22,12 +22,11 @@ class RemoveAttributeAction
 
     /**
      * execute.
-     *
-     * @return void
      */
     public function execute(): Products
     {
         $this->product->attributes()->detach($this->attribute->getId());
+
         return $this->product;
     }
 }

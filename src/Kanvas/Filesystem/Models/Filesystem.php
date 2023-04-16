@@ -32,7 +32,7 @@ use Kanvas\Users\Models\Users;
 class Filesystem extends BaseModel
 {
     use UuidTrait;
-    use Cachable;
+    //use Cachable;
 
     /**
      * The table associated with the model.

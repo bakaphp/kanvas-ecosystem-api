@@ -10,10 +10,7 @@ use GraphQL\Error\ProvidesExtensions;
 
 class LightHouseCustomException extends Exception implements ClientAware, ProvidesExtensions
 {
-    /**
-     * @var @string
-     */
-    protected $reason;
+    protected ?string $reason = null;
 
     public function __construct(string $message, ?string $reason = null)
     {
