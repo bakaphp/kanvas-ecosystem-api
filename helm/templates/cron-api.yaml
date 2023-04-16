@@ -16,6 +16,8 @@ spec:
                   - key: kanvasconfigmap
                     path: .env
                 defaultMode: 432
+            - name: webroot
+              emptyDir: {}
             - name: phpini
               configMap:
                 name: phpini
