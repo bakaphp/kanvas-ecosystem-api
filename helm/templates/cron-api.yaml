@@ -67,4 +67,3 @@ spec:
                         && php artisan lighthouse:cache \
                         && php artisan config:cache"
                       ]
-      restartPolicy: OnFailure
