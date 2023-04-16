@@ -67,7 +67,4 @@ spec:
                         && php artisan lighthouse:cache \
                         && php artisan config:cache"
                       ]
-              securityContext:
-                fsGroup: 65533
-      backoffLimit: 3
-      activeDeadlineSeconds: 3600
+      restartPolicy: OnFailure
