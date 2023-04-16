@@ -28,12 +28,6 @@ spec:
             - name: {{.Values.deployments.api.containerName}}
               image: {{.Values.apiImage}}
               imagePullPolicy: Always
-              command:
-                - /bin/sh
-                - -c
-                - >
-                  cd /var/www/html &&
-                  php artisan schedule:run >> /dev/null 2>&1
               volumeMounts:
                 - name: envconfigmap
                   mountPath: /app/.env
@@ -50,21 +44,18 @@ spec:
                     limits:
                         memory: "1G"
                         cpu: "700m"
-              lifecycle:
-                postStart:
-                  exec:
-                    command:
-                      [
-                        "/bin/sh",
-                        "-c",
-                        "cp -R /app/. /var/www/html && \
-                        chmod -R 755 /var/www/html && \
-                        chmod -R 777 /var/www/html/storage && \
-                        chmod -R 777 /var/www/html/storage/logs && \
-                        chmod -R 777 /var/www/html/bootstrap/cache && \
-                        cd /var/www/html \
-                        && composer install \
-                        && php artisan lighthouse:cache \
-                        && php artisan config:cache"
-                      ]
+              command:
+                [
+                  "/bin/sh",
+                  "-c",
+                  "cp -R /app/. /var/www/html && \
+                  chmod -R 755 /var/www/html && \
+                  chmod -R 777 /var/www/html/storage && \
+                  chmod -R 777 /var/www/html/storage/logs && \
+                  chmod -R 777 /var/www/html/bootstrap/cache && \
+                  cd /var/www/html \
+                  && composer install \
+                  && php artisan config:cache \
+                  && php artisan schedule:run"
+                ]
           restartPolicy: OnFailure
