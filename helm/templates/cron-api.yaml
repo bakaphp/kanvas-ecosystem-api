@@ -20,9 +20,9 @@ spec:
               emptyDir: {}
             - name: phpini
               configMap:
-                name: phpini
+                name: php-ini-config
                 items:
-                  - key: phpupdate.ini
+                  - key: phpini
                     path: phpupdate.ini
           containers:
             - name: {{.Values.deployments.api.containerName}}
