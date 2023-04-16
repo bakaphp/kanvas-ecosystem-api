@@ -27,7 +27,7 @@ jobs:
           token_format: 'access_token'
 
       - name: Login to Artifact Registry
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           registry: ${{ secrets.GOOGLE_REGISTRY }}
           username: oauth2accesstoken
@@ -35,7 +35,7 @@ jobs:
 
       - id: docker-push-tagged
         name: Tag Docker image and push to Google Artifact Registry
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v4
         with:
           push: true
           tags: |
@@ -51,7 +51,7 @@ jobs:
       packages: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - id: auth
         name: "Authenticate to Google Cloud"
@@ -65,7 +65,7 @@ jobs:
           version: '>= 363.0.0'
       
       - name: Install Kubernetes toolset
-        uses: stefanprodan/kube-tools@v1.6.0
+        uses: stefanprodan/kube-tools@v1.7.2
         with:
           kubectl: 1.23.0
 

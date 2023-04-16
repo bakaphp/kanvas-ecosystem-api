@@ -29,7 +29,7 @@ class HealthProvider extends ServiceProvider
            RedisCheck::new()->name('redis'),
            RedisMemoryUsageCheck::new()->failWhenAboveMb(1000),
            QueueCheck::new(),
-           MeiliSearchCheck::new()->if(app()->isProduction()),
+           MeiliSearchCheck::new()->url(config('scout.meilisearch.host') . '/health'),
            ScheduleCheck::new(),
           /* OptimizedAppCheck::new()->if(app()->isProduction()), */
         ]);
