@@ -4,7 +4,6 @@ namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\App;
 use Sentry\Laravel\Integration;
 use Throwable;
 
@@ -49,7 +48,7 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Throwable $exception): JsonResponse
     {
-        if (App::environment('production')) {
+        if (app()->isProduction()) {
             return response()->json([
                 'message' => 'A server error has occurred. We are looking into it',
             ], 503);
