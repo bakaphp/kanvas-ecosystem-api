@@ -1,4 +1,4 @@
-apiVersion: batch/v1beta1
+apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: laravel-schedule
@@ -16,8 +16,12 @@ spec:
                   - key: kanvasconfigmap
                     path: .env
                 defaultMode: 432
-            - name: webroot
-              emptyDir: {}
+            - name: phpini
+              configMap:
+                name: phpini
+                items:
+                  - key: phpupdate.ini
+                    path: phpupdate.ini
           containers:
             - name: {{.Values.deployments.api.containerName}}
               image: {{.Values.apiImage}}
@@ -35,12 +39,6 @@ spec:
                 - name: phpini
                   mountPath: /usr/local/etc/php/conf.d/phpupdate.ini
                   subPath: phpupdate.ini
-                - name: phpfpm
-                  mountPath: /usr/local/etc/php-fpm.d/zzz-php-fpm-production.conf
-                  subPath: zzz-php-fpm-production.conf
-                - name: phpwww
-                  mountPath: /usr/local/etc/php-fpm/php-fpm.d/www.conf
-                  subPath: www.conf
                 - name: webroot
                   mountPath: "/var/www/html"
               resources:
@@ -67,3 +65,4 @@ spec:
                         && php artisan lighthouse:cache \
                         && php artisan config:cache"
                       ]
+          restartPolicy: OnFailure
