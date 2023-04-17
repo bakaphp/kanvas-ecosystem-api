@@ -30,7 +30,7 @@ class HealthProvider extends ServiceProvider
            RedisMemoryUsageCheck::new()->failWhenAboveMb(1000),
            QueueCheck::new(),
            MeiliSearchCheck::new()->url(config('scout.meilisearch.host') . '/health'),
-           ScheduleCheck::new(),
+           ScheduleCheck::new()->heartbeatMaxAgeInMinutes(5),
           /* OptimizedAppCheck::new()->if(app()->isProduction()), */
         ]);
     }
