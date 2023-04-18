@@ -8,11 +8,8 @@ use Kanvas\Apps\Models\Apps;
 
 class Smtp
 {
-    public Apps $app;
-
-    public function __construct(Apps $app)
+    public function __construct(protected Apps $app)
     {
-        $this->app = $app;
     }
 
     /**

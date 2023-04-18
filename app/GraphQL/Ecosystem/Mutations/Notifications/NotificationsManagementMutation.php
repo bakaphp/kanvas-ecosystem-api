@@ -6,7 +6,6 @@ namespace App\GraphQL\Ecosystem\Mutations\Notifications;
 
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Notifications\Templates\Blank;
-use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Throwable;
 

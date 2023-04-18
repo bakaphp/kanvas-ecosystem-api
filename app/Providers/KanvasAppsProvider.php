@@ -4,7 +4,6 @@ namespace App\Providers;
 
 use Illuminate\Support\Facades\Schema as FacadesSchema;
 use Illuminate\Support\ServiceProvider;
-use Kanvas\Apps\Configuration\Smtp;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Repositories\AppsRepository;
 use Kanvas\Enums\AppEnums;
@@ -29,7 +28,6 @@ class KanvasAppsProvider extends ServiceProvider
         if (FacadesSchema::hasTable('apps') && Apps::count() > 0) {
             try {
                 $app = AppsRepository::findFirstByKey($appIdentifier);
-                (new Smtp($app))->load();
 
                 $this->app->scoped(Apps::class, function () use ($app) {
                     return $app;

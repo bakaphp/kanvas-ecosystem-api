@@ -201,11 +201,11 @@ extend type Mutation @guardByAppKey {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@updateEmail"
         )
-    saveS3Settings(id: String!, input: s3FilesystemConfigInput): Mixed!
+    saveS3AppSettings(id: String!, input: s3FilesystemConfigInput): Mixed!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppSettingsMutation@saveSettings"
         )
-    saveGcsSettings(id: String!, input: gcsFilesystemConfigInput): Mixed!
+    saveGcsAppSettings(input: gcsFilesystemConfigInput): Mixed!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppSettingsMutation@saveSettings"
         )

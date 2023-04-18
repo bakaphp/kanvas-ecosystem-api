@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Mutations\Apps;
 
 use Kanvas\Apps\DataTransferObject\AppSettingsInput;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Repositories\AppsRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 
@@ -31,10 +32,9 @@ class AppSettingsMutation
     */
     public function saveAppSmtpSettings(mixed $root, array $req): mixed
     {
-        $app = AppsRepository::findFirstByKey($req['id']);
+        $app = app(Apps::class);
         UsersRepository::userOwnsThisApp(auth()->user(), $app);
         foreach ($req['input'] as $key => $value) {
-            $appSetting = AppSettingsInput::from($req['input']);
             $app->set("smtp_{$key}",  $value);
         }
 

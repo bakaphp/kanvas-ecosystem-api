@@ -13,6 +13,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification as LaravelNotification;
+use Kanvas\Apps\Configuration\Smtp;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Channels\KanvasDatabase as KanvasDatabaseChannel;
 use Kanvas\Notifications\Interfaces\EmailInterfaces;
@@ -79,6 +80,8 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      */
     public function toMail($notifiable): MailMessage
     {
+        (new Smtp($this->app))->load();
+
         $fromEmail = $this->app->get('from_email_address') ?? config('mail.from.address');
         $fromName = $this->app->get('from_email_name') ?? config('mail.from.name');
         $this->toUser = $notifiable;
@@ -230,5 +233,18 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         return $this->fromUser !== null
                 ? $this->fromUser
                 : Users::getById($this->app->get('notification_from_user_id'));
+    }
+
+    /**
+     * failed
+     *
+     * @param  mixed $e
+     * @return void
+     */
+    public function failed(\Exception $e)
+    {
+        dump($e->getMessage());
+        dump(config('mail.mailers.smtp'));
+        \Illuminate\Support\Facades\Log::debug('MyNotification failed' + $e->getMessage());
     }
 }
