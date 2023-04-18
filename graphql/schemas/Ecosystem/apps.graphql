@@ -183,7 +183,6 @@ extend type Mutation @guardByAppKey {
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppSettingsMutation@saveSettings"
         )
     saveAppSmtpSettings(
-        id: String!
         input: appSmtpInput!
     ): Boolean!
     @field(
