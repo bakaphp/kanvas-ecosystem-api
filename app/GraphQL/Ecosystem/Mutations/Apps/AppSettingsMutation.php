@@ -35,7 +35,7 @@ class AppSettingsMutation
         $app = app(Apps::class);
         UsersRepository::userOwnsThisApp(auth()->user(), $app);
         foreach ($req['input'] as $key => $value) {
-            $app->set("smtp_{$key}",  $value);
+            $app->set("smtp_{$key}", $value);
         }
 
         return true;
