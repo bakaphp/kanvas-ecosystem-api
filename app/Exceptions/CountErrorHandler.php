@@ -6,7 +6,6 @@ use Baka\Exceptions\LightHouseCustomException;
 use Baka\Support\Str;
 use GraphQL\Error\Error;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Support\Facades\App;
 use Nuwave\Lighthouse\Execution\ErrorHandler;
 
 class CountErrorHandler implements ErrorHandler
@@ -17,7 +16,7 @@ class CountErrorHandler implements ErrorHandler
             return $next(null);
         }
 
-        if (! App::environment('production')) {
+        if (! app()->isProduction()) {
             return $next($error);
         }
 
