@@ -1,0 +1,6 @@
+
+extend type Mutation @guard {
+    userFollow(
+        user_id: Int!
+    ): Boolean @field(resolver: "App\\GraphQL\\Social\\Mutations\\FollowManagementMutation@userFollow")
+}

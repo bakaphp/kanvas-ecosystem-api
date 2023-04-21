@@ -12,7 +12,7 @@ return new class () extends Migration {
      */
     public function up()
     {
-        Schema::table('interactions', function (Blueprint $table) {
+        Schema::connection('social')->table('interactions', function (Blueprint $table) {
             $table->integer('apps_id')->unsigned()->nullable()->index('apps_id')->after('id');
             $table->text('description')->nullable()->after('title');
         });

@@ -12,7 +12,7 @@ return new class () extends Migration {
      */
     public function up()
     {
-        Schema::create('entity_interactions', function (Blueprint $table) {
+        Schema::connection('social')->create('entity_interactions', function (Blueprint $table) {
             $table->bigInteger('id', true);
             $table->char('entity_id', 36)->index('entity_id');
             $table->char('entity_namespace')->index('entity_namespace');
