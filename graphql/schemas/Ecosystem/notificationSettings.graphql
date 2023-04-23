@@ -4,7 +4,7 @@ type NotificationSettings {
     notifications_types_id: Int!
     types: NotificationType
     is_enabled: Boolean!
-    channels: JSON
+    channels: [NotificationChannels]
     created_at: String!
     updated_at: String!
     is_deleted: Int!
@@ -17,7 +17,7 @@ type NotificationSettingsInput {
 }
 
 extend type Query {
-    notificationSettingsListAll(
+    notificationSettings(
         where: _
             @whereConditions(
                 columns: [
@@ -31,6 +31,7 @@ extend type Query {
                     "is_deleted"
                 ]
             )
+            filterByChannel: NotificationChannels @whereJsonContains(key: "channels")
     ): [NotificationSettings]
         @paginate(
             model: "Kanvas\\Notifications\\Settings\\Models\\UsersNotificationsSettings",

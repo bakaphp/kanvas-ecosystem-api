@@ -36,10 +36,6 @@ class UsersNotificationsSettings extends BaseModel
     protected $guarded = [];
     public $incrementing = false;
 
-    protected $casts = [
-        'channels' => 'array'
-    ];
-
     /**
      * users.
      */
@@ -90,5 +86,17 @@ class UsersNotificationsSettings extends BaseModel
             ->where('notifications_types_id', $this->getAttribute('notifications_types_id'));
 
         return $query;
+    }
+
+    // Custom accessor for roles
+    public function getChannelsAttribute($value)
+    {
+        return json_decode($value, true);
+    }
+
+    // Custom mutator for channels
+    public function setChannelsAttribute($value)
+    {
+        $this->attributes['channels'] = json_encode($value);
     }
 }

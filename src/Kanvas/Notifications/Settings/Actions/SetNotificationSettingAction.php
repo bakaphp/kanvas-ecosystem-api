@@ -39,7 +39,7 @@ class SetNotificationSettingAction
             $notificationSettings->apps_id = $this->app->id;
             $notificationSettings->notifications_types_id = $this->notificationType->id;
             $notificationSettings->is_enabled = (int)false;
-            $notificationSettings->channels = json_encode($channels);
+            $notificationSettings->channels = $channels;
         } else {
             $notificationSettings->is_enabled = (int) ! $notificationSettings->is_enabled;
         }

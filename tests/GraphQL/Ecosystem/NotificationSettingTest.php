@@ -46,7 +46,7 @@ class NotificationSettingTest extends TestCase
             'Authorization' => 'Bearer ' . $token,
         ])->graphQL(/** @lang GraphQL */ '
             {
-                notificationSettingsListAll(
+                notificationSettings(
                     first: 10
                 ) {
                     data {
