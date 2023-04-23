@@ -46,17 +46,17 @@ class UserManagement
          * @var Builder
          */
         return  Users::join(
-            'users_associated_company', 
-            'users_associated_company.users_id', 
+            'users_associated_company',
+            'users_associated_company.users_id',
             'users.id'
-            )
-            ->where(
-                'users_associated_company.is_deleted', 
-                StateEnums::NO->getValue()
-            )
-            ->where(
-                'users_associated_company.companies_branches_id', 
-                auth()->user()->currentBranchId()
-            );
+        )
+        ->where(
+            'users_associated_company.is_deleted',
+            StateEnums::NO->getValue()
+        )
+        ->where(
+            'users_associated_company.companies_branches_id',
+            auth()->user()->currentBranchId()
+        );
     }
 }
