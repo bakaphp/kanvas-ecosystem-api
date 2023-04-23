@@ -155,7 +155,7 @@ class NotificationSettingTest extends TestCase
                      
                         notifications_types_id: ' . $notificationType->id . ',
                         is_enabled: 1,
-                        channels: ""
+                        channels: [MAIL]
                     
                 ){
                     users_id
