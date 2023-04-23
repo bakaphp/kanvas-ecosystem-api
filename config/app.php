@@ -167,7 +167,8 @@ return [
         /*
          * Package Service Providers...
          */
-
+        Laravel\Socialite\SocialiteServiceProvider::class,
+        // SocialiteServiceProvider::class,
         /*
          * Application Service Providers...
          */
@@ -185,6 +186,7 @@ return [
         // Kanvas\Providers\MigrationsServiceProvider::class,
         App\Providers\KanvasAppsProvider::class,
         Nuwave\Lighthouse\WhereConditions\WhereConditionsServiceProvider::class,
+        Nuwave\Lighthouse\Scout\ScoutServiceProvider::class,
         App\Providers\HealthProvider::class,
     ],
 

@@ -45,14 +45,12 @@ class Handler extends ExceptionHandler
      * Render an exception into an HTTP response.
      *
      * @param mixed $request
-     * @param Throwable $exception
-     * @return JsonResponse
      */
     public function render($request, Throwable $exception): JsonResponse
     {
-        if (env('APP_ENV') === 'production') {
+        if (app()->isProduction()) {
             return response()->json([
-                'message' => "A server error has occurred. We are looking into it",
+                'message' => 'A server error has occurred. We are looking into it',
             ], 503);
         }
 
@@ -61,9 +59,6 @@ class Handler extends ExceptionHandler
 
     /**
      * Send the exception to the error log.
-     *
-     * @param Throwable $exception
-     * @return void
      */
     public function report(Throwable $exception): void
     {

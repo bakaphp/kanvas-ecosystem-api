@@ -35,11 +35,15 @@ jobs:
       AWS_BUCKET: ${{ secrets.AWS_BUCKET }}
       AWS_URL: ${{ secrets.AWS_URL }}
       SCOUT_DRIVER: database
+      MODEL_CACHE_STORE: model
+      MODEL_CACHE_ENABLED: false
+      LIGHTHOUSE_CACHE_ENABLE: true
+      LIGHTHOUSE_CACHE_VERSION: 2
       #APP_DEBUG: true
     strategy:
       fail-fast: false
       matrix:
-        php-versions: [ "8.1", "8.2" ]
+        php-versions: ["8.2" ]
     services:
       mysql:
         image: mariadb:10.4
@@ -65,7 +69,7 @@ jobs:
         ports:
           - 5672:5672
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -79,7 +83,7 @@ jobs:
         run: echo "::set-output name=dir::$(composer config cache-files-dir)"
 
       - name: Cache composer dependencies
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
@@ -116,13 +120,13 @@ jobs:
         run: php artisan db:seed
 
       - name: Create Role Admin
-        run: php artisan role:create Admin
+        run: php artisan kanvas:create-role Admin
 
       - name: Create Role Users
-        run: php artisan role:create Users
+        run: php artisan kanvas:create-role Users
 
       - name: Create Role Agents
-        run: php artisan role:create Agents
+        run: php artisan kanvas:create-role Agents
 
       - name: Execute type checking
         run: vendor/bin/phpstan --configuration="phpstan.src.neon.dist" --xdebug

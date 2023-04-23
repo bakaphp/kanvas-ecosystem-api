@@ -25,9 +25,9 @@ input ImporterProductInput {
 }
 
 extend type Mutation @guard {
-    importProduct(input: [ImporterProductInput!]!, companyId: Int!, regionId: Int!): String!
+    importProduct(input: [ImporterProductInput!]!, branchId: Int!, regionId: Int!): String!
         @field(
-            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Import@product"
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\ImportMutation@product"
         )
 }
 

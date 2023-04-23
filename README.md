@@ -5,7 +5,6 @@
     <br />
 </p>
 
-
 [![static analysis](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/static-analysis.yml/badge.svg)](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/static-analysis.yml)
 [![CI](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/tests.yml/badge.svg)](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/tests.yml)
 
@@ -34,8 +33,8 @@ Todo:
 
 ## Prerequisites
 
-- PHP ^8.1
-- Laravel ^9.1
+- PHP ^8.2
+- Laravel ^10.0
 
 ## Initial Setup
 

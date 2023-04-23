@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use Baka\Support\Str;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Enums\SubscriptionTypeEnums;
@@ -26,6 +27,16 @@ class AppSeeder extends Seeder
             'payments_active' => 1,
             'ecosystem_auth' => 1,
             'is_actived' => 1,
+            'is_deleted' => 0
+        ]);
+
+        DB::table('apps_keys')->insert([
+            'name' => 'Kanvas',
+            'client_id' => Str::uuid(),
+            'client_secret_id' => Str::random(60),
+            'apps_id' => 1,
+            'users_id' => 1,
+            'created_at' => date('Y-m-d H:i:s'),
             'is_deleted' => 0
         ]);
     }

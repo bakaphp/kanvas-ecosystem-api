@@ -5,7 +5,7 @@ type User {
     lastname: String!
     displayname: String!
     description: String
-    email: String!
+    email: Email!
     contact: ContactInfo
         @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@contact")
     address: AddressType
@@ -34,6 +34,7 @@ type ContactInfo {
 
 type TokenResponse {
     id: Int!
+    uuid: String!
     token: String!
     refresh_token: String!
     token_expires: DateTime!
@@ -53,6 +54,11 @@ input LoginInput {
     password: String!
 }
 
+input SocialLoginInput {
+    token: String!
+    provider: String!
+}
+
 input ForgotPasswordInput {
     email: String! @rules(apply: ["required", "email"])
 }
@@ -67,9 +73,9 @@ input RegisterInput {
     firstname: String
     lastname: String
     displayname: String
-    email: String @rules(apply: ["required"])
-    password: String @rules(apply: ["required"])
-    password_confirmation: String @rules(apply: ["required"])
+    email: Email! @rules(apply: ["required"])
+    password: String! @rules(apply: ["required"])
+    password_confirmation: String! @rules(apply: ["required"])
     company_name: String
     roles_id: Int
 }
@@ -101,9 +107,15 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@loginMutation"
         )
-    logout(sessionId: String): Boolean @guard
+    logout: Boolean 
+        @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@logout"
+        )
+    logoutFromAllDevices: Boolean 
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@logoutFromAllDevices"
         )
     register(data: RegisterInput!): RegisterResponse!
         @field(
@@ -120,7 +132,7 @@ extend type Mutation {
     ): Boolean!
         @guard
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagement@changePassword"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@changePassword"
         )
     forgotPassword(data: ForgotPasswordInput!): Boolean
         @field(
@@ -130,15 +142,19 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@reset"
         )
-    updateUser(data: UpdateUserInput!): User
+    updateUser(data: UpdateUserInput!): User 
         @guard
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagement@updateUser"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updateUser"
         )
     switchCompanyBranch(company_branch_id: Int!): Boolean
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@switchCompanyBranch"
+        )
+    socialLogin(data: SocialLoginInput!): TokenResponse
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@socialLogin"
         )
 }
 

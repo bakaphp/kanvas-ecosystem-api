@@ -31,7 +31,7 @@ class EntityInteractionsTest extends TestCase
             }', [
                 'input' => $data,
             ], [], [
-                AppEnums::KANVAS_APP_COMPANY_AUTH_HEADER->getValue() => auth()->user()->getCurrentCompany()->uuid,
+                AppEnums::KANVAS_APP_BRANCH_HEADER->getValue() => auth()->user()->getCurrentCompany()->defaultBranch()->first()->uuid,
             ])->assertJson([
             'data' => ['likeEntity' => true],
         ]);
@@ -57,7 +57,7 @@ class EntityInteractionsTest extends TestCase
             }', [
                 'input' => $data,
             ], [], [
-                AppEnums::KANVAS_APP_COMPANY_AUTH_HEADER->getValue() => auth()->user()->getCurrentCompany()->uuid,
+                AppEnums::KANVAS_APP_BRANCH_HEADER->getValue() => auth()->user()->getCurrentCompany()->defaultBranch()->first()->uuid,
             ])->assertJson([
             'data' => ['unLikeEntity' => true],
         ]);
@@ -83,7 +83,7 @@ class EntityInteractionsTest extends TestCase
             }', [
                 'input' => $data,
             ], [], [
-                AppEnums::KANVAS_APP_COMPANY_AUTH_HEADER->getValue() => auth()->user()->getCurrentCompany()->uuid,
+                AppEnums::KANVAS_APP_BRANCH_HEADER->getValue() => auth()->user()->getCurrentCompany()->defaultBranch()->first()->uuid,
             ])->assertJson([
             'data' => ['disLikeEntity' => true],
         ]);
@@ -113,7 +113,7 @@ class EntityInteractionsTest extends TestCase
             }', [
                 'input' => $data,
             ], [], [
-                AppEnums::KANVAS_APP_COMPANY_AUTH_HEADER->getValue() => auth()->user()->getCurrentCompany()->uuid,
+                AppEnums::KANVAS_APP_BRANCH_HEADER->getValue() => auth()->user()->getCurrentCompany()->defaultBranch()->first()->uuid,
             ])->assertJson([
             'data' => [
                 'getInteractionByEntity' => [
@@ -147,7 +147,7 @@ class EntityInteractionsTest extends TestCase
             }', [
                 'input' => $data,
             ], [], [
-                AppEnums::KANVAS_APP_COMPANY_AUTH_HEADER->getValue() => auth()->user()->getCurrentCompany()->uuid,
+                AppEnums::KANVAS_APP_BRANCH_HEADER->getValue() => auth()->user()->getCurrentCompany()->defaultBranch()->first()->uuid,
             ])->assertJson([
             'data' => ['likeEntity' => true],
         ]);

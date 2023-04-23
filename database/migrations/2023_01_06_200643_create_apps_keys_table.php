@@ -14,19 +14,20 @@ class CreateAppsKeysTable extends Migration
     public function up()
     {
         Schema::create('apps_keys', function (Blueprint $table) {
-            $table->string('client_id', 128)->index('client_id');
-            $table->string('client_secret_id', 128)->index('client_secret_id');
+            $table->char('client_id', 36)->index('client_id');
+            $table->char('client_secret_id', 128)->index('client_secret_id');
+            $table->string('name', 100);
             $table->integer('apps_id');
             $table->integer('users_id');
             $table->dateTime('last_used_date')->nullable()->index('last_used_date');
-            $table->dateTime('created_at')->nullable()->index('created_at');
+            $table->dateTime('created_at')->index('created_at');
             $table->dateTime('updated_at')->nullable()->index('updated_at');
-            $table->integer('is_deleted')->nullable()->index('is_deleted');
+            $table->tinyInteger('is_deleted')->default(0)->index('is_deleted');
 
             //$table->unique(['apps_id', 'users_id']);
             $table->index(['client_id', 'apps_id'], 'client_id_apps_id');
             $table->index(['client_secret_id', 'apps_id'], 'client_secret_id_apps_id');
-            $table->primary(['apps_id', 'users_id']);
+            $table->primary(['apps_id', 'users_id', 'name']);
         });
     }
 

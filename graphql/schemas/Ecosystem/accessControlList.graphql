@@ -20,27 +20,27 @@ extend type Query @guard {
 extend type Mutation @guard {
     createRole(name: String!, title: String): Role
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\Roles@createRole"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\AccessControlListManagementMutation@createRole"
         )
     updateRole(id: Int!, name: String, title: String): Role
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\Roles@updateRole"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\AccessControlListManagementMutation@updateRole"
         )
 
     assignRoleToUser(userId: Int!, role: String!): Boolean
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\UserAccessControlList@assignRoleToUser"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\AccessControlListManagementMutation@assignRoleToUser"
         )
     removeRole(
         userId: Int!
         role: String!
-    ): Boolean @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\UserAccessControlList@removeRoleFromUser")
+    ): Boolean @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\AccessControlListManagementMutation@removeRoleFromUser")
     givePermissionToUser(
         userId: Int!
         permission: String!
-    ): Boolean @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\UserAccessControlList@givePermissionToUser") 
+    ): Boolean @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\AccessControlListManagementMutation@givePermissionToUser") 
     removePermissionToUser(
         userId: Int!
         permission: String!
-    ): Boolean @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\UserAccessControlList@removePermissionToUser")
+    ): Boolean @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\AccessControlListManagementMutation@removePermissionToUser")
 }

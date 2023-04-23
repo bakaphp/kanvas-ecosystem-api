@@ -6,12 +6,14 @@ namespace Kanvas\Auth\Actions;
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
-use Kanvas\Notifications\Templates\UserSignUp;
+use Kanvas\Notifications\Templates\Welcome;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Models\Users;
 
@@ -32,23 +34,16 @@ class RegisterUsersAction
      * Invoke function.
      *
      * @param RegisterInput $data
-     *
-     * @return Users
      */
     public function execute(): Users
     {
-        $user = Users::where(
-            [
-                'email' => $this->data->email,
-                'is_deleted' => 0,
-            ]
-        )->first();
+        $validator = Validator::make(
+            ['email' => $this->data->email],
+            ['email' => 'required|email|unique:users,email,NULL,id']
+        );
 
-        /**
-         * @todo ecosystemAuth
-         */
-        if ($user) {
-            throw new AuthenticationException('Email already exists');
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
         }
 
         $user = new Users();
@@ -78,7 +73,7 @@ class RegisterUsersAction
         $user->saveOrFail();
 
         try {
-            $user->notify(new UserSignUp($user));
+            $user->notify(new Welcome($user));
         } catch (ModelNotFoundException $e) {
             //no email sent
         }

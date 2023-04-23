@@ -10,6 +10,7 @@ jobs:
       extensions: mbstring, intl, json, redis, swoole, xdebug
       APP_ENV: testing
       DB_HOST: 127.0.0.1
+      DB_HOST_READ: 127.0.0.1
       REDIS_URL: tcp://127.0.0.1:6379?database=0
       REDIS_HOST: 127.0.0.1
       DB_USERNAME: root
@@ -33,13 +34,21 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
       AWS_BUCKET: ${{ secrets.AWS_BUCKET }}
+      AWS_ACCESS_KEY_CICD: ${{ secrets.AWS_ACCESS_KEY_CICD }}
+      AWS_SECRET_ACCESS_KEY_CICD: ${{ secrets.AWS_SECRET_ACCESS_KEY_CICD }}
+      AWS_DEFAULT_REGION_CICD: ${{ secrets.AWS_DEFAULT_REGION_CICD }}
+      AWS_BUCKET_CICD: ${{ secrets.AWS_BUCKET_CICD }}
       AWS_URL: ${{ secrets.AWS_URL }}
       SCOUT_DRIVER: database
+      MODEL_CACHE_STORE: model
+      MODEL_CACHE_ENABLED: false
+      LIGHTHOUSE_CACHE_ENABLE: true
+      LIGHTHOUSE_CACHE_VERSION: 2
       #APP_DEBUG: true
     strategy:
       fail-fast: false
       matrix:
-        php-versions: [ "8.1", "8.2" ]
+        php-versions: ["8.2" ]
     services:
       mysql:
         image: mariadb:10.4
@@ -65,7 +74,7 @@ jobs:
         ports:
           - 5672:5672
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -79,7 +88,7 @@ jobs:
         run: echo "::set-output name=dir::$(composer config cache-files-dir)"
 
       - name: Cache composer dependencies
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
@@ -116,13 +125,16 @@ jobs:
         run: php artisan db:seed
 
       - name: Create Role Admin
-        run: php artisan role:create Admin
+        run: php artisan kanvas:create-role Admin
 
       - name: Create Role Users
-        run: php artisan role:create Users
+        run: php artisan kanvas:create-role Users
 
       - name: Create Role Agents
-        run: php artisan role:create Agents
+        run: php artisan kanvas:create-role Agents
+
+      - name: Set filesystem configs
+        run: php artisan filesystem:disk
 
       - name: Run Tests
         if: success()

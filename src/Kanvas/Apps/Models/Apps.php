@@ -8,13 +8,14 @@ use Baka\Contracts\AppInterface;
 use Baka\Enums\StateEnums;
 use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
-use Baka\Traits\UuidTrait;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Models\BaseModel;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Users\Models\UserCompanyApps;
@@ -69,10 +70,25 @@ class Apps extends BaseModel implements AppInterface
         });
     }
 
+    public static function getByUuid(string $uuid): self
+    {
+        try {
+            return self::where('key', $uuid)
+                ->notDeleted()
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
+    }
+
+    public function keys(): HasMany
+    {
+        return $this->hasMany(AppKey::class, 'apps_id');
+    }
+
     /**
      * Settings relationship.
-     *
-     * @return hasMany
      */
     public function settings(): hasMany
     {
@@ -81,8 +97,6 @@ class Apps extends BaseModel implements AppInterface
 
     /**
      * Roles relationship.
-     *
-     * @return hasMany
      */
     public function roles(): HasMany
     {
@@ -91,8 +105,6 @@ class Apps extends BaseModel implements AppInterface
 
     /**
      * Is this app subscription based?
-     *
-     * @return bool
      */
     public function usesSubscriptions(): bool
     {
@@ -101,8 +113,6 @@ class Apps extends BaseModel implements AppInterface
 
     /**
      * Set hashtable settings table, userConfig ;).
-     *
-     * @return void
      */
     protected function createSettingsModel(): void
     {
@@ -111,23 +121,17 @@ class Apps extends BaseModel implements AppInterface
 
     /**
      * Associate company to App.
-     *
-     * @param Companies $company
-     *
-     * @return UserCompanyApps
      */
     public function associateCompany(Companies $company): UserCompanyApps
     {
         return UserCompanyApps::firstOrCreate([
-            'apps_id' => $this->id,
+            'apps_id' => $this->getKey(),
             'companies_id' => $company->getKey(),
         ]);
     }
 
     /**
      * Is active?
-     *
-     * @return bool
      */
     public function isActive(): bool
     {
@@ -137,8 +141,6 @@ class Apps extends BaseModel implements AppInterface
     /**
      * Those this app use ecosystem login or
      * the its own local login?
-     *
-     * @return bool
      */
     public function usesEcosystemLogin(): bool
     {
@@ -147,8 +149,6 @@ class Apps extends BaseModel implements AppInterface
 
     /**
      * Get th default app currency.
-     *
-     * @return string
      */
     public function defaultCurrency(): string
     {
@@ -158,14 +158,7 @@ class Apps extends BaseModel implements AppInterface
     /**
      * Associate user to the app.
      *
-     * @param Users $user
      * @param Apps $app
-     * @param int $isActive
-     * @param int|null $userRoleId
-     * @param string|null $password
-     * @param string|null $companyUserIdentifier
-     *
-     * @return UsersAssociatedApps
      */
     public function associateUser(
         Users $user,
@@ -193,16 +186,27 @@ class Apps extends BaseModel implements AppInterface
 
     /**
      * Not deleted scope.
-     *
-     * @param Builder $query
-     *
-     * @return Builder
      */
     public function scopeUserAssociated(Builder $query): Builder
     {
         $user = Auth::user();
 
-        return $query->select('apps.*')
+        return $query->select(
+            'apps.id',
+            'apps.name',
+            'apps.description',
+            'apps.url',
+            'apps.domain',
+            'apps.default_apps_plan_id',
+            'apps.is_actived',
+            'apps.key',
+            'apps.payments_active',
+            'apps.ecosystem_auth',
+            'apps.is_public',
+            'apps.domain_based',
+            'apps.created_at',
+            'apps.updated_at'
+        )
             ->join(
                 'users_associated_apps',
                 'users_associated_apps.apps_id',
@@ -212,6 +216,21 @@ class Apps extends BaseModel implements AppInterface
             ->where('users_associated_apps.users_id', '=', $user->getKey())
             ->where('users_associated_apps.is_deleted', '=', StateEnums::NO->getValue())
             ->where('apps.is_deleted', '=', StateEnums::NO->getValue())
-            ->groupBy('users_associated_apps.apps_id');
+            ->groupBy(
+                'apps.id',
+                'apps.name',
+                'apps.description',
+                'apps.url',
+                'apps.domain',
+                'apps.default_apps_plan_id',
+                'apps.is_actived',
+                'apps.key',
+                'apps.payments_active',
+                'apps.ecosystem_auth',
+                'apps.is_public',
+                'apps.domain_based',
+                'apps.created_at',
+                'apps.updated_at'
+            );
     }
 }

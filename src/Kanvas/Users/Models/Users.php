@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Models;
 
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\KanvasModelTrait;
@@ -18,6 +19,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Contracts\Authenticatable as ContractsAuthenticatable;
 use Kanvas\Auth\Traits\HasApiTokens;
@@ -241,6 +244,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
+     * User linked sources.
+     */
+    public function linkedSources(): HasMany
+    {
+        return $this->hasMany(UserLinkedSources::class, 'users_id');
+    }
+
+    /**
      * Get User's email.
      */
     public function getEmail(): string
@@ -332,7 +343,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Get the current company in the user session.
      */
-    public function getCurrentCompany(): Companies
+    public function getCurrentCompany(): CompanyInterface
     {
         try {
             return Companies::getById($this->currentCompanyId());
@@ -392,6 +403,22 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $this->saveOrFail();
 
         return true;
+    }
+
+    public function updateEmail(string $email): bool
+    {
+        $this->email = $email;
+
+        $validator = Validator::make(
+            ['email' => $email],
+            ['email' => 'required|email|unique:users,email,' . $this->id]
+        );
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
+
+        return $this->saveOrFail();
     }
 
     /**

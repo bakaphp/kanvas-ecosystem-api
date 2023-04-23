@@ -70,6 +70,61 @@ class CustomFieldsTest extends TestCase
         )->assertSee($value);
     }
 
+    public function testGetAllCustomField(): void
+    {
+        $key = fake()->word;
+        $value = fake()->numberBetween(1, 100);
+
+        $results = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation ($input: CustomFieldInput!) {
+                setCustomField(input: $input)
+            }',
+            [
+            'input' => [
+                'name' => $key,
+                'data' => [
+                    'hellos' => $value,
+                ],
+                'system_module_uuid' => get_class(auth()->user()),
+                'entity_id' => auth()->user()->uuid,
+            ],
+        ],
+        )->json();
+
+        $results = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation ($input: CustomFieldInput!) {
+                setCustomField(input: $input)
+            }',
+            [
+            'input' => [
+                'name' => fake()->word,
+                'data' => [
+                    'hellos' => $value,
+                ],
+                'system_module_uuid' => get_class(auth()->user()),
+                'entity_id' => auth()->user()->uuid,
+            ],
+        ],
+        )->json();
+
+        $this->graphQL( /** @lang GraphQL */
+            '
+            mutation ($input: CustomFieldInput!) {
+                getAllCustomField(input: $input)
+            }',
+            [
+            'input' => [
+                'name' => $key,
+                'data' => null,
+                'system_module_uuid' => get_class(auth()->user()),
+                'entity_id' => auth()->user()->uuid,
+            ],
+        ],
+        )->assertSee($value);
+    }
+
     public function testDeleteCustomField(): void
     {
         $key = fake()->word;

@@ -49,8 +49,6 @@ enum AppEnums implements EnumsInterface
 
     /**
      * Get value.
-     *
-     * @return mixed
      */
     public function getValue(): mixed
     {
@@ -59,7 +57,6 @@ enum AppEnums implements EnumsInterface
             self::DEFAULT_LANGUAGE => 'EN',
             self::DEFAULT_NAME => 'Default',
             self::DEFAULT_SEX => 'U',
-            self::VERSION => config('kanvas.app.version'),
             self::GLOBAL_APP_ID => 1,
             self::ECOSYSTEM_APP_ID => 1,
             self::CORE_APP_ID => 1,
@@ -91,17 +88,14 @@ enum AppEnums implements EnumsInterface
             self::KANVAS_APP_HEADER => 'X-Kanvas-App',
             self::KANVAS_APP_KEY_HEADER => 'X-Kanvas-Key',
             self::KANVAS_APP_BRANCH_HEADER => 'X-Kanvas-Location',
-            self::KANVAS_APP_COMPANY_AUTH_HEADER => 'Company-Authorization',
-            self::DISPLAYNAME_LOGIN => 'displayname_login'
+            self::KANVAS_APP_COMPANY_AUTH_HEADER => 'Company-Authorization', //@deprecated
+            self::DISPLAYNAME_LOGIN => 'displayname_login',
+            self::VERSION => '1.0-BETA-5',
         };
     }
 
     /**
      * Given the enum name get its value.
-     *
-     * @param string $name
-     *
-     * @return mixed
      */
     public static function fromName(string $name): mixed
     {

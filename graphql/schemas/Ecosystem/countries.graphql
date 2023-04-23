@@ -24,6 +24,7 @@ type Cities {
     latitude: Float
     longitude: Float
 }
+
 extend type Query {
     countries(
         orderBy: _ @orderBy(columns: ["id", "created_at"])

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Repositories;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
@@ -19,11 +20,18 @@ use Kanvas\Users\Models\UsersAssociatedCompanies;
 class UsersRepository
 {
     /**
+     * findUsersByIds
+     */
+    public static function findUsersByIds(array $usersIds): Collection
+    {
+        return Users::whereHas('apps', function (Builder $query) {
+            $query->where('apps_id', app(Apps::class)->id);
+        })->whereIn('users.id', $usersIds)
+        ->get();
+    }
+
+    /**
      * Get the user by id.
-     *
-     * @param int $id
-     *
-     * @return Users
      */
     public static function getById(int $id, int $companiesId): Users
     {
@@ -35,10 +43,6 @@ class UsersRepository
 
     /**
      * Get the user by email.
-     *
-     * @param string $email
-     *
-     * @return Users
      */
     public static function getByEmail(string $email): Users
     {
@@ -48,11 +52,6 @@ class UsersRepository
 
     /**
      * Get the user if he exist in the current company.
-     *
-     * @param Companies $company
-     * @param int $id
-     *
-     * @return Users
      */
     public static function getUserOfCompanyById(Companies $company, int $id): Users
     {
@@ -64,25 +63,17 @@ class UsersRepository
 
     /**
      * Get the user if he exist in the current app.
-     *
-     * @param int $id
-     *
-     * @return Users
      */
     public static function getUserOfAppById(int $id): Users
     {
         return Users::join('users_associated_apps', 'users_associated_apps.users_id', 'users.id')
-            ->where('users_associated_apps.apps_id', app(Apps::class))
+            ->where('users_associated_apps.apps_id', app(Apps::class)->id)
             ->where('users.id', $id)
             ->firstOrFail();
     }
 
     /**
      * getAll.
-     *
-     * @param int $companiesId
-     *
-     * @return Collection
      */
     public static function getAll(int $companiesId): Collection
     {
@@ -95,13 +86,7 @@ class UsersRepository
     /**
      * User belongs / has permission in this company.
      *
-     * @param Companies $company
-     * @param Users $user
-     *
-     * @return UsersAssociatedCompanies
-     *
      * @throws ExceptionsModelNotFoundException
-     *
      */
     public static function belongsToCompany(Users $user, Companies $company): UsersAssociatedCompanies
     {
@@ -120,13 +105,7 @@ class UsersRepository
     /**
      * User belongs / has permission in this company.
      *
-     * @param Companies $company
-     * @param Users $user
-     *
-     * @return UsersAssociatedCompanies
-     *
      * @throws ExceptionsModelNotFoundException
-     *
      */
     public static function belongsToCompanyBranch(Users $user, Companies $company, CompaniesBranches $branch): UsersAssociatedCompanies
     {
@@ -146,41 +125,29 @@ class UsersRepository
     /**
      * User associated to this company on the current app.
      *
-     * @param Users $user
-     * @param Apps $app
-     * @param Companies|null $company
-     *
-     * @return UsersAssociatedApps
-     *
      * @throws ExceptionsModelNotFoundException
-     *
      */
     public static function belongsToThisApp(Users $user, Apps $app, ?Companies $company = null): UsersAssociatedApps
     {
         try {
-            $companies = $company
-                        ? [AppEnums::GLOBAL_COMPANY_ID->getValue(), $company->getKey()]
-                        : [AppEnums::GLOBAL_COMPANY_ID->getValue()];
-
-            return UsersAssociatedApps::where('users_id', $user->getKey())
+            $query = UsersAssociatedApps::where('users_id', $user->getKey())
                 ->where('apps_id', $app->getKey())
-                ->whereIn('companies_id', $companies)
-                ->where('is_deleted', StateEnums::NO->getValue())
-                ->firstOrFail();
+                ->where('is_deleted', StateEnums::NO->getValue());
+
+            if ($company) {
+                $query->whereIn('companies_id', [AppEnums::GLOBAL_COMPANY_ID->getValue(), $company->getKey()]);
+            }
+
+            return $query->firstOrFail();
         } catch (ModelNotFoundException) {
             throw new ExceptionsModelNotFoundException(
-                'User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin'
+                'User doesn\'t belong to this app ' . $app->name . ', talk to the Admin'
             );
         }
     }
 
     /**
      * Is this user owner of the app?
-     *
-     * @param Users $user
-     * @param Apps $app
-     *
-     * @return UsersAssociatedApps
      *
      * @throws ExceptionsModelNotFoundException
      */

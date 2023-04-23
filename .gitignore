@@ -20,3 +20,4 @@ package.json
 /storage/logs/*
 package-lock.json
 .php-cs-fixer.cache
+service-account.json

@@ -9,13 +9,12 @@ return [
     ],
     'app' => [
         'id' => env('KANVAS_APP_ID'),
-        'version' => env('VERSION', time()),
     ],
     'jwt' => [
         'secretKey' => env('APP_JWT_TOKEN'),
         'payload' => [
-            'exp' => env('APP_JWT_SESSION_EXPIRATION', 1440),
-            'refresh_exp' => env('APP_JWT_REFRESH_EXPIRATION', 3440),
+            'exp' => env('APP_JWT_SESSION_EXPIRATION', 2628000),
+            'refresh_exp' => env('APP_JWT_REFRESH_EXPIRATION', 3028000),
             'iss' => 'phalcon-jwt-auth',
         ],
     ],

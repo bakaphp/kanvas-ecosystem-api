@@ -8,6 +8,7 @@ use Baka\Enums\StateEnums;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
@@ -25,8 +26,6 @@ trait HasFilesystemTrait
      * @param Filesystem|array $files
      *
      * @throws Exception
-     *
-     * @return bool
      */
     public function addFile(Filesystem $files, string $fieldName): bool
     {
@@ -39,20 +38,26 @@ trait HasFilesystemTrait
     /**
      * attach file via url.
      *
-     * @param string $url
-     * @param string $fieldName
-     *
      * @throws Exception
-     *
-     * @return bool
      */
     public function addFileFromUrl(string $url, string $fieldName): bool
     {
-        $fileSystem = Filesystem::fromApp()->where('url', $url)->first();
+        $companyId = $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
 
-        if (!$fileSystem) {
+        if ($companyId > 0) {
+            $company = Companies::getById($companyId);
+            $fileSystem = Filesystem::fromApp()->fromCompany($company)->where('url', $url)->first();
+        } else {
+            //@todo allow to share media between company only of it the apps specifies it
+            $fileSystem = Filesystem::fromApp()
+                            ->where('url', $url)
+                            //->andWhere('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+                            ->first();
+        }
+
+        if (! $fileSystem) {
             $fileSystem = new Filesystem();
-            $fileSystem->companies_id = $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
+            $fileSystem->companies_id = $companyId;
             $fileSystem->apps_id = app(Apps::class)->getId();
             $fileSystem->users_id = $this->users_id ?? (auth()->check() ? auth()->user()->getKey() : 0);
             $fileSystem->path = $url;
@@ -75,8 +80,6 @@ trait HasFilesystemTrait
      * @param array $files<file: UploadedFile, fieldName: string>
      *
      * @throws RuntimeException
-     *
-     * @return bool
      */
     public function addMultipleFiles(array $files): bool
     {
@@ -105,8 +108,6 @@ trait HasFilesystemTrait
 
     /**
      * Get list of files attached to this model.
-     *
-     * @return HasManyThrough
      */
     public function files(): HasManyThrough
     {
@@ -129,8 +130,6 @@ trait HasFilesystemTrait
 
     /**
      * Delete all files associated with this entity.
-     *
-     * @return int
      */
     public function deleteFiles(): int
     {

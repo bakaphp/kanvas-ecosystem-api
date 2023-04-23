@@ -32,7 +32,7 @@ class AuthTest extends TestCase
     /**
      * Test the logout function to remove sessions
      */
-    public function testLogoutData(): void
+    public function testLogout(): void
     {
         $loginData = self::loginData();
         $response = $this->graphQL( /** @lang GraphQL */
@@ -43,6 +43,33 @@ class AuthTest extends TestCase
         )
         ->assertSuccessful()
         ->assertSee('logout');
+    }
+
+    /**
+     * Test the logout function to remove sessions
+     */
+    public function testLogoutFromAllDevices(): void
+    {
+        $loginData = self::loginData();
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation {
+                logoutFromAllDevices
+            }'
+        )
+        ->assertSuccessful()
+        ->assertSee('logout');
+    }
+
+    /**
+     * Test if the user is allow to login using social media
+     * @todo Look for a way to generate and pass the user token for the login using
+     * a test account.
+     *
+     * @return void
+     */
+    public function testSocialLogin(): void
+    {
     }
 
     /**
