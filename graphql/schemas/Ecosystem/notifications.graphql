@@ -35,6 +35,13 @@ type NotificationChannel {
     slug: String!
 }
 
+enum NotificationChannels {
+  MAIL @enum(value: 1)
+  PUSH @enum(value: 2)
+  REALTIME @enum(value: 3)
+  SMS @enum(value: 4)
+}
+
 input NotificationEntityFilterInput {
     nested_key: String!
     value: Int!

@@ -36,10 +36,12 @@ class UsersNotificationsSettings extends BaseModel
     protected $guarded = [];
     public $incrementing = false;
 
+    protected $casts = [
+        'channels' => 'array'
+    ];
+
     /**
      * users.
-     *
-     * @return BelongsTo
      */
     public function users(): BelongsTo
     {
@@ -48,8 +50,6 @@ class UsersNotificationsSettings extends BaseModel
 
     /**
      * apps.
-     *
-     * @return BelongsTo
      */
     public function apps(): BelongsTo
     {
@@ -58,24 +58,19 @@ class UsersNotificationsSettings extends BaseModel
 
     /**
      * notificationsTypes.
-     *
-     * @return BelongsTo
      */
-    public function notificationsTypes(): BelongsTo
+    public function types(): BelongsTo
     {
         return $this->belongsTo(NotificationTypes::class, 'notifications_types_id');
     }
 
     /**
      * scopeAppUser.
-     *
-     * @param  Builder $query
-     *
-     * @return Builder
      */
     public function scopeAppUser(Builder $query): Builder
     {
         $app = app(Apps::class);
+
         return $query->where('apps_id', $app->id)
             ->where('users_id', auth()->user()->id);
     }

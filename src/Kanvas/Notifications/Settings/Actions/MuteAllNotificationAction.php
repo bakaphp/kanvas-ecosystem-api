@@ -9,13 +9,10 @@ use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Notifications\Settings\Models\UsersNotificationsSettings;
 use Kanvas\Users\Models\Users;
 
-class MuteAll
+class MuteAllNotificationAction
 {
     /**
      * __construct.
-     *
-     * @param  Users $user
-     * @param  Apps $app
      *
      * @return void
      */
@@ -27,8 +24,6 @@ class MuteAll
 
     /**
      * execute.
-     *
-     * @return void
      */
     public function execute(): void
     {

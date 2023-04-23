@@ -4,39 +4,36 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Settings\Repositories;
 
+use Baka\Contracts\AppInterface;
+use Baka\Users\Contracts\UserInterface;
+use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Notifications\Settings\Models\UsersNotificationsSettings;
 
 class NotificationSettingsRepository
 {
     /**
      * getNotificationSettings.
-     *
-     * @param  int $userId
-     * @param  int $appId
-     *
-     * @return UsersNotificationsSettings
      */
-    public static function getNotificationSettings(int $userId, int $appId): UsersNotificationsSettings
+    public static function getNotificationSettings(UserInterface $user, AppInterface $app): ?UsersNotificationsSettings
     {
-        return UsersNotificationsSettings::where('users_id', $userId)
-            ->where('apps_id', $appId)
-            ->get();
+        return UsersNotificationsSettings::where('users_id', $user->getId())
+            ->where('apps_id', $app->getId())
+            ->first();
     }
 
     /**
      * getNotificationSettingsByType.
      *
-     * @param  int $userId
-     * @param  int $appId
-     * @param  int $notificationTypeId
-     *
      * @return UsersNotificationsSettings
      */
-    public static function getNotificationSettingsByType(int $userId, int $appId, int $notificationTypeId): ?UsersNotificationsSettings
-    {
-        return UsersNotificationsSettings::where('users_id', $userId)
-            ->where('apps_id', $appId)
-            ->where('notifications_types_id', $notificationTypeId)
+    public static function getNotificationSettingsByType(
+        UserInterface $user,
+        AppInterface $app,
+        NotificationTypes $notificationType
+    ): ?UsersNotificationsSettings {
+        return UsersNotificationsSettings::where('users_id', $user->getId())
+            ->where('apps_id', $app->getId())
+            ->where('notifications_types_id', $notificationType->getId())
             ->first();
     }
 }

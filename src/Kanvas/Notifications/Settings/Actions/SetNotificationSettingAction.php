@@ -10,7 +10,7 @@ use Kanvas\Notifications\Settings\Models\UsersNotificationsSettings;
 use Kanvas\Notifications\Settings\Repositories\NotificationSettingsRepository;
 use Kanvas\Users\Models\Users;
 
-class SetNotificationSettings
+class SetNotificationSettingAction
 {
     /**
      * __construct.
@@ -28,11 +28,10 @@ class SetNotificationSettings
 
     /**
      * execute.
-     *
      */
-    public function execute(): UsersNotificationsSettings
+    public function execute(array $channels): UsersNotificationsSettings
     {
-        $notificationSettings = NotificationSettingsRepository::getNotificationSettingsByType($this->user->id, $this->app->id, $this->notificationType->id);
+        $notificationSettings = NotificationSettingsRepository::getNotificationSettingsByType($this->user, $this->app, $this->notificationType);
 
         if (! $notificationSettings) {
             $notificationSettings = new UsersNotificationsSettings();
@@ -40,7 +39,7 @@ class SetNotificationSettings
             $notificationSettings->apps_id = $this->app->id;
             $notificationSettings->notifications_types_id = $this->notificationType->id;
             $notificationSettings->is_enabled = (int)false;
-            $notificationSettings->channels = json_encode([]);
+            $notificationSettings->channels = json_encode($channels);
         } else {
             $notificationSettings->is_enabled = (int) ! $notificationSettings->is_enabled;
         }
