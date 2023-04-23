@@ -29,7 +29,7 @@ class SetNotificationSettingAction
     /**
      * execute.
      */
-    public function execute(array $channels): UsersNotificationsSettings
+    public function execute(array $channels = []): UsersNotificationsSettings
     {
         $notificationSettings = NotificationSettingsRepository::getNotificationSettingsByType($this->user, $this->app, $this->notificationType);
 

@@ -46,7 +46,7 @@ extend type Mutation @guard {
     setNotificationSettings(
         notifications_types_id: Int!
         is_enabled: Int!
-        channels: [NotificationChannels!]
+        channels: [NotificationChannels]
     ): NotificationSettings!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\NotificationSettingsMutation@setNotificationSettings"
