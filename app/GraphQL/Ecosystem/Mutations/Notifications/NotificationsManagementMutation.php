@@ -6,7 +6,6 @@ namespace App\GraphQL\Ecosystem\Mutations\Notifications;
 
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Notifications\Templates\Blank;
-use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Throwable;
 
@@ -15,7 +14,7 @@ class NotificationsManagementMutation
     /**
      * sendNotificationBaseOnTemplate
      */
-    public function sendNotificationBaseOnTemplate(mixed $root, array $request)
+    public function sendNotificationBaseOnTemplate(mixed $root, array $request): bool
     {
         $users = UsersRepository::findUsersByIds($request['users_id']);
         $notification = new Blank(

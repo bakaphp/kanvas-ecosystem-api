@@ -15,9 +15,6 @@ class SetNotificationSettings
     /**
      * __construct.
      *
-     * @param  Users $user
-     * @param  Apps $app
-     * @param  NotificationTypes $notificationType
      * @param  array $data
      *
      * @return void
@@ -32,13 +29,12 @@ class SetNotificationSettings
     /**
      * execute.
      *
-     * @return void
      */
     public function execute(): UsersNotificationsSettings
     {
         $notificationSettings = NotificationSettingsRepository::getNotificationSettingsByType($this->user->id, $this->app->id, $this->notificationType->id);
 
-        if (!$notificationSettings) {
+        if (! $notificationSettings) {
             $notificationSettings = new UsersNotificationsSettings();
             $notificationSettings->users_id = $this->user->id;
             $notificationSettings->apps_id = $this->app->id;
@@ -46,9 +42,10 @@ class SetNotificationSettings
             $notificationSettings->is_enabled = (int)false;
             $notificationSettings->channels = json_encode([]);
         } else {
-            $notificationSettings->is_enabled = (int) !$notificationSettings->is_enabled;
+            $notificationSettings->is_enabled = (int) ! $notificationSettings->is_enabled;
         }
         $notificationSettings->saveOrFail();
+
         return $notificationSettings;
     }
 }

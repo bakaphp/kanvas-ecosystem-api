@@ -6,7 +6,7 @@ type Notification {
     systemModule: SystemModule!
     types: NotificationType!
     entity_id: String!
-    entity(fields: JSON): Mixed  @method(name: "getEntityData")
+    entity(fields: JSON): Mixed @method(name: "getEntityData")
     content: String
     read: Int!
     content_group: String
@@ -35,6 +35,11 @@ type NotificationChannel {
     slug: String!
 }
 
+input NotificationEntityFilterInput {
+    nested_key: String!
+    value: Int!
+}
+
 extend type Query {
     notifications(
         where: _
@@ -50,6 +55,8 @@ extend type Query {
                     "content_group"
                 ]
             )
+        whereEntity: NotificationEntityFilterInput
+            @whereJsonNestedKey(key: "entity_content", nestedKey: "nested_key")
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
     ): [Notification]!
         @paginate(
@@ -76,14 +83,7 @@ extend type Query {
             scopes: ["fromApp", "notDeleted"]
         )
     notificationChannels(
-        where: _
-            @whereConditions(
-                columns: [
-                    "id"
-                    "name"
-                    "slug"
-                ]
-            )
+        where: _ @whereConditions(columns: ["id", "name", "slug"])
         orderBy: _ @orderBy(columns: ["id"])
     ): [NotificationChannel]!
         @paginate(
@@ -95,15 +95,16 @@ extend type Query {
 extend type Mutation {
     readAllNotifications: Boolean
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\ReadAllNotification"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\ReadAllNotificationMutation"
         )
     sendNotificationBaseOnTemplate(
         template_name: String!
         data: Mixed!
         via: [String]!
         users_id: [Int]!
-    ): Boolean @guard
-    @field(
-        resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\NotificationsManagementMutation@sendNotificationBaseOnTemplate"
-    )
+    ): Boolean
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\NotificationsManagementMutation@sendNotificationBaseOnTemplate"
+        )
 }

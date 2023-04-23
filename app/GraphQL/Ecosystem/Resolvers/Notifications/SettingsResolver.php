@@ -14,8 +14,6 @@ class SettingsResolver
 {
     /**
      * mute.
-     *
-     * @return string
      */
     public function muteAll(): string
     {
@@ -23,13 +21,12 @@ class SettingsResolver
         $app = app(Apps::class);
         $action = new MuteAll($user, $app);
         $action->execute();
+
         return 'All Notifications are muted';
     }
 
     /**
      * setNotificationSettings.
-     *
-     * @return UsersNotificationsSettings
      */
     public function setNotificationSettings($_, array $request): UsersNotificationsSettings
     {
@@ -37,6 +34,7 @@ class SettingsResolver
         $app = app(Apps::class);
         $notificationType = NotificationTypes::findOrFail($request['notifications_types_id']);
         $action = new SetNotificationSettings($user, $app, $notificationType);
+
         return $action->execute();
     }
 }
