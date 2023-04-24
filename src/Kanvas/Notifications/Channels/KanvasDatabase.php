@@ -12,13 +12,8 @@ class KanvasDatabase
 {
     /**
      * Send the given notification.
-     *
-     * @param  mixed  $notifiable
-     * @param  \Illuminate\Notifications\Notification  $notification
-     *
-     * @return void
      */
-    public function send($notifiable, Notification $notification)
+    public function send(object $notifiable, Notification $notification)
     {
         $message = $notification->toKanvasDatabase($notifiable);
         $dto = NotificationsDto::fromArray($message);

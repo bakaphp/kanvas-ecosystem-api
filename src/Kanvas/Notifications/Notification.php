@@ -36,11 +36,6 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         KanvasDatabaseChannel::class,
     ];
 
-    /**
-     * Set the entity
-     *
-     * @return void
-     */
     public function __construct(Model $entity)
     {
         $this->entity = $entity;
@@ -54,8 +49,6 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
     /**
      * setVia
-     *
-     * @return void
      */
     public function setVia(array $via): self
     {
