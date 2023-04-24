@@ -385,10 +385,11 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function generateForgotHash(): string
     {
-        $this->user_activation_forgot = Str::random(50);
-        $this->updateOrFail();
+        $user = $this->currentAppInfo();
+        $user->user_activation_forgot = Str::random(50);
+        $user->updateOrFail();
 
-        return $this->user_activation_forgot;
+        return $user->user_activation_forgot;
     }
 
     /**
@@ -396,11 +397,12 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function resetPassword(string $newPassword): bool
     {
-        $this->password = Hash::make($newPassword);
-        $this->saveOrFail();
+        $user = $this->currentAppInfo();
+        $user->password = Hash::make($newPassword);
+        $user->saveOrFail();
 
-        $this->user_activation_forgot = '';
-        $this->saveOrFail();
+        $user->user_activation_forgot = '';
+        $user->saveOrFail();
 
         return true;
     }
