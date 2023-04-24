@@ -57,11 +57,11 @@ class AssignCompanyAction
             $this->branch
         );
 
-        $this->company->associateUserApp(
-            $this->user,
-            $app,
-            StateEnums::ON->getValue()
-        );
+        // $this->company->associateUserApp(
+        //     $this->user,
+        //     $app,
+        //     StateEnums::ON->getValue()
+        // );
 
         Bouncer::scope()->to(RolesRepository::getScope($this->user));
 

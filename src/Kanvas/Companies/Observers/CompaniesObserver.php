@@ -74,11 +74,11 @@ class CompaniesObserver
             $branch
         );
 
-        $company->associateUserApp(
-            $user,
-            $app,
-            StateEnums::ON->getValue()
-        );
+        // $company->associateUserApp(
+        //     $user,
+        //     $app,
+        //     StateEnums::ON->getValue()
+        // );
 
         $assignRole = new AssignRole($user, $company, $app);
         $assignRole->execute(AppEnums::DEFAULT_ROLE_NAME->getValue());
