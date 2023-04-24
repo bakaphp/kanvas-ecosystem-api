@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Models;
 
+use Baka\Traits\HasCompositePrimaryKeyTrait;
+use Baka\Users\Contracts\UserAppInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
@@ -21,15 +23,29 @@ use Kanvas\Models\BaseModel;
  * @property ?string $password
  * @property int $user_active
  * @property string $user_role
+ * 
+ * @property string $displayname
+ * @property string $lastvisit
+ * @property int $user_login_tries
+ * @property int $user_last_login_try
+ * @property string $user_activation_key
+ * @property string $user_activation_forgot
+ * @property int $banned
+ * @property int $status
+ * @property int $user_recover_code
  */
-class UsersAssociatedApps extends BaseModel implements Authenticatable
+class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppInterface
 {
+    use HasCompositePrimaryKeyTrait;
+
     /**
      * The table associated with the model.
      *
      * @var string
      */
     protected $table = 'users_associated_apps';
+
+    protected $primaryKey = ['users_id', 'apps_id'];
 
     protected $fillable = [
         'users_id',
