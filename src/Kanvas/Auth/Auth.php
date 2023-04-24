@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Auth;
 
 use Baka\Support\Password;
+use Baka\Users\Contracts\UserAppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Support\Facades\Hash;
@@ -15,6 +16,7 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
 use Lcobucci\JWT\Token;
 use stdClass;
 
@@ -48,10 +50,10 @@ class Auth
         if (!$user) {
             throw new AuthenticationException('Invalid email or password.');
         }
+        $authentically = $user->currentAppInfo();
 
-        self::loginAttemptsValidation($user);
+        self::loginAttemptsValidation($authentically);
 
-        $authentically = $user;
         /*
         @todo reactive ecosystem auth
         if ($app->usesEcosystemLogin()) {
@@ -62,12 +64,12 @@ class Auth
         //password verification
         if (Hash::check($loginInput->getPassword(), $authentically->password) && $user->isActive()) {
             Password::rehash($loginInput->getPassword(), $authentically);
-            self::resetLoginTries($user);
+            self::resetLoginTries($authentically);
 
             return $user;
-        } elseif (!$user->isActive()) {
+        } elseif (!$authentically->isActive()) {
             throw new AuthenticationException('User is not active, please contact support.');
-        } elseif ($user->isBanned()) {
+        } elseif ($authentically->isBanned()) {
             throw new AuthenticationException('User has been banned, please contact support.');
         } else {
             throw new AuthenticationException('Invalid email or password.');
@@ -83,7 +85,7 @@ class Auth
      *
      * @return bool
      */
-    protected static function loginAttemptsValidation(UserInterface $user): bool
+    protected static function loginAttemptsValidation(UserAppInterface $user): bool
     {
         //load config
         $config = new stdClass();
@@ -119,16 +121,15 @@ class Auth
     /**
      * Reset login tries.
      *
-     * @param Users $user
+     * @param UserAppInterface $user
      *
      * @return bool
      */
-    protected static function resetLoginTries(UserInterface $user): bool
+    protected static function resetLoginTries(UserAppInterface $user): bool
     {
         $user->lastvisit = date('Y-m-d H:i:s');
         $user->user_login_tries = 0;
         $user->user_last_login_try = 0;
-
         return $user->updateOrFail();
     }
 
@@ -137,9 +138,9 @@ class Auth
      *
      * @return bool
      */
-    protected static function updateLoginTries(UserInterface $user): bool
+    protected static function updateLoginTries(UserAppInterface $user): bool
     {
-        if ($user->getId() !== StatusEnums::ANONYMOUS->getValue()) {
+        if ($user->users_id !== StatusEnums::ANONYMOUS->getValue()) {
             $user->user_login_tries += 1;
             $user->user_last_login_try = time();
 
