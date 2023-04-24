@@ -70,7 +70,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      *
      * @param  mixed  $notifiable
      */
-    public function toMail($notifiable): MailMessage
+    public function toMail($notifiable): ?MailMessage
     {
         $fromEmail = $this->app->get('from_email_address') ?? config('mail.from.address');
         $fromName = $this->app->get('from_email_name') ?? config('mail.from.name');
