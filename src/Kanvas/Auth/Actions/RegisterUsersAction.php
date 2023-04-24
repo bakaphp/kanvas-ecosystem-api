@@ -16,6 +16,7 @@ use Kanvas\Enums\StateEnums;
 use Kanvas\Notifications\Templates\Welcome;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
 
 class RegisterUsersAction
 {
@@ -72,6 +73,8 @@ class RegisterUsersAction
         $user->roles_id = $this->data->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue();
         $user->saveOrFail();
 
+        $this->registerUserApp($user);
+
         try {
             $user->notify(new Welcome($user));
         } catch (ModelNotFoundException $e) {
@@ -79,5 +82,27 @@ class RegisterUsersAction
         }
 
         return $user;
+    }
+
+    public function registerUserApp(Users $user)
+    {
+        $userAssApp = new UsersAssociatedApps();
+        $userAssApp->users_id = $user->getKey();
+        $userAssApp->apps_id = $this->app->getKey();
+        $userAssApp->companies_id = $user->default_company;
+        $userAssApp->identify_id = $user->getKey();
+        $userAssApp->password = $this->data->password;
+        $userAssApp->user_active = StatusEnums::ACTIVE->getValue();
+        $userAssApp->user_role = $this->data->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue();
+        $userAssApp->displayname = $this->data->displayname;
+        $userAssApp->lastvisit = date('Y-m-d H:i:s');
+        $userAssApp->user_login_tries = 0;
+        $userAssApp->user_last_login_try = 0;
+        $userAssApp->user_activation_key = Hash::make(time());
+        $userAssApp->banned = StateEnums::NO->getValue();
+        $userAssApp->status = StatusEnums::ACTIVE->getValue();
+        $userAssApp->saveOrFail();
+
+        return $userAssApp;
     }
 }
