@@ -16,7 +16,7 @@ type NotificationSettingsInput {
     channels: String!
 }
 
-extend type Query {
+extend type Query @guard {
     notificationSettings(
         where: _
             @whereConditions(

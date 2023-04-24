@@ -47,7 +47,7 @@ input NotificationEntityFilterInput {
     value: Int!
 }
 
-extend type Query {
+extend type Query @guard {
     notifications(
         where: _
             @whereConditions(
@@ -99,7 +99,7 @@ extend type Query {
         )
 }
 
-extend type Mutation {
+extend type Mutation @guard {
     readAllNotifications: Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\ReadAllNotificationMutation"
@@ -110,7 +110,6 @@ extend type Mutation {
         via: [String]!
         users_id: [Int]!
     ): Boolean
-        @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\NotificationsManagementMutation@sendNotificationBaseOnTemplate"
         )
