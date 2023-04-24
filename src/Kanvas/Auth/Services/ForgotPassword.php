@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Templates\ResetPassword;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
 
 class ForgotPassword
 {
@@ -51,7 +52,7 @@ class ForgotPassword
      */
     public function reset(string $newPassword, string $hashKey): bool
     {
-        $recoverUser = Users::where(
+        $recoverUser = UsersAssociatedApps::where(
             [
                 'user_activation_forgot' => $hashKey,
                 'is_deleted' => 0
