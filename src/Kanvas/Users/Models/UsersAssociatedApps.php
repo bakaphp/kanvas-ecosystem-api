@@ -12,6 +12,10 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Contracts\Authenticatable;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
+use Illuminate\Support\Facades\Hash;
+use Kanvas\Users\Enums\StatusEnums;
+use Kanvas\Enums\AppEnums;
+use Kanvas\Enums\StateEnums;
 
 /**
  * UsersAssociatedApps Model.
@@ -125,5 +129,27 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
         }
 
         return null;
+    }
+
+    public function registerUserApp(Users $user, string $password): UsersAssociatedApps
+    {
+        $userAssApp = new UsersAssociatedApps();
+        $userAssApp->users_id = $user->getKey();
+        $userAssApp->apps_id = $this->app->getKey();
+        $userAssApp->companies_id = $user->default_company;
+        $userAssApp->identify_id = $user->getKey();
+        $userAssApp->password = $password;
+        $userAssApp->user_active = StatusEnums::ACTIVE->getValue();
+        $userAssApp->user_role = $this->data->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue();
+        $userAssApp->displayname = $this->data->displayname;
+        $userAssApp->lastvisit = date('Y-m-d H:i:s');
+        $userAssApp->user_login_tries = 0;
+        $userAssApp->user_last_login_try = 0;
+        $userAssApp->user_activation_key = Hash::make(time());
+        $userAssApp->banned = StateEnums::NO->getValue();
+        $userAssApp->status = StatusEnums::ACTIVE->getValue();
+        $userAssApp->saveOrFail();
+
+        return $userAssApp;
     }
 }
