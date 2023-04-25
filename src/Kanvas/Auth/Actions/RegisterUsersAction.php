@@ -43,38 +43,40 @@ class RegisterUsersAction
             ['email' => 'required|email|unique:users,email,NULL,id']
         );
 
-        if ($validator->fails()) {
+        // Este es el segundo caso en el que necesitamos conseguir informacion del usuario sin que explote.
+        if ($validator->fails() && UsersAssociatedApps::userOnApp($user = Users::where('email', $this->data->email)->first())) {
             throw new ValidationException($validator);
         }
 
-        $user = new Users();
-        $user->firstname = $this->data->firstname;
-        $user->lastname = $this->data->lastname;
-        $user->displayname = $this->data->displayname;
-        $user->email = $this->data->email;
-        $user->password = $this->data->password;
-        $user->default_company = $this->data->default_company;
-        $user->sex = AppEnums::DEFAULT_SEX->getValue();
-        $user->dob = date('Y-m-d');
-        $user->lastvisit = date('Y-m-d H:i:s');
-        $user->registered = date('Y-m-d H:i:s');
-        $user->timezone = AppEnums::DEFAULT_TIMEZONE->getValue();
-        $user->user_active = StatusEnums::ACTIVE->getValue();
-        $user->status = StatusEnums::ACTIVE->getValue();
-        $user->banned = StateEnums::NO->getValue();
-        $user->user_login_tries = 0;
-        $user->user_last_login_try = 0;
-        $user->default_company = $user->default_company ?? StateEnums::NO->getValue();
-        $user->session_time = time();
-        $user->session_page = StateEnums::NO->getValue();
-        $user->password = $this->data->password;
-        $user->language = $user->language ?: AppEnums::DEFAULT_LANGUAGE->getValue();
-        $user->user_activation_key = Hash::make(time());
-        $user->roles_id = $this->data->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue();
-        $user->saveOrFail();
+        if(!$user) {
+            $user = new Users();
+            $user->firstname = $this->data->firstname;
+            $user->lastname = $this->data->lastname;
+            $user->displayname = $this->data->displayname;
+            $user->email = $this->data->email;
+            $user->password = $this->data->password;
+            $user->default_company = $this->data->default_company;
+            $user->sex = AppEnums::DEFAULT_SEX->getValue();
+            $user->dob = date('Y-m-d');
+            $user->lastvisit = date('Y-m-d H:i:s');
+            $user->registered = date('Y-m-d H:i:s');
+            $user->timezone = AppEnums::DEFAULT_TIMEZONE->getValue();
+            $user->user_active = StatusEnums::ACTIVE->getValue();
+            $user->status = StatusEnums::ACTIVE->getValue();
+            $user->banned = StateEnums::NO->getValue();
+            $user->user_login_tries = 0;
+            $user->user_last_login_try = 0;
+            $user->default_company = $user->default_company ?? StateEnums::NO->getValue();
+            $user->session_time = time();
+            $user->session_page = StateEnums::NO->getValue();
+            $user->password = $this->data->password;
+            $user->language = $user->language ?: AppEnums::DEFAULT_LANGUAGE->getValue();
+            $user->user_activation_key = Hash::make(time());
+            $user->roles_id = $this->data->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue();
+            $user->saveOrFail();
+        }
 
-        $userApp = new UsersAssociatedApps();
-        $userApp->registerUserApp($user, $this->data->password);
+        UsersAssociatedApps::registerUserApp($user, $this->data->password);
 
         try {
             $user->notify(new Welcome($user));
