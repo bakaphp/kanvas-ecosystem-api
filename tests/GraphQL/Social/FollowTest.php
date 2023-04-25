@@ -9,6 +9,9 @@ use Tests\TestCase;
 
 class FollowTest extends TestCase
 {
+    /**
+     * testFollowUser
+     */
     public function testFollowUser(): void
     {
         $user = Users::factory()->create();
@@ -27,5 +30,45 @@ class FollowTest extends TestCase
         $response->assertJson([
             'data' => ['userFollow' => true],
         ]);
+    }
+
+    /**
+     * testUnFollowUser
+     */
+    public function testUnFollowUser(): void
+    {
+        $user = Users::factory()->create();
+        $response = $this->graphQL(/** @lang GraphQL */
+            '
+            mutation userFollow(
+                $user_id: Int!
+            ) {
+                userFollow(user_id: $user_id)
+            }
+            ',
+            [
+                'user_id' => $user->id,
+            ]
+        );
+        $response->assertJson([
+            'data' => ['userFollow' => true],
+        ]);
+        $this->graphQL(
+            /** @lang GraphQL */
+            '
+            mutation userUnFollow(
+                $user_id: Int!
+            ) {
+                userUnFollow(user_id: $user_id)
+            }
+            ',
+            [
+                'user_id' => $user->id,
+            ]
+        )->assertJson(
+            [
+            'data' => ['userUnFollow' => false],
+        ]
+        );
     }
 }

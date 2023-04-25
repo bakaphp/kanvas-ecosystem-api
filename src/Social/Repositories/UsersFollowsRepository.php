@@ -5,16 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Social\Repositories;
 
 use Illuminate\Database\Eloquent\Model as EloquentModel;
-use Kanvas\Users\Models\Users;
 use Kanvas\Social\Models\UsersFollows;
+use Kanvas\Users\Models\Users;
 
 class UsersFollowsRepository
-{    
+{
     /**
      * getByUserAndEntity
      *
-     * @param  Users $user
-     * @param  EloquentModel $entity
      * @return UsersFollows
      */
     public static function getByUserAndEntity(Users $user, EloquentModel $entity): ?UsersFollows
@@ -23,5 +21,18 @@ class UsersFollowsRepository
             ->where('entity_id', $entity->id)
             ->where('entity_namespace', get_class($entity))
             ->first();
+    }
+
+    /**
+     * isFollowing
+     */
+    public static function isFollowing(Users $user, EloquentModel $entity): bool
+    {
+        $follow = self::getByUserAndEntity($user, $entity);
+        if ($follow) {
+            return true;
+        }
+
+        return false;
     }
 }
