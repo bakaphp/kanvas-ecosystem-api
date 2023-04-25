@@ -27,7 +27,6 @@ use Kanvas\Enums\StateEnums;
  * @property ?string $password
  * @property int $user_active
  * @property string $user_role
- * 
  * @property string $displayname
  * @property string $lastvisit
  * @property int $user_login_tries
