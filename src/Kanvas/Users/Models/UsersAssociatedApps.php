@@ -168,8 +168,8 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
      */
     public static function userOnApp(Users $user): bool
     {
-        return (bool) self::where('apps_id',app(Apps::class)->getId())
-        ->where('users_id',$user->getKey())
+        return (bool) self::where('apps_id', app(Apps::class)->getId())
+        ->where('users_id', $user->getKey())
         ->first();
     }
 }
