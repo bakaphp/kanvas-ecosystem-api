@@ -48,7 +48,7 @@ class RegisterUsersAction
             throw new ValidationException($validator);
         }
 
-        if (!$user) {
+        if (!isset($user)) {
             $user = new Users();
             $user->firstname = $this->data->firstname;
             $user->lastname = $this->data->lastname;
