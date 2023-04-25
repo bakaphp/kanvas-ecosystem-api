@@ -131,17 +131,24 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
         return null;
     }
 
-    public function registerUserApp(Users $user, string $password): UsersAssociatedApps
+    /**
+     * Register an user into a new app with a password for the login.
+     *
+     * @param Users $user
+     * @param string $password
+     * @return UsersAssociatedApps
+     */
+    public static function registerUserApp(Users $user, string $password): UsersAssociatedApps
     {
         $userAssApp = new UsersAssociatedApps();
         $userAssApp->users_id = $user->getKey();
-        $userAssApp->apps_id = $this->app->getKey();
+        $userAssApp->apps_id = app(Apps::class)->id;
         $userAssApp->companies_id = $user->default_company;
         $userAssApp->identify_id = $user->getKey();
         $userAssApp->password = $password;
         $userAssApp->user_active = StatusEnums::ACTIVE->getValue();
-        $userAssApp->user_role = $this->data->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue();
-        $userAssApp->displayname = $this->data->displayname;
+        $userAssApp->user_role = $user->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue();
+        $userAssApp->displayname = $user->displayname;
         $userAssApp->lastvisit = date('Y-m-d H:i:s');
         $userAssApp->user_login_tries = 0;
         $userAssApp->user_last_login_try = 0;
@@ -151,5 +158,18 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
         $userAssApp->saveOrFail();
 
         return $userAssApp;
+    }
+
+    /**
+     * Check if the user is on the current app.
+     *
+     * @param Users $user
+     * @return bool
+     */
+    public static function userOnApp(Users $user): bool
+    {
+        return (bool) self::where('apps_id',app(Apps::class)->getId())
+        ->where('users_id',$user->getKey())
+        ->first();
     }
 }
