@@ -169,6 +169,6 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
     {
         return (bool) self::where('apps_id', app(Apps::class)->getId())
         ->where('users_id', $user->getKey())
-        ->first();
+        ->count() > 0;
     }
 }
