@@ -43,7 +43,7 @@ class RegisterUsersAction
             ['email' => 'required|email|unique:users,email,NULL,id']
         );
 
-        // Este es el segundo caso en el que necesitamos conseguir informacion del usuario sin que explote.
+        // This is the second time that we need get user data without an exception.
         if ($validator->fails() && UsersAssociatedApps::userOnApp($user = Users::where('email', $this->data->email)->first())) {
             throw new ValidationException($validator);
         }
