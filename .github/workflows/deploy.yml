@@ -19,7 +19,7 @@ jobs:
     steps:
     
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install AWS CLI
         run: |
@@ -45,12 +45,12 @@ jobs:
       packages: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: set-vars 
         run: |
           cat .github/workflows/${GITHUB_REF##*/}-destinations >> $GITHUB_ENV 
       - name: Install Kubernetes toolset
-        uses: stefanprodan/kube-tools@v1.6.0
+        uses: stefanprodan/kube-tools@v1.7.2
         with:
           kubectl: 1.23.0
       - name: Download Configmap
