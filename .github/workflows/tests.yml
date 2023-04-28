@@ -38,6 +38,11 @@ jobs:
       AWS_DEFAULT_REGION_CICD: ${{ secrets.AWS_DEFAULT_REGION_CICD }}
       AWS_BUCKET_CICD: ${{ secrets.AWS_BUCKET_CICD }}
       AWS_URL: ${{ secrets.AWS_URL }}
+      AWS_ACCESS_KEY_ID_TEST: ${{ secrets.AWS_ACCESS_KEY_ID_TEST }}
+      AWS_SECRET_ACCESS_KEY_TEST: ${{ secrets.AWS_SECRET_ACCESS_KEY_TEST }}
+      AWS_DEFAULT_REGION_TEST: ${{ secrets.AWS_DEFAULT_REGION_TEST }}
+      AWS_BUCKET_TEST: ${{ secrets.AWS_BUCKET_TEST }}
+      AWS_URL_TEST: ${{ secrets.AWS_URL_TEST }}
       SCOUT_DRIVER: database
       MODEL_CACHE_STORE: model
       MODEL_CACHE_ENABLED: false
