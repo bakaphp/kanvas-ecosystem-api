@@ -38,7 +38,7 @@ return [
             'driver' => 'mysql',
             'read' => [
                 'host' => [
-                    env('DB_HOST_READ', '127.0.0.1'),
+                    env('DB_HOST_READ', env('DB_HOST', '127.0.0.1')),
                 ],
             ],
             'write' => [
@@ -66,7 +66,7 @@ return [
             'driver' => 'mysql',
             'read' => [
                 'host' => [
-                    env('DB_HOST_READ', '127.0.0.1'),
+                    env('DB_HOST_READ', env('DB_HOST', '127.0.0.1')),
                 ],
             ],
             'write' => [
@@ -94,7 +94,7 @@ return [
             'driver' => 'mysql',
             'read' => [
                 'host' => [
-                    env('DB_INVENTORY_HOST_READ', '127.0.0.1'),
+                    env('DB_INVENTORY_HOST_READ', env('DB_INVENTORY_HOST', '127.0.0.1')),
                 ],
             ],
             'write' => [
@@ -122,7 +122,7 @@ return [
             'driver' => 'mysql',
             'read' => [
                 'host' => [
-                    env('DB_SOCIAL_HOST_READ', '127.0.0.1'),
+                    env('DB_SOCIAL_HOST_READ', env('DB_SOCIAL_HOST', '127.0.0.1')),
                 ],
             ],
             'write' => [
@@ -150,7 +150,7 @@ return [
             'driver' => 'mysql',
             'read' => [
                 'host' => [
-                    env('DB_CRM_HOST_READ', '127.0.0.1'),
+                    env('DB_CRM_HOST_READ', env('DB_CRM_HOST', '127.0.0.1')),
                 ],
             ],
             'write' => [
