@@ -10,14 +10,6 @@ class Invite extends Notification
 {
     public ?string $templateName = 'users-invite';
 
-    /**
-     * via.
-     */
-    public function via(object $notifiable): array
-    {
-        return [...parent::via($notifiable), 'mail'];
-    }
-
     public function getData(): array
     {
         return [

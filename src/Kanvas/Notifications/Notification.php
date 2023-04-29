@@ -33,9 +33,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     protected ?UserInterface $fromUser = null;
     protected ?UserInterface $toUser = null;
 
-    public array $via = [
-        KanvasDatabaseChannel::class,
-    ];
+    public array $channels = ['mail'];
 
     public function __construct(Model $entity)
     {
@@ -49,16 +47,11 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     }
 
     /**
-     * setVia
+     * Notification via channels
      */
-    public function setVia(array $via): self
+    public function channels(): array
     {
-        $this->via = [
-            KanvasDatabaseChannel::class,
-            ...$via,
-        ];
-
-        return $this;
+        return $this->channels;
     }
 
     /**
@@ -68,7 +61,10 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      */
     public function via(object $notifiable): array
     {
-        return $this->via;
+        return [
+             KanvasDatabaseChannel::class,
+             ...$this->channels(),
+        ];
     }
 
     /**
