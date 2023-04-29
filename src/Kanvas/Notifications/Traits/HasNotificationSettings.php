@@ -26,8 +26,8 @@ trait HasNotificationSettings
             $type,
         );
 
-        if ($userNotificationSetting && $userNotificationSetting->isEnable()) {
-            return $userNotificationSetting->hasChannel($channel);
+        if ($userNotificationSetting) {
+            return $userNotificationSetting->isEnable() ? $userNotificationSetting->hasChannel($channel) : false;
         }
 
         return true;

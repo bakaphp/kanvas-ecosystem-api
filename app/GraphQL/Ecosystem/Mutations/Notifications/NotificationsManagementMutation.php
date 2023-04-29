@@ -7,7 +7,6 @@ namespace App\GraphQL\Ecosystem\Mutations\Notifications;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Repositories\UsersRepository;
-use Throwable;
 
 class NotificationsManagementMutation
 {
@@ -25,12 +24,7 @@ class NotificationsManagementMutation
         );
         $notification->setFromUser(auth()->user());
 
-        try {
-            Notification::send($users, $notification);
-
-            return true;
-        } catch (Throwable $e) {
-            return false;
-        }
+        Notification::send($users, $notification);
+        return true;
     }
 }

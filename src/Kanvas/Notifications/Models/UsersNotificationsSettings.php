@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Notifications\Models;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Models\BaseModel;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -99,6 +99,9 @@ class UsersNotificationsSettings extends BaseModel
 
     public function hasChannel(string $channel): bool
     {
-        return in_array($channel, (array) $this->channels);
+        return in_array(
+            NotificationChannelEnum::getIdFromString($channel),
+            (array) $this->channels
+        );
     }
 }
