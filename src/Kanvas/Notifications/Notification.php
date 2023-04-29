@@ -52,15 +52,20 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      */
     public function setVia(array $via): self
     {
-        $this->via = [KanvasDatabaseChannel::class,...$via];
+        $this->via = [
+            KanvasDatabaseChannel::class, 
+            ...$via
+        ];
 
         return $this;
     }
 
     /**
      * Create a new notification channel.
+     * 
+     * @return array<int, string>
      */
-    public function via(): array
+    public function via(object $notifiable): array
     {
         return $this->via;
     }

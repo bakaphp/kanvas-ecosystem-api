@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Notifications\Settings\Actions;
+namespace Kanvas\Notifications\Actions;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Models\NotificationTypes;
-use Kanvas\Notifications\Settings\Models\UsersNotificationsSettings;
-use Kanvas\Notifications\Settings\Repositories\NotificationSettingsRepository;
+use Kanvas\Notifications\Models\UsersNotificationsSettings;
+use Kanvas\Notifications\Repositories\NotificationSettingsRepository;
 use Kanvas\Users\Models\Users;
 
 class SetNotificationSettingAction

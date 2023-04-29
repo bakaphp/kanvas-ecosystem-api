@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Notifications\Settings\Repositories;
+namespace Kanvas\Notifications\Repositories;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Notifications\Models\NotificationTypes;
-use Kanvas\Notifications\Settings\Models\UsersNotificationsSettings;
+use Kanvas\Notifications\Models\UsersNotificationsSettings;
 
 class NotificationSettingsRepository
 {

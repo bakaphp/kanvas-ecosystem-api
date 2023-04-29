@@ -2,13 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Notifications\Settings\Models;
+namespace Kanvas\Notifications\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Models\BaseModel;
-use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -86,6 +85,16 @@ class UsersNotificationsSettings extends BaseModel
             ->where('notifications_types_id', $this->getAttribute('notifications_types_id'));
 
         return $query;
+    }
+
+    public function isEnable(): bool
+    {
+        return (bool) $this->is_enabled;
+    }
+
+    public function hasChannel(string $channel) : bool
+    {
+        return in_array($channel, (array) $this->channels);
     }
 
     // Custom accessor for roles

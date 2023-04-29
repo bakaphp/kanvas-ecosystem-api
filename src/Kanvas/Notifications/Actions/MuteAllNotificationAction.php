@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Notifications\Settings\Actions;
+namespace Kanvas\Notifications\Actions;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Models\NotificationTypes;
-use Kanvas\Notifications\Settings\Models\UsersNotificationsSettings;
+use Kanvas\Notifications\Models\UsersNotificationsSettings;
 use Kanvas\Users\Models\Users;
 
 class MuteAllNotificationAction
