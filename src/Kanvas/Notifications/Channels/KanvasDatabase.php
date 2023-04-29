@@ -13,10 +13,10 @@ class KanvasDatabase
     /**
      * Send the given notification.
      */
-    public function send(object $notifiable, Notification $notification)
+    public function send(object $notifiable, Notification $notification): void
     {
         $message = $notification->toKanvasDatabase($notifiable);
-        $dto = NotificationsDto::fromArray($message);
+        $dto = NotificationsDto::from($message);
         $action = new CreateNotificationAction($dto);
         $action->execute();
     }
