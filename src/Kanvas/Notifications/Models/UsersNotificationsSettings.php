@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Notifications\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Models\BaseModel;
@@ -97,15 +98,11 @@ class UsersNotificationsSettings extends BaseModel
         return in_array($channel, (array) $this->channels);
     }
 
-    // Custom accessor for roles
-    public function getChannelsAttribute($value)
+    public function channel(): Attribute
     {
-        return json_decode($value, true);
-    }
-
-    // Custom mutator for channels
-    public function setChannelsAttribute($value)
-    {
-        $this->attributes['channels'] = json_encode($value);
+        return Attribute::make(
+            get: fn (string $value) => json_decode($value, true),
+            set: fn (string $value) => json_encode($value),
+        );
     }
 }

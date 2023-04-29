@@ -13,8 +13,8 @@ class ChangePasswordUserLogged extends Notification
     /**
      * via.
      */
-    public function via(): array
+    public function via(object $notifiable): array
     {
-        return [...parent::via(), 'mail'];
+        return [...parent::via($notifiable), 'mail'];
     }
 }
