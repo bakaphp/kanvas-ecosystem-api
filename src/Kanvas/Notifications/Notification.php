@@ -33,7 +33,9 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     protected ?UserInterface $fromUser = null;
     protected ?UserInterface $toUser = null;
 
-    public array $channels = ['mail'];
+    public array $channels = [
+        'mail'
+    ];
 
     public function __construct(Model $entity)
     {
