@@ -92,7 +92,7 @@ class UsersNotificationsSettings extends BaseModel
         return (bool) $this->is_enabled;
     }
 
-    public function hasChannel(string $channel) : bool
+    public function hasChannel(string $channel): bool
     {
         return in_array($channel, (array) $this->channels);
     }
