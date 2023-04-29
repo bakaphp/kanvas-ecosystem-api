@@ -1,11 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\GraphQL\Ecosystem\Mutations\Notifications;
 
 use Exception;
-use Kanvas\Notifications\Actions\ReadAllNotification as ReadAllNotificationAction;
+use Kanvas\Notifications\Actions\ReadAllNotificationAction;
 
-final class ReadAllNotification
+final class ReadAllNotificationMutation
 {
     /**
      * @param  null  $_
@@ -17,6 +19,7 @@ final class ReadAllNotification
         try {
             $action = new ReadAllNotificationAction(auth()->user());
             $action->execute();
+
             return true;
         } catch (Exception $e) {
             return false;

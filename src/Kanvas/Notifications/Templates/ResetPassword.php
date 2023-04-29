@@ -8,14 +8,6 @@ class ResetPassword extends Notification
 {
     public ?string $templateName = 'reset-password';
 
-    /**
-     * via.
-     */
-    public function via(): array
-    {
-        return [...parent::via(), 'mail'];
-    }
-
     public function getData(): array
     {
         return [

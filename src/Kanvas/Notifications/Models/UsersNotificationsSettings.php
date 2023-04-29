@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Notifications\Settings\Models;
+namespace Kanvas\Notifications\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Models\BaseModel;
-use Kanvas\Notifications\Models\NotificationTypes;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -36,10 +36,12 @@ class UsersNotificationsSettings extends BaseModel
     protected $guarded = [];
     public $incrementing = false;
 
+    protected $casts = [
+        'channels' => 'array',
+    ];
+
     /**
      * users.
-     *
-     * @return BelongsTo
      */
     public function users(): BelongsTo
     {
@@ -48,8 +50,6 @@ class UsersNotificationsSettings extends BaseModel
 
     /**
      * apps.
-     *
-     * @return BelongsTo
      */
     public function apps(): BelongsTo
     {
@@ -58,24 +58,19 @@ class UsersNotificationsSettings extends BaseModel
 
     /**
      * notificationsTypes.
-     *
-     * @return BelongsTo
      */
-    public function notificationsTypes(): BelongsTo
+    public function types(): BelongsTo
     {
         return $this->belongsTo(NotificationTypes::class, 'notifications_types_id');
     }
 
     /**
      * scopeAppUser.
-     *
-     * @param  Builder $query
-     *
-     * @return Builder
      */
     public function scopeAppUser(Builder $query): Builder
     {
         $app = app(Apps::class);
+
         return $query->where('apps_id', $app->id)
             ->where('users_id', auth()->user()->id);
     }
@@ -95,5 +90,18 @@ class UsersNotificationsSettings extends BaseModel
             ->where('notifications_types_id', $this->getAttribute('notifications_types_id'));
 
         return $query;
+    }
+
+    public function isEnable(): bool
+    {
+        return (bool) $this->is_enabled;
+    }
+
+    public function hasChannel(string $channel): bool
+    {
+        return in_array(
+            NotificationChannelEnum::getIdFromString($channel),
+            (array) $this->channels
+        );
     }
 }
