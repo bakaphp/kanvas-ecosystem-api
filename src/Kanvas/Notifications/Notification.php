@@ -69,7 +69,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
             });
             $channels = array_values($enabledChannels);
         }
-        
+
         return [
              KanvasDatabaseChannel::class,
              ...$channels,
