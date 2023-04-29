@@ -36,6 +36,10 @@ class UsersNotificationsSettings extends BaseModel
     protected $guarded = [];
     public $incrementing = false;
 
+    protected $casts = [
+        'channels' => 'array',
+    ];
+
     /**
      * users.
      */
@@ -96,13 +100,5 @@ class UsersNotificationsSettings extends BaseModel
     public function hasChannel(string $channel): bool
     {
         return in_array($channel, (array) $this->channels);
-    }
-
-    public function channel(): Attribute
-    {
-        return Attribute::make(
-            get: fn (string $value) => json_decode($value, true),
-            set: fn (string $value) => json_encode($value),
-        );
     }
 }

@@ -32,7 +32,7 @@ class NotificationSettingsMutation
     {
         $user = auth()->user();
         $app = app(Apps::class);
-        $notificationType = NotificationTypes::findOrFail($request['notifications_types_id']);
+        $notificationType = NotificationTypes::fromApp()->where('id', $request['notifications_types_id'])->firstOrFail();
         $action = new SetNotificationSettingAction($user, $app, $notificationType);
 
         return $action->execute($request['channels']);

@@ -31,10 +31,11 @@ extend type Query @guard {
                     "is_deleted"
                 ]
             )
-            filterByChannel: NotificationChannels @whereJsonContains(key: "channels")
+        filterByChannel: NotificationChannels
+            @whereJsonContains(key: "channels")
     ): [NotificationSettings]
         @paginate(
-            model: "Kanvas\\Notifications\\Models\\UsersNotificationsSettings",
+            model: "Kanvas\\Notifications\\Models\\UsersNotificationsSettings"
             scopes: ["appUser"]
         )
 }
