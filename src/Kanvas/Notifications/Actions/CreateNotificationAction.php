@@ -25,7 +25,7 @@ class CreateNotificationAction
     public function execute(): void
     {
         $notification = new NotificationsModel();
-        $notification->fill((array) $this->dto);
+        $notification->fill($this->dto->toArray());
         $notification->saveOrFail();
     }
 }
