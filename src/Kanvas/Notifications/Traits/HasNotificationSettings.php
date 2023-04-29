@@ -19,8 +19,7 @@ trait HasNotificationSettings
     public function isNotificationSettingEnable(
         NotificationTypes $type,
         string $channel = NotificationChannelEnum::MAIL
-    ): bool
-    {
+    ): bool {
         $userNotificationSetting = NotificationSettingsRepository::getNotificationSettingsByType(
             $this,
             app(Apps::class),
