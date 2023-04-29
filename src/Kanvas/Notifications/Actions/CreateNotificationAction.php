@@ -7,12 +7,10 @@ namespace Kanvas\Notifications\Actions;
 use Kanvas\Notifications\DataTransferObject\Notifications as NotificationsDto;
 use Kanvas\Notifications\Models\Notifications as NotificationsModel;
 
-class CreateNotification
+class CreateNotificationAction
 {
     /**
      * __construct.
-     *
-     * @param  NotificationsDto $dto
      *
      * @return void
      */
@@ -23,8 +21,6 @@ class CreateNotification
 
     /**
      * execute.
-     *
-     * @return void
      */
     public function execute(): void
     {

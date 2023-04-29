@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Mutations\Notifications;
 
 use Exception;
-use Kanvas\Notifications\Actions\ReadAllNotification as ReadAllNotificationAction;
+use Kanvas\Notifications\Actions\ReadAllNotificationAction;
 
 final class ReadAllNotificationMutation
 {

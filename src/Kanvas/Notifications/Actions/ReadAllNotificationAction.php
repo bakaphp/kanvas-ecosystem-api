@@ -8,14 +8,14 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Users\Models\Users;
 
-class ReadAllNotification
+class ReadAllNotificationAction
 {
     /**
      * __construct.
      */
-    public function __construct(public Users $user)
-    {
-        $this->user = $user;
+    public function __construct(
+        public Users $user
+    ) {
     }
 
     /**
