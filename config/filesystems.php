@@ -56,22 +56,6 @@ return [
         ],
     ],
 
-    'cicd' => [
-
-        's3' => [
-            'driver' => 's3',
-            'key' => env('AWS_ACCESS_KEY_ID_TEST'),
-            'secret' => env('AWS_SECRET_ACCESS_KEY_TEST'),
-            'region' => env('AWS_DEFAULT_REGION_TEST'),
-            'bucket' => env('AWS_BUCKET_TEST'),
-            'url' => env('AWS_URL_TEST'),
-            'path' => '/',
-            // 'endpoint' => env('AWS_ENDPOINT'),
-            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
-            'throw' => true, // with that you enabled the exception when you are writing a file
-        ],
-    ],
-
     /*
     |--------------------------------------------------------------------------
     | Symbolic Links
