@@ -7,7 +7,6 @@ namespace Kanvas\Notifications;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
-use Exception;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
@@ -17,30 +16,27 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Channels\KanvasDatabase as KanvasDatabaseChannel;
 use Kanvas\Notifications\Interfaces\EmailInterfaces;
 use Kanvas\Notifications\Models\NotificationTypes;
+use Kanvas\Notifications\Traits\NotificationRenderTrait;
+use Kanvas\Notifications\Traits\NotificationStorageTrait;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
-use Kanvas\Templates\Actions\RenderTemplateAction;
 use Kanvas\Users\Models\Users;
 
 class Notification extends LaravelNotification implements EmailInterfaces, ShouldQueue
 {
     use Queueable;
+    use NotificationStorageTrait;
+    use NotificationRenderTrait;
 
     protected Model $entity;
     protected AppInterface $app;
     protected ?NotificationTypes $type = null;
-    protected ?string $templateName = null;
     protected ?UserInterface $fromUser = null;
     protected ?UserInterface $toUser = null;
-    public array $data = [];
-    public array $via = [
-        KanvasDatabaseChannel::class,
+
+    public array $channels = [
+        'mail'
     ];
 
-    /**
-     * Set the entity
-     *
-     * @return void
-     */
     public function __construct(Model $entity)
     {
         $this->entity = $entity;
@@ -53,23 +49,33 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     }
 
     /**
-     * setVia
-     *
-     * @return void
+     * Notification via channels
      */
-    public function setVia(array $via): self
+    public function channels(): array
     {
-        $this->via = [KanvasDatabaseChannel::class,...$via];
-
-        return $this;
+        return $this->channels;
     }
 
     /**
      * Create a new notification channel.
+     *
+     * @return array<int, string>
      */
-    public function via(): array
+    public function via(object $notifiable): array
     {
-        return $this->via;
+        $channels = $this->channels();
+
+        if (! empty($channels) && $this->type instanceof NotificationTypes) {
+            $enabledChannels = array_filter($channels, function ($channel) use ($notifiable) {
+                return $notifiable->isNotificationSettingEnable($this->type, $channel);
+            });
+            $channels = array_values($enabledChannels);
+        }
+
+        return [
+             KanvasDatabaseChannel::class,
+             ...$channels,
+        ];
     }
 
     /**
@@ -77,7 +83,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      *
      * @param  mixed  $notifiable
      */
-    public function toMail($notifiable): MailMessage
+    public function toMail($notifiable): ?MailMessage
     {
         $fromEmail = $this->app->get('from_email_address') ?? config('mail.from.address');
         $fromName = $this->app->get('from_email_name') ?? config('mail.from.name');
@@ -86,103 +92,6 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         return (new MailMessage())
                 ->from($fromEmail, $fromName)
                 ->view('emails.layout', ['html' => $this->message()]);
-    }
-
-    /**
-     * toKanvasDatabase.
-     */
-    public function toKanvasDatabase(UserInterface $notifiable): array
-    {
-        $this->toUser = $notifiable;
-
-        try {
-            $fromUserId = $this->getFromUser()->getId();
-        } catch (Exception $e) {
-            //for now, we need to clean this up -_-
-            $fromUserId = 0;
-        }
-
-        return [
-            'users_id' => $notifiable->getId(),
-            'from_users_id' => $fromUserId,
-            'companies_id' => $notifiable->getCurrentCompany()->getId(),
-            'apps_id' => $this->app->getId(),
-            'system_modules_id' => $this->getType()->system_modules_id,
-            'notification_type_id' => $this->getType()->getId(),
-            'entity_id' => method_exists($this->entity, 'getId') ? $this->entity->getId() : $this->entity->id,
-            'content' => $this->message(),
-            'read' => 0,
-            'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s'),
-            'is_deleted' => 0,
-        ];
-    }
-
-    /**
-     * Notification message the user will get.
-     */
-    public function message(): string
-    {
-        if ($this->getType()->hasEmailTemplate()) {
-            return $this->getEmailTemplate();
-        }
-
-        return '';
-    }
-
-    /**
-     * Given the HTML for the current email notification
-     */
-    protected function getEmailTemplate(): string
-    {
-        if (! $this->getType()->hasEmailTemplate()) {
-            throw new Exception('This notification type does not have an email template');
-        }
-
-        $renderTemplate = new RenderTemplateAction($this->app);
-
-        return $renderTemplate->execute(
-            $this->getTemplateName(),
-            $this->getData()
-        );
-    }
-
-    /**
-     * setTemplateName
-     *
-     * @param  mixed $name
-     */
-    public function setTemplateName(string $name): self
-    {
-        $this->templateName = $name;
-
-        return $this;
-    }
-
-    /**
-     * setData
-     */
-    public function setData(array $data): self
-    {
-        $this->data = $data;
-
-        return $this;
-    }
-
-    /**
-     * getData.
-     */
-    public function getData(): array
-    {
-        return $this->data;
-    }
-
-    /*
-    * Get notification template Name
-    */
-    public function getTemplateName(): ?string
-    {
-        return $this->templateName === null ? $this->getType()->template : $this->templateName;
     }
 
     /**

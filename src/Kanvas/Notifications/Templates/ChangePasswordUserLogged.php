@@ -9,12 +9,4 @@ use Kanvas\Notifications\Notification;
 class ChangePasswordUserLogged extends Notification
 {
     public ?string $templateName = 'change-password';
-
-    /**
-     * via.
-     */
-    public function via(): array
-    {
-        return [...parent::via(), 'mail'];
-    }
 }

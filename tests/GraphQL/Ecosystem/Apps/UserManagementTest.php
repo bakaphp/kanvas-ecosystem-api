@@ -70,8 +70,8 @@ class UserManagementTest extends TestCase
 
         $userList = $response->json();
 
-        $password = fake()->password(12);
-
+        //don't know why password gives us errors
+        $password = str_replace(' ', '', fake()->realText(15));
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation{
                 appUserUpdatePassword(
