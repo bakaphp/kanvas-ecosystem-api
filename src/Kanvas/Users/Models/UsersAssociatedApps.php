@@ -154,4 +154,9 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
             'status' => StatusEnums::ACTIVE->getValue(),
         ]);
     }
+
+    public function isActive(): bool
+    {
+        return $this->status === StatusEnums::ACTIVE->getValue();
+    }
 }

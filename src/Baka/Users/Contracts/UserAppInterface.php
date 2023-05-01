@@ -20,5 +20,7 @@ interface UserAppInterface
 
     public function get(string $key): mixed;
 
+    public function isActive(): bool;
+
     public static function registerUserApp(Users $user, string $password): UsersAssociatedApps;
 }

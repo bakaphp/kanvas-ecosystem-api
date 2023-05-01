@@ -209,6 +209,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         return UsersAssociatedApps::where('users_id', $this->getId())
             ->where('apps_id', app(Apps::class)->getKey())
+            ->orderBy('companies_id', 'ASC')
             ->firstOrFail();
     }
 
