@@ -7,15 +7,15 @@ namespace Kanvas\Users\Models;
 use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Baka\Users\Contracts\UserAppInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Contracts\Authenticatable;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Models\BaseModel;
-use Illuminate\Support\Facades\Hash;
-use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Models\BaseModel;
+use Kanvas\Users\Enums\StatusEnums;
 
 /**
  * UsersAssociatedApps Model.
@@ -48,7 +48,10 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
      */
     protected $table = 'users_associated_apps';
 
-    protected $primaryKey = ['users_id', 'apps_id'];
+    protected $primaryKey = [
+        'users_id',
+        'apps_id',
+    ];
 
     protected $fillable = [
         'users_id',
@@ -92,11 +95,6 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
 
     /**
      * Set a new config value for the specific user.
-     *
-     * @param string $key
-     * @param mixed $value
-     *
-     * @return void
      */
     public function set(string $key, mixed $value): void
     {
@@ -106,7 +104,7 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
             $this->configuration = json_encode($configuration);
         } else {
             $this->configuration = json_encode([
-                $key => $value
+                $key => $value,
             ]);
         }
 
@@ -115,15 +113,12 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
 
     /**
      * Get a specific config value for the specific user.
-     *
-     * @param string $key
-     *
-     * @return mixed
      */
     public function get(string $key): mixed
     {
         if (Str::isJson($this->configuration)) {
             $configuration = json_decode($this->configuration, true);
+
             return $configuration[$key] ?? null;
         }
 
@@ -132,38 +127,32 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
 
     /**
      * Register an user into a new app with a password for the login.
-     *
-     * @param Users $user
-     * @param string $password
-     * @return UsersAssociatedApps
      */
     public static function registerUserApp(Users $user, string $password): UsersAssociatedApps
     {
-        $userAssApp = new UsersAssociatedApps();
-        $userAssApp->users_id = $user->getKey();
-        $userAssApp->apps_id = app(Apps::class)->id;
-        $userAssApp->companies_id = $user->default_company;
-        $userAssApp->identify_id = $user->getKey();
-        $userAssApp->password = $password;
-        $userAssApp->user_active = StatusEnums::ACTIVE->getValue();
-        $userAssApp->user_role = $user->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue();
-        $userAssApp->displayname = $user->displayname;
-        $userAssApp->lastvisit = date('Y-m-d H:i:s');
-        $userAssApp->user_login_tries = 0;
-        $userAssApp->user_last_login_try = 0;
-        $userAssApp->user_activation_key = Hash::make(time());
-        $userAssApp->banned = StateEnums::NO->getValue();
-        $userAssApp->status = StatusEnums::ACTIVE->getValue();
-        $userAssApp->saveOrFail();
-
-        return $userAssApp;
+        return self::firstOrCreate([
+            'users_id' => $user->getKey(),
+            'apps_id' => app(Apps::class)->getId(),
+            'companies_id' => $user->default_company,
+        ], [
+            'identify_id' => $user->getKey(),
+            'password' => $password,
+            'user_active' => StatusEnums::ACTIVE->getValue(),
+            'user_role' => $user->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue(),
+            'displayname' => $user->displayname,
+            'lastvisit' => date('Y-m-d H:i:s'),
+            'session_time' => time(),
+            'welcome' => 0,
+            'user_login_tries' => 0,
+            'user_last_login_try' => 0,
+            'user_activation_key' => Hash::make(time()),
+            'banned' => StateEnums::NO->getValue(),
+            'status' => StatusEnums::ACTIVE->getValue(),
+        ]);
     }
 
     /**
      * Check if the user is on the current app.
-     *
-     * @param Users $user
-     * @return bool
      */
     public static function userOnApp(Users $user): bool
     {
