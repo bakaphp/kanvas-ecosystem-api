@@ -130,10 +130,14 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
      */
     public static function registerUserApp(Users $user, string $password): UsersAssociatedApps
     {
+        /**
+         * for now use use company 0 has a default , for all user info on this app
+         * in future version we will remove company id from this table
+         */
         return self::firstOrCreate([
             'users_id' => $user->getKey(),
             'apps_id' => app(Apps::class)->getId(),
-            'companies_id' => $user->default_company,
+            'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
         ], [
             'identify_id' => $user->getKey(),
             'password' => $password,
@@ -149,15 +153,5 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
             'banned' => StateEnums::NO->getValue(),
             'status' => StatusEnums::ACTIVE->getValue(),
         ]);
-    }
-
-    /**
-     * Check if the user is on the current app.
-     */
-    public static function userOnApp(Users $user): bool
-    {
-        return (bool) self::where('apps_id', app(Apps::class)->getId())
-        ->where('users_id', $user->getKey())
-        ->count() > 0;
     }
 }

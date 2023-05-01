@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\Actions;
 
-use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -17,6 +17,7 @@ use Kanvas\Notifications\Templates\Welcome;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class RegisterUsersAction
 {
@@ -44,11 +45,13 @@ class RegisterUsersAction
         );
 
         // This is the second time that we need get user data without an exception.
-        if ($validator->fails() && UsersAssociatedApps::userOnApp($user = Users::where('email', $this->data->email)->first())) {
+        if ($validator->fails()) {
             throw new ValidationException($validator);
         }
 
-        if (!isset($user)) {
+        try {
+            $user = Users::getByEmail($this->data->email);
+        } catch(ModelNotFoundException $e) {
             $user = new Users();
             $user->firstname = $this->data->firstname;
             $user->lastname = $this->data->lastname;
@@ -76,8 +79,17 @@ class RegisterUsersAction
             $user->saveOrFail();
         }
 
-        UsersAssociatedApps::registerUserApp($user, $this->data->password);
 
+        try {
+            UsersRepository::belongsToThisApp($user, $this->app);
+
+            throw new AuthenticationException('Email has already been taken.');
+        } catch (ModelNotFoundException $e) {
+            UsersAssociatedApps::registerUserApp($user, $this->data->password);
+
+            //what about the company assigned to the user?
+        }
+      
         try {
             $user->notify(new Welcome($user));
         } catch (ModelNotFoundException $e) {

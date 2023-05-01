@@ -26,8 +26,6 @@ class ForgotPassword
      * Send email forgot password.
      *
      * @param array $data
-     *
-     * @return Users
      */
     public function forgot(string $email): Users
     {
@@ -47,15 +45,13 @@ class ForgotPassword
      * Get user and update password to the new one.
      *
      * @param array $data
-     *
-     * @return bool
      */
     public function reset(string $newPassword, string $hashKey): bool
     {
         $recoverUser = UsersAssociatedApps::where(
             [
                 'user_activation_forgot' => $hashKey,
-                'is_deleted' => 0
+                'is_deleted' => 0,
             ]
         )->firstOrFail();
 
