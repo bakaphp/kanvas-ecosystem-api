@@ -34,7 +34,7 @@ class FilesystemSetupCommand extends Command
         $app->set('cloud-bucket-path', config('filesystems.disks.s3.path'));
         $app->set('service-account-file', $this->createConfigFile());
 
-        $this->info('Filesystem disk setup completed for app ' . $app->name . ' - ' . $app->uuid );
+        $this->info('Filesystem disk setup completed for app ' . $app->name . ' - ' . $app->uuid);
         $this->newLine();
     }
 
