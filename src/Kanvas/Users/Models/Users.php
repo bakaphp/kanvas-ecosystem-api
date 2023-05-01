@@ -208,10 +208,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function getAppProfile(): UsersAssociatedApps
     {
-        return UsersAssociatedApps::where('users_id', $this->getId())
-            ->where('apps_id', app(Apps::class)->getKey())
-            ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
-            ->firstOrFail();
+        try {
+            return UsersAssociatedApps::where('users_id', $this->getId())
+                ->where('apps_id', app(Apps::class)->getKey())
+                ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+                ->firstOrFail();
+        } catch (EloquentModelNotFoundException $e) {
+            throw new ModelNotFoundException('User not found');
+        }
     }
 
     /**

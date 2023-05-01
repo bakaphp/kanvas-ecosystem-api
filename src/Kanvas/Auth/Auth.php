@@ -13,9 +13,12 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
+use Kanvas\Users\Repositories\UsersRepository;
 use Lcobucci\JWT\Token;
 use stdClass;
 
@@ -49,7 +52,19 @@ class Auth
         if (! $user) {
             throw new AuthenticationException('Invalid email or password.');
         }
-        $authentically = $user->getAppProfile();
+
+
+        try {
+            /**
+             * until v3 (legacy) is deprecated we have to check or create the user profile the first time
+             * @todo remove in v2
+             */
+            $authentically = $user->getAppProfile();
+        } catch(ModelNotFoundException $e) {
+            //user doesn't have a profile yet , verify if we need to create it
+            UsersRepository::belongsToThisApp($user, $app);
+            $authentically = UsersAssociatedApps::registerUserApp($user, $user->password);
+        }
 
         self::loginAttemptsValidation($authentically);
 
