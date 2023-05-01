@@ -10,10 +10,13 @@ use Illuminate\Validation\ValidationException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
+use Kanvas\Companies\Actions\CreateCompaniesAction;
+use Kanvas\Companies\DataTransferObject\CompaniesPostData;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Templates\Welcome;
+use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -59,7 +62,16 @@ class RegisterUsersAction
             } catch (ModelNotFoundException $e) {
                 UsersAssociatedApps::registerUserApp($user, $this->data->password);
 
-                //what about users company? if they are from a previous app , should we create a new one just for this app?
+                //create new company for user on this app
+                $createCompany = new CreateCompaniesAction(
+                    new CompaniesPostData(
+                        $user->defaultCompanyName ?? $user->displayname . 'CP',
+                        $user->id,
+                        $user->email
+                    )
+                );
+    
+                $createCompany->execute();
             }
         } catch(ModelNotFoundException $e) {
             $user = new Users();
