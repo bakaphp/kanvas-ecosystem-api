@@ -28,11 +28,6 @@ class UsersFollowsRepository
      */
     public static function isFollowing(Users $user, EloquentModel $entity): bool
     {
-        $follow = self::getByUserAndEntity($user, $entity);
-        if ($follow) {
-            return true;
-        }
-
-        return false;
+        return (bool) self::getByUserAndEntity($user, $entity);
     }
 }
