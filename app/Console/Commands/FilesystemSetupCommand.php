@@ -14,7 +14,7 @@ class FilesystemSetupCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'filesystem:disk {app_uuid?}';
+    protected $signature = 'kanvas:filesystem-setup {app_uuid?}';
 
     /**
      * The console command description.
@@ -33,6 +33,9 @@ class FilesystemSetupCommand extends Command
         $app->set('cloud-cdn', config('filesystems.disks.s3.url'));
         $app->set('cloud-bucket-path', config('filesystems.disks.s3.path'));
         $app->set('service-account-file', $this->createConfigFile());
+
+        $this->info('Filesystem disk setup completed for app ' . $app->name . ' - ' . $app->uuid );
+        $this->newLine();
     }
 
     /**
