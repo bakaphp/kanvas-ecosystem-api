@@ -16,7 +16,6 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Templates\Welcome;
-use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -70,7 +69,7 @@ class RegisterUsersAction
                         $user->email
                     )
                 );
-    
+
                 $createCompany->execute();
             }
         } catch(ModelNotFoundException $e) {

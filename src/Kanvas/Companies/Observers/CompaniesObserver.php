@@ -13,7 +13,6 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
-use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Actions\AssignRole;
 
 class CompaniesObserver
@@ -60,7 +59,7 @@ class CompaniesObserver
             StateEnums::ON->getValue(),
             $tempBranch
         );
-        
+
         $company->associateUser(
             $user,
             StateEnums::ON->getValue(),
