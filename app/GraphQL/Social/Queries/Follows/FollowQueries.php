@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Social\Queries;
+namespace App\GraphQL\Social\Queries\Follows;
 
-use Kanvas\Social\Follow;
+use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 
 class FollowQueries
@@ -17,6 +17,6 @@ class FollowQueries
         //   $user = UsersRepository::getById($request['user_id']);
         $user = UsersRepository::getUserOfAppById($request['user_id']);
 
-        return Follow::isFollowing(auth()->user(), $user);
+        return UsersFollowsRepository::isFollowing(auth()->user(), $user);
     }
 }

@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Social\Mutations;
+namespace App\GraphQL\Social\Mutations\Follows;
 
 use Kanvas\Social\Follow;
+use Kanvas\Social\Follows\Actions\FollowAction;
+use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 
 class FollowManagementMutation
@@ -18,9 +20,10 @@ class FollowManagementMutation
     {
         //   $user = UsersRepository::getById($request['user_id']);
         $user = UsersRepository::getUserOfAppById($request['user_id']);
-        Follow::follow(auth()->user(), $user);
-
-        return Follow::isFollowing(auth()->user(), $user);
+        $action = new FollowAction(auth()->user(), $user);
+        $action->execute();
+        
+        return true;
     }
 
     /**

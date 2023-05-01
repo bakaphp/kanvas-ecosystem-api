@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Models;
+namespace Kanvas\Social\Follows\Models;
+
+use Kanvas\Social\Models\BaseModel;
 
 class UsersFollows extends BaseModel
 {

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Repositories;
+namespace Kanvas\Social\Follows\Repositories;
 
 use Illuminate\Database\Eloquent\Model as EloquentModel;
-use Kanvas\Social\Models\UsersFollows;
+use Kanvas\Social\Follows\Models\UsersFollows;
 use Kanvas\Users\Models\Users;
 
 class UsersFollowsRepository
