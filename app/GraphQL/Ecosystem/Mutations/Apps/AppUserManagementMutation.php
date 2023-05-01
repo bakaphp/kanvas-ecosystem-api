@@ -17,9 +17,8 @@ class AppUserManagementMutation
     {
         $user = Users::getByUuid($request['uuid']);
         UsersRepository::belongsToThisApp($user, app(Apps::class));
-        $appProfile = $user->getAppProfile();
 
-        return $appProfile->resetPassword($request['password']);
+        return $user->resetPassword($request['password']);
     }
 
     public function updateEmail(mixed $root, array $request): bool
