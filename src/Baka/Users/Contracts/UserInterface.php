@@ -36,7 +36,7 @@ interface UserInterface extends Authenticatable
 
     public function notifications(): HasMany;
 
-    public function currentAppInfo(): UsersAssociatedApps;
+    public function getAppProfile(): UsersAssociatedApps;
 
     public function getCurrentCompany(): CompanyInterface;
 

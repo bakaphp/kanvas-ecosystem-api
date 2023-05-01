@@ -49,7 +49,7 @@ class Auth
         if (! $user) {
             throw new AuthenticationException('Invalid email or password.');
         }
-        $authentically = $user->currentAppInfo();
+        $authentically = $user->getAppProfile();
 
         self::loginAttemptsValidation($authentically);
 

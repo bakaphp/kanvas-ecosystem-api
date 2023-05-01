@@ -26,6 +26,7 @@ use Kanvas\Auth\Contracts\Authenticatable as ContractsAuthenticatable;
 use Kanvas\Auth\Traits\HasApiTokens;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Exceptions\ModelNotFoundException;
@@ -205,11 +206,11 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Get the current user information for the running app.
      */
-    public function currentAppInfo(): UsersAssociatedApps
+    public function getAppProfile(): UsersAssociatedApps
     {
         return UsersAssociatedApps::where('users_id', $this->getId())
             ->where('apps_id', app(Apps::class)->getKey())
-            ->orderBy('companies_id', 'ASC')
+            ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
             ->firstOrFail();
     }
 
@@ -388,7 +389,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function generateForgotHash(): string
     {
-        $user = $this->currentAppInfo();
+        $user = $this->getAppProfile();
         $user->user_activation_forgot = Str::random(50);
         $user->updateOrFail();
 
@@ -400,7 +401,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function resetPassword(string $newPassword): bool
     {
-        $user = $this->currentAppInfo();
+        $user = $this->getAppProfile();
         $user->password = Hash::make($newPassword);
         $user->saveOrFail();
 
