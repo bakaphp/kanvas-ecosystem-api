@@ -41,7 +41,7 @@ class RegisterUsersAction
     {
         $validator = Validator::make(
             ['email' => $this->data->email],
-            ['email' => 'required|email|unique:users,email,NULL,id']
+            ['email' => 'required|email']
         );
 
         // This is the second time that we need get user data without an exception.
