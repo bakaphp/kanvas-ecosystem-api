@@ -51,6 +51,16 @@ class RegisterUsersAction
 
         try {
             $user = Users::getByEmail($this->data->email);
+
+            try {
+                UsersRepository::belongsToThisApp($user, $this->app);
+
+                throw new AuthenticationException('Email has already been taken.');
+            } catch (ModelNotFoundException $e) {
+                UsersAssociatedApps::registerUserApp($user, $this->data->password);
+
+                //what about users company? if they are from a previous app , should we create a new one just for this app?
+            }
         } catch(ModelNotFoundException $e) {
             $user = new Users();
             $user->firstname = $this->data->firstname;
@@ -76,17 +86,11 @@ class RegisterUsersAction
             $user->language = $user->language ?: AppEnums::DEFAULT_LANGUAGE->getValue();
             $user->user_activation_key = Hash::make(time());
             $user->roles_id = $this->data->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue();
+
+            //create a new user assign it to the app and create the default company
             $user->saveOrFail();
-        }
 
-        try {
-            UsersRepository::belongsToThisApp($user, $this->app);
-
-            throw new AuthenticationException('Email has already been taken.');
-        } catch (ModelNotFoundException $e) {
             UsersAssociatedApps::registerUserApp($user, $this->data->password);
-
-            //what about users company? if they are from a previous app , should we create a new one just for this app?
         }
 
         try {
