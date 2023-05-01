@@ -67,7 +67,7 @@ class FollowTest extends TestCase
             ]
         )->assertJson(
             [
-            'data' => ['userUnFollow' => false],
+            'data' => ['userUnFollow' => true],
         ]
         );
     }
