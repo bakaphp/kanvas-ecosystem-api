@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\Actions;
 
-use Kanvas\Exceptions\ModelNotFoundException;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -13,6 +12,7 @@ use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Templates\Welcome;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Models\Users;
@@ -54,14 +54,13 @@ class RegisterUsersAction
 
             try {
                 UsersRepository::belongsToThisApp($user, $this->app);
-    
+
                 throw new AuthenticationException('Email has already been taken.');
             } catch (ModelNotFoundException $e) {
                 UsersAssociatedApps::registerUserApp($user, $this->data->password);
-    
+
                 //what about the company assigned to the user?
             }
-
         } catch(ModelNotFoundException $e) {
             $user = new Users();
             $user->firstname = $this->data->firstname;
