@@ -19,15 +19,15 @@ class TemplatesRepository
         // $companyId = userData->currentCompanyId() ?? 0;
 
         try {
-        return Templates::fromApp()
-                            ->notDeleted()
-                            // ->where('companies_id',$companyId)
-                            ->fromApp($app)
-                            ->where('name', $name)
-                            ->orderBy('id', 'desc')
-                            ->firstOrFail();
+            return Templates::fromApp()
+                                ->notDeleted()
+                                // ->where('companies_id',$companyId)
+                                ->fromApp($app)
+                                ->where('name', $name)
+                                ->orderBy('id', 'desc')
+                                ->firstOrFail();
         } catch (ModelNotFoundException $e) {
-            throw new ExceptionsModelNotFoundException('Template not found - '. $name);
+            throw new ExceptionsModelNotFoundException('Template not found - ' . $name);
         }
     }
 }
