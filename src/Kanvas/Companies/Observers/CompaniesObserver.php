@@ -14,6 +14,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Actions\AssignCompanyAction;
+use Kanvas\Users\Actions\AssignRole;
 
 class CompaniesObserver
 {
@@ -59,8 +60,28 @@ class CompaniesObserver
             StateEnums::ON->getValue(),
             $tempBranch
         );
+        
+        $company->associateUser(
+            $user,
+            StateEnums::ON->getValue(),
+            $branch
+        );
 
-        $action = new AssignCompanyAction($user, $branch);
-        $action->execute();
+        $company->associateUserApp(
+            $user,
+            $app,
+            StateEnums::ON->getValue()
+        );
+
+        $assignRole = new AssignRole($user, $company, $app);
+        $assignRole->execute(AppEnums::DEFAULT_ROLE_NAME->getValue());
+
+        if (! $user->get(Companies::cacheKey())) {
+            $user->set(Companies::cacheKey(), $company->id);
+        }
+
+        if (! $user->get($company->branchCacheKey())) {
+            $user->set($company->branchCacheKey(), $branch->id);
+        }
     }
 }
