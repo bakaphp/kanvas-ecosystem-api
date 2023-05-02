@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Baka\Users\Contracts;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Users\Models\Users;
-use Kanvas\Users\Models\UsersAssociatedApps;
 
 interface UserAppInterface
 {
@@ -21,5 +19,4 @@ interface UserAppInterface
     public function get(string $key): mixed;
 
     public function isActive(): bool;
-
 }
