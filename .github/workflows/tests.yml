@@ -134,7 +134,7 @@ jobs:
         run: php artisan kanvas:create-role Agents
 
       - name: Set filesystem configs
-        run: php artisan filesystem:disk
+        run: php artisan kanvas:filesystem-setup
 
       - name: Run Tests
         if: success()

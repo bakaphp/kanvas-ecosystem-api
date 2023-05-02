@@ -157,8 +157,7 @@ class Apps extends BaseModel implements AppInterface
 
     /**
      * Associate user to the app.
-     *
-     * @param Apps $app
+     * @deprecated v2.0.0
      */
     public function associateUser(
         Users $user,

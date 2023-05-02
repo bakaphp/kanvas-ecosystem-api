@@ -13,10 +13,12 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
+use Kanvas\Users\Repositories\UsersRepository;
 use Lcobucci\JWT\Token;
 use stdClass;
 
@@ -47,27 +49,32 @@ class Auth
             ->first();
         }
 
-        if (!$user) {
+        if (! $user) {
             throw new AuthenticationException('Invalid email or password.');
         }
-        $authentically = $user->currentAppInfo();
+
+
+        try {
+            /**
+             * until v3 (legacy) is deprecated we have to check or create the user profile the first time
+             * @todo remove in v2
+             */
+            $authentically = $user->getAppProfile();
+        } catch(ModelNotFoundException $e) {
+            //user doesn't have a profile yet , verify if we need to create it
+            UsersRepository::belongsToThisApp($user, $app);
+            $authentically = UsersAssociatedApps::registerUserApp($user, $user->password);
+        }
 
         self::loginAttemptsValidation($authentically);
 
-        /*
-        @todo reactive ecosystem auth
-        if ($app->usesEcosystemLogin()) {
-            //getCurrentUserAppInfo
-            $authentically = $user->currentAppInfo();
-        } */
-
         //password verification
-        if (Hash::check($loginInput->getPassword(), $authentically->password) && $user->isActive()) {
+        if (Hash::check($loginInput->getPassword(), $authentically->password) && $authentically->isActive()) {
             Password::rehash($loginInput->getPassword(), $authentically);
             self::resetLoginTries($authentically);
 
             return $user;
-        } elseif (!$authentically->isActive()) {
+        } elseif (! $authentically->isActive()) {
             throw new AuthenticationException('User is not active, please contact support.');
         } elseif ($authentically->isBanned()) {
             throw new AuthenticationException('User has been banned, please contact support.');
@@ -82,8 +89,6 @@ class Auth
      * @param Users $user
      *
      * @throws Exception
-     *
-     * @return bool
      */
     protected static function loginAttemptsValidation(UserAppInterface $user): bool
     {
@@ -120,23 +125,18 @@ class Auth
 
     /**
      * Reset login tries.
-     *
-     * @param UserAppInterface $user
-     *
-     * @return bool
      */
     protected static function resetLoginTries(UserAppInterface $user): bool
     {
         $user->lastvisit = date('Y-m-d H:i:s');
         $user->user_login_tries = 0;
         $user->user_last_login_try = 0;
+
         return $user->updateOrFail();
     }
 
     /**
      * Update login tries for the given user.
-     *
-     * @return bool
      */
     protected static function updateLoginTries(UserAppInterface $user): bool
     {
@@ -151,12 +151,7 @@ class Auth
     }
 
     /**
-     * Undocumented function.
-     *
-     * @param UserInterface $user
-     * @param Token $token
-     *
-     * @return bool
+     * clean user session
      */
     public static function logout(UserInterface $user, Token $token): bool
     {

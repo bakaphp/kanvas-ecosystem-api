@@ -265,7 +265,7 @@ class AuthTest extends TestCase
     {
         $emailData = self::loginData();
         $userData = Users::getByEmail($emailData->getEmail());
-        $authentically = $userData->currentAppInfo();
+        $authentically = $userData->getAppProfile();
 
         $response = $this->graphQL( /** @lang GraphQL */
             '

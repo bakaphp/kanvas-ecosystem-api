@@ -11,11 +11,6 @@ class AssignAction
 {
     /**
      * __construct.
-     *
-     * @param $entity
-     * @param string $role
-     *
-     * @return void
      */
     public function __construct(
         public string|Users $entity,
@@ -25,10 +20,8 @@ class AssignAction
 
     /**
      * execute.
-     *
-     * @return void
      */
-    public function execute()
+    public function execute(): void
     {
         Bouncer::assign($this->role)->to($this->entity);
     }

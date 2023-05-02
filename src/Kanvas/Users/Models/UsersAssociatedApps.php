@@ -8,7 +8,6 @@ use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Baka\Users\Contracts\UserAppInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Contracts\Authenticatable;
 use Kanvas\Companies\Models\Companies;
@@ -61,6 +60,20 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
         'identify_id',
         'password',
         'user_role',
+        'user_active',
+        'displayname',
+        'lastvisit',
+        'session_time',
+        'welcome',
+        'user_login_tries',
+        'user_last_login_try',
+        'user_activation_key',
+        'banned',
+        'status',
+    ];
+
+    protected $casts = [
+        'configuration' => 'array',
     ];
 
     /**
@@ -98,16 +111,7 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
      */
     public function set(string $key, mixed $value): void
     {
-        if (Str::isJson($this->configuration)) {
-            $configuration = json_decode($this->configuration, true);
-            $configuration[$key] = $value;
-            $this->configuration = json_encode($configuration);
-        } else {
-            $this->configuration = json_encode([
-                $key => $value,
-            ]);
-        }
-
+        $this->configuration[$key] = $value;
         $this->saveOrFail();
     }
 
@@ -116,13 +120,7 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
      */
     public function get(string $key): mixed
     {
-        if (Str::isJson($this->configuration)) {
-            $configuration = json_decode($this->configuration, true);
-
-            return $configuration[$key] ?? null;
-        }
-
-        return null;
+        return $configuration[$key] ?? null;
     }
 
     /**
@@ -130,10 +128,14 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
      */
     public static function registerUserApp(Users $user, string $password): UsersAssociatedApps
     {
+        /**
+         * for now use use company 0 has a default , for all user info on this app
+         * in future version we will remove company id from this table
+         */
         return self::firstOrCreate([
             'users_id' => $user->getKey(),
             'apps_id' => app(Apps::class)->getId(),
-            'companies_id' => $user->default_company,
+            'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
         ], [
             'identify_id' => $user->getKey(),
             'password' => $password,
@@ -151,13 +153,8 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
         ]);
     }
 
-    /**
-     * Check if the user is on the current app.
-     */
-    public static function userOnApp(Users $user): bool
+    public function isActive(): bool
     {
-        return (bool) self::where('apps_id', app(Apps::class)->getId())
-        ->where('users_id', $user->getKey())
-        ->count() > 0;
+        return $this->user_active === StatusEnums::ACTIVE->getValue();
     }
 }
