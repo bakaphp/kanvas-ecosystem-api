@@ -21,7 +21,7 @@ class RegisterUsersAppAction
         protected Users $user,
         protected ?Apps $app = null
     ) {
-        $this->app = $app ?? Apps::getSelf();
+        $this->app = $app ?? app(Apps::class);
     }
 
     /**
