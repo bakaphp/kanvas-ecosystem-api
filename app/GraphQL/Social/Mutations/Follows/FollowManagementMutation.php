@@ -12,12 +12,9 @@ class FollowManagementMutation
 {
     /**
      * userFollow
-     *
-     * @return void
      */
     public function userFollow(mixed $root, array $request): bool
     {
-        //   $user = UsersRepository::getById($request['user_id']);
         $user = UsersRepository::getUserOfAppById($request['user_id']);
         $action = new FollowAction(auth()->user(), $user);
         $action->execute();
@@ -30,7 +27,6 @@ class FollowManagementMutation
      */
     public function userUnFollow(mixed $root, array $request): bool
     {
-        //   $user = UsersRepository::getById($request['user_id']);
         $user = UsersRepository::getUserOfAppById($request['user_id']);
         $action = new UnFollowAction(auth()->user(), $user);
 

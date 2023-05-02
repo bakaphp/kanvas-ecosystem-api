@@ -12,8 +12,6 @@ class UsersFollowsRepository
 {
     /**
      * getByUserAndEntity
-     *
-     * @return UsersFollows
      */
     public static function getByUserAndEntity(Users $user, EloquentModel $entity): ?UsersFollows
     {

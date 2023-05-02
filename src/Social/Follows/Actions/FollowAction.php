@@ -24,12 +24,12 @@ class FollowAction
         if ($follow) {
             return $follow;
         }
+
         $follow = new UsersFollows();
         $follow->users_id = $this->user->getId();
         $follow->entity_id = $this->entity->getId();
         $follow->entity_namespace = get_class($this->entity);
         $follow->saveOrFail();
-
 
         return $follow;
     }

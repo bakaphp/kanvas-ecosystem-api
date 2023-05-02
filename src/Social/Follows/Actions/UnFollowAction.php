@@ -28,9 +28,9 @@ class UnFollowAction
     {
         $follow = UsersFollowsRepository::getByUserAndEntity($this->user, $this->entity);
         if ($follow) {
-            $follow->delete();
+            return (bool) $follow->delete();
         }
 
-        return true;
+        return false;
     }
 }
