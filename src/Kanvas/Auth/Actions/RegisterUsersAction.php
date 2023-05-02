@@ -64,7 +64,8 @@ class RegisterUsersAction
 
                 throw new AuthenticationException('Email has already been taken.');
             } catch (ModelNotFoundException $e) {
-                UsersAssociatedApps::registerUserApp($user, $this->data->password);
+                $userRegisterInApp = new RegisterUsersAppAction($user);
+                $userRegisterInApp->execute($this->data->password);
 
                 //create new company for user on this app
                 $createCompany = new CreateCompaniesAction(
@@ -106,7 +107,8 @@ class RegisterUsersAction
             //create a new user assign it to the app and create the default company
             $user->saveOrFail();
 
-            UsersAssociatedApps::registerUserApp($user, $this->data->password);
+            $userRegisterInApp = new RegisterUsersAppAction($user);
+            $userRegisterInApp->execute($this->data->password);
         }
 
         try {

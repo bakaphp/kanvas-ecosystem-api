@@ -22,5 +22,4 @@ interface UserAppInterface
 
     public function isActive(): bool;
 
-    public static function registerUserApp(Users $user, string $password): UsersAssociatedApps;
 }

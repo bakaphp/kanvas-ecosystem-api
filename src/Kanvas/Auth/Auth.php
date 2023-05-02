@@ -10,6 +10,7 @@ use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Support\Facades\Hash;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Actions\RegisterUsersAppAction;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Enums\AppEnums;
@@ -63,7 +64,8 @@ class Auth
         } catch(ModelNotFoundException $e) {
             //user doesn't have a profile yet , verify if we need to create it
             UsersRepository::belongsToThisApp($user, $app);
-            $authentically = UsersAssociatedApps::registerUserApp($user, $user->password);
+            $userRegisterInApp = new RegisterUsersAppAction($user);
+            $authentically = $userRegisterInApp->execute($user->password);
         }
 
         self::loginAttemptsValidation($authentically);

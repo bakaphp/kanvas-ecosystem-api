@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Ecosystem\Apps;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Actions\RegisterUsersAppAction;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -74,7 +75,8 @@ class UserManagementTest extends TestCase
 
         //@todo remove when we fimish migration to niche
         $user = Users::getByUuid($userList['data']['appUsers']['data'][0]['uuid']);
-        UsersAssociatedApps::registerUserApp($user, $user->password);
+        $userRegisterInApp = new RegisterUsersAppAction($user);
+        $userRegisterInApp->execute($user->password);
 
         //don't know why password gives us errors
         $password = str_replace(' ', '', fake()->realText(15));

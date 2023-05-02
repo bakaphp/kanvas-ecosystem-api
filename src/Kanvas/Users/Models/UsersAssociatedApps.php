@@ -123,36 +123,6 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
         return $configuration[$key] ?? null;
     }
 
-    /**
-     * Register an user into a new app with a password for the login.
-     */
-    public static function registerUserApp(Users $user, string $password): UsersAssociatedApps
-    {
-        /**
-         * for now use use company 0 has a default , for all user info on this app
-         * in future version we will remove company id from this table
-         */
-        return self::firstOrCreate([
-            'users_id' => $user->getKey(),
-            'apps_id' => app(Apps::class)->getId(),
-            'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
-        ], [
-            'identify_id' => $user->getKey(),
-            'password' => $password,
-            'user_active' => StatusEnums::ACTIVE->getValue(),
-            'user_role' => $user->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue(),
-            'displayname' => $user->displayname,
-            'lastvisit' => date('Y-m-d H:i:s'),
-            'session_time' => time(),
-            'welcome' => 0,
-            'user_login_tries' => 0,
-            'user_last_login_try' => 0,
-            'user_activation_key' => Hash::make(time()),
-            'banned' => StateEnums::NO->getValue(),
-            'status' => StatusEnums::ACTIVE->getValue(),
-        ]);
-    }
-
     public function isActive(): bool
     {
         return $this->user_active === StatusEnums::ACTIVE->getValue();
