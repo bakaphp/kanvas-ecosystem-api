@@ -48,12 +48,11 @@ class ForgotPassword
      */
     public function reset(string $newPassword, string $hashKey): bool
     {
-        $recoverUser = UsersAssociatedApps::where(
-            [
+        $recoverUser = UsersAssociatedApps::fromApp()
+            ->where([
                 'user_activation_forgot' => $hashKey,
                 'is_deleted' => 0,
-            ]
-        )->firstOrFail();
+            ])->firstOrFail();
 
         return $recoverUser->resetPassword($newPassword);
     }

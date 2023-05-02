@@ -52,6 +52,11 @@ class RegisterUsersAction
         }
 
         try {
+            /**
+             * If the user exist we have to verify if it exist in this app
+             * if it does , means the user already exist
+             * if it doesn't than we have to create the user in this app and with a new company
+             */
             $user = Users::getByEmail($this->data->email);
 
             try {
