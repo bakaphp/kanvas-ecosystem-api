@@ -1,0 +1,14 @@
+extend type Query @guard {
+    isFollowing(
+        user_id: Int!
+    ): Boolean @field(resolver: "App\\GraphQL\\Social\\Queries\\Follows\\FollowQueries@isFollowing")
+}
+extend type Mutation @guard {
+    userFollow(
+        user_id: Int!
+    ): Boolean @field(resolver: "App\\GraphQL\\Social\\Mutations\\Follows\\FollowManagementMutation@userFollow")
+    userUnFollow(
+        user_id: Int!
+    ): Boolean @field(resolver: "App\\GraphQL\\Social\\Mutations\\Follows\\FollowManagementMutation@userUnFollow"
+    )
+}

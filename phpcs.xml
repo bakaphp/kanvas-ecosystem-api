@@ -62,4 +62,7 @@
     <file>tests/unit</file>
     <file>tests/_data/fixtures/Traits</file>
     <file>tests/_support/Helper</file>
+    <php>
+      <server name="LIGHTHOUSE_QUERY_CACHE_ENABLE" value="false" />
+    </php>
 </ruleset>
