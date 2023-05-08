@@ -18,4 +18,16 @@ class FollowQueries
 
         return UsersFollowsRepository::isFollowing(auth()->user(), $user);
     }
+
+    /**
+     * getFollowers
+     *
+     * @param  mixed $request
+     */
+    public function getFollowers(mixed $root, array $request): array
+    {
+        $user = UsersRepository::getUserOfAppById($request['users_id']);
+
+        return UsersFollowsRepository::getFollowers($user);
+    }
 }

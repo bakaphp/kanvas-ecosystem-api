@@ -28,4 +28,21 @@ class UsersFollowsRepository
     {
         return (bool) self::getByUserAndEntity($user, $entity);
     }
+
+    /**
+     * getFollowers
+     */
+    public static function getFollowers(EloquentModel $entity): array
+    {
+        $followers = UsersFollows::where('entity_id', $entity->id)
+            ->where('entity_namespace', get_class($entity))
+            ->get();
+
+        $users = [];
+        foreach ($followers as $follower) {
+            $users[] = $follower->user;
+        }
+
+        return $users;
+    }
 }
