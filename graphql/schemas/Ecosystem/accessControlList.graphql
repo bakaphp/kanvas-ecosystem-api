@@ -6,15 +6,22 @@ type Role {
 }
 
 extend type Query @guard {
-    roles: [Role] @field(resolver: "App\\GraphQL\\Ecosystem\\Resolvers\\AccessControlList\\RolesResolver@getAllRoles")
-    hasRole(
-        userId: Int!
-        role: String!
-    ): Boolean @field(resolver: "App\\GraphQL\\Ecosystem\\Resolvers\\AccessControlList\\RolesResolver@hasRole")
-    can(
-        userId: Int!
-        permission: String
-    ): Boolean @field(resolver: "App\\GraphQL\\Ecosystem\\Resolvers\\AccessControlList\\PermissionsResolver@can")
+    roles: [Role]
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Resolvers\\AccessControlList\\RolesResolver@getAllRoles"
+        )
+    hasRole(userId: Int!, role: String!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Resolvers\\AccessControlList\\RolesResolver@hasRole"
+        )
+    can(userId: Int!, permission: String): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Resolvers\\AccessControlList\\PermissionsResolver@can"
+        )
+    getAllAbilities(userId: Int!): [String]
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\AccessControlList\\AccessControlList@getAllAbilities"
+        )
 }
 
 extend type Mutation @guard {
@@ -31,16 +38,16 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\AccessControlListManagementMutation@assignRoleToUser"
         )
-    removeRole(
-        userId: Int!
-        role: String!
-    ): Boolean @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\AccessControlListManagementMutation@removeRoleFromUser")
-    givePermissionToUser(
-        userId: Int!
-        permission: String!
-    ): Boolean @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\AccessControlListManagementMutation@givePermissionToUser") 
-    removePermissionToUser(
-        userId: Int!
-        permission: String!
-    ): Boolean @field(resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\AccessControlListManagementMutation@removePermissionToUser")
+    removeRole(userId: Int!, role: String!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\AccessControlListManagementMutation@removeRoleFromUser"
+        )
+    givePermissionToUser(userId: Int!, permission: String!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\AccessControlListManagementMutation@givePermissionToUser"
+        )
+    removePermissionToUser(userId: Int!, permission: String!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\AccessControlListManagementMutation@removePermissionToUser"
+        )
 }
