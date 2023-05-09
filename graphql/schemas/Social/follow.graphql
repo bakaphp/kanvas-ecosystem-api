@@ -7,6 +7,14 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Social\\Queries\\Follows\\FollowQueries@getFollowers"
         )
+    getFollowing(users_id: Int!): [User]
+        @field(
+            resolver: "App\\GraphQL\\Social\\Queries\\Follows\\FollowQueries@getFollowing"
+        )
+    getTotalFollowers(users_id: Int!): Int
+        @field(
+            resolver: "App\\GraphQL\\Social\\Queries\\Follows\\FollowQueries@getTotalFollowers"
+        )
 }
 extend type Mutation @guard {
     userFollow(user_id: Int!): Boolean

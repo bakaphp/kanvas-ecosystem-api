@@ -20,4 +20,12 @@ class UsersFollows extends BaseModel
     {
         return $this->setConnection('ecosystem')->belongsTo(Users::class, 'users_id', 'id');
     }
+
+    /**
+     * entity
+     */
+    public function entity(): BelongsTo
+    {
+        return $this->setConnection('ecosystem')->belongsTo($this->entity_namespace, 'entity_id', 'id');
+    }
 }

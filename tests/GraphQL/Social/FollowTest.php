@@ -162,4 +162,98 @@ class FollowTest extends TestCase
         ]
         );
     }
+
+    public function testGetTotalFollowers(): void
+    {
+        $user = Users::factory()->create();
+        $response = $this->graphQL(/** @lang GraphQL */
+            '
+            mutation userFollow(
+                $user_id: Int!
+            ) {
+                userFollow(user_id: $user_id)
+            }
+            ',
+            [
+                'user_id' => $user->id,
+            ]
+        );
+        $response->assertJson([
+            'data' => ['userFollow' => true],
+        ]);
+
+        $this->graphQL(
+            /** @lang GraphQL */
+            '
+            query getTotalFollowers($users_id: Int!)
+            {
+                getTotalFollowers(
+                    users_id: $users_id
+                )
+            }
+            ',
+            [
+                'users_id' => $user->id,
+            ]
+        )->assertJson(
+            [
+            'data' => [
+                'getTotalFollowers' => 1,
+            ],
+        ]
+        );
+    }
+
+    /**
+     * testGetFollowing
+     */
+    public function testGetFollowing(): void
+    {
+        $user = Users::factory()->create();
+        $response = $this->graphQL(/** @lang GraphQL */
+            '
+            mutation userFollow(
+                $user_id: Int!
+            ) {
+                userFollow(user_id: $user_id)
+            }
+            ',
+            [
+                'user_id' => $user->id,
+            ]
+        );
+        $response->assertJson([
+            'data' => ['userFollow' => true],
+        ]);
+
+        $this->graphQL(
+            /** @lang GraphQL */
+            '
+            query getFollowing($users_id: Int!)
+            {
+                getFollowing(
+                    users_id: $users_id
+                )
+                {
+                    id
+                    email
+                }
+            }
+            ',
+            [
+                'users_id' => auth()->user()->id,
+            ]
+        )->assertJson(
+            [
+            'data' => [
+                'getFollowing' => [
+                    [
+                        'id' => $user->id,
+                        'email' => $user->email,
+                    ],
+                ],
+            ],
+        ]
+        );
+    }
 }
