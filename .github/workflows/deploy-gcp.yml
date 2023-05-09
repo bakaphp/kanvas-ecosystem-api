@@ -89,7 +89,7 @@ jobs:
             --namespace ${{ secrets.INSTANCE_NAME }} \
             --create-namespace \
             --set apiImage=${{ secrets.GCP_API_IMAGE }}:${{ github.run_number }} \
-            --set services.loadBalancer.name=${{ secrets.LOAD_BALANCER_NAME }} \
+            --set services.loadBalancer.name=${{ secrets.GCP_LOAD_BALANCER_NAME }} \
             --set cert.apiDomain=${{ secrets.GCP_KANVAS_API_DOMAIN }} \
             --set staticIP.name=${{ secrets.GCP_STATIC_IP_NAME }}
 
