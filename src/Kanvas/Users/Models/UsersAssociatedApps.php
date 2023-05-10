@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Models;
 
+use Baka\Traits\HasCompositePrimaryKeyTrait;
+use Baka\Users\Contracts\UserAppInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Hash;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Contracts\Authenticatable;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Enums\AppEnums;
+use Kanvas\Enums\StateEnums;
 use Kanvas\Models\BaseModel;
+use Kanvas\Users\Enums\StatusEnums;
 
 /**
  * UsersAssociatedApps Model.
@@ -21,15 +26,31 @@ use Kanvas\Models\BaseModel;
  * @property ?string $password
  * @property int $user_active
  * @property string $user_role
+ * @property string $displayname
+ * @property string $lastvisit
+ * @property int $user_login_tries
+ * @property int $user_last_login_try
+ * @property string $user_activation_key
+ * @property string $user_activation_forgot
+ * @property int $banned
+ * @property int $status
+ * @property int $user_recover_code
  */
-class UsersAssociatedApps extends BaseModel implements Authenticatable
+class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppInterface
 {
+    use HasCompositePrimaryKeyTrait;
+
     /**
      * The table associated with the model.
      *
      * @var string
      */
     protected $table = 'users_associated_apps';
+
+    protected $primaryKey = [
+        'users_id',
+        'apps_id',
+    ];
 
     protected $fillable = [
         'users_id',
@@ -39,6 +60,20 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable
         'identify_id',
         'password',
         'user_role',
+        'user_active',
+        'displayname',
+        'lastvisit',
+        'session_time',
+        'welcome',
+        'user_login_tries',
+        'user_last_login_try',
+        'user_activation_key',
+        'banned',
+        'status',
+    ];
+
+    protected $casts = [
+        'configuration' => 'array',
     ];
 
     /**
@@ -73,41 +108,23 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable
 
     /**
      * Set a new config value for the specific user.
-     *
-     * @param string $key
-     * @param mixed $value
-     *
-     * @return void
      */
     public function set(string $key, mixed $value): void
     {
-        if (Str::isJson($this->configuration)) {
-            $configuration = json_decode($this->configuration, true);
-            $configuration[$key] = $value;
-            $this->configuration = json_encode($configuration);
-        } else {
-            $this->configuration = json_encode([
-                $key => $value
-            ]);
-        }
-
+        $this->configuration[$key] = $value;
         $this->saveOrFail();
     }
 
     /**
      * Get a specific config value for the specific user.
-     *
-     * @param string $key
-     *
-     * @return mixed
      */
     public function get(string $key): mixed
     {
-        if (Str::isJson($this->configuration)) {
-            $configuration = json_decode($this->configuration, true);
-            return $configuration[$key] ?? null;
-        }
+        return $configuration[$key] ?? null;
+    }
 
-        return null;
+    public function isActive(): bool
+    {
+        return $this->user_active === StatusEnums::ACTIVE->getValue();
     }
 }

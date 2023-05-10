@@ -265,6 +265,7 @@ class AuthTest extends TestCase
     {
         $emailData = self::loginData();
         $userData = Users::getByEmail($emailData->getEmail());
+        $authentically = $userData->getAppProfile();
 
         $response = $this->graphQL( /** @lang GraphQL */
             '
@@ -275,7 +276,7 @@ class AuthTest extends TestCase
                 'data' => [
                     'new_password' => '11223344',
                     'verify_password' => '11223344',
-                    'hash_key' => $userData->user_activation_forgot,
+                    'hash_key' => $authentically->user_activation_forgot,
                 ],
             ]
         )

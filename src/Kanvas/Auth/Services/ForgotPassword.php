@@ -6,8 +6,10 @@ namespace Kanvas\Auth\Services;
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Notifications\Templates\ResetPassword;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
 
 class ForgotPassword
 {
@@ -25,8 +27,6 @@ class ForgotPassword
      * Send email forgot password.
      *
      * @param array $data
-     *
-     * @return Users
      */
     public function forgot(string $email): Users
     {
@@ -46,17 +46,15 @@ class ForgotPassword
      * Get user and update password to the new one.
      *
      * @param array $data
-     *
-     * @return bool
      */
     public function reset(string $newPassword, string $hashKey): bool
     {
-        $recoverUser = Users::where(
-            [
+        $recoverUser = UsersAssociatedApps::fromApp()
+            ->notDeleted()
+            ->where([
+                'companies_id' => AppEnums::GLOBAL_APP_ID->getValue(),
                 'user_activation_forgot' => $hashKey,
-                'is_deleted' => 0
-            ]
-        )->firstOrFail();
+            ])->firstOrFail();
 
         return $recoverUser->resetPassword($newPassword);
     }

@@ -19,10 +19,6 @@ class CompaniesObserver
 {
     /**
      * Handle the Apps "saving" event.
-     *
-     * @param  Companies $company
-     *
-     * @return void
      */
     public function creating(Companies $company): void
     {
@@ -31,10 +27,6 @@ class CompaniesObserver
 
     /**
      * Handle the Apps "saving" event.
-     *
-     * @param  Companies $company
-     *
-     * @return void
      */
     public function created(Companies $company): void
     {
@@ -83,11 +75,11 @@ class CompaniesObserver
         $assignRole = new AssignRole($user, $company, $app);
         $assignRole->execute(AppEnums::DEFAULT_ROLE_NAME->getValue());
 
-        if (!$user->get(Companies::cacheKey())) {
+        if (! $user->get(Companies::cacheKey())) {
             $user->set(Companies::cacheKey(), $company->id);
         }
 
-        if (!$user->get($company->branchCacheKey())) {
+        if (! $user->get($company->branchCacheKey())) {
             $user->set($company->branchCacheKey(), $branch->id);
         }
     }
