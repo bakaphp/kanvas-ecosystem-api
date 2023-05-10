@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Follows\Repositories;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Kanvas\Social\Follows\Models\UsersFollows;
 use Kanvas\Users\Models\Users;
@@ -34,14 +35,13 @@ class UsersFollowsRepository
      */
     public static function getFollowers(EloquentModel $entity): array
     {
-       return self::getFollowersBuilder($entity)->get();
-
+        return self::getFollowersBuilder($entity)->get();
     }
 
     /**
      * getFollowersBuilder
      */
-    public static function getFollowersBuilder(EloquentModel $entity): mixed
+    public static function getFollowersBuilder(EloquentModel $entity): Builder
     {
         $ecosystemConnection = config('database.connections.ecosystem.database');
 
@@ -63,7 +63,7 @@ class UsersFollowsRepository
     /**
      * getFollowingBuilder
      */
-    public static function getFollowingBuilder(Users $user)
+    public static function getFollowingBuilder(Users $user): Builder
     {
         return UsersFollows::where('users_id', $user->id);
     }
