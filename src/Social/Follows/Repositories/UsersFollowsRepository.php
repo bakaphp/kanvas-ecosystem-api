@@ -34,16 +34,22 @@ class UsersFollowsRepository
      */
     public static function getFollowers(EloquentModel $entity): array
     {
-        $followers = UsersFollows::where('entity_id', $entity->id)
+       return self::getFollowersBuilder($entity)->get();
+
+    }
+
+    /**
+     * getFollowersBuilder
+     */
+    public static function getFollowersBuilder(EloquentModel $entity): mixed
+    {
+        $ecosystemConnection = config('database.connections.ecosystem.database');
+
+        return UsersFollows::join($ecosystemConnection . '.users', 'users.id', '=', 'users_follows.users_id')
+            ->where('entity_id', $entity->id)
             ->where('entity_namespace', get_class($entity))
-            ->get();
-
-        $users = [];
-        foreach ($followers as $follower) {
-            $users[] = $follower->user;
-        }
-
-        return $users;
+            ->where('entity_namespace', get_class($entity))
+            ->select('users.*');
     }
 
     /**
@@ -51,14 +57,15 @@ class UsersFollowsRepository
      */
     public static function getFollowing(Users $user): array
     {
-        $followings = UsersFollows::where('users_id', $user->id)
-            ->get();
-        $following = [];
-        foreach ($followings as $follow) {
-            $following[] = $follow->entity;
-        }
+        return self::getFollowingBuilder($user)->get();
+    }
 
-        return $following;
+    /**
+     * getFollowingBuilder
+     */
+    public static function getFollowingBuilder(Users $user)
+    {
+        return UsersFollows::where('users_id', $user->id);
     }
 
     /**

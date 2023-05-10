@@ -103,6 +103,11 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     protected ?string $defaultCompanyName = null;
     protected $guarded = [];
 
+    protected $hidden = [
+        'password',
+        'user_activation_key',
+    ];
+
     /**
      * The table associated with the model.
      *

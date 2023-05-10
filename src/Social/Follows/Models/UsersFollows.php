@@ -22,10 +22,21 @@ class UsersFollows extends BaseModel
     }
 
     /**
+     * toArray
+     */
+    public function toArray(): array
+    {
+        $array = parent::toArray();
+        $array['entity'] = $this->entity;
+
+        return $array;
+    }
+
+    /**
      * entity
      */
-    public function entity(): BelongsTo
+    public function getEntityAttribute(): mixed
     {
-        return $this->setConnection('ecosystem')->belongsTo($this->entity_namespace, 'entity_id', 'id');
+       return $this->entity_namespace::find($this->entity_id);
     }
 }

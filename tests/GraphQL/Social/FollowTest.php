@@ -132,7 +132,7 @@ class FollowTest extends TestCase
             'data' => ['userFollow' => true],
         ]);
 
-        $this->graphQL(
+        $response = $this->graphQL(
             /** @lang GraphQL */
             '
             query getFollowers($users_id: Int!)
@@ -141,8 +141,9 @@ class FollowTest extends TestCase
                     users_id: $users_id
                 )
                 {
-                    id
-                    email
+                    data {
+                        email
+                    }
                 }
             }
             ',
@@ -153,9 +154,10 @@ class FollowTest extends TestCase
             [
             'data' => [
                 'getFollowers' => [
-                    [
-                        'id' => auth()->user()->id,
-                        'email' => auth()->user()->email,
+                    'data' => [
+                        [
+                            'email' => auth()->user()->email,
+                        ],
                     ],
                 ],
             ],
@@ -182,7 +184,7 @@ class FollowTest extends TestCase
             'data' => ['userFollow' => true],
         ]);
 
-        $this->graphQL(
+        $response = $this->graphQL(
             /** @lang GraphQL */
             '
             query getTotalFollowers($users_id: Int!)
@@ -235,8 +237,11 @@ class FollowTest extends TestCase
                     users_id: $users_id
                 )
                 {
-                    id
-                    email
+                    data {
+                        entity {
+                            email
+                        }
+                    }
                 }
             }
             ',
@@ -247,9 +252,12 @@ class FollowTest extends TestCase
             [
             'data' => [
                 'getFollowing' => [
-                    [
-                        'id' => $user->id,
-                        'email' => $user->email,
+                    'data' => [
+                        [
+                            'entity' => [
+                                'email' => $user->email,
+                            ],
+                        ],
                     ],
                 ],
             ],

@@ -1,15 +1,24 @@
+type Following {
+    id: Int!
+    user_id: Int!
+    entity_namespace: String!
+    entity_id: Int!
+    entity: User
+}
 extend type Query @guard {
     isFollowing(user_id: Int!): Boolean
         @field(
             resolver: "App\\GraphQL\\Social\\Queries\\Follows\\FollowQueries@isFollowing"
         )
     getFollowers(users_id: Int!): [User]
-        @field(
-            resolver: "App\\GraphQL\\Social\\Queries\\Follows\\FollowQueries@getFollowers"
+        @paginate(
+            builder: "App\\GraphQL\\Social\\Builders\\Follows\\FollowBuilder@getFollowers"
+            defaultCount: 25
         )
-    getFollowing(users_id: Int!): [User]
-        @field(
-            resolver: "App\\GraphQL\\Social\\Queries\\Follows\\FollowQueries@getFollowing"
+    getFollowing(users_id: Int!): [Following]
+        @paginate(
+            builder: "App\\GraphQL\\Social\\Builders\\Follows\\FollowBuilder@getFollowing"
+            defaultCount: 25
         )
     getTotalFollowers(users_id: Int!): Int
         @field(
