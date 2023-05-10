@@ -34,8 +34,7 @@ class UsersFollowsRepository
      */
     public static function getFollowers(EloquentModel $entity): array
     {
-       return self::getFollowersBuilder($entity)->get();
-
+        return self::getFollowersBuilder($entity)->get();
     }
 
     /**
