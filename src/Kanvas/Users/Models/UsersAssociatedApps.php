@@ -79,7 +79,7 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
     /**
      * Users relationship.
      *
-     * @return Users
+     * @return BelongsTo
      */
     public function user(): BelongsTo
     {
@@ -89,7 +89,7 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
     /**
      * Users relationship.
      *
-     * @return Companies
+     * @return BelongsTo
      */
     public function company(): BelongsTo
     {
@@ -99,7 +99,7 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
     /**
      * Users relationship.
      *
-     * @return Apps
+     * @return BelongsTo
      */
     public function app(): BelongsTo
     {
@@ -120,11 +120,16 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
      */
     public function get(string $key): mixed
     {
-        return $configuration[$key] ?? null;
+        return $this->configuration[$key] ?? null;
     }
 
     public function isActive(): bool
     {
         return $this->user_active === StatusEnums::ACTIVE->getValue();
+    }
+
+    public function isBanned(): bool
+    {
+        return $this->banned === StatusEnums::ACTIVE->getValue();
     }
 }
