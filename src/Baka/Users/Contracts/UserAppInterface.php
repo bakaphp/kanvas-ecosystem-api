@@ -19,4 +19,6 @@ interface UserAppInterface
     public function get(string $key): mixed;
 
     public function isActive(): bool;
+
+    public function isBanned(): bool;
 }
