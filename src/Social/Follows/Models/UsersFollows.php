@@ -37,6 +37,6 @@ class UsersFollows extends BaseModel
      */
     public function getEntityAttribute(): mixed
     {
-       return $this->entity_namespace::find($this->entity_id);
+        return $this->entity_namespace::find($this->entity_id);
     }
 }
