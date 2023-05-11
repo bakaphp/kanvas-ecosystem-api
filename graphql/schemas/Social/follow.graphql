@@ -12,12 +12,12 @@ extend type Query @guard {
         )
     getFollowers(users_id: Int!): [User]
         @paginate(
-            builder: "App\\GraphQL\\Social\\Builders\\Follows\\FollowBuilder@getFollowers"
+            builder: "App\\GraphQL\\Social\\Builders\\Follows\\GetFollowersBuilder"
             defaultCount: 25
         )
     getFollowing(users_id: Int!): [Following]
         @paginate(
-            builder: "App\\GraphQL\\Social\\Builders\\Follows\\FollowBuilder@getFollowing"
+            builder: "App\\GraphQL\\Social\\Builders\\Follows\\GetFollowingBuilder"
             defaultCount: 25
         )
     getTotalFollowers(users_id: Int!): Int

@@ -20,28 +20,6 @@ class FollowQueries
     }
 
     /**
-     * getFollowers
-     *
-     * @param  mixed $request
-     */
-    public function getFollowers(mixed $root, array $request): array
-    {
-        $user = UsersRepository::getUserOfAppById($request['users_id']);
-
-        return UsersFollowsRepository::getFollowers($user);
-    }
-
-    /**
-     * getFollowing
-     */
-    public function getFollowing(mixed $root, array $request): array
-    {
-        $user = UsersRepository::getUserOfAppById($request['users_id']);
-
-        return UsersFollowsRepository::getFollowing($user);
-    }
-
-    /**
      * getTotalFollowers
      */
     public function getTotalFollowers(mixed $root, array $request): int

@@ -30,13 +30,6 @@ class UsersFollowsRepository
         return (bool) self::getByUserAndEntity($user, $entity);
     }
 
-    /**
-     * getFollowers
-     */
-    public static function getFollowers(EloquentModel $entity): array
-    {
-        return self::getFollowersBuilder($entity)->get();
-    }
 
     /**
      * getFollowersBuilder
@@ -48,16 +41,7 @@ class UsersFollowsRepository
         return UsersFollows::join($ecosystemConnection . '.users', 'users.id', '=', 'users_follows.users_id')
             ->where('entity_id', $entity->id)
             ->where('entity_namespace', get_class($entity))
-            ->where('entity_namespace', get_class($entity))
             ->select('users.*');
-    }
-
-    /**
-     * getFollowing
-     */
-    public static function getFollowing(Users $user): array
-    {
-        return self::getFollowingBuilder($user)->get();
     }
 
     /**
