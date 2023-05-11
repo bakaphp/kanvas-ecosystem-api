@@ -20,8 +20,11 @@ use Kanvas\Guild\Models\BaseModel;
  * @property int $users_id
  * @property int $agents_id
  * @property int $rotations_id
+ * @property int $leads_sources_id
+ * @property int $leads_types_id
  * @property string $source_name
  * @property string|null $template
+ * @property int $is_default
  * @property int $total_leads
  * @property int $is_default
  */

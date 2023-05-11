@@ -21,7 +21,7 @@ extend type Query @guard {
         where: _ @whereConditions(columns: ["name", "description", "id"])
     ): [PeopleRelationship!]!
         @paginate(
-            model: "Kanvas\\Guild\\Customers\\Models\\PeoplesRelationships"
+            model: "Kanvas\\Guild\\Customers\\Models\\PeopleRelationship"
             defaultCount: 10
             scopes: ["fromApp", "fromCompany"]
         )

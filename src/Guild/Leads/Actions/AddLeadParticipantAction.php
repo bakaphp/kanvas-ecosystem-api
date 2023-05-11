@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Actions;
 
 use Kanvas\Guild\Leads\DataTransferObject\LeadsParticipant;
-use Kanvas\Guild\Leads\Models\LeadsParticipants;
+use Kanvas\Guild\Leads\Models\LeadParticipants;
 
 class AddLeadParticipantAction
 {
@@ -22,9 +22,9 @@ class AddLeadParticipantAction
     /**
      * execute.
      */
-    public function execute(): LeadsParticipants
+    public function execute(): LeadParticipants
     {
-        return LeadsParticipants::firstOrCreate([
+        return LeadParticipants::firstOrCreate([
             'leads_id' => $this->leadParticipant->lead->getId(),
             'peoples_id' => $this->leadParticipant->people->getId(),
         ], [

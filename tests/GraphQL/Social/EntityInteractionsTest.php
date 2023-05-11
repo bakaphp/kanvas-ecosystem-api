@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Social;
 
 use Kanvas\Enums\AppEnums;
-use Kanvas\Guild\Leads\Models\Leads;
+use Kanvas\Guild\Lead\Models\Lead;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Tests\TestCase;
 
@@ -20,7 +20,7 @@ class EntityInteractionsTest extends TestCase
     {
         $data = [
             'entity_id' => fake()->uuid(),
-            'entity_namespace' => Leads::class,
+            'entity_namespace' => Lead::class,
             'interacted_entity_id' => fake()->uuid(),
             'interacted_entity_namespace' => Variants::class,
         ];
@@ -46,7 +46,7 @@ class EntityInteractionsTest extends TestCase
     {
         $data = [
             'entity_id' => fake()->uuid(),
-            'entity_namespace' => Leads::class,
+            'entity_namespace' => Lead::class,
             'interacted_entity_id' => fake()->uuid(),
             'interacted_entity_namespace' => Variants::class,
         ];
@@ -72,7 +72,7 @@ class EntityInteractionsTest extends TestCase
     {
         $data = [
             'entity_id' => fake()->uuid(),
-            'entity_namespace' => Leads::class,
+            'entity_namespace' => Lead::class,
             'interacted_entity_id' => fake()->uuid(),
             'interacted_entity_namespace' => Variants::class,
         ];
@@ -98,7 +98,7 @@ class EntityInteractionsTest extends TestCase
     {
         $data = [
             'entity_id' => fake()->uuid(),
-            'entity_namespace' => Leads::class,
+            'entity_namespace' => Lead::class,
             'interacted_entity_id' => fake()->uuid(),
             'interacted_entity_namespace' => Variants::class,
         ];
@@ -136,7 +136,7 @@ class EntityInteractionsTest extends TestCase
 
         $data = [
             'entity_id' => $uuid,
-            'entity_namespace' => 'Leads',
+            'entity_namespace' => 'Lead',
             'interacted_entity_id' => fake()->uuid(),
             'interacted_entity_namespace' => Variants::class,
         ];
@@ -157,7 +157,7 @@ class EntityInteractionsTest extends TestCase
         {
             entityInteractions(
                     entity_id: "' . $uuid . '",
-                    entity_namespace: "Leads"
+                    entity_namespace: "Lead"
                     ) {
                     data {
                         entity_id,
@@ -175,7 +175,7 @@ class EntityInteractionsTest extends TestCase
                     'data' => [
                         [
                             'entity_id' => $uuid,
-                            'entity_namespace' => 'Leads',
+                            'entity_namespace' => 'Lead',
                             'interactions' => [
                                 'like' => true,
                                 'save' => false,

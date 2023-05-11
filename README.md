@@ -27,8 +27,8 @@ To get started, check out our documentation and installation instructions. If yo
 Todo:
 - [x] Ecosystem (in progress)
 - [x] Inventory (in progress)
-- [ ] CRM (in progress)
-- [ ] Social (in progress)
+- [x] CRM (in progress)
+- [x] Social (in progress)
 - [ ] Workflow (in progress)
 
 ## Prerequisites

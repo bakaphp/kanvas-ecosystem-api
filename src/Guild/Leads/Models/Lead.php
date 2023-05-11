@@ -6,10 +6,9 @@ namespace Kanvas\Guild\Leads\Models;
 
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
-use Kanvas\Guild\Customers\Models\Peoples;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Models\BaseModel;
 use Laravel\Scout\Searchable;
 
@@ -40,9 +39,8 @@ use Laravel\Scout\Searchable;
  * @property string $description
  * @property string $is_duplicate
  * @property string $third_party_sync_status @deprecated version 0.3
- *
  */
-class Leads extends BaseModel
+class Lead extends BaseModel
 {
     use UuidTrait;
     use Searchable;
@@ -53,14 +51,14 @@ class Leads extends BaseModel
 
     public function people(): BelongsTo
     {
-        return $this->belongsTo(Peoples::class, 'people_id', 'id');
+        return $this->belongsTo(People::class, 'people_id', 'id');
     }
 
     public function participants(): HasManyThrough
     {
         return $this->hasManyThrough(
-            Peoples::class,
-            LeadsParticipants::class,
+            People::class,
+            LeadParticipant::class,
             'peoples_id',
             'leads_id',
             'id',

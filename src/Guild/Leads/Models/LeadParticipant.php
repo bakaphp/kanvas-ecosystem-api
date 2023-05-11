@@ -8,8 +8,8 @@ use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Guild\Customers\Models\Peoples;
-use Kanvas\Guild\Customers\Models\PeoplesRelationships;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Models\PeopleRelationship;
 use Kanvas\Guild\Models\BaseModel;
 use Laravel\Scout\Searchable;
 
@@ -21,7 +21,7 @@ use Laravel\Scout\Searchable;
  * @property int $participants_types_id
  *
  */
-class LeadsParticipants extends BaseModel
+class LeadParticipant extends BaseModel
 {
     use HasCompositePrimaryKeyTrait;
     use NoAppRelationshipTrait;
@@ -34,7 +34,7 @@ class LeadsParticipants extends BaseModel
     public function people(): BelongsTo
     {
         return $this->belongsTo(
-            Peoples::class,
+            People::class,
             'people_id',
             'id'
         );
@@ -43,7 +43,7 @@ class LeadsParticipants extends BaseModel
     public function lead(): BelongsTo
     {
         return $this->belongsTo(
-            Leads::class,
+            Lead::class,
             'leads_id',
             'id'
         );
@@ -52,7 +52,7 @@ class LeadsParticipants extends BaseModel
     public function type(): BelongsTo
     {
         return $this->belongsTo(
-            PeoplesRelationships::class,
+            PeopleRelationship::class,
             'participants_types_id',
             'id'
         );
