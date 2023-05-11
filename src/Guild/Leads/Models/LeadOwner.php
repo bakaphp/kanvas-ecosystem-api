@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
 
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Models\BaseModel;
 
 /**
@@ -21,7 +19,7 @@ use Kanvas\Guild\Models\BaseModel;
  * @property string $created_at
  * @property string $updated_at
  * @property int $is_deleted
- * 
+ *
  * @deprecated version 2
  */
 class LeadOwner extends BaseModel

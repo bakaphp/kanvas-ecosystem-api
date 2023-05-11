@@ -28,7 +28,7 @@ class Organization extends BaseModel
     protected $table = 'organizations';
     protected $guarded = [];
 
-    public function peoples() : HasManyThrough
+    public function peoples(): HasManyThrough
     {
         return $this->hasManyThrough(
             People::class,
@@ -40,7 +40,7 @@ class Organization extends BaseModel
         );
     }
 
-    public function relationships() : HasManyThrough
+    public function relationships(): HasManyThrough
     {
         return $this->hasManyThrough(
             OrganizationRelated::class,

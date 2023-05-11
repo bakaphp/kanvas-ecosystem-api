@@ -30,7 +30,7 @@ class Rotation extends BaseModel
         return $this->belongsTo(Users::class, 'users_id', 'id');
     }
 
-    public function users() : HasManyThrough
+    public function users(): HasManyThrough
     {
         return $this->hasManyThrough(
             Users::class,
