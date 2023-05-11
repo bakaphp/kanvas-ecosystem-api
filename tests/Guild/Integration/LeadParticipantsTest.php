@@ -10,7 +10,7 @@ use Kanvas\Guild\Leads\Actions\AddLeadParticipantAction;
 use Kanvas\Guild\Leads\Actions\RemoveLeadParticipantAction;
 use Kanvas\Guild\Leads\DataTransferObject\LeadsParticipant;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Leads\Models\LeadParticipants;
+use Kanvas\Guild\Leads\Models\LeadParticipant;
 use Tests\TestCase;
 
 final class LeadParticipantsTest extends TestCase
@@ -48,7 +48,7 @@ final class LeadParticipantsTest extends TestCase
             )
         );
 
-        $this->assertInstanceOf(LeadParticipants::class, $addParticipant->execute());
+        $this->assertInstanceOf(LeadParticipant::class, $addParticipant->execute());
     }
 
     public function testRemoveParticipant(): void
