@@ -5,7 +5,7 @@ metadata:
   namespace: {{.Values.namespace}}
 spec:
   selector:
-    app: {{.Values.services.api.name}}
+    app: {{.Values.deployments.api.name}}
   type: NodePort
   ports:
     - name: http
