@@ -18,4 +18,14 @@ class FollowQueries
 
         return UsersFollowsRepository::isFollowing(auth()->user(), $user);
     }
+
+    /**
+     * getTotalFollowers
+     */
+    public function getTotalFollowers(mixed $root, array $request): int
+    {
+        $user = UsersRepository::getUserOfAppById($request['users_id']);
+
+        return UsersFollowsRepository::getTotalFollowers($user);
+    }
 }
