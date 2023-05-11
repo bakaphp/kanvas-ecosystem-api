@@ -79,6 +79,7 @@ jobs:
             touch helm/.helmignore
             echo "managed-cert.yaml" >> helm/.helmignore
             echo "svc-gcp-lb.yaml" >> helm/.helmignore
+            echo "ingress-gcp-lb.yaml" >> helm/.helmignore
             
             #deploy or upgrade helm chart
             helm upgrade --install ${{ secrets.INSTANCE_NAME }} helm \
