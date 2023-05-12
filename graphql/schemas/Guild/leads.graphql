@@ -1,3 +1,26 @@
+type Lead {
+    id: Int!
+    uuid: String!
+    company: Company!
+    branch: CompanyBranch!
+    title: String!
+    people: People
+    organization: Organization
+    receiver: LeadReceiver
+    status: LeadStatus
+    type: LeadType
+    firstname: String
+    lastname: String
+    email: String
+    phone: String
+    description: String
+    reason_lost: String
+    pipeline: Pipeline!
+    stage: PipelineStage!
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
 type LeadsParticipants {
     people: People! @belongsTo
     relationship: PeopleRelationship @belongsTo
@@ -17,5 +40,31 @@ extend type Mutation @guard {
     removeLeadParticipant(input: LeadsParticipantsInput!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\Participants@remove"
+        )
+}
+
+extend type Query @guard {
+    leads(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "companies_id"
+                    "companies_branches_id"
+                    "leads_receivers_id"
+                    "leads_owner_id"
+                    "pipeline_id"
+                    "pipeline_stage_id"
+                    "people_id"
+                    "lead_types_id"
+                    "status"
+                ]
+            )
+    ): [Lead]
+        @paginate(
+            model: "Kanvas\\Guild\\Leads\\Models\\Lead"
+            scopes: ["fromCompany"]
+            defaultCount: 10
         )
 }

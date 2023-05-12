@@ -1,4 +1,4 @@
-type Contacts {
+type Contact {
     id: Int!
     type: ContactType!
     people: People! @belongsTo
@@ -13,7 +13,7 @@ type ContactType {
     user: User! @belongsTo
 }
 
-type Address{
+type Address {
     id: Int!
     people: People! @belongsTo
     address: String
