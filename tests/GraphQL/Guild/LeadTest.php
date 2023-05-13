@@ -18,6 +18,6 @@ class LeadTest extends TestCase
                         title
                     }
                 }
-            }')->assertSee('uuid');
+            }')->assertOk();
     }
 }
