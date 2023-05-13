@@ -18,6 +18,11 @@ type Lead {
     reason_lost: String
     pipeline: LeadPipeline! @belongsTo
     stage: LeadPipelineStage! @belongsTo(relation: "stage")
+    custom_fields: [CustomField]
+        @paginate(
+            defaultCount: 10
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQueries@getAllByGraphType"
+        )
     created_at: DateTime!
     updated_at: DateTime!
 }

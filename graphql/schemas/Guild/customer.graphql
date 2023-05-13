@@ -5,7 +5,7 @@ type People {
     user: User!
     name: String!
     dob: String!
-    contacts: [Contacts!] @hasMany
+    contacts: [Contact!] @hasMany
     address: [Address!] @hasMany
 }
 

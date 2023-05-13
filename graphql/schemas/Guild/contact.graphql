@@ -1,6 +1,6 @@
 type Contact {
     id: Int!
-    type: ContactType!
+    type: ContactType! @belongsTo
     people: People! @belongsTo
     value: String
     weight: Int!

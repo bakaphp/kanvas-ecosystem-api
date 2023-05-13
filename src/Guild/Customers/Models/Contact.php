@@ -31,7 +31,7 @@ class Contact extends BaseModel
         );
     }
 
-    public function contactType(): BelongsTo
+    public function type(): BelongsTo
     {
         return $this->belongsTo(
             ContactType::class,
