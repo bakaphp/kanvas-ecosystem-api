@@ -9,10 +9,10 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Guild\Customers\Models\Peoples;
-use Kanvas\Guild\Customers\Models\PeoplesRelationships;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Models\PeopleRelationship;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
-use Kanvas\Guild\Leads\Models\Leads;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Spatie\LaravelData\Data;
 
@@ -25,9 +25,9 @@ class LeadsParticipant extends Data
         public readonly AppInterface $app,
         public readonly CompanyInterface $company,
         public readonly UserInterface $user,
-        public readonly Leads $lead,
-        public readonly Peoples $people,
-        public ?PeoplesRelationships $relationship = null,
+        public readonly Lead $lead,
+        public readonly People $people,
+        public ?PeopleRelationship $relationship = null,
     ) {
     }
 

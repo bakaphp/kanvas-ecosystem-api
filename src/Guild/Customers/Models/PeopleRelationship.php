@@ -19,7 +19,7 @@ use Laravel\Scout\Searchable;
  * @property string|null $description
  *
  */
-class PeoplesRelationships extends BaseModel
+class PeopleRelationship extends BaseModel
 {
     use Searchable;
 

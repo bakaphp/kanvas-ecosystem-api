@@ -16,7 +16,7 @@ use Kanvas\Guild\Models\BaseModel;
  * @property string $icon
  *
  */
-class ContactTypes extends BaseModel
+class ContactType extends BaseModel
 {
     protected $table = 'contacts_types';
     protected $guarded = [];

@@ -9,8 +9,8 @@ use Baka\Traits\SearchableTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
-use Kanvas\Guild\Customers\Models\Peoples;
-use Kanvas\Guild\Customers\Models\PeoplesRelationships;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Models\PeopleRelationship;
 
 class PeoplesRepository
 {
@@ -18,13 +18,13 @@ class PeoplesRepository
 
     public static function getModel(): Model
     {
-        return new Peoples();
+        return new People();
     }
 
-    public static function getRelationshipTypeById(int $id, CompanyInterface $company): PeoplesRelationships
+    public static function getRelationshipTypeById(int $id, CompanyInterface $company): PeopleRelationship
     {
         try {
-            return PeoplesRelationships::fromCompany($company)
+            return PeopleRelationship::fromCompany($company)
                 ->fromApp()
                 ->notDeleted()
                 ->where('id', $id)

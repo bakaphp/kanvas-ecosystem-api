@@ -6,7 +6,7 @@ namespace Kanvas\Guild\Leads\Repositories;
 
 use Baka\Traits\SearchableTrait;
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Guild\Leads\Models\Leads;
+use Kanvas\Guild\Leads\Models\Lead;
 
 class LeadsRepository
 {
@@ -14,6 +14,6 @@ class LeadsRepository
 
     public static function getModel(): Model
     {
-        return new Leads();
+        return new Lead();
     }
 }

@@ -8,8 +8,8 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\DataTransferObject\CompaniesPutData;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Guild\Customers\Models\Peoples;
-use Kanvas\Guild\Leads\Models\Leads;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Products\Models\Products;
@@ -47,7 +47,7 @@ class DeleteCompaniesAction
         //Guild
         DB::transaction(function () use ($companies) {
             DB::connection('crm')->transaction(function () use ($companies) {
-                $leads = Leads::fromCompany($companies)->get();
+                $leads = Lead::fromCompany($companies)->get();
 
                 foreach ($leads as $lead) {
                     $lead->softDelete();
@@ -56,7 +56,7 @@ class DeleteCompaniesAction
                      */
                 }
 
-                $customers = Peoples::fromCompany($companies)->get();
+                $customers = People::fromCompany($companies)->get();
 
                 foreach ($customers as $customer) {
                     $customer->softDelete();

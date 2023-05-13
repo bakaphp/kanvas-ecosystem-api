@@ -32,7 +32,7 @@ class Address extends BaseModel
     public function people(): BelongsTo
     {
         return $this->belongsTo(
-            Peoples::class,
+            People::class,
             'peoples_id',
             'id'
         );

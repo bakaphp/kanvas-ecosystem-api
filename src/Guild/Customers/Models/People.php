@@ -11,7 +11,7 @@ use Kanvas\Guild\Models\BaseModel;
 use Laravel\Scout\Searchable;
 
 /**
- * Class Peoples.
+ * Class People.
  *
  * @property int $id
  * @property string $uuid
@@ -27,7 +27,7 @@ use Laravel\Scout\Searchable;
  * @property string $apple_contact_id
  *
  */
-class Peoples extends BaseModel
+class People extends BaseModel
 {
     use UuidTrait;
     use Searchable;
@@ -48,7 +48,7 @@ class Peoples extends BaseModel
     public function contacts(): HasMany
     {
         return $this->hasMany(
-            Contacts::class,
+            Contact::class,
             'peoples_id',
             'id'
         );

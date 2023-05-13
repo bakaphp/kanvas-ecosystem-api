@@ -1,0 +1,134 @@
+type Lead {
+    id: Int!
+    uuid: String!
+    company: Company! @belongsTo
+    branch: CompanyBranch! @belongsTo
+    title: String!
+    people: People
+    organization: Organization @belongsTo
+    receiver: LeadReceiver @belongsTo
+    status: LeadStatus @belongsTo
+    type: LeadType @belongsTo
+    source: LeadSource @belongsTo
+    firstname: String
+    lastname: String
+    email: String
+    phone: String
+    description: String
+    reason_lost: String
+    pipeline: LeadPipeline! @belongsTo
+    stage: LeadPipelineStage! @belongsTo(relation: "stage")
+    custom_fields: [CustomField]
+        @paginate(
+            defaultCount: 10
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQueries@getAllByGraphType"
+        )
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type LeadsParticipants {
+    people: People! @belongsTo
+    relationship: PeopleRelationship @belongsTo
+}
+
+type LeadReceiver {
+    id: Int!
+    uuid: String!
+    company: Company! @belongsTo
+    branch: CompanyBranch! @belongsTo
+    name: String!
+    user: User @belongsTo
+    agent: User @belongsTo
+    rotation: Rotation! @belongsTo
+    source: LeadSource @belongsTo
+    type: LeadType @belongsTo
+    source_name: String
+    template: JSON
+    total_leads: Int!
+    is_default: Boolean!
+    created_at: DateTime!
+}
+
+type LeadStatus {
+    id: Int!
+    name: String!
+    is_default: Boolean!
+}
+
+type LeadType {
+    id: Int!
+    company: Company! @belongsTo
+    name: String!
+    description: String
+}
+
+type LeadSource {
+    id: Int!
+    company: Company! @belongsTo
+    name: String!
+    description: String
+    type: LeadType
+}
+
+type LeadPipeline {
+    id: Int!
+    company: Company! @belongsTo
+    module: SystemModule! @belongsTo
+    stages: [LeadPipelineStage!]! @hasMany
+    name: String!
+    slug: String!
+    weight: Int!
+    is_default: Boolean!
+}
+
+type LeadPipelineStage {
+    id: Int!
+    pipeline: LeadPipeline! @belongsTo
+    name: String!
+    rotting_days: Int!
+    weight: Int!
+}
+
+input LeadsParticipantsInput {
+    lead_id: Int!
+    people_id: Int!
+    relationship_id: Int!
+}
+
+extend type Mutation @guard {
+    addLeadParticipant(input: LeadsParticipantsInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\Participants@add"
+        )
+    removeLeadParticipant(input: LeadsParticipantsInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\Participants@remove"
+        )
+}
+
+extend type Query @guard {
+    leads(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "companies_id"
+                    "companies_branches_id"
+                    "leads_receivers_id"
+                    "leads_owner_id"
+                    "pipeline_id"
+                    "pipeline_stage_id"
+                    "people_id"
+                    "lead_types_id"
+                    "status"
+                ]
+            )
+    ): [Lead]
+        @paginate(
+            model: "Kanvas\\Guild\\Leads\\Models\\Lead"
+            scopes: ["fromCompany"]
+            defaultCount: 10
+        )
+}

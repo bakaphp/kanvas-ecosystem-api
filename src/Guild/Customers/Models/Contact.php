@@ -17,7 +17,7 @@ use Kanvas\Guild\Models\BaseModel;
  * @property int $weight
  *
  */
-class Contacts extends BaseModel
+class Contact extends BaseModel
 {
     protected $table = 'peoples_contacts';
     protected $guarded = [];
@@ -25,16 +25,16 @@ class Contacts extends BaseModel
     public function people(): BelongsTo
     {
         return $this->belongsTo(
-            Peoples::class,
+            People::class,
             'peoples_id',
             'id'
         );
     }
 
-    public function contactType(): BelongsTo
+    public function type(): BelongsTo
     {
         return $this->belongsTo(
-            ContactTypes::class,
+            ContactType::class,
             'contacts_types_id',
             'id'
         );
