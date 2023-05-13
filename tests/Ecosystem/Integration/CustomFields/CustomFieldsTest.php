@@ -34,6 +34,15 @@ final class CustomFieldsTest extends TestCase
         $this->assertEquals($value, $template->get('test'));
     }
 
+    public function testSaveArrayCustomField()
+    {
+        $template = $this->createTemplate();
+        $value = [fake()->name, fake()->name, fake()->name];
+        $template->set('test', $value);
+
+        $this->assertEquals($value, $template->get('test'));
+    }
+
     public function testUpdateCustomField()
     {
         $template = $this->createTemplate();
