@@ -1,6 +1,6 @@
 type CustomField {
     name: String!
-    value: Mixed
+    data: Mixed
     systemModule: SystemModule!
     entity_id: String!
 }
