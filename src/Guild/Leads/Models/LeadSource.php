@@ -23,8 +23,6 @@ use Kanvas\Guild\Models\BaseModel;
  */
 class LeadSource extends BaseModel
 {
-    use KanvasScopesTrait;
-
     protected $table = 'leads_sources';
     protected $guarded = [];
 }

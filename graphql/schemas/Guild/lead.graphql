@@ -9,6 +9,7 @@ type Lead {
     receiver: LeadReceiver @belongsTo
     status: LeadStatus @belongsTo
     type: LeadType @belongsTo
+    source: LeadSource @belongsTo
     firstname: String
     lastname: String
     email: String
@@ -16,7 +17,7 @@ type Lead {
     description: String
     reason_lost: String
     pipeline: LeadPipeline! @belongsTo
-    stage: LeadPipelineStage! @belongsTo
+    stage: LeadPipelineStage! @belongsTo(relation: "stage")
     created_at: DateTime!
     updated_at: DateTime!
 }
@@ -55,6 +56,14 @@ type LeadType {
     company: Company! @belongsTo
     name: String!
     description: String
+}
+
+type LeadSource {
+    id: Int!
+    company: Company! @belongsTo
+    name: String!
+    description: String
+    type: LeadType
 }
 
 type LeadPipeline {

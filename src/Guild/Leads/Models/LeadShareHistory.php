@@ -25,7 +25,6 @@ use Kanvas\Guild\Models\BaseModel;
  */
 class LeadShareHistory extends BaseModel
 {
-    use KanvasScopesTrait;
     use NoAppRelationshipTrait;
 
     protected $table = 'leads_shared_history';

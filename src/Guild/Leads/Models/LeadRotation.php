@@ -22,7 +22,6 @@ use Kanvas\Guild\Models\BaseModel;
  */
 class LeadRotation extends BaseModel
 {
-    use KanvasScopesTrait;
     use NoAppRelationshipTrait;
 
     protected $table = 'leads_rotations';

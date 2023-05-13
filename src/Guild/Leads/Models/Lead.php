@@ -106,7 +106,7 @@ class Lead extends BaseModel
         return $this->belongsTo(Pipeline::class, 'pipeline_id', 'id');
     }
 
-    public function pipelineStage(): BelongsTo
+    public function stage(): BelongsTo
     {
         return $this->belongsTo(PipelineStage::class, 'pipeline_stage_id', 'id');
     }

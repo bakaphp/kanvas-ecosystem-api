@@ -20,7 +20,6 @@ use Kanvas\Guild\Models\BaseModel;
  */
 class LeadStatus extends BaseModel
 {
-    use KanvasScopesTrait;
     use NoAppRelationshipTrait;
 
     protected $table = 'leads_status';

@@ -31,9 +31,8 @@ use Kanvas\Guild\Models\BaseModel;
 class LeadReceiver extends BaseModel
 {
     use UuidTrait;
-    use KanvasScopesTrait;
     use NoAppRelationshipTrait;
 
-    protected $table = 'lead_receivers';
+    protected $table = 'leads_receivers';
     protected $guarded = [];
 }

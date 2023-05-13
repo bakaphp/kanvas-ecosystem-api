@@ -24,7 +24,6 @@ use Kanvas\Guild\Models\BaseModel;
  */
 class LeadRotationAgent extends BaseModel
 {
-    use KanvasScopesTrait;
     use NoAppRelationshipTrait;
 
     protected $table = 'leads_rotations_agents';

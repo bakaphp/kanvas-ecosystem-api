@@ -23,7 +23,6 @@ use Kanvas\Guild\Models\BaseModel;
  */
 class LeadType extends BaseModel
 {
-    use KanvasScopesTrait;
     use NoAppRelationshipTrait;
 
     protected $table = 'leads_types';
