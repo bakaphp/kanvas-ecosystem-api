@@ -8,27 +8,8 @@ use Tests\TestCase;
 
 class LeadTest extends TestCase
 {
-    /**
-     * test get product.
-     */
-    public function testGetProduct(): void
+    public function testGetLeads(): void
     {
-        /*  $data = [
-             'name' => fake()->name,
-             'description' => fake()->text,
-         ];
-
-         $this->graphQL('
-             mutation($data: ProductInput!) {
-                 createProduct(input: $data)
-                 {
-                     name
-                     description
-                 }
-             }', ['data' => $data])->assertJson([
-             'data' => ['createProduct' => $data],
-         ]);
- */
         $this->graphQL('
             query {
                 leads {
@@ -37,8 +18,6 @@ class LeadTest extends TestCase
                         title
                     }
                 }
-            }')->assertJson([
-            'data' => ['products' => ['data' => [$data]]],
-        ]);
+            }')->assertSee('uuid');
     }
 }
