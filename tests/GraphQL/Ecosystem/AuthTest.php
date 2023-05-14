@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Ecosystem;
 
 use Illuminate\Support\Facades\Auth;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
@@ -265,7 +266,9 @@ class AuthTest extends TestCase
     {
         $emailData = self::loginData();
         $userData = Users::getByEmail($emailData->getEmail());
-        $authentically = $userData->getAppProfile();
+        $app = app(Apps::class);
+
+        $authentically = $userData->getAppProfile($app);
 
         $response = $this->graphQL( /** @lang GraphQL */
             '

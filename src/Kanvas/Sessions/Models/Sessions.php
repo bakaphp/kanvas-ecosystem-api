@@ -195,6 +195,10 @@ class Sessions extends PersonalAccessToken
         $user->lastvisit = date('Y-m-d H:i:s', $lastVisit);
         $user->saveOrFail();
 
+        $profile = $user->getAppProfile($app);
+        $profile->lastvisit = $user->lastvisit;
+        $profile->session_time = $user->session_time;
+
         //create a new one
         $sessionKey = new SessionKeys();
         $sessionKey->name = $name;
@@ -222,7 +226,7 @@ class Sessions extends PersonalAccessToken
             ->join('users', 'users.id', '=', 'sessions.users_id')
             ->select('users.*', 'sessions.*')
             ->where('sessions.id', $sessionId)
-            ->where('sessions.apps_id', $sessionId)
+            ->where('sessions.apps_id', $app->getId())
             ->first();
 
         if (! $userData) {
@@ -251,7 +255,6 @@ class Sessions extends PersonalAccessToken
 
             $profile = $user->getAppProfile($app);
             $profile->session_time = $currentTime;
-            $profile->session_page = $pageId;
             $profile->updateOrFail();
         }
 

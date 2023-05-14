@@ -31,7 +31,7 @@ class ForgotPassword
     public function forgot(string $email): Users
     {
         $recoverUser = Users::getByEmail($email);
-        $recoverUser->generateForgotHash();
+        $recoverUser->generateForgotHash($this->app);
 
         try {
             $recoverUser->notify(new ResetPassword($recoverUser));

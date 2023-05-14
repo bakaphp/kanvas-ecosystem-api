@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Models;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
@@ -211,13 +212,11 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Get the current user information for the running app.
      */
-    public function getAppProfile(?Apps $app = null): UsersAssociatedApps
+    public function getAppProfile(AppInterface $app): UsersAssociatedApps
     {
-        $app = $app ?? app(Apps::class);
-
         try {
             return UsersAssociatedApps::where('users_id', $this->getId())
-                ->where('apps_id', $app->getKey())
+                ->where('apps_id', $app->getId())
                 ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
                 ->firstOrFail();
         } catch (EloquentModelNotFoundException $e) {
@@ -398,9 +397,9 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Generate new forgot password hash.
      */
-    public function generateForgotHash(): string
+    public function generateForgotHash(AppInterface $app): string
     {
-        $user = $this->getAppProfile();
+        $user = $this->getAppProfile($app);
         $user->user_activation_forgot = Str::random(50);
         $user->updateOrFail();
 
@@ -410,9 +409,9 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Generate a hash password and updated for the user model.
      */
-    public function resetPassword(string $newPassword): bool
+    public function resetPassword(string $newPassword, AppInterface $app): bool
     {
-        $user = $this->getAppProfile();
+        $user = $this->getAppProfile($app);
         $user->password = Hash::make($newPassword);
         $user->saveOrFail();
 

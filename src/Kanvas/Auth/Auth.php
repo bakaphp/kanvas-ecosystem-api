@@ -60,7 +60,7 @@ class Auth
              * until v3 (legacy) is deprecated we have to check or create the user profile the first time
              * @todo remove in v2
              */
-            $authentically = $user->getAppProfile();
+            $authentically = $user->getAppProfile($app);
         } catch(ModelNotFoundException $e) {
             //user doesn't have a profile yet , verify if we need to create it
             UsersRepository::belongsToThisApp($user, $app);
