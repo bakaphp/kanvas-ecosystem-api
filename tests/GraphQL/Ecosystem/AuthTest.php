@@ -238,7 +238,7 @@ class AuthTest extends TestCase
     /**
      * Test the forgot password hash creation and email.
      */
-    public function test_forgot_password(): void
+    public function testForgotPassword(): void
     {
         $loginData = self::loginData();
         $email = $loginData->getEmail();
