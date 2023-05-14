@@ -312,7 +312,7 @@ class Sessions extends PersonalAccessToken
      *
      * @param string|null $ip
      */
-    public function end(Users $user, Apps $app,  ?string $sessionId = null): bool
+    public function end(Users $user, Apps $app, ?string $sessionId = null): bool
     {
         if ($sessionId === null) {
             return $this->endAll($user, $app);
