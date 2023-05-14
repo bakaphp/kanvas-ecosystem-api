@@ -44,7 +44,7 @@ class InventorySetupCommand extends Command
         ))->run();
 
         $this->newLine();
-        $this->info('Company ' . $company->name . ' has been setup with inventory');
+        $this->info('Inventory setup for Company ' . $company->name . ' completed successful');
         $this->newLine();
 
         return;
