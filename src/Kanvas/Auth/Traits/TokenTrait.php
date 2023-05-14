@@ -7,6 +7,7 @@ namespace Kanvas\Auth\Traits;
 use DateTimeImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Jwt;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Models\Users;
@@ -144,7 +145,10 @@ trait TokenTrait
             $tokenResponse['sessionId'],
             $tokenResponse['token'],
             $tokenResponse['refresh_token'],
-            $userIp
+            $userIp,
+            app(Apps::class),
+            ['*'],
+            $pageId,
         );
 
         unset($tokenResponse['sessionId']);
