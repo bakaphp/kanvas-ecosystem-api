@@ -6,6 +6,7 @@ namespace Kanvas\Auth\Traits;
 
 use DateTimeInterface;
 use Illuminate\Support\Str;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Jwt;
 use Kanvas\Auth\NewAccessToken;
 use Kanvas\Sessions\Models\Sessions;
@@ -44,7 +45,9 @@ trait HasJwtToken
             $tokenResponse,
             $refreshToken,
             $userIp,
-            $abilities
+            app(Apps::class),
+            $abilities,
+            $pageId,
         );
 
         return new NewAccessToken(

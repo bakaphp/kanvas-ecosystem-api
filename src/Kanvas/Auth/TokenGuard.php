@@ -7,6 +7,7 @@ namespace Kanvas\Auth;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\TokenGuard as AuthTokenGuard;
 use Illuminate\Http\Request;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Traits\TokenTrait;
 use Kanvas\Users\Models\Users;
@@ -74,12 +75,11 @@ class TokenGuard extends AuthTokenGuard
                 throw new AuthorizationException('User not found');
             }
 
-            $ip = ! defined('API_TESTS') ? $request->ip() : '127.0.0.1';
-
             return $session->check(
                 $user,
                 $token->claims()->get('sessionId'),
-                (string) $ip,
+                (string)  $request->ip(),
+                app(Apps::class),
                 1
             );
         } else {

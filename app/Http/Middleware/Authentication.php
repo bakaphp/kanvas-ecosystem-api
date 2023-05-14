@@ -6,8 +6,9 @@ use Closure;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
-use Kanvas\Sessions\Models\Sessions;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Traits\TokenTrait;
+use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Models\Users;
 use Lcobucci\JWT\Token;
 
@@ -20,13 +21,13 @@ class Authentication
      */
     public function handle(Request $request, Closure $next)
     {
-        if (!empty($request->bearerToken())) {
+        if (! empty($request->bearerToken())) {
             $token = $this->decodeToken($request->bearerToken());
         } else {
             throw new Exception('Missing Token');
         }
 
-        if (!$this->validateJwtToken($token)) {
+        if (! $this->validateJwtToken($token)) {
             throw new Exception('Invalid Token');
         }
 
@@ -46,7 +47,6 @@ class Authentication
      *
      * @param Micro $api
      * @param Config $config
-     * @param Token $token
      * @param RequestInterface $request
      *
      * @throws UnauthorizedException
@@ -62,13 +62,18 @@ class Authentication
         $session = new Sessions();
         $userData = new Users();
 
-        if (!empty($token->claims()->get('sessionId'))) {
-            if (!$user = $userData->getByEmail($token->claims()->get('email'))) {
+        if (! empty($token->claims()->get('sessionId'))) {
+            if (! $user = $userData->getByEmail($token->claims()->get('email'))) {
                 throw new Exception('User not found');
             }
 
-            $ip = !defined('API_TESTS') ? $request->ip() : '127.0.0.1';
-            return $session->check($user, $token->claims()->get('sessionId'), (string) $ip, 1);
+            return $session->check(
+                $user,
+                $token->claims()->get('sessionId'),
+                (string) $request->ip(),
+                app(Apps::class),
+                1
+            );
         } else {
             throw new Exception('User not found');
         }
