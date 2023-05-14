@@ -319,7 +319,7 @@ class Sessions extends PersonalAccessToken
         }
 
         DB::table('session_keys')
-            ->whereIn('session_id', function ($query) use ($app, $sessionId, $user) {
+            ->whereIn('sessions_id', function ($query) use ($app, $sessionId, $user) {
                 $query->select('id')
                     ->from('sessions')
                     ->where('apps_id', $app->getId())
@@ -340,7 +340,7 @@ class Sessions extends PersonalAccessToken
     public function endAll(Users $user, Apps $app): bool
     {
         DB::table('session_keys')
-            ->whereIn('session_id', function ($query) use ($app, $user) {
+            ->whereIn('sessions_id', function ($query) use ($app, $user) {
                 $query->select('id')
                     ->from('sessions')
                     ->where('apps_id', $app->getId())
