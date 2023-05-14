@@ -158,7 +158,7 @@ class Sessions extends PersonalAccessToken
                     ->orWhere('email', 'LIKE', $emailDomain);
             })
             ->first();
-        
+
         if ($banInfo) {
             throw new AuthenticationException(
                 'This account has been banned. Please contact the administrators.'
