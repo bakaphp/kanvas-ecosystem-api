@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Baka\Users\Contracts;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -37,7 +38,7 @@ interface UserInterface extends Authenticatable
 
     public function notifications(): HasMany;
 
-    public function getAppProfile(Apps $app): UsersAssociatedApps;
+    public function getAppProfile(AppInterface $app): UsersAssociatedApps;
 
     public function getCurrentCompany(): CompanyInterface;
 
