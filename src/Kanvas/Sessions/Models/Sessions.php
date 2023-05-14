@@ -98,7 +98,7 @@ class Sessions extends PersonalAccessToken
      */
     public function keys(): BelongsTo
     {
-        return $this->belongsTo(SessionKeys::class);
+        return $this->belongsTo(SessionKeys::class, 'sessions_id', 'id');
     }
 
     /**
@@ -318,16 +318,20 @@ class Sessions extends PersonalAccessToken
             return $this->endAll($user, $app);
         }
 
-        $this->fromApp($app)
+        DB::table('session_keys')
+            ->whereIn('session_id', function ($query) use ($app, $sessionId, $user) {
+                $query->select('id')
+                    ->from('sessions')
+                    ->where('apps_id', $app->getId())
+                    ->where('id', $sessionId)
+                    ->where('users_id', $user->getId());
+            })
+            ->delete();
+
+        return $this->fromApp($app)
             ->where('id', $sessionId)
             ->where('users_id', $user->getId())
-            ->delete();
-
-        SessionKeys::where('sessions_id', $sessionId)
-            ->where('users_id', $user->getId())
-            ->delete();
-
-        return true;
+            ->delete() > 0;
     }
 
     /**
@@ -335,13 +339,17 @@ class Sessions extends PersonalAccessToken
      */
     public function endAll(Users $user, Apps $app): bool
     {
-        $this->fromApp($app)
+        DB::table('session_keys')
+            ->whereIn('session_id', function ($query) use ($app, $user) {
+                $query->select('id')
+                    ->from('sessions')
+                    ->where('apps_id', $app->getId())
+                    ->where('users_id', $user->getId());
+            })
+            ->delete();
+
+        return $this->fromApp($app)
             ->where('users_id', $user->getId())
-            ->delete();
-
-        SessionKeys::where('users_id', $user->getId())
-            ->delete();
-
-        return true;
+            ->delete() > 0;
     }
 }
