@@ -14,7 +14,7 @@ Kanvas Niche is not a replacement for your existing backend-as-a-service or deve
 
 We call it Niche because we focus on specific solutions for common problems, including:
 
-- Ecosystem (authentication, teams, company)
+- Ecosystem: authentication, teams aka companies
 - Inventory: products, variants, distribution channels
 - Social: follows, comments, reactions, messaging
 - CRM: leads, deals, pipelines
