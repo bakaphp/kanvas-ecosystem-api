@@ -160,7 +160,7 @@ class Auth
         $sessionId = $token->claims()->get('sessionId') ?? null;
 
         $session = new Sessions();
-        $session->end($user, $sessionId);
+        $session->end($user, app(Apps::class), $sessionId);
 
         return true;
     }
