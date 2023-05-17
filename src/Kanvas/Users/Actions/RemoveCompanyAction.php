@@ -41,6 +41,12 @@ class RemoveCompanyAction
             $this->branch
         )->delete();
 
+        $this->company->associateUser(
+            $this->user,
+            StateEnums::YES->getValue(),
+            CompaniesBranches::getGlobalBranch()
+        )->delete();
+
         if ($this->user->get(Companies::cacheKey())) {
             $this->user->del(Companies::cacheKey());
         }
