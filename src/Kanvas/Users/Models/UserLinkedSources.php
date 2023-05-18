@@ -29,13 +29,11 @@ class UserLinkedSources extends BaseModel
         'source_id',
         'source_users_id',
         'source_users_id_text',
-        'source_username'
+        'source_username',
     ];
 
     /**
      * Users relationship.
-     *
-     * @return Users
      */
     public function user(): BelongsTo
     {
@@ -44,8 +42,6 @@ class UserLinkedSources extends BaseModel
 
     /**
      * Users relationship.
-     *
-     * @return Users
      */
     public function source(): BelongsTo
     {
@@ -54,11 +50,6 @@ class UserLinkedSources extends BaseModel
 
     /**
      * Create user link source based on social provider
-     *
-     * @param SocialiteUser $socialUser
-     * @param Users $user
-     * @param Sources $source
-     * @return UserLinkedSources
      */
     public static function createSocial(SocialiteUser $socialUser, Users $user, Sources $source): self
     {

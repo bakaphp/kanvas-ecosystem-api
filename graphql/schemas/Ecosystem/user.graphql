@@ -44,6 +44,13 @@ type TokenResponse {
     sessionId: String!
 }
 
+type UserLinkSource {
+    users_id: Int!
+    source: Source! @belongsTo
+    source_user_id: String!
+    source_user_name: String
+}
+
 type RegisterResponse {
     user: User!
     token: TokenResponse!
@@ -80,6 +87,12 @@ input RegisterInput {
     roles_id: Int
 }
 
+input DeviceInput {
+    device_id: String!
+    source_site: String!
+    source_username: String
+}
+
 input UpdateUserInput {
     firstname: String
     lastname: String
@@ -107,12 +120,12 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@loginMutation"
         )
-    logout: Boolean 
+    logout: Boolean! 
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@logout"
         )
-    logoutFromAllDevices: Boolean 
+    logoutFromAllDevices: Boolean! 
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@logoutFromAllDevices"
@@ -121,7 +134,7 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@register"
         )
-    refreshToken(refresh_token: String!): TokenResponse
+    refreshToken(refresh_token: String!): TokenResponse!
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@refreshToken"
@@ -134,27 +147,37 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@changePassword"
         )
-    forgotPassword(data: ForgotPasswordInput!): Boolean
+    forgotPassword(data: ForgotPasswordInput!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@forgot"
         )
-    resetPassword(data: ResetPasswordInput!): Boolean
+    resetPassword(data: ResetPasswordInput!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@reset"
         )
-    updateUser(data: UpdateUserInput!): User 
+    updateUser(data: UpdateUserInput!): User!
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updateUser"
         )
-    switchCompanyBranch(company_branch_id: Int!): Boolean
+    switchCompanyBranch(company_branch_id: Int!): Boolean!
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@switchCompanyBranch"
         )
-    socialLogin(data: SocialLoginInput!): TokenResponse
+    socialLogin(data: SocialLoginInput!): TokenResponse!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@socialLogin"
+        )
+    linkDevice(data: DeviceInput!): Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\UserDeviceMutation@register"
+        )
+    unLinkDevice(data: DeviceInput!): Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\UserDeviceMutation@remove"
         )
 }
 
