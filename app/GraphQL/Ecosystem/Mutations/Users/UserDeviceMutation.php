@@ -4,12 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Users;
 
-use Illuminate\Support\Facades\Auth as AuthFacade;
-use Illuminate\Support\Facades\Hash;
-use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
-use Kanvas\Users\Models\UserLinkedSources;
-use Kanvas\Users\Repositories\UsersRepository;
-
 class UserDeviceMutation
 {
     /**
@@ -17,7 +11,6 @@ class UserDeviceMutation
      */
     public function register(mixed $root, array $req): bool
     {
-       
         return true;
     }
 
