@@ -16,7 +16,7 @@ use Kanvas\Models\BaseModel;
  */
 class Languages extends BaseModel
 {
-    use Cachable;
+    // use Cachable;
 
     /**
      * The table associated with the model.
