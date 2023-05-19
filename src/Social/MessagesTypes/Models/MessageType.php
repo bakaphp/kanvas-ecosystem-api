@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Messages\MessagesTypes\Models;
+namespace Kanvas\Social\MessagesTypes\Models;
 
 use Baka\Traits\UuidTrait;
 use Kanvas\Social\Models\BaseModel;
 
 /**
  *  class MessageType
- *  @package Kanvas\Social\Messages\MessagesTypes\Models
+ *  @package Kanvas\Social\MessagesTypes\Models
  *  @property int $id
  *  @property string $name
  *  @property ?string $uuid

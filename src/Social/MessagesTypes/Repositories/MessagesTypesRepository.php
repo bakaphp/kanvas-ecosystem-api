@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Messages\MessagesTypes\Repositories;
+namespace Kanvas\Social\MessagesTypes\Repositories;
 
-use Kanvas\Social\Messages\MessagesTypes\Models\MessageType;
+use Kanvas\Social\MessagesTypes\Models\MessageType;
 
 class MessagesTypesRepository
 {

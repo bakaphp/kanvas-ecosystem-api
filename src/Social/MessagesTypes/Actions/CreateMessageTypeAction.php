@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Messages\MessagesTypes\Actions;
+namespace Kanvas\Social\MessagesTypes\Actions;
 
-use Kanvas\Social\Messages\MessagesTypes\DataTransferObject\MessageTypeInput;
-use Kanvas\Social\Messages\MessagesTypes\Models\MessageType;
+use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\Social\MessagesTypes\Models\MessageType;
 
 class CreateMessageTypeAction
 {

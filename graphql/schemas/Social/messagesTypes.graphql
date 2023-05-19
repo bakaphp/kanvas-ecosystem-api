@@ -20,7 +20,7 @@ type MessageType {
 
 extend type Query {
     messageTypes: [MessageType] @paginate(
-        model: "Kanvas\\Social\\Messages\\MessagesTypes\\Models\\MessageType"
+        model: "Kanvas\\Social\\MessagesTypes\\Models\\MessageType"
         defaultCount: 25
     )
     messageType(id: Int!): MessageType

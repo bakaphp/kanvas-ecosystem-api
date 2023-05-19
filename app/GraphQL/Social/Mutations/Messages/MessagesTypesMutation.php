@@ -6,10 +6,10 @@ namespace App\GraphQL\Social\Mutations\Messages;
 
 use Kanvas\Apps\Models\Apps;
 use  Kanvas\Languages\Models\Languages;
-use Kanvas\Social\Messages\MessagesTypes\Actions\CreateMessageTypeAction;
-use Kanvas\Social\Messages\MessagesTypes\DataTransferObject\MessageTypeInput;
-use Kanvas\Social\Messages\MessagesTypes\Models\MessageType;
-use Kanvas\Social\Messages\MessagesTypes\Repositories\MessagesTypesRepository;
+use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
+use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 
 class MessagesTypesMutation
 {
@@ -40,7 +40,7 @@ class MessagesTypesMutation
         Languages::findOrFail($request['input']['languages_id']);
         $messageType = MessagesTypesRepository::getById($request['id']);
         $messageType->update($request['input']);
-        
+
         return $messageType;
     }
 }
