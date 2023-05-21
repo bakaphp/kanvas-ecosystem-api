@@ -9,6 +9,7 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Users\Models\Users;
 use Laravel\Sanctum\PersonalAccessToken;
 use Lcobucci\JWT\Token\Plain;
@@ -226,7 +227,12 @@ class Sessions extends PersonalAccessToken
             ->join('users', 'users.id', '=', 'sessions.users_id')
             ->select('users.*', 'sessions.*')
             ->where('sessions.id', $sessionId)
-            ->where('sessions.apps_id', $app->getId())
+            ->when($app->get('legacy_login'), function ($query) use ($app) {
+                //@todo remove once legacy is deprecated
+                $query->whereIn('sessions.apps_id', [$app->getId(), AppEnums::LEGACY_APP_ID->getValue()]);
+            }, function ($query) use ($app) {
+                $query->where('sessions.apps_id', $app->getId());
+            })
             ->first();
 
         if (! $userData) {
@@ -325,7 +331,12 @@ class Sessions extends PersonalAccessToken
             ->whereIn('sessions_id', function ($query) use ($app, $sessionId, $user) {
                 $query->select('id')
                     ->from('sessions')
-                    ->where('apps_id', $app->getId())
+                    ->when($app->get('legacy_login'), function ($query) use ($app) {
+                        //@todo remove once legacy is deprecated
+                        $query->whereIn('sessions.apps_id', [$app->getId(), AppEnums::LEGACY_APP_ID->getValue()]);
+                    }, function ($query) use ($app) {
+                        $query->where('sessions.apps_id', $app->getId());
+                    })
                     ->where('id', $sessionId)
                     ->where('users_id', $user->getId());
             })
@@ -346,7 +357,12 @@ class Sessions extends PersonalAccessToken
             ->whereIn('sessions_id', function ($query) use ($app, $user) {
                 $query->select('id')
                     ->from('sessions')
-                    ->where('apps_id', $app->getId())
+                    ->when($app->get('legacy_login'), function ($query) use ($app) {
+                        //@todo remove once legacy is deprecated
+                        $query->whereIn('sessions.apps_id', [$app->getId(), AppEnums::LEGACY_APP_ID->getValue()]);
+                    }, function ($query) use ($app) {
+                        $query->where('sessions.apps_id', $app->getId());
+                    })
                     ->where('users_id', $user->getId());
             })
             ->delete();
