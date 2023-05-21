@@ -130,18 +130,15 @@ class UsersRepository
     public static function belongsToThisApp(Users $user, Apps $app, ?Companies $company = null): UsersAssociatedApps
     {
         try {
+            $query = UsersAssociatedApps::where('users_id', $user->getKey())
+                ->where('apps_id', $app->getKey())
+                ->where('is_deleted', StateEnums::NO->getValue());
+
             if ($company) {
-                return UsersAssociatedApps::where('users_id', $user->getKey())
-                    ->where('apps_id', $app->getKey())
-                    ->whereIn('companies_id', [AppEnums::GLOBAL_COMPANY_ID->getValue(), $company->getKey()])
-                    ->where('is_deleted', StateEnums::NO->getValue())
-                    ->firstOrFail();
+                $query->whereIn('companies_id', [AppEnums::GLOBAL_COMPANY_ID->getValue(), $company->getKey()]);
             }
 
-            return UsersAssociatedApps::where('users_id', $user->getKey())
-                ->where('apps_id', $app->getKey())
-                ->where('is_deleted', StateEnums::NO->getValue())
-                ->firstOrFail();
+            return $query->firstOrFail();
         } catch (ModelNotFoundException) {
             throw new ExceptionsModelNotFoundException(
                 'User doesn\'t belong to this app ' . $app->name . ', talk to the Admin'

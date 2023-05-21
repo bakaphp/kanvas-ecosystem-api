@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Models;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
@@ -26,6 +27,7 @@ use Kanvas\Auth\Contracts\Authenticatable as ContractsAuthenticatable;
 use Kanvas\Auth\Traits\HasApiTokens;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Exceptions\ModelNotFoundException;
@@ -34,6 +36,7 @@ use Kanvas\Locations\Models\Cities;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Locations\Models\States;
 use Kanvas\Notifications\Models\Notifications;
+use Kanvas\Notifications\Traits\HasNotificationSettings;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Users\Factories\UsersFactory;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
@@ -97,9 +100,15 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use HasRolesAndAbilities;
     use HasFilesystemTrait;
     use KanvasModelTrait;
+    use HasNotificationSettings;
 
     protected ?string $defaultCompanyName = null;
     protected $guarded = [];
+
+    protected $hidden = [
+        'password',
+        'user_activation_key',
+    ];
 
     /**
      * The table associated with the model.
@@ -203,11 +212,16 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Get the current user information for the running app.
      */
-    public function currentAppInfo(): UsersAssociatedApps
+    public function getAppProfile(AppInterface $app): UsersAssociatedApps
     {
-        return UsersAssociatedApps::where('users_id', $this->getId())
-            ->where('apps_id', app(Apps::class)->getKey())
-            ->firstOrFail();
+        try {
+            return UsersAssociatedApps::where('users_id', $this->getId())
+                ->where('apps_id', $app->getId())
+                ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+                ->firstOrFail();
+        } catch (EloquentModelNotFoundException $e) {
+            throw new ModelNotFoundException('User not found');
+        }
     }
 
     /**
@@ -383,24 +397,26 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Generate new forgot password hash.
      */
-    public function generateForgotHash(): string
+    public function generateForgotHash(AppInterface $app): string
     {
-        $this->user_activation_forgot = Str::random(50);
-        $this->updateOrFail();
+        $user = $this->getAppProfile($app);
+        $user->user_activation_forgot = Str::random(50);
+        $user->updateOrFail();
 
-        return $this->user_activation_forgot;
+        return $user->user_activation_forgot;
     }
 
     /**
      * Generate a hash password and updated for the user model.
      */
-    public function resetPassword(string $newPassword): bool
+    public function resetPassword(string $newPassword, AppInterface $app): bool
     {
-        $this->password = Hash::make($newPassword);
-        $this->saveOrFail();
+        $user = $this->getAppProfile($app);
+        $user->password = Hash::make($newPassword);
+        $user->saveOrFail();
 
-        $this->user_activation_forgot = '';
-        $this->saveOrFail();
+        $user->user_activation_forgot = '';
+        $user->saveOrFail();
 
         return true;
     }

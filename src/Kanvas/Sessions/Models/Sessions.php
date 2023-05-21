@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Sessions\Models;
 
+use Baka\Traits\KanvasAppScopesTrait;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Users\Models\Users;
 use Laravel\Sanctum\PersonalAccessToken;
 use Lcobucci\JWT\Token\Plain;
@@ -16,6 +18,7 @@ use Lcobucci\JWT\Token\Plain;
  * Sessions Model.
  *
  * @property int $users_id
+ * @property int $apps_id
  * @property string $token
  * @property int $start
  * @property int $time
@@ -26,6 +29,8 @@ use Lcobucci\JWT\Token\Plain;
  */
 class Sessions extends PersonalAccessToken
 {
+    use KanvasAppScopesTrait;
+
     /**
      * The attributes that should be cast to native types.
      *
@@ -55,7 +60,7 @@ class Sessions extends PersonalAccessToken
         'time',
         'page',
         'logged_in',
-        'id',
+        'apps_id',
         'token',
         'refresh_token',
         'expires_at',
@@ -83,8 +88,6 @@ class Sessions extends PersonalAccessToken
 
     /**
      * Apps relationship.
-     *
-     * @return BelongsTo
      */
     public function user(): BelongsTo
     {
@@ -93,19 +96,15 @@ class Sessions extends PersonalAccessToken
 
     /**
      * Session Keys.
-     *
-     * @return BelongsTo
      */
     public function keys(): BelongsTo
     {
-        return $this->belongsTo(SessionKeys::class);
+        return $this->belongsTo(SessionKeys::class, 'sessions_id', 'id');
     }
 
     /**
      * Override the getIncrementing() function to return false to tell
      * Laravel that the identifier does not auto increment (it's a string).
-     *
-     * @return bool
      */
     public function getIncrementing(): bool
     {
@@ -114,8 +113,6 @@ class Sessions extends PersonalAccessToken
 
     /**
      * Tell laravel that the key type is a string, not an integer.
-     *
-     * @return string
      */
     public function getKeyType(): string
     {
@@ -124,14 +121,6 @@ class Sessions extends PersonalAccessToken
 
     /**
      * Create a new session token for the given users, to track on the db.
-     *
-     * @param Users $user
-     * @param string $sessionId
-     * @param Plain $token
-     * @param string $userIp
-     * @param int $pageId
-     *
-     * @return self
      */
     public function start(
         Users $user,
@@ -140,6 +129,7 @@ class Sessions extends PersonalAccessToken
         Plain $token,
         Plain $refreshToken,
         string $userIp,
+        Apps $app,
         array $ability = ['*'],
         int $pageId = 0,
     ): self {
@@ -151,40 +141,29 @@ class Sessions extends PersonalAccessToken
         //
         preg_match('/(..)(..)(..)(..)/', $userIp, $userIp_parts);
 
-        // $sql = "SELECT ip, users_id, email
-        //     FROM  Canvas\Models\Banlist
-        //     WHERE ip IN (:ip_one:, :ip_two:, :ip_three:, :ip_four:)
-        //         OR users_id = :users_id:
-        //         OR email LIKE :email:
-        //         OR email LIKE :email_domain:";
+        $ipOne = $userIp_parts[1] . $userIp_parts[2] . $userIp_parts[3] . $userIp_parts[4];
+        $ipTwo = $userIp_parts[1] . $userIp_parts[2] . $userIp_parts[3] . 'ff';
+        $ipThree = $userIp_parts[1] . $userIp_parts[2] . 'ffff';
+        $ipFour = $userIp_parts[1] . 'ffffff';
 
-        $params = [
-            'users_id' => $user->id,
-            'email' => $user->email,
-            'email_domain' => substr(str_replace("\'", "''", $user->email), strpos(str_replace("\'", "''", $user->email), '@')),
-            'ip_one' => $userIp_parts[1] . $userIp_parts[2] . $userIp_parts[3] . $userIp_parts[4],
-            'ip_two' => $userIp_parts[1] . $userIp_parts[2] . $userIp_parts[3] . 'ff',
-            'ip_three' => $userIp_parts[1] . $userIp_parts[2] . 'ffff',
-            'ip_four' => $userIp_parts[1] . 'ffffff',
-        ];
+        $userId = $user->getId();
+        $email = $user->getEmail();
+        $emailDomain = substr(str_replace("\'", "''", $user->getEmail()), strpos(str_replace("\'", "''", $user->getEmail()), '@'));
 
-        $banData = DB::select(
-            'SELECT * from banlist
-            WHERE ip IN (:ip_one, :ip_two, :ip_three, :ip_four)
-            OR users_id = :users_id
-            OR email LIKE :email
-            OR email LIKE :email_domain',
-            $params
-        );
-
-        $banInfo = count($banData) > 0 ? $banData[0] : null;
+        $banInfo = DB::table('banlist')
+            ->whereIn('ip', [$ipOne, $ipTwo, $ipThree, $ipFour])
+            ->where('apps_id', $app->getId())
+            ->where(function ($query) use ($userId, $email, $emailDomain) {
+                $query->where('users_id', $userId)
+                    ->orWhere('email', 'LIKE', $email)
+                    ->orWhere('email', 'LIKE', $emailDomain);
+            })
+            ->first();
 
         if ($banInfo) {
-            if ($banInfo['ip'] || $banInfo['users_id'] || $banInfo['email']) {
-                throw new AuthenticationException(_(
-                    'This account has been banned. Please contact the administrators.'
-                ));
-            }
+            throw new AuthenticationException(
+                'This account has been banned. Please contact the administrators.'
+            );
         }
 
         /**
@@ -195,6 +174,7 @@ class Sessions extends PersonalAccessToken
          */
         $session = self::create([
             'users_id' => $user->id,
+            'apps_id' => $app->getId(),
             'id' => $sessionId,
             'start' => $currentTime,
             'time' => $currentTime,
@@ -216,6 +196,10 @@ class Sessions extends PersonalAccessToken
         $user->lastvisit = date('Y-m-d H:i:s', $lastVisit);
         $user->saveOrFail();
 
+        $profile = $user->getAppProfile($app);
+        $profile->lastvisit = $user->lastvisit;
+        $profile->session_time = $user->session_time;
+
         //create a new one
         $sessionKey = new SessionKeys();
         $sessionKey->name = $name;
@@ -234,70 +218,53 @@ class Sessions extends PersonalAccessToken
     /**
      * Checks for a given user session, tidies session table and updates user
      * sessions at each page refresh.
-     *
-     * @param Users $user
-     * @param string $sessionId
-     * @param string $userIp
-     * @param int $pageId
-     *
-     * @return Users
      */
-    public function check(Users $user, string $sessionId, string $userIp, int $pageId): Users
+    public function check(Users $user, string $sessionId, string $userIp, Apps $app = null, int $pageId): Users
     {
         $currentTime = time();
 
-        $params = [
-            'session_id' => $sessionId,
-        ];
+        $userData = DB::table('sessions')
+            ->join('users', 'users.id', '=', 'sessions.users_id')
+            ->select('users.*', 'sessions.*')
+            ->where('sessions.id', $sessionId)
+            ->when($app->get('legacy_login'), function ($query) use ($app) {
+                //@todo remove once legacy is deprecated
+                $query->whereIn('sessions.apps_id', [$app->getId(), AppEnums::LEGACY_APP_ID->getValue()]);
+            }, function ($query) use ($app) {
+                $query->where('sessions.apps_id', $app->getId());
+            })
+            ->first();
 
-        $result = DB::select(
-            'SELECT users.*, sessions.*
-            FROM sessions, users
-            WHERE sessions.id = :session_id
-            AND users.id = sessions.users_id',
-            $params
-        );
-
-        $userData = current($result);
-
-        if (empty($userData)) {
+        if (! $userData) {
             throw new AuthenticationException('Invalid Session');
         }
 
-        if ($userData->users_id != $user->id) {
+        if ($userData->users_id !== $user->id) {
             throw new AuthenticationException('Invalid Token');
         }
 
-        //
-        // Did the session exist in the DB?
-        //
-        if ($userData) {
-            // Only update session DB a minute or so after last update
-            if ($currentTime - $userData->time > 60) {
-                //update the user session
-                $session = self::find($sessionId);
-                $session->time = $currentTime;
-                $session->page = $pageId;
+        // Only update session DB a minute or so after last update
+        if ($currentTime - $userData->time > 60) {
+            //update the user session
+            $session = self::fromApp($app)->where('id', $sessionId)->firstOrFail();
+            $session->time = $currentTime;
+            $session->page = $pageId;
 
-                if (! $session->save()) {
-                    throw new AuthenticationException('Unable to update session');
-                }
-
-                //update user
-                $user->id = $userData->users_id;
-                $user->session_time = $currentTime;
-                $user->session_page = $pageId;
-                $user->save();
-
-                //$this->clean($sessionId);
+            if (! $session->save()) {
+                throw new AuthenticationException('Unable to update session');
             }
 
-            //$user->session_id = $sessionId;
+            //update user
+            $user->session_time = $currentTime;
+            $user->session_page = $pageId;
+            $user->saveOrFail();
 
-            return $user;
+            $profile = $user->getAppProfile($app);
+            $profile->session_time = $currentTime;
+            $profile->updateOrFail();
         }
 
-        throw new AuthenticationException(_('No Session Token Found'));
+        return $user;
     }
 
     /**
@@ -352,43 +319,56 @@ class Sessions extends PersonalAccessToken
      * It will delete the entry in the sessions table for this session,
      * remove the corresponding auto-login key and reset the cookies.
      *
-     * @param Users $user
      * @param string|null $ip
-     *
-     * @return bool
      */
-    public function end(Users $user, ?string $sessionId = null): bool
+    public function end(Users $user, Apps $app, ?string $sessionId = null): bool
     {
         if ($sessionId === null) {
-            return $this->endAll($user);
+            return $this->endAll($user, $app);
         }
 
-        $this->where('id', $sessionId)
-            ->where('users_id', $user->getId())
+        DB::table('session_keys')
+            ->whereIn('sessions_id', function ($query) use ($app, $sessionId, $user) {
+                $query->select('id')
+                    ->from('sessions')
+                    ->when($app->get('legacy_login'), function ($query) use ($app) {
+                        //@todo remove once legacy is deprecated
+                        $query->whereIn('sessions.apps_id', [$app->getId(), AppEnums::LEGACY_APP_ID->getValue()]);
+                    }, function ($query) use ($app) {
+                        $query->where('sessions.apps_id', $app->getId());
+                    })
+                    ->where('id', $sessionId)
+                    ->where('users_id', $user->getId());
+            })
             ->delete();
 
-        SessionKeys::where('sessions_id', $sessionId)
+        return $this->fromApp($app)
+            ->where('id', $sessionId)
             ->where('users_id', $user->getId())
-            ->delete();
-
-        return true;
+            ->delete() > 0;
     }
 
     /**
      * End all user Sessions from all devices and Ips.
-     *
-     * @param Users $user
-     *
-     * @return bool
      */
-    public function endAll(Users $user): bool
+    public function endAll(Users $user, Apps $app): bool
     {
-        $this->where('users_id', $user->getId())
-        ->delete();
+        DB::table('session_keys')
+            ->whereIn('sessions_id', function ($query) use ($app, $user) {
+                $query->select('id')
+                    ->from('sessions')
+                    ->when($app->get('legacy_login'), function ($query) use ($app) {
+                        //@todo remove once legacy is deprecated
+                        $query->whereIn('sessions.apps_id', [$app->getId(), AppEnums::LEGACY_APP_ID->getValue()]);
+                    }, function ($query) use ($app) {
+                        $query->where('sessions.apps_id', $app->getId());
+                    })
+                    ->where('users_id', $user->getId());
+            })
+            ->delete();
 
-        SessionKeys::where('users_id', $user->getId())
-        ->delete();
-
-        return true;
+        return $this->fromApp($app)
+            ->where('users_id', $user->getId())
+            ->delete() > 0;
     }
 }

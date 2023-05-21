@@ -8,6 +8,7 @@ use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\Actions\SocialLoginAction;
 use Kanvas\Auth\DataTransferObject\LoginInput;
@@ -98,6 +99,7 @@ class AuthManagementMutation
 
         return $session->end(
             auth()->user(),
+            app(Apps::class),
             auth()->getRequestJwtToken()->claims()->get('sessionId')
         );
     }
@@ -110,7 +112,8 @@ class AuthManagementMutation
         $session = new Sessions();
 
         return $session->end(
-            auth()->user()
+            auth()->user(),
+            app(Apps::class)
         );
     }
 

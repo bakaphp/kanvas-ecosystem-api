@@ -16,7 +16,7 @@
         "guzzlehttp/guzzle": "^7.5",
         "http-interop/http-factory-guzzle": "^1.2",
         "laravel/framework": "^10.0",
-        "laravel/octane": "^1.4",
+        "laravel/octane": "^2.0",
         "laravel/sanctum": "^3.2",
         "laravel/scout": "^9.8",
         "laravel/socialite": "^5.6",

@@ -5,16 +5,21 @@ declare(strict_types=1);
 namespace Kanvas\Auth;
 
 use Baka\Support\Password;
+use Baka\Users\Contracts\UserAppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Support\Facades\Hash;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Actions\RegisterUsersAppAction;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
+use Kanvas\Users\Repositories\UsersRepository;
 use Lcobucci\JWT\Token;
 use stdClass;
 
@@ -45,29 +50,35 @@ class Auth
             ->first();
         }
 
-        if (!$user) {
+        if (! $user) {
             throw new AuthenticationException('Invalid email or password.');
         }
 
-        self::loginAttemptsValidation($user);
 
-        $authentically = $user;
-        /*
-        @todo reactive ecosystem auth
-        if ($app->usesEcosystemLogin()) {
-            //getCurrentUserAppInfo
-            $authentically = $user->currentAppInfo();
-        } */
+        try {
+            /**
+             * until v3 (legacy) is deprecated we have to check or create the user profile the first time
+             * @todo remove in v2
+             */
+            $authentically = $user->getAppProfile($app);
+        } catch(ModelNotFoundException $e) {
+            //user doesn't have a profile yet , verify if we need to create it
+            UsersRepository::belongsToThisApp($user, $app);
+            $userRegisterInApp = new RegisterUsersAppAction($user);
+            $authentically = $userRegisterInApp->execute($user->password);
+        }
+
+        self::loginAttemptsValidation($authentically);
 
         //password verification
-        if (Hash::check($loginInput->getPassword(), $authentically->password) && $user->isActive()) {
+        if (Hash::check($loginInput->getPassword(), $authentically->password) && $authentically->isActive()) {
             Password::rehash($loginInput->getPassword(), $authentically);
-            self::resetLoginTries($user);
+            self::resetLoginTries($authentically);
 
             return $user;
-        } elseif (!$user->isActive()) {
+        } elseif (! $authentically->isActive()) {
             throw new AuthenticationException('User is not active, please contact support.');
-        } elseif ($user->isBanned()) {
+        } elseif ($authentically->isBanned()) {
             throw new AuthenticationException('User has been banned, please contact support.');
         } else {
             throw new AuthenticationException('Invalid email or password.');
@@ -80,10 +91,8 @@ class Auth
      * @param Users $user
      *
      * @throws Exception
-     *
-     * @return bool
      */
-    protected static function loginAttemptsValidation(UserInterface $user): bool
+    protected static function loginAttemptsValidation(UserAppInterface $user): bool
     {
         //load config
         $config = new stdClass();
@@ -118,12 +127,8 @@ class Auth
 
     /**
      * Reset login tries.
-     *
-     * @param Users $user
-     *
-     * @return bool
      */
-    protected static function resetLoginTries(UserInterface $user): bool
+    protected static function resetLoginTries(UserAppInterface $user): bool
     {
         $user->lastvisit = date('Y-m-d H:i:s');
         $user->user_login_tries = 0;
@@ -134,12 +139,10 @@ class Auth
 
     /**
      * Update login tries for the given user.
-     *
-     * @return bool
      */
-    protected static function updateLoginTries(UserInterface $user): bool
+    protected static function updateLoginTries(UserAppInterface $user): bool
     {
-        if ($user->getId() !== StatusEnums::ANONYMOUS->getValue()) {
+        if ($user->users_id !== StatusEnums::ANONYMOUS->getValue()) {
             $user->user_login_tries += 1;
             $user->user_last_login_try = time();
 
@@ -150,19 +153,14 @@ class Auth
     }
 
     /**
-     * Undocumented function.
-     *
-     * @param UserInterface $user
-     * @param Token $token
-     *
-     * @return bool
+     * clean user session
      */
     public static function logout(UserInterface $user, Token $token): bool
     {
         $sessionId = $token->claims()->get('sessionId') ?? null;
 
         $session = new Sessions();
-        $session->end($user, $sessionId);
+        $session->end($user, app(Apps::class), $sessionId);
 
         return true;
     }

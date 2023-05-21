@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Templates;
 
-use Kanvas\Notifications\Notification;
-use stdClass;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Notifications\Notification;
 
 class Blank extends Notification
 {
@@ -19,6 +18,9 @@ class Blank extends Notification
         $this->setType('blank');
         $this->setTemplateName($templateName);
         $this->setData($data);
-        $this->setVia($via);
+
+        if (! empty($via)) {
+            $this->channels = $via;
+        }
     }
 }

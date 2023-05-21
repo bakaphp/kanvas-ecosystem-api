@@ -173,6 +173,7 @@ class Companies extends BaseModel implements CompanyInterface
 
     /**
      * Associate user to the app.
+     * @deprecated v2.0.0 use registerUserApp instead
      */
     public function associateUserApp(
         Users $user,
@@ -187,9 +188,6 @@ class Companies extends BaseModel implements CompanyInterface
             'companies_id' => $this->getKey(),
             'apps_id' => $app->getKey(),
         ], [
-            'users_id' => $user->getKey(),
-            'companies_id' => $this->getKey(),
-            'apps_id' => $app->getKey(),
             'identify_id' => $companyUserIdentifier ?? $user->id,
             'user_active' => $isActive,
             'user_role' => $userRoleId ?? $user->roles_id,

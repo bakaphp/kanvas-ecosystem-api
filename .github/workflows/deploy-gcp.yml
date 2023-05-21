@@ -68,10 +68,6 @@ jobs:
         uses: stefanprodan/kube-tools@v1.7.2
         with:
           kubectl: 1.23.0
-
-      - name: set-vars 
-        run: |
-          cat .github/workflows/${GITHUB_REF##*/}-destinations >> $GITHUB_ENV 
         
       - name: Download Configmap
         run: | 
@@ -80,17 +76,19 @@ jobs:
       - id: 'get-credentials'
         uses: 'google-github-actions/get-gke-credentials@v1'
         with:
-          cluster_name: ${{ secrets.GCP_CLUSTER_NAME }}-${{ github.ref_name }}
+          cluster_name: ${{ secrets.GCP_CLUSTER_NAME }}
           location: ${{ secrets.GOOGLE_LOCATION }}
         
       - name: Deploy helm chart
         run: |
+        
+            touch helm/.helmignore
+            echo "svc-lb.yaml" >> helm/.helmignore
+
             helm upgrade --install ${{ secrets.INSTANCE_NAME }} helm \
             --namespace ${{ secrets.INSTANCE_NAME }} \
             --create-namespace \
             --set apiImage=${{ secrets.GCP_API_IMAGE }}:${{ github.run_number }} \
-            --set services.loadBalancer.name=graphapidev2 \
-            --set services.loadBalancer.lbSSLCert=${{ secrets.LB_SSLCERT }} \
-            --set cert.apiDomain=${{ secrets.GCP_KANVAS_API_DOMAIN }}
-
-  
+            --set services.loadBalancer.name=${{ secrets.GCP_LOAD_BALANCER_NAME }} \
+            --set cert.apiDomain=${{ secrets.GCP_KANVAS_API_DOMAIN }} \
+            --set staticIP.name=${{ secrets.GCP_STATIC_IP_NAME }}

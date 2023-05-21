@@ -16,8 +16,6 @@ use Kanvas\Models\BaseModel;
  * @property string $name
  * @property string $label
  * @property ?string $value
- *
- * @
  */
 class AppsCustomFields extends BaseModel
 {
@@ -30,6 +28,10 @@ class AppsCustomFields extends BaseModel
         'entity_id',
         'label',
         'name',
-        'value'
+        'value',
+    ];
+
+    protected $casts = [
+        'value' => 'array',
     ];
 }

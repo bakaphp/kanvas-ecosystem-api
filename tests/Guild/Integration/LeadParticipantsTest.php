@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Tests\Guild\Integration;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Guild\Customers\Models\Peoples;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\AddLeadParticipantAction;
 use Kanvas\Guild\Leads\Actions\RemoveLeadParticipantAction;
 use Kanvas\Guild\Leads\DataTransferObject\LeadsParticipant;
-use Kanvas\Guild\Leads\Models\Leads;
-use Kanvas\Guild\Leads\Models\LeadsParticipants;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadParticipant;
 use Tests\TestCase;
 
 final class LeadParticipantsTest extends TestCase
@@ -22,13 +22,13 @@ final class LeadParticipantsTest extends TestCase
         /**
          * @todo move to factory
          */
-        $people = new Peoples();
+        $people = new People();
         $people->users_id = auth()->user()->getId();
         $people->companies_id = $company->getId();
         $people->name = 'Test People';
         $people->saveOrFail();
 
-        $lead = new Leads();
+        $lead = new Lead();
         $lead->companies_id = $company->getId();
         $lead->companies_branches_id = $company->branch()->firstOrFail()->getId();
         $lead->users_id = auth()->user()->getId();
@@ -48,7 +48,7 @@ final class LeadParticipantsTest extends TestCase
             )
         );
 
-        $this->assertInstanceOf(LeadsParticipants::class, $addParticipant->execute());
+        $this->assertInstanceOf(LeadParticipant::class, $addParticipant->execute());
     }
 
     public function testRemoveParticipant(): void
@@ -58,13 +58,13 @@ final class LeadParticipantsTest extends TestCase
         /**
          * @todo move to factory
          */
-        $people = new Peoples();
+        $people = new People();
         $people->users_id = auth()->user()->getId();
         $people->companies_id = $company->getId();
         $people->name = 'Test People';
         $people->saveOrFail();
 
-        $lead = new Leads();
+        $lead = new Lead();
         $lead->companies_id = $company->getId();
         $lead->companies_branches_id = $company->branch()->firstOrFail()->getId();
         $lead->users_id = auth()->user()->getId();

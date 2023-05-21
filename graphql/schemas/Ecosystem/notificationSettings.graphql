@@ -2,8 +2,9 @@ type NotificationSettings {
     users_id: Int!
     apps_id: Int!
     notifications_types_id: Int!
+    types: NotificationType
     is_enabled: Boolean!
-    channels: String!
+    channels: [NotificationChannels]
     created_at: String!
     updated_at: String!
     is_deleted: Int!
@@ -15,8 +16,8 @@ type NotificationSettingsInput {
     channels: String!
 }
 
-extend type Query {
-    notificationSettingsListAll(
+extend type Query @guard {
+    notificationSettings(
         where: _
             @whereConditions(
                 columns: [
@@ -30,24 +31,26 @@ extend type Query {
                     "is_deleted"
                 ]
             )
-            @scope(name: "appUser")
+        filterByChannel: NotificationChannels
+            @whereJsonContains(key: "channels")
     ): [NotificationSettings]
         @paginate(
-            model: "Kanvas\\Notifications\\Settings\\Models\\UsersNotificationsSettings"
+            model: "Kanvas\\Notifications\\Models\\UsersNotificationsSettings"
+            scopes: ["appUser"]
         )
 }
 
 extend type Mutation @guard {
-    notificationsMuteAll: String!
+    notificationsMuteAll: Boolean!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Resolvers\\Notifications\\SettingsResolver@muteAll"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\NotificationSettingsMutation@muteAll"
         )
     setNotificationSettings(
         notifications_types_id: Int!
         is_enabled: Int!
-        channels: String!
+        channels: [NotificationChannels]
     ): NotificationSettings!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Resolvers\\Notifications\\SettingsResolver@setNotificationSettings"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\NotificationSettingsMutation@setNotificationSettings"
         )
 }
