@@ -4,7 +4,7 @@ metadata:
   name: laravel-schedule
 spec:
   successfulJobsHistoryLimit: 1
-  schedule: "* * * * *"
+  schedule: "5 * * * *"
   jobTemplate:
     spec:
       template:
