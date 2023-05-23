@@ -35,6 +35,12 @@ class RemoveCompanyAction
      */
     public function execute(): void
     {
+        $this->company->associateUserApp(
+            $this->user,
+            $this->app,
+            StateEnums::YES->getValue(),
+        )->delete();
+
         $this->company->associateUser(
             $this->user,
             StateEnums::YES->getValue(),
