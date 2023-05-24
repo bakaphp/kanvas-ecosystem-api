@@ -1,0 +1,30 @@
+type Message {
+    id: Int!
+    parent_id: Int
+    parent_unique_id: Int
+    uuid: String
+    apps_id: Int!
+    companies_id: Int!
+    users_id: Int!
+    message_types_id: Int!
+    message: JSON
+    reactions_count: Int
+    comment_count: Int
+    total_liked: Int
+    total_saved: Int
+}
+
+input MessageInput {
+    message_types_id: Int!
+    message: Mixed!
+    system_modules_id: Int!
+    entity_id: Int!
+}
+extend type Mutation @guard {
+    createMessage(
+        input: MessageInput!
+    ): Message 
+    @field(
+        resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@create"
+    )
+}

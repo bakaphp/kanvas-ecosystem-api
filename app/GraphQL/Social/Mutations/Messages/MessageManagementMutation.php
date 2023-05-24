@@ -1,0 +1,42 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\GraphQL\Social\Mutations\Messages;
+
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Repositories\MessageRepository;
+use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
+use Kanvas\SystemModules\Models\SystemModules;
+
+class MessageManagementMutation
+{
+    /**
+     * create
+     *
+     * @param  mixed $request
+     * @return void
+     */
+    public function create(mixed $root, array $request)
+    {
+        if (key_exists('parent_id', $request['input'])) {
+            $parent = MessageRepository::getById($request['input']['parent_id']);
+        }
+
+        $messageType = MessagesTypesRepository::getById($request['input']['message_types_id']);
+        $systemModule = SystemModules::findOrFail($request['input']['system_modules_id']);
+
+        $request['input']['parent_id'] = isset($parent) ? $parent->id : null;
+        $request['input']['parent_unique_id'] = isset($parent) ? $parent->uuid : null;
+        $request['input']['apps_id'] = app(Apps::class)->id;
+        $request['input']['companies_id'] = auth()->user()->defaultCompany->id;
+        $request['input']['users_id'] = auth()->user()->id;
+        $data = MessageInput::from($request['input']);
+
+        $action = new CreateMessageAction($data, $systemModule, $request['input']['entity_id']);
+
+        return $action->execute();
+    }
+}
