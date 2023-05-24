@@ -68,9 +68,6 @@ spec:
                     cpu: "200m"
         - name: {{.Values.deployments.api.containerName}}
           image: {{.Values.apiImage}}
-          # envFrom:
-          # - configMapRef:
-          #     name: special-config
           imagePullPolicy: Always
           ports:
             - containerPort: 9000
@@ -110,7 +107,6 @@ spec:
                      chmod -R 777 /var/www/html/storage/logs && \
                      chmod -R 777 /var/www/html/bootstrap/cache && \
                      cd /var/www/html \
-                     && composer install --no-dev --optimize-autoloader \
                      && php artisan lighthouse:cache \
                      && php artisan config:cache"
                   ]

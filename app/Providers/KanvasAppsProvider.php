@@ -15,29 +15,32 @@ class KanvasAppsProvider extends ServiceProvider
     /**
      * Register any application services.
      */
-    public function register(): void
+    public function register() : void
     {
     }
 
     /**
      * Bootstrap any application services.
      */
-    public function boot(): void
+    public function boot() : void
     {
         $appIdentifier = request()->header(AppEnums::KANVAS_APP_HEADER->getValue(), config('kanvas.app.id'));
 
-        if (FacadesSchema::hasTable('apps') && Apps::count() > 0) {
-            try {
-                $app = AppsRepository::findFirstByKey($appIdentifier);
+        try {
+            if (FacadesSchema::hasTable('apps') && Apps::count() > 0) {
+                try {
+                    $app = AppsRepository::findFirstByKey($appIdentifier);
 
-                $this->app->scoped(Apps::class, function () use ($app) {
-                    return $app;
-                });
-            } catch (Throwable $e) {
-                $msg = 'No App configure with this key: ' . $appIdentifier;
+                    $this->app->scoped(Apps::class, function () use ($app) {
+                        return $app;
+                    });
+                } catch (Throwable $e) {
+                    $msg = 'No App configure with this key: ' . $appIdentifier;
 
-                throw new InternalServerErrorException($msg, $e->getMessage());
+                    throw new InternalServerErrorException($msg, $e->getMessage());
+                }
             }
+        } catch (Throwable $th) {
         }
     }
 }

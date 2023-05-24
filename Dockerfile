@@ -10,6 +10,8 @@ RUN adduser -u 1000 -s /bin/sh --disabled-password -G www www
 # Copy code to /var/www
 COPY --chown=www:www-data . /app
 
+RUN composer install --no-dev --optimize-autoloader
+
 # add root to www group
 RUN chmod -R ug+w /app/storage
 
