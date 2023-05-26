@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Kanvas\Enums\AppEnums;
+use Illuminate\Database\Migrations\MigrationRepositoryInterface;
 
 class KanvasSetupCommand extends Command
 {
@@ -15,7 +16,7 @@ class KanvasSetupCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:ecosystem setup';
+    protected $signature = 'kanvas:setup-ecosystem';
 
     /**
      * The console command description.
@@ -26,11 +27,17 @@ class KanvasSetupCommand extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return mixed
      */
-    public function handle()
+    public function handle(MigrationRepositoryInterface $repository)
     {
+        // Check if any migrations have been run
+        $ranMigrations = $repository->getRan();
+
+        if (count($ranMigrations) > 0) {
+            $this->info('Some migrations have already been run. Meaning the ecosystem is already setup, Skipping setup.');
+            return;
+        }
+
         $commands = [
             'migrate',
             'migrate --path database/migrations/Inventory/ --database inventory',

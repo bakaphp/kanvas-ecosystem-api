@@ -110,7 +110,7 @@ jobs:
         run: composer install --prefer-dist --no-interaction --no-progress
 
       - name: Setup Kanvas Ecosystem
-        run: php artisan kanvas:ecosystem setup
+        run: php artisan kanvas:setup-ecosystem
 
       - name: Run Tests
         if: success()
