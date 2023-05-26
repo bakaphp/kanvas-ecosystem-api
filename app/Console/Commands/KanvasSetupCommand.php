@@ -6,8 +6,8 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schema as FacadesSchema;
 use Kanvas\Enums\AppEnums;
-use Illuminate\Database\Migrations\MigrationRepositoryInterface;
 
 class KanvasSetupCommand extends Command
 {
@@ -28,13 +28,11 @@ class KanvasSetupCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle(MigrationRepositoryInterface $repository)
+    public function handle()
     {
-        // Check if any migrations have been run
-        $ranMigrations = $repository->getRan();
-
-        if (count($ranMigrations) > 0) {
+        if (FacadesSchema::hasTable('migration')) {
             $this->info('Some migrations have already been run. Meaning the ecosystem is already setup, Skipping setup.');
+
             return;
         }
 
