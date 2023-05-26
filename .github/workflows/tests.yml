@@ -109,32 +109,8 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
-      - name: Run Migrations
-        run: php artisan migrate
-
-      - name: Run Inventory Migrations
-        run: php artisan migrate --path database/migrations/Inventory/ --database inventory
-
-      - name: Run Social Migrations
-        run: php artisan migrate --path database/migrations/Social/ --database social
-
-      - name: Run Guild Migrations
-        run: php artisan migrate --path database/migrations/Guild/ --database crm
-
-      - name: Run Seeders
-        run: php artisan db:seed
-
-      - name: Create Role Admin
-        run: php artisan kanvas:create-role Admin
-
-      - name: Create Role Users
-        run: php artisan kanvas:create-role Users
-
-      - name: Create Role Agents
-        run: php artisan kanvas:create-role Agents
-
-      - name: Set filesystem configs
-        run: php artisan kanvas:filesystem-setup
+      - name: Setup Kanvas Ecosystem
+        run: php artisan kanvas:ecosystem setup
 
       - name: Run Tests
         if: success()

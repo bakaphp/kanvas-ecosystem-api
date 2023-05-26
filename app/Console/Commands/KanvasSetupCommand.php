@@ -1,0 +1,61 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Console\Commands;
+
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Artisan;
+use Kanvas\Enums\AppEnums;
+
+class KanvasSetupCommand extends Command
+{
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'kanvas:ecosystem setup';
+
+    /**
+     * The console command description.
+     *
+     * @var string|null
+     */
+    protected $description = 'Setup the ecosystem for Kanvas';
+
+    /**
+     * Execute the console command.
+     *
+     * @return mixed
+     */
+    public function handle()
+    {
+        $commands = [
+            'migrate',
+            'migrate --path database/migrations/Inventory/ --database inventory',
+            'migrate --path database/migrations/Social/ --database social',
+            'migrate --path database/migrations/Guild/ --database crm',
+            'db:seed',
+            'kanvas:create-role Admin',
+            'kanvas:create-role Users',
+            'kanvas:create-role Agents',
+            'kanvas:filesystem-setup',
+        ];
+
+        foreach ($commands as $command) {
+            $this->line('Running command: ' . $command);
+            $exitCode = Artisan::call($command);
+
+            if ($exitCode !== 0) {
+                $this->error('Command failed: ' . $command);
+
+                break;
+            }
+        }
+
+        $this->info('All commands executed successfully - Welcome to Kanvas Ecosystem ' . AppEnums::VERSION->getValue());
+
+        return;
+    }
+}
