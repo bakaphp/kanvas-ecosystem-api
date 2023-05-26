@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
-use Kanvas\Social\Model\Message;
 use Kanvas\Social\Models\BaseModel;
+use Kanvas\Social\Models\Message;
 
 /**
  * class AppModuleMessage

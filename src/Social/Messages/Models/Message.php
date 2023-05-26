@@ -6,6 +6,7 @@ namespace Kanvas\Social\Messages\Models;
 
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Social\Messages\Casts\Json;
@@ -44,28 +45,54 @@ class Message extends BaseModel
         'message' => Json::class,
     ];
 
+    /**
+     * parent
+     */
     public function parent(): BelongsTo
     {
         return $this->belongsTo(Message::class, 'parent_id', 'id');
     }
 
+    /**
+     * app
+     */
     public function app(): BelongsTo
     {
-        return $this->belongsTo(Apps::class, 'apps_id');
+        return $this->setConnection('ecosystem')->belongsTo(Apps::class, 'apps_id');
     }
 
+    /**
+     * company
+     */
     public function company(): BelongsTo
     {
-        return $this->belongsTo(Companies::class, 'companies_id');
+        return $this->setConnection('ecosystem')->belongsTo(Companies::class, 'companies_id');
     }
 
+    /**
+     * user
+     */
     public function user(): BelongsTo
     {
-        return $this->belongsTo(Users::class, 'users_id');
+        return $this->setConnection('ecosystem')->belongsTo(Users::class, 'users_id');
     }
 
+    /**
+     * messageType
+     */
     public function messageType(): BelongsTo
     {
         return $this->belongsTo(MessageType::class, 'message_types_id');
     }
+    
+    /**
+     * appModuleMessage
+     *
+     * @return HasOne
+     */
+    public function appModuleMessage(): HasOne
+    {
+        return $this->hasOne(AppModuleMessage::class, 'message_id');
+    }
+
 }

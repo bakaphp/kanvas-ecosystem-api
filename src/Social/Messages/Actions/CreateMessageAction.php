@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Actions;
 
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Jobs\FillUserMessage;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Models\UserMessageActivityType;
 use Kanvas\SystemModules\Models\SystemModules;
 
 class CreateMessageAction
@@ -13,7 +15,7 @@ class CreateMessageAction
     public function __construct(
         public MessageInput $messageInput,
         public SystemModules $systemModule,
-        public int $entityId
+        public int $entityId, 
     ) {
     }
 
@@ -40,6 +42,14 @@ class CreateMessageAction
             $this->entityId
         );
         $associateMessage->execute();
+        $activityType = UserMessageActivityType::where('name', 'follow')->firstOrFail();
+        $activity = [
+            'username' => '',
+            'entity_namespace' => '',
+            'text' => ' ',
+            'type' => $activityType->id,
+        ];
+        FillUserMessage::dispatch($message, $activity);
 
         return $message;
     }

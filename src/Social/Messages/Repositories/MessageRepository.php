@@ -11,7 +11,7 @@ class MessageRepository
     /**
      * getById
      */
-    public function getById(int $id): Message
+    public static function getById(int $id): Message
     {
         return Message::findOrFail($id);
     }
