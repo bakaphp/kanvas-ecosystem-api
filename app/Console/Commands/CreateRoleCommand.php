@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use Bouncer;
 use Illuminate\Console\Command;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 
 class CreateRoleCommand extends Command
 {
@@ -28,6 +29,7 @@ class CreateRoleCommand extends Command
         $role = Bouncer::role()->firstOrCreate([
             'name' => $this->argument('name'),
             'title' => $this->argument('name'),
+            'scope' => RolesEnums::getKey(app(Apps::class), null),
         ]);
     }
 }

@@ -12,11 +12,6 @@ enum RolesEnums
 {
     /**
      * Get role Key.
-     *
-     * @param Apps $app
-     * @param Companies|null $company
-     *
-     * @return string
      */
     public static function getKey(Apps $app, ?Companies $company = null): string
     {

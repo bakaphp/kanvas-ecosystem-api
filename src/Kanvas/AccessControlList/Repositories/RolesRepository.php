@@ -20,7 +20,7 @@ class RolesRepository
      */
     public static function getAllRoles(): ?Collection
     {
-        return Role::whereNull('scope')
+        return Role::where('scope', RolesEnums::getKey(app(Apps::class), null))
             ->orWhere('scope', self::getScope())
             ->orderBy('id', 'desc')
             ->get();
@@ -28,8 +28,6 @@ class RolesRepository
 
     /**
      * getScope.
-     *
-     * @return string
      */
     public static function getScope(?Model $user = null, ?Companies $company = null): string
     {
@@ -42,10 +40,6 @@ class RolesRepository
 
     /**
      * Get app list of default roles.
-     *
-     * @param Apps $app
-     *
-     * @return Collection
      */
     public static function getAppRoles(Apps $app): Collection
     {

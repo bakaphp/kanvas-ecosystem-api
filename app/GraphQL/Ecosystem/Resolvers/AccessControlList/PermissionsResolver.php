@@ -18,7 +18,7 @@ class PermissionsResolver
      */
     public function can(mixed $rootValue, array $request): bool
     {
-        $user = UsersRepository::getById($request['userId'], auth()->user()->defaultCompany->id);
+        $user = UsersRepository::getById($request['userId'], auth()->user()->getCurrentCompany()->id);
         return $user->can($request['permission']);
     }
 }

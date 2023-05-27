@@ -30,7 +30,7 @@ class RolesResolver
      */
     public function hasRole(mixed $_, array $request): bool
     {
-        $user = UsersRepository::getById($request['userId'], auth()->user()->defaultCompany->id);
+        $user = UsersRepository::getById($request['userId'], auth()->user()->getCurrentCompany()->id);
         return $user->isAn($request['role']);
     }
 }
