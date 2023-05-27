@@ -22,4 +22,4 @@
 *.tmproj
 .vscode/
 
-pod-cron-scheduler.yaml
+# pod-cron-scheduler.yaml

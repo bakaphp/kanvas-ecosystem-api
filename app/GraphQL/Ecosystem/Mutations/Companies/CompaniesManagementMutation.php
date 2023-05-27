@@ -178,7 +178,7 @@ class CompaniesManagementMutation
      *
      * @param  mixed $rootValue
      * @param  array $request
-     *
+     * @todo We need to REMOVE the company key from cache.
      * @return bool
      */
     public function removeUserFromCompany($rootValue, array $request): bool
@@ -209,7 +209,7 @@ class CompaniesManagementMutation
      *
      * @param  mixed $rootValue
      * @param  array $request
-     *
+     * @todo We need to REMOVE the branch key from cache.
      * @return bool
      */
     public function removeUserFromBranch($rootValue, array $request): bool
