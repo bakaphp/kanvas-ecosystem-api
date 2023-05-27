@@ -12,13 +12,23 @@ use Kanvas\SystemModules\Models\SystemModules;
 
 class CreateMessageAction
 {
+    /**
+     * __construct
+     *
+     * @return void
+     */
     public function __construct(
         public MessageInput $messageInput,
         public SystemModules $systemModule,
-        public int $entityId, 
+        public int $entityId,
     ) {
     }
 
+    /**
+     * execute
+     *
+     * @return void
+     */
     public function execute()
     {
         $message = Message::create([
@@ -49,7 +59,8 @@ class CreateMessageAction
             'text' => ' ',
             'type' => $activityType->id,
         ];
-        FillUserMessage::dispatch($message, $activity);
+
+        FillUserMessage::dispatch(Message::find($message->id), $activity, $message->user);
 
         return $message;
     }

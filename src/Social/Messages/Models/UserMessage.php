@@ -15,6 +15,8 @@ class UserMessage extends BaseModel
 
     protected $guarded = [];
 
+    const UPDATED_AT = null;
+    
     /**
      * user
      */

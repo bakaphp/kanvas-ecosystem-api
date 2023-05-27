@@ -20,7 +20,7 @@ class MessageInput extends Data
         public int $companies_id,
         public int $users_id,
         public int $message_types_id,
-        public array $message,
+        public mixed $message,
         public ?int $reactions_count = null,
         public ?int $comments_count = null,
         public ?int $total_liked = null,

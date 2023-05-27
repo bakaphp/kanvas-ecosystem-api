@@ -10,6 +10,11 @@ use Kanvas\SystemModules\Models\SystemModules;
 
 class AssociateMessageToSystemModule
 {
+    /**
+     * __construct
+     *
+     * @return void
+     */
     public function __construct(
         public Message $message,
         public SystemModules $systemModule,
@@ -17,6 +22,11 @@ class AssociateMessageToSystemModule
     ) {
     }
 
+    /**
+     * execute
+     *
+     * @return void
+     */
     public function execute()
     {
         return AppModuleMessage::create([
@@ -25,7 +35,7 @@ class AssociateMessageToSystemModule
             'apps_id' => $this->message->apps_id,
             'companies_id' => $this->message->companies_id,
             'system_modules' => $this->systemModule->model_name,
-            'entity_id' => $this->systemModule->entity_id,
+            'entity_id' => $this->entityId,
         ]);
     }
 }

@@ -9,7 +9,7 @@ use Kanvas\Social\Models\BaseModel;
 
 class UserMessageActivity extends BaseModel
 {
-    protected $table = 'users_messages_activities';
+    protected $table = 'user_messages_activities';
 
     protected $guarded = [];
 }

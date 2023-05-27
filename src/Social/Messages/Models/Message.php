@@ -13,6 +13,7 @@ use Kanvas\Social\Messages\Casts\Json;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Users\Models\Users;
+use Laravel\Scout\Searchable;
 
 /**
  *  Class Message
@@ -34,6 +35,7 @@ use Kanvas\Users\Models\Users;
 class Message extends BaseModel
 {
     use UuidTrait;
+    use Searchable;
 
     protected $table = 'messages';
 
@@ -84,15 +86,12 @@ class Message extends BaseModel
     {
         return $this->belongsTo(MessageType::class, 'message_types_id');
     }
-    
+
     /**
      * appModuleMessage
-     *
-     * @return HasOne
      */
     public function appModuleMessage(): HasOne
     {
-        return $this->hasOne(AppModuleMessage::class, 'message_id');
+        return $this->setConnection('ecosystem')->hasOne(AppModuleMessage::class, 'message_id');
     }
-
 }

@@ -28,3 +28,14 @@ extend type Mutation @guard {
         resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@create"
     )
 }
+
+extend type Query @guard {
+    messageSearch(
+        input: {
+         text: String!
+        }
+    ): [Message]
+    @field(
+        resolver: "App\\GraphQL\\Social\\Queries\\SearchQuery"
+    )
+}

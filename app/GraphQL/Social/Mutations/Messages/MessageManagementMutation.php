@@ -34,7 +34,6 @@ class MessageManagementMutation
         $request['input']['companies_id'] = auth()->user()->defaultCompany->id;
         $request['input']['users_id'] = auth()->user()->id;
         $data = MessageInput::from($request['input']);
-
         $action = new CreateMessageAction($data, $systemModule, $request['input']['entity_id']);
 
         return $action->execute();
