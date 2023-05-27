@@ -23,15 +23,11 @@ class UpdateRoleAction
         public ?string $title = null,
         public ?Apps $app = null
     ) {
-        if ($app === null) {
-            $this->app = app(Apps::class);
-        }
+        $this->app = $app ?? app(Apps::class);
     }
 
     /**
      * execute.
-     *
-     * @return Role
      */
     public function execute(?Companies $company = null): Role
     {

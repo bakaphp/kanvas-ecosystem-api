@@ -22,15 +22,11 @@ class CreateRoleAction
         public string $title,
         public ?Apps $app = null
     ) {
-        if ($app === null) {
-            $this->app = app(Apps::class);
-        }
+        $this->app = $app ?? app(Apps::class);
     }
 
     /**
      * execute.
-     *
-     * @return SilberRole
      */
     public function execute(?Companies $company = null): SilberRole
     {
