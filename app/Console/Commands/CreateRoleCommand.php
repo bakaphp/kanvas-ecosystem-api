@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use Bouncer;
 use Illuminate\Console\Command;
-use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Actions\CreateRoleAction;
 
 class CreateRoleCommand extends Command
 {
@@ -26,10 +25,13 @@ class CreateRoleCommand extends Command
 
     public function handle(): void
     {
-        $role = Bouncer::role()->firstOrCreate([
-            'name' => $this->argument('name'),
-            'title' => $this->argument('name'),
-            'scope' => RolesEnums::getKey(app(Apps::class), null),
-        ]);
+        $roleName = $this->argument('name');
+        $createRole = new CreateRoleAction(
+            $roleName,
+            $roleName
+        );
+        $createRole->execute();
+
+        $this->info('Role '. $roleName .' created successfully.');
     }
 }
