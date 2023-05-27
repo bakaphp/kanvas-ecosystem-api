@@ -172,12 +172,12 @@ extend type Mutation {
     linkDevice(data: DeviceInput!): Boolean!
         @guard
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\UserDeviceMutation@register"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserDeviceMutation@register"
         )
     unLinkDevice(data: DeviceInput!): Boolean!
         @guard
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\UserDeviceMutation@remove"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserDeviceMutation@remove"
         )
 }
 
