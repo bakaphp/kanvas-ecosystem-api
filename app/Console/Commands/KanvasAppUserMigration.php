@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\RegisterUsersAppAction;
 use Kanvas\Users\Models\UsersAssociatedApps;
+use Throwable;
 
 class KanvasAppUserMigration extends Command
 {
@@ -35,13 +36,18 @@ class KanvasAppUserMigration extends Command
         $appUid = $this->argument('app_uuid');
         $app = Apps::getByUuid($appUid);
 
-        $users = UsersAssociatedApps::fromApp($app)->notDeleted()->get();
+        $users = UsersAssociatedApps::fromApp($app)->notDeleted()->orderBy('users_id', 'desc')->get();
         foreach ($users as $user) {
-            $userRegisterInApp = new RegisterUsersAppAction(
-                $user,
-                $app
-            );
-            $userRegisterInApp->execute($user->password);
+            try {
+                $userData = $user->user()->firstOrFail();
+                $userRegisterInApp = new RegisterUsersAppAction(
+                    $userData,
+                    $app
+                );
+                $userRegisterInApp->execute($userData->password);
+            } catch(Throwable $e) {
+                $this->error('Error creating user : ' . $user->user_id . ' ' . $e->getMessage());
+            }
         }
 
         return;
