@@ -18,7 +18,7 @@ class RolesRepository
      */
     public static function getAllRoles(): ?Collection
     {
-        return Role::where('scope', RolesEnums::getKey(app(Apps::class), null))
+        return Role::where('scope', RolesEnums::getScope(app(Apps::class), null))
             ->orWhere('scope', self::getScope())
             ->orderBy('id', 'desc')
             ->get();
@@ -29,6 +29,6 @@ class RolesRepository
      */
     public static function getAppRoles(Apps $app): Collection
     {
-        return Role::where('scope', RolesEnums::getKey($app))->get();
+        return Role::where('scope', RolesEnums::getScope($app))->get();
     }
 }
