@@ -8,6 +8,7 @@ use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Baka\Users\Contracts\UserAppInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Hash;
+use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Contracts\Authenticatable;
 use Kanvas\Companies\Models\Companies;
@@ -55,7 +56,6 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
     protected $fillable = [
         'users_id',
         'apps_id',
-        'roles_id',
         'companies_id',
         'identify_id',
         'password',
@@ -94,6 +94,11 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
     public function company(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
+    }
+
+    public function role(): BelongsTo
+    {
+        return $this->belongsTo(Role::class, 'user_role');
     }
 
     /**

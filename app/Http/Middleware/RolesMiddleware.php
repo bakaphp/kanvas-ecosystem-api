@@ -5,7 +5,7 @@ namespace App\Http\Middleware;
 use Bouncer;
 use Closure;
 use Illuminate\Http\Request;
-use Kanvas\AccessControlList\Repositories\RolesRepository;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 
 class RolesMiddleware
@@ -23,7 +23,7 @@ class RolesMiddleware
         $user = auth()->user();
 
         if ($user) {
-            Bouncer::scope()->to(RolesRepository::getScope());
+            Bouncer::scope()->to(RolesEnums::getScope($app));
         }
 
         return $next($request);

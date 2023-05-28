@@ -27,18 +27,6 @@ class RolesRepository
     }
 
     /**
-     * getScope.
-     */
-    public static function getScope(?Model $user = null, ?Companies $company = null): string
-    {
-        $app = app(Apps::class);
-        $user = $user ?? auth()->user();
-        $company = $company ?? $user->getCurrentCompany();
-
-        return RolesEnums::getKey($app, $company);
-    }
-
-    /**
      * Get app list of default roles.
      */
     public static function getAppRoles(Apps $app): Collection

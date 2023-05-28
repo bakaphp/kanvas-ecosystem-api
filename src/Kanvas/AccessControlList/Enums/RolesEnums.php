@@ -13,7 +13,7 @@ enum RolesEnums
     /**
      * Get role Key.
      */
-    public static function getKey(Apps $app, ?Companies $company = null): string
+    public static function getScope(Apps $app, ?Companies $company = null): string
     {
         $companyId = $company ? $company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
 

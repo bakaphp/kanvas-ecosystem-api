@@ -32,6 +32,6 @@ class CreateRoleCommand extends Command
         );
         $createRole->execute();
 
-        $this->info('Role '. $roleName .' created successfully.');
+        $this->info('Role ' . $roleName . ' created successfully.');
     }
 }

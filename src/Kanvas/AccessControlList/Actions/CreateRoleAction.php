@@ -30,7 +30,8 @@ class CreateRoleAction
      */
     public function execute(?Companies $company = null): SilberRole
     {
-        Bouncer::scope()->to(RolesEnums::getKey($this->app, $company));
+        //Bouncer::scope()->to(RolesEnums::getScope($this->app, $company));
+        Bouncer::scope()->to(RolesEnums::getScope($this->app));
 
         $role = Bouncer::role()->firstOrCreate([
             'name' => $this->name,

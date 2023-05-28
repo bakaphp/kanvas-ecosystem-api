@@ -6,8 +6,7 @@ namespace Kanvas\Users\Actions;
 
 use Bouncer;
 use Kanvas\AccessControlList\Actions\AssignAction;
-use Kanvas\AccessControlList\Models\Role;
-use Kanvas\AccessControlList\Repositories\RolesRepository;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -57,17 +56,16 @@ class AssignCompanyAction
             $this->branch
         );
 
-        $this->company->associateUserApp(
+        $userAssociatedApp = $this->company->associateUserApp(
             $this->user,
             $app,
             StateEnums::ON->getValue()
         );
 
-        Bouncer::scope()->to(RolesRepository::getScope($this->user));
+        Bouncer::scope()->to(RolesEnums::getScope($app));
 
-        if ($this->user->roles_id) {
-            $role = Role::find($this->user->roles_id)->name;
-            $assignRole = new AssignAction($this->user, $role);
+        if ($userAssociatedApp->role) {
+            $assignRole = new AssignAction($this->user, $userAssociatedApp->role->name);
             $assignRole->execute();
         } else {
             $assignRole = new AssignAction($this->user, $this->role::ADMIN->getValue());
