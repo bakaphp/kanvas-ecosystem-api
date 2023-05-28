@@ -11,7 +11,8 @@ use Kanvas\Enums\AppEnums;
 enum RolesEnums
 {
     /**
-     * Get role Key.
+     * Roles are scoped by app
+     * in the future companies may create there own roles
      */
     public static function getScope(Apps $app, ?Companies $company = null): string
     {
