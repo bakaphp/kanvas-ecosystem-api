@@ -29,7 +29,5 @@ class AppServiceProvider extends ServiceProvider
     public function boot()
     {
         Sanctum::usePersonalAccessTokenModel(Sessions::class);
-        //set app ACL scope
-        Bouncer::scope()->to(RolesEnums::getScope(app(Apps::class)));
     }
 }
