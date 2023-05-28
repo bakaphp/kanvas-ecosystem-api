@@ -33,9 +33,9 @@ class UpdateRoleAction
     {
         $role = Role::find($this->id);
 
-        if ($role->scope !== RolesEnums::getScope($this->app, $company)) {
-            throw new AuthorizationException('You don\'t have permission to update this role');
-        }
+        /*  if ($role->scope !== RolesEnums::getScope($this->app)) {
+             throw new AuthorizationException('You don\'t have permission to update this role');
+         } */
 
         $role->name = $this->name;
         $role->title = $this->title;

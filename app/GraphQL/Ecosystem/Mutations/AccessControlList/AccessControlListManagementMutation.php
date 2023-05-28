@@ -8,7 +8,6 @@ use Bouncer;
 use Kanvas\AccessControlList\Actions\AssignAction;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
 use Kanvas\AccessControlList\Actions\UpdateRoleAction;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Users\Repositories\UsersRepository;
 use Silber\Bouncer\Database\Role as SilberRole;
 
