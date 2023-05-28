@@ -62,7 +62,7 @@ class AssignCompanyAction
             StateEnums::ON->getValue()
         );
 
-        Bouncer::scope()->to(RolesEnums::getScope($app));
+       //Bouncer::scope()->to(RolesEnums::getScope($app));
 
         if ($userAssociatedApp->role) {
             $assignRole = new AssignAction($this->user, $userAssociatedApp->role->name);

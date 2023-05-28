@@ -5,11 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\AccessControlList\Repositories;
 
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 
 class RolesRepository
 {
