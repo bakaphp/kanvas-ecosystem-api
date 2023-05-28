@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Actions;
 
-use Bouncer;
 use Kanvas\AccessControlList\Actions\AssignAction;
-use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -30,7 +28,7 @@ class AssignCompanyAction
         ?Apps $app = null
     ) {
         $this->user = $user;
-        $this->company = $branch->company()->first();
+        $this->company = $branch->company()->firstOrFail();
         $this->branch = $branch;
         $this->role = $role ?? DefaultRoles::ADMIN;
         $this->app = $app ?? app(Apps::class);
@@ -62,15 +60,11 @@ class AssignCompanyAction
             StateEnums::ON->getValue()
         );
 
-       //Bouncer::scope()->to(RolesEnums::getScope($app));
-
-        if ($userAssociatedApp->role) {
-            $assignRole = new AssignAction($this->user, $userAssociatedApp->role->name);
-            $assignRole->execute();
-        } else {
-            $assignRole = new AssignAction($this->user, $this->role::ADMIN->getValue());
-            $assignRole->execute();
-        }
+        $assignRole = new AssignAction(
+            $this->user,
+            $userAssociatedApp->role ? $userAssociatedApp->role->name : $this->role::ADMIN->getValue()
+        );
+        $assignRole->execute();
 
         if (! $roleLegacy = $app->get(AppSettingsEnums::DEFAULT_ROLE_NAME->getValue())) {
             $roleLegacy = $app->name . '.' . $this->user->role()->first()->name;

@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Bouncer;
 use Illuminate\Support\Facades\Schema as FacadesSchema;
 use Illuminate\Support\ServiceProvider;
 use Kanvas\AccessControlList\Enums\RolesEnums;
@@ -10,7 +11,6 @@ use Kanvas\Apps\Repositories\AppsRepository;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Throwable;
-use Bouncer;
 
 class KanvasAppsProvider extends ServiceProvider
 {
@@ -38,7 +38,6 @@ class KanvasAppsProvider extends ServiceProvider
 
                 //set app ACL scope
                 Bouncer::scope()->to(RolesEnums::getScope($app));
-
             } catch (Throwable $e) {
                 $msg = 'No App configure with this key: ' . $appIdentifier;
 
