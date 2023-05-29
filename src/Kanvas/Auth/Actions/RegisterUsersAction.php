@@ -7,6 +7,8 @@ namespace Kanvas\Auth\Actions;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
+use Kanvas\AccessControlList\Actions\AssignAction;
+use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
@@ -109,6 +111,12 @@ class RegisterUsersAction
 
             $userRegisterInApp = new RegisterUsersAppAction($user);
             $userRegisterInApp->execute($this->data->password);
+
+            $assignRole = new AssignAction(
+                $user,
+                Role::where('id', $user->roles_id)->firstOrFail(),
+            );
+            $assignRole->execute();
         }
 
         try {

@@ -7,13 +7,10 @@ namespace Kanvas\Users\Models;
 use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Baka\Users\Contracts\UserAppInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Hash;
 use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Contracts\Authenticatable;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Enums\AppEnums;
-use Kanvas\Enums\StateEnums;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Enums\StatusEnums;
 
@@ -78,8 +75,6 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
 
     /**
      * Users relationship.
-     *
-     * @return BelongsTo
      */
     public function user(): BelongsTo
     {
@@ -88,8 +83,6 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
 
     /**
      * Users relationship.
-     *
-     * @return BelongsTo
      */
     public function company(): BelongsTo
     {
@@ -103,8 +96,6 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
 
     /**
      * Users relationship.
-     *
-     * @return BelongsTo
      */
     public function app(): BelongsTo
     {
@@ -136,5 +127,15 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
     public function isBanned(): bool
     {
         return $this->banned === StatusEnums::ACTIVE->getValue();
+    }
+
+    /**
+     * since we store this entity for user role of the given company
+     * we need to create a composite key
+     * @override
+     */
+    public function getKey()
+    {
+        return $this->users_id . $this->apps_id . $this->companies_id;
     }
 }

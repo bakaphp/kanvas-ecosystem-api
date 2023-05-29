@@ -225,6 +225,21 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
+     * Get the current user information for the running app.
+     */
+    public function getCompanyProfile(AppInterface $app, CompanyInterface $company): UsersAssociatedApps
+    {
+        try {
+            return UsersAssociatedApps::where('users_id', $this->getId())
+                ->where('apps_id', $app->getId())
+                ->where('companies_id', $company->getId())
+                ->firstOrFail();
+        } catch (EloquentModelNotFoundException $e) {
+            throw new ModelNotFoundException('User not found in this company');
+        }
+    }
+
+    /**
      * CompaniesBranches relationship.
      */
     public function branches(): HasManyThrough

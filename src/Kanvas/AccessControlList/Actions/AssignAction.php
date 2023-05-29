@@ -9,6 +9,7 @@ use Exception;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 use Silber\Bouncer\Database\Models;
 
@@ -18,7 +19,7 @@ class AssignAction
      * __construct.
      */
     public function __construct(
-        public Users $user,
+        public Users|BaseModel $entity,
         public Role $role,
         public ?Apps $app = null
     ) {
@@ -32,7 +33,7 @@ class AssignAction
     {
         // we will only allow one role per user per app
         $userRole = Models::query('assigned_roles')
-                    ->where('entity_id', $this->user->getId())
+                    ->where('entity_id', $this->entity->getId())
                     ->where('entity_type', Users::class)
                     ->where('scope', RolesEnums::getScope($this->app))
                     ->whereNot('role_id', $this->role->id);
@@ -41,12 +42,14 @@ class AssignAction
             $userRole->delete();
         }
 
-        Bouncer::assign($this->role->name)->to($this->user);
+        Bouncer::assign($this->role->name)->to($this->entity);
 
         try {
-            $this->user->getAppProfile($this->app)->update([
-                'user_role' => $this->role->id,
-            ]);
+            if ($this->entity instanceof Users) {
+                $this->entity->getAppProfile($this->app)->update([
+                    'user_role' => $this->role->id,
+                ]);
+            }
         } catch(Exception $e) {
             //on signups this record might not exist yet , so we ignore it
             //the assign company will handle it, not great we will refactor in v2

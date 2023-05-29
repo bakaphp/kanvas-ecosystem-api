@@ -55,15 +55,15 @@ class AssignCompanyAction
             $this->branch
         );
 
-        $userAssociatedApp = $this->company->associateUserApp(
+        $userAssociatedAppCompany = $this->company->associateUserApp(
             $this->user,
             $app,
             StateEnums::ON->getValue()
         );
 
         $assignRole = new AssignAction(
-            $this->user,
-            $userAssociatedApp->role ? $userAssociatedApp->role : Role::where('name', $this->role::ADMIN->getValue())->firstOrFail(),
+            $userAssociatedAppCompany,
+            $userAssociatedAppCompany->role ? $userAssociatedAppCompany->role : Role::where('name', $this->role::ADMIN->getValue())->firstOrFail(),
         );
         $assignRole->execute();
 
