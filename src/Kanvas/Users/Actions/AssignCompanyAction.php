@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Users\Actions;
 
 use Kanvas\AccessControlList\Actions\AssignAction;
+use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -62,7 +63,7 @@ class AssignCompanyAction
 
         $assignRole = new AssignAction(
             $this->user,
-            $userAssociatedApp->role ? $userAssociatedApp->role->name : $this->role::ADMIN->getValue()
+            $userAssociatedApp->role ? $userAssociatedApp->role : Role::where('name', $this->role::ADMIN->getValue())->firstOrFail(),
         );
         $assignRole->execute();
 

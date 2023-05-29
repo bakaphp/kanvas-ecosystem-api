@@ -8,6 +8,7 @@ use Bouncer;
 use Kanvas\AccessControlList\Actions\AssignAction;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
 use Kanvas\AccessControlList\Actions\UpdateRoleAction;
+use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Users\Repositories\UsersRepository;
 use Silber\Bouncer\Database\Role as SilberRole;
 
@@ -18,12 +19,14 @@ class AccessControlListManagementMutation
      */
     public function assignRoleToUser(mixed $rootValue, array $request): bool
     {
+        $role = Role::where('name', $request['role'])->firstOrFail();
+
         $assign = new AssignAction(
             UsersRepository::getById(
                 $request['userId'],
                 auth()->user()->getCurrentCompany()->getId()
             ),
-            $request['role']
+            $role
         );
         $assign->execute();
 
@@ -35,12 +38,13 @@ class AccessControlListManagementMutation
      */
     public function removeRoleFromUser(mixed $rootValue, array $request): bool
     {
-        $role = $request['role'];
+        $role = Role::where('name', $request['role'])->firstOrFail();
+
         $user = UsersRepository::getById(
             $request['userId'],
             auth()->user()->getCurrentCompany()->getId()
         );
-        $user->retract($role);
+        $user->retract($role->name);
 
         return true;
     }
