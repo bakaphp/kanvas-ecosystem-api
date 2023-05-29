@@ -19,7 +19,10 @@ class AccessControlListManagementMutation
     public function assignRoleToUser(mixed $rootValue, array $request): bool
     {
         $assign = new AssignAction(
-            UsersRepository::getById($request['userId'], auth()->user()->defaultCompany->id),
+            UsersRepository::getById(
+                $request['userId'],
+                auth()->user()->getCurrentCompany()->getId()
+            ),
             $request['role']
         );
         $assign->execute();
@@ -33,7 +36,10 @@ class AccessControlListManagementMutation
     public function removeRoleFromUser(mixed $rootValue, array $request): bool
     {
         $role = $request['role'];
-        $user = UsersRepository::getById($request['userId'], auth()->user()->defaultCompany->id);
+        $user = UsersRepository::getById(
+            $request['userId'],
+            auth()->user()->getCurrentCompany()->getId()
+        );
         $user->retract($role);
 
         return true;
@@ -44,7 +50,10 @@ class AccessControlListManagementMutation
      */
     public function givePermissionToUser(mixed $rootValue, array $request): bool
     {
-        $user = UsersRepository::getById($request['userId'], auth()->user()->defaultCompany->id);
+        $user = UsersRepository::getById(
+            $request['userId'],
+            auth()->user()->getCurrentCompany()->getId()
+        );
         Bouncer::allow($user)->to($request['permission']);
 
         return true;
@@ -55,7 +64,10 @@ class AccessControlListManagementMutation
      */
     public function removePermissionToUser(mixed $rootValue, array $request): bool
     {
-        $user = UsersRepository::getById($request['userId'], auth()->user()->defaultCompany->id);
+        $user = UsersRepository::getById(
+            $request['userId'],
+            auth()->user()->getCurrentCompany()->getId()
+        );
         Bouncer::disallow($user)->to($request['permission']);
 
         return true;
