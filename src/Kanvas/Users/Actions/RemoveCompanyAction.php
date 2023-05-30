@@ -41,7 +41,7 @@ class RemoveCompanyAction
             $this->app,
             StateEnums::YES->getValue(),
         )->delete();
-        
+
         $otherAssociation = UsersAssociatedApps::where('users_id', $this->user->getId())
             ->where('apps_id', $this->app->getId())
             ->get();
@@ -56,7 +56,7 @@ class RemoveCompanyAction
             ->where('companies_id', $this->company->getId())
             ->get();
 
-        if (!$stillHasAccessToThisCompany->count()) {
+        if (! $stillHasAccessToThisCompany->count()) {
             $this->company->associateUser(
                 $this->user,
                 StateEnums::YES->getValue(),
