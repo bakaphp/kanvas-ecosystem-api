@@ -48,6 +48,7 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
     protected $primaryKey = [
         'users_id',
         'apps_id',
+        'companies_id',
     ];
 
     protected $fillable = [

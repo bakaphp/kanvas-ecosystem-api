@@ -95,8 +95,6 @@ class Companies extends BaseModel implements CompanyInterface
 
     /**
      * CompaniesGroups relationship.
-     *
-     * @return hasMany
      */
     public function groups(): BelongsToMany
     {
