@@ -47,7 +47,7 @@ class MessageManagementMutation
             'type' => $activityType->id,
         ];
 
-        FillUserMessage::dispatch(Message::find($message->id), $activity, $message->user);
+        FillUserMessage::dispatch(Message::find($message->id), $activity, $message->user)->onQueue('message');
 
         return $message;
     }

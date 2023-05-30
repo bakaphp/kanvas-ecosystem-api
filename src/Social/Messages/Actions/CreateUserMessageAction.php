@@ -29,7 +29,7 @@ class CreateUserMessageAction
      *
      * @return void
      */
-    public function execute()
+    public function execute(): void
     {
         $userMessage = UserMessage::firstOrCreate([
             'messages_id' => $this->message->id,
