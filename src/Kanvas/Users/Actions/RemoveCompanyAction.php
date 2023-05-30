@@ -8,6 +8,7 @@ use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -44,6 +45,7 @@ class RemoveCompanyAction
 
         $otherAssociation = UsersAssociatedApps::where('users_id', $this->user->getId())
             ->where('apps_id', $this->app->getId())
+            ->whereNot('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
             ->get();
 
         if ($otherAssociation->count()) {

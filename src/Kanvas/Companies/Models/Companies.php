@@ -171,7 +171,6 @@ class Companies extends BaseModel implements CompanyInterface
 
     /**
      * Associate user to the app.
-     * @deprecated v2.0.0 use registerUserApp instead
      */
     public function associateUserApp(
         Users $user,
