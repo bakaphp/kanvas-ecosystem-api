@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Apps\GraphQL\Social\Queries\Messages;
+namespace App\GraphQL\Social\Queries\Messages;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Models\Message;
@@ -19,7 +19,7 @@ class SearchQuery
         array $request
     ) {
         $appsId = app(Apps::class)->id;
-        $message = Message::search($request['input']['text'])->where('apps_id', $appsId)->get();
+        $message = Message::search($request['text'])->where('apps_id', $appsId)->get();
 
         return $message;
     }

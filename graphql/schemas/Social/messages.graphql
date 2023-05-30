@@ -31,11 +31,9 @@ extend type Mutation @guard {
 
 extend type Query @guard {
     messageSearch(
-        input: {
-         text: String!
-        }
+        text: String!
     ): [Message]
     @field(
-        resolver: "App\\GraphQL\\Social\\Queries\\SearchQuery"
+        resolver: "App\\GraphQL\\Social\\Queries\\Messages\\SearchQuery"
     )
 }

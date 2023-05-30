@@ -134,7 +134,7 @@ services:
         - sail
     meilisearch:
         container_name: meilisearch
-        image: getmeili/meilisearch:v0.25.2
+        image: getmeili/meilisearch:v1.1
         environment:
           - http_proxy
           - https_proxy
