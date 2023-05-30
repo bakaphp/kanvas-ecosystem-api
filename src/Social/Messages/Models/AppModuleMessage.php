@@ -9,7 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
-use Kanvas\Social\Models\Message;
+use Kanvas\Social\Messages\Models\Message;
 
 /**
  * class AppModuleMessage
