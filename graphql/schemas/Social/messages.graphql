@@ -1,8 +1,8 @@
 type Message {
     id: Int!
     parent_id: Int
-    parent_unique_id: Int
-    uuid: String
+    parent_unique_id: String
+    uuid: String!
     apps_id: Int!
     companies_id: Int!
     users_id: Int!
@@ -18,7 +18,7 @@ input MessageInput {
     message_types_id: Int!
     message: Mixed!
     system_modules_id: Int!
-    entity_id: Int!
+    entity_id: String!
 }
 extend type Mutation @guard {
     createMessage(
