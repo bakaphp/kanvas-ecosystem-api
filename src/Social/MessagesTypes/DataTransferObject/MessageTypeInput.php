@@ -16,7 +16,7 @@ use Spatie\LaravelData\Data;
  *  @property string $templates_plura
  */
 class MessageTypeInput extends Data
-{    
+{
     /**
      * __construct
      *
