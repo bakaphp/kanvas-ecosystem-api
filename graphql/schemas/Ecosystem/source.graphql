@@ -1,0 +1,6 @@
+type Source {
+    id: Int!
+    title: String!
+    url: String!
+    language: Language! @belongsTo
+}

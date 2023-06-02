@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\GraphQL\Ecosystem;
+namespace Tests\GraphQL\Ecosystem\Users;
 
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Tests\TestCase;

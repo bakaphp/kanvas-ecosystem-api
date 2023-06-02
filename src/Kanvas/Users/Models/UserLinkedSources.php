@@ -6,7 +6,6 @@ namespace Kanvas\Users\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
-use Laravel\Socialite\Two\User as SocialiteUser;
 
 /**
  * User Linked Sources Model.
@@ -29,13 +28,11 @@ class UserLinkedSources extends BaseModel
         'source_id',
         'source_users_id',
         'source_users_id_text',
-        'source_username'
+        'source_username',
     ];
 
     /**
      * Users relationship.
-     *
-     * @return Users
      */
     public function user(): BelongsTo
     {
@@ -44,32 +41,9 @@ class UserLinkedSources extends BaseModel
 
     /**
      * Users relationship.
-     *
-     * @return Users
      */
     public function source(): BelongsTo
     {
         return $this->belongsTo(Sources::class, 'source_id');
-    }
-
-    /**
-     * Create user link source based on social provider
-     *
-     * @param SocialiteUser $socialUser
-     * @param Users $user
-     * @param Sources $source
-     * @return UserLinkedSources
-     */
-    public static function createSocial(SocialiteUser $socialUser, Users $user, Sources $source): self
-    {
-        $linked = new self();
-        $linked->users_id = $user->id;
-        $linked->source_id = $source->id;
-        $linked->source_users_id = $socialUser->id;
-        $linked->source_users_id_text = $socialUser->token;
-        $linked->source_username = $socialUser->nickname ?? $socialUser->name;
-        $linked->saveOrFail();
-
-        return $linked;
     }
 }

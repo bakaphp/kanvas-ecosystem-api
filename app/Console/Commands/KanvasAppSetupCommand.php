@@ -16,7 +16,7 @@ class KanvasAppSetupCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:setup';
+    protected $signature = 'kanvas:app-create';
 
     /**
      * The console command description.
