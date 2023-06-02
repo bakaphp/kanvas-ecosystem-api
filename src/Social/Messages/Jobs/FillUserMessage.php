@@ -32,11 +32,10 @@ class FillUserMessage // implements ShouldQueue
 
     public function handle()
     {
-        
         $followers = UsersFollowsRepository::getFollowersBuilder($this->entityFollow);
         $followers = $followers->get();
 
-        foreach ($followers as $follower) {            
+        foreach ($followers as $follower) {
             $action = new CreateUserMessageAction(
                 $this->message,
                 $follower,
