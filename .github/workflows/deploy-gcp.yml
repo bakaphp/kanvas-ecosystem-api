@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name }}
     permissions:
+      id-token: write # This is required for requesting the JWT
       contents: read
       packages: write
     steps:
