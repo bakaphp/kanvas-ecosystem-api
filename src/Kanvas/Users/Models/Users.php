@@ -472,7 +472,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * list of abilities name for this user.
      */
-    public function getAbilitiesList() : array
+    public function getAbilitiesList(): array
     {
         /**
          * @psalm-suppress InvalidTemplateParam
