@@ -10,15 +10,15 @@ class PermissionsResolver
 {
     /**
      * can.
-     *
-     * @param  mixed $rootValue
-     * @param  array $request
-     *
-     * @return bool
      */
     public function can(mixed $rootValue, array $request): bool
     {
-        $user = UsersRepository::getById($request['userId'], auth()->user()->getCurrentCompany()->id);
+        $user = UsersRepository::getUserOfCompanyById(auth()->user()->getCurrentCompany(), $request['userId']);
+
+        if ($user->isAn('Admin')) {
+            return true;
+        }
+
         return $user->can($request['permission']);
     }
 }
