@@ -9,7 +9,6 @@ use Bouncer;
 use Kanvas\AccessControlList\Actions\AssignAction;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
 use Kanvas\AccessControlList\Actions\UpdateRoleAction;
-use Kanvas\AccessControlList\Models\Role;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 use Silber\Bouncer\Database\Role as SilberRole;
@@ -26,7 +25,7 @@ class AccessControlListManagementMutation
         $assign = new AssignAction(
             $user = UsersRepository::getUserOfCompanyById(
                 auth()->user()->getCurrentCompany(),
-                $request['userId']
+                (int) $request['userId']
             ),
             $role
         );
@@ -44,7 +43,7 @@ class AccessControlListManagementMutation
 
         $user = UsersRepository::getUserOfCompanyById(
             auth()->user()->getCurrentCompany(),
-            $request['userId']
+            (int) $request['userId']
         );
         $user->retract($role->name);
 
@@ -58,7 +57,7 @@ class AccessControlListManagementMutation
     {
         $user = UsersRepository::getUserOfCompanyById(
             auth()->user()->getCurrentCompany(),
-            $request['userId']
+            (int) $request['userId']
         );
         Bouncer::allow($user)->to(Str::slug($request['permission']));
 
@@ -72,7 +71,7 @@ class AccessControlListManagementMutation
     {
         $user = UsersRepository::getUserOfCompanyById(
             auth()->user()->getCurrentCompany(),
-            $request['userId']
+            (int) $request['userId']
         );
         Bouncer::disallow($user)->to($request['permission']);
 
