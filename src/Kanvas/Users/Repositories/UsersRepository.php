@@ -25,7 +25,6 @@ class UsersRepository
      */
     public static function findUsersByIds(array $usersIds): Collection
     {
-        
         return Users::whereHas('apps', function (Builder $query) {
             $query->where('apps_id', app(Apps::class)->id);
         })->whereIn('users.id', $usersIds)
@@ -37,10 +36,10 @@ class UsersRepository
      */
     public static function getById(int $id, int $companiesId): Users
     {
-       return self::getUserOfCompanyById(
+        return self::getUserOfCompanyById(
             Companies::getById($companiesId),
             $id
-       );
+        );
     }
 
     /**

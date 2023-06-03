@@ -22,11 +22,6 @@ class RolesResolver
 
     /**
      * hasRole.
-     *
-     * @param  mixed $_
-     * @param  array $request
-     *
-     * @return bool
      */
     public function hasRole(mixed $_, array $request): bool
     {
@@ -36,7 +31,7 @@ class RolesResolver
             auth()->user()->getCurrentCompany(),
             $request['userId']
         );
-        
+
         return $user->isAn($role->name);
     }
 }
