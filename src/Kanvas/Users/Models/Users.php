@@ -481,7 +481,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             return $ability->name;
         });
 
-        if($this->isAn('Admin')) {
+        if($this->isAn((string) AppEnums::ADMIN->getValue())) {
             $mapAbilities->prepend('*');
         }
 
