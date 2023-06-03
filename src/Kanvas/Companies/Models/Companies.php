@@ -76,6 +76,7 @@ class Companies extends BaseModel implements CompanyInterface
 
     /**
      * Default Branch.
+     * @psalm-suppress MixedReturnStatement
      */
     public function defaultBranch(): HasOne
     {
@@ -147,6 +148,7 @@ class Companies extends BaseModel implements CompanyInterface
 
     /**
      * Associate user to this company.
+     * @psalm-suppress MixedReturnStatement
      */
     public function associateUser(
         Users $user,
@@ -171,6 +173,7 @@ class Companies extends BaseModel implements CompanyInterface
 
     /**
      * Associate user to the app.
+     * @psalm-suppress MixedReturnStatement
      */
     public function associateUserApp(
         Users $user,
@@ -194,6 +197,7 @@ class Companies extends BaseModel implements CompanyInterface
 
     /**
      * Associate company to the app.
+     * @psalm-suppress MixedReturnStatement
      */
     public function associateApp(Apps $app): UserCompanyApps
     {

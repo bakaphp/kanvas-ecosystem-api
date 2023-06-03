@@ -154,6 +154,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Apps relationship.
      * use distinct() to avoid duplicate apps.
+     * @psalm-suppress MixedReturnStatement
      */
     public function apps(): HasManyThrough
     {
@@ -171,6 +172,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Companies relationship.
      * use distinct() to avoid duplicate companies.
+     * @psalm-suppress MixedReturnStatement
      */
     public function companies(): HasManyThrough
     {
@@ -211,6 +213,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * Get the current user information for the running app.
+     * @psalm-suppress MixedReturnStatement
      */
     public function getAppProfile(AppInterface $app): UsersAssociatedApps
     {
@@ -226,6 +229,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * Get the current user information for the running app.
+     * @psalm-suppress MixedReturnStatement
      */
     public function getCompanyProfile(AppInterface $app, CompanyInterface $company): UsersAssociatedApps
     {
@@ -241,6 +245,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * CompaniesBranches relationship.
+     * @psalm-suppress MixedReturnStatement
      */
     public function branches(): HasManyThrough
     {
@@ -264,6 +269,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * notifications.
+     * @psalm-suppress MixedReturnStatement
      */
     public function notifications(): HasMany
     {
@@ -345,6 +351,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * What the current company the users is logged in with
      * in this current session?
+     * @psalm-suppress MixedReturnStatement
      */
     public function currentCompanyId(): int
     {
@@ -360,6 +367,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * What the current branch the users is logged in with.
+     * @psalm-suppress MixedReturnStatement
      */
     public function currentBranchId(): int
     {
@@ -459,5 +467,20 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function isAppOwner(): bool
     {
         return $this->getId() === app(Apps::class)->users_id;
+    }
+
+    /**
+     * list of abilities name for this user.
+     */
+    public function getAbilitiesList() : array
+    {
+        /**
+         * @psalm-suppress InvalidTemplateParam
+         */
+        $mapAbilities = $this->getAbilities()->map(function ($ability) {
+            return $ability->name;
+        });
+
+        return $mapAbilities->all();
     }
 }

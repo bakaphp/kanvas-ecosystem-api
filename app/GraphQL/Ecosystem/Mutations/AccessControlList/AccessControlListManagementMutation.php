@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\AccessControlList;
 
+use Baka\Support\Str;
 use Bouncer;
 use Kanvas\AccessControlList\Actions\AssignAction;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
@@ -59,7 +60,7 @@ class AccessControlListManagementMutation
             auth()->user()->getCurrentCompany(),
             $request['userId']
         );
-        Bouncer::allow($user)->to($request['permission']);
+        Bouncer::allow($user)->to(Str::slug($request['permission']));
 
         return true;
     }
