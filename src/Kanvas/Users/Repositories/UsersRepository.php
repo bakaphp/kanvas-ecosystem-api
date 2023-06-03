@@ -21,9 +21,11 @@ class UsersRepository
 {
     /**
      * findUsersByIds
+     * @psalm-suppress MixedReturnStatement
      */
     public static function findUsersByIds(array $usersIds): Collection
     {
+        
         return Users::whereHas('apps', function (Builder $query) {
             $query->where('apps_id', app(Apps::class)->id);
         })->whereIn('users.id', $usersIds)
@@ -35,14 +37,15 @@ class UsersRepository
      */
     public static function getById(int $id, int $companiesId): Users
     {
-        return Users::join('users_associated_company', 'users_associated_company.users_id', 'users.id')
-            ->where('users_associated_company.companies_id', $companiesId)
-            ->where('id', $id)
-            ->firstOrFail();
+       return self::getUserOfCompanyById(
+            Companies::getById($companiesId),
+            $id
+       );
     }
 
     /**
      * Get the user by email.
+     * @psalm-suppress MixedReturnStatement
      */
     public static function getByEmail(string $email): Users
     {
@@ -52,17 +55,25 @@ class UsersRepository
 
     /**
      * Get the user if he exist in the current company.
+     * @psalm-suppress MixedReturnStatement
      */
     public static function getUserOfCompanyById(Companies $company, int $id): Users
     {
-        return Users::join('users_associated_company', 'users_associated_company.users_id', 'users.id')
-            ->where('users_associated_company.companies_id', $company->getKey())
-            ->where('users.id', $id)
-            ->firstOrFail();
+        try {
+            return Users::join('users_associated_company', 'users_associated_company.users_id', 'users.id')
+                ->where('users_associated_company.companies_id', $company->getKey())
+                ->where('users.id', $id)
+                ->firstOrFail();
+        } catch (ModelNotFoundException) {
+            throw new ExceptionsModelNotFoundException(
+                'User not found'
+            );
+        }
     }
 
     /**
      * Get the user if he exist in the current app.
+     * @psalm-suppress MixedReturnStatement
      */
     public static function getUserOfAppById(int $id): Users
     {
@@ -74,6 +85,7 @@ class UsersRepository
 
     /**
      * getAll.
+     * @psalm-suppress MixedReturnStatement
      */
     public static function getAll(int $companiesId): Collection
     {
@@ -85,7 +97,7 @@ class UsersRepository
 
     /**
      * User belongs / has permission in this company.
-     *
+     * @psalm-suppress MixedReturnStatement
      * @throws ExceptionsModelNotFoundException
      */
     public static function belongsToCompany(Users $user, Companies $company): UsersAssociatedCompanies
@@ -104,7 +116,7 @@ class UsersRepository
 
     /**
      * User belongs / has permission in this company.
-     *
+     * @psalm-suppress MixedReturnStatement
      * @throws ExceptionsModelNotFoundException
      */
     public static function belongsToCompanyBranch(Users $user, Companies $company, CompaniesBranches $branch): UsersAssociatedCompanies
@@ -124,7 +136,7 @@ class UsersRepository
 
     /**
      * User associated to this company on the current app.
-     *
+     * @psalm-suppress MixedReturnStatement
      * @throws ExceptionsModelNotFoundException
      */
     public static function belongsToThisApp(Users $user, Apps $app, ?Companies $company = null): UsersAssociatedApps
@@ -148,7 +160,7 @@ class UsersRepository
 
     /**
      * Is this user owner of the app?
-     *
+     * @psalm-suppress MixedReturnStatement
      * @throws ExceptionsModelNotFoundException
      */
     public static function userOwnsThisApp(Users $user, Apps $app): UsersAssociatedApps

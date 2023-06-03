@@ -10,7 +10,7 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Resolvers\\AccessControlList\\RolesResolver@getAllRoles"
         )
-    hasRole(userId: Int!, role: String!): Boolean
+    hasRole(userId: Int!, role: Mixed!): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Resolvers\\AccessControlList\\RolesResolver@hasRole"
         )
@@ -34,11 +34,12 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\AccessControlListManagementMutation@updateRole"
         )
 
-    assignRoleToUser(userId: Int!, role: String!): Boolean
+    #assign role to the company and to the app
+    assignRoleToUser(userId: Int!, role: Mixed!): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\AccessControlListManagementMutation@assignRoleToUser"
         )
-    removeRole(userId: Int!, role: String!): Boolean
+    removeRole(userId: Int!, role: Mixed!): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\AccessControlListManagementMutation@removeRoleFromUser"
         )

@@ -14,7 +14,7 @@ class AccessControlList
      * */
     public function getAllAbilities(mixed $root, array $query): array
     {
-        $abilities = UsersRepository::getById($query['userId'], auth()->user()->defaultCompany->id)->getAbilities();
+        $abilities = UsersRepository::getUserOfCompanyById(auth()->user()->defaultCompany->id, $query['userId'])->getAbilities();
         $mapAbilities = $abilities->map(function ($ability) {
             return $ability->name;
         });

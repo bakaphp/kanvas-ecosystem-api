@@ -9,6 +9,7 @@ use Kanvas\AccessControlList\Actions\AssignAction;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
 use Kanvas\AccessControlList\Actions\UpdateRoleAction;
 use Kanvas\AccessControlList\Models\Role;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 use Silber\Bouncer\Database\Role as SilberRole;
 
@@ -19,12 +20,12 @@ class AccessControlListManagementMutation
      */
     public function assignRoleToUser(mixed $rootValue, array $request): bool
     {
-        $role = Role::where('name', $request['role'])->firstOrFail();
+        $role = RolesRepository::getByMixedParamFromCompany($request['role']);
 
         $assign = new AssignAction(
-            UsersRepository::getById(
-                $request['userId'],
-                auth()->user()->getCurrentCompany()->getId()
+            $user = UsersRepository::getUserOfCompanyById(
+                auth()->user()->getCurrentCompany(),
+                $request['userId']
             ),
             $role
         );
@@ -38,11 +39,11 @@ class AccessControlListManagementMutation
      */
     public function removeRoleFromUser(mixed $rootValue, array $request): bool
     {
-        $role = Role::where('name', $request['role'])->firstOrFail();
+        $role = RolesRepository::getByMixedParamFromCompany($request['role']);
 
-        $user = UsersRepository::getById(
-            $request['userId'],
-            auth()->user()->getCurrentCompany()->getId()
+        $user = UsersRepository::getUserOfCompanyById(
+            auth()->user()->getCurrentCompany(),
+            $request['userId']
         );
         $user->retract($role->name);
 
@@ -54,9 +55,9 @@ class AccessControlListManagementMutation
      */
     public function givePermissionToUser(mixed $rootValue, array $request): bool
     {
-        $user = UsersRepository::getById(
-            $request['userId'],
-            auth()->user()->getCurrentCompany()->getId()
+        $user = UsersRepository::getUserOfCompanyById(
+            auth()->user()->getCurrentCompany(),
+            $request['userId']
         );
         Bouncer::allow($user)->to($request['permission']);
 
@@ -68,9 +69,9 @@ class AccessControlListManagementMutation
      */
     public function removePermissionToUser(mixed $rootValue, array $request): bool
     {
-        $user = UsersRepository::getById(
-            $request['userId'],
-            auth()->user()->getCurrentCompany()->getId()
+        $user = UsersRepository::getUserOfCompanyById(
+            auth()->user()->getCurrentCompany(),
+            $request['userId']
         );
         Bouncer::disallow($user)->to($request['permission']);
 

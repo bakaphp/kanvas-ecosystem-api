@@ -17,6 +17,7 @@ type User {
     updated_at: DateTime
     branches: [CompanyBranch!] @HasManyThrough
     companies: [Company!] @HasManyThrough
+    apps: [App!] @HasManyThrough
 }
 
 type AddressType {
