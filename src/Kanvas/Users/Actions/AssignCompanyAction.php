@@ -6,6 +6,7 @@ namespace Kanvas\Users\Actions;
 
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Models\Role;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -63,7 +64,7 @@ class AssignCompanyAction
 
         $assignRole = new AssignRoleAction(
             $userAssociatedAppCompany,
-            $userAssociatedAppCompany->role ? $userAssociatedAppCompany->role : Role::where('name', $this->role::ADMIN->getValue())->firstOrFail(),
+            RolesRepository::getByNameFromCompany($this->role->getValue()),
         );
         $assignRole->execute();
 

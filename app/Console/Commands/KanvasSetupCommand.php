@@ -43,7 +43,6 @@ class KanvasSetupCommand extends Command
             'migrate --path database/migrations/Guild/ --database crm',
             'db:seed',
             'kanvas:create-role Admin',
-            'kanvas:create-role Admins', //@todo remove , legacy
             'kanvas:create-role Users',
             'kanvas:create-role Agents',
             'kanvas:filesystem-setup',

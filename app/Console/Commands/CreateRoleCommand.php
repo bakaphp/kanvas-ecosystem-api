@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
+use Kanvas\Apps\Models\Apps;
 
 class CreateRoleCommand extends Command
 {
@@ -14,7 +15,7 @@ class CreateRoleCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:create-role {name}';
+    protected $signature = 'kanvas:create-role {name} {app_id?}';
 
     /**
      * The console command description.
@@ -26,9 +27,11 @@ class CreateRoleCommand extends Command
     public function handle(): void
     {
         $roleName = $this->argument('name');
+        $appId = $this->argument('app_id') ?? Apps::first()->getId();
         $createRole = new CreateRoleAction(
             $roleName,
-            $roleName
+            $roleName,
+            Apps::getById($appId)
         );
         $createRole->execute();
 
