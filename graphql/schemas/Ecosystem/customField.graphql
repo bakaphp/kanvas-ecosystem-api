@@ -32,7 +32,7 @@ extend type Mutation @guard {
 }
 
 extend type Query @guard {
-    getCustomField(
+    customField(
         name: String!
         system_module_uuid: String!
         entity_id: String!
@@ -40,7 +40,7 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@get"
         )
-    getAllCustomField(
+    customFields(
         name: String!
         system_module_uuid: String!
         entity_id: String!
