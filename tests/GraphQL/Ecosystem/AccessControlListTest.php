@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem;
 
+use App\GraphQL\Ecosystem\Queries\Roles;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Tests\TestCase;
 
 class AccessControlListTest extends TestCase
@@ -172,6 +174,35 @@ class AccessControlListTest extends TestCase
                     'title' => 'Role Updated',
                     'id' => $id[0]
                 ]
+            ]
+        ]);
+    }
+
+    public function testAssignUserRole()
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $roles = RolesRepository::getByNameFromCompany('Admin', $company);
+      
+
+        $this->graphQL(/** @lang GraphQL */
+            '
+            mutation(
+                $userId: Int!
+                $role: Mixed!
+            ) {
+                assignRoleToUser(
+                    userId: $userId
+                    role: $role
+                ) 
+            }',
+            [
+                'userId' => $user->getId(),
+                'role' => $roles->name
+            ]
+        )->assertJson([
+            'data' => [
+                'assignRoleToUser' => true
             ]
         ]);
     }
