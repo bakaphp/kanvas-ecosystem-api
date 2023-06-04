@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Roles;
 
-use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Tests\TestCase;
 
 class RolesTest extends TestCase
@@ -164,7 +163,7 @@ class RolesTest extends TestCase
 
     public function testAssignUserRole()
     {
-        $user = auth()->user();        
+        $user = auth()->user();
         $faker = \Faker\Factory::create();
         $newName = $faker->name;
 
@@ -212,9 +211,79 @@ class RolesTest extends TestCase
         ]);
     }
 
+    public function testHasRole()
+    {
+        $user = auth()->user();
+        $faker = \Faker\Factory::create();
+        $newName = $faker->name;
+
+        $this->graphQL( /** @lang GraphQL */
+            '
+            mutation(
+                $name: String!
+                $title: String
+            ) {
+                createRole(
+                    name: $name
+                    title: $title
+                ) {
+                    id,
+                    name
+                    title
+                }
+            }',
+            [
+                'name' => $newName,
+                'title' => 'No Admin',
+            ]
+        );
+
+        $this->graphQL(/** @lang GraphQL */
+            '
+            mutation(
+                $userId: Int!
+                $role: Mixed!
+            ) {
+                assignRoleToUser(
+                    userId: $userId
+                    role: $role
+                ) 
+            }',
+            [
+                'userId' => $user->getId(),
+                'role' => $newName,
+            ]
+        )->assertJson([
+            'data' => [
+                'assignRoleToUser' => true,
+            ],
+        ]);
+
+        $this->graphQL(/** @lang GraphQL */
+            '
+            query(
+                $userId: Int!
+                $role: Mixed!
+            ) {
+                hasRole(
+                    userId: $userId
+                    role: $role
+                ) 
+            }',
+            [
+                'userId' => $user->getId(),
+                'role' => $newName,
+            ]
+        )->assertJson([
+            'data' => [
+                'hasRole' => true,
+            ],
+        ]);
+    }
+
     public function testRemoveAssignUserRole()
     {
-        $user = auth()->user();        
+        $user = auth()->user();
         $faker = \Faker\Factory::create();
         $newName = $faker->name;
 
@@ -279,31 +348,6 @@ class RolesTest extends TestCase
         )->assertJson([
             'data' => [
                 'removeRole' => true,
-            ],
-        ]);
-    }
-
-    public function testGetAllAbilities()
-    {
-        $user = auth()->user();        
-        $faker = \Faker\Factory::create();
-        $newName = $faker->name;
-
-        $this->graphQL(/** @lang GraphQL */
-            '
-            query getAllAbilities(
-                $userId: Int!
-            ) {
-                getAllAbilities(
-                    userId: $userId
-                ) 
-            }',
-            [
-                'userId' => $user->getId()
-            ]
-        )->assertJson([
-            'data' => [
-                'getAllAbilities' => []
             ],
         ]);
     }
