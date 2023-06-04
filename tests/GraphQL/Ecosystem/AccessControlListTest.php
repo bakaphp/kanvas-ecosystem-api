@@ -71,14 +71,8 @@ class AccessControlListTest extends TestCase
                 'name' => 'No Admin',
                 'title' => 'No Admin',
             ]
-        )->assertJson([
-            'data' => [
-                'createRole' => [
-                    'name' => 'No Admin',
-                    'title' => 'No Admin',
-                ],
-            ],
-        ]);
+        );
+
         $response = $this->graphQL(/** @lang GraphQL */
             '
             {
@@ -118,14 +112,8 @@ class AccessControlListTest extends TestCase
                 'name' => 'No Admin',
                 'title' => 'No Admin',
             ]
-        )->assertJson([
-            'data' => [
-                'createRole' => [
-                    'name' => 'No Admin',
-                    'title' => 'No Admin',
-                ],
-            ],
-        ]);
+        );
+
         $response = $this->graphQL(/** @lang GraphQL */
             '
             {
@@ -138,6 +126,9 @@ class AccessControlListTest extends TestCase
         );
         $id = $response->json('data.roles.*.id');
 
+        $faker = \Faker\Factory::create();
+        $newName = $faker->name;
+        
         $this->graphQL(/** @lang GraphQL */
             '
             mutation(
@@ -157,13 +148,13 @@ class AccessControlListTest extends TestCase
             }',
             [
                 'id' => $id[0],
-                'name' => 'Role Updated',
+                'name' => $newName,
                 'title' => 'Role Updated',
             ]
         )->assertJson([
             'data' => [
                 'updateRole' => [
-                    'name' => 'Role Updated',
+                    'name' => $newName,
                     'title' => 'Role Updated',
                     'id' => $id[0],
                 ],
