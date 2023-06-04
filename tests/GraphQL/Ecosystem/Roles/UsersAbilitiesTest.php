@@ -52,11 +52,11 @@ class UsersAbilitiesTest extends TestCase
             ]
         )->assertJson([
             'data' => [
-                'givePermissionToUser' => true
+                'givePermissionToUser' => true,
             ],
         ]);
     }
-    
+
     public function testRemoveUserPermission()
     {
         $user = auth()->user();
@@ -78,7 +78,7 @@ class UsersAbilitiesTest extends TestCase
             ]
         )->assertJson([
             'data' => [
-                'givePermissionToUser' => true
+                'givePermissionToUser' => true,
             ],
         ]);
 
@@ -99,7 +99,7 @@ class UsersAbilitiesTest extends TestCase
             ]
         )->assertJson([
             'data' => [
-                'removePermissionToUser' => true
+                'removePermissionToUser' => true,
             ],
         ]);
     }
@@ -125,7 +125,7 @@ class UsersAbilitiesTest extends TestCase
             ]
         )->assertJson([
             'data' => [
-                'givePermissionToUser' => true
+                'givePermissionToUser' => true,
             ],
         ]);
 
@@ -146,7 +146,7 @@ class UsersAbilitiesTest extends TestCase
             ]
         )->assertJson([
             'data' => [
-                'can' => true
+                'can' => true,
             ],
         ]);
     }
