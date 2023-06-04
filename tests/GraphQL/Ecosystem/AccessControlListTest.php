@@ -128,7 +128,7 @@ class AccessControlListTest extends TestCase
 
         $faker = \Faker\Factory::create();
         $newName = $faker->name;
-        
+
         $this->graphQL(/** @lang GraphQL */
             '
             mutation(
