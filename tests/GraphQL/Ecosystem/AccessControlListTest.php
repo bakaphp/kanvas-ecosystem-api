@@ -166,7 +166,7 @@ class AccessControlListTest extends TestCase
     {
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        $roles = RolesRepository::getByNameFromCompany('Admin');
+        $roles = RolesRepository::getAllRoles()->first();
 
 
         $this->graphQL(/** @lang GraphQL */
