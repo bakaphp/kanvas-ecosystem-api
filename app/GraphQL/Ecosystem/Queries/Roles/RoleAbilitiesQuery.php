@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Ecosystem\Queries\AccessControlList;
+namespace App\GraphQL\Ecosystem\Queries\Roles;
 
 use Kanvas\Users\Repositories\UsersRepository;
 
-class AccessControlList
+class RoleAbilitiesQuery
 {
     public function getAllAbilities(mixed $root, array $query): array
     {

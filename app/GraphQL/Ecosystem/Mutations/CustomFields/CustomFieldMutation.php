@@ -32,7 +32,7 @@ class CustomFieldMutation
     }
 
     /**
-     * Get custom field
+     * @deprecated use query
      */
     public function get(mixed $rootValue, array $request): mixed
     {
@@ -50,7 +50,7 @@ class CustomFieldMutation
     }
 
     /**
-     * Get custom field
+     * @deprecated use query
      */
     public function getAll(mixed $rootValue, array $request): array
     {

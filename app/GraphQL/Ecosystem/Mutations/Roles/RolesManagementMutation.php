@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Ecosystem\Mutations\AccessControlList;
+namespace App\GraphQL\Ecosystem\Mutations\Roles;
 
 use Baka\Support\Str;
 use Bouncer;
@@ -13,7 +13,7 @@ use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 use Silber\Bouncer\Database\Role as SilberRole;
 
-class AccessControlListManagementMutation
+class RolesManagementMutation
 {
     /**
      * assignRoleToUser.

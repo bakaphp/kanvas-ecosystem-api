@@ -2,18 +2,16 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Ecosystem\Resolvers\AccessControlList;
+namespace App\GraphQL\Ecosystem\Queries\Roles;
 
 use Illuminate\Database\Eloquent\Collection;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 
-class RolesResolver
+class RoleQuery
 {
     /**
      * getAllRoles.
-     *
-     * @return Collection
      */
     public function getAllRoles(): ?Collection
     {

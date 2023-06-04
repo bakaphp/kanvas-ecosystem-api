@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Ecosystem\Resolvers\AccessControlList;
+namespace App\GraphQL\Ecosystem\Queries\Roles;
 
 use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Users\Repositories\UsersRepository;
 
-class PermissionsResolver
+class RolePermissionQuery
 {
     /**
      * can.
