@@ -19,7 +19,7 @@ extend type Mutation @guard {
         )
     getCustomField(input: CustomFieldInput!): Mixed
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\[j]@get"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@get"
         )
     getAllCustomField(input: CustomFieldInput!): Mixed
         @field(
@@ -36,7 +36,7 @@ extend type Query @guard {
         name: String!
         system_module_uuid: String!
         entity_id: String!
-    ): Boolean
+    ): Mixed
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@get"
         )
@@ -44,7 +44,7 @@ extend type Query @guard {
         name: String!
         system_module_uuid: String!
         entity_id: String!
-    ): Boolean
+    ): Mixed
         @field(
             resolver:
               "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAll"
