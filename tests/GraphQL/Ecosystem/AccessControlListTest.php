@@ -166,7 +166,7 @@ class AccessControlListTest extends TestCase
     {
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        $roles = RolesRepository::getByNameFromCompany('Admin', $company);
+        $roles = RolesRepository::getByNameFromCompany('Admin');
 
 
         $this->graphQL(/** @lang GraphQL */
@@ -182,7 +182,7 @@ class AccessControlListTest extends TestCase
             }',
             [
                 'userId' => $user->getId(),
-                'role' => $roles->name,
+                'role' => $roles->id,
             ]
         )->assertJson([
             'data' => [
