@@ -164,9 +164,30 @@ class AccessControlListTest extends TestCase
 
     public function testAssignUserRole()
     {
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-        $roles = RolesRepository::getAllRoles()->first();
+        $user = auth()->user();        
+        $faker = \Faker\Factory::create();
+        $newName = $faker->name;
+
+        $this->graphQL( /** @lang GraphQL */
+            '
+            mutation(
+                $name: String!
+                $title: String
+            ) {
+                createRole(
+                    name: $name
+                    title: $title
+                ) {
+                    id,
+                    name
+                    title
+                }
+            }',
+            [
+                'name' => $newName,
+                'title' => 'No Admin',
+            ]
+        );
 
 
         $this->graphQL(/** @lang GraphQL */
@@ -182,7 +203,7 @@ class AccessControlListTest extends TestCase
             }',
             [
                 'userId' => $user->getId(),
-                'role' => $roles->id,
+                'role' => $newName,
             ]
         )->assertJson([
             'data' => [
