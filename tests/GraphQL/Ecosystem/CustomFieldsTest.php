@@ -97,11 +97,11 @@ class CustomFieldsTest extends TestCase
 
         $this->graphQL( /** @lang GraphQL */
             '
-            query getCustomField( 
+            query customField( 
             $name : String!, 
             $system_module_uuid: String! , 
             $entity_id : String!) {
-                getCustomField(
+                customField(
                     name: $name, 
                     system_module_uuid: $system_module_uuid,
                     entity_id : $entity_id
@@ -214,11 +214,11 @@ class CustomFieldsTest extends TestCase
 
         $this->graphQL( /** @lang GraphQL */
             '
-            query getAllCustomField( 
+            query customFields( 
             $name : String!, 
             $system_module_uuid: String! , 
             $entity_id : String!) {
-                getAllCustomField(
+                customFields(
                     name: $name, 
                     system_module_uuid: $system_module_uuid,
                     entity_id : $entity_id
