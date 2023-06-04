@@ -8,8 +8,10 @@ use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
 
 class RemoveCompanyAction
 {
@@ -41,24 +43,27 @@ class RemoveCompanyAction
             StateEnums::YES->getValue(),
         )->delete();
 
-        $this->company->associateUser(
-            $this->user,
-            StateEnums::YES->getValue(),
-            $this->branch
-        )->delete();
+        $otherAssociation = UsersAssociatedApps::where('users_id', $this->user->getId())
+            ->where('apps_id', $this->app->getId())
+            ->whereNot('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+            ->get();
 
-        $this->company->associateUser(
-            $this->user,
-            StateEnums::YES->getValue(),
-            CompaniesBranches::getGlobalBranch()
-        )->delete();
-
-        if ($this->user->get(Companies::cacheKey())) {
-            $this->user->del(Companies::cacheKey());
+        if ($otherAssociation->count()) {
+            $newPrimaryCompany = $otherAssociation->first();
+            $newCompany = Companies::getById($newPrimaryCompany->companies_id);
+            $this->user->set(Companies::cacheKey(), $newCompany->getId());
         }
 
-        if ($this->user->get($this->company->branchCacheKey())) {
-            $this->user->del($this->company->branchCacheKey());
+        $stillHasAccessToThisCompany = UsersAssociatedApps::where('users_id', $this->user->getId())
+            ->where('companies_id', $this->company->getId())
+            ->get();
+
+        if (! $stillHasAccessToThisCompany->count()) {
+            $this->company->associateUser(
+                $this->user,
+                StateEnums::YES->getValue(),
+                $this->branch
+            )->delete();
         }
     }
 }

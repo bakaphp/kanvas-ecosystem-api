@@ -11,14 +11,10 @@ use Kanvas\Enums\AppEnums;
 enum RolesEnums
 {
     /**
-     * Get role Key.
-     *
-     * @param Apps $app
-     * @param Companies|null $company
-     *
-     * @return string
+     * Roles are scoped by app
+     * in the future companies may create there own roles
      */
-    public static function getKey(Apps $app, ?Companies $company = null): string
+    public static function getScope(Apps $app, ?Companies $company = null): string
     {
         $companyId = $company ? $company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
 

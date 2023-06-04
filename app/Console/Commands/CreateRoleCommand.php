@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use Bouncer;
 use Illuminate\Console\Command;
+use Kanvas\AccessControlList\Actions\CreateRoleAction;
+use Kanvas\Apps\Models\Apps;
 
 class CreateRoleCommand extends Command
 {
@@ -14,7 +15,7 @@ class CreateRoleCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:create-role {name}';
+    protected $signature = 'kanvas:create-role {name} {app_id?}';
 
     /**
      * The console command description.
@@ -25,9 +26,15 @@ class CreateRoleCommand extends Command
 
     public function handle(): void
     {
-        $role = Bouncer::role()->firstOrCreate([
-            'name' => $this->argument('name'),
-            'title' => $this->argument('name'),
-        ]);
+        $roleName = $this->argument('name');
+        $appId = $this->argument('app_id') ?? Apps::first()->getId();
+        $createRole = new CreateRoleAction(
+            $roleName,
+            $roleName,
+            Apps::getById($appId)
+        );
+        $createRole->execute();
+
+        $this->info('Role ' . $roleName . ' created successfully.');
     }
 }

@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Actions;
 
-use Bouncer;
-use Kanvas\AccessControlList\Actions\AssignAction;
+use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Models\Role;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Enums\DefaultRoles;
@@ -31,7 +30,7 @@ class AssignCompanyAction
         ?Apps $app = null
     ) {
         $this->user = $user;
-        $this->company = $branch->company()->first();
+        $this->company = $branch->company()->firstOrFail();
         $this->branch = $branch;
         $this->role = $role ?? DefaultRoles::ADMIN;
         $this->app = $app ?? app(Apps::class);
@@ -57,22 +56,17 @@ class AssignCompanyAction
             $this->branch
         );
 
-        $this->company->associateUserApp(
+        $userAssociatedAppCompany = $this->company->associateUserApp(
             $this->user,
             $app,
             StateEnums::ON->getValue()
         );
 
-        Bouncer::scope()->to(RolesRepository::getScope($this->user));
-
-        if ($this->user->roles_id) {
-            $role = Role::find($this->user->roles_id)->name;
-            $assignRole = new AssignAction($this->user, $role);
-            $assignRole->execute();
-        } else {
-            $assignRole = new AssignAction($this->user, $this->role::ADMIN->getValue());
-            $assignRole->execute();
-        }
+        $assignRole = new AssignRoleAction(
+            $userAssociatedAppCompany,
+            RolesRepository::getByNameFromCompany($this->role->getValue()),
+        );
+        $assignRole->execute();
 
         if (! $roleLegacy = $app->get(AppSettingsEnums::DEFAULT_ROLE_NAME->getValue())) {
             $roleLegacy = $app->name . '.' . $this->user->role()->first()->name;

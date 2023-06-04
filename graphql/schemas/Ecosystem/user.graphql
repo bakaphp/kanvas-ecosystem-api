@@ -12,10 +12,13 @@ type User {
         @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@address")
     sex: String
     user_active: Boolean!
+    abilities: Mixed! @method(name: "getAbilitiesList")
+    roles: Mixed! @method(name: "getRoles")
     created_at: DateTime
     updated_at: DateTime
     branches: [CompanyBranch!] @HasManyThrough
     companies: [Company!] @HasManyThrough
+    apps: [App!] @HasManyThrough
 }
 
 type AddressType {
