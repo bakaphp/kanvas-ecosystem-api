@@ -33,7 +33,7 @@ class CreateRoleAction
     public function execute(?Companies $company = null): SilberRole
     {
         //Bouncer::scope()->to(RolesEnums::getScope($this->app, $company));
-        //Bouncer::scope()->to(RolesEnums::getScope($this->app));
+        Bouncer::scope()->to(RolesEnums::getScope($this->app));
 
         $validator = Validator::make(
             [
