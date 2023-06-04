@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem;
 
-use App\GraphQL\Ecosystem\Queries\Roles;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Tests\TestCase;
 
@@ -12,8 +11,6 @@ class AccessControlListTest extends TestCase
 {
     /**
      * testCreateRole.
-     *
-     * @return void
      */
     public function testCreateRole(): void
     {
@@ -36,22 +33,20 @@ class AccessControlListTest extends TestCase
             }',
             [
                 'name' => 'No Admin',
-                'title' => 'No Admin'
+                'title' => 'No Admin',
             ]
         )->assertJson([
             'data' => [
                 'createRole' => [
                     'name' => 'No Admin',
-                    'title' => 'No Admin'
-                ]
-            ]
+                    'title' => 'No Admin',
+                ],
+            ],
         ]);
     }
 
     /**
      * testGetRole.
-     *
-     * @return void
      */
     public function testGetRole(): void
     {
@@ -74,15 +69,15 @@ class AccessControlListTest extends TestCase
             }',
             [
                 'name' => 'No Admin',
-                'title' => 'No Admin'
+                'title' => 'No Admin',
             ]
         )->assertJson([
             'data' => [
                 'createRole' => [
                     'name' => 'No Admin',
-                    'title' => 'No Admin'
-                ]
-            ]
+                    'title' => 'No Admin',
+                ],
+            ],
         ]);
         $response = $this->graphQL(/** @lang GraphQL */
             '
@@ -99,8 +94,6 @@ class AccessControlListTest extends TestCase
 
     /**
      * testUpdateRole.
-     *
-     * @return void
      */
     public function testUpdateRole(): void
     {
@@ -123,15 +116,15 @@ class AccessControlListTest extends TestCase
             }',
             [
                 'name' => 'No Admin',
-                'title' => 'No Admin'
+                'title' => 'No Admin',
             ]
         )->assertJson([
             'data' => [
                 'createRole' => [
                     'name' => 'No Admin',
-                    'title' => 'No Admin'
-                ]
-            ]
+                    'title' => 'No Admin',
+                ],
+            ],
         ]);
         $response = $this->graphQL(/** @lang GraphQL */
             '
@@ -165,16 +158,16 @@ class AccessControlListTest extends TestCase
             [
                 'id' => $id[0],
                 'name' => 'Role Updated',
-                'title' => 'Role Updated'
+                'title' => 'Role Updated',
             ]
         )->assertJson([
             'data' => [
                 'updateRole' => [
                     'name' => 'Role Updated',
                     'title' => 'Role Updated',
-                    'id' => $id[0]
-                ]
-            ]
+                    'id' => $id[0],
+                ],
+            ],
         ]);
     }
 
@@ -183,7 +176,7 @@ class AccessControlListTest extends TestCase
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $roles = RolesRepository::getByNameFromCompany('Admin', $company);
-      
+
 
         $this->graphQL(/** @lang GraphQL */
             '
@@ -198,12 +191,12 @@ class AccessControlListTest extends TestCase
             }',
             [
                 'userId' => $user->getId(),
-                'role' => $roles->name
+                'role' => $roles->name,
             ]
         )->assertJson([
             'data' => [
-                'assignRoleToUser' => true
-            ]
+                'assignRoleToUser' => true,
+            ],
         ]);
     }
 }
