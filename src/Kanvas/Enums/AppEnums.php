@@ -13,7 +13,6 @@ enum AppEnums implements EnumsInterface
     case DEFAULT_NAME;
     case DEFAULT_LANGUAGE;
     case DEFAULT_ROLE_ID;
-    case ADMIN;
     case VERSION;
     case GLOBAL_APP_ID;
     case LEGACY_APP_ID;
@@ -65,14 +64,13 @@ enum AppEnums implements EnumsInterface
             self::CORE_APP_ID => 1,
             self::GLOBAL_COMPANY_ID => 0,
             self::GLOBAL_USER_ID => 0,
-            self::ADMIN => 'Admin',
             self::DEFAULT_ROLE_NAME => 'Admins',
             self::DEFAULT_ROLES_NAMES => ['Admin', 'Admins', 'User', 'Users', 'Agents'],
             self::ECOSYSTEM_COMPANY_ID => 1,
             self::DEFAULT_APP_NAME => 'Default',
             self::DEFAULT_COUNTRY => 'USA',
             self::DEFAULT_USER_LEVEL => 3,
-            self::DEFAULT_ROLE_ID => 2,
+            self::DEFAULT_ROLE_ID => 1,
             self::CURRENCY => 'USD',
             self::FILESYSTEM => 's3',
             self::ALLOW_USER_REGISTRATION => 1,

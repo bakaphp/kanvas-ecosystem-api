@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Actions;
 
-use Kanvas\AccessControlList\Actions\AssignAction;
+use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
@@ -61,7 +61,7 @@ class AssignCompanyAction
             StateEnums::ON->getValue()
         );
 
-        $assignRole = new AssignAction(
+        $assignRole = new AssignRoleAction(
             $userAssociatedAppCompany,
             $userAssociatedAppCompany->role ? $userAssociatedAppCompany->role : Role::where('name', $this->role::ADMIN->getValue())->firstOrFail(),
         );

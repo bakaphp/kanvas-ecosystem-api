@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Resolvers\AccessControlList;
 
-use Kanvas\Enums\AppEnums;
+use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Users\Repositories\UsersRepository;
 
 class PermissionsResolver
@@ -16,7 +16,7 @@ class PermissionsResolver
     {
         $user = UsersRepository::getUserOfCompanyById(auth()->user()->getCurrentCompany(), $request['userId']);
 
-        if ($user->isAn((string) AppEnums::ADMIN->getValue())) {
+        if ($user->isAn((string) DefaultRoles::ADMIN->getValue())) {
             return true;
         }
 

@@ -7,8 +7,9 @@ namespace Kanvas\Auth\Actions;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
-use Kanvas\AccessControlList\Actions\AssignAction;
-use Kanvas\AccessControlList\Models\Role;
+use Kanvas\AccessControlList\Actions\AssignRoleAction;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
+use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
@@ -20,7 +21,6 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Templates\Welcome;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Models\Users;
-use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Repositories\UsersRepository;
 
 class RegisterUsersAction
@@ -104,7 +104,7 @@ class RegisterUsersAction
             $user->password = $this->data->password;
             $user->language = $user->language ?: AppEnums::DEFAULT_LANGUAGE->getValue();
             $user->user_activation_key = Hash::make(time());
-            $user->roles_id = $this->data->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue();
+            $user->roles_id = $this->data->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue(); //@todo : remove this , legacy code
 
             //create a new user assign it to the app and create the default company
             $user->saveOrFail();
@@ -112,9 +112,11 @@ class RegisterUsersAction
             $userRegisterInApp = new RegisterUsersAppAction($user);
             $userRegisterInApp->execute($this->data->password);
 
-            $assignRole = new AssignAction(
+            $userRole = RolesRepository::getByMixedParamFromCompany($this->data->roles_id ?? DefaultRoles::ADMIN->getValue());
+
+            $assignRole = new AssignRoleAction(
                 $user,
-                Role::where('id', $user->roles_id)->firstOrFail(),
+                $userRole
             );
             $assignRole->execute();
         }

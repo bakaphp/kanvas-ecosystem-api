@@ -6,7 +6,7 @@ namespace App\GraphQL\Ecosystem\Mutations\AccessControlList;
 
 use Baka\Support\Str;
 use Bouncer;
-use Kanvas\AccessControlList\Actions\AssignAction;
+use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
 use Kanvas\AccessControlList\Actions\UpdateRoleAction;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
@@ -22,7 +22,7 @@ class AccessControlListManagementMutation
     {
         $role = RolesRepository::getByMixedParamFromCompany($request['role']);
 
-        $assign = new AssignAction(
+        $assign = new AssignRoleAction(
             $user = UsersRepository::getUserOfCompanyById(
                 auth()->user()->getCurrentCompany(),
                 (int) $request['userId']

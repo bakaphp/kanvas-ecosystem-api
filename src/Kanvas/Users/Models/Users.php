@@ -22,6 +22,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
+use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Contracts\Authenticatable as ContractsAuthenticatable;
 use Kanvas\Auth\Traits\HasApiTokens;
@@ -481,7 +482,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             return $ability->name;
         });
 
-        if ($this->isAn((string) AppEnums::ADMIN->getValue())) {
+        if ($this->isAn((string) DefaultRoles::ADMIN->getValue())) {
             $mapAbilities->prepend('*');
         }
 

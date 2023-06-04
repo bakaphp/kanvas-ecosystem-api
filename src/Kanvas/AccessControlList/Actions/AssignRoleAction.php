@@ -13,7 +13,7 @@ use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 use Silber\Bouncer\Database\Models;
 
-class AssignAction
+class AssignRoleAction
 {
     /**
      * __construct.

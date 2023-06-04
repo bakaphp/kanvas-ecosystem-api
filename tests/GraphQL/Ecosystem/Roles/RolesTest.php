@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Roles;
 
+use Kanvas\Apps\Enums\DefaultRoles;
 use Tests\TestCase;
 
 class RolesTest extends TestCase
@@ -217,48 +218,6 @@ class RolesTest extends TestCase
         $faker = \Faker\Factory::create();
         $newName = $faker->name;
 
-        $this->graphQL( /** @lang GraphQL */
-            '
-            mutation(
-                $name: String!
-                $title: String
-            ) {
-                createRole(
-                    name: $name
-                    title: $title
-                ) {
-                    id,
-                    name
-                    title
-                }
-            }',
-            [
-                'name' => $newName,
-                'title' => 'No Admin',
-            ]
-        );
-
-        $this->graphQL(/** @lang GraphQL */
-            '
-            mutation(
-                $userId: Int!
-                $role: Mixed!
-            ) {
-                assignRoleToUser(
-                    userId: $userId
-                    role: $role
-                ) 
-            }',
-            [
-                'userId' => $user->getId(),
-                'role' => $newName,
-            ]
-        )->assertJson([
-            'data' => [
-                'assignRoleToUser' => true,
-            ],
-        ]);
-
         $this->graphQL(/** @lang GraphQL */
             '
             query(
@@ -272,7 +231,7 @@ class RolesTest extends TestCase
             }',
             [
                 'userId' => $user->getId(),
-                'role' => $newName,
+                'role' => DefaultRoles::ADMIN->getValue(),
             ]
         )->assertJson([
             'data' => [

@@ -24,7 +24,7 @@ extend type Query @guard {
         )
 }
 
-extend type Mutation @guard {
+extend type Mutation @guardByAdmin {
     createRole(name: String!, title: String): Role
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\AccessControlList\\AccessControlListManagementMutation@createRole"
