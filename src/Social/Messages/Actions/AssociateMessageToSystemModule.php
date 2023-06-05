@@ -29,7 +29,7 @@ class AssociateMessageToSystemModule
      */
     public function execute()
     {
-        return AppModuleMessage::create([
+        return AppModuleMessage::firstOrCreate([
             'message_id' => $this->message->id,
             'message_types_id' => $this->message->message_types_id,
             'apps_id' => $this->message->apps_id,

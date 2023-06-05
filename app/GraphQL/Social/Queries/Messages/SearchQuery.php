@@ -19,8 +19,7 @@ class SearchQuery
         array $request
     ) {
         $appsId = app(Apps::class)->id;
-        $message = Message::search($request['text'])->where('apps_id', $appsId)->get();
 
-        return $message;
+        return Message::search($request['text'])->where('apps_id', $appsId)->get();
     }
 }

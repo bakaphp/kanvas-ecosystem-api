@@ -21,7 +21,6 @@ class FillUserMessage // implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-
     public function __construct(
         public Message $message,
         public array $activity,
@@ -33,15 +32,20 @@ class FillUserMessage // implements ShouldQueue
     public function handle()
     {
         $followers = UsersFollowsRepository::getFollowersBuilder($this->entityFollow);
-        $followers = $followers->get();
+        $page = 1;
+        $totalPage = $followers->count() / 25;
+        while ($totalPage > $page) {
+            $followers = $followers->limit($page, ($page * 25) - 1);
 
-        foreach ($followers as $follower) {
-            $action = new CreateUserMessageAction(
-                $this->message,
-                $follower,
-                $this->activity
-            );
-            $action->execute();
+            foreach ($followers as $follower) {
+                $action = new CreateUserMessageAction(
+                    $this->message,
+                    $follower,
+                    $this->activity
+                );
+                $action->execute();
+            }
+            $page++;
         }
     }
 }
