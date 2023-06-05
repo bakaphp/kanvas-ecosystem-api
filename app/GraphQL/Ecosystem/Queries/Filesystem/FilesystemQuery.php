@@ -12,7 +12,7 @@ use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
-class FilesystemQueries
+class FilesystemQuery
 {
     /**
      * Get all file from a entity tied to the graph

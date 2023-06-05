@@ -33,7 +33,7 @@ extend type Query @guard {
             )
     ): [Filesystem!]!
         @paginate(
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQueries@getFilesFromSystemModuleEntity"
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFilesFromSystemModuleEntity"
             defaultCount: 10
         )
 }

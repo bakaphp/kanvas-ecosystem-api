@@ -12,7 +12,7 @@ type Variant {
     files: [Filesystem]
         @paginate(
             defaultCount: 10
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQueries@getFileByGraphType"
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
     interactions(visitor: VisitorEntityInput!): Interactions
         @method(name: "getEntitySocialInteractions")
