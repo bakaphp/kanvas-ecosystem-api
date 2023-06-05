@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
-class UserManagement
+class UserManagementQuery
 {
     /**
      * all.

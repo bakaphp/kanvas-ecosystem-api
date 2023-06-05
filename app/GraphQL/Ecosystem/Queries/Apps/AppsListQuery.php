@@ -6,7 +6,7 @@ namespace App\GraphQL\Ecosystem\Queries\Apps;
 
 use Kanvas\Apps\Repositories\AppsRepository;
 
-class AppsList
+class AppsListQuery
 {
     /**
      * Get user from the current company.

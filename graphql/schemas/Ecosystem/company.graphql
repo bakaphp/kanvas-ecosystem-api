@@ -150,7 +150,7 @@ extend type Query @guard {
             )
     ): [User!]!
         @paginate(
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagement@getAllCompanyUsers"
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagementQuery@getAllCompanyUsers"
             defaultCount: 10
         )
 
@@ -172,13 +172,13 @@ extend type Query @guard {
             )
     ): [User!]!
         @paginate(
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagement@getAllCompanyBranchUsers"
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagementQuery@getAllCompanyBranchUsers"
             defaultCount: 10
         )
 
     companySettings: CompanySettings
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\CompanySettings@getAllSettings"
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\CompanySettingQuery@getAllSettings"
         )
 }
 

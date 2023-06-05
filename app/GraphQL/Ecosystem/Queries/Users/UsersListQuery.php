@@ -7,15 +7,12 @@ namespace App\GraphQL\Ecosystem\Queries\Users;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 
-final class UsersList
+class UsersListQuery
 {
     /**
      * Get user from the current company.
      *
      * @param mixed $rootValue
-     * @param array $request
-     *
-     * @return Users
      */
     public function getFromCurrentCompany($rootValue, array $request): Users
     {
