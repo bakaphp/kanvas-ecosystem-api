@@ -21,8 +21,7 @@ class AppUserManagementQuery
         array $args,
         GraphQLContext $context,
         ResolveInfo $resolveInfo
-    ): Builder
-    {
+    ): Builder {
         /**
          * @var Builder
          */
