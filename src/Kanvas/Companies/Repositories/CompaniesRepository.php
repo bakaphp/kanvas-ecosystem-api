@@ -19,6 +19,7 @@ class CompaniesRepository
 {
     /**
      * Get company by Id.
+     * @psalm-suppress MixedReturnStatement
      *
      * @throws ModelNotFoundException
      */
@@ -31,6 +32,7 @@ class CompaniesRepository
 
     /**
      * Get by uuid.
+     * @psalm-suppress MixedReturnStatement
      */
     public static function getByUuid(string $uuid): Companies
     {
@@ -41,6 +43,7 @@ class CompaniesRepository
 
     /**
      * User belongs / has permission in this company.
+     * @psalm-suppress MixedReturnStatement
      *
      * @throws ExceptionsModelNotFoundException
      */
@@ -58,7 +61,7 @@ class CompaniesRepository
 
     /**
      * User belongs / has permission in this company.
-     *
+     * @psalm-suppress MixedReturnStatement
      * @throws ExceptionsModelNotFoundException
      */
     public static function userAssociatedToCompanyAndBranch(Companies $company, CompaniesBranches $branch, Users $user): UsersAssociatedCompanies
@@ -76,7 +79,7 @@ class CompaniesRepository
 
     /**
      * User associated to this company on the current app.
-     *
+     * @psalm-suppress MixedReturnStatement
      * @throws ExceptionsModelNotFoundException
      */
     public static function userAssociatedToCompanyInThisApp(Apps $app, Companies $company, Users $user): UsersAssociatedApps

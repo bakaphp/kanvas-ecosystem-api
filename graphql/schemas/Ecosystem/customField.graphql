@@ -30,3 +30,23 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@delete"
         )
 }
+
+extend type Query @guard {
+    customField(
+        name: String!
+        system_module_uuid: String!
+        entity_id: String!
+    ): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@get"
+        )
+    customFields(
+        name: String!
+        system_module_uuid: String!
+        entity_id: String!
+    ): Mixed
+        @field(
+            resolver:
+              "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAll"
+        )
+}

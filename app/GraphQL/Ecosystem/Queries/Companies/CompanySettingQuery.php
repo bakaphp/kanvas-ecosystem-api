@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Queries\Companies;
 
-class CompanySettings
+class CompanySettingQuery
 {
     /**
      * Get user from the current company.

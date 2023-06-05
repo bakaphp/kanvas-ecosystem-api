@@ -125,7 +125,7 @@ extend type Query @guardByAppKey {
         orderBy: _ @orderBy(columns: ["id"])
     ): [User!]!
         @paginate(
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\AppUserManagement@getAllAppUsers"
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\AppUserManagementQuery@getAllAppUsers"
             defaultCount: 10
         )
 }
@@ -133,7 +133,7 @@ extend type Query @guardByAppKey {
 extend type Query {
     getAppSettings(key: String! @eq): AppSettings
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\AppsList@getAppSettings"
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\AppsListQuery@getAppSettings"
         )
 }
 

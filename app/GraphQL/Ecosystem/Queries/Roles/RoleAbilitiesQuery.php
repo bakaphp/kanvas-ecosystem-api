@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Ecosystem\Queries\AccessControlList;
+namespace App\GraphQL\Ecosystem\Queries\Roles;
 
 use Kanvas\Users\Repositories\UsersRepository;
 
-class AccessControlList
+class RoleAbilitiesQuery
 {
-    /**
-     * getAllAbilities
-
-     * */
     public function getAllAbilities(mixed $root, array $query): array
     {
-        $abilities = UsersRepository::getById($query['userId'], auth()->user()->defaultCompany->id)->getAbilities();
+        $abilities = UsersRepository::getUserOfCompanyById(
+            auth()->user()->defaultCompany,
+            $query['userId']
+        )->getAbilities();
+
         $mapAbilities = $abilities->map(function ($ability) {
             return $ability->name;
         });

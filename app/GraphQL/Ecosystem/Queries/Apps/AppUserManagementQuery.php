@@ -11,20 +11,17 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
-class AppUserManagement
+class AppUserManagementQuery
 {
     /**
      * all.
-     *
-     * @param  mixed $root
-     * @param  array $args
-     * @param  GraphQLContext $context
-     * @param  ResolveInfo $resolveInfo
-     *
-     * @return Builder
      */
-    public function getAllAppUsers(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
-    {
+    public function getAllAppUsers(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): Builder {
         /**
          * @var Builder
          */

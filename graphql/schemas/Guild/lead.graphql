@@ -21,7 +21,7 @@ type Lead {
     custom_fields: [CustomField]
         @paginate(
             defaultCount: 10
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQueries@getAllByGraphType"
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
     created_at: DateTime!
     updated_at: DateTime!
