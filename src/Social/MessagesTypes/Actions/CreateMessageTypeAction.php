@@ -27,6 +27,8 @@ class CreateMessageTypeAction
         return MessageType::firstOrCreate(
             [
                 'verb' => $this->messageTypeInput->verb,
+                'apps_id' => $this->messageTypeInput->apps_id,
+                'languages_id' => $this->messageTypeInput->languages_id,
             ],
             [
             'apps_id' => $this->messageTypeInput->apps_id,

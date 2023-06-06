@@ -21,7 +21,6 @@ class MessagesTypesRepository
      */
     public static function getByUuid(string $uuid): MessageType
     {
-        return MessageType::where('uuid', $uuid)
-               ->firstOrFail();
+        return MessageType::getByUuid($uuid);
     }
 }
