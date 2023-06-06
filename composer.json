@@ -67,11 +67,7 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Tests\\": "tests/",
-            "PHPUnit\\Metadata\\": "vendor/phpunit/phpunit/src/Metadata",
-            "PHPUnit\\Metadata\\Parser\\": "vendor/phpunit/phpunit/src/Metadata/Parser",
-            "PHPUnit\\Metadata\\Parser\\Annotation\\": "vendor/phpunit/phpunit/src/Metadata/Parser/Annotation",
-            "PHPUnit\\Metadata\\Version\\": "vendor/phpunit/phpunit/src/Metadata/Version"
+            "Tests\\": "tests/"
         }
     },
     "scripts": {

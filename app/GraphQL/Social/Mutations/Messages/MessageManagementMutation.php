@@ -32,9 +32,9 @@ class MessageManagementMutation
         $systemModule = SystemModules::getById($request['input']['system_modules_id']);
 
         $request['input']['parent_id'] = $parent?->id;
-        $request['input']['parent_unique_id'] = $parent->uuid ?? $parent;
+        $request['input']['parent_unique_id'] = $parent?->uuid;
         $request['input']['apps_id'] = app(Apps::class)->id;
-        $request['input']['companies_id'] = auth()->user()->defaultCompany->id;
+        $request['input']['companies_id'] = auth()->user()->getCurrentCompany()->getId();
         $request['input']['users_id'] = auth()->user()->id;
         $data = MessageInput::from($request['input']);
         $action = new CreateMessageAction($data, $systemModule, $request['input']['entity_id']);
