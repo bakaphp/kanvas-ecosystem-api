@@ -13,6 +13,8 @@ type Message {
     total_liked: Int
     total_saved: Int
     parent: Message
+    user: User!
+    messageType: MessageType!
 }
 
 input MessageInput {

@@ -8,7 +8,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Jobs\FillUserMessage;
-use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Models\UserMessageActivityType;
 use Kanvas\Social\Messages\Repositories\MessageRepository;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
@@ -32,7 +31,7 @@ class MessageManagementMutation
         $messageType = MessagesTypesRepository::getById($request['input']['message_types_id']);
         $systemModule = SystemModules::getById($request['input']['system_modules_id']);
 
-        $request['input']['parent_id'] = $parent->id ?? null;
+        $request['input']['parent_id'] = $parent?->id;
         $request['input']['parent_unique_id'] = $parent->uuid ?? $parent;
         $request['input']['apps_id'] = app(Apps::class)->id;
         $request['input']['companies_id'] = auth()->user()->defaultCompany->id;

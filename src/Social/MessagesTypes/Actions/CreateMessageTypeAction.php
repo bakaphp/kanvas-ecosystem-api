@@ -24,13 +24,18 @@ class CreateMessageTypeAction
      */
     public function execute(): MessageType
     {
-        return MessageType::firstOrCreate([
+        return MessageType::firstOrCreate(
+            [
+                'verb' => $this->messageTypeInput->verb,
+            ],
+            [
             'apps_id' => $this->messageTypeInput->apps_id,
             'languages_id' => $this->messageTypeInput->languages_id,
             'name' => $this->messageTypeInput->name,
             'verb' => $this->messageTypeInput->verb,
             'template' => $this->messageTypeInput->template,
             'templates_plura' => $this->messageTypeInput->templates_plura,
-        ]);
+        ]
+        );
     }
 }
