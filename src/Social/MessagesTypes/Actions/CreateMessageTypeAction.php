@@ -24,7 +24,7 @@ class CreateMessageTypeAction
      */
     public function execute(): MessageType
     {
-        return MessageType::create([
+        return MessageType::firstOrCreate([
             'apps_id' => $this->messageTypeInput->apps_id,
             'languages_id' => $this->messageTypeInput->languages_id,
             'name' => $this->messageTypeInput->name,

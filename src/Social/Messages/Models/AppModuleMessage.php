@@ -9,7 +9,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
-use Kanvas\Social\Messages\Models\Message;
 
 /**
  * class AppModuleMessage
@@ -29,33 +28,21 @@ class AppModuleMessage extends BaseModel
 
     protected $guarded = [];
 
-    /**
-     * messageType
-     */
     public function messageType(): BelongsTo
     {
         return $this->belongsTo(MessageType::class, 'message_types_id');
     }
 
-    /**
-     * app
-     */
     public function app(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
 
-    /**
-     * company
-     */
     public function company(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }
 
-    /**
-     * message
-     */
     public function message(): BelongsTo
     {
         return $this->belongTo(Message::class, 'message_id');

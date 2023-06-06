@@ -31,21 +31,15 @@ class FillUserMessage // implements ShouldQueue
 
     public function handle()
     {
-        $followers = UsersFollowsRepository::getFollowersBuilder($this->entityFollow);
-        $page = 1;
-        $totalPage = $followers->count() / 25;
-        while ($totalPage > $page) {
-            $followers = $followers->limit($page, ($page * 25) - 1);
+        $followers = UsersFollowsRepository::getFollowersBuilder($this->entityFollow)->paginate(25);
 
-            foreach ($followers as $follower) {
-                $action = new CreateUserMessageAction(
-                    $this->message,
-                    $follower,
-                    $this->activity
-                );
-                $action->execute();
-            }
-            $page++;
+        foreach ($followers as $follower) {
+            $action = new CreateUserMessageAction(
+                $this->message,
+                $follower,
+                $this->activity
+            );
+            $action->execute();
         }
     }
 }

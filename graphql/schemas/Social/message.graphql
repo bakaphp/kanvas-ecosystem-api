@@ -12,6 +12,7 @@ type Message {
     comment_count: Int
     total_liked: Int
     total_saved: Int
+    parent: Message
 }
 
 input MessageInput {
