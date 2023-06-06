@@ -14,17 +14,17 @@ class MessageInput extends Data
      * @return void
      */
     public function __construct(
-        public ?int $parent_id = null,
         public int $apps_id,
         public int $companies_id,
         public int $users_id,
         public int $message_types_id,
-        public int $reactions_count = 0,
-        public int $comments_count = 0,
-        public int $total_liked = 0,
-        public int $total_saved = 0,
-        public int $total_shared = 0,
-        public mixed $message,
+        public mixed $message = '',
+        public ?int $reactions_count = 0,
+        public ?int $comments_count = 0,
+        public ?int $total_liked = 0,
+        public ?int $total_saved = 0,
+        public ?int $total_shared = 0,
+        public ?int $parent_id = null,
         public ?string $parent_unique_id = null,
     ) {
     }

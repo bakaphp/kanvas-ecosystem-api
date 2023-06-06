@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Social\Messages\Casts\Json;
+use Baka\Casts\Json;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Users\Models\Users;

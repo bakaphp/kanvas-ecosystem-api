@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Messages\Casts;
+namespace Baka\Casts;
 
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Database\Eloquent\Model;

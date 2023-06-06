@@ -32,7 +32,7 @@ class MessageManagementMutation
         $messageType = MessagesTypesRepository::getById($request['input']['message_types_id']);
         $systemModule = SystemModules::getById($request['input']['system_modules_id']);
 
-        $request['input']['parent_id'] = isset($parent) ? $parent->id : null;
+        $request['input']['parent_id'] = $parent->id ?? null;
         $request['input']['parent_unique_id'] = $parent->uuid ?? $parent;
         $request['input']['apps_id'] = app(Apps::class)->id;
         $request['input']['companies_id'] = auth()->user()->defaultCompany->id;
@@ -48,7 +48,7 @@ class MessageManagementMutation
             'type' => $activityType->id,
         ];
 
-        FillUserMessage::dispatch(Message::find($message->id), $activity, $message->user)->onQueue('message');
+        FillUserMessage::dispatch($message, $activity, $message->user)->onQueue('message');
 
         return $message;
     }

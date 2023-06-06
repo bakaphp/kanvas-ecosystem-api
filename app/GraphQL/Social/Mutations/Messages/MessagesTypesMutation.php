@@ -20,7 +20,7 @@ class MessagesTypesMutation
      */
     public function create(mixed $root, array $request): MessageType
     {
-        Languages::findOrFail($request['input']['languages_id']);
+        Languages::getById($request['input']['languages_id']);
         $request['input']['apps_id'] = app(Apps::class)->id;
         $messageTypeInput = MessageTypeInput::from($request['input']);
         $createMessageTypesAction = new CreateMessageTypeAction(
@@ -37,7 +37,7 @@ class MessagesTypesMutation
      */
     public function update(mixed $root, array $request): MessageType
     {
-        Languages::findOrFail($request['input']['languages_id']);
+        Languages::getById($request['input']['languages_id']);
         $messageType = MessagesTypesRepository::getById($request['id']);
         $messageType->update($request['input']);
 

@@ -20,7 +20,7 @@ class CreateAppModuleMessageTable extends Migration
             $table->integer('apps_id')->index('apps_id');
             $table->bigInteger('companies_id')->index('companies_id');
             $table->string('system_modules', 100)->nullable()->index('system_modules');
-            $table->bigInteger('entity_id')->nullable()->index('entity_id');
+            $table->string('entity_id')->nullable()->index('entity_id');
             $table->dateTime('created_at')->index('created_at');
             $table->dateTime('updated_at')->nullable()->index('updated_at');
             $table->boolean('is_deleted')->default(false)->index('is_deleted');

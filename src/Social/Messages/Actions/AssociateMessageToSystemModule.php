@@ -18,7 +18,7 @@ class AssociateMessageToSystemModule
     public function __construct(
         public Message $message,
         public SystemModules $systemModule,
-        public int $entityId,
+        public string $entityId,
     ) {
     }
 
