@@ -30,7 +30,7 @@ class KanvasAppsProvider extends ServiceProvider
         try {
             $app = AppsRepository::findFirstByKey($appIdentifier);
 
-            $this->app->singleton(Apps::class, function () use ($app) {
+            $this->app->scoped(Apps::class, function () use ($app) {
                 return $app;
             });
 
