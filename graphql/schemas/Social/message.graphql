@@ -7,7 +7,7 @@ type Message {
     companies_id: Int!
     users_id: Int!
     message_types_id: Int!
-    message: JSON
+    message: Mixed
     reactions_count: Int
     comment_count: Int
     total_liked: Int

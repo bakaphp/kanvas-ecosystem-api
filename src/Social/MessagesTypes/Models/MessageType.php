@@ -6,6 +6,8 @@ namespace Kanvas\Social\MessagesTypes\Models;
 
 use Baka\Traits\UuidTrait;
 use Kanvas\Social\Models\BaseModel;
+use Kanvas\Social\MessagesTypes\Factories\MessageTypeFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 /**
  *  class MessageType
@@ -23,10 +25,16 @@ use Kanvas\Social\Models\BaseModel;
 class MessageType extends BaseModel
 {
     use UuidTrait;
+    use HasFactory;
 
     protected $table = 'message_types';
 
     protected $guarded = [
         'uuid',
     ];
+
+    protected static function newFactory()
+    {
+        return MessageTypeFactory::new();
+    }
 }
