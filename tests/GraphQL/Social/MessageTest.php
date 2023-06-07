@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Social;
 
-use Tests\TestCase;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Tests\TestCase;
 
 class MessageTest extends TestCase
 {
@@ -17,7 +17,7 @@ class MessageTest extends TestCase
     public function testCreateMessage()
     {
         $messageType = MessageType::factory()->create();
-        $message =fake()->text();
+        $message = fake()->text();
         $this->graphQL(
             '
                 mutation createMessage($input: MessageInput!) {
@@ -33,16 +33,16 @@ class MessageTest extends TestCase
                     'message' => $message,
                     'message_types_id' => $messageType->id,
                     'system_modules_id' => 1,
-                    'entity_id' => "1",
-                ]
+                    'entity_id' => '1',
+                ],
             ]
         )->assertJson([
             'data' => [
                 'createMessage' => [
                     'message' => $message,
                     'message_types_id' => $messageType->id,
-                ]
-            ]
+                ],
+            ],
         ]);
     }
 }

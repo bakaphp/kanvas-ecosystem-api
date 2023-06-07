@@ -1,10 +1,10 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Languages\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Illuminate\Support\Str;
 use Kanvas\Languages\Models\Languages;
 
 class LanguagesFactory extends Factory
@@ -27,7 +27,7 @@ class LanguagesFactory extends Factory
             'name' => fake()->name(),
             'title' => fake()->name(),
             'order' => 0,
-            'id' => Languages::latest()->first() ? Languages::latest()->first()->id+1 : 1,
+            'id' => Languages::latest()->first() ? Languages::latest()->first()->id + 1 : 1,
         ];
     }
 }

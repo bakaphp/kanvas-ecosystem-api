@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Social;
 
-use Kanvas\Users\Models\Users;
-use Tests\TestCase;
 use Kanvas\Languages\Models\Languages;
+use Tests\TestCase;
 
 class MessageTypeTest extends TestCase
 {
@@ -30,17 +29,17 @@ class MessageTypeTest extends TestCase
                 'input' => [
                     'name' => $name,
                     'languages_id' => $language->id,
-                    'verb'=> 'test - '.$name,
+                    'verb' => 'test - ' . $name,
                     'template' => '<fake>',
                     'templates_plura' => '<fake>',
-                ]
+                ],
             ]
         )->assertJson([
             'data' => [
                 'createMessageType' => [
                     'name' => $name,
-                ]
-            ]
+                ],
+            ],
         ]);
     }
 
@@ -64,10 +63,10 @@ class MessageTypeTest extends TestCase
                 'input' => [
                     'name' => $name,
                     'languages_id' => $language->id,
-                    'verb'=> 'test - '.$name,
+                    'verb' => 'test - ' . $name,
                     'template' => '<fake>',
                     'templates_plura' => '<fake>',
-                ]
+                ],
             ]
         );
         $this->graphQL(/** @lang GRAPHQL */
@@ -86,19 +85,19 @@ class MessageTypeTest extends TestCase
             [
                 'id' => $response->json('data.createMessageType.id'),
                 'input' => [
-                    'name' => $name.' - updated',
+                    'name' => $name . ' - updated',
                     'languages_id' => $language->id,
-                    'verb'=> 'test - '.$name,
+                    'verb' => 'test - ' . $name,
                     'template' => '<fake>',
                     'templates_plura' => '<fake>',
-                ]
+                ],
             ]
         )->assertJson([
             'data' => [
                 'updateMessageType' => [
-                    'name' => $name.' - updated',
-                ]
-            ]
+                    'name' => $name . ' - updated',
+                ],
+            ],
         ]);
     }
 
@@ -122,10 +121,10 @@ class MessageTypeTest extends TestCase
                 'input' => [
                     'name' => $name,
                     'languages_id' => $language->id,
-                    'verb'=> 'test - '.$name,
+                    'verb' => 'test - ' . $name,
                     'template' => '<fake>',
                     'templates_plura' => '<fake>',
-                ]
+                ],
             ]
         );
         $this->graphQL(/** @lang GRAPHQL */
