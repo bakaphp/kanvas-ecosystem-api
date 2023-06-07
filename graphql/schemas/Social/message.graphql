@@ -34,9 +34,10 @@ extend type Mutation @guard {
 
 extend type Query @guard {
     messageSearch(
-        text: String!
+        search: String @search(within: "messages")
     ): [Message]
-    @field(
-        resolver: "App\\GraphQL\\Social\\Queries\\Messages\\SearchQuery"
+    @paginate(
+        model: "Kanvas\\Social\\Messages\\Models\\Message"
+        defaultCount: 25
     )
 }
