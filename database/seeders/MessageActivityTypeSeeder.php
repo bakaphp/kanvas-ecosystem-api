@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Kanvas\Social\Messages\Models\UserMessageActivityType;
 
@@ -13,8 +12,8 @@ class MessageActivityTypeSeeder extends Seeder
      */
     public function run(): void
     {
-        //
-        UserMessageActivityTypes::create([
+
+        UserMessageActivityType::create([
             'apps_id' => 1,
             'name' => 'follow',
         ]);
