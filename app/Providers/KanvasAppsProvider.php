@@ -22,9 +22,14 @@ class KanvasAppsProvider extends ServiceProvider
     {
         $appIdentifier = request()->header(AppEnums::KANVAS_APP_HEADER->getValue(), config('kanvas.app.id'));
 
-        if (App::runningInConsole() && ! FacadesSchema::hasTable('migrations')) {
-            // Skip the logic if running "php artisan package:discover --ansi" for the first time
-            return;
+        try {
+            if (App::runningInConsole() && ! FacadesSchema::hasTable('migrations')) {
+                // Skip the logic if running "php artisan package:discover --ansi" for the first time
+                return;
+            }
+        } catch (Throwable $th) {
+            //we've reach here on the first time the container is build , since no db connection exist
+            return ;
         }
 
         try {
