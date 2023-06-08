@@ -73,7 +73,7 @@ class MessageTest extends TestCase
         $this->graphQL(
             '
                 query messages {
-                    messages {
+                    messages(orderBy: [{ column: "CREATED_AT", order: DESC }], first: 1) {
                         data {
                             message
                             message_types_id

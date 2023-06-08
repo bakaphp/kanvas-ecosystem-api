@@ -3,7 +3,6 @@ type Message {
     parent_id: Int
     parent_unique_id: Mixed
     uuid: String!
-    apps_id: Int!
     companies_id: Int!
     users_id: Int!
     message_types_id: Int!
@@ -49,6 +48,7 @@ extend type Query @guard {
                     "total_shared"
                 ]
             )
+        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
         search: String @search(within: "messages")
     ): [Message]
         @paginate(
