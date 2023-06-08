@@ -49,7 +49,7 @@ extend type Query @guard {
                 ]
             )
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
-        search: String @search(within: "messages")
+        search: String @search
     ): [Message]
         @paginate(
             defaultCount: 25

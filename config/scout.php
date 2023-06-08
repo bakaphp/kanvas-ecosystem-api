@@ -136,10 +136,10 @@ return [
         'host' => env('MEILISEARCH_HOST', 'http://localhost:7700'),
         'key' => env('MEILISEARCH_KEY', null),
         'index-settings' => [
-            Message::class => [
+           /*  Message::class => [
                 'filterableAttributes' => ['apps_id'],
                 'sortableAttributes' => ['created_at','updated_at'],
-            ],
+            ], */
         ],
     ],
 

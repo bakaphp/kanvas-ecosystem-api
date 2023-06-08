@@ -52,7 +52,7 @@ class Message extends BaseModel
       */
     public function searchableAs(): string
     {
-        return 'messages_index_app_' . $this->apps_id;
+        return 'messages_index_app_' . app(Apps::class)->getId();
     }
 
     /**
