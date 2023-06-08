@@ -34,10 +34,28 @@ extend type Mutation @guard {
 
 extend type Query @guard {
     messageSearch(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "parent_id"
+                    "parent_unique_id"
+                    "companies_id"
+                    "uuid"
+                    "message_types_id"
+                    "message"
+                    "reactions_count"
+                    "comments_count"
+                    "total_liked"
+                    "total_saved"
+                    "total_shared"
+                ]
+            )
         search: String @search(within: "messages")
     ): [Message]
     @paginate(
         model: "Kanvas\\Social\\Messages\\Models\\Message"
         defaultCount: 25
+        scopes: ["fromApp"]
     )
 }

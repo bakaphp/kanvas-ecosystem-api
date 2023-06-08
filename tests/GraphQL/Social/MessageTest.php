@@ -45,4 +45,53 @@ class MessageTest extends TestCase
             ],
         ]);
     }
+
+    public function testMessageSearch()
+    {
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+        $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        id
+                        message
+                        message_types_id
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => $message,
+                    'message_types_id' => $messageType->id,
+                    'system_modules_id' => 1,
+                    'entity_id' => '1',
+                ],
+            ]
+        );
+
+        $this->graphQL(
+            '
+                query messageSearch($text: String!) {
+                    messageSearch(search: $text) {
+                        id
+                        message
+                        message_types_id
+                    }
+                }
+            ',
+            [
+                'text' => $message,
+            ]
+        )->assertJson([
+            'data' => [
+                'messageSearch' => [
+                    'data' => [
+                        'message' => $message,
+                        'message_types_id' => $messageType->id,
+                    ],
+                ],
+            ],
+        ]);
+    }
 }
