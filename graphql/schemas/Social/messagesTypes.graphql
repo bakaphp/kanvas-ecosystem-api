@@ -1,0 +1,37 @@
+
+input CreateMessageTypeInput {
+    languages_id: Int!
+    name: String!
+    verb: String!
+    template: String!
+    templates_plura: String!
+}
+
+type MessageType {
+    id: Int!
+    languages_id: Int!
+    apps_id: Int!
+    uuid: String!
+    name: String!
+    verb: String!
+    template: String!
+    templates_plura: String!
+}
+
+extend type Query {
+    messageTypes: [MessageType] @paginate(
+        model: "Kanvas\\Social\\MessagesTypes\\Models\\MessageType"
+        defaultCount: 25,
+        scopes: ["fromApp"]
+    )
+    messageType(id: Int!): MessageType
+}
+
+
+extend type Mutation @guard {
+    createMessageType(input: CreateMessageTypeInput!): MessageType!
+    @field(resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessagesTypesMutation@create")
+    
+    updateMessageType(id: Int! input: CreateMessageTypeInput): MessageType!
+    @field(resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessagesTypesMutation@update")
+}

@@ -31,7 +31,11 @@ type LeadsParticipants {
     people: People! @belongsTo
     relationship: PeopleRelationship @belongsTo
 }
-
+type Rotation{ 
+    id: Int!
+    users_id: Int!
+    companies_id: Int!
+}
 type LeadReceiver {
     id: Int!
     uuid: String!

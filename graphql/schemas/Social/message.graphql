@@ -1,0 +1,58 @@
+type Message {
+    id: Int!
+    parent_id: Int
+    parent_unique_id: Mixed
+    uuid: String!
+    companies_id: Int!
+    users_id: Int!
+    message_types_id: Int!
+    message: Mixed
+    reactions_count: Int
+    comment_count: Int
+    total_liked: Int
+    total_saved: Int
+    parent: Message
+    user: User!
+    messageType: MessageType!
+}
+
+input MessageInput {
+    message_types_id: Int!
+    message: Mixed!
+    system_modules_id: Int!
+    entity_id: Mixed!
+}
+extend type Mutation @guard {
+    createMessage(input: MessageInput!): Message
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@create"
+        )
+}
+
+extend type Query @guard {
+    messages(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "parent_id"
+                    "parent_unique_id"
+                    "companies_id"
+                    "uuid"
+                    "message_types_id"
+                    "message"
+                    "reactions_count"
+                    "comments_count"
+                    "total_liked"
+                    "total_saved"
+                    "total_shared"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
+        search: String @search
+    ): [Message]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getAll"
+        )
+}

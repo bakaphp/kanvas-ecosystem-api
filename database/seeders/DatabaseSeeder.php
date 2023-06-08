@@ -28,6 +28,7 @@ class DatabaseSeeder extends Seeder
             NotificationTypesSeeder::class,
             TemplateSeeder::class,
             CustomFieldsTypesSeeder::class,
+            MessageActivityTypeSeeder::class,
         ]);
     }
 }
