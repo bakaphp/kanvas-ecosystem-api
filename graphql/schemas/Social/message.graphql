@@ -1,7 +1,7 @@
 type Message {
     id: Int!
     parent_id: Int
-    parent_unique_id: String
+    parent_unique_id: Mixed
     uuid: String!
     apps_id: Int!
     companies_id: Int!
@@ -21,19 +21,17 @@ input MessageInput {
     message_types_id: Int!
     message: Mixed!
     system_modules_id: Int!
-    entity_id: String!
+    entity_id: Mixed!
 }
 extend type Mutation @guard {
-    createMessage(
-        input: MessageInput!
-    ): Message 
-    @field(
-        resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@create"
-    )
+    createMessage(input: MessageInput!): Message
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@create"
+        )
 }
 
 extend type Query @guard {
-    messageSearch(
+    messages(
         where: _
             @whereConditions(
                 columns: [
@@ -53,9 +51,8 @@ extend type Query @guard {
             )
         search: String @search(within: "messages")
     ): [Message]
-    @paginate(
-        model: "Kanvas\\Social\\Messages\\Models\\Message"
-        defaultCount: 25
-        scopes: ["fromApp"]
-    )
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getAll"
+        )
 }
