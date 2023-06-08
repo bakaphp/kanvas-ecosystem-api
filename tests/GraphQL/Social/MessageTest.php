@@ -75,7 +75,6 @@ class MessageTest extends TestCase
 
         $createdMessageId = $response['data']['createMessage']['id'];
 
-
         $this->graphQL(
             '
             query {
