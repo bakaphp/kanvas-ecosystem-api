@@ -40,14 +40,14 @@ class MessageManagementMutation
         $action = new CreateMessageAction($data, $systemModule, $request['input']['entity_id']);
         $message = $action->execute();
         $activity = [];
-        
-/*         $activityType = UserMessageActivityType::where('name', 'follow')->firstOrFail();
-        $activity = [
-            'username' => '',
-            'entity_namespace' => '',
-            'text' => ' ',
-            'type' => $activityType->id,
-        ]; */
+
+        /*         $activityType = UserMessageActivityType::where('name', 'follow')->firstOrFail();
+                $activity = [
+                    'username' => '',
+                    'entity_namespace' => '',
+                    'text' => ' ',
+                    'type' => $activityType->id,
+                ]; */
 
         FillUserMessage::dispatch($message, $message->user, $activity)->onQueue('message');
 
