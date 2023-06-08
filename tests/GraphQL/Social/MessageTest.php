@@ -46,6 +46,55 @@ class MessageTest extends TestCase
         ]);
     }
 
+    public function testMessage()
+    {
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+        $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        id
+                        message
+                        message_types_id
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => $message,
+                    'message_types_id' => $messageType->id,
+                    'system_modules_id' => 1,
+                    'entity_id' => '1',
+                ],
+            ]
+        );
+
+        $this->graphQL(
+            '
+                query messages {
+                    messages {
+                        data {
+                            message
+                            message_types_id
+                        }
+                    }
+                }
+            '
+        )->assertJson([
+            'data' => [
+                'messages' => [
+                    'data' => [
+                        [
+                            'message' => $message,
+                            'message_types_id' => $messageType->id,
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+    }
+
     public function testMessageSearch()
     {
         $messageType = MessageType::factory()->create();
@@ -72,8 +121,8 @@ class MessageTest extends TestCase
 
         $this->graphQL(
             '
-                query messageSearch($text: String!) {
-                    messageSearch(search: $text) {
+                query messages($text: String!) {
+                    messages(search: $text) {
                         data {
                             message
                             message_types_id
@@ -86,7 +135,7 @@ class MessageTest extends TestCase
             ]
         )->assertJson([
             'data' => [
-                'messageSearch' => [
+                'messages' => [
                     'data' => [
                         [
                             'message' => $message,
