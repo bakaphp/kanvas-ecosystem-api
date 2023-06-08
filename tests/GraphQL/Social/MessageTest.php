@@ -74,9 +74,11 @@ class MessageTest extends TestCase
             '
                 query messageSearch($text: String!) {
                     messageSearch(search: $text) {
-                        id
-                        message
-                        message_types_id
+                        data {
+                            id
+                            message
+                            message_types_id
+                        }
                     }
                 }
             ',
