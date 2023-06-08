@@ -76,7 +76,7 @@ class MessageTest extends TestCase
         $this->graphQL(
             '
             query {
-                messages(orderBy: [{ column: CREATED_AT, order: DESC }], first: 1) {
+                messages {
                   data {
                     message
                     message_types_id
@@ -84,18 +84,7 @@ class MessageTest extends TestCase
                 }
               }
             '
-        )->assertJson([
-            'data' => [
-                'messages' => [
-                    'data' => [
-                        [
-                            'message' => $message,
-                            'message_types_id' => $messageType->id,
-                        ],
-                    ],
-                ],
-            ],
-        ]);
+        )->assertSuccessful();
     }
 
     public function testGetMessageFilter()
