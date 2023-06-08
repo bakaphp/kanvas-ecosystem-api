@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Social;
 
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Tests\TestCase;
 
@@ -18,6 +19,8 @@ class MessageTest extends TestCase
     {
         $messageType = MessageType::factory()->create();
         $message = fake()->text();
+        Message::makeAllSearchable();
+
         $this->graphQL(
             '
                 mutation createMessage($input: MessageInput!) {
@@ -41,6 +44,99 @@ class MessageTest extends TestCase
                 'createMessage' => [
                     'message' => $message,
                     'message_types_id' => $messageType->id,
+                ],
+            ],
+        ]);
+    }
+
+    public function testGetMessages()
+    {
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+        $response = $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        id
+                        message
+                        message_types_id
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => $message,
+                    'message_types_id' => $messageType->id,
+                    'system_modules_id' => 1,
+                    'entity_id' => '1',
+                ],
+            ]
+        );
+
+        $this->graphQL(
+            '
+            query {
+                messages {
+                  data {
+                    message
+                    message_types_id
+                  }
+                }
+              }
+            '
+        )->assertSuccessful();
+    }
+
+    public function testGetMessageFilter()
+    {
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+        $response = $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        id
+                        message
+                        message_types_id
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => $message,
+                    'message_types_id' => $messageType->id,
+                    'system_modules_id' => 1,
+                    'entity_id' => '1',
+                ],
+            ]
+        );
+
+        $createdMessageId = $response['data']['createMessage']['id'];
+
+        $this->graphQL(
+            '
+            query {
+                messages(
+                    where: {
+                        column: ID, operator: EQ, value: ' . $createdMessageId . '
+                        } 
+                ) {
+                  data {
+                    message
+                    message_types_id
+                  }
+                }
+              }
+            '
+        )->assertJson([
+            'data' => [
+                'messages' => [
+                    'data' => [
+                        [
+                            'message' => $message,
+                            'message_types_id' => $messageType->id,
+                        ],
+                    ],
                 ],
             ],
         ]);
@@ -72,8 +168,8 @@ class MessageTest extends TestCase
 
         $this->graphQL(
             '
-                query messageSearch($text: String!) {
-                    messageSearch(search: $text) {
+                query messages($text: String!) {
+                    messages(search: $text) {
                         data {
                             message
                             message_types_id
@@ -86,7 +182,7 @@ class MessageTest extends TestCase
             ]
         )->assertJson([
             'data' => [
-                'messageSearch' => [
+                'messages' => [
                     'data' => [
                         [
                             'message' => $message,

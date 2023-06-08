@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Baka\Casts\Json;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Users\Models\Users;
@@ -46,6 +46,14 @@ class Message extends BaseModel
     protected $casts = [
         'message' => Json::class,
     ];
+
+    /**
+      * Get the name of the index associated with the model.
+      */
+    public function searchableAs(): string
+    {
+        return 'messages_index_app_' . app(Apps::class)->getId();
+    }
 
     /**
      * parent

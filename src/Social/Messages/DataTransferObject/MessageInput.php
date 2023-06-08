@@ -19,12 +19,12 @@ class MessageInput extends Data
         public int $users_id,
         public int $message_types_id,
         public mixed $message = '',
+        public int $parent_id = 0,
         public ?int $reactions_count = 0,
         public ?int $comments_count = 0,
         public ?int $total_liked = 0,
         public ?int $total_saved = 0,
         public ?int $total_shared = 0,
-        public ?int $parent_id = null,
         public ?string $parent_unique_id = null,
     ) {
     }

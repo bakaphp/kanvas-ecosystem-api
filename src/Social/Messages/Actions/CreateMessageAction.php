@@ -18,7 +18,7 @@ class CreateMessageAction
     public function __construct(
         public MessageInput $messageInput,
         public SystemModules $systemModule,
-        public string $entityId,
+        public int|string $entityId,
     ) {
     }
 

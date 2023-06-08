@@ -31,7 +31,7 @@ class MessageManagementMutation
         $messageType = MessagesTypesRepository::getById($request['input']['message_types_id']);
         $systemModule = SystemModules::getById($request['input']['system_modules_id']);
 
-        $request['input']['parent_id'] = $parent?->id;
+        $request['input']['parent_id'] = $parent ? $parent->id : 0;
         $request['input']['parent_unique_id'] = $parent?->uuid;
         $request['input']['apps_id'] = app(Apps::class)->id;
         $request['input']['companies_id'] = auth()->user()->getCurrentCompany()->getId();
@@ -39,15 +39,17 @@ class MessageManagementMutation
         $data = MessageInput::from($request['input']);
         $action = new CreateMessageAction($data, $systemModule, $request['input']['entity_id']);
         $message = $action->execute();
-        $activityType = UserMessageActivityType::where('name', 'follow')->firstOrFail();
-        $activity = [
-            'username' => '',
-            'entity_namespace' => '',
-            'text' => ' ',
-            'type' => $activityType->id,
-        ];
+        $activity = [];
 
-        FillUserMessage::dispatch($message, $activity, $message->user)->onQueue('message');
+        /*         $activityType = UserMessageActivityType::where('name', 'follow')->firstOrFail();
+                $activity = [
+                    'username' => '',
+                    'entity_namespace' => '',
+                    'text' => ' ',
+                    'type' => $activityType->id,
+                ]; */
+
+        FillUserMessage::dispatch($message, $message->user, $activity)->onQueue('message');
 
         return $message;
     }
