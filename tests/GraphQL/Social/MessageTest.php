@@ -73,10 +73,17 @@ class MessageTest extends TestCase
             ]
         );
 
+        $createdMessageId = $response['data']['createMessage']['id'];
+
+
         $this->graphQL(
             '
             query {
-                messages(orderBy: [{ column: CREATED_AT, order: DESC }], first: 1) {
+                messages(
+                    where: {
+                        column: ID, operator: EQ, value: ' . $createdMessageId . '
+                        } 
+                ) {
                   data {
                     message
                     message_types_id
