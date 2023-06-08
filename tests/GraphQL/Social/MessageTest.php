@@ -49,7 +49,59 @@ class MessageTest extends TestCase
         ]);
     }
 
-    public function testMessage()
+    public function testGetMessages()
+    {
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+        $response = $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        id
+                        message
+                        message_types_id
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => $message,
+                    'message_types_id' => $messageType->id,
+                    'system_modules_id' => 1,
+                    'entity_id' => '1',
+                ],
+            ]
+        );
+
+        $createdMessageId = $response['data']['createMessage']['id'];
+
+        
+        $this->graphQL(
+            '
+            query {
+                messages(orderBy: [{ column: CREATED_AT, order: DESC }], first: 1) {
+                  data {
+                    message
+                    message_types_id
+                  }
+                }
+              }
+            '
+        )->assertJson([
+            'data' => [
+                'messages' => [
+                    'data' => [
+                        [
+                            'message' => $message,
+                            'message_types_id' => $messageType->id,
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+    }
+
+    public function testGetMessageFilter()
     {
         $messageType = MessageType::factory()->create();
         $message = fake()->text();
