@@ -23,8 +23,8 @@ class FillUserMessage // implements ShouldQueue
 
     public function __construct(
         public Message $message,
-        public array $activity,
-        public EloquentModel $entityFollow
+        public EloquentModel $entityFollow,
+        public array $activity = []
     ) {
         $this->onQueue('messages');
     }

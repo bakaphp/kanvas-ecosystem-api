@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Social;
 
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Tests\TestCase;
 
@@ -18,6 +19,8 @@ class MessageTest extends TestCase
     {
         $messageType = MessageType::factory()->create();
         $message = fake()->text();
+        Message::makeAllSearchable();
+
         $this->graphQL(
             '
                 mutation createMessage($input: MessageInput!) {
@@ -50,7 +53,7 @@ class MessageTest extends TestCase
     {
         $messageType = MessageType::factory()->create();
         $message = fake()->text();
-        $this->graphQL(
+        $response = $this->graphQL(
             '
                 mutation createMessage($input: MessageInput!) {
                     createMessage(input: $input) {
