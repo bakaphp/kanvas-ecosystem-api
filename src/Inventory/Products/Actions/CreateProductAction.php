@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Products\Actions;
 
+use App\GraphQL\Inventory\Mutations\Variants\Variants;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
@@ -78,6 +79,15 @@ class CreateProductAction
                     WarehouseRepository::getById($warehouse, $this->productDto->company);
                 }
                 $products->warehouses()->attach($this->productDto->warehouses);
+            }
+
+            if($this->productDto->variants) {
+                foreach ($this->productDto->variants as $variant) {
+                    $variant['products_id'] = $products->getId();
+                    $variantData['input'] = $variant;
+                    $action = new Variants();
+                    $action->create(false, $variantData);
+                }
             }
 
             DB::connection('inventory')->commit();
