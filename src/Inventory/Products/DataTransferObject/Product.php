@@ -60,6 +60,10 @@ class Product extends Data
             $request['is_published'] ?? true,
             $request['categories'] ?? [],
             $request['warehouses'] ?? [],
+            $request['variants'] ?? [],
+            $request['attributes'] ?? [],
+            $request['productType'] ?? [],
+            $request['slug'] ?? null,
         );
     }
 }
