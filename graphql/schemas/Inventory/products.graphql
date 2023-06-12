@@ -11,6 +11,9 @@ input ProductInput {
     categories: [Int]
     warehouses: [Int]
     source_id: Mixed
+    variants: [VariantsInput]
+    attributes: [AttributeInput]
+    price: Float
 }
 
 type Product {
