@@ -9,10 +9,13 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
+use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Services\Variants as VariantsServices;
 use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 use Throwable;
 
@@ -81,13 +84,22 @@ class CreateProductAction
                 $products->warehouses()->attach($this->productDto->warehouses);
             }
 
-            if($this->productDto->variants) {
-                foreach ($this->productDto->variants as $variant) {
-                    $variant['products_id'] = $products->getId();
-                    $variantData['input'] = $variant;
-                    $action = new Variants();
-                    $action->create(false, $variantData);
+            if ($this->productDto->attributes) {
+                foreach ($this->productDto->attributes as $attribute) {
+                    $attributesDto = AttributesDto::from([
+                        'app' => $this->productDto->app,
+                        'user' => $this->user,
+                        'company' => $this->user->getCurrentCompany(),
+                        'name' => $attribute['name'],
+                    ]);
+        
+                    $attributeModel = (new CreateAttribute($attributesDto, auth()->user()))->execute();
+                    (new AddAttributeAction($products, $attributeModel, $attribute['value']))->execute();
                 }
+            }
+
+            if($this->productDto->variants) {
+                VariantsServices::createVariant($products, $this->productDto->variants);
             }
 
             DB::connection('inventory')->commit();
