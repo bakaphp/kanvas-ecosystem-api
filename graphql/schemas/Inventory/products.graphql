@@ -36,6 +36,7 @@ type Product {
     attributes: [Attributes]
     variants: [Variant]
     productsTypes: ProductType
+    companies: Company
 }
 
 input ProductInputUpdate {

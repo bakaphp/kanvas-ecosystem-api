@@ -9,6 +9,7 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Models\BaseModel;
@@ -100,5 +101,13 @@ class Products extends BaseModel
     public function productsTypes(): BelongsTo
     {
         return $this->belongsTo(ProductsTypes::class, 'products_types_id');
+    }
+
+    /**
+     * Get the companies that owns the product.
+     */
+    public function companies(): BelongsTo
+    {
+        return $this->belongsTo(Companies::class, 'companies_id');
     }
 }
