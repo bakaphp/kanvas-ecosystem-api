@@ -19,12 +19,15 @@ type MessageType {
 }
 
 extend type Query {
-    messageTypes: [MessageType] @paginate(
+    messageTypes(
+        where: _@whereConditions(
+            columns: ["id", "languages_id", "apps_id", "uuid", "name", "verb", "template", "templates_plura"]
+        )
+    ): [MessageType] @paginate(
         model: "Kanvas\\Social\\MessagesTypes\\Models\\MessageType"
         defaultCount: 25,
         scopes: ["fromApp"]
     )
-    messageType(id: Int!): MessageType
 }
 
 
