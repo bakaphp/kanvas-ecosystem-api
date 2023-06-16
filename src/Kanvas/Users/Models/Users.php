@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Kanvas\Apps\Enums\DefaultRoles;
+use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Contracts\Authenticatable as ContractsAuthenticatable;
 use Kanvas\Auth\Traits\HasApiTokens;
@@ -464,10 +465,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * Is the creator of the current app.
+     *  @psalm-suppress MixedReturnStatement
      */
     public function isAppOwner(): bool
     {
-        return $this->getId() === app(Apps::class)->users_id;
+        return (bool) AppKey::where('users_id', $this->getId())
+            ->where('apps_id', app(Apps::class)->getId())
+            ->notDeleted()
+            ->exists();
     }
 
     /**

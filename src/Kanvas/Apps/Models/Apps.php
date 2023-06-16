@@ -11,6 +11,7 @@ use Baka\Traits\HashTableTrait;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Models\Companies;
@@ -31,6 +32,7 @@ use Kanvas\Users\Models\UsersAssociatedApps;
  * @property string $description
  * @property string $domain
  * @property int $is_actived
+ * @property int $users_id
  * @property int $ecosystem_auth
  * @property int $default_apps_plan_id
  * @property int $payments_active
@@ -85,6 +87,11 @@ class Apps extends BaseModel implements AppInterface
     public function keys(): HasMany
     {
         return $this->hasMany(AppKey::class, 'apps_id');
+    }
+
+    public function user() : BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'users_id');
     }
 
     /**
