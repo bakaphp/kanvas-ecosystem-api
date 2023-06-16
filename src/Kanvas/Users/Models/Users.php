@@ -22,6 +22,8 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
+use Kanvas\Apps\Enums\DefaultRoles;
+use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Contracts\Authenticatable as ContractsAuthenticatable;
 use Kanvas\Auth\Traits\HasApiTokens;
@@ -154,6 +156,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Apps relationship.
      * use distinct() to avoid duplicate apps.
+     * @psalm-suppress MixedReturnStatement
      */
     public function apps(): HasManyThrough
     {
@@ -171,6 +174,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * Companies relationship.
      * use distinct() to avoid duplicate companies.
+     * @psalm-suppress MixedReturnStatement
      */
     public function companies(): HasManyThrough
     {
@@ -211,6 +215,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * Get the current user information for the running app.
+     * @psalm-suppress MixedReturnStatement
      */
     public function getAppProfile(AppInterface $app): UsersAssociatedApps
     {
@@ -225,7 +230,24 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
+     * Get the current user information for the running app.
+     * @psalm-suppress MixedReturnStatement
+     */
+    public function getCompanyProfile(AppInterface $app, CompanyInterface $company): UsersAssociatedApps
+    {
+        try {
+            return UsersAssociatedApps::where('users_id', $this->getId())
+                ->where('apps_id', $app->getId())
+                ->where('companies_id', $company->getId())
+                ->firstOrFail();
+        } catch (EloquentModelNotFoundException $e) {
+            throw new ModelNotFoundException('User not found in this company');
+        }
+    }
+
+    /**
      * CompaniesBranches relationship.
+     * @psalm-suppress MixedReturnStatement
      */
     public function branches(): HasManyThrough
     {
@@ -249,6 +271,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * notifications.
+     * @psalm-suppress MixedReturnStatement
      */
     public function notifications(): HasMany
     {
@@ -330,12 +353,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     /**
      * What the current company the users is logged in with
      * in this current session?
+     * @psalm-suppress MixedReturnStatement
      */
     public function currentCompanyId(): int
     {
         if (! app()->bound(CompaniesBranches::class)) {
             $currentCompanyId = $this->get(Companies::cacheKey());
         } else {
+            //verify I have access to it
             $currentCompanyId = app(CompaniesBranches::class)->company()->first()->getId();
         }
 
@@ -344,6 +369,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * What the current branch the users is logged in with.
+     * @psalm-suppress MixedReturnStatement
      */
     public function currentBranchId(): int
     {
@@ -439,9 +465,32 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * Is the creator of the current app.
+     *  @psalm-suppress MixedReturnStatement
      */
     public function isAppOwner(): bool
     {
-        return $this->getId() === app(Apps::class)->users_id;
+        return (bool) AppKey::where('users_id', $this->getId())
+            ->where('apps_id', app(Apps::class)->getId())
+            ->notDeleted()
+            ->exists();
+    }
+
+    /**
+     * list of abilities name for this user.
+     */
+    public function getAbilitiesList(): array
+    {
+        /**
+         * @psalm-suppress InvalidTemplateParam
+         */
+        $mapAbilities = $this->getAbilities()->map(function ($ability) {
+            return $ability->name;
+        });
+
+        if ($this->isAn((string) DefaultRoles::ADMIN->getValue())) {
+            $mapAbilities->prepend('*');
+        }
+
+        return $mapAbilities->all();
     }
 }
