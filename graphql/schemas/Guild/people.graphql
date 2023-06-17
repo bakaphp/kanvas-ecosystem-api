@@ -16,6 +16,18 @@ type PeopleRelationship {
     company: Company! @belongsTo
 }
 
+input PeopleInput {
+    first_name: String!
+    last_name: String!
+    facebook_contact_id: String
+    twitter_contact_id: String
+    linkedin_contact_id: String
+    google_contact_id: String
+    dob: String
+    contacts: [ContactInput!]
+    address: [AddressInput!]
+}
+
 extend type Query @guard {
     peopleRelationships(
         where: _ @whereConditions(columns: ["name", "description", "id"])

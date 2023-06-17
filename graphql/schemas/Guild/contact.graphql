@@ -24,3 +24,22 @@ type Address {
     country: Country
     is_default: Boolean!
 }
+
+input ContactInput {
+    value: String!
+    contact_type_id: Int!
+    weight: Int
+}
+
+input AddressInput {
+    address: String!
+    address_2: String
+    city: String
+    city_id: Int
+    state: String
+    state_id: Int
+    zip: String
+    country: String
+    country_id: Int
+    is_default: Boolean
+}

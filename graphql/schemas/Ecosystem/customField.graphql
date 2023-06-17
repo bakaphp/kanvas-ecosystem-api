@@ -12,6 +12,11 @@ input CustomFieldInput {
     entity_id: String!
 }
 
+input CustomFieldEntityInput {
+    name: String!
+    data: Mixed
+}
+
 extend type Mutation @guard {
     setCustomField(input: CustomFieldInput!): Boolean!
         @field(
