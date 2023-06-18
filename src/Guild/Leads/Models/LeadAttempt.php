@@ -28,6 +28,10 @@ class LeadAttempt extends BaseModel
 {
     protected $table = 'leads_attempt';
     protected $guarded = [];
+    protected $casts = [
+        'request' => 'array',
+        'header' => 'array'
+    ];
 
     public function lead(): BelongsTo
     {
@@ -42,5 +46,13 @@ class LeadAttempt extends BaseModel
     public function hasLead(): bool
     {
         return $this->leads_id !== null;
+    }
+
+    /**
+     * @override
+     */
+    public static function bootAppsIdTrait()
+    {
+       //
     }
 }

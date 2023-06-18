@@ -555,6 +555,6 @@ return [
         'entities_resolver_namespace' => 'App\\GraphQL\\Entities',
     ],
     'schema_cache' => [
-        'enable' => env('LIGHTHOUSE_CACHE_ENABLE', true),
+        'enable' => env('LIGHTHOUSE_SCHEMA_CACHE_ENABLE', true),
     ],
 ];

@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Guild\Mutations\Leads;
 
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Guild\Leads\Actions\AddLeadParticipantAction;
+use Kanvas\Guild\Leads\Actions\CreateLeadAction;
+use Kanvas\Guild\Leads\Actions\CreateLeadAttemptAction;
 use Kanvas\Guild\Leads\Actions\RemoveLeadParticipantAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead;
 use Kanvas\Guild\Leads\DataTransferObject\LeadsParticipant;
@@ -18,9 +17,22 @@ class LeadManagementMutation
      */
     public function create(mixed $root, array $req)
     {
-        $leadData = Lead::viaRequest($req['input']);
+        $leadAttempt = new CreateLeadAttemptAction(
+            $req,
+            request()->headers->all(),
+            auth()->user()->getCurrentCompany(),
+            request()->ip(),
+            'API'
+        );
+        $leadAttempt->execute();
 
-        print_r($leadData);
+        $createLead = new CreateLeadAction(
+            Lead::viaRequest($req['input'])
+        );
+        $lead = $createLead->execute();
+
+
+        print_r($lead); die();
     }
 
     /**

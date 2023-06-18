@@ -33,7 +33,7 @@ use Laravel\Scout\Searchable;
  * @property int|null $pipeline_stage_id
  * @property int $people_id
  * @property int $organization_id
- * @property int $lead_types_id
+ * @property int $leads_types_id
  * @property int $status
  * @property string $reason_lost
  * @property string $title
