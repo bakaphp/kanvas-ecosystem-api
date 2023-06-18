@@ -35,7 +35,7 @@ class Lead extends Data
         public readonly ?string $description = null,
         public readonly ?string $reason_lost = null,
         /** @var Kanvas\Guild\Customers\DataTransferObject\People[] */
-        public readonly DataCollection|Optional $participants,
+        public readonly DataCollection|null $participants = null,
         public readonly Organization|null $organization = null,
         public readonly array $custom_fields = [],
     ) {
@@ -73,7 +73,7 @@ class Lead extends Data
             $request['receiver_id'] ?? 0,
             $request['description'] ?? null,
             $request['reason_lost'] ?? null,
-            $request['participants'] ?? new Optional(),
+            $request['participants'] ?? null,
             isset($request['organization']) ? Organization::from([
                 $branch->company,
                 $user,
