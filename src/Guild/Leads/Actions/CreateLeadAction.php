@@ -12,6 +12,8 @@ use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadDataInput;
 use Kanvas\Guild\Leads\DataTransferObject\LeadsParticipant;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
+use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
+use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Spatie\LaravelData\DataCollection;
 
 class CreateLeadAction
@@ -48,11 +50,14 @@ class CreateLeadAction
         $newLead->leads_receivers_id = $this->leadData->receiver_id;
         $newLead->leads_types_id = $this->leadData->type_id;
         $newLead->leads_sources_id = $this->leadData->source_id;
+        $newLead->title = $this->leadData->title ?? $this->leadData->people->firstname . ' ' . $this->leadData->people->lastname . ' Opps';
+        $newLead->firstname = $this->leadData->people->firstname;
+        $newLead->lastname = $this->leadData->people->lastname;
+        $newLead->description = $this->leadData->description;
 
         //create people
         $people = (new CreatePeopleAction($this->leadData->people))->execute();
         $newLead->people_id = $people->getId();
-
         $newLead->saveOrFail();
 
         //create participant
@@ -74,6 +79,11 @@ class CreateLeadAction
         }
 
         //create organization
+        if ($this->leadData->organization instanceof Organization) {
+            $organization = (new CreateOrganizationAction($this->leadData->organization))->execute();
+            $newLead->organizations_id = $organization->getId();
+            $newLead->saveOrFail();
+        }
 
         return $newLead;
     }

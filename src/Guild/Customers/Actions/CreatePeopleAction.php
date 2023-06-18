@@ -79,7 +79,7 @@ class CreatePeopleAction
 
             $people->address()->saveMany($address);
         }
-        
+
         return $people;
     }
 }

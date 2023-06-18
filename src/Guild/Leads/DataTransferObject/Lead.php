@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Guild\Customers\DataTransferObject\People;
+use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
 use Spatie\LaravelData\Optional;
@@ -35,8 +36,8 @@ class Lead extends Data
         public readonly ?string $reason_lost = null,
         /** @var Kanvas\Guild\Customers\DataTransferObject\People[] */
         public readonly DataCollection|Optional $participants,
+        public readonly Organization|null $organization = null,
         public readonly array $custom_fields = [],
-
     ) {
     }
 
@@ -73,6 +74,11 @@ class Lead extends Data
             $request['description'] ?? null,
             $request['reason_lost'] ?? null,
             $request['participants'] ?? new Optional(),
+            isset($request['organization']) ? Organization::from([
+                $branch->company,
+                $user,
+                ...$request['organization'],
+            ]) : null,
             $request['custom_fields'] ?? [],
         );
     }

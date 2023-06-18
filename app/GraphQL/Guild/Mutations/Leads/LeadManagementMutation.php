@@ -6,16 +6,15 @@ namespace App\GraphQL\Guild\Mutations\Leads;
 
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadAttemptAction;
-use Kanvas\Guild\Leads\Actions\RemoveLeadParticipantAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead;
-use Kanvas\Guild\Leads\DataTransferObject\LeadsParticipant;
+use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 
 class LeadManagementMutation
 {
     /**
-     * Add participant to a lead.
+     * Create new lead
      */
-    public function create(mixed $root, array $req)
+    public function create(mixed $root, array $req): ModelsLead
     {
         $leadAttempt = new CreateLeadAttemptAction(
             $req,
@@ -24,38 +23,24 @@ class LeadManagementMutation
             request()->ip(),
             'API'
         );
-        $leadAttempt->execute();
+        $attempt = $leadAttempt->execute();
 
         $createLead = new CreateLeadAction(
             Lead::viaRequest($req['input'])
         );
         $lead = $createLead->execute();
 
+        $attempt->leads_id = $lead->getId();
+        $attempt->saveOrFail();
 
-        print_r($lead); die();
+        return $lead;
     }
 
-    /**
-     * Remove participant
-     */
-    public function update(mixed $root, array $req): bool
+    public function update(mixed $root, array $req)
     {
-        $leadParticipant = LeadsParticipant::viaRequest($req['input']);
-
-        $action = new RemoveLeadParticipantAction($leadParticipant);
-
-        return $action->execute();
     }
 
-    /**
-     * Remove participant
-     */
-    public function delete(mixed $root, array $req): bool
+    public function delete(mixed $root, array $req)
     {
-        $leadParticipant = LeadsParticipant::viaRequest($req['input']);
-
-        $action = new RemoveLeadParticipantAction($leadParticipant);
-
-        return $action->execute();
     }
 }

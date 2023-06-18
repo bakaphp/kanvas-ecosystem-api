@@ -23,12 +23,11 @@ use Kanvas\Guild\Models\BaseModel;
  * @property string $zip
  * @property string $countries_id
  * @property int $is_default
- *
  */
 class Address extends BaseModel
 {
     use NoCompanyRelationshipTrait;
-    
+
     protected $table = 'peoples_address';
     protected $guarded = [];
 
