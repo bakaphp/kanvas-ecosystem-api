@@ -27,7 +27,7 @@ type Address {
 
 input ContactInput {
     value: String!
-    type_id: Int!
+    contacts_types_id: Int!
     weight: Int
 }
 

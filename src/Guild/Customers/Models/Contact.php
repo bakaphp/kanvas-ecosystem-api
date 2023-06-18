@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Models;
 
+use Baka\Traits\NoAppRelationshipTrait;
+use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Models\BaseModel;
 
@@ -19,6 +21,9 @@ use Kanvas\Guild\Models\BaseModel;
  */
 class Contact extends BaseModel
 {
+    use NoAppRelationshipTrait;
+    use NoCompanyRelationshipTrait;
+
     protected $table = 'peoples_contacts';
     protected $guarded = [];
 

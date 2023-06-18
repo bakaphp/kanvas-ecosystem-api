@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Models;
 
+use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Models\BaseModel;
 
@@ -26,6 +27,8 @@ use Kanvas\Guild\Models\BaseModel;
  */
 class Address extends BaseModel
 {
+    use NoCompanyRelationshipTrait;
+    
     protected $table = 'peoples_address';
     protected $guarded = [];
 

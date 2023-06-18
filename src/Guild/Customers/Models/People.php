@@ -18,13 +18,13 @@ use Laravel\Scout\Searchable;
  * @property int $users_id
  * @property int $companies_id
  * @property string $name
- * @property string $dob
- * @property string $google_contact_id
- * @property string $facebook_contact_id
- * @property string $linkedin_contact_id
- * @property string $twitter_contact_id
- * @property string $instagram_contact_id
- * @property string $apple_contact_id
+ * @property string|null $dob = null
+ * @property string|null $google_contact_id
+ * @property string|null $facebook_contact_id
+ * @property string|null $linkedin_contact_id
+ * @property string|null $twitter_contact_id
+ * @property string|null $instagram_contact_id
+ * @property string|null $apple_contact_id
  *
  */
 class People extends BaseModel

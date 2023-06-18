@@ -26,10 +26,11 @@ class People extends Data
         public readonly DataCollection|Optional $contacts,
         /** @var Kanvas\Guild\Customers\DataTransferObject\Address[] */
         public readonly DataCollection|Optional $address,
+        public readonly int $id = 0,
         public readonly ?string $dob = null,
         public readonly ?string $facebook_contact_id = null,
-        public readonly ?string $twitter_contact_id = null,
         public readonly ?string $google_contact_id = null,
+        public readonly ?string $apple_contact_id = null,
         public readonly ?string $linkedin_contact_id = null,
     ) {
     }

@@ -13,7 +13,7 @@ class Contact extends Data
      */
     public function __construct(
         public readonly string $value,
-        public readonly int $type_id,
+        public readonly int $contacts_types_id,
         public readonly int $weight = 0,
     ) {
     }

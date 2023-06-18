@@ -1,0 +1,85 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Guild\Customers\Actions;
+
+use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDataInput;
+use Kanvas\Guild\Customers\Models\Address;
+use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Spatie\LaravelData\DataCollection;
+
+class CreatePeopleAction
+{
+    /**
+     * __construct.
+     */
+    public function __construct(
+        protected readonly PeopleDataInput $peopleData
+    ) {
+    }
+
+    /**
+     * execute.
+     */
+    public function execute(): People
+    {
+        $query = [];
+
+        $company = $this->peopleData->branch->company()->firstOrFail();
+
+        $attributes = [
+            'users_id' => $this->peopleData->user->getId(),
+            'name' => $this->peopleData->firstname . ' ' . $this->peopleData->lastname,
+            'dob' => $this->peopleData->dob,
+            'google_contact_id' => $this->peopleData->google_contact_id,
+            'facebook_contact_id' => $this->peopleData->facebook_contact_id,
+            'apple_contact_id' => $this->peopleData->apple_contact_id,
+        ];
+
+        if ($this->peopleData->id) {
+            $people = PeoplesRepository::getById($this->peopleData->id, $company);
+            $people->update($attributes);
+        } else {
+            $attributes['companies_id'] = $company->getId();
+            $people = People::create($attributes);
+        }
+
+        if ($this->peopleData->contacts instanceof DataCollection && $this->peopleData->contacts->count()) {
+            $contacts = [];
+            foreach ($this->peopleData->contacts as $contact) {
+                $contacts[] = new Contact([
+                    'contacts_types_id' => $contact->contacts_types_id,
+                    'value' => $contact->value,
+                    'weight' => $contact->weight,
+                ]);
+            }
+
+            $people->contacts()->saveMany($contacts);
+        }
+
+        if ($this->peopleData->address instanceof DataCollection && $this->peopleData->address->count()) {
+            $address = [];
+            foreach ($this->peopleData->address as $address) {
+                $address[] = new Address([
+                    'address' => $address->address,
+                    'address_2' => $address->address_2,
+                    'city' => $address->city,
+                    'state' => $address->state,
+                    'zip' => $address->zipcode,
+                    'country' => $address->country,
+                    'is_default' => $address->is_default,
+                    'city_id' => $address->city_id,
+                    'state_id' => $address->state_id,
+                    'country_id' => $address->country_id,
+                ]);
+            }
+
+            $people->address()->saveMany($address);
+        }
+        
+        return $people;
+    }
+}
