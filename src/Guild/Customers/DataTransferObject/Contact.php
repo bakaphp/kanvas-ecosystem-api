@@ -6,7 +6,7 @@ namespace Kanvas\Guild\Customers\DataTransferObject;
 
 use Spatie\LaravelData\Data;
 
-class ContactInput extends Data
+class Contact extends Data
 {
     /**
      * __construct.

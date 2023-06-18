@@ -22,8 +22,9 @@ class People extends Data
         public readonly UserInterface $user,
         public readonly string $firstname,
         public readonly string $lastname,
-        /** @var Kanvas\Guild\Customers\DataTransferObject\ContactInput[] */
+        /** @var Kanvas\Guild\Customers\DataTransferObject\Contact[] */
         public readonly DataCollection|Optional $contacts,
+        /** @var Kanvas\Guild\Customers\DataTransferObject\Address[] */
         public readonly DataCollection|Optional $address,
         public readonly ?string $dob = null,
         public readonly ?string $facebook_contact_id = null,

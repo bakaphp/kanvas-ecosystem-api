@@ -17,8 +17,8 @@ type PeopleRelationship {
 }
 
 input PeopleInput {
-    first_name: String!
-    last_name: String!
+    firstname: String!
+    lastname: String!
     facebook_contact_id: String
     twitter_contact_id: String
     linkedin_contact_id: String

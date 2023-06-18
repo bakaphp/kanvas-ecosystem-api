@@ -112,7 +112,7 @@ input LeadInput {
     description: String
     reason_lost: String
     pipeline_stage_id: Int!
-    custom_fields: [CustomFieldEntityInput]
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 input LeadUpdateInput {
@@ -127,13 +127,13 @@ input LeadUpdateInput {
     description: String
     reason_lost: String
     pipeline_stage_id: Int
-    custom_fields: [CustomFieldEntityInput]
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 extend type Mutation @guard {
-    createLead(input: CreateLeadInput! @spread): Lead
+    createLead(input: LeadInput!): Lead
         @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@create")
-    updateLead(id: Int!, input: UpdateLeadInput! @spread): Lead
+    updateLead(id: Int!, input: UpdateLeadInput!): Lead
         @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@update")
     deleteLead(id: Int!): Boolean
         @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@delete")
