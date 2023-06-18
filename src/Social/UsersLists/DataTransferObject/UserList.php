@@ -9,9 +9,9 @@ use Spatie\LaravelData\Data;
 class UserList extends Data
 {
     public function __construct(
-        public int $apps_id = 0,
-        public int $companies_id = 0,
-        public int $users_id = 0,
+        public int $apps_id,
+        public int $companies_id,
+        public int $users_id,
         public string $name = '',
         public string $description = '',
         public bool $is_public = false,

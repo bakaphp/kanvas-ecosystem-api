@@ -41,13 +41,13 @@ class MessageManagementMutation
         $message = $action->execute();
         $activity = [];
 
-        /*         $activityType = UserMessageActivityType::where('name', 'follow')->firstOrFail();
-                $activity = [
+        $activityType = UserMessageActivityType::where('name', 'follow')->firstOrFail();
+        $activity = [
                     'username' => '',
                     'entity_namespace' => '',
                     'text' => ' ',
                     'type' => $activityType->id,
-                ]; */
+            ];
 
         FillUserMessage::dispatch($message, $message->user, $activity)->onQueue('message');
 

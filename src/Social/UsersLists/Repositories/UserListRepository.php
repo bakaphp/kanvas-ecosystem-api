@@ -11,10 +11,9 @@ class UserListRepository
 {
     public static function getById(int $id, ?Users $user = null): ModelUserList
     {
-        $userList = ModelUserList::where('id', $id);
-        if ($user) {
+        $userList = ModelUserList::where('id', $id)->when($user, function ($userList) use ($user) {
             $userList->where('users_id', $user->getId());
-        }
+        });
 
         return $userList->firstOrFail();
     }

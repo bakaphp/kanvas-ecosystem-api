@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Mutations\UsersLists;
 
-use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\UsersLists\Actions\CreateUserListAction;
@@ -54,32 +53,18 @@ class UsersListsManagement
     {
         $userList = UserListRepository::getById($req['users_lists_id'], auth()->user());
         $message = Message::getById($req['messages_id']);
+        $userList->items()->attach($message);
 
-        try {
-            $userList->items()->attach($message);
-
-            return true;
-        } catch (Exception $e) {
-            throw new Exception($e->getMessage());
-        }
-
-
-        return false;
+        return true;
     }
 
-    public function removeFromList(mixed $rootValue, array $req): bool 
+    public function removeFromList(mixed $rootValue, array $req): bool
     {
         $userList = UserListRepository::getById($req['users_lists_id'], auth()->user());
         $message = Message::getById($req['messages_id']);
 
-        try {
-            $userList->items()->detach($message);
+        $userList->items()->detach($message);
 
-            return true;
-        } catch (Exception $e) {
-            throw new Exception($e->getMessage());
-        }
-
-        return false;
+        return true;
     }
 }
