@@ -27,7 +27,7 @@ extend type Mutation @guard {
     @field (
         resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@update"
     )
-    deleteUserList(id: Int!): UserList 
+    deleteUserList(id: Int!): Boolean 
     @field (
         resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@delete"
     )
