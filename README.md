@@ -44,9 +44,9 @@ Todo:
 
 3. Get inside the php container using ```docker exec -it php bash```.
 
-4. Use the command ```php artisan migrate``` to migrate all kanvas migrations file.
+4. Create 3 databases `inventory`, `social`, `crm`, update your .env with the connection info
 
-5. Use the command ```php artisan db:seed --class=DatabaseSeeder```  to seed the database with an app, role and default system modules.
+5. Use the command ```php artisan kanvas:setup-ecosystem``` to run the kanvas setup
 
 6. Generate app keys `php artisan key:generate` 
 
