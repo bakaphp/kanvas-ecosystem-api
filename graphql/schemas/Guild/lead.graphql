@@ -5,6 +5,7 @@ type Lead {
     branch: CompanyBranch! @belongsTo
     title: String!
     people: People
+    owner: User @belongsTo
     organization: Organization @belongsTo
     receiver: LeadReceiver @belongsTo
     status: LeadStatus @belongsTo
@@ -18,6 +19,7 @@ type Lead {
     reason_lost: String
     pipeline: LeadPipeline! @belongsTo
     stage: LeadPipelineStage! @belongsTo(relation: "stage")
+    participants: [LeadsParticipants!] @hasMany
     custom_fields: [CustomField]
         @paginate(
             defaultCount: 10
