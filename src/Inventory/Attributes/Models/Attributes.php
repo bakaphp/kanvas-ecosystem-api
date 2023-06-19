@@ -7,6 +7,7 @@ namespace Kanvas\Inventory\Attributes\Models;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Models\BaseModel;
@@ -51,5 +52,13 @@ class Attributes extends BaseModel
         return Attribute::make(
             get: fn () => $this->pivot->value,
         );
+    }
+
+    /**
+     * attributes values
+     */
+    public function values(): HasMany
+    {
+        return $this->hasMany(AttributesValues::class, 'attributes_id');
     }
 }
