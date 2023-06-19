@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Attributes;
 
+use Kanvas\Inventory\Attributes\Actions\AddAttributeValue;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributeDto;
 use Kanvas\Inventory\Attributes\Models\Attributes as AttributeModel;
@@ -23,7 +24,11 @@ class Attributes
     {
         $dto = AttributeDto::viaRequest($req['input']);
         $action = new CreateAttribute($dto, auth()->user());
-        return $action->execute();
+        $attributeModel = $action->execute();
+
+        (new AddAttributeValue($attributeModel, $dto->value))->execute();
+
+        return $attributeModel;
     }
 
     /**
