@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Social;
 
 use Tests\TestCase;
+use Kanvas\Social\Messages\Models\Message;
 
 class UsersListsTest extends TestCase
 {
@@ -134,6 +135,102 @@ class UsersListsTest extends TestCase
         )->assertJson([
             'data' => [
                 'deleteUserList' => true
+            ],
+        ]);
+    }
+
+    public function testAddToList()
+    {
+        $message = Message::factory()->create();
+        $input =[
+            'name' => fake()->name(),
+            'description' => fake()->text(),
+            'is_public' => fake()->boolean(),
+            'is_default' => fake()->boolean(),
+        ];
+        $response = $this->graphQL(
+            '
+                mutation createUserList($input: UserListInput!) {
+                    createUserList(input: $input) {
+                        id
+                    }
+                }
+            ',
+            [
+                'input' => $input
+            ]
+        );
+        $id = $response->json('data.createUserList.id');
+        
+        $this->graphQL(
+            '
+                mutation addToList($users_lists_id: Int!, $messages_id: Int!) {
+                    addToList(users_lists_id: $users_lists_id, messages_id: $messages_id) 
+                }
+            ',
+            [
+                'users_lists_id' => $id,
+                'messages_id' => $message->id,
+            ]
+        )->assertJson([
+            'data' => [
+                'addToList' => true
+            ],
+        ]);
+    }
+
+    public function testRemoveFromList()
+    {
+        $message = Message::factory()->create();
+        $input =[
+            'name' => fake()->name(),
+            'description' => fake()->text(),
+            'is_public' => fake()->boolean(),
+            'is_default' => fake()->boolean(),
+        ];
+        $response = $this->graphQL(
+            '
+                mutation createUserList($input: UserListInput!) {
+                    createUserList(input: $input) {
+                        id
+                    }
+                }
+            ',
+            [
+                'input' => $input
+            ]
+        );
+        $id = $response->json('data.createUserList.id');
+        
+        $this->graphQL(
+            '
+                mutation addToList($users_lists_id: Int!, $messages_id: Int!) {
+                    addToList(users_lists_id: $users_lists_id, messages_id: $messages_id) 
+                }
+            ',
+            [
+                'users_lists_id' => $id,
+                'messages_id' => $message->id,
+            ]
+        )->assertJson([
+            'data' => [
+                'addToList' => true
+            ],
+        ]);
+
+        $this->graphQL(
+            '
+                mutation removeFromList($users_lists_id: Int!, $messages_id: Int!) {
+                    removeFromList(users_lists_id: $users_lists_id, messages_id: $messages_id) 
+                }
+            ',
+            [
+                'users_lists_id' => $id,
+                'messages_id' => $message->id,
+            ]
+        )->assertJson([
+            'data' => [
+                'removeFromList' => true
             ],
         ]);
     }
