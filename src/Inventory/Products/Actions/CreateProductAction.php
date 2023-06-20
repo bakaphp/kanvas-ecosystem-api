@@ -100,7 +100,7 @@ class CreateProductAction
             }
 
             if($this->productDto->variants) {
-                VariantsServices::createVariant($products, $this->productDto->variants, $this->user);
+                VariantsServices::createVariantsFromArray($products, $this->productDto->variants, $this->user);
             }
 
             DB::connection('inventory')->commit();

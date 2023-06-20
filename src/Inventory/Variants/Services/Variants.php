@@ -24,7 +24,7 @@ class Variants
      * @param array $variants
      * @return array
      */
-    public static function createVariant(Products $product, array $variants, UserInterface $user): array
+    public static function createVariantsFromArray(Products $product, array $variants, UserInterface $user): array
     {
         $variantsData = [];
 
@@ -35,7 +35,7 @@ class Variants
                 ...$variant,
             ]);
 
-            $variantModel = (new CreateVariantsAction($variantDto,auth()->user()))->execute();
+            $variantModel = (new CreateVariantsAction($variantDto, $user))->execute();
             if(isset($variant['attributes'])) {
                self::addAttributes($user, $variantModel, $variant['attributes']);
             }
@@ -59,7 +59,7 @@ class Variants
             $attributesDto = AttributesDto::from([
                 'app' => app(Apps::class),
                 'user' => $user,
-                'company' => $user->getCurrentCompany(),
+                'company' => $variants->product->companies,
                 'name' => $attribute['name'],
                 'value' => $attribute['value']
             ]);
