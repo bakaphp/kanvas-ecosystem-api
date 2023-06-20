@@ -93,13 +93,13 @@ class CreateProductAction
                         'name' => $attribute['name'],
                         'value' => $attribute['value']
                     ]);
-        
+
                     $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
                     (new AddAttributeAction($products, $attributeModel, $attribute['value']))->execute();
                 }
             }
 
-            if($this->productDto->variants) {
+            if ($this->productDto->variants) {
                 VariantsServices::createVariantsFromArray($products, $this->productDto->variants, $this->user);
             }
 

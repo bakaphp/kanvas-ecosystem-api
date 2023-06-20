@@ -11,7 +11,6 @@ use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
 
 class Variants
 {
-
     /**
      * Create a new product variants.
      *
@@ -31,7 +30,7 @@ class Variants
             ]);
 
             $variantModel = (new CreateVariantsAction($variantDto, $user))->execute();
-            if(isset($variant['attributes'])) {
+            if (isset($variant['attributes'])) {
                $variantModel->addAttributes($user, $variant['attributes']);
             }
 
