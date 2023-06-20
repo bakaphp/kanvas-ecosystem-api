@@ -162,7 +162,7 @@ class UsersListsTest extends TestCase
             ]
         );
         $id = $response->json('data.createUserList.id');
-        
+
         $this->graphQL(
             '
                 mutation addToList($users_lists_id: Int!, $messages_id: Int!) {
@@ -202,7 +202,7 @@ class UsersListsTest extends TestCase
             ]
         );
         $id = $response->json('data.createUserList.id');
-        
+
         $this->graphQL(
             '
                 mutation addToList($users_lists_id: Int!, $messages_id: Int!) {
