@@ -89,17 +89,18 @@ class CreateProductAction
                     $attributesDto = AttributesDto::from([
                         'app' => $this->productDto->app,
                         'user' => $this->user,
-                        'company' => $this->user->getCurrentCompany(),
+                        'company' => $this->productDto->company,
                         'name' => $attribute['name'],
+                        'value' => $attribute['value']
                     ]);
         
-                    $attributeModel = (new CreateAttribute($attributesDto, auth()->user()))->execute();
+                    $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
                     (new AddAttributeAction($products, $attributeModel, $attribute['value']))->execute();
                 }
             }
 
             if($this->productDto->variants) {
-                VariantsServices::createVariant($products, $this->productDto->variants);
+                VariantsServices::createVariant($products, $this->productDto->variants, $this->user);
             }
 
             DB::connection('inventory')->commit();
