@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Services;
 
+use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
@@ -23,7 +24,7 @@ class Variants
      * @param array $variants
      * @return array
      */
-    public static function createVariant(Products $product, array $variants): array
+    public static function createVariant(Products $product, array $variants, UserInterface $user): array
     {
         $variantsData = [];
 
@@ -36,7 +37,7 @@ class Variants
 
             $variantModel = (new CreateVariantsAction($variantDto,auth()->user()))->execute();
             if(isset($variant['attributes'])) {
-               self::addAttributes($variantModel, $variant['attributes']);
+               self::addAttributes($user, $variantModel, $variant['attributes']);
             }
 
             $variantsData[] = $variantModel;
@@ -52,17 +53,18 @@ class Variants
      * @param array $attributes
      * @return void
      */
-    public static function addAttributes(ModelVariants $variants, array $attributes): void
+    public static function addAttributes(UserInterface $user, ModelVariants $variants, array $attributes): void
     {
         foreach ($attributes as $attribute) {
             $attributesDto = AttributesDto::from([
                 'app' => app(Apps::class),
-                'user' => auth()->user(),
-                'company' => auth()->user()->getCurrentCompany(),
+                'user' => $user,
+                'company' => $user->getCurrentCompany(),
                 'name' => $attribute['name'],
+                'value' => $attribute['value']
             ]);
 
-            $attributeModel = (new CreateAttribute($attributesDto, auth()->user()))->execute();
+            $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
             (new AddAttributeAction($variants, $attributeModel, $attribute['value']))->execute();
         }
     }
