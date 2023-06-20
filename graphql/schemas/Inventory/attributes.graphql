@@ -13,7 +13,7 @@ type Attributes {
     created_at: String
     updated_at: String
     companies: [Company]
-    values: [Mixed]
+    value: [Mixed]
 }
 extend type Mutation @guard {
     createAttribute(input: AttributeInput!): Attributes!
