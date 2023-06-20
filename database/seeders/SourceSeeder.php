@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Enums\SourceEnum;
 
 class SourceSeeder extends Seeder
 {
@@ -16,19 +17,19 @@ class SourceSeeder extends Seeder
     {
         DB::table('sources')->insert(
             [
-                'title' => 'baka',
+                'title' => SourceEnum::BAKA,
                 'url' => 'baka.io',
                 'created_at' => date('Y-m-d H:i:s'),
                 'is_deleted' => 0
             ],
             [
-                'title' => 'androipapp',
+                'title' => SourceEnum::ANDROID,
                 'url' => 'bakaapp.io',
                 'created_at' => date('Y-m-d H:i:s'),
                 'is_deleted' => 0
             ],
             [
-                'title' => 'iosapp',
+                'title' => SourceEnum::IOS,
                 'url' => 'bakaios.io',
                 'created_at' => date('Y-m-d H:i:s'),
                 'is_deleted' => 0
@@ -58,7 +59,7 @@ class SourceSeeder extends Seeder
                 'is_deleted' => 0
             ],
             [
-                'title' => 'webapp',
+                'title' => SourceEnum::WEBAPP,
                 'url' => 'webapp.io',
                 'created_at' => date('Y-m-d H:i:s'),
                 'is_deleted' => 0

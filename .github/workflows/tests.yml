@@ -39,11 +39,14 @@ jobs:
       AWS_DEFAULT_REGION_CICD: ${{ secrets.AWS_DEFAULT_REGION_CICD }}
       AWS_BUCKET_CICD: ${{ secrets.AWS_BUCKET_CICD }}
       AWS_URL: ${{ secrets.AWS_URL }}
-      SCOUT_DRIVER: database
       MODEL_CACHE_STORE: model
       MODEL_CACHE_ENABLED: false
       LIGHTHOUSE_CACHE_ENABLE: true
       LIGHTHOUSE_CACHE_VERSION: 2
+      SCOUT_DRIVER: meilisearch
+      MEILISEARCH_HOST: http://localhost:7700
+      MEILISEARCH_KEY: masterKey
+      SCOUT_QUEUE: false
       #APP_DEBUG: true
     strategy:
       fail-fast: false
@@ -73,6 +76,15 @@ jobs:
         image: rabbitmq
         ports:
           - 5672:5672
+      meilisearch:
+        image: getmeili/meilisearch:latest
+        env:
+          MEILI_MASTER_KEY: masterKey
+          MEILI_NO_ANALYTICS: true
+          MEILI_ENV: development
+          MEILI_DB_PATH: data.ms
+        ports:
+          - 7700:7700
     steps:
       - uses: actions/checkout@v3
 

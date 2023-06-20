@@ -1,0 +1,226 @@
+type Company {
+    id: Int!
+    uuid: String!
+    name: String!
+    website: String
+    address: String
+    zipcode: Int
+    email: String
+    language: String
+    timezone: String
+    phone: String
+    branches: [CompanyBranch!]! @hasMany(relation: "branches") #need to filter by the branches the user has access to
+    country_code: String
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type CompanyGroup {
+    id: Int!
+    uuid: String!
+    name: String!
+    app: App!
+    stripe_id: String
+    is_default: Int!
+    country_code: String
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type CompanyAssociation {
+    companyGroup: CompanyGroup!
+    company: Company!
+    is_default: Int!
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type CompanyBranch {
+    id: Int!
+    companies_id: Int!
+    name: String!
+    email: String
+    phone: String
+    zipcode: Int
+    company: Company!
+    is_default: Boolean!
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type CompanySettings {
+    company: Company!
+    name: String!
+    value: String
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+input CompanyInput {
+    name: String!
+    website: String
+    address: String
+    zipcode: Int
+    email: String
+    language: String
+    timezone: String
+    phone: String
+    country_code: String
+}
+
+input CompanyBranchInput {
+    name: String!
+    companies_id: Int!
+    is_default: Boolean
+    website: String
+    address: String
+    zipcode: Int
+    email: String
+    country_code: String
+    language: String
+    timezone: String
+    phone: String
+}
+
+type CompanySettings {
+    name: String!
+    settings: Mixed
+}
+
+extend type Query @guard {
+    companies(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "name"
+                    "website"
+                    "address"
+                    "zipcode"
+                    "email"
+                    "language"
+                    "timezone"
+                    "phone"
+                    "country_code"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id"])
+    ): [Company!]!
+        @paginate(
+            model: "Kanvas\\Companies\\Models\\Companies"
+            scopes: ["userAssociated"]
+        )
+
+    branches(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "name"
+                    "address"
+                    "email"
+                    "phone"
+                    "is_default"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id"])
+    ): [CompanyBranch!]!
+        @paginate(
+            model: "Kanvas\\Companies\\Models\\CompaniesBranches"
+            scopes: ["userAssociated"]
+        )
+
+    companyUsers(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "firstname"
+                    "lastname"
+                    "displayname"
+                    "email"
+                    "phone"
+                    "user_active"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+    ): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagementQuery@getAllCompanyUsers"
+            defaultCount: 10
+        )
+
+    companyBranchUsers(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "firstname"
+                    "lastname"
+                    "displayname"
+                    "email"
+                    "phone"
+                    "user_active"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+    ): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagementQuery@getAllCompanyBranchUsers"
+            defaultCount: 10
+        )
+
+    companySettings: CompanySettings
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\CompanySettingQuery@getAllSettings"
+        )
+}
+
+extend type Mutation @guardByAdmin {
+    createCompany(input: CompanyInput): Company!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagementMutation@createCompany"
+        )
+    updateCompany(id: Int!, input: CompanyInput): Company!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagementMutation@updateCompany"
+        )
+    deleteCompany(id: Int!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagementMutation@deleteCompany"
+        )
+    createCompaniesBranch(input: CompanyBranchInput): CompanyBranch!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagementMutation@createCompaniesBranch"
+        )
+    updateCompanyBranch(id: Int!, input: CompanyBranchInput): CompanyBranch!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagementMutation@updateCompanyBranch"
+        )
+    deleteCompanyBranch(id: Int!): String!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagementMutation@deleteCompanyBranch"
+        )
+    addUserToBranch(id: Int!, users_id: Int!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagementMutation@addUserToBranch"
+        )
+    removeUserFromBranch(id: Int!, users_id: Int!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagementMutation@removeUserFromBranch"
+        )
+    addUserToCompany(id: Int!, users_id: Int!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagementMutation@addUserToCompany"
+        )
+    removeUserFromCompany(id: Int!, users_id: Int!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompaniesManagementMutation@removeUserFromCompany"
+        )
+}

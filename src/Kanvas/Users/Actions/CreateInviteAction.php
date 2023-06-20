@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Users\Actions;
 
 use Illuminate\Support\Str;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
@@ -33,6 +34,12 @@ class CreateInviteAction
             $company,
             $companyBranch,
             $this->user
+        );
+
+        //validate role
+        RolesRepository::getByIdFromCompany(
+            $this->inviteDto->role_id,
+            $company
         );
 
         $invite = new UsersInvite();

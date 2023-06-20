@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
 
-use Baka\Traits\KanvasScopesTrait;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Models\BaseModel;
+use Kanvas\Guild\Rotations\Models\Rotation;
 
 /**
  * Class LeadReceiver.
@@ -35,4 +36,12 @@ class LeadReceiver extends BaseModel
 
     protected $table = 'leads_receivers';
     protected $guarded = [];
+
+    /**
+     * rotation
+     */
+    public function rotation(): BelongsTo
+    {
+        return $this->belongsTo(Rotation::class, 'rotations_id');
+    }
 }

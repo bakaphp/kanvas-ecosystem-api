@@ -40,6 +40,7 @@ trait HasCompositePrimaryKeyTrait
                 throw new Exception(__METHOD__ . 'Missing part of the primary key: ' . $key);
             }
         }
+
         return $query;
     }
 

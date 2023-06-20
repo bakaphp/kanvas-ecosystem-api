@@ -6,6 +6,8 @@ namespace Kanvas\Languages\Models;
 
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Kanvas\Models\BaseModel;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Kanvas\Languages\Factories\LanguagesFactory;
 
 /**
  * Languages Class.
@@ -16,7 +18,9 @@ use Kanvas\Models\BaseModel;
  */
 class Languages extends BaseModel
 {
-    use Cachable;
+    // use Cachable;
+    use HasFactory;
+    public $incrementing = false;
 
     /**
      * The table associated with the model.
@@ -24,4 +28,9 @@ class Languages extends BaseModel
      * @var string
      */
     protected $table = 'languages';
+
+    protected static function newFactory()
+    {
+        return LanguagesFactory::new();
+    }
 }
