@@ -45,19 +45,9 @@ class Attributes extends BaseModel
     }
 
     /**
-     * Get the user's first name.
-     */
-    protected function value(): Attribute
-    {
-        return Attribute::make(
-            get: fn () => $this->pivot->value,
-        );
-    }
-
-    /**
      * attributes values
      */
-    public function values(): HasMany
+    public function value(): HasMany
     {
         return $this->hasMany(AttributesValues::class, 'attributes_id');
     }
