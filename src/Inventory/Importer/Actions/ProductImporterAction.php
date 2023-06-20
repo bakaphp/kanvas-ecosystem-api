@@ -224,6 +224,7 @@ class ProductImporterAction
                     'user' => $this->user,
                     'company' => $this->company,
                     'name' => $attribute['name'],
+                    'value' => $attribute['value']
                 ]);
                 $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
 
@@ -314,6 +315,7 @@ class ProductImporterAction
                         'user' => $this->user,
                         'company' => $this->company,
                         'name' => $attribute['name'],
+                        'value' => $attribute['value']
                     ]);
                     $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
 
