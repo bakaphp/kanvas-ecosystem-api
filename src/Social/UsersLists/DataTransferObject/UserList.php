@@ -16,6 +16,7 @@ class UserList extends Data
         public string $description = '',
         public bool $is_public = false,
         public bool $is_default = false,
+        public array $files = [],
     ) {
     }
 }

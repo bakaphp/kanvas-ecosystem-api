@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Users\Models\Users;
@@ -34,12 +35,13 @@ class UserList extends BaseModel
     use SlugTrait;
     use KanvasAppScopesTrait;
     use SoftDeletes;
-
     use Searchable;
+    use HasFilesystemTrait;
 
     protected $table = 'users_lists';
 
     protected $guarded = [
+        'files',
     ];
 
     public function user(): BelongsTo

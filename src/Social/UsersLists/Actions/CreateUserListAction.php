@@ -16,6 +16,13 @@ class CreateUserListAction
 
     public function execute(): ModelUserList
     {
-        return ModelUserList::create($this->data->toArray());
+        $userList = ModelUserList::create($this->data->toArray());
+        if ($this->data->files) {
+            foreach ($this->data->files as $file) {
+                $userList->addFileFromUrl($file['url'], $file['name']);
+            }
+        }
+
+        return $userList;
     }
 }
