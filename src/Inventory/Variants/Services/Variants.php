@@ -31,7 +31,7 @@ class Variants
 
             $variantModel = (new CreateVariantsAction($variantDto, $user))->execute();
             if (isset($variant['attributes'])) {
-               $variantModel->addAttributes($user, $variant['attributes']);
+                $variantModel->addAttributes($user, $variant['attributes']);
             }
 
             $variantsData[] = $variantModel;
