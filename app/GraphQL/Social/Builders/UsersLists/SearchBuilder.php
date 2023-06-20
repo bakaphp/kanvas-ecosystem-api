@@ -19,7 +19,7 @@ class SearchBuilder
     public function search(mixed $builder, mixed $req): Builder|ScoutBuilder
     {
         $search = ModelUserList::search($req['search'])
-                  ->where('is_public', $req['is_public'] ?? false)
+                  ->where('is_public', $req['is_public'] ?? true)
                   ->where('apps_id', app(Apps::class)->id);
 
         return $search;

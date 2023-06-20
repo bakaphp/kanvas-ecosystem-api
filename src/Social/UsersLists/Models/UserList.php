@@ -7,7 +7,6 @@ namespace Kanvas\Social\UsersLists\Models;
 use Baka\Traits\KanvasAppScopesTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\SoftDeletes;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Apps\Models\Apps;
@@ -62,16 +61,6 @@ class UserList extends BaseModel
     public function items(): BelongsToMany
     {
         return $this->belongsToMany(Message::class, 'users_lists_messages', 'users_lists_id', 'messages_id');
-    }
-
-    public function scopeFromUser(Builder $query, mixed $app): Builder
-    {
-        return $query->where('users_id', auth()->user()->id);
-    }
-
-    public function scopeIsPublic(Builder $query): Builder
-    {
-        return $query->where('is_public', true);
     }
 
     /**

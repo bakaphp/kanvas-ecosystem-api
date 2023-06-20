@@ -1,11 +1,11 @@
-input UserListInput {
+input ListInput {
     name: String!
     description: String
     is_public: Boolean
     is_default: Boolean
 }
 
-type UserList @model(class: "\\Kanvas\\Social\\UsersLists\\Models\\UserList"){
+type List @model(class: "\\Kanvas\\Social\\UsersLists\\Models\\UserList"){
     id: Int!
     slug: String!
     name: String!
@@ -19,15 +19,15 @@ type UserList @model(class: "\\Kanvas\\Social\\UsersLists\\Models\\UserList"){
 }
 
 extend type Mutation @guard {
-    createUserList(input: UserListInput!): UserList 
+    createList(input: ListInput!): List 
     @field (
         resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@create"
     )
-    updateUserList(id: Int!, input: UserListInput!): UserList 
+    updateList(id: Int!, input: ListInput!): List 
     @field (
         resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@update"
     )
-    deleteUserList(id: Int!): Boolean 
+    deleteList(id: Int!): Boolean 
     @field (
         resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@delete"
     )
@@ -58,7 +58,7 @@ extend type Query @guard {
             ]
         )
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
-    ): [UserList!]! @paginate(
+    ): [List!]! @paginate(
         model: "Kanvas\\Social\\UsersLists\\Models\\UserList" 
         scopes: ["fromApp", "fromUser"]
         defaultCount: 25
@@ -69,7 +69,7 @@ extend type Query {
     searchUsersLists(
         search: String
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
-    ): [UserList!]! @paginate(
+    ): [List!]! @paginate(
         # model: "Kanvas\\Social\\UsersLists\\Models\\UserList" 
         scopes: ["fromApp", "isPublic"]
         defaultCount: 25
