@@ -14,7 +14,7 @@ class CreateUsersListsTable extends Migration
     public function up()
     {
         Schema::connection('social')->create('users_lists', function (Blueprint $table) {
-            $table->integer('id', true);
+            $table->id();
             $table->integer('apps_id')->index('apps_id');
             $table->bigInteger('companies_id')->index('companies_id');
             $table->bigInteger('users_id')->index('users_id');

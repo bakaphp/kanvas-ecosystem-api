@@ -12,7 +12,7 @@ return new class () extends Migration {
     {
         Schema::connection('social')->create('users_lists_messages', function (Blueprint $table) {
             $table->id();
-            $table->integer('users_lists_id');
+            $table->bigInteger('users_lists_id')->unsigned();
             $table->bigInteger('messages_id');
             $table->integer('weight')->default(0);
             $table->boolean('is_deleted')->default(false)->index('is_deleted');
