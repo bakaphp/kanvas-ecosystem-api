@@ -215,7 +215,7 @@ class UsersListsTest extends TestCase
             ]
         )->assertJson([
             'data' => [
-                'addToList' => true,
+                'addToUserList' => true,
             ],
         ]);
 
