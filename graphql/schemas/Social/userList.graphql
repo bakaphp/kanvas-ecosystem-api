@@ -1,11 +1,11 @@
-input ListInput {
+input UserListInput {
     name: String!
     description: String
     is_public: Boolean
     is_default: Boolean
 }
 
-type List @model(class: "\\Kanvas\\Social\\UsersLists\\Models\\UserList"){
+type UserList @model(class: "\\Kanvas\\Social\\UsersLists\\Models\\UserList"){
     id: Int!
     slug: String!
     name: String!
@@ -19,26 +19,26 @@ type List @model(class: "\\Kanvas\\Social\\UsersLists\\Models\\UserList"){
 }
 
 extend type Mutation @guard {
-    createList(input: ListInput!): List 
+    createUserList(input: UserListInput!): UserList 
     @field (
         resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@create"
     )
-    updateList(id: Int!, input: ListInput!): List 
+    updateUserList(id: Int!, input: UserListInput!): UserList 
     @field (
         resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@update"
     )
-    deleteList(id: Int!): Boolean 
+    deleteUserList(id: Int!): Boolean 
     @field (
         resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@delete"
     )
-    addToList(
+    addToUserList(
         users_lists_id: Int!,
         messages_id: Int!
     ): Boolean 
     @field (
         resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@addToList"
     )
-    removeFromList(
+    removeFromUserList(
         users_lists_id: Int!,
         messages_id: Int!
     ): Boolean
@@ -48,7 +48,7 @@ extend type Mutation @guard {
 }
 
 extend type Query @guard {
-    getUserLists(
+    getUsersLists(
         where: _@whereConditions(
             columns: [
                 "id"
@@ -58,7 +58,7 @@ extend type Query @guard {
             ]
         )
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
-    ): [List!]! @paginate(
+    ): [UserList!]! @paginate(
         model: "Kanvas\\Social\\UsersLists\\Models\\UserList" 
         scopes: ["fromApp", "fromUser"]
         defaultCount: 25
@@ -69,7 +69,7 @@ extend type Query {
     searchUsersLists(
         search: String
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
-    ): [List!]! @paginate(
+    ): [UserList!]! @paginate(
         # model: "Kanvas\\Social\\UsersLists\\Models\\UserList" 
         scopes: ["fromApp", "isPublic"]
         defaultCount: 25

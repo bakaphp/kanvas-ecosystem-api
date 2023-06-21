@@ -14,9 +14,11 @@ return new class () extends Migration {
             $table->id();
             $table->integer('users_lists_id');
             $table->bigInteger('messages_id');
+            $table->integer('weight')->default(0);
             $table->boolean('is_deleted')->default(false)->index('is_deleted');
             $table->foreign('users_lists_id')->references('id')->on('users_lists');
             $table->foreign('messages_id')->references('id')->on('messages');
+            $table->softDeletes();
             $table->timestamps();
         });
     }

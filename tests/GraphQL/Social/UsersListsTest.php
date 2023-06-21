@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Social;
 
-use Tests\TestCase;
 use Kanvas\Social\Messages\Models\Message;
+use Tests\TestCase;
 
 class UsersListsTest extends TestCase
 {
@@ -16,7 +16,7 @@ class UsersListsTest extends TestCase
      */
     public function testCreateUsersLists()
     {
-        $input =[
+        $input = [
             'name' => fake()->name(),
             'description' => fake()->text(),
             'is_public' => fake()->boolean(),
@@ -34,11 +34,11 @@ class UsersListsTest extends TestCase
                 }
             ',
             [
-                'input' => $input
+                'input' => $input,
             ]
         )->assertJson([
             'data' => [
-                'createUserList' => $input
+                'createUserList' => $input,
             ],
         ]);
     }
@@ -50,7 +50,7 @@ class UsersListsTest extends TestCase
      */
     public function testUpdateUsersLists()
     {
-        $input =[
+        $input = [
             'name' => fake()->name(),
             'description' => fake()->text(),
             'is_public' => fake()->boolean(),
@@ -65,7 +65,7 @@ class UsersListsTest extends TestCase
                 }
             ',
             [
-                'input' => $input
+                'input' => $input,
             ]
         );
         $id = $response->json('data.createUserList.id');
@@ -105,7 +105,7 @@ class UsersListsTest extends TestCase
      */
     public function testDeleteUsersLists()
     {
-        $input =[
+        $input = [
             'name' => fake()->name(),
             'description' => fake()->text(),
             'is_public' => fake()->boolean(),
@@ -120,7 +120,7 @@ class UsersListsTest extends TestCase
                 }
             ',
             [
-                'input' => $input
+                'input' => $input,
             ]
         );
         $id = $response->json('data.createUserList.id');
@@ -135,7 +135,7 @@ class UsersListsTest extends TestCase
             ]
         )->assertJson([
             'data' => [
-                'deleteUserList' => true
+                'deleteUserList' => true,
             ],
         ]);
     }
@@ -143,7 +143,7 @@ class UsersListsTest extends TestCase
     public function testAddToList()
     {
         $message = Message::factory()->create();
-        $input =[
+        $input = [
             'name' => fake()->name(),
             'description' => fake()->text(),
             'is_public' => fake()->boolean(),
@@ -158,15 +158,15 @@ class UsersListsTest extends TestCase
                 }
             ',
             [
-                'input' => $input
+                'input' => $input,
             ]
         );
         $id = $response->json('data.createUserList.id');
 
         $this->graphQL(
             '
-                mutation addToList($users_lists_id: Int!, $messages_id: Int!) {
-                    addToList(users_lists_id: $users_lists_id, messages_id: $messages_id) 
+                mutation addToUserList($users_lists_id: Int!, $messages_id: Int!) {
+                    addToUserList(users_lists_id: $users_lists_id, messages_id: $messages_id) 
                 }
             ',
             [
@@ -175,7 +175,7 @@ class UsersListsTest extends TestCase
             ]
         )->assertJson([
             'data' => [
-                'addToList' => true
+                'addToUserList' => true,
             ],
         ]);
     }
@@ -183,7 +183,7 @@ class UsersListsTest extends TestCase
     public function testRemoveFromList()
     {
         $message = Message::factory()->create();
-        $input =[
+        $input = [
             'name' => fake()->name(),
             'description' => fake()->text(),
             'is_public' => fake()->boolean(),
@@ -198,15 +198,15 @@ class UsersListsTest extends TestCase
                 }
             ',
             [
-                'input' => $input
+                'input' => $input,
             ]
         );
         $id = $response->json('data.createUserList.id');
 
         $this->graphQL(
             '
-                mutation addToList($users_lists_id: Int!, $messages_id: Int!) {
-                    addToList(users_lists_id: $users_lists_id, messages_id: $messages_id) 
+                mutation addToUserList($users_lists_id: Int!, $messages_id: Int!) {
+                    addToUserList(users_lists_id: $users_lists_id, messages_id: $messages_id) 
                 }
             ',
             [
@@ -215,14 +215,14 @@ class UsersListsTest extends TestCase
             ]
         )->assertJson([
             'data' => [
-                'addToList' => true
+                'addToList' => true,
             ],
         ]);
 
         $this->graphQL(
             '
-                mutation removeFromList($users_lists_id: Int!, $messages_id: Int!) {
-                    removeFromList(users_lists_id: $users_lists_id, messages_id: $messages_id) 
+                mutation removeFromUserList($users_lists_id: Int!, $messages_id: Int!) {
+                    removeFromUserList(users_lists_id: $users_lists_id, messages_id: $messages_id) 
                 }
             ',
             [
@@ -231,7 +231,7 @@ class UsersListsTest extends TestCase
             ]
         )->assertJson([
             'data' => [
-                'removeFromList' => true
+                'removeFromUserList' => true,
             ],
         ]);
     }
