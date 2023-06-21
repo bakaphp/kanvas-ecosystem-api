@@ -11,6 +11,8 @@ use Kanvas\Companies\Models\CompaniesGroups;
 use Kanvas\Companies\Observers\CompaniesObserver;
 use Kanvas\Social\Messages\Models\UserMessageActivity;
 use Kanvas\Social\Messages\Observers\UserMessageActivityObserver;
+use Kanvas\Social\UsersLists\Models\UserList;
+use Kanvas\Social\UsersLists\Observers\UsersListsObserver;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Observers\UsersObserver;
 
@@ -35,6 +37,7 @@ class EventServiceProvider extends ServiceProvider
         Companies::observe(CompaniesObserver::class);
         CompaniesGroups::observe(CompaniesGroupsObserver::class);
         UserMessageActivity::observe(UserMessageActivityObserver::class);
+        UserList::observe(UsersListsObserver::class);
     }
 
     /**
