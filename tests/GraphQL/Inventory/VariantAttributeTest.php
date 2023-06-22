@@ -60,7 +60,9 @@ class VariantAttributeTest extends TestCase
             {
                 id
                 name
-                value
+                values {
+                    value
+                }
             }
         }', ['data' => $dataAtribute]);
         $attributeId = $response->json()['data']['createAttribute']['id'];
