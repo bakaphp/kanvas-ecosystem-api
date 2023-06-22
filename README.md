@@ -46,11 +46,13 @@ Todo:
 
 4. Create 3 databases `inventory`, `social`, `crm`, update your .env with the connection info
 
-5. Use the command ```php artisan kanvas:setup-ecosystem``` to run the kanvas setup
+5. Check the .env and setup correctly the `KANVAS_APP_ID` and the `REDIS`parameters before running the setup-ecosystem
 
-6. Generate app keys `php artisan key:generate` 
+6. Use the command ```php artisan kanvas:setup-ecosystem``` to run the kanvas setup
 
-7. To check if the API is working just make a GET request to  ```http://localhost:80/v1/``` and see if the response returns ```"Woot Kanvas"```
+7. Generate app keys `php artisan key:generate` 
+
+8. To check if the API is working just make a GET request to  ```http://localhost:80/v1/``` and see if the response returns ```"Woot Kanvas"```
 
 ### Setup Inventory
 1. php artisan migrate --path database/migrations/Inventory/ --database inventory
