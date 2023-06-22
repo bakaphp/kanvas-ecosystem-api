@@ -46,7 +46,7 @@ Todo:
 
 4. Create 3 databases `inventory`, `social`, `crm`, update your .env with the connection info
 
-5. Check the .env and setup correctly the `REDIS` parameters before running the setup-ecosystem
+5. Check the .env and setup correctly the `REDIS` parameters and your databases connections before running the setup-ecosystem
 
 6. Use the command ```php artisan kanvas:setup-ecosystem``` to run the kanvas setup
 
