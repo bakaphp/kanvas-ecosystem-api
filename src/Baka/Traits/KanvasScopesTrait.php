@@ -10,4 +10,5 @@ trait KanvasScopesTrait
     use KanvasCompanyScopesTrait;
     use NotDeletedScopesTrait;
     use IsPublicScopesTrait;
+    use KanvasUsersScopesTrait;
 }
