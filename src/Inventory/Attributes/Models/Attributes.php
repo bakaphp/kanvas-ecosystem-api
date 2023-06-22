@@ -47,7 +47,17 @@ class Attributes extends BaseModel
     /**
      * attributes values
      */
-    public function value(): HasMany
+    public function value(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->value,
+        );
+    }
+
+    /**
+     * Attributes can have a default list of values , so we can generate dropdown list
+     */
+    public function defaultValues(): HasMany
     {
         return $this->hasMany(AttributesValues::class, 'attributes_id');
     }

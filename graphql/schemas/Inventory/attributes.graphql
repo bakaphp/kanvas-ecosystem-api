@@ -3,9 +3,11 @@ input AttributeInput {
     source_id: Mixed
     value: Mixed!
 }
+
 input AttributeUpdateInput {
     name: String
 }
+
 type Attributes {
     id: Int!
     uuid: String
@@ -13,8 +15,14 @@ type Attributes {
     created_at: String
     updated_at: String
     companies: [Company]
-    value: [Mixed]
+    values: [AttributesValue] @hasMany(relation: "defaultValues")
 }
+
+type AttributesValue {
+    id: Int!
+    value: Mixed
+}
+
 extend type Mutation @guard {
     createAttribute(input: AttributeInput!): Attributes!
         @field(
