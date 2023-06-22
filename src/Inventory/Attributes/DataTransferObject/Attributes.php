@@ -18,7 +18,7 @@ class Attributes extends Data
         public AppInterface $app,
         public UserInterface $user,
         public string $name,
-        public ?string $value = null,
+        public string $value,
     ) {
     }
 
@@ -29,7 +29,7 @@ class Attributes extends Data
             app(Apps::class),
             auth()->user(),
             $request['name'],
-            $request['value'] ?? null
+            $request['value']
         );
     }
 }
