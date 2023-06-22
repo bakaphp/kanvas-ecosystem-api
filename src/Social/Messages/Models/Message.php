@@ -14,6 +14,9 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 use Laravel\Scout\Searchable;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use Kanvas\Social\Messages\Factories\MessageFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 /**
  *  Class Message
@@ -36,6 +39,7 @@ class Message extends BaseModel
 {
     use UuidTrait;
     use Searchable;
+    use HasFactory;
 
     protected $table = 'messages';
 
@@ -47,6 +51,13 @@ class Message extends BaseModel
         'message' => Json::class,
     ];
 
+    /**
+ * Create a new factory instance for the model.
+ */
+    protected static function newFactory(): Factory
+    {
+        return MessageFactory::new();
+    }
     /**
       * Get the name of the index associated with the model.
       */

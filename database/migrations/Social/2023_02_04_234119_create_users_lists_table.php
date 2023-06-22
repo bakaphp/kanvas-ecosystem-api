@@ -14,16 +14,17 @@ class CreateUsersListsTable extends Migration
     public function up()
     {
         Schema::connection('social')->create('users_lists', function (Blueprint $table) {
-            $table->integer('id', true);
+            $table->id();
             $table->integer('apps_id')->index('apps_id');
             $table->bigInteger('companies_id')->index('companies_id');
             $table->bigInteger('users_id')->index('users_id');
-            $table->string('name', 50);
+            $table->string('name', 255);
             $table->char('slug', 100)->nullable()->default('')->index('slug');
             $table->text('description')->nullable();
             $table->boolean('is_public')->nullable()->index('is_public');
             $table->boolean('is_default')->default(false)->index('is_default');
             $table->dateTime('created_at')->index('created_at');
+            $table->dateTime('deleted_at')->nullable();
             $table->dateTime('updated_at')->nullable()->index('updated_at');
             $table->boolean('is_deleted')->index('is_deleted');
 
