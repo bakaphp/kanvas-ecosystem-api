@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Ecosystem\Integration\Filesystem;
+namespace Tests\Ecosystem\Integration\Sessions;
 
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
