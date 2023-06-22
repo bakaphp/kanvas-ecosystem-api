@@ -10,7 +10,7 @@ use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributeDto;
 use Kanvas\Inventory\Attributes\Models\Attributes as AttributeModel;
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
 
-class Attributes
+class AttributeMutation
 {
     /**
      * create.

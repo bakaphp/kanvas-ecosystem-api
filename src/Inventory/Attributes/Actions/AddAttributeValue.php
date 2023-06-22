@@ -15,11 +15,6 @@ class AddAttributeValue
     ) {
     }
 
-    /**
-     * execute.
-     *
-     * @return Attributes
-     */
     public function execute(): AttributesValues
     {
         return AttributesValues::firstOrCreate([
