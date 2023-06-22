@@ -17,7 +17,8 @@ class Attributes extends Data
         public CompanyInterface $company,
         public AppInterface $app,
         public UserInterface $user,
-        public string $name
+        public string $name,
+        public string $value,
     ) {
     }
 
@@ -27,7 +28,8 @@ class Attributes extends Data
             isset($request['company_id']) ? Companies::getById($request['company_id']) : auth()->user()->getCurrentCompany(),
             app(Apps::class),
             auth()->user(),
-            $request['name']
+            $request['name'],
+            $request['value']
         );
     }
 }

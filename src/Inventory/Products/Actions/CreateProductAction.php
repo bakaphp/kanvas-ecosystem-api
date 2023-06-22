@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Products\Actions;
 
+use App\GraphQL\Inventory\Mutations\Variants\Variants;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
+use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Services\Variants as VariantsServices;
 use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 use Throwable;
 
@@ -78,6 +82,25 @@ class CreateProductAction
                     WarehouseRepository::getById($warehouse, $this->productDto->company);
                 }
                 $products->warehouses()->attach($this->productDto->warehouses);
+            }
+
+            if ($this->productDto->attributes) {
+                foreach ($this->productDto->attributes as $attribute) {
+                    $attributesDto = AttributesDto::from([
+                        'app' => $this->productDto->app,
+                        'user' => $this->user,
+                        'company' => $this->productDto->company,
+                        'name' => $attribute['name'],
+                        'value' => $attribute['value']
+                    ]);
+
+                    $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
+                    (new AddAttributeAction($products, $attributeModel, $attribute['value']))->execute();
+                }
+            }
+
+            if ($this->productDto->variants) {
+                VariantsServices::createVariantsFromArray($products, $this->productDto->variants, $this->user);
             }
 
             DB::connection('inventory')->commit();

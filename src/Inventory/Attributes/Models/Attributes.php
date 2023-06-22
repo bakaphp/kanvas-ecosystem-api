@@ -7,6 +7,7 @@ namespace Kanvas\Inventory\Attributes\Models;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Models\BaseModel;
@@ -44,12 +45,20 @@ class Attributes extends BaseModel
     }
 
     /**
-     * Get the user's first name.
+     * attributes values
      */
-    protected function value(): Attribute
+    public function value(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot->value,
         );
+    }
+
+    /**
+     * Attributes can have a default list of values , so we can generate dropdown list
+     */
+    public function defaultValues(): HasMany
+    {
+        return $this->hasMany(AttributesValues::class, 'attributes_id');
     }
 }

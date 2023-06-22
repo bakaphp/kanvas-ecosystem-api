@@ -1,11 +1,13 @@
 input AttributeInput {
     name: String!
     source_id: Mixed
-    value: Mixed
+    value: Mixed!
 }
+
 input AttributeUpdateInput {
     name: String
 }
+
 type Attributes {
     id: Int!
     uuid: String
@@ -13,20 +15,26 @@ type Attributes {
     created_at: String
     updated_at: String
     companies: [Company]
+    values: [AttributesValue] @hasMany(relation: "defaultValues")
+}
+
+type AttributesValue {
+    id: Int!
     value: Mixed
 }
+
 extend type Mutation @guard {
     createAttribute(input: AttributeInput!): Attributes!
         @field(
-            resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\Attributes@create"
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\AttributeMutation@create"
         )
     updateAttribute(id: Int!, input: AttributeUpdateInput!): Attributes!
         @field(
-            resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\Attributes@update"
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\AttributeMutation@update"
         )
     deleteAttribute(id: Int!): Attributes!
         @field(
-            resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\Attributes@delete"
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\AttributeMutation@delete"
         )
 }
 extend type Query @guard {
