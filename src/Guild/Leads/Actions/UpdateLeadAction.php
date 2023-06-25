@@ -37,17 +37,15 @@ class UpdateLeadAction
      */
     public function execute(): Lead
     {
-        $company = $this->lead->company();
+        $company = $this->lead->company()->firstOrFail();
         $branch = CompaniesBranches::getByIdFromCompany(
             $this->leadData->branch_id,
             $company
         );
         $people = PeoplesRepository::getById($this->leadData->people_id, $company);
 
-        $leadStatus = LeadStatus::getByIdFromCompany(
-            $this->leadData->status_id,
-            $company
-        );
+        $leadStatus = LeadStatus::getById($this->leadData->status_id);
+
         $leadType = LeadType::getByIdFromCompany(
             $this->leadData->type_id,
             $company
@@ -59,14 +57,17 @@ class UpdateLeadAction
 
         $pipelineStage = PipelineStage::getById($this->leadData->pipeline_stage_id);
         $pipeline = Pipeline::getByIdFromCompany(
-            $pipelineStage->pipeline_id,
+            $pipelineStage->pipelines_id,
             $company
         );
 
-        $receiver = LeadReceiver::getByIdFromBranch(
-            $this->leadData->receiver_id,
-            $branch->getId()
-        );
+        $receiver = null;
+        if ($this->leadData->receiver_id) {
+            $receiver = LeadReceiver::getByIdFromBranch(
+                $this->leadData->receiver_id,
+                $branch
+            );
+        }
 
         $owner = null;
         if ($this->leadData->leads_owner_id) {
@@ -91,7 +92,7 @@ class UpdateLeadAction
         $this->lead->leads_sources_id = $leadSource->getId();
         $this->lead->pipeline_id = $pipeline->getId();
         $this->lead->pipeline_stage_id = $pipelineStage->getId();
-        $this->lead->leads_receivers_id = $receiver->getId();
+        $this->lead->leads_receivers_id = $receiver ? $receiver->getId() : 0;
         $this->lead->companies_branches_id = $branch->getId();
         $this->lead->description = $this->leadData->description ?? '';
         $this->lead->reason_lost = $this->leadData->reason_lost ?? '';

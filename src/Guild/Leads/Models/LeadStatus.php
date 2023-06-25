@@ -17,6 +17,8 @@ use Kanvas\Guild\Models\BaseModel;
  * @property string $created_at
  * @property string $updated_at
  * @property int $is_deleted
+ * 
+ * @todo add company_id
  */
 class LeadStatus extends BaseModel
 {

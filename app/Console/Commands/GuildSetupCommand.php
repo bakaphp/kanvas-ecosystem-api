@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Support\Setup;
 use Kanvas\Users\Models\Users;
 
 class GuildSetupCommand extends Command
@@ -37,6 +38,11 @@ class GuildSetupCommand extends Command
         $user = Users::getById((int) $this->argument('user_id'));
 
         //todo: add setup class
+        (new Setup(
+            $app,
+            $user,
+            $company
+        ))->run();
 
         $this->newLine();
         $this->info('Guild setup for Company ' . $company->name . ' completed successful');
