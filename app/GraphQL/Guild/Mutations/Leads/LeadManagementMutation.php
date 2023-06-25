@@ -30,9 +30,6 @@ class LeadManagementMutation
         );
         $lead = $createLead->execute();
 
-        $attempt->leads_id = $lead->getId();
-        $attempt->saveOrFail();
-
         return $lead;
     }
 

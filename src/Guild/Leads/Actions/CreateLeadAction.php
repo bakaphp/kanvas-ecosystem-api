@@ -11,6 +11,7 @@ use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadDataInput;
 use Kanvas\Guild\Leads\DataTransferObject\LeadsParticipant;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadAttempt;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
@@ -24,8 +25,12 @@ class CreateLeadAction
      * __construct.
      */
     public function __construct(
-        protected readonly LeadDataInput $leadData
+        protected readonly LeadDataInput $leadData,
+        protected readonly ?LeadAttempt $leadAttempt = null
     ) {
+        /**
+         * @psalm-suppress MixedAssignment
+         */
         $this->company = $this->leadData->branch->company()->firstOrFail();
     }
 
@@ -60,6 +65,9 @@ class CreateLeadAction
         $newLead->people_id = $people->getId();
         $newLead->saveOrFail();
 
+        $newLead->setCustomFields($this->leadData->custom_fields);
+        $newLead->saveCustomFields();
+
         //create participant
         if ($this->leadData->participants instanceof DataCollection && $this->leadData->participants->count()) {
             foreach ($this->leadData->participants as $partipantData) {
@@ -84,6 +92,14 @@ class CreateLeadAction
             $newLead->organizations_id = $organization->getId();
             $newLead->saveOrFail();
         }
+
+        if($this->leadAttempt instanceof LeadAttempt){
+            $this->leadAttempt->leads_id = $newLead->getId();
+            $this->leadAttempt->processed = 1;
+            $this->leadAttempt->saveOrFail();
+        }
+
+        //@todo add workflow 
 
         return $newLead;
     }
