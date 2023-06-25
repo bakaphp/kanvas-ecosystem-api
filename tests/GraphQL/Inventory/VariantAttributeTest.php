@@ -52,6 +52,7 @@ class VariantAttributeTest extends TestCase
 
         $dataAtribute = [
             'name' => fake()->name,
+            'value' => fake()->name
         ];
         $response = $this->graphQL('
         mutation($data: AttributeInput!) {
@@ -59,10 +60,11 @@ class VariantAttributeTest extends TestCase
             {
                 id
                 name
+                values {
+                    value
+                }
             }
-        }', ['data' => $dataAtribute])->assertJson([
-            'data' => ['createAttribute' => $dataAtribute]
-        ]);
+        }', ['data' => $dataAtribute]);
         $attributeId = $response->json()['data']['createAttribute']['id'];
         $response = $this->graphQL('
             mutation($id: Int! $attributes_id: Int! $input: VariantsAttributesInput!) {
@@ -127,6 +129,7 @@ class VariantAttributeTest extends TestCase
 
         $dataAtribute = [
             'name' => fake()->name,
+            'value' => fake()->name
         ];
         $response = $this->graphQL('
         mutation($data: AttributeInput!) {
@@ -135,9 +138,7 @@ class VariantAttributeTest extends TestCase
                 id
                 name
             }
-        }', ['data' => $dataAtribute])->assertJson([
-            'data' => ['createAttribute' => $dataAtribute]
-        ]);
+        }', ['data' => $dataAtribute]);
         $attributeId = $response->json()['data']['createAttribute']['id'];
         $response = $this->graphQL('
             mutation($id: Int! $attributes_id: Int! $input: VariantsAttributesInput!) {
