@@ -120,24 +120,25 @@ input LeadInput {
 }
 
 input LeadUpdateInput {
-    branch_id: Int
+    branch_id: Int!
     title: String
     people_id: Int!
+    leads_owner_id: Int
     organization_id: Int
     receiver_id: Int
-    status_id: Int
-    type_id: Int
+    status_id: Int!
+    type_id: Int!
     source_id: Int
     description: String
     reason_lost: String
-    pipeline_stage_id: Int
+    pipeline_stage_id: Int!
     custom_fields: [CustomFieldEntityInput!]
 }
 
 extend type Mutation @guard {
     createLead(input: LeadInput!): Lead
         @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@create")
-    updateLead(id: Int!, input: UpdateLeadInput!): Lead
+    updateLead(id: Int!, input: LeadUpdateInput!): Lead
         @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@update")
     deleteLead(id: Int!): Boolean
         @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@delete")

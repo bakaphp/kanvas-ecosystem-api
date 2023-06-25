@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Guild\Customers\DataTransferObject\People;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
@@ -44,10 +45,9 @@ class Lead extends Data
     /**
      *  @psalm-suppress ArgumentTypeCoercion
      */
-    public static function viaRequest(array $request): self
+    public static function viaRequest(UserInterface $user, array $request): self
     {
         $branch = CompaniesBranches::getById($request['branch_id']);
-        $user = auth()->user();
         CompaniesRepository::userAssociatedToCompanyAndBranch(
             $branch->company,
             $branch,

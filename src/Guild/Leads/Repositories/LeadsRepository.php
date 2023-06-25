@@ -7,7 +7,9 @@ namespace Kanvas\Guild\Leads\Repositories;
 use Baka\Enums\StateEnums;
 use Baka\Traits\SearchableTrait;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Baka\Traits;
 
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Schema;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Users\Models\Users;
@@ -44,6 +46,32 @@ trait KanvasModelTrait
         try {
             return self::where('id', $id)
                 ->notDeleted()
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
+    }
+
+    public static function getByIdFromCompany(mixed $id, CompanyInterface $company): self
+    {
+        try {
+            return self::where('id', $id)
+                ->notDeleted()
+                ->fromCompany($company)
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
+    }
+
+    public static function getByIdFromBranch(mixed $id, CompaniesBranches $branch): self
+    {
+        try {
+            return self::where('id', $id)
+                ->notDeleted()
+                ->where('companies_branches_id', $branch->getId())
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
