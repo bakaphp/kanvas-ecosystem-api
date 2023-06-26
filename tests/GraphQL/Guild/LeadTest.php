@@ -21,6 +21,45 @@ class LeadTest extends TestCase
             }')->assertOk();
     }
 
+    protected function createLeadAndGetResponse(array $input = [])
+    {
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $title = fake()->title();
+
+        if (empty($input)) {
+            $input = [
+                'branch_id' => $branch->getId(),
+                'title' => $title,
+                'pipeline_stage_id' => 0,
+                'people' => [
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                    'contacts' => [
+                        [
+                            'value' => fake()->email(),
+                            'contacts_types_id' => 1,
+                            'weight' => 0,
+                        ],
+                    ],
+                ],
+            ];
+        }
+
+        return $this->graphQL('
+            mutation($input: LeadInput!) {
+                createLead(input: $input) {                
+                    id
+                    people {
+                        id
+                    }
+                }
+            }
+        ', [
+            'input' => $input,
+        ])->json();
+    }
+
     public function testCreateLead()
     {
         $user = auth()->user();
@@ -84,18 +123,7 @@ class LeadTest extends TestCase
                    ],
                ];
 
-        $response = $this->graphQL('
-        mutation($input: LeadInput!) {
-            createLead(input: $input) {                
-                id,
-                people {
-                    id
-                }
-            }
-        }
-    ', [
-            'input' => $input,
-    ])->json();
+        $response = $this->createLeadAndGetResponse($input);
 
         $leadId = $response['data']['createLead']['id'];
         $peopleId = $response['data']['createLead']['people']['id'];
@@ -150,18 +178,8 @@ class LeadTest extends TestCase
                    ],
                ];
 
-        $response = $this->graphQL('
-        mutation($input: LeadInput!) {
-            createLead(input: $input) {                
-                id,
-                people {
-                    id
-                }
-            }
-        }
-    ', [
-            'input' => $input,
-    ])->json();
+               $response = $this->createLeadAndGetResponse($input);
+
 
         $leadId = $response['data']['createLead']['id'];
 
@@ -202,18 +220,8 @@ class LeadTest extends TestCase
                    ],
                ];
 
-        $response = $this->graphQL('
-        mutation($input: LeadInput!) {
-            createLead(input: $input) {                
-                id,
-                people {
-                    id
-                }
-             }
-            }
-        ', [
-                'input' => $input,
-        ])->json();
+               $response = $this->createLeadAndGetResponse($input);
+
 
         $leadId = $response['data']['createLead']['id'];
 
