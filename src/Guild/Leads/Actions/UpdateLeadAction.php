@@ -25,7 +25,7 @@ class UpdateLeadAction
      * __construct.
      */
     public function __construct(
-        protected readonly Lead $lead,
+        protected Lead $lead,
         protected readonly LeadUpdateInput $leadData,
         protected readonly UserInterface $user,
         protected readonly ?LeadAttempt $leadAttempt = null
@@ -38,10 +38,8 @@ class UpdateLeadAction
     public function execute(): Lead
     {
         $company = $this->lead->company()->firstOrFail();
-        $branch = CompaniesBranches::getByIdFromCompany(
-            $this->leadData->branch_id,
-            $company
-        );
+        $branch = $this->lead->company->branches()->where('id', $this->leadData->branch_id)->firstOrFail();
+     
         $people = PeoplesRepository::getById($this->leadData->people_id, $company);
 
         $leadStatus = LeadStatus::getById($this->leadData->status_id);
