@@ -79,4 +79,16 @@ class People extends BaseModel
                 )
                 ->get();
     }
+
+    public function getFirstAndLastName(): array
+    {
+        $name = explode(' ', $this->name);
+        $firstName = $name[0];
+        unset($name[0]);
+
+        return [
+            'firstName' => trim($firstName),
+            'lastName' => isset($name[1]) ? implode(' ', $name) : '',
+        ];
+    }
 }
