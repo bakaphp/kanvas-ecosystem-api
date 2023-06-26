@@ -40,7 +40,7 @@ trait KanvasModelTrait
             throw new ExceptionsModelNotFoundException($e->getMessage());
         }
     }
-    
+
     public static function getByUuid(string $uuid): self
     {
         try {
@@ -116,8 +116,6 @@ trait KanvasModelTrait
 
     /**
      * cant use app because of the scope name.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function app(): BelongsTo
     {
@@ -132,8 +130,6 @@ trait KanvasModelTrait
      * Current soft delete.
      *
      * @todo change to laravel default behavior
-     *
-     * @return bool
      */
     public function softDelete(): bool
     {
@@ -146,8 +142,6 @@ trait KanvasModelTrait
      * restore
      *
      * @todo change to laravel default behavior
-     *
-     * @return bool
      */
     public function restoreRecord(): bool
     {
@@ -158,8 +152,6 @@ trait KanvasModelTrait
 
     /**
      * Get the table name with the connection name.
-     *
-     * @return string
      */
     public static function getFullTableName(): string
     {
@@ -170,8 +162,6 @@ trait KanvasModelTrait
 
     /**
      * Get the table name.
-     *
-     * @return string
      */
     public static function getTableName(): string
     {
@@ -180,9 +170,6 @@ trait KanvasModelTrait
 
     /**
      * Those the given entity have the given column.
-     *
-     * @param string $name
-     * @return bool
      */
     public function hasColumn(string $name): bool
     {

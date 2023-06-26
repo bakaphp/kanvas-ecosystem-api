@@ -41,22 +41,31 @@ class UpdateLeadAction
 
         $people = PeoplesRepository::getById($this->leadData->people_id, $company);
 
-        $leadStatus = LeadStatus::getById($this->leadData->status_id);
+        if ($this->leadData->status_id) {
+            $leadStatus = LeadStatus::getById($this->leadData->status_id);
+        }
 
-        $leadType = LeadType::getByIdFromCompany(
-            $this->leadData->type_id,
-            $company
-        );
-        $leadSource = LeadSource::getByIdFromCompany(
-            $this->leadData->source_id,
-            $company
-        );
+        if ($this->leadData->type_id) {
+            $leadType = LeadType::getByIdFromCompany(
+                $this->leadData->type_id,
+                $company
+            );
+        }
 
-        $pipelineStage = PipelineStage::getById($this->leadData->pipeline_stage_id);
-        $pipeline = Pipeline::getByIdFromCompany(
-            $pipelineStage->pipelines_id,
-            $company
-        );
+        if ($this->leadData->source_id) {
+            $leadSource = LeadSource::getByIdFromCompany(
+                $this->leadData->source_id,
+                $company
+            );
+        }
+
+        if ($this->leadData->pipeline_stage_id) {
+            $pipelineStage = PipelineStage::getById($this->leadData->pipeline_stage_id);
+            $pipeline = Pipeline::getByIdFromCompany(
+                $pipelineStage->pipelines_id,
+                $company
+            );
+        }
 
         $receiver = null;
         if ($this->leadData->receiver_id) {
@@ -86,11 +95,11 @@ class UpdateLeadAction
         $lead->firstname = $people->firstname;
         $lead->lastname = $people->lastname;
         $lead->email = $people->getEmails()->count() ? $people->getEmails()->first()->value : '';
-        $lead->leads_status_id = $leadStatus->getId();
-        $lead->leads_types_id = $leadType->getId();
-        $lead->leads_sources_id = $leadSource->getId();
-        $lead->pipeline_id = $pipeline->getId();
-        $lead->pipeline_stage_id = $pipelineStage->getId();
+        $lead->leads_status_id = $this->leadData->status_id ? $leadStatus->getId() : 0;
+        $lead->leads_types_id = $this->leadData->type_id ? $leadType->getId() : null;
+        $lead->leads_sources_id = $this->leadData->source_id ? $leadSource->getId() : null;
+        $lead->pipeline_id = $this->leadData->pipeline_stage_id ? $pipeline->getId() : 0;
+        $lead->pipeline_stage_id = $this->leadData->pipeline_stage_id ? $pipelineStage->getId() : 0;
         $lead->leads_receivers_id = $receiver ? $receiver->getId() : 0;
         $lead->companies_branches_id = $branch->getId();
         $lead->description = $this->leadData->description ?? '';

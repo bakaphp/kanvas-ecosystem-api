@@ -126,12 +126,12 @@ input LeadUpdateInput {
     leads_owner_id: Int
     organization_id: Int
     receiver_id: Int
-    status_id: Int!
-    type_id: Int!
+    status_id: Int
+    type_id: Int
     source_id: Int
     description: String
     reason_lost: String
-    pipeline_stage_id: Int!
+    pipeline_stage_id: Int
     custom_fields: [CustomFieldEntityInput!]
 }
 

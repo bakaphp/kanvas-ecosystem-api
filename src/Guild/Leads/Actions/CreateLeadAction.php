@@ -93,13 +93,13 @@ class CreateLeadAction
             $newLead->saveOrFail();
         }
 
-        if($this->leadAttempt instanceof LeadAttempt){
+        if ($this->leadAttempt instanceof LeadAttempt) {
             $this->leadAttempt->leads_id = $newLead->getId();
             $this->leadAttempt->processed = 1;
             $this->leadAttempt->saveOrFail();
         }
 
-        //@todo add workflow 
+        //@todo add workflow
 
         return $newLead;
     }
