@@ -82,7 +82,7 @@ class People extends BaseModel
 
     public function getFirstAndLastName(): array
     {
-        $name = explode(' ', $this->name);
+        $name = explode(' ', trim($this->name));
         $firstName = $name[0];
         unset($name[0]);
 
