@@ -10,7 +10,6 @@ use Kanvas\Guild\Leads\Actions\UpdateLeadAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead;
 use Kanvas\Guild\Leads\DataTransferObject\LeadUpdateInput;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
-use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 
 class LeadManagementMutation
 {
@@ -30,7 +29,7 @@ class LeadManagementMutation
         $attempt = $leadAttempt->execute();
 
         $createLead = new CreateLeadAction(
-            Lead::viaRequest($user,$req['input'])
+            Lead::viaRequest($user, $req['input'])
         );
         $lead = $createLead->execute();
 
@@ -40,7 +39,7 @@ class LeadManagementMutation
     public function update(mixed $root, array $req): ModelsLead
     {
         $user = auth()->user();
-      
+
         $lead = ModelsLead::getByIdFromBranch(
             $req['id'],
             $user->getCurrentBranch()
@@ -66,7 +65,24 @@ class LeadManagementMutation
         return $updateLeadAction->execute();
     }
 
-    public function delete(mixed $root, array $req)
+    public function delete(mixed $root, array $req): bool
     {
+        $user = auth()->user();
+        $lead = ModelsLead::getByIdFromBranch(
+            $req['id'],
+            $user->getCurrentBranch()
+        );
+
+        return $lead->softDelete();
+    }
+
+    public function restore(mixed $root, array $req): bool
+    {
+        $user = auth()->user();
+        $lead = ModelsLead::where('id', $req['id'])
+                            ->where('companies_branches_id', $user->getCurrentBranch()->getId())
+                            ->firstOrFail();
+
+        return $lead->restoreRecord();
     }
 }

@@ -142,6 +142,8 @@ extend type Mutation @guard {
         @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@update")
     deleteLead(id: Int!): Boolean
         @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@delete")
+    restoreLead(id: Int!): Boolean
+        @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@restore")
     addLeadParticipant(input: LeadsParticipantsInput!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\ParticipantMutation@add"

@@ -131,6 +131,20 @@ trait KanvasModelTrait
     }
 
     /**
+     * restore
+     *
+     * @todo change to laravel default behavior
+     *
+     * @return bool
+     */
+    public function restoreRecord(): bool
+    {
+        $this->is_deleted = StateEnums::NO->getValue();
+
+        return $this->saveOrFail();
+    }
+
+    /**
      * Get the table name with the connection name.
      *
      * @return string
