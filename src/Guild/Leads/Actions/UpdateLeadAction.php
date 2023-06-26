@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Actions;
 
 use Baka\Users\Contracts\UserInterface;
-use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\DataTransferObject\LeadUpdateInput;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -28,7 +27,7 @@ class UpdateLeadAction
         protected Lead $lead,
         protected readonly LeadUpdateInput $leadData,
         protected readonly UserInterface $user,
-        protected readonly ?LeadAttempt $leadAttempt = null
+        protected ?LeadAttempt $leadAttempt = null
     ) {
     }
 
@@ -37,9 +36,9 @@ class UpdateLeadAction
      */
     public function execute(): Lead
     {
-        $company = $this->lead->company()->firstOrFail();
+        $company = $this->lead->company;
         $branch = $this->lead->company->branches()->where('id', $this->leadData->branch_id)->firstOrFail();
-     
+
         $people = PeoplesRepository::getById($this->leadData->people_id, $company);
 
         $leadStatus = LeadStatus::getById($this->leadData->status_id);
@@ -80,30 +79,38 @@ class UpdateLeadAction
             );
         }
 
-        $this->lead->title = $this->leadData->title;
-        $this->lead->people_id = $people->getId();
-        $this->lead->firstname = $people->firstname;
-        $this->lead->lastname = $people->lastname;
-        //$this->lead->email = $people->getemai
-        $this->lead->leads_status_id = $leadStatus->getId();
-        $this->lead->leads_types_id = $leadType->getId();
-        $this->lead->leads_sources_id = $leadSource->getId();
-        $this->lead->pipeline_id = $pipeline->getId();
-        $this->lead->pipeline_stage_id = $pipelineStage->getId();
-        $this->lead->leads_receivers_id = $receiver ? $receiver->getId() : 0;
-        $this->lead->companies_branches_id = $branch->getId();
-        $this->lead->description = $this->leadData->description ?? '';
-        $this->lead->reason_lost = $this->leadData->reason_lost ?? '';
-        $this->lead->leads_owner_id = $owner ? $owner->getId() : 0;
-        $this->lead->organization_id = $organization ? $organization->getId() : 0;
+        //cant understand why db connection is switching to another db
+        $lead = Lead::getById($this->lead->getId());
+        $lead->title = $this->leadData->title;
+        $lead->people_id = $people->getId();
+        $lead->firstname = $people->firstname;
+        $lead->lastname = $people->lastname;
+        $lead->email = $people->getEmails()->count() ? $people->getEmails()->first()->value : '';
+        $lead->leads_status_id = $leadStatus->getId();
+        $lead->leads_types_id = $leadType->getId();
+        $lead->leads_sources_id = $leadSource->getId();
+        $lead->pipeline_id = $pipeline->getId();
+        $lead->pipeline_stage_id = $pipelineStage->getId();
+        $lead->leads_receivers_id = $receiver ? $receiver->getId() : 0;
+        $lead->companies_branches_id = $branch->getId();
+        $lead->description = $this->leadData->description ?? '';
+        $lead->reason_lost = $this->leadData->reason_lost ?? '';
+        $lead->leads_owner_id = $owner ? $owner->getId() : 0;
+        $lead->organization_id = $organization ? $organization->getId() : 0;
 
-        $this->lead->saveOrFail();
+        $lead->saveOrFail();
+
+        $lead->setCustomFields($this->leadData->custom_fields);
+        $lead->saveCustomFields();
 
         if ($this->leadAttempt) {
-            $this->leadAttempt->leads_id = $this->lead->getId();
+            $this->leadAttempt->leads_id = $lead->getId();
             $this->leadAttempt->saveOrFail();
         }
 
-        return $this->lead;
+        /**
+         * @psalm-suppress LessSpecificReturnStatement
+         */
+        return $lead;
     }
 }

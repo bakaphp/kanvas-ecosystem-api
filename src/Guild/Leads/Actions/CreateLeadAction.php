@@ -26,7 +26,7 @@ class CreateLeadAction
      */
     public function __construct(
         protected readonly LeadDataInput $leadData,
-        protected readonly ?LeadAttempt $leadAttempt = null
+        protected ?LeadAttempt $leadAttempt = null
     ) {
         /**
          * @psalm-suppress MixedAssignment

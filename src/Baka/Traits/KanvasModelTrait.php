@@ -29,6 +29,18 @@ trait KanvasModelTrait
         return $this->uuid;
     }
 
+    public static function getByName(string $name): self
+    {
+        try {
+            return self::where('name', $name)
+                ->notDeleted()
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
+    }
+    
     public static function getByUuid(string $uuid): self
     {
         try {

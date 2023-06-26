@@ -17,8 +17,8 @@ type Lead {
     phone: String
     description: String
     reason_lost: String
-    pipeline: LeadPipeline! @belongsTo
-    stage: LeadPipelineStage! @belongsTo(relation: "stage")
+    pipeline: LeadPipeline @belongsTo
+    stage: LeadPipelineStage @belongsTo(relation: "stage")
     participants: [LeadsParticipants!] @hasMany
     custom_fields: [CustomField]
         @paginate(

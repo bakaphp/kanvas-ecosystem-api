@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Customers\Models;
 
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Guild\Models\BaseModel;
 use Laravel\Scout\Searchable;
@@ -25,7 +26,6 @@ use Laravel\Scout\Searchable;
  * @property string|null $twitter_contact_id
  * @property string|null $instagram_contact_id
  * @property string|null $apple_contact_id
- *
  */
 class People extends BaseModel
 {
@@ -52,5 +52,31 @@ class People extends BaseModel
             'peoples_id',
             'id'
         );
+    }
+
+    /**
+     * @psalm-suppress MixedReturnStatement
+     */
+    public function getEmails(): Collection
+    {
+        return $this->contacts()
+                ->where(
+                    'contacts_types_id',
+                    ContactType::getByName('email')->getId()
+                )
+                ->get();
+    }
+
+    /**
+     * @psalm-suppress MixedReturnStatement
+     */
+    public function getPhones(): Collection
+    {
+        return $this->contacts()
+                ->where(
+                    'contacts_types_id',
+                    ContactType::getByName('phone')->getId()
+                )
+                ->get();
     }
 }
