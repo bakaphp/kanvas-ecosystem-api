@@ -1,5 +1,5 @@
 type Organization {
-    id: Int!
+    id: ID!
     uuid: String!
     company: Company! @belongsTo
     user: User! @belongsTo

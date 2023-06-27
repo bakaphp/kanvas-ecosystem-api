@@ -1,5 +1,5 @@
 type Contact {
-    id: Int!
+    id: ID!
     type: ContactType! @belongsTo
     people: People! @belongsTo
     value: String
@@ -7,14 +7,14 @@ type Contact {
 }
 
 type ContactType {
-    id: Int!
+    id: ID!
     company: Company! @belongsTo
     name: String!
     user: User! @belongsTo
 }
 
 type Address {
-    id: Int!
+    id: ID!
     people: People! @belongsTo
     address: String
     address_2: String

@@ -1,16 +1,16 @@
 type People {
-    id: Int!
+    id: ID!
     uuid: String!
     company: Company!
     user: User!
     name: String!
     dob: String!
-    contacts: [Contact!] @hasMany
-    address: [Address!] @hasMany
+    contacts: [Contact!]! @hasMany
+    address: [Address!]! @hasMany
 }
 
 type PeopleRelationship {
-    id: Int!
+    id: ID!
     name: String!
     description: String
     company: Company! @belongsTo
@@ -25,8 +25,8 @@ input PeopleInput {
     linkedin_contact_id: String
     google_contact_id: String
     dob: String
-    contacts: [ContactInput!]
-    address: [AddressInput!]
+    contacts: [ContactInput!]!
+    address: [AddressInput!]!
 }
 
 input PeopleParticipantInput {
@@ -39,8 +39,8 @@ input PeopleParticipantInput {
     linkedin_contact_id: String
     google_contact_id: String
     dob: String
-    contacts: [ContactInput!]
-    address: [AddressInput!]
+    contacts: [ContactInput!]!
+    address: [AddressInput!]!
 }
 
 extend type Query @guard {

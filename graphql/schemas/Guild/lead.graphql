@@ -1,5 +1,5 @@
 type Lead {
-    id: Int!
+    id: ID!
     uuid: String!
     company: Company! @belongsTo
     branch: CompanyBranch! @belongsTo
@@ -19,8 +19,8 @@ type Lead {
     reason_lost: String
     pipeline: LeadPipeline @belongsTo
     stage: LeadPipelineStage @belongsTo(relation: "stage")
-    participants: [LeadsParticipants!] @hasMany
-    custom_fields: [CustomField]
+    participants: [LeadsParticipants!]! @hasMany
+    custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 10
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
@@ -34,12 +34,12 @@ type LeadsParticipants {
     relationship: PeopleRelationship @belongsTo
 }
 type Rotation{ 
-    id: Int!
+    id: ID!
     users_id: Int!
     companies_id: Int!
 }
 type LeadReceiver {
-    id: Int!
+    id: ID!
     uuid: String!
     company: Company! @belongsTo
     branch: CompanyBranch! @belongsTo
@@ -57,20 +57,20 @@ type LeadReceiver {
 }
 
 type LeadStatus {
-    id: Int!
+    id: ID!
     name: String!
     is_default: Boolean!
 }
 
 type LeadType {
-    id: Int!
+    id: ID!
     company: Company! @belongsTo
     name: String!
     description: String
 }
 
 type LeadSource {
-    id: Int!
+    id: ID!
     company: Company! @belongsTo
     name: String!
     description: String
@@ -78,7 +78,7 @@ type LeadSource {
 }
 
 type LeadPipeline {
-    id: Int!
+    id: ID!
     company: Company! @belongsTo
     module: SystemModule! @belongsTo
     stages: [LeadPipelineStage!]! @hasMany
@@ -89,7 +89,7 @@ type LeadPipeline {
 }
 
 type LeadPipelineStage {
-    id: Int!
+    id: ID!
     pipeline: LeadPipeline! @belongsTo
     name: String!
     rotting_days: Int!
@@ -107,7 +107,7 @@ input LeadInput {
     title: String!
     people: PeopleInput!
     organization: OrganizationInput
-    participants: [PeopleParticipantInput!]
+    participants: [PeopleParticipantInput!]!
     leads_owner_id: Int
     receiver_id: Int
     status_id: Int
@@ -116,7 +116,7 @@ input LeadInput {
     description: String
     reason_lost: String
     pipeline_stage_id: Int!
-    custom_fields: [CustomFieldEntityInput!]
+    custom_fields: [CustomFieldEntityInput!]!
 }
 
 input LeadUpdateInput {
@@ -132,7 +132,7 @@ input LeadUpdateInput {
     description: String
     reason_lost: String
     pipeline_stage_id: Int
-    custom_fields: [CustomFieldEntityInput!]
+    custom_fields: [CustomFieldEntityInput!]!
 }
 
 extend type Mutation @guard {
@@ -140,9 +140,9 @@ extend type Mutation @guard {
         @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@create")
     updateLead(id: Int!, input: LeadUpdateInput!): Lead
         @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@update")
-    deleteLead(id: Int!): Boolean
+    deleteLead(id: ID!): Boolean
         @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@delete")
-    restoreLead(id: Int!): Boolean
+    restoreLead(id: ID!): Boolean
         @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@restore")
     addLeadParticipant(input: LeadsParticipantsInput!): Boolean!
         @field(
@@ -172,7 +172,7 @@ extend type Query @guard {
                     "status"
                 ]
             )
-    ): [Lead]
+    ): [Lead!]!
         @paginate(
             model: "Kanvas\\Guild\\Leads\\Models\\Lead"
             scopes: ["fromCompany"]
