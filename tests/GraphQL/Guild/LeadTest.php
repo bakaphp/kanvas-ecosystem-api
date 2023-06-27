@@ -178,8 +178,7 @@ class LeadTest extends TestCase
                    ],
                ];
 
-               $response = $this->createLeadAndGetResponse($input);
-
+        $response = $this->createLeadAndGetResponse($input);
 
         $leadId = $response['data']['createLead']['id'];
 
@@ -220,8 +219,7 @@ class LeadTest extends TestCase
                    ],
                ];
 
-               $response = $this->createLeadAndGetResponse($input);
-
+        $response = $this->createLeadAndGetResponse($input);
 
         $leadId = $response['data']['createLead']['id'];
 
