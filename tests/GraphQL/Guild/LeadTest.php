@@ -182,7 +182,6 @@ class LeadTest extends TestCase
 
         $leadId = $response['data']['createLead']['id'];
 
-
         $this->graphQL('
         mutation($id: Int!) {
             deleteLead(id: $id)
@@ -222,7 +221,6 @@ class LeadTest extends TestCase
         $response = $this->createLeadAndGetResponse($input);
 
         $leadId = $response['data']['createLead']['id'];
-
 
         $this->graphQL('
             mutation($id: Int!) {

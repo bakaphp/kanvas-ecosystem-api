@@ -13,6 +13,6 @@ input OrganizationInput {
 }
 
 input OrganizationPeopleInput {
-    organization_id: Int!
-    peoples_id: [Int!]!
+    organization_id: ID!
+    peoples_id: [ID!]!
 }

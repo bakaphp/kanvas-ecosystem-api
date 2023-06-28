@@ -1,5 +1,5 @@
 type App {
-    id: Int!
+    id: ID!
     name: String!
     description: String
     url: String
@@ -16,7 +16,7 @@ type App {
 }
 
 type Template {
-    id: Int!
+    id: ID!
     name: String!
     template: String!
 }

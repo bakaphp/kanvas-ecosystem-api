@@ -35,8 +35,8 @@ type LeadsParticipants {
 }
 type Rotation{ 
     id: ID!
-    users_id: Int!
-    companies_id: Int!
+    users_id: ID!
+    companies_id: ID!
 }
 type LeadReceiver {
     id: ID!
@@ -103,35 +103,35 @@ input LeadsParticipantsInput {
 }
 
 input LeadInput {
-    branch_id: Int
+    branch_id: ID
     title: String!
     people: PeopleInput!
     organization: OrganizationInput
     participants: [PeopleParticipantInput!]!
-    leads_owner_id: Int
-    receiver_id: Int
-    status_id: Int
-    type_id: Int
-    source_id: Int
+    leads_owner_id: ID
+    receiver_id: ID
+    status_id: ID
+    type_id: ID
+    source_id: ID
     description: String
     reason_lost: String
-    pipeline_stage_id: Int!
+    pipeline_stage_id: ID!
     custom_fields: [CustomFieldEntityInput!]!
 }
 
 input LeadUpdateInput {
-    branch_id: Int!
+    branch_id: ID!
     title: String
-    people_id: Int!
-    leads_owner_id: Int
-    organization_id: Int
-    receiver_id: Int
-    status_id: Int
-    type_id: Int
-    source_id: Int
+    people_id: ID!
+    leads_owner_id: ID
+    organization_id: ID
+    receiver_id: ID
+    status_id: ID
+    type_id: ID
+    source_id: ID
     description: String
     reason_lost: String
-    pipeline_stage_id: Int
+    pipeline_stage_id: ID
     custom_fields: [CustomFieldEntityInput!]!
 }
 

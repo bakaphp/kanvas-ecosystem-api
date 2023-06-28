@@ -27,7 +27,7 @@ type Address {
 
 input ContactInput {
     value: String!
-    contacts_types_id: Int!
+    contacts_types_id: ID!
     weight: Int
 }
 
@@ -35,11 +35,11 @@ input AddressInput {
     address: String!
     address_2: String
     city: String
-    city_id: Int
+    city_id: ID
     state: String
-    state_id: Int
+    state_id: ID
     zip: String
     country: String
-    country_id: Int
+    country_id: ID
     is_default: Boolean
 }
