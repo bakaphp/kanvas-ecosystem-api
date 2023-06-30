@@ -42,7 +42,17 @@ class LeadTest extends TestCase
                             'weight' => 0,
                         ],
                     ],
+                    'address' => [
+                        [
+                            'address' => fake()->address(),
+                            'city' => fake()->city(),
+                            'state' => fake()->state(),
+                            'country' => fake()->country(),
+                            'zip' => fake()->postcode(),
+                        ],
+                    ],
                 ],
+                'custom_fields' => [],
             ];
         }
 
@@ -80,6 +90,21 @@ class LeadTest extends TestCase
                         'weight' => 0,
                     ],
                 ],
+                'address' => [
+                    [
+                        'address' => fake()->address(),
+                        'city' => fake()->city(),
+                        'state' => fake()->state(),
+                        'country' => fake()->country(),
+                        'zip' => fake()->postcode(),
+                    ],
+                ],
+            ],            
+            'custom_fields' => [
+                [
+                    'name' => 'test',
+                    'data' => 'test'
+                ]
             ],
         ];
 
@@ -107,21 +132,36 @@ class LeadTest extends TestCase
         $title = fake()->title();
 
         $input = [
-                   'branch_id' => $branch->getId(),
-                   'title' => $title,
-                   'pipeline_stage_id' => 0,
-                   'people' => [
-                       'firstname' => fake()->firstName(),
-                       'lastname' => fake()->lastName(),
-                       'contacts' => [
-                           [
-                               'value' => fake()->email(),
-                               'contacts_types_id' => 1,
-                               'weight' => 0,
-                           ],
-                       ],
-                   ],
-               ];
+            'branch_id' => $branch->getId(),
+            'title' => $title,
+            'pipeline_stage_id' => 0,
+            'people' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+                'contacts' => [
+                    [
+                        'value' => fake()->email(),
+                        'contacts_types_id' => 1,
+                        'weight' => 0,
+                    ],
+                ],
+                'address' => [
+                    [
+                        'address' => fake()->address(),
+                        'city' => fake()->city(),
+                        'state' => fake()->state(),
+                        'country' => fake()->country(),
+                        'zip' => fake()->postcode(),
+                    ],
+                ],
+            ],            
+            'custom_fields' => [
+                [
+                    'name' => 'test',
+                    'data' => 'test'
+                ]
+            ],
+        ];
 
         $response = $this->createLeadAndGetResponse($input);
 
@@ -162,21 +202,36 @@ class LeadTest extends TestCase
         $title = fake()->title();
 
         $input = [
-                   'branch_id' => $branch->getId(),
-                   'title' => $title,
-                   'pipeline_stage_id' => 0,
-                   'people' => [
-                       'firstname' => fake()->firstName(),
-                       'lastname' => fake()->lastName(),
-                       'contacts' => [
-                           [
-                               'value' => fake()->email(),
-                               'contacts_types_id' => 1,
-                               'weight' => 0,
-                           ],
-                       ],
-                   ],
-               ];
+            'branch_id' => $branch->getId(),
+            'title' => $title,
+            'pipeline_stage_id' => 0,
+            'people' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+                'contacts' => [
+                    [
+                        'value' => fake()->email(),
+                        'contacts_types_id' => 1,
+                        'weight' => 0,
+                    ],
+                ],
+                'address' => [
+                    [
+                        'address' => fake()->address(),
+                        'city' => fake()->city(),
+                        'state' => fake()->state(),
+                        'country' => fake()->country(),
+                        'zip' => fake()->postcode(),
+                    ],
+                ],
+            ],            
+            'custom_fields' => [
+                [
+                    'name' => 'test',
+                    'data' => 'test'
+                ]
+            ],
+        ];
 
         $response = $this->createLeadAndGetResponse($input);
 
@@ -202,21 +257,36 @@ class LeadTest extends TestCase
         $title = fake()->title();
 
         $input = [
-                   'branch_id' => $branch->getId(),
-                   'title' => $title,
-                   'pipeline_stage_id' => 0,
-                   'people' => [
-                       'firstname' => fake()->firstName(),
-                       'lastname' => fake()->lastName(),
-                       'contacts' => [
-                           [
-                               'value' => fake()->email(),
-                               'contacts_types_id' => 1,
-                               'weight' => 0,
-                           ],
-                       ],
-                   ],
-               ];
+            'branch_id' => $branch->getId(),
+            'title' => $title,
+            'pipeline_stage_id' => 0,
+            'people' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+                'contacts' => [
+                    [
+                        'value' => fake()->email(),
+                        'contacts_types_id' => 1,
+                        'weight' => 0,
+                    ],
+                ],
+                'address' => [
+                    [
+                        'address' => fake()->address(),
+                        'city' => fake()->city(),
+                        'state' => fake()->state(),
+                        'country' => fake()->country(),
+                        'zip' => fake()->postcode(),
+                    ],
+                ],
+            ],            
+            'custom_fields' => [
+                [
+                    'name' => 'test',
+                    'data' => 'test'
+                ]
+            ],
+        ];
 
         $response = $this->createLeadAndGetResponse($input);
 

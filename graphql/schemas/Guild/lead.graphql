@@ -107,7 +107,6 @@ input LeadInput {
     title: String!
     people: PeopleInput!
     organization: OrganizationInput
-    participants: [PeopleParticipantInput!]!
     leads_owner_id: ID
     receiver_id: ID
     status_id: ID

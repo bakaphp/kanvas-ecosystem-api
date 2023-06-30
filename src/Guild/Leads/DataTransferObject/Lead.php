@@ -9,12 +9,12 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Guild\Customers\DataTransferObject\Address;
+use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
-use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
-use Spatie\LaravelData\Optional;
 
 class Lead extends Data
 {
@@ -33,10 +33,9 @@ class Lead extends Data
         public readonly int $status_id = 0,
         public readonly int $source_id = 0,
         public readonly int $receiver_id = 0,
+        #[DataCollectionOf(People::class)]
         public readonly ?string $description = null,
         public readonly ?string $reason_lost = null,
-        /** @var Kanvas\Guild\Customers\DataTransferObject\People[] */
-        public readonly DataCollection|null $participants = null,
         public readonly Organization|null $organization = null,
         public readonly array $custom_fields = [],
     ) {
@@ -64,7 +63,16 @@ class Lead extends Data
                 'app' => app(Apps::class),
                 'branch' => $branch,
                 'user' => $user,
-                ...$request['people'],
+                'firstname' => $request['people']['firstname'],
+                'lastname' => $request['people']['lastname'],
+                'contacts' => Contact::collection($request['people']['contacts']),
+                'address' => Address::collection($request['people']['address']),
+                'id' => $request['people']['id'] ?? 0,
+                'dob' => $request['people']['dob'] ?? null,
+                'facebook_contact_id' => $request['people']['facebook_contact_id'] ?? null,
+                'google_contact_id' => $request['people']['google_contact_id'] ?? null,
+                'apple_contact_id' => $request['people']['apple_contact_id'] ?? null,
+                'linkedin_contact_id' => $request['people']['linkedin_contact_id'] ?? null,
             ]),
             $request['leads_owner_id'] ?? 0,
             $request['type_id'] ?? 0,
@@ -73,7 +81,6 @@ class Lead extends Data
             $request['receiver_id'] ?? 0,
             $request['description'] ?? null,
             $request['reason_lost'] ?? null,
-            $request['participants'] ?? null,
             isset($request['organization']) ? Organization::from([
                 $branch->company,
                 $user,

@@ -68,24 +68,6 @@ class CreateLeadAction
         $newLead->setCustomFields($this->leadData->custom_fields);
         $newLead->saveCustomFields();
 
-        //create participant
-        if ($this->leadData->participants instanceof DataCollection && $this->leadData->participants->count()) {
-            foreach ($this->leadData->participants as $partipantData) {
-                $participant = (new CreatePeopleAction($partipantData))->execute();
-                $addLeadParticipant = new AddLeadParticipantAction(
-                    new LeadsParticipant(
-                        $this->leadData->app,
-                        $this->company,
-                        $this->leadData->user,
-                        $newLead,
-                        $participant,
-                        PeoplesRepository::getRelationshipTypeById($partipantData->participants_types_id, $this->company)
-                    )
-                );
-                $addLeadParticipant->execute();
-            }
-        }
-
         //create organization
         if ($this->leadData->organization instanceof Organization) {
             $organization = (new CreateOrganizationAction($this->leadData->organization))->execute();

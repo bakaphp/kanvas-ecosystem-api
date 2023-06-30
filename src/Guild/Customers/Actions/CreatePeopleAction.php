@@ -61,23 +61,23 @@ class CreatePeopleAction
         }
 
         if ($this->peopleData->address instanceof DataCollection && $this->peopleData->address->count()) {
-            $address = [];
+            $addresses = [];
             foreach ($this->peopleData->address as $address) {
-                $address[] = new Address([
+                $addresses[] = new Address([
                     'address' => $address->address,
                     'address_2' => $address->address_2,
                     'city' => $address->city,
                     'state' => $address->state,
                     'zip' => $address->zipcode,
-                    'country' => $address->country,
+                    //'country' => $address->country,
                     'is_default' => $address->is_default,
-                    'city_id' => $address->city_id,
-                    'state_id' => $address->state_id,
-                    'country_id' => $address->country_id,
+                    'city_id' => $address->city_id ?? 0,
+                    'state_id' => $address->state_id ?? 0,
+                    'countries_id' => $address->country_id ?? 0,
                 ]);
             }
 
-            $people->address()->saveMany($address);
+            $people->address()->saveMany($addresses);
         }
 
         return $people;
