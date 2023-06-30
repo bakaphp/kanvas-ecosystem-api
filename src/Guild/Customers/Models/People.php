@@ -62,7 +62,7 @@ class People extends BaseModel
         return $this->contacts()
                 ->where(
                     'contacts_types_id',
-                    ContactType::getByName('email')->getId()
+                    ContactType::getByName('Email')->getId()
                 )
                 ->get();
     }
@@ -75,7 +75,7 @@ class People extends BaseModel
         return $this->contacts()
                 ->where(
                     'contacts_types_id',
-                    ContactType::getByName('phone')->getId()
+                    ContactType::getByName('Phone')->getId()
                 )
                 ->get();
     }
