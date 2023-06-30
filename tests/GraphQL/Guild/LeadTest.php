@@ -172,10 +172,11 @@ class LeadTest extends TestCase
             'branch_id' => $branch->getId(),
             'title' => $title,
             'people_id' => $peopleId,
+            'custom_fields' => []
         ];
 
         $this->graphQL('
-        mutation($id: Int!, $input: LeadUpdateInput!) {
+        mutation($id: ID!, $input: LeadUpdateInput!) {
             updateLead(id: $id, input: $input) {
                 id
                 title
@@ -238,7 +239,7 @@ class LeadTest extends TestCase
         $leadId = $response['data']['createLead']['id'];
 
         $this->graphQL('
-        mutation($id: Int!) {
+        mutation($id: ID!) {
             deleteLead(id: $id)
         }
     ', [
@@ -293,7 +294,7 @@ class LeadTest extends TestCase
         $leadId = $response['data']['createLead']['id'];
 
         $this->graphQL('
-            mutation($id: Int!) {
+            mutation($id: ID!) {
                 deleteLead(id: $id)
             }
         ', [
@@ -305,7 +306,7 @@ class LeadTest extends TestCase
             ]);
 
         $this->graphQL('
-            mutation($id: Int!) {
+            mutation($id: ID!) {
                 restoreLead(id: $id)
             }
         ', [

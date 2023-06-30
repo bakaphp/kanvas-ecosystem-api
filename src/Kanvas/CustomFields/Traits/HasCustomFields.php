@@ -26,8 +26,6 @@ trait HasCustomFields
     /**
      * Get the custom field primary key
      * for faster access via redis.
-     *
-     * @return string
      */
     public function getCustomFieldPrimaryKey(): string
     {
@@ -36,8 +34,6 @@ trait HasCustomFields
 
     /**
      * Get all custom fields of the given object.
-     *
-     * @return  array
      */
     public function getAllCustomFields(): array
     {
@@ -46,12 +42,10 @@ trait HasCustomFields
 
     /**
      * Get all the custom fields.
-     *
-     * @return array
      */
     public function getAll(): array
     {
-        if (!empty($listOfCustomFields = $this->getAllFromRedis())) {
+        if (! empty($listOfCustomFields = $this->getAllFromRedis())) {
             return $listOfCustomFields;
         }
 
@@ -67,13 +61,13 @@ trait HasCustomFields
         ', [
             $companyId,
             get_class($this),
-            $this->getKey()
+            $this->getKey(),
         ]);
 
         $listOfCustomFields = [];
 
         foreach ($results as $row) {
-            $listOfCustomFields[$row['name']] = Str::jsonToArray($row['value']);
+            $listOfCustomFields[$row->name] = Str::jsonToArray($row->value);
         }
 
         return $listOfCustomFields;
@@ -81,8 +75,6 @@ trait HasCustomFields
 
     /**
      * Get all the custom fields from redis.
-     *
-     * @return array
      */
     public function getAllFromRedis(): array
     {
@@ -99,8 +91,6 @@ trait HasCustomFields
 
     /**
      * Get the Custom Field.
-     *
-     * @param string $name
      *
      * @return mixed
      */
@@ -119,10 +109,6 @@ trait HasCustomFields
 
     /**
      * Delete key from custom Fields.
-     *
-     * @param string $name
-     *
-     * @return bool
      */
     public function del(string $name): bool
     {
@@ -140,10 +126,6 @@ trait HasCustomFields
 
     /**
      * Get a Custom Field.
-     *
-     * @param string $name
-     *
-     * @return AppsCustomFields|null
      */
     public function getCustomField(string $name): ?AppsCustomFields
     {
@@ -156,10 +138,6 @@ trait HasCustomFields
 
     /**
      * Get custom field from redis.
-     *
-     * @param string $name
-     *
-     * @return mixed
      */
     protected function getFromRedis(string $name): mixed
     {
@@ -174,10 +152,7 @@ trait HasCustomFields
     /**
      * Set value.
      *
-     * @param string $name
      * @param mixed $value
-     *
-     * @return AppsCustomFields
      */
     public function set(string $name, $value): AppsCustomFields
     {
@@ -193,7 +168,7 @@ trait HasCustomFields
             'companies_id' => $companyId,
             'model_name' => $modelName,
             'entity_id' => $this->getKey(),
-            'name' => $name
+            'name' => $name,
         ], [
             'companies_id' => $companyId,
             'users_id' => $user !== null ? $user->getKey() : AppEnums::GLOBAL_USER_ID->getValue(),
@@ -201,16 +176,12 @@ trait HasCustomFields
             'entity_id' => $this->getKey(),
             'label' => $name,
             'name' => $name,
-            'value' => !is_array($value) ? $value : json_encode($value)
+            'value' => ! is_array($value) ? $value : json_encode($value),
         ]);
     }
 
     /**
      * Create a new Custom Fields.
-     *
-     * @param string $name
-     *
-     * @return CustomFields
      */
     public function createCustomField(string $name): CustomFields
     {
@@ -223,11 +194,11 @@ trait HasCustomFields
 
         $customFieldModules = CustomFieldsModules::firstOrCreate([
             'model_name' => get_class($this),
-            'apps_id' => $appsId
+            'apps_id' => $appsId,
         ], [
             'model_name' => get_class($this),
             'name' => get_class($this),
-            'apps_id' => $appsId
+            'apps_id' => $appsId,
         ]);
 
         $customField = CustomFields::firstOrCreate([
@@ -249,18 +220,13 @@ trait HasCustomFields
 
     /**
      * Set custom field in redis.
-     *
-     * @param string $name
-     * @param mixed $value
-     *
-     * @return bool
      */
     protected function setInRedis(string $name, mixed $value): bool
     {
         return (bool) Redis::hSet(
             $this->getCustomFieldPrimaryKey(),
             $name,
-            !is_array($value) ? $value : json_encode($value)
+            ! is_array($value) ? $value : json_encode($value)
         );
     }
 
@@ -275,7 +241,7 @@ trait HasCustomFields
     {
         if ($this->hasCustomFields()) {
             foreach ($this->customFields as $key => $value) {
-                if (!self::schemaHasColumn($key)) {
+                if (! self::schemaHasColumn($key)) {
                     $this->set($key, $value);
                 }
             }
@@ -288,8 +254,6 @@ trait HasCustomFields
      * Remove all the custom fields from the entity.
      *
      * @param  int $id
-     *
-     * @return bool
      */
     public function deleteAllCustomFields(): bool
     {
@@ -306,14 +270,12 @@ trait HasCustomFields
                         AND entity_id = :entity_id', [
             'companies_id' => $companyId,
             'model_name' => get_class($this),
-            'entity_id' => $this->getKey()
+            'entity_id' => $this->getKey(),
         ]);
     }
 
     /**
      * Delete all custom fields from redis.
-     *
-     * @return bool
      */
     protected function deleteAllCustomFieldsFromRedis(): bool
     {
@@ -324,30 +286,36 @@ trait HasCustomFields
 
     /**
      * Set the custom field to update a custom field module.
-     *
-     * @param array $fields
      */
     public function setCustomFields(array $fields)
     {
+        if (empty($fields)) {
+            return;
+        }
+
+        /***
+         * if column name exist this is a CustomFieldEntityInput
+         * we need to convert it to key value
+         */
+        if (array_key_exists('name', $fields[0])) {
+            $fields = array_column($fields, 'data', 'name');
+        }
+
         $this->customFields = $fields;
     }
 
     /**
      * Does this model have custom fields?
-     *
-     * @return bool
      */
     public function hasCustomFields(): bool
     {
-        return !empty($this->customFields);
+        return ! empty($this->customFields);
     }
 
     /**
      * If something happened to redis
      * And we need to re insert all the custom fields
      * for this entity , we run this method.
-     *
-     * @return void
      */
     public function reCacheCustomFields(): void
     {
@@ -359,16 +327,13 @@ trait HasCustomFields
     /**
      * Get a model from a custom field.
      *
-     * @param  string $name
-     * @param  mixed $value
      * @param  Companies $company
-     *
-     * @return Model|null
      */
     public static function getByCustomField(string $name, mixed $value, ?Companies $company = null): ?Model
     {
         $company = $company ? $company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
         $table = (new static())->getTable();
+
         return self::join(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table . '.id')
             ->where('apps_custom_fields.companies_id', $company)
             ->where('apps_custom_fields.model_name', static::class)

@@ -137,7 +137,7 @@ input LeadUpdateInput {
 extend type Mutation @guard {
     createLead(input: LeadInput!): Lead
         @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@create")
-    updateLead(id: Int!, input: LeadUpdateInput!): Lead
+    updateLead(id: ID!, input: LeadUpdateInput!): Lead
         @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@update")
     deleteLead(id: ID!): Boolean
         @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@delete")
