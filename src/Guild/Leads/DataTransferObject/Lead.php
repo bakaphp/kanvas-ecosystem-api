@@ -13,8 +13,8 @@ use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
+use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
-use Spatie\LaravelData\DataCollection;
 
 class Lead extends Data
 {
@@ -27,13 +27,13 @@ class Lead extends Data
         public readonly UserInterface $user,
         public readonly string $title,
         public readonly int $pipeline_stage_id,
+        #[DataCollectionOf(People::class)]
         public readonly People $people,
         public readonly int $leads_owner_id = 0,
         public readonly int $type_id = 0,
         public readonly int $status_id = 0,
         public readonly int $source_id = 0,
         public readonly int $receiver_id = 0,
-        #[DataCollectionOf(People::class)]
         public readonly ?string $description = null,
         public readonly ?string $reason_lost = null,
         public readonly Organization|null $organization = null,

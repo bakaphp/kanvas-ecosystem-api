@@ -99,12 +99,12 @@ class LeadTest extends TestCase
                         'zip' => fake()->postcode(),
                     ],
                 ],
-            ],            
+            ],
             'custom_fields' => [
                 [
                     'name' => 'test',
-                    'data' => 'test'
-                ]
+                    'data' => 'test',
+                ],
             ],
         ];
 
@@ -154,12 +154,12 @@ class LeadTest extends TestCase
                         'zip' => fake()->postcode(),
                     ],
                 ],
-            ],            
+            ],
             'custom_fields' => [
                 [
                     'name' => 'test',
-                    'data' => 'test'
-                ]
+                    'data' => 'test',
+                ],
             ],
         ];
 
@@ -172,7 +172,7 @@ class LeadTest extends TestCase
             'branch_id' => $branch->getId(),
             'title' => $title,
             'people_id' => $peopleId,
-            'custom_fields' => []
+            'custom_fields' => [],
         ];
 
         $this->graphQL('
@@ -225,12 +225,12 @@ class LeadTest extends TestCase
                         'zip' => fake()->postcode(),
                     ],
                 ],
-            ],            
+            ],
             'custom_fields' => [
                 [
                     'name' => 'test',
-                    'data' => 'test'
-                ]
+                    'data' => 'test',
+                ],
             ],
         ];
 
@@ -280,12 +280,12 @@ class LeadTest extends TestCase
                         'zip' => fake()->postcode(),
                     ],
                 ],
-            ],            
+            ],
             'custom_fields' => [
                 [
                     'name' => 'test',
-                    'data' => 'test'
-                ]
+                    'data' => 'test',
+                ],
             ],
         ];
 
