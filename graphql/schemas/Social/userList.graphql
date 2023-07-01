@@ -34,14 +34,14 @@ extend type Mutation @guard {
     addToUserList(
         users_lists_id: Int!,
         messages_id: Int!
-    ): Boolean 
+    ): UserList 
     @field (
         resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@addToList"
     )
     removeFromUserList(
         users_lists_id: Int!,
         messages_id: Int!
-    ): Boolean
+    ): UserList
     @field (
         resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@removeFromList"
     )

@@ -8,7 +8,7 @@ type Message {
     message_types_id: Int!
     message: Mixed
     reactions_count: Int
-    comment_count: Int
+    comments_count: Int
     total_liked: Int
     total_saved: Int
     parent: Message
@@ -17,6 +17,7 @@ type Message {
 }
 
 input MessageInput {
+    parent_id: Int
     message_types_id: Int!
     message: Mixed!
     system_modules_id: Int!

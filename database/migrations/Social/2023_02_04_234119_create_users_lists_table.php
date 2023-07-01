@@ -27,7 +27,7 @@ class CreateUsersListsTable extends Migration
             $table->dateTime('deleted_at')->nullable();
             $table->dateTime('updated_at')->nullable()->index('updated_at');
             $table->boolean('is_deleted')->index('is_deleted');
-
+            $table->softDeletes();
             $table->index(['apps_id', 'companies_id', 'users_id'], 'apps_id_companies_id_users_id');
         });
     }

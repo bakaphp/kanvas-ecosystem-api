@@ -24,7 +24,7 @@ class MessageManagementMutation
     public function create(mixed $root, array $request)
     {
         $parent = null;
-        if (key_exists('parent_id', $request['input'])) {
+        if (key_exists('parent_id', $request['input']) && $request['input']['parent_id']) {
             $parent = MessageRepository::getById($request['input']['parent_id']);
         }
 
