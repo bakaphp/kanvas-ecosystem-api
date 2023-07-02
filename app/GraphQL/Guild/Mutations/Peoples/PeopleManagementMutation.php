@@ -72,4 +72,29 @@ class PeopleManagementMutation
 
         return $updatePeople->execute();
     }
+
+    /**
+     * @psalm-suppress MixedReturnStatement
+     */
+    public function delete(mixed $root, array $req): bool
+    {
+        $user = auth()->user();
+
+        return PeoplesRepository::getById(
+            (int) $req['id'],
+            $user->getCurrentCompany()
+        )->softDelete();
+    }
+
+    /**
+     * @psalm-suppress MixedReturnStatement
+     */
+    public function restore(mixed $root, array $req): bool
+    {
+        $user = auth()->user();
+
+        return ModelsPeople::where('id', (int) $req['id'])
+            ->where('companies_id', $user->getCurrentCompany()->getId())
+            ->firstOrFail()->restoreRecord();
+    }
 }
