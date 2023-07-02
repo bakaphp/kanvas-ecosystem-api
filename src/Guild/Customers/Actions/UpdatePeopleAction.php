@@ -8,15 +8,15 @@ use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDataInput;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Spatie\LaravelData\DataCollection;
 
-class CreatePeopleAction
+class UpdatePeopleAction
 {
     /**
      * __construct.
      */
     public function __construct(
+        protected People $people,
         protected readonly PeopleDataInput $peopleData
     ) {
     }
@@ -26,10 +26,7 @@ class CreatePeopleAction
      */
     public function execute(): People
     {
-        $company = $this->peopleData->branch->company()->firstOrFail();
-
         $attributes = [
-            'users_id' => $this->peopleData->user->getId(),
             'name' => $this->peopleData->firstname . ' ' . $this->peopleData->lastname,
             'dob' => $this->peopleData->dob,
             'google_contact_id' => $this->peopleData->google_contact_id,
@@ -38,16 +35,11 @@ class CreatePeopleAction
         ];
 
         //@todo how to avoid duplicated? should it be use or frontend?
-        if ($this->peopleData->id) {
-            $people = PeoplesRepository::getById($this->peopleData->id, $company);
-            $people->update($attributes);
-        } else {
-            $attributes['companies_id'] = $company->getId();
-            $people = People::create($attributes);
-        }
+        $this->people->update($attributes);
 
         if ($this->peopleData->contacts->count()) {
             $contacts = [];
+            $this->people->contacts()->delete();
             foreach ($this->peopleData->contacts as $contact) {
                 $contacts[] = new Contact([
                     'contacts_types_id' => $contact->contacts_types_id,
@@ -56,11 +48,12 @@ class CreatePeopleAction
                 ]);
             }
 
-            $people->contacts()->saveMany($contacts);
+            $this->people->contacts()->saveMany($contacts);
         }
 
         if ($this->peopleData->address->count()) {
             $addresses = [];
+            $this->people->address()->delete();
             foreach ($this->peopleData->address as $address) {
                 $addresses[] = new Address([
                     'address' => $address->address,
@@ -76,9 +69,9 @@ class CreatePeopleAction
                 ]);
             }
 
-            $people->address()->saveMany($addresses);
+            $this->people->address()->saveMany($addresses);
         }
 
-        return $people;
+        return $this->people;
     }
 }
