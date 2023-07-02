@@ -36,6 +36,10 @@ class People extends BaseModel
     protected $table = 'peoples';
     protected $guarded = [];
 
+    protected $casts = [
+        'dob' => 'datetime:Y-m-d',
+    ];
+
     public function address(): HasMany
     {
         return $this->hasMany(

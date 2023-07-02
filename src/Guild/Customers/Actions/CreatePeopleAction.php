@@ -26,8 +26,6 @@ class CreatePeopleAction
      */
     public function execute(): People
     {
-        $query = [];
-
         $company = $this->peopleData->branch->company()->firstOrFail();
 
         $attributes = [
@@ -39,6 +37,7 @@ class CreatePeopleAction
             'apple_contact_id' => $this->peopleData->apple_contact_id,
         ];
 
+        //@todo how to avoid duplicated? should it be use or frontend?
         if ($this->peopleData->id) {
             $people = PeoplesRepository::getById($this->peopleData->id, $company);
             $people->update($attributes);

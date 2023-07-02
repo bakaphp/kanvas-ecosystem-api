@@ -1,12 +1,17 @@
 type People {
     id: ID!
     uuid: String!
-    company: Company!
-    user: User!
+    company: Company! @belongsTo
+    user: User! @belongsTo
     name: String!
-    dob: String!
+    dob: Date
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 10
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
 }
 
 type PeopleRelationship {
@@ -38,7 +43,7 @@ input PeopleParticipantInput {
     twitter_contact_id: String
     linkedin_contact_id: String
     google_contact_id: String
-    dob: String
+    dob: Date
     contacts: [ContactInput!]!
     address: [AddressInput!]!
 }
@@ -51,5 +56,24 @@ extend type Query @guard {
             model: "Kanvas\\Guild\\Customers\\Models\\PeopleRelationship"
             defaultCount: 10
             scopes: ["fromApp", "fromCompany"]
+        )
+}
+
+extend type Mutation @guard {
+    createPeople(input: PeopleInput!): People
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@create"
+        )
+    updatePeople(id: ID!, input: PeopleInput!): People
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@update"
+        )
+    deletePeople(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@delete"
+        )
+    restorePeople(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@restore"
         )
 }
