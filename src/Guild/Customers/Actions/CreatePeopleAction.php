@@ -9,7 +9,6 @@ use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
-use Spatie\LaravelData\DataCollection;
 
 class CreatePeopleAction
 {
