@@ -100,6 +100,10 @@ class LeadTest extends TestCase
                     ],
                 ],
             ],
+            'organization' => [
+                'name' => fake()->company(),
+                'address' => fake()->address(),
+            ],
             'custom_fields' => [
                 [
                     'name' => 'test',
