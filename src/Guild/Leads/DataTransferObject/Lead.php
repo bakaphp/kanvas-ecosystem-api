@@ -82,8 +82,8 @@ class Lead extends Data
             $request['description'] ?? null,
             $request['reason_lost'] ?? null,
             isset($request['organization']) ? Organization::from([
-                $branch->company,
-                $user,
+                'company' => $branch->company,
+                'user' => $user,
                 ...$request['organization'],
             ]) : null,
             $request['custom_fields'] ?? [],

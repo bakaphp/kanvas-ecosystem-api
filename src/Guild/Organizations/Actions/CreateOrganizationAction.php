@@ -26,7 +26,7 @@ class CreateOrganizationAction
             'name' => $this->organizationData->name,
             'companies_id' => $this->organizationData->company->getId(),
         ], [
-            'description' => $this->organizationData->description,
+            'address' => $this->organizationData->address,
             'users_id' => $this->organizationData->user->getId(),
         ]);
     }

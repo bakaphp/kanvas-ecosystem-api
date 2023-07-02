@@ -7,15 +7,12 @@ namespace Kanvas\Guild\Leads\Actions;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
-use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadDataInput;
-use Kanvas\Guild\Leads\DataTransferObject\LeadsParticipant;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadAttempt;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
-use Spatie\LaravelData\DataCollection;
 
 class CreateLeadAction
 {
@@ -71,8 +68,10 @@ class CreateLeadAction
         //create organization
         if ($this->leadData->organization instanceof Organization) {
             $organization = (new CreateOrganizationAction($this->leadData->organization))->execute();
-            $newLead->organizations_id = $organization->getId();
+            $newLead->organization_id = $organization->getId();
             $newLead->saveOrFail();
+
+            $organization->addPeople($people);
         }
 
         if ($this->leadAttempt instanceof LeadAttempt) {

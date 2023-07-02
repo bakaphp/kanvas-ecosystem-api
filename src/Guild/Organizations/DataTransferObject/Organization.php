@@ -17,7 +17,7 @@ class Organization extends Data
         public readonly CompanyInterface $company,
         public readonly UserInterface $user,
         public readonly string $name,
-        public readonly ?string $description = null
+        public readonly ?string $address = null
     ) {
     }
 }

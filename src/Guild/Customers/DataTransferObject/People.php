@@ -7,9 +7,9 @@ namespace Kanvas\Guild\Customers\DataTransferObject;
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
-use Spatie\LaravelData\Optional;
 
 class People extends Data
 {
@@ -22,10 +22,10 @@ class People extends Data
         public readonly UserInterface $user,
         public readonly string $firstname,
         public readonly string $lastname,
-        /** @var Kanvas\Guild\Customers\DataTransferObject\Contact[] */
-        public readonly DataCollection|Optional $contacts,
-        /** @var Kanvas\Guild\Customers\DataTransferObject\Address[] */
-        public readonly DataCollection|Optional $address,
+        #[DataCollectionOf(Contact::class)]
+        public readonly DataCollection $contacts,
+        #[DataCollectionOf(Address::class)]
+        public readonly DataCollection $address,
         public readonly int $id = 0,
         public readonly ?string $dob = null,
         public readonly ?string $facebook_contact_id = null,

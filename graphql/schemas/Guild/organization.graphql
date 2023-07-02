@@ -4,12 +4,12 @@ type Organization {
     company: Company! @belongsTo
     user: User! @belongsTo
     name: String!
-    address: String!
+    address: String
 }
 
 input OrganizationInput {
     name: String!
-    address: String!
+    address: String
 }
 
 input OrganizationPeopleInput {
