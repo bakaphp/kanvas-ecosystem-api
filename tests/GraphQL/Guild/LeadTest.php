@@ -99,6 +99,7 @@ class LeadTest extends TestCase
                         'zip' => fake()->postcode(),
                     ],
                 ],
+                'custom_fields' => [],
             ],
             'organization' => [
                 'name' => fake()->company(),
@@ -158,6 +159,7 @@ class LeadTest extends TestCase
                         'zip' => fake()->postcode(),
                     ],
                 ],
+                'custom_fields' => [],
             ],
             'custom_fields' => [
                 [
@@ -229,6 +231,7 @@ class LeadTest extends TestCase
                         'zip' => fake()->postcode(),
                     ],
                 ],
+                'custom_fields' => [],
             ],
             'custom_fields' => [
                 [
@@ -284,6 +287,7 @@ class LeadTest extends TestCase
                         'zip' => fake()->postcode(),
                     ],
                 ],
+                'custom_fields' => [],
             ],
             'custom_fields' => [
                 [
