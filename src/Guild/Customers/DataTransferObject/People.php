@@ -9,10 +9,10 @@ use Baka\Users\Contracts\UserInterface;
 use DateTime;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
+use Spatie\LaravelData\Attributes\WithCast;
 use Spatie\LaravelData\Casts\DateTimeInterfaceCast;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
-use Spatie\LaravelData\Attributes\WithCast;
 
 class People extends Data
 {
@@ -36,6 +36,7 @@ class People extends Data
         public readonly ?string $google_contact_id = null,
         public readonly ?string $apple_contact_id = null,
         public readonly ?string $linkedin_contact_id = null,
+        public readonly array $custom_fields = []
     ) {
     }
 }

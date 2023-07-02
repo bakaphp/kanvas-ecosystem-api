@@ -32,6 +32,7 @@ input PeopleInput {
     dob: String
     contacts: [ContactInput!]!
     address: [AddressInput!]!
+    custom_fields: [CustomFieldEntityInput]!
 }
 
 input PeopleParticipantInput {
@@ -49,6 +50,22 @@ input PeopleParticipantInput {
 }
 
 extend type Query @guard {
+    peoples(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "companies_id"
+                    "dob"
+                ]
+            )
+    ): [People!]!
+        @paginate(
+            model: "Kanvas\\Guild\\Customers\\Models\\People"
+            scopes: ["fromCompany"]
+            defaultCount: 10
+        )
     peopleRelationships(
         where: _ @whereConditions(columns: ["name", "description", "id"])
     ): [PeopleRelationship!]!

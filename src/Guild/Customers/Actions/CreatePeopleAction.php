@@ -45,6 +45,9 @@ class CreatePeopleAction
             $people = People::create($attributes);
         }
 
+        $people->setCustomFields($this->peopleData->custom_fields);
+        $people->saveCustomFields();
+
         if ($this->peopleData->contacts->count()) {
             $contacts = [];
             foreach ($this->peopleData->contacts as $contact) {
