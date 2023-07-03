@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Models;
 
-use Baka\Traits\HasCompositePrimaryKeyTrait;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 /**
  * Class Variants Warehouse.
@@ -33,28 +37,34 @@ use Kanvas\Inventory\Models\BaseModel;
  */
 class VariantsWarehouses extends BaseModel
 {
-    use HasCompositePrimaryKeyTrait;
-
     protected $table = 'products_variants_warehouses';
-    protected $guarded = [
-        'products_variants_id',
-        'warehouses_id',
-        'quantity',
-        'price',
-        'sku',
-        'position',
-        'serial_number',
-        'is_default',
-        'is_oversellable',
-        'is_default',
-        'is_best_seller',
-        'is_on_sale',
-        'is_on_promo',
-        'can_pre_order',
-        'is_coming_soon',
-        'is_new',
-        'is_published'
-    ];
+    protected $guarded = [];
 
-    protected $primaryKey = ['products_variants_id', 'warehouses_id'];
+    /**
+     * channels.
+     */
+    public function channels(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Channels::class,
+            VariantsChannels::class,
+            'product_variants_warehouse_id',
+            'channels_id'
+        )
+            ->withPivot(
+                'price',
+                'discounted_price',
+                'is_published'
+            );
+    }
+
+    public function variant(): HasMany
+    {
+        return $this->hasMany(Variants::class, 'products_variants_id');
+    }
+
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouses::class, 'warehouses_id');
+    }
 }
