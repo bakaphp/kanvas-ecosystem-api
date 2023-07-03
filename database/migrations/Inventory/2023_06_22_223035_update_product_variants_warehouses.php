@@ -26,7 +26,7 @@ return new class extends Migration
             $table->id()->first();
             $table->foreign('products_variants_id')->references('id')->on('products_variants');
             $table->foreign('warehouses_id')->references('id')->on('warehouses');
-            $table->unique(['products_variants_id', 'warehouses_id']);
+            $table->unique(['products_variants_id', 'warehouses_id'],'product_variants_warehouses_unique');
             Schema::enableForeignKeyConstraints();
         });
     }
