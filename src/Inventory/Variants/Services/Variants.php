@@ -8,6 +8,7 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
+use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 
 class Variants
 {
@@ -34,6 +35,10 @@ class Variants
                 $variantModel->addAttributes($user, $variant['attributes']);
             }
 
+            if (isset($variant['warehouse_id'])) {
+                WarehouseRepository::getById($variantDto->warehouse_id, $variantDto->product->company()->get()->first());
+                $variantModel->warehouses()->attach($variantDto->warehouse_id);
+            }
             $variantsData[] = $variantModel;
         }
 
