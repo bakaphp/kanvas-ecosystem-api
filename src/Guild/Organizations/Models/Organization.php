@@ -52,12 +52,17 @@ class Organization extends BaseModel
         );
     }
 
-    public function addPeople(People $people): void
+    /**
+     * @psalm-suppress MixedReturnStatement
+     */
+    public function addPeople(People $people): OrganizationPeople
     {
-        $newPeople = new OrganizationPeople();
-        $newPeople->organizations_id = $this->getId();
-        $newPeople->peoples_id = $people->getId();
-        $newPeople->created_at = date('Y-m-d H:i:s');
-        $newPeople->saveOrFail();
+        return OrganizationPeople::firstOrCreate([
+            'organizations_id' => $this->getId(),
+            'peoples_id' => $people->getId(),
+        ], [
+            'created_at' => date('Y-m-d H:i:s'),
+
+        ]);
     }
 }
