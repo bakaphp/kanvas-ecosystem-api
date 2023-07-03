@@ -17,7 +17,7 @@ use Kanvas\Guild\Leads\DataTransferObject\Lead;
 class PeopleManagementMutation
 {
     /**
-     * Create new lead
+     * Create new customer
      */
     public function create(mixed $root, array $req): ModelsPeople
     {
