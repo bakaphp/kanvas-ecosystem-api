@@ -14,6 +14,7 @@ use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantDto;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
 use Kanvas\Inventory\Variants\Models\Variants as VariantModel;
+use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehouses;
 use Kanvas\Inventory\Variants\Repositories\VariantsRepository;
 use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 
@@ -143,11 +144,15 @@ class Variants
     public function addToChannel(mixed $root, array $req): VariantModel
     {
         $variant = VariantsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
-
         $warehouse = WarehouseRepository::getById($req['warehouses_id']);
+
+        $variantWarehouses = ModelsVariantsWarehouses::where('products_variants_id', $variant->getId())
+            ->where('warehouses_id', $warehouse->getId())
+            ->firstOrFail();
+
         $channel = ChannelRepository::getById($req['channels_id']);
         $variantChannel = VariantChannel::from($req['input']);
-        (new AddVariantToChannel($variant, $channel, $warehouse, $variantChannel))->execute();
+        (new AddVariantToChannel($variantWarehouses, $channel, $variantChannel))->execute();
         return $variant;
     }
 
