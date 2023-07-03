@@ -1,5 +1,5 @@
 type Variant {
-    id: Int
+    id: ID
     uuid: String!
     slug: String!
     products_id: Int!
@@ -19,13 +19,13 @@ type Variant {
     product: Product
     warehouses: [WarehouseVariantRelationship]
     attributes: [VariantsAttributes]
-    channels: [VariantChannelRelationship]
     companies: Company
 }
 
 type WarehouseVariantRelationship {
-    id: Int!
-    uuid: String!
+    id: ID!
+    warehouseinfo: Warehouse @hasMany(relation: "warehouse")
+    channels: [VariantChannelRelationship]
     quantity: Float
     price: Float
     sku: String
@@ -39,14 +39,14 @@ type WarehouseVariantRelationship {
     can_pre_order: Boolean
     is_coming_soon: Boolean
     is_new: Boolean
-    is_variant_published: Boolean
+    is_published: Boolean
 }
 type VariantsAttributes {
     name: String!
     value: Mixed
 }
 type VariantChannelRelationship {
-    warehouses_id: Int
+    name: String
     price: Float
     discounted_price: Float
     is_published: Boolean
@@ -88,6 +88,7 @@ input VariantsInput {
     price: Float
     source_id: Mixed
     attributes: [VariantsAttributesInput]
+    warehouse_id: Int
 }
 input VariantsUpdateInput {
     products_id: Int
