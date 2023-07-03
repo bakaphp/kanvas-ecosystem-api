@@ -35,10 +35,8 @@ class Variants
                 $variantModel->addAttributes($user, $variant['attributes']);
             }
 
-            if (isset($variant['warehouse_id'])) {
-                WarehouseRepository::getById($variantDto->warehouse_id, $variantDto->product->company()->get()->first());
-                $variantModel->warehouses()->attach($variantDto->warehouse_id);
-            }
+            WarehouseRepository::getById($variantDto->warehouse_id, $variantDto->product->company()->get()->first());
+            $variantModel->warehouses()->attach($variantDto->warehouse_id);
             $variantsData[] = $variantModel;
         }
 
