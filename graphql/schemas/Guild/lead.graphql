@@ -115,7 +115,7 @@ input LeadInput {
     description: String
     reason_lost: String
     pipeline_stage_id: ID!
-    custom_fields: [CustomFieldEntityInput]!
+    custom_fields: [CustomFieldEntityInput!]!
 }
 
 input LeadUpdateInput {
@@ -131,7 +131,7 @@ input LeadUpdateInput {
     description: String
     reason_lost: String
     pipeline_stage_id: ID
-    custom_fields: [CustomFieldEntityInput]!
+    custom_fields: [CustomFieldEntityInput!]!
 }
 
 extend type Mutation @guard {
