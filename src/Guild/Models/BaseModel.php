@@ -22,7 +22,7 @@ class BaseModel extends EloquentModel
     use SourceTrait;
     use KanvasModelTrait;
     use AppsIdTrait;
-    use CompaniesIdTrait;
+    //use CompaniesIdTrait;
     //use KanvasScopesTrait;
     use HasCustomFields;
     use HasFilesystemTrait;

@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Customers\Models;
 
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Guild\Models\BaseModel;
 use Laravel\Scout\Searchable;
@@ -18,14 +19,13 @@ use Laravel\Scout\Searchable;
  * @property int $users_id
  * @property int $companies_id
  * @property string $name
- * @property string $dob
- * @property string $google_contact_id
- * @property string $facebook_contact_id
- * @property string $linkedin_contact_id
- * @property string $twitter_contact_id
- * @property string $instagram_contact_id
- * @property string $apple_contact_id
- *
+ * @property string|null $dob = null
+ * @property string|null $google_contact_id
+ * @property string|null $facebook_contact_id
+ * @property string|null $linkedin_contact_id
+ * @property string|null $twitter_contact_id
+ * @property string|null $instagram_contact_id
+ * @property string|null $apple_contact_id
  */
 class People extends BaseModel
 {
@@ -35,6 +35,10 @@ class People extends BaseModel
 
     protected $table = 'peoples';
     protected $guarded = [];
+
+    protected $casts = [
+        'dob' => 'datetime:Y-m-d',
+    ];
 
     public function address(): HasMany
     {
@@ -52,5 +56,43 @@ class People extends BaseModel
             'peoples_id',
             'id'
         );
+    }
+
+    /**
+     * @psalm-suppress MixedReturnStatement
+     */
+    public function getEmails(): Collection
+    {
+        return $this->contacts()
+                ->where(
+                    'contacts_types_id',
+                    ContactType::getByName('Email')->getId()
+                )
+                ->get();
+    }
+
+    /**
+     * @psalm-suppress MixedReturnStatement
+     */
+    public function getPhones(): Collection
+    {
+        return $this->contacts()
+                ->where(
+                    'contacts_types_id',
+                    ContactType::getByName('Phone')->getId()
+                )
+                ->get();
+    }
+
+    public function getFirstAndLastName(): array
+    {
+        $name = explode(' ', trim($this->name));
+        $firstName = $name[0];
+        unset($name[0]);
+
+        return [
+            'firstName' => trim($firstName),
+            'lastName' => isset($name[1]) ? implode(' ', $name) : '',
+        ];
     }
 }

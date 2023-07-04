@@ -42,6 +42,7 @@ class KanvasSetupCommand extends Command
             'migrate --path database/migrations/Social/ --database social',
             'migrate --path database/migrations/Guild/ --database crm',
             'db:seed',
+            'db:seed --class=Database\\\Seeders\\\GuildSeeder --database crm',
             'kanvas:create-role Admin',
             'kanvas:create-role Users',
             'kanvas:create-role Agents',

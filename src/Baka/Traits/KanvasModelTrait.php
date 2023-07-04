@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Baka\Traits;
 
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Schema;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Users\Models\Users;
@@ -25,6 +27,18 @@ trait KanvasModelTrait
     public function getUuid(): string
     {
         return $this->uuid;
+    }
+
+    public static function getByName(string $name): self
+    {
+        try {
+            return self::where('name', $name)
+                ->notDeleted()
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
     }
 
     public static function getByUuid(string $uuid): self
@@ -44,6 +58,32 @@ trait KanvasModelTrait
         try {
             return self::where('id', $id)
                 ->notDeleted()
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
+    }
+
+    public static function getByIdFromCompany(mixed $id, CompanyInterface $company): self
+    {
+        try {
+            return self::where('id', $id)
+                ->notDeleted()
+                ->fromCompany($company)
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
+    }
+
+    public static function getByIdFromBranch(mixed $id, CompaniesBranches $branch): self
+    {
+        try {
+            return self::where('id', $id)
+                ->notDeleted()
+                ->where('companies_branches_id', $branch->getId())
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
@@ -76,8 +116,6 @@ trait KanvasModelTrait
 
     /**
      * cant use app because of the scope name.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function app(): BelongsTo
     {
@@ -92,8 +130,6 @@ trait KanvasModelTrait
      * Current soft delete.
      *
      * @todo change to laravel default behavior
-     *
-     * @return bool
      */
     public function softDelete(): bool
     {
@@ -103,9 +139,19 @@ trait KanvasModelTrait
     }
 
     /**
-     * Get the table name with the connection name.
+     * restore
      *
-     * @return string
+     * @todo change to laravel default behavior
+     */
+    public function restoreRecord(): bool
+    {
+        $this->is_deleted = StateEnums::NO->getValue();
+
+        return $this->saveOrFail();
+    }
+
+    /**
+     * Get the table name with the connection name.
      */
     public static function getFullTableName(): string
     {
@@ -116,8 +162,6 @@ trait KanvasModelTrait
 
     /**
      * Get the table name.
-     *
-     * @return string
      */
     public static function getTableName(): string
     {
@@ -126,9 +170,6 @@ trait KanvasModelTrait
 
     /**
      * Those the given entity have the given column.
-     *
-     * @param string $name
-     * @return bool
      */
     public function hasColumn(string $name): bool
     {

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Models;
 
+use Baka\Traits\NoAppRelationshipTrait;
+use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Models\BaseModel;
 
@@ -22,10 +24,12 @@ use Kanvas\Guild\Models\BaseModel;
  * @property string $zip
  * @property string $countries_id
  * @property int $is_default
- *
  */
 class Address extends BaseModel
 {
+    use NoCompanyRelationshipTrait;
+    use NoAppRelationshipTrait;
+
     protected $table = 'peoples_address';
     protected $guarded = [];
 

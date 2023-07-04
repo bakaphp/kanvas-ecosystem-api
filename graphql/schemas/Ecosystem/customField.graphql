@@ -1,6 +1,6 @@
 type CustomField {
     name: String!
-    data: Mixed
+    value: Mixed
     systemModule: SystemModule!
     entity_id: String!
 }
@@ -10,6 +10,11 @@ input CustomFieldInput {
     data: Mixed
     system_module_uuid: String!
     entity_id: String!
+}
+
+input CustomFieldEntityInput {
+    name: String!
+    data: Mixed
 }
 
 extend type Mutation @guard {
