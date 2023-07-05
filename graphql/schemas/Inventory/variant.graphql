@@ -17,8 +17,8 @@ type Variant {
     interactions(visitor: VisitorEntityInput!): Interactions
         @method(name: "getEntitySocialInteractions")
     product: Product
-    warehouses: [WarehouseVariantRelationship]
-    attributes: [VariantsAttributes]
+    warehouses: [WarehouseVariantRelationship!]! @hasMany(relation: "variantWarehouses")
+    attributes: [VariantsAttributes!]!
     companies: Company
 }
 
