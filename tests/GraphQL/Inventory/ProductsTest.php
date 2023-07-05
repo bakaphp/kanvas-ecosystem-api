@@ -163,9 +163,8 @@ class ProductsTest extends TestCase
     public function testAddVariantToProduct(): void
     {
         $region = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
+            'name' => fake()->name,
+            'short_slug' => fake()->name,
             'is_default' => 1,
             'currency_id' => 1,
         ];
