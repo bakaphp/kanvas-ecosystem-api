@@ -58,9 +58,9 @@ class VariantsWarehouses extends BaseModel
             );
     }
 
-    public function variant(): HasMany
+    public function variant(): BelongsTo
     {
-        return $this->hasMany(Variants::class, 'products_variants_id');
+        return $this->belongsTo(Variants::class, 'products_variants_id');
     }
 
     public function warehouse(): BelongsTo

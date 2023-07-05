@@ -32,7 +32,12 @@ class Variants
     {
         $variantDto = VariantDto::viaRequest($req['input']);
         $action = new CreateVariantsAction($variantDto, auth()->user());
-        return $action->execute();
+        $variantModel = $action->execute();
+
+        WarehouseRepository::getById($variantDto->warehouse_id, $variantDto->product->company()->get()->first());
+        $variantModel->warehouses()->attach($variantDto->warehouse_id);
+
+        return $variantModel;
     }
 
     /**
@@ -62,7 +67,7 @@ class Variants
     {
         $variant = VariantsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
 
-        return $variant->delete();
+        return $variant->softdelete();
     }
 
     /**
@@ -143,14 +148,13 @@ class Variants
      */
     public function addToChannel(mixed $root, array $req): VariantModel
     {
-        $variant = VariantsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
-        $warehouse = WarehouseRepository::getById($req['warehouses_id']);
-
+        $variant = VariantsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
+        $warehouse = WarehouseRepository::getById((int) $req['warehouses_id']);
         $variantWarehouses = ModelsVariantsWarehouses::where('products_variants_id', $variant->getId())
             ->where('warehouses_id', $warehouse->getId())
             ->firstOrFail();
 
-        $channel = ChannelRepository::getById($req['channels_id']);
+        $channel = ChannelRepository::getById((int) $req['channels_id']);
         $variantChannel = VariantChannel::from($req['input']);
         (new AddVariantToChannel($variantWarehouses, $channel, $variantChannel))->execute();
         return $variant;
@@ -166,10 +170,13 @@ class Variants
      */
     public function removeChannel(mixed $root, array $req): VariantModel
     {
-        $variant = VariantsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
-
-        $channel = ChannelRepository::getById($req['channels_id']);
-        $variant->channels()->detach($channel->id);
+        $variant = VariantsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
+        $warehouse = WarehouseRepository::getById((int) $req['warehouses_id']);
+        $variantWarehouses = ModelsVariantsWarehouses::where('products_variants_id', $variant->getId())
+            ->where('warehouses_id', $warehouse->getId())
+            ->firstOrFail();
+        $channel = ChannelRepository::getById((int) $req['channels_id']);
+        $variantWarehouses->channels()->where('id', $channel->getId())->detach($channel->id);
         return $variant;
     }
 }
