@@ -92,9 +92,22 @@ class Variants extends BaseModel
         return $this->belongsTo(Products::class, 'products_id');
     }
 
-    public function warehouses(): HasMany
+    public function variantWarehouses(): HasMany
     {
         return $this->hasMany(VariantsWarehouses::class, 'products_variants_id');
+    }
+
+    /**
+     * warehouses.
+     */
+    public function warehouses(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Warehouses::class,
+            VariantsWarehouses::class,
+            'products_variants_id',
+            'warehouses_id'
+        );
     }
 
     /**
