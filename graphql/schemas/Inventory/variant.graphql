@@ -117,12 +117,12 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@update"
         )
-    deleteVariant(id: Int!): Boolean
+    deleteVariant(id: ID!): Boolean
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@delete"
         )
     addVariantToWarehouse(
-        id: Int!
+        id: ID!
         warehouse_id: Int!
         input: VariantsWarehousesInput!
     ): Variant
