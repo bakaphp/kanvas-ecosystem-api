@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class () extends Migration {
     /**
      * Run the migrations.
      */
@@ -12,7 +12,6 @@ return new class extends Migration {
     {
         Schema::table('products_variants_channels', function (Blueprint $table) {
             Schema::disableForeignKeyConstraints();
-
             $table->dropForeign('products_variants_channels_products_variants_id_foreign');
             $table->dropForeign('products_variants_channels_warehouses_id_foreign');
             $table->dropForeign('products_variants_channels_channels_id_foreign');
@@ -31,7 +30,6 @@ return new class extends Migration {
             $table->unique(['product_variants_warehouse_id', 'channels_id'], 'variants_warehouse_channel');
             Schema::enableForeignKeyConstraints();
         });
-
     }
 
     /**
