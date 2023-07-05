@@ -134,14 +134,14 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@removeToWarehouse"
         )
     addAttributeToVariant(
-        id: Int!
-        attributes_id: Int!
+        id: ID!
+        attributes_id: ID!
         input: VariantsAttributesInput!
     ): Variant
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addAttribute"
         )
-    removeAttributeToVariant(id: Int!, attributes_id: Int!): Variant
+    removeAttributeToVariant(id: ID!, attributes_id: ID!): Variant
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@removeAttribute"
         )

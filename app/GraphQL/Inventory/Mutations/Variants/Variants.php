@@ -109,9 +109,9 @@ class Variants
      */
     public function addAttribute(mixed $root, array $req): VariantModel
     {
-        $variant = VariantsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
+        $variant = VariantsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
 
-        $attribute = AttributesRepository::getById($req['attributes_id']);
+        $attribute = AttributesRepository::getById((int) $req['attributes_id']);
         (new AddAttributeAction($variant, $attribute, $req['input']['value']))->execute();
         return $variant;
     }
@@ -126,9 +126,9 @@ class Variants
      */
     public function removeAttribute(mixed $root, array $req): VariantModel
     {
-        $variant = VariantsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
+        $variant = VariantsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
 
-        $attribute = AttributesRepository::getById($req['attributes_id']);
+        $attribute = AttributesRepository::getById((int) $req['attributes_id']);
         $variant->attributes()->detach($attribute);
         return $variant;
     }
