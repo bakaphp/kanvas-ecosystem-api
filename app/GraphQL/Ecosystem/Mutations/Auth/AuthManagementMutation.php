@@ -32,43 +32,6 @@ class AuthManagementMutation
      *
      * @throws \Exception
      */
-    public function forgot(
-        mixed $rootValue,
-        array $request,
-        GraphQLContext $context = null,
-        ResolveInfo $resolveInfo
-    ): bool {
-        $user = new ForgotPasswordService();
-
-        $registeredUser = $user->forgot($request['data']['email']);
-        $tokenResponse = $registeredUser->createToken('kanvas-login')->toArray();
-
-        $request = request();
-
-        return true;
-    }
-
-    /**
-     * Reset user password.
-     */
-    public function reset(
-        mixed $rootValue,
-        array $request,
-        GraphQLContext $context = null,
-        ResolveInfo $resolveInfo
-    ): bool {
-        $user = new ForgotPasswordService();
-
-        $user->reset($request['data']['new_password'], $request['data']['hash_key']);
-
-        return true;
-    }
-
-    /**
-     * @param array $args
-     *
-     * @throws \Exception
-     */
     public function loginMutation(
         mixed $rootValue,
         array $request,
@@ -192,5 +155,42 @@ class AuthManagementMutation
         $tokenResponse = $loggedUser->createToken('kanvas-login')->toArray();
 
         return $tokenResponse;
+    }
+
+    /**
+     * @param array $args
+     *
+     * @throws \Exception
+     */
+    public function forgot(
+        mixed $rootValue,
+        array $request,
+        GraphQLContext $context = null,
+        ResolveInfo $resolveInfo
+    ): bool {
+        $user = new ForgotPasswordService();
+
+        $registeredUser = $user->forgot($request['data']['email']);
+        $tokenResponse = $registeredUser->createToken('kanvas-login')->toArray();
+
+        $request = request();
+
+        return true;
+    }
+
+    /**
+     * Reset user password.
+     */
+    public function reset(
+        mixed $rootValue,
+        array $request,
+        GraphQLContext $context = null,
+        ResolveInfo $resolveInfo
+    ): bool {
+        $user = new ForgotPasswordService();
+
+        $user->reset($request['data']['new_password'], $request['data']['hash_key']);
+
+        return true;
     }
 }
