@@ -108,14 +108,10 @@ input UpdateUserInput {
     address_1: String
     address_2: String
     zip_code: Int
-    city_id: Int
-        @rules(apply: ["exists:Kanvas\\Locations\\Models\\Cities,id"])
-    state_id: Int
-        @rules(apply: ["exists:Kanvas\\Locations\\Models\\States,id"])
+    city_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Models\\Cities,id"])
+    state_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Models\\States,id"])
     country_id: Int
-        @rules(
-            apply: ["exists:Kanvas\\Locations\\Models\\Countries,id"]
-        )
+        @rules(apply: ["exists:Kanvas\\Locations\\Models\\Countries,id"])
 }
 
 extend type Mutation {
@@ -123,12 +119,12 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@loginMutation"
         )
-    logout: Boolean! 
+    logout: Boolean!
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@logout"
         )
-    logoutFromAllDevices: Boolean! 
+    logoutFromAllDevices: Boolean!
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@logoutFromAllDevices"
