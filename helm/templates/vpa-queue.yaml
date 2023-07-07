@@ -1,11 +1,11 @@
 apiVersion: autoscaling.k8s.io/v1beta1
-  kind: VerticalPodAutoscaler
-  metadata:
+kind: VerticalPodAutoscaler
+metadata:
     name: {{.Values.deployments.queue.name}}-vpa
-  spec:
-    targetRef:
-      apiVersion: "apps/v1"
-      kind:       Deployment
-      name:       {{.Values.deployments.queue.name}}
-    updatePolicy:
-      updateMode: "Auto"
+spec:
+  targetRef:
+  apiVersion: "apps/v1"
+  kind: Deployment
+    name: {{.Values.deployments.queue.name}}
+  updatePolicy:
+  updateMode: "Auto"
