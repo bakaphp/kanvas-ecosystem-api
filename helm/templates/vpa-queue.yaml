@@ -1,7 +1,7 @@
 apiVersion: autoscaling/v2
 kind: VerticalPodAutoscaler
 metadata:
-  name: {{.Values.deployments.queue.name}}-vpa
+  name: {{.Values.deployments.queue.name}}
 spec:
   targetRef:
   apiVersion: "apps/v1"
