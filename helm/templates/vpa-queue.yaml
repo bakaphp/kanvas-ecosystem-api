@@ -4,8 +4,8 @@ metadata:
   name: {{.Values.deployments.queue.name}}
 spec:
   targetRef:
-  apiVersion: "apps/v1"
-  kind: Deployment
-    name: {{.Values.deployments.queue.name}}
+    apiVersion: "apps/v1"
+    kind: Deployment
+      name: {{.Values.deployments.queue.name}}
   updatePolicy:
-  updateMode: "Auto"
+    updateMode: "Auto"
