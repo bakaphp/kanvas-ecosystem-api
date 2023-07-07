@@ -8,4 +8,4 @@ apiVersion: autoscaling.k8s.io/v1beta1
       kind:       Deployment
       name:       {{.Values.deployments.queue.name}}
     updatePolicy:
-      updateMode: "Off"
+      updateMode: "Auto"
