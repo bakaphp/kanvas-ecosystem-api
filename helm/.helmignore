@@ -23,3 +23,6 @@
 .vscode/
 
 # pod-cron-scheduler.yaml
+
+vpa-api.yaml
+vpa-queue.yaml
