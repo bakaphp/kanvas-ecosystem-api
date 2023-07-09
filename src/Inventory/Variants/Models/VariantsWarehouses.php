@@ -39,6 +39,9 @@ class VariantsWarehouses extends BaseModel
 {
     protected $table = 'products_variants_warehouses';
     protected $guarded = [];
+    protected $attributes = [
+        'price' => 0.00
+    ];
 
     /**
      * channels.
