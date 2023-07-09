@@ -88,7 +88,7 @@ input VariantsInput {
     price: Float
     source_id: Mixed
     attributes: [VariantsAttributesInput]
-    warehouse_id: Int
+    warehouse_id: Int!
 }
 input VariantsUpdateInput {
     products_id: Int
