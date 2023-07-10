@@ -52,7 +52,7 @@ class ForgotPassword
         $recoverUser = UsersAssociatedApps::fromApp()
             ->notDeleted()
             ->where([
-                'companies_id' => AppEnums::GLOBAL_APP_ID->getValue(),
+                'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
                 'user_activation_forgot' => $hashKey,
             ])->firstOrFail();
 
