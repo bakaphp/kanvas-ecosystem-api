@@ -53,6 +53,6 @@ class ForgotPassword
                 'user_activation_forgot' => $hashKey,
             ])->firstOrFail();
 
-        return $recoverUser->user()->resetPassword($newPassword, $this->app);
+        return $recoverUser->user()->firstOrFail()->resetPassword($newPassword, $this->app);
     }
 }
