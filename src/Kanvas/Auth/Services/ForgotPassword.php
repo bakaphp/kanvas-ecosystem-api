@@ -25,8 +25,6 @@ class ForgotPassword
 
     /**
      * Send email forgot password.
-     *
-     * @param array $data
      */
     public function forgot(string $email): Users
     {
@@ -45,7 +43,6 @@ class ForgotPassword
     /**
      * Get user and update password to the new one.
      *
-     * @param array $data
      */
     public function reset(string $newPassword, string $hashKey): bool
     {
@@ -56,6 +53,6 @@ class ForgotPassword
                 'user_activation_forgot' => $hashKey,
             ])->firstOrFail();
 
-        return $recoverUser->resetPassword($newPassword);
+        return $recoverUser->user()->resetPassword($newPassword, $this->app);
     }
 }
