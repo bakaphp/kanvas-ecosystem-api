@@ -25,7 +25,7 @@
         "league/flysystem-aws-s3-v3": "^3.12",
         "meilisearch/meilisearch-php": "^1.1",
         "mll-lab/graphql-php-scalars": "^6.0",
-        "mll-lab/laravel-graphiql": "^1.2",
+        "mll-lab/laravel-graphiql": "^3.1",
         "nuwave/lighthouse": "^6.0",
         "phpclassic/php-shopify": "^1.2",
         "sentry/sentry-laravel": "^3.2",
