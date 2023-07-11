@@ -15,9 +15,6 @@ class ForgotPassword
 {
     protected Apps $app;
 
-    /**
-     * Construct function.
-     */
     public function __construct()
     {
         $this->app = app(Apps::class);
@@ -42,11 +39,10 @@ class ForgotPassword
 
     /**
      * Get user and update password to the new one.
-     *
      */
     public function reset(string $newPassword, string $hashKey): bool
     {
-        $recoverUser = UsersAssociatedApps::fromApp()
+        $recoverUser = UsersAssociatedApps::fromApp($this->app)
             ->notDeleted()
             ->where([
                 'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
