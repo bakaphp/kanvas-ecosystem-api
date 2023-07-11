@@ -40,6 +40,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           push: true
+          file: ${{ github.ref_name }}.Dockerfile
           tags: |
             ${{ secrets.GCP_IMAGE_TAG }}:${{ github.run_number }}
             ${{ secrets.GCP_IMAGE_TAG }}:latest

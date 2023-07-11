@@ -26,3 +26,4 @@
 
 vpa-api.yaml
 vpa-queue.yaml
+cronjob-health-checker.yaml
