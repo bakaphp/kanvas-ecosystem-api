@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\Services;
 
+use Illuminate\Support\Arr;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Users\Models\Users;
@@ -27,7 +28,16 @@ class UserManagement
     public function update(array $data): Users
     {
         try {
+            $customFields = null;
+            if (Arr::exists($data, 'custom_fields')) {
+                $customFields = $data['custom_fields'];
+                unset($data['custom_fields']);
+            }
             $this->user->update(array_filter($data));
+
+            if ($customFields) {
+                $this->user->setAll($customFields);
+            }
         } catch (InternalServerErrorException $e) {
             throw new InternalServerErrorException($e->getMessage());
         }

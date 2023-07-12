@@ -54,8 +54,17 @@ trait HashTableTrait
             $this->settingsModel->{$this->getSettingsPrimaryKey()} = $this->getKey();
         }
         $this->settingsModel->name = $key;
-        $this->settingsModel->value = ! is_array($value) ? (string) $value : json_encode($value);
+        $this->settingsModel->value = $value; //! is_array($value) ? (string) $value : json_encode($value);
         $this->settingsModel->save();
+
+        return true;
+    }
+
+    public function setAll(array $settings): bool
+    {
+        foreach ($settings as $value) {
+            $this->set($value['name'], $value['data']);
+        }
 
         return true;
     }
