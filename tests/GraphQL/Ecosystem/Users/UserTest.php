@@ -65,7 +65,7 @@ class UserTest extends TestCase
                     'custom_fields' => [
                         [
                             'name' => 'test',
-                            'value' => 'test',
+                            'data' => 'test',
                         ]
                     ],
                 ],
