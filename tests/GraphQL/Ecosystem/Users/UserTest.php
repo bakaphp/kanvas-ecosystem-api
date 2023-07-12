@@ -63,7 +63,10 @@ class UserTest extends TestCase
                     'phone_number' => fake()->phoneNumber(),
                     'address_1' => fake()->address(),
                     'custom_fields' => [
-                        'test' => 'test',
+                        [
+                            'name' => 'test',
+                            'value' => 'test',
+                        ]
                     ],
                 ],
             ]
