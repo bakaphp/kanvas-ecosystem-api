@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Baka\Traits;
 
-use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Exceptions\ConfigurationException;
 
@@ -54,7 +53,7 @@ trait HashTableTrait
             $this->settingsModel->{$this->getSettingsPrimaryKey()} = $this->getKey();
         }
         $this->settingsModel->name = $key;
-        $this->settingsModel->value = $value; //! is_array($value) ? (string) $value : json_encode($value);
+        $this->settingsModel->value = $value;
         $this->settingsModel->save();
 
         return true;
@@ -98,9 +97,7 @@ trait HashTableTrait
         }
 
         foreach ($settings as $setting) {
-            $allSettings[$setting->name] = ! Str::isJson($setting->value)
-                                            ? $setting->value
-                                            : json_decode($setting->value, true);
+            $allSettings[$setting->name] = $setting->value;
         }
 
         return $allSettings;
@@ -120,9 +117,7 @@ trait HashTableTrait
         $value = $this->getSettingsByKey($key);
 
         if (is_object($value)) {
-            return ! Str::isJson($value->value)
-                        ? $value->value
-                        : json_decode($value->value, true);
+            return $value->value;
         }
 
         return null;
