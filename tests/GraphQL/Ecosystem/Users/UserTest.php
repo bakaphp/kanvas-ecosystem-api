@@ -13,8 +13,6 @@ class UserTest extends TestCase
 
     /**
      * Set login credentials.
-     *
-     * @return LoginInput
      */
     public static function loginData(): LoginInput
     {
@@ -22,14 +20,14 @@ class UserTest extends TestCase
             self::$loginData = LoginInput::from([
                 'email' => fake()->email,
                 'password' => fake()->password(8),
-                'ip' => request()->ip()
+                'ip' => request()->ip(),
             ]);
         }
 
         return self::$loginData;
     }
 
-    public function editUserdata(): void
+    public function testEditUserdata(): void
     {
         $loginData = self::loginData();
         $firstname = fake()->firstName();
@@ -38,17 +36,24 @@ class UserTest extends TestCase
 
         $response = $this->graphQL( /** @lang GraphQL */
             '
-            mutation updateUser($data: UpdateUserInput!) {
-                updateUser(data: $data)
+            mutation updateUser($id: ID!, $data: UpdateUserInput!) {
+                updateUser(id: $id, data: $data)
                 {
                     firstname
                     lastname
                     displayname
                     description
-                    sex
+                    sex,
+                    custom_fields{
+                        data{
+                          name,
+                          value
+                        }
+                    }
                 }
             }',
             [
+                'id' => 0,
                 'data' => [
                     'firstname' => $firstname,
                     'lastname' => $lastname,
@@ -56,7 +61,13 @@ class UserTest extends TestCase
                     'description' => fake()->text(30),
                     'sex' => 'U',
                     'phone_number' => fake()->phoneNumber(),
-                    'address_1' => fake()->address()
+                    'address_1' => fake()->address(),
+                    'custom_fields' => [
+                        [
+                            'name' => 'test',
+                            'data' => 'test',
+                        ]
+                    ],
                 ],
             ]
         )
@@ -65,6 +76,7 @@ class UserTest extends TestCase
         ->assertSee('lastname', $lastname)
         ->assertSee('displayname', $displayname)
         ->assertSee('description')
+        ->assertSee('custom_fields')
         ->assertSee('sex');
     }
 
@@ -81,11 +93,11 @@ class UserTest extends TestCase
             }
         ', [
             'new_password' => 'abc123456',
-            'new_password_confirmation' => 'abc123456'
+            'new_password_confirmation' => 'abc123456',
         ])->assertJson([
             'data' => [
-                'changePassword' => true
-            ]
+                'changePassword' => true,
+            ],
         ]);
     }
 }

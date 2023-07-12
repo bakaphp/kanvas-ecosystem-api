@@ -16,9 +16,14 @@ type User {
     roles: Mixed! @method(name: "getRoles")
     created_at: DateTime
     updated_at: DateTime
-    branches: [CompanyBranch!] @HasManyThrough
-    companies: [Company!] @HasManyThrough
-    apps: [App!] @HasManyThrough
+    branches: [CompanyBranch!]! @HasManyThrough
+    companies: [Company!]! @HasManyThrough
+    apps: [App!]! @HasManyThrough
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 10
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\HashFieldsQuery@getAllByGraphType"
+        )
 }
 
 type AddressType {
@@ -112,6 +117,7 @@ input UpdateUserInput {
     state_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Models\\States,id"])
     country_id: Int
         @rules(apply: ["exists:Kanvas\\Locations\\Models\\Countries,id"])
+    custom_fields: [CustomFieldEntityInput!]!
 }
 
 extend type Mutation {
@@ -154,7 +160,7 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@reset"
         )
-    updateUser(data: UpdateUserInput!): User!
+    updateUser(id: ID!, data: UpdateUserInput!): User!
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updateUser"
