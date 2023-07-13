@@ -1,5 +1,5 @@
 type Filesystem {
-    id: Int!
+    id: ID!
     uuid: String!
     name: String!
     url: String!
@@ -18,7 +18,7 @@ input FilesystemAttachInput {
     filesystem_uuid: String!
     field_name: String!
     system_module_uuid: String!
-    entity_id: String!
+    entity_id: ID!
 }
 
 extend type Query @guard {

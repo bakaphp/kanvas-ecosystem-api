@@ -6,7 +6,7 @@ type App {
     domain: String
     default_apps_plan_id: Int
     is_actived: Int
-    key: String
+    key: ID!
     payments_active: Int
     ecosystem_auth: Int
     is_public: Int
@@ -28,7 +28,7 @@ input AppInput {
     domain: String!
     default_apps_plan_id: Int
     is_actived: Int
-    key: String
+    key: ID
     payments_active: Int!
     ecosystem_auth: Int!
     is_public: Int!
@@ -40,15 +40,15 @@ input appSettingInput {
     value: Mixed!
 }
 
-input s3FilesystemConfig {
-    key: String!
+type s3FilesystemConfig {
+    key: ID!
     secret: String!
     region: String!
     bucket: String
     url: String
 }
 
-input gcsFilesystemConfig {
+type gcsFilesystemConfig {
     type: String!
     project_id: String!
     private_key_id: String!

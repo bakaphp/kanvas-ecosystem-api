@@ -37,12 +37,11 @@ type CompanyAssociation {
 
 type CompanyBranch {
     id: ID!
-    companies_id: ID!
+    company: Company! @belongsTo(relation: "company")
     name: String!
     email: String
     phone: String
     zipcode: Int
-    company: Company!
     is_default: Boolean!
     created_at: DateTime
     updated_at: DateTime
@@ -50,7 +49,7 @@ type CompanyBranch {
 
 type CompanySettings {
     company: Company!
-    name: String!
+    name: ID!
     value: String
     created_at: DateTime
     updated_at: DateTime

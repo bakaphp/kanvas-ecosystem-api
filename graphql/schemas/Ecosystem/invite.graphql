@@ -1,11 +1,9 @@
 type Invite {
-    id: Int!
+    id: ID!
     invite_hash: String!
     users_id: Int!
-    companies_id: Int!
-    companies_branches_id: Int!
+    branch: CompanyBranch! @belongsTo
     role_id: Int!
-    apps_id: Int!
     email: String!
     firstname: String
     lastname: String
@@ -15,10 +13,8 @@ type Invite {
 type ExternalInvite {
     invite_hash: String!
     users_id: Int!
-    companies_id: Int!
-    companies_branches_id: Int!
+    branch: CompanyBranch! @belongsTo
     role_id: Int!
-    apps_id: Int!
     email: String!
     firstname: String
     lastname: String
@@ -80,7 +76,7 @@ extend type Query @guard {
                 ]
             )
         orderBy: _ @orderBy(columns: ["id"], direction: "DESC")
-    ): [Invite]
+    ): [Invite!]!
         @paginate(
             model: "Kanvas\\Users\\Models\\UsersInvite"
             scopes: ["fromCompany"]
