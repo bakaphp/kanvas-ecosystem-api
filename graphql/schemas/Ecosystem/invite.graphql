@@ -22,8 +22,8 @@ type ExternalInvite {
 }
 
 input InviteInput {
-    role_id: Int!
-    companies_branches_id: Int!
+    role_id: ID!
+    companies_branches_id: ID!
     email: String!
     firstname: String
     lastname: String

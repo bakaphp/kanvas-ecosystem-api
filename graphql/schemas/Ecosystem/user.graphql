@@ -1,5 +1,5 @@
 type User {
-    id: Int!
+    id: ID!
     uuid: String!
     firstname: String!
     lastname: String!
@@ -41,7 +41,7 @@ type ContactInfo {
 }
 
 type TokenResponse {
-    id: Int!
+    id: ID!
     uuid: String!
     token: String!
     refresh_token: String!
@@ -53,7 +53,7 @@ type TokenResponse {
 }
 
 type UserLinkSource {
-    users_id: Int!
+    users_id: ID!
     source: Source! @belongsTo
     source_user_id: String!
     source_user_name: String
@@ -92,11 +92,11 @@ input RegisterInput {
     password: String! @rules(apply: ["required"])
     password_confirmation: String! @rules(apply: ["required"])
     company_name: String
-    roles_id: Int
+    roles_id: ID
 }
 
 input DeviceInput {
-    device_id: String!
+    device_id: ID!
     source_site: String!
     source_username: String
 }

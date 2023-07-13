@@ -36,7 +36,7 @@ input AppInput {
 }
 
 input appSettingInput {
-    name: String!
+    name: ID!
     value: Mixed!
 }
 
@@ -50,11 +50,11 @@ type s3FilesystemConfig {
 
 type gcsFilesystemConfig {
     type: String!
-    project_id: String!
-    private_key_id: String!
-    private_key: String!
+    project_id: ID!
+    private_key_id: ID!
+    private_key: ID!
     client_email: String!
-    client_id: String!
+    client_id: ID!
     token_uri: String!
     auth_uri: String!
     auth_provider_x509_cert_url: String
@@ -62,22 +62,22 @@ type gcsFilesystemConfig {
 }
 
 input s3FilesystemConfigInput {
-    name: String!
+    name: ID!
     value: s3FilesystemConfig!
 }
 
 input gcsFilesystemConfigInput {
-    name: String!
+    name: ID!
     value: gcsFilesystemConfig!
 }
 
 input templateInput {
-    name: String!
+    name: ID!
     template: String!
 }
 
 type AppSettings {
-    name: String!
+    name: ID!
     description: String
     settings: Mixed!
 }

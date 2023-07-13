@@ -15,7 +15,7 @@ input FilesystemInputUrl {
 }
 
 input FilesystemAttachInput {
-    filesystem_uuid: String!
+    filesystem_uuid: ID!
     field_name: String!
     system_module_uuid: String!
     entity_id: ID!

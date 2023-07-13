@@ -3,14 +3,14 @@ type Country {
     name: String!
     code: String!
     flag: String
-    states: [States!]!
+    states: [States!]! @hasMany
 }
 type States {
     id: ID!
     name: String!
     code: String!
-    country: Country!
-    cities: [Cities!]!
+    country: Country! @belongsTo
+    cities: [Cities!]! @hasMany
     created_at: DateTime!
     updated_at: DateTime
     is_deleted: Boolean!
@@ -45,7 +45,7 @@ input CreateCountryInput {
 input CreateStateInput {
     name: String!
     code: String!
-    cities: [CreateCityInput!]!
+    cities: [CreateCityInput!]! @hasMany
 }
 input CreateCityInput {
     name: String!

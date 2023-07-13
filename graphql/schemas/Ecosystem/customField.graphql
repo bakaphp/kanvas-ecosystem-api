@@ -1,7 +1,7 @@
 type CustomField {
     name: String!
     value: Mixed
-    systemModule: SystemModule!
+    systemModule: SystemModule! @belongsTo
     entity_id: ID!
 }
 
@@ -13,7 +13,7 @@ input CustomFieldInput {
 }
 
 input CustomFieldEntityInput {
-    name: String!
+    name: ID!
     data: Mixed
 }
 

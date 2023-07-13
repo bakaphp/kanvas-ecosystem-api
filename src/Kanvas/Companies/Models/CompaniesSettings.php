@@ -30,6 +30,6 @@ class CompaniesSettings extends BaseModel
      */
     public function companies(): BelongsTo
     {
-        return $this->belongsTo(Companies::class, 'companies_id');
+        return $this->company();
     }
 }
