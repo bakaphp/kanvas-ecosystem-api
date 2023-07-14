@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Actions;
 
+use Exception;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Repositories\MessageRepository;
 use Kanvas\SystemModules\Models\SystemModules;
 
 class CreateMessageAction
@@ -29,6 +31,21 @@ class CreateMessageAction
      */
     public function execute()
     {
+        $message = MessageRepository::getByAppModuleMessage(
+            $this->systemModule->model_name,
+            $this->entityId
+        );
+        if ($message && $message->users_id = $this->messageInput->users_id) {
+            $message->update([
+                'parent_id' => $this->messageInput->parent_id,
+                'message_types_id' => $this->messageInput->message_types_id,
+                'message' => $this->messageInput->message,
+            ]);
+
+            return $message;
+        } elseif ($message && $message->users_id != $this->messageInput->users_id) {
+            throw new Exception('You are not allowed to update this message');
+        }
         $message = Message::create([
             'apps_id' => $this->messageInput->apps_id,
             'parent_id' => $this->messageInput->parent_id,

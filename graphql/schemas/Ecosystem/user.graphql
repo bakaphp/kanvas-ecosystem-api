@@ -1,6 +1,6 @@
 type User {
     id: Int!
-    uuid: String!
+    uuid: String
     firstname: String!
     lastname: String!
     displayname: String!

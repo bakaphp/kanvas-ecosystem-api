@@ -22,7 +22,8 @@ class UsersListsManagement
             $req['input']['name'],
             $req['input']['description'],
             $req['input']['is_public'],
-            $req['input']['is_default']
+            $req['input']['is_default'],
+            $req['input']['files'] ?? []
         );
 
         $createUserList = new CreateUserListAction($userList);

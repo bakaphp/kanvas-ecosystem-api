@@ -1,11 +1,11 @@
 type Message {
-    id: Int!
-    parent_id: Int
+    id: ID!
+    parent_id: ID
     parent_unique_id: Mixed
     uuid: String!
-    companies_id: Int!
-    users_id: Int!
-    message_types_id: Int!
+    companies_id: ID!
+    users_id: ID!
+    message_types_id: ID!
     message: Mixed
     reactions_count: Int
     comments_count: Int
@@ -14,8 +14,13 @@ type Message {
     parent: Message
     user: User!
     messageType: MessageType!
+    appModuleMessage: AppModuleMessage
 }
 
+type AppModuleMessage {
+    system_modules: String!
+    entity_id: String!
+}
 input MessageInput {
     parent_id: Int
     message_types_id: Int!
@@ -55,5 +60,13 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getAll"
+        )
+
+    getMessageFromAppModuleMessage(
+        system_modules_id: Int!
+        entity_id: String!
+    ): Message
+        @field(
+            resolver: "App\\GraphQL\\Social\\Queries\\Messages\\MessagesQueries@getByAppModuleMessage"
         )
 }

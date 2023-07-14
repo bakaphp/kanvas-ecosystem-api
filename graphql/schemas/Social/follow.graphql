@@ -1,5 +1,5 @@
 type Following {
-    id: Int!
+    id: ID!
     user_id: Int!
     entity_namespace: String!
     entity_id: Int!

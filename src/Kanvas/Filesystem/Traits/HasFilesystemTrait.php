@@ -54,7 +54,6 @@ trait HasFilesystemTrait
                             //->andWhere('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
                             ->first();
         }
-
         if (! $fileSystem) {
             $fileSystem = new Filesystem();
             $fileSystem->companies_id = $companyId;

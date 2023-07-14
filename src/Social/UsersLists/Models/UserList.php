@@ -45,22 +45,22 @@ class UserList extends BaseModel
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(Users::class, 'users_id');
+        return $this->setConnection('ecosystem')->belongsTo(Users::class, 'users_id');
     }
 
     public function app(): BelongsTo
     {
-        return $this->belongsTo(Apps::class, 'apps_id');
+        return $this->setConnection('ecosystem')->belongsTo(Apps::class, 'apps_id');
     }
 
     public function company(): BelongsTo
     {
-        return $this->belongsTo(Companies::class, 'companies_id');
+        return $this->setConnection('ecosystem')->belongsTo(Companies::class, 'companies_id');
     }
 
     public function items(): BelongsToMany
     {
-        return $this->belongsToMany(Message::class, 'users_lists_messages', 'users_lists_id', 'messages_id');
+        return $this->belongsToMany(Message::class, 'users_lists_messages', 'users_lists_id', 'messages_id')->orderBy('weight', 'ASC');
     }
 
     /**

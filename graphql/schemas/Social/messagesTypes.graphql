@@ -1,6 +1,6 @@
 
 input CreateMessageTypeInput {
-    languages_id: Int!
+    languages_id: ID!
     name: String!
     verb: String!
     template: String!
@@ -8,9 +8,9 @@ input CreateMessageTypeInput {
 }
 
 type MessageType {
-    id: Int!
-    languages_id: Int!
-    apps_id: Int!
+    id: ID!
+    languages_id: ID!
+    apps_id: ID!
     uuid: String!
     name: String!
     verb: String!
