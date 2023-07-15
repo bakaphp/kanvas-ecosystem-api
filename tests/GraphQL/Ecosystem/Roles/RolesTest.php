@@ -132,7 +132,7 @@ class RolesTest extends TestCase
         $this->graphQL(/** @lang GraphQL */
             '
             mutation(
-                $id: Int!
+                $id: ID!
                 $name: String!
                 $title: String
             ) {
@@ -193,7 +193,7 @@ class RolesTest extends TestCase
         $this->graphQL(/** @lang GraphQL */
             '
             mutation(
-                $userId: Int!
+                $userId: ID!
                 $role: Mixed!
             ) {
                 assignRoleToUser(
@@ -221,7 +221,7 @@ class RolesTest extends TestCase
         $this->graphQL(/** @lang GraphQL */
             '
             query(
-                $userId: Int!
+                $userId: ID!
                 $role: Mixed!
             ) {
                 hasRole(
@@ -271,7 +271,7 @@ class RolesTest extends TestCase
         $this->graphQL(/** @lang GraphQL */
             '
             mutation(
-                $userId: Int!
+                $userId: ID!
                 $role: Mixed!
             ) {
                 assignRoleToUser(
@@ -292,7 +292,7 @@ class RolesTest extends TestCase
         $this->graphQL(/** @lang GraphQL */
             '
             mutation(
-                $userId: Int!
+                $userId: ID!
                 $role: Mixed!
             ) {
                 removeRole(
