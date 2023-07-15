@@ -15,7 +15,7 @@ class RolePermissionQuery
     public function can(mixed $rootValue, array $request): bool
     {
         $user = UsersRepository::getUserOfCompanyById(
-            auth()->user()->getCurrentCompany(), 
+            auth()->user()->getCurrentCompany(),
             (int) $request['userId']
         );
 
