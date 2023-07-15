@@ -27,7 +27,7 @@ class RoleQuery
 
         $user = UsersRepository::getUserOfCompanyById(
             auth()->user()->getCurrentCompany(),
-            $request['userId']
+            (int) $request['userId']
         );
 
         return $user->isAn($role->name);
