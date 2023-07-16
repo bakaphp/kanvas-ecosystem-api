@@ -1,0 +1,195 @@
+type User {
+    id: Int!
+    uuid: String!
+    firstname: String!
+    lastname: String!
+    displayname: String!
+    description: String
+    email: Email!
+    contact: ContactInfo
+        @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@contact")
+    address: AddressType
+        @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@address")
+    sex: String
+    user_active: Boolean!
+    abilities: Mixed! @method(name: "getAbilitiesList")
+    roles: Mixed! @method(name: "getRoles")
+    created_at: DateTime
+    updated_at: DateTime
+    branches: [CompanyBranch!]! @HasManyThrough
+    companies: [Company!]! @HasManyThrough
+    apps: [App!]! @HasManyThrough
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 10
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\HashFieldsQuery@getAllByGraphType"
+        )
+}
+
+type AddressType {
+    address_1: String
+    address_2: String
+    zip_code: String
+    city: Cities @belongsTo
+    state: States @belongsTo
+    country: Country @belongsTo
+}
+
+type ContactInfo {
+    phone_number: String
+    cell_phone_number: String
+}
+
+type TokenResponse {
+    id: Int!
+    uuid: String!
+    token: String!
+    refresh_token: String!
+    token_expires: DateTime!
+    refresh_token_expires: DateTime!
+    time: String!
+    timezone: String!
+    sessionId: String!
+}
+
+type UserLinkSource {
+    users_id: Int!
+    source: Source! @belongsTo
+    source_user_id: String!
+    source_user_name: String
+}
+
+type RegisterResponse {
+    user: User!
+    token: TokenResponse!
+}
+
+input LoginInput {
+    email: String!
+    password: String!
+}
+
+input SocialLoginInput {
+    token: String!
+    provider: String!
+}
+
+input ForgotPasswordInput {
+    email: String! @rules(apply: ["required", "email"])
+}
+
+input ResetPasswordInput {
+    new_password: String! @rules(apply: ["required", "min:8"])
+    verify_password: String! @rules(apply: ["required", "same:new_password"])
+    hash_key: String! @rules(apply: ["required"])
+}
+
+input RegisterInput {
+    firstname: String
+    lastname: String
+    displayname: String
+    email: Email! @rules(apply: ["required"])
+    password: String! @rules(apply: ["required"])
+    password_confirmation: String! @rules(apply: ["required"])
+    company_name: String
+    roles_id: Int
+}
+
+input DeviceInput {
+    device_id: String!
+    source_site: String!
+    source_username: String
+}
+
+input UpdateUserInput {
+    firstname: String
+    lastname: String
+    displayname: String
+        @rules(apply: ["unique:Kanvas\\Users\\Models\\Users,displayname"])
+    description: String
+    sex: String
+    phone_number: String
+    cell_phone_number: String
+    address_1: String
+    address_2: String
+    zip_code: Int
+    city_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Models\\Cities,id"])
+    state_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Models\\States,id"])
+    country_id: Int
+        @rules(apply: ["exists:Kanvas\\Locations\\Models\\Countries,id"])
+    custom_fields: [CustomFieldEntityInput!]!
+}
+
+extend type Mutation {
+    login(data: LoginInput!): TokenResponse!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@loginMutation"
+        )
+    logout: Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@logout"
+        )
+    logoutFromAllDevices: Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@logoutFromAllDevices"
+        )
+    register(data: RegisterInput!): RegisterResponse!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@register"
+        )
+    refreshToken(refresh_token: String!): TokenResponse!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@refreshToken"
+        )
+    changePassword(
+        new_password: String! @rules(apply: ["string", "confirmed"])
+        new_password_confirmation: String
+    ): Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@changePassword"
+        )
+    forgotPassword(data: ForgotPasswordInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@forgot"
+        )
+    resetPassword(data: ResetPasswordInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@reset"
+        )
+    updateUser(id: ID!, data: UpdateUserInput!): User!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updateUser"
+        )
+    switchCompanyBranch(company_branch_id: Int!): Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@switchCompanyBranch"
+        )
+    socialLogin(data: SocialLoginInput!): TokenResponse!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@socialLogin"
+        )
+    linkDevice(data: DeviceInput!): Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserDeviceMutation@register"
+        )
+    unLinkDevice(data: DeviceInput!): Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserDeviceMutation@remove"
+        )
+}
+
+type Query @guard {
+    me: User! @auth
+    user(id: ID! @eq): User
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Users\\UsersListQuery@getFromCurrentCompany"
+        )
+}

@@ -439,12 +439,9 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         $user = $this->getAppProfile($app);
         $user->password = Hash::make($newPassword);
-        $user->saveOrFail();
-
         $user->user_activation_forgot = '';
-        $user->saveOrFail();
 
-        return true;
+        return $user->saveOrFail();
     }
 
     public function updateEmail(string $email): bool

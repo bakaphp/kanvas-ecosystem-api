@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Pipelines\Models;
 
 use Baka\Traits\NoAppRelationshipTrait;
+use Baka\Traits\SlugTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Guild\Models\BaseModel;
 
@@ -23,6 +24,7 @@ use Kanvas\Guild\Models\BaseModel;
 class Pipeline extends BaseModel
 {
     use NoAppRelationshipTrait;
+    use SlugTrait;
 
     protected $table = 'pipelines';
     protected $guarded = [];

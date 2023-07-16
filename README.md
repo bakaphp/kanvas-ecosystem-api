@@ -44,13 +44,17 @@ Todo:
 
 3. Get inside the php container using ```docker exec -it php bash```.
 
-4. Use the command ```php artisan migrate``` to migrate all kanvas migrations file.
+4. Create 3 databases `inventory`, `social`, `crm`, update your .env with the connection info
 
-5. Use the command ```php artisan db:seed --class=DatabaseSeeder```  to seed the database with an app, role and default system modules.
+5. Check the .env and setup correctly the `REDIS` parameters and your database connections before running the setup-ecosystem
 
-6. Generate app keys `php artisan key:generate` 
+6. Use the command ```php artisan kanvas:setup-ecosystem``` to run the kanvas setup
 
-7. To check if the API is working just make a GET request to  ```http://localhost:80/v1/``` and see if the response returns ```"Woot Kanvas"```
+7. If you're presenting some errors after running the command from before, drop all the tables from the schema `kanvas_laravel` and run it again
+
+8. Generate app keys `php artisan key:generate` 
+
+9. To check if the API is working just make a GET request to  ```http://localhost:80/v1/``` and see if the response returns ```"Woot Kanvas"```
 
 ### Setup Inventory
 1. php artisan migrate --path database/migrations/Inventory/ --database inventory
@@ -97,6 +101,7 @@ After doing all the steps above, you could run the project with Laravel Octane b
 
 Use `--watch` in development allowing you to refresh modified files , this works assuming to have `npm install chokidar` installed in the project.
 ****
+
 Note: 
 - To install Swoole you can use the command ```pecl install swoole``` 
 - For production remove `--watch` from the command.

@@ -1,5 +1,9 @@
 <?php
 
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\Users;
+use Kanvas\Social\UsersLists\Models\UserList as ModelUserList;
+
 return [
 
     /*
@@ -133,9 +137,23 @@ return [
         'host' => env('MEILISEARCH_HOST', 'http://localhost:7700'),
         'key' => env('MEILISEARCH_KEY', null),
         'index-settings' => [
-            // 'users' => [
-            //     'filterableAttributes'=> ['id', 'name', 'email'],
-            // ],
+           Message::class => [
+                'filterableAttributes' => ['apps_id'],
+                'sortableAttributes' => ['created_at','updated_at'],
+            ],
+            ModelUserList::class => [
+                'filterableAttributes' => [
+                    'apps_id',
+                    'companies_id',
+                    'users_id',
+                    'is_public',
+                    'is_default',
+                    'name',
+                    'description',
+                    'items'
+                ],
+                'sortableAttributes' => ['created_at','updated_at'],
+            ],
         ],
     ],
 

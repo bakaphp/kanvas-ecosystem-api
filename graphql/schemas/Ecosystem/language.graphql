@@ -1,0 +1,5 @@
+type Language {
+    id: Int!
+    name: String!
+    order: Int
+}

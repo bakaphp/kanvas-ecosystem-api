@@ -14,7 +14,8 @@ class CreateUserMessagesTable extends Migration
     public function up()
     {
         Schema::connection('social')->create('user_messages', function (Blueprint $table) {
-            $table->char('messages_id', 36);
+            $table->increments('id');
+            $table->bigInteger('messages_id');
             $table->bigInteger('users_id');
             $table->longText('notes')->nullable();
             $table->text('activities')->nullable();
@@ -26,8 +27,6 @@ class CreateUserMessagesTable extends Migration
             $table->longText('saved_lists')->nullable();
             $table->dateTime('created_at')->index('created_at');
             $table->tinyInteger('is_deleted')->default(0)->index('is_deleted');
-
-            $table->primary(['messages_id', 'users_id']);
             $table->index(['users_id', 'is_deleted'], 'users_id');
         });
     }

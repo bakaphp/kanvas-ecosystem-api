@@ -32,6 +32,9 @@ class CustomFieldsTest extends TestCase
         ]);
     }
 
+    /**
+     * @deprecated
+     */
     public function testGetCustomField(): void
     {
         $key = fake()->word;
@@ -70,6 +73,51 @@ class CustomFieldsTest extends TestCase
         )->assertSee($value);
     }
 
+    public function testGetCustomFieldQuery(): void
+    {
+        $key = fake()->word;
+        $value = fake()->numberBetween(1, 100);
+
+        $results = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation ($input: CustomFieldInput!) {
+                setCustomField(input: $input)
+            }',
+            [
+            'input' => [
+                'name' => $key,
+                'data' => [
+                    'hellos' => $value,
+                ],
+                'system_module_uuid' => get_class(auth()->user()),
+                'entity_id' => auth()->user()->uuid,
+            ],
+        ],
+        )->json();
+
+        $this->graphQL( /** @lang GraphQL */
+            '
+            query customField( 
+            $name : String!, 
+            $system_module_uuid: String! , 
+            $entity_id : String!) {
+                customField(
+                    name: $name, 
+                    system_module_uuid: $system_module_uuid,
+                    entity_id : $entity_id
+                )
+            }',
+            [
+            'name' => $key,
+            'system_module_uuid' => get_class(auth()->user()),
+            'entity_id' => auth()->user()->uuid,
+        ],
+        )->assertSee($value);
+    }
+
+    /**
+     * @deprecated
+     */
     public function testGetAllCustomField(): void
     {
         $key = fake()->word;
@@ -121,6 +169,65 @@ class CustomFieldsTest extends TestCase
                 'system_module_uuid' => get_class(auth()->user()),
                 'entity_id' => auth()->user()->uuid,
             ],
+        ],
+        )->assertSee($value);
+    }
+
+    public function testGetAllCustomFieldQuery(): void
+    {
+        $key = fake()->word;
+        $value = fake()->numberBetween(1, 100);
+
+        $results = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation ($input: CustomFieldInput!) {
+                setCustomField(input: $input)
+            }',
+            [
+            'input' => [
+                'name' => $key,
+                'data' => [
+                    'hellos' => $value,
+                ],
+                'system_module_uuid' => get_class(auth()->user()),
+                'entity_id' => auth()->user()->uuid,
+            ],
+        ],
+        )->json();
+
+        $results = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation ($input: CustomFieldInput!) {
+                setCustomField(input: $input)
+            }',
+            [
+            'input' => [
+                'name' => fake()->word,
+                'data' => [
+                    'hellos' => $value,
+                ],
+                'system_module_uuid' => get_class(auth()->user()),
+                'entity_id' => auth()->user()->uuid,
+            ],
+        ],
+        )->json();
+
+        $this->graphQL( /** @lang GraphQL */
+            '
+            query customFields( 
+            $name : String!, 
+            $system_module_uuid: String! , 
+            $entity_id : String!) {
+                customFields(
+                    name: $name, 
+                    system_module_uuid: $system_module_uuid,
+                    entity_id : $entity_id
+                )
+            }',
+            [
+            'name' => $key,
+            'system_module_uuid' => get_class(auth()->user()),
+            'entity_id' => auth()->user()->uuid,
         ],
         )->assertSee($value);
     }

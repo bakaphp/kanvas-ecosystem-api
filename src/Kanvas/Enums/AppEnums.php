@@ -70,7 +70,7 @@ enum AppEnums implements EnumsInterface
             self::DEFAULT_APP_NAME => 'Default',
             self::DEFAULT_COUNTRY => 'USA',
             self::DEFAULT_USER_LEVEL => 3,
-            self::DEFAULT_ROLE_ID => 2,
+            self::DEFAULT_ROLE_ID => 1,
             self::CURRENCY => 'USD',
             self::FILESYSTEM => 's3',
             self::ALLOW_USER_REGISTRATION => 1,
@@ -92,7 +92,7 @@ enum AppEnums implements EnumsInterface
             self::KANVAS_APP_BRANCH_HEADER => 'X-Kanvas-Location',
             self::KANVAS_APP_COMPANY_AUTH_HEADER => 'Company-Authorization', //@deprecated
             self::DISPLAYNAME_LOGIN => 'displayname_login',
-            self::VERSION => '1.0-BETA-5',
+            self::VERSION => '1.0-BETA-6',
         };
     }
 

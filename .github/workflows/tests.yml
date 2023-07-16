@@ -39,11 +39,14 @@ jobs:
       AWS_DEFAULT_REGION_CICD: ${{ secrets.AWS_DEFAULT_REGION_CICD }}
       AWS_BUCKET_CICD: ${{ secrets.AWS_BUCKET_CICD }}
       AWS_URL: ${{ secrets.AWS_URL }}
-      SCOUT_DRIVER: database
       MODEL_CACHE_STORE: model
       MODEL_CACHE_ENABLED: false
       LIGHTHOUSE_CACHE_ENABLE: true
       LIGHTHOUSE_CACHE_VERSION: 2
+      SCOUT_DRIVER: meilisearch
+      MEILISEARCH_HOST: http://localhost:7700
+      MEILISEARCH_KEY: masterKey
+      SCOUT_QUEUE: false
       #APP_DEBUG: true
     strategy:
       fail-fast: false
@@ -73,6 +76,15 @@ jobs:
         image: rabbitmq
         ports:
           - 5672:5672
+      meilisearch:
+        image: getmeili/meilisearch:latest
+        env:
+          MEILI_MASTER_KEY: masterKey
+          MEILI_NO_ANALYTICS: true
+          MEILI_ENV: development
+          MEILI_DB_PATH: data.ms
+        ports:
+          - 7700:7700
     steps:
       - uses: actions/checkout@v3
 
@@ -109,32 +121,8 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
-      - name: Run Migrations
-        run: php artisan migrate
-
-      - name: Run Inventory Migrations
-        run: php artisan migrate --path database/migrations/Inventory/ --database inventory
-
-      - name: Run Social Migrations
-        run: php artisan migrate --path database/migrations/Social/ --database social
-
-      - name: Run Guild Migrations
-        run: php artisan migrate --path database/migrations/Guild/ --database crm
-
-      - name: Run Seeders
-        run: php artisan db:seed
-
-      - name: Create Role Admin
-        run: php artisan kanvas:create-role Admin
-
-      - name: Create Role Users
-        run: php artisan kanvas:create-role Users
-
-      - name: Create Role Agents
-        run: php artisan kanvas:create-role Agents
-
-      - name: Set filesystem configs
-        run: php artisan kanvas:filesystem-setup
+      - name: Setup Kanvas Ecosystem
+        run: php artisan kanvas:setup-ecosystem
 
       - name: Run Tests
         if: success()

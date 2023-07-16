@@ -18,7 +18,7 @@ use Kanvas\Guild\Models\BaseModel;
  * @property int $users_id
  * @property int $companies_id
  * @property string $name
- * @property string $address
+ * @property ?string $address = null
  */
 class Organization extends BaseModel
 {
@@ -50,5 +50,19 @@ class Organization extends BaseModel
             'id',
             'organizations_relations_type_id'
         );
+    }
+
+    /**
+     * @psalm-suppress MixedReturnStatement
+     */
+    public function addPeople(People $people): OrganizationPeople
+    {
+        return OrganizationPeople::firstOrCreate([
+            'organizations_id' => $this->getId(),
+            'peoples_id' => $people->getId(),
+        ], [
+            'created_at' => date('Y-m-d H:i:s'),
+
+        ]);
     }
 }

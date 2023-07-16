@@ -6,10 +6,15 @@ namespace Kanvas\Inventory\Variants\Models;
 
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
+use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
+use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
@@ -147,5 +152,28 @@ class Variants extends BaseModel
                 'is_published',
                 'warehouses_id'
             );
+    }
+
+    /**
+     * Add/create new attributes from a variant.
+     *
+     * @param ModelVariants $variants
+     * @param array $attributes
+     * @return void
+     */
+    public function addAttributes(UserInterface $user, array $attributes): void
+    {
+        foreach ($attributes as $attribute) {
+            $attributesDto = AttributesDto::from([
+                'app' => app(Apps::class),
+                'user' => $user,
+                'company' => $this->product->companies,
+                'name' => $attribute['name'],
+                'value' => $attribute['value']
+            ]);
+
+            $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
+            (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
+        }
     }
 }

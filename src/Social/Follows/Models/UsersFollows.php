@@ -8,6 +8,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 
+/**
+ *  class UsersFollows
+ *  @property int $id
+ *  @property int $users_id
+ *  @property int $entity_id
+ *  @property int $companies_id
+ *  @property int $companies_branches_id
+ *  @property int $entity_namespace
+*/
 class UsersFollows extends BaseModel
 {
     protected $guarded = [];

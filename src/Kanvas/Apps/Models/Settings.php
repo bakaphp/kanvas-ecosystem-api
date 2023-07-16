@@ -29,6 +29,10 @@ class Settings extends BaseModel
 
     protected $primaryKey = ['apps_id', 'name'];
 
+    protected $casts = [
+        'value' => 'array',
+    ];
+
     /**
      * Apps relationship.
      *

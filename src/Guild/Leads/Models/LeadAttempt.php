@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
 
+use Baka\Traits\NoAppRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Models\BaseModel;
@@ -26,8 +27,14 @@ use Kanvas\Guild\Models\BaseModel;
  */
 class LeadAttempt extends BaseModel
 {
+    use NoAppRelationshipTrait;
+
     protected $table = 'leads_attempt';
     protected $guarded = [];
+    protected $casts = [
+        'request' => 'array',
+        'header' => 'array',
+    ];
 
     public function lead(): BelongsTo
     {

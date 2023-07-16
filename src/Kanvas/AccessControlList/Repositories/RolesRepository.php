@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\AccessControlList\Repositories;
 
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Models\Apps;
@@ -13,42 +12,47 @@ use Kanvas\Companies\Models\Companies;
 
 class RolesRepository
 {
+    public static function getByMixedParamFromCompany(int|string $param, ?Companies $company = null): Role
+    {
+        return is_numeric($param) ? RolesRepository::getByIdFromCompany((int) $param) : RolesRepository::getByNameFromCompany($param);
+    }
+
+    /**
+     * @psalm-suppress MixedReturnStatement
+     */
+    public static function getByNameFromCompany(string $name, ?Companies $company = null): Role
+    {
+        return Role::where('name', $name)
+            ->where('scope', RolesEnums::getScope(app(Apps::class), null))
+            ->firstOrFail();
+    }
+
+    /**
+     * @psalm-suppress MixedReturnStatement
+     */
+    public static function getByIdFromCompany(int $id, ?Companies $company = null): Role
+    {
+        return Role::where('id', $id)
+                ->where('scope', RolesEnums::getScope(app(Apps::class), null))
+                ->firstOrFail();
+    }
+
     /**
      * getAllRoles.
-     *
-     * @return ?Collection
+     * @psalm-suppress MixedReturnStatement
      */
-    public static function getAllRoles(): ?Collection
+    public static function getAllRoles(): Collection
     {
-        return Role::whereNull('scope')
-            ->orWhere('scope', self::getScope())
+        return Role::where('scope', RolesEnums::getScope(app(Apps::class), null))
             ->orderBy('id', 'desc')
             ->get();
     }
 
     /**
-     * getScope.
-     *
-     * @return string
-     */
-    public static function getScope(?Model $user = null, ?Companies $company = null): string
-    {
-        $app = app(Apps::class);
-        $user = $user ?? auth()->user();
-        $company = $company ?? $user->getCurrentCompany();
-
-        return RolesEnums::getKey($app, $company);
-    }
-
-    /**
      * Get app list of default roles.
-     *
-     * @param Apps $app
-     *
-     * @return Collection
      */
     public static function getAppRoles(Apps $app): Collection
     {
-        return Role::where('scope', RolesEnums::getKey($app))->get();
+        return Role::where('scope', RolesEnums::getScope($app))->get();
     }
 }

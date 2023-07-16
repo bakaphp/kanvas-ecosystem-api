@@ -20,9 +20,7 @@ class CreateInCurrentAppAction
     }
 
     /**
-     * Invoke function.
-     *
-     * @return SystemModules
+     * @psalm-suppress MixedReturnStatement
      */
     public function execute(string $class): SystemModules
     {

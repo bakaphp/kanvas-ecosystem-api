@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Apps\Actions;
 
 use Illuminate\Support\Facades\DB;
+use Kanvas\AccessControlList\Actions\CreateRoleAction;
 use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
@@ -158,6 +159,13 @@ class CreateAppsAction
                 'is_active' => 1,
                 'scope' => 0,
             ]);
+
+            $newRole = new CreateRoleAction(
+                $role,
+                $role,
+                $app
+            );
+            $newRole->execute();
         }
     }
 }
