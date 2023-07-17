@@ -32,9 +32,9 @@ class NotificationSettingTest extends TestCase
         $this->assertArrayHasKey('data', $response);
     }
 
-     /**
-     * testMuteAll.
-     */
+    /**
+    * testMuteAll.
+    */
     public function testMuteAll(): void
     {
         $response = $this->graphQL(/** @lang GraphQL */ '
