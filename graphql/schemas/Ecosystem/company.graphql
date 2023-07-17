@@ -9,6 +9,7 @@ type Company {
     language: String
     timezone: String
     phone: String
+    groups: [CompanyGroup!]! @hasMany(relation: "groups")
     branches: [CompanyBranch!]! @hasMany(relation: "branches") #need to filter by the branches the user has access to
     country_code: String
     created_at: DateTime
@@ -19,7 +20,7 @@ type CompanyGroup {
     id: ID!
     uuid: String!
     name: String!
-    app: App!
+    app: App! @belongsTo(relation: "app")
     stripe_id: String
     is_default: Int!
     country_code: String
@@ -37,20 +38,19 @@ type CompanyAssociation {
 
 type CompanyBranch {
     id: ID!
-    companies_id: ID!
+    company: Company! @belongsTo(relation: "company")
     name: String!
     email: String
     phone: String
     zipcode: Int
-    company: Company!
     is_default: Boolean!
     created_at: DateTime
     updated_at: DateTime
 }
 
 type CompanySettings {
-    company: Company!
-    name: String!
+    company: Company! @belongsTo(relation: "company")
+    name: ID!
     value: String
     created_at: DateTime
     updated_at: DateTime

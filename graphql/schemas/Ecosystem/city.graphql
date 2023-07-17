@@ -12,9 +12,8 @@ extend type Query {
                     "country_id"
                 ]
             )
-    ): [Cities] @paginate(model: "Kanvas\\Locations\\Models\\Cities")
-    city(id: Int!): Cities
-        @find(model: "Kanvas\\Locations\\Models\\Cities")
+    ): [Cities!]! @paginate(model: "Kanvas\\Locations\\Models\\Cities")
+    city(id: Int!): Cities @find(model: "Kanvas\\Locations\\Models\\Cities")
 }
 
 extend type Mutation {
@@ -22,17 +21,17 @@ extend type Mutation {
         name: String!
         latitude: Float!
         longitude: Float!
-        states_id: Int!
-        countries_id: Int!
+        states_id: ID!
+        countries_id: ID!
     ): Cities @create(model: "Kanvas\\Locations\\Models\\Cities")
     updateCities(
-        id: Int!
+        id: ID!
         name: String
         latitude: Float
         longitude: Float
-        states_id: Int
-        countries_id: Int
+        states_id: ID
+        countries_id: ID
     ): Cities @update(model: "Kanvas\\Locations\\Models\\Cities")
-    deleteCities(id: Int!): Cities
+    deleteCities(id: ID!): Cities
         @delete(model: "Kanvas\\Locations\\Models\\Cities")
 }

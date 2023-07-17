@@ -1,17 +1,16 @@
 type NotificationSettings {
     users_id: Int!
     apps_id: Int!
-    notifications_types_id: Int!
-    types: NotificationType
+    types: NotificationType @belongsTo
     is_enabled: Boolean!
-    channels: [NotificationChannels]
+    channels: [NotificationChannels!]!
     created_at: String!
     updated_at: String!
     is_deleted: Int!
 }
 
 type NotificationSettingsInput {
-    notifications_types_id: Int!
+    notifications_types_id: ID!
     is_enabled: Int!
     channels: String!
 }
@@ -33,7 +32,7 @@ extend type Query @guard {
             )
         filterByChannel: NotificationChannels
             @whereJsonContains(key: "channels")
-    ): [NotificationSettings]
+    ): [NotificationSettings!]!
         @paginate(
             model: "Kanvas\\Notifications\\Models\\UsersNotificationsSettings"
             scopes: ["appUser"]
@@ -48,7 +47,7 @@ extend type Mutation @guard {
     setNotificationSettings(
         notifications_types_id: Int!
         is_enabled: Int!
-        channels: [NotificationChannels]
+        channels: [NotificationChannels!]!
     ): NotificationSettings!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\NotificationSettingsMutation@setNotificationSettings"

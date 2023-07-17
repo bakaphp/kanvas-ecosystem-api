@@ -1,11 +1,11 @@
 type SystemModule {
-    id: Int!
+    id: ID!
     uuid: String!
     name: String!
     slug: String!
     model_name: String!
-    apps_id: Int!
-    parent: SystemModule
+    app: App! @belongsTo 
+    parent: SystemModule @belongsTo
     menu_order: Int
     show: Int!
 }
@@ -13,8 +13,8 @@ type SystemModule {
 input SystemModuleEntityInput {
     name: String
     data: Mixed
-    system_module_uuid: String!
-    entity_id: String!
+    system_module_uuid: ID!
+    entity_id: ID!
 }
 
 extend type Query @guard {
@@ -31,7 +31,7 @@ extend type Query @guard {
                 ]
             )
         orderBy: _ @orderBy(columns: ["id"])
-    ): [SystemModule!]
+    ): [SystemModule!]!
         @paginate(
             model: "Kanvas\\SystemModules\\Models\\SystemModules"
             scopes: ["filterByApp"]
