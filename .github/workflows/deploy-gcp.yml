@@ -3,6 +3,7 @@ name: Deploy To GCP
 on:
   push:
     branches:
+      - '1.x'
       - 'development'
 
   workflow_dispatch:
