@@ -328,7 +328,6 @@ class ProductImporterAction
                 }
 
                 if ($attributeModel instanceof Attributes && ! empty($attribute['value'])) {
-                    
                     (new ActionsAddAttributeAction($variantModel, $attributeModel, $attribute['value']))->execute();
                 }
             }
