@@ -7,6 +7,7 @@ namespace Kanvas\Social\UsersLists\Models;
 use Baka\Traits\KanvasAppScopesTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\SoftDeletes;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Apps\Models\Apps;
@@ -14,6 +15,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Models\BaseModel;
+use Kanvas\Social\Topics\Models\Topic;
 use Kanvas\Users\Models\Users;
 use Laravel\Scout\Searchable;
 
@@ -43,6 +45,31 @@ class UserList extends BaseModel
         'files',
     ];
 
+    public function topicsItems(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => Topic::join('entity_topics', 'entity_topics.topics_id', '=', 'topics.id')
+                ->join('messages', 'messages.id', '=', 'entity_topics.entity_id')
+                ->join('users_lists_messages', 'users_lists_messages.messages_id', '=', 'messages.id')
+                ->where('entity_topics.entity_namespace', Message::class)
+                ->where('users_lists_messages.users_lists_id', $this->getId())
+                ->select('topics.*')
+                // ->groupBy('topics.id')
+                ->get()
+        );
+    }
+
+    public function ownAllItems(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => (Message::join('users_lists_messages', 'users_lists_messages.messages_id', '=', 'messages.id')
+                ->where('users_lists_messages.users_lists_id', $this->getId())
+                ->where('messages.users_id', auth()->user()->getId())
+                ->select('messages.*')
+                ->count() == $this->items->count()) && $this->items->count() > 0
+        );
+    }
+
     public function user(): BelongsTo
     {
         return $this->setConnection('ecosystem')->belongsTo(Users::class, 'users_id');
@@ -61,6 +88,14 @@ class UserList extends BaseModel
     public function items(): BelongsToMany
     {
         return $this->belongsToMany(Message::class, 'users_lists_messages', 'users_lists_id', 'messages_id')->orderBy('weight', 'ASC');
+    }
+
+    public function followers(): BelongsToMany
+    {
+        $database = config('database.connections.social.database');
+
+        return $this->setConnection('ecosystem')->belongsToMany(Users::class, $database . '.users_follows', 'entity_id', 'users_id')
+            ->where('entity_namespace', self::class);
     }
 
     /**

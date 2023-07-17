@@ -6,17 +6,19 @@ namespace Kanvas\Social\Messages\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany ;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Social\Messages\Factories\MessageFactory;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
+use Kanvas\Social\Topics\Models\Topic;
 use Kanvas\Users\Models\Users;
 use Laravel\Scout\Searchable;
-use Illuminate\Database\Eloquent\Factories\Factory;
-use Kanvas\Social\Messages\Factories\MessageFactory;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 /**
  *  Class Message
@@ -58,6 +60,7 @@ class Message extends BaseModel
     {
         return MessageFactory::new();
     }
+
     /**
       * Get the name of the index associated with the model.
       */
@@ -112,5 +115,10 @@ class Message extends BaseModel
     public function appModuleMessage(): HasOne
     {
         return $this->setConnection('ecosystem')->hasOne(AppModuleMessage::class, 'message_id');
+    }
+
+    public function topics(): BelongsToMany
+    {
+        return $this->belongsToMany(Topic::class, 'entity_topics', 'entity_id', 'topics_id')->where('entity_namespace', self::class);
     }
 }

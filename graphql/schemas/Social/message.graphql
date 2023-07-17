@@ -15,6 +15,7 @@ type Message {
     user: User!
     messageType: MessageType!
     appModuleMessage: AppModuleMessage
+    topics: [Topic]
 }
 
 type AppModuleMessage {

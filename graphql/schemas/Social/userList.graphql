@@ -19,11 +19,14 @@ type UserList @model(class: "\\Kanvas\\Social\\UsersLists\\Models\\UserList") {
     description: String
     is_public: Boolean
     is_default: Boolean!
+    own_all_items: Boolean!
+    topics_items: [Topic]
     user: User!
     apps: [App]
     company: Company!
     items: [Message]
-    files: [Filesystem]
+    files: [Filesystem],
+    followers: [User]
     created_at: DateTime!
     updated_at: DateTime!
 }
@@ -49,13 +52,32 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@removeFromList"
         )
+    followList(
+        users_lists_id: Int!
+    ): UserList 
+    @field(
+        resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@followList"
+    )
+    unFollowList(
+        users_lists_id: Int!
+    ): UserList
+    @field(
+        resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@unFollowList"
+    )
+    
 }
 
 extend type Query @guard {
     getUsersLists(
         where: _
             @whereConditions(
-                columns: ["id", "company_id", "name", "description"]
+                columns: [
+                    "id",
+                    "company_id",
+                    "name",
+                    "description",
+                    "is_public"
+                ]
             )
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
     ): [UserList!]!
@@ -64,10 +86,17 @@ extend type Query @guard {
             scopes: ["fromApp", "fromUser"]
             defaultCount: 25
         )
+    isFollowingList(
+        user_list_id: Int!
+    ): Boolean
+    @field(
+        resolver: "App\\GraphQL\\Social\\Queries\\UsersLists\\UsersListsQuery@isFollowingList"
+    )
 }
 
 extend type Query {
     searchUsersLists(
+        where: _@whereConditions(columns: ["users_id"])
         search: String
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
     ): [UserList!]!
@@ -81,4 +110,11 @@ extend type Query {
         @field(
             resolver: "App\\GraphQL\\Social\\Queries\\UsersLists\\UsersListsQuery@getFileByName"
         )
+    getUsersListsFollowers(
+        user_list_id: Int!
+    ): [User] 
+    @field(
+        resolver: "App\\GraphQL\\Social\\Queries\\UsersLists\\UsersListsQuery@getUsersListsFollowers"
+    )
+
 }

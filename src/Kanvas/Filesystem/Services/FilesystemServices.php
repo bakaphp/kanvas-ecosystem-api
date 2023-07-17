@@ -32,14 +32,14 @@ class FilesystemServices
     public function upload(UploadedFile $file, Users $user): ModelsFilesystem
     {
         $path = $this->app->get('cloud-bucket-path') ?? '/';
-        $uploadedFile = $this->storage->put(
+
+        $uploadedFile = $this->storage->putFile(
             $path,
             $file,
             [
                 'visibility' => 'public',
             ]
         );
-
         $createFileSystem = new CreateFilesystemAction($file, $user);
 
         return $createFileSystem->execute(
@@ -101,7 +101,8 @@ class FilesystemServices
             'bucket' => $this->app->get('cloud-bucket'),
             'url' => $this->app->get('cloud-cdn'),
             'path' => $this->app->get('cloud-bucket-path') ?? '/',
-            'use_path_style_endpoint' => false,
+            'use_path_style_endpoint' => true,
+            'endpoint' => $this->app->get('cloud-cdn'),
         ]);
     }
 

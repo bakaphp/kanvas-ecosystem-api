@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Social\Mutations\UsersLists;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Social\Follows\Actions\FollowAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\UsersLists\Actions\CreateUserListAction;
 use Kanvas\Social\UsersLists\DataTransferObject\UserList;
@@ -67,5 +68,21 @@ class UsersListsManagement
         $userList->items()->detach($message);
 
         return $userList;
+    }
+
+    public function followList(mixed $rootValue, array $req): bool
+    {
+        $userList = UserListRepository::getById($req['users_lists_id']);
+        FollowAction::execute(auth()->user(), $userList);
+
+        return true;
+    }
+
+    public function unFollowList(mixed $rootValue, array $req): bool
+    {
+        $userList = UserListRepository::getById($req['users_lists_id']);
+        UnFollowAction::execute(auth()->user(), $userList);
+
+        return true;
     }
 }
