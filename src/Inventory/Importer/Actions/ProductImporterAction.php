@@ -233,7 +233,7 @@ class ProductImporterAction
                 }
             }
 
-            if ($attributeModel && ! empty($attribute['value'])) {
+            if ($attributeModel instanceof Attributes && ! empty($attribute['value'])) {
                 (new AddAttributeAction($this->product, $attributeModel, $attribute['value']))->execute();
             }
         }
@@ -327,7 +327,7 @@ class ProductImporterAction
                     }
                 }
 
-                if ($attributeModel && ! empty($attribute['value'])) {
+                if ($attributeModel instanceof Attributes && ! empty($attribute['value'])) {
                     (new ActionsAddAttributeAction($variantModel, $attributeModel, $attribute['value']))->execute();
                 }
             }
