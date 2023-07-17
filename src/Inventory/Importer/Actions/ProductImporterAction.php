@@ -218,13 +218,13 @@ class ProductImporterAction
                 );
             }
 
-            if (! $attributeModel) {
+            if (! $attributeModel && ! empty($attribute['name']) && ! empty($attribute['value'])) {
                 $attributesDto = AttributesDto::from([
                     'app' => $this->app,
                     'user' => $this->user,
                     'company' => $this->company,
                     'name' => $attribute['name'],
-                    'value' => $attribute['value']
+                    'value' => $attribute['value'],
                 ]);
                 $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
 
@@ -232,7 +232,10 @@ class ProductImporterAction
                     $attributeModel->setLinkedSource($this->importedProduct->source, $attribute['source_id']);
                 }
             }
-            (new AddAttributeAction($this->product, $attributeModel, $attribute['value']))->execute();
+
+            if ($attributeModel && ! empty($attribute['value'])) {
+                (new AddAttributeAction($this->product, $attributeModel, $attribute['value']))->execute();
+            }
         }
     }
 
@@ -309,13 +312,13 @@ class ProductImporterAction
                     );
                 }
 
-                if (! $attributeModel) {
+                if (! $attributeModel && ! empty($attribute['name']) && ! empty($attribute['value'])) {
                     $attributesDto = AttributesDto::from([
                         'app' => $this->app,
                         'user' => $this->user,
                         'company' => $this->company,
                         'name' => $attribute['name'],
-                        'value' => $attribute['value']
+                        'value' => $attribute['value'],
                     ]);
                     $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
 
@@ -323,7 +326,10 @@ class ProductImporterAction
                         $attributeModel->setLinkedSource($this->importedProduct->source, $attribute['source_id']);
                     }
                 }
-                (new ActionsAddAttributeAction($variantModel, $attributeModel, $attribute['value']))->execute();
+
+                if ($attributeModel && ! empty($attribute['value'])) {
+                    (new ActionsAddAttributeAction($variantModel, $attributeModel, $attribute['value']))->execute();
+                }
             }
         }
     }
