@@ -38,9 +38,9 @@ class CustomFieldQuery
         return $customFields;
     }
 
-     /**
-     * Get custom field
-     */
+    /**
+    * Get custom field
+    */
     public function get(mixed $rootValue, array $request): mixed
     {
         $customFieldInput = new  CustomFieldInput(
