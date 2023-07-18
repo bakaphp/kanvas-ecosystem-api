@@ -26,7 +26,7 @@ class UserManagementMutation
     public function changePassword(mixed $root, array $req): bool
     {
         $user = UsersRepository::getByEmail(AuthFacade::user()->email);
-        $user->resetPassword((string) $req['new_password'], app(Apps::class));
+        $user->changePassword((string) $req['current_password'], (string) $req['new_password'], app(Apps::class));
         $user->notify(new ChangePasswordUserLogged($user));
 
         return true;

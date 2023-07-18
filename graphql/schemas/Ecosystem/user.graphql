@@ -145,6 +145,7 @@ extend type Mutation {
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@refreshToken"
         )
     changePassword(
+        current_password: String! @rules(apply: ["string"])
         new_password: String! @rules(apply: ["string", "confirmed"])
         new_password_confirmation: String
     ): Boolean!

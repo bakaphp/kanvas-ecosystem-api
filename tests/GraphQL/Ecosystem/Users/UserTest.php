@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Users;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\LoginInput;
+use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 class UserTest extends TestCase
@@ -83,6 +85,7 @@ class UserTest extends TestCase
     public function testChangePassword()
     {
         $newPassword = 'abc123456';
+        $currentPassword = 'abcabc123456';
         $userData = $this->graphQL(/** @lang GraphQL */ '
             { 
                 me {
@@ -94,18 +97,24 @@ class UserTest extends TestCase
         ');
 
         $userDataProfile = $userData->json();
+        $user = Users::getById($userDataProfile['data']['me']['id']);
+        $user->resetPassword($currentPassword, app(Apps::class));
+
         $email = $userDataProfile['data']['me']['email'];
 
         $this->graphQL(/** @lang GraphQL */ '
             mutation changePassword(
+                $current_password: String!
                 $new_password: String!
                 $new_password_confirmation: String
             ) {
                 changePassword(
+                    current_password: $current_password
                     new_password: $new_password
                     new_password_confirmation: $new_password_confirmation)
             }
         ', [
+            'current_password' => $currentPassword,
             'new_password' => $newPassword,
             'new_password_confirmation' => $newPassword,
         ])->assertJson([
@@ -113,6 +122,30 @@ class UserTest extends TestCase
                 'changePassword' => true,
             ],
         ]);
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation login($data: LoginInput!) {
+                login(data: $data) {
+                  id
+                  token
+                  refresh_token
+                  token_expires
+                  refresh_token_expires
+                  time
+                  timezone
+                }
+              }
+
+        ', [
+            'data' => [
+                'email' => $email,
+                'password' => $currentPassword,
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertSee('errors')
+        ->assertSee('message')
+        ->assertSee('Invalid email or password.');
 
         $this->graphQL(/** @lang GraphQL */ '
             mutation login($data: LoginInput!) {
