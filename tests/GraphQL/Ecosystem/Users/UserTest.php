@@ -66,7 +66,7 @@ class UserTest extends TestCase
                         [
                             'name' => 'test',
                             'data' => 'test',
-                        ]
+                        ],
                     ],
                 ],
             ]
@@ -82,6 +82,20 @@ class UserTest extends TestCase
 
     public function testChangePassword()
     {
+        $newPassword = 'abc123456';
+        $userData = $this->graphQL(/** @lang GraphQL */ '
+            { 
+                me {
+                    id,
+                    uuid,
+                    email
+                }
+            }
+        ');
+
+        $userDataProfile = $userData->json();
+        $email = $userDataProfile['data']['me']['email'];
+
         $this->graphQL(/** @lang GraphQL */ '
             mutation changePassword(
                 $new_password: String!
@@ -92,12 +106,40 @@ class UserTest extends TestCase
                     new_password_confirmation: $new_password_confirmation)
             }
         ', [
-            'new_password' => 'abc123456',
-            'new_password_confirmation' => 'abc123456',
+            'new_password' => $newPassword,
+            'new_password_confirmation' => $newPassword,
         ])->assertJson([
             'data' => [
                 'changePassword' => true,
             ],
         ]);
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation login($data: LoginInput!) {
+                login(data: $data) {
+                  id
+                  token
+                  refresh_token
+                  token_expires
+                  refresh_token_expires
+                  time
+                  timezone
+                }
+              }
+
+        ', [
+            'data' => [
+                'email' => $email,
+                'password' => $newPassword,
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertSee('id')
+        ->assertSee('token')
+        ->assertSee('token_expires')
+        ->assertSee('refresh_token_expires')
+        ->assertSee('time')
+        ->assertSee('timezone')
+        ->assertSee('refresh_token');
     }
 }
