@@ -1,0 +1,64 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\GraphQL\Inventory\Mutations\Status;
+
+use Kanvas\Inventory\Status\Actions\CreateStatus;
+use Kanvas\Inventory\Status\DataTransferObject\Status as StatusDto;
+use Kanvas\Inventory\Status\Models\Status as StatusModel;
+use Kanvas\Inventory\Status\Repositories\StatusRepository;
+
+class StatusMutation
+{
+    /**
+     * create.
+     *
+     * @param  mixed $rootValue
+     * @param  array $args
+     *
+     * @return StatusModel
+     */
+    public function create(mixed $rootValue, array $request): StatusModel
+    {
+        $data = $request['input'];
+        $dto = StatusDto::viaRequest($data);
+        $status = (new CreateStatus($dto, auth()->user()))->execute();
+
+        return $status;
+    }
+
+    /**
+     * update.
+     *
+     * @param  mixed $rootValue
+     * @param  array $request
+     *
+     * @return StatusModel
+     */
+    public function update(mixed $rootValue, array $request): StatusModel
+    {
+        $id = $request['id'];
+        $data = $request['input'];
+        $status = StatusRepository::getById($id, auth()->user()->getCurrentCompany());
+        $status->update($data);
+
+        return $status;
+    }
+
+    /**
+     * delete.
+     *
+     * @param  mixed $rootValue
+     * @param  array $request
+     *
+     * @return bool
+     */
+    public function delete(mixed $rootValue, array $request): bool
+    {
+        $id = $request['id'];
+        $status = StatusRepository::getById($id, auth()->user()->getCurrentCompany());
+
+        return $status->delete();
+    }
+}

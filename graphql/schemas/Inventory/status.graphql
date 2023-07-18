@@ -1,0 +1,43 @@
+type Status {
+    id: Int!
+    name: String!
+    slug: String
+}
+input StatusInput {
+    name: String!
+}
+input StatusInputUpdate {
+    name: String!
+}
+extend type Mutation @guard {
+    createStatus(input: StatusInput!): Status!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@create"
+        )
+    updateStatus(id: Int!, input: StatusInputUpdate!): Status!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@update"
+        )
+    deleteStatus(id: Int!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@delete"
+        )
+}
+
+extend type Query @guard {
+    getStatus(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "slug"
+                ]
+            )
+    ): [Status!]
+        @paginate(
+            model: "Kanvas\\Inventory\\Status\\Models\\Status"
+            scopes: ["fromApp", "fromCompany"]
+            defaultCount: 10
+        )
+}
