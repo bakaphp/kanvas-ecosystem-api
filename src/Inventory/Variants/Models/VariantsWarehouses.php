@@ -6,9 +6,10 @@ namespace Kanvas\Inventory\Variants\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 /**
@@ -19,6 +20,7 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
  * @property int $quantity
  * @property float $price
  * @property string $sku
+ * @property int $status_id
  * @property int $position
  * @property string $serial_number
  * @property int $is_default
@@ -69,5 +71,10 @@ class VariantsWarehouses extends BaseModel
     public function warehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouses::class, 'warehouses_id');
+    }
+
+    public function status(): HasOne
+    {
+        return $this->hasOne(Status::class, 'status_id');
     }
 }

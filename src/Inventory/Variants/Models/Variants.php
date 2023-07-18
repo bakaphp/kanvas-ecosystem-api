@@ -10,6 +10,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
@@ -18,6 +19,7 @@ use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Laravel\Scout\Searchable;
@@ -35,6 +37,7 @@ use Laravel\Scout\Searchable;
  * @property string short_description
  * @property string html_description
  * @property string sku
+ * @property int status_id
  * @property string ean
  * @property string barcode
  * @property string serial_number
@@ -95,6 +98,11 @@ class Variants extends BaseModel
     public function variantWarehouses(): HasMany
     {
         return $this->hasMany(VariantsWarehouses::class, 'products_variants_id');
+    }
+
+    public function status(): HasOne
+    {
+        return $this->hasOne(Status::class, 'status_id');
     }
 
     /**
