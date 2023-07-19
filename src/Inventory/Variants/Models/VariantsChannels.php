@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Variants\Models;
 
 use Baka\Traits\HasCompositePrimaryKeyTrait;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Models\BaseModel;
 
 /**
@@ -25,12 +27,16 @@ class VariantsChannels extends BaseModel
 
     protected $table = 'products_variants_channels';
     protected $guarded = [
-        'products_variants_id',
+        'product_variants_warehouse_id',
         'channels_id',
-        'warehouses_id',
         'price',
         'discount_price'
     ];
 
-    protected $primaryKey = ['products_variants_id', 'channels_id', 'warehouses_id'];
+    protected $primaryKey = ['product_variants_warehouse_id', 'channels_id'];
+
+    public function channel(): BelongsTo
+    {
+        return $this->belongsTo(Channels::class, 'channels_id');
+    }
 }

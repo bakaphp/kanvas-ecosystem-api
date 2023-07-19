@@ -9,6 +9,8 @@ use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Inventory\Support\Setup;
+use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
+use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses as WarehousesDto;
 use Tests\TestCase;
 
 final class ImporterTest extends TestCase
@@ -37,6 +39,20 @@ final class ImporterTest extends TestCase
             ],
         ];
 
+        $region = RegionRepository::getByName('default', $company);
+
+        $warehouse = [
+            'name' => fake()->word(),
+            'regions_id' => $region->getId(),
+            'is_default' => true,
+            'is_published' => 1,
+        ];
+
+        $warehouseData = (new CreateWarehouseAction(
+            WarehousesDto::viaRequest($warehouse),
+            auth()->user()
+        ))->execute();
+
         $productData = ProductImporter::from([
             'name' => fake()->word(),
             'description' => fake()->sentence(),
@@ -58,6 +74,7 @@ final class ImporterTest extends TestCase
             'variants' => [
                 [
                     'name' => fake()->word(),
+                    'warehouse_id' => $warehouseData->getId(),
                     'description' => fake()->sentence(),
                     'sku' => fake()->word(),
                     'price' => fake()->randomNumber(2),
@@ -77,6 +94,7 @@ final class ImporterTest extends TestCase
                 ],
                 [
                     'name' => fake()->word(),
+                    'warehouse_id' => $warehouseData->getId(),
                     'description' => fake()->sentence(),
                     'sku' => fake()->word(),
                     'price' => fake()->randomNumber(2),
@@ -99,7 +117,7 @@ final class ImporterTest extends TestCase
             $productData,
             $company,
             auth()->user(),
-            RegionRepository::getByName('default', $company)
+            $region
         );
 
         $this->assertTrue($productImporter->execute());
