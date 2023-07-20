@@ -101,6 +101,7 @@ After doing all the steps above, you could run the project with Laravel Octane b
 
 Use `--watch` in development allowing you to refresh modified files , this works assuming to have `npm install chokidar` installed in the project.
 ****
+
 Note: 
 - To install Swoole you can use the command ```pecl install swoole``` 
 - For production remove `--watch` from the command.

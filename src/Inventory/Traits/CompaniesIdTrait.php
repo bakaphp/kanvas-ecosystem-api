@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Traits;
 
+/**
+ * @todo remove this trait
+ */
 trait CompaniesIdTrait
 {
     public static function bootCompaniesIdTrait()

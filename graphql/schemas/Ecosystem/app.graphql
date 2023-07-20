@@ -1,12 +1,12 @@
 type App {
-    id: Int!
+    id: ID!
     name: String!
     description: String
     url: String
     domain: String
     default_apps_plan_id: Int
     is_actived: Int
-    key: String
+    key: ID!
     payments_active: Int
     ecosystem_auth: Int
     is_public: Int
@@ -16,7 +16,7 @@ type App {
 }
 
 type Template {
-    id: Int!
+    id: ID!
     name: String!
     template: String!
 }
@@ -28,7 +28,7 @@ input AppInput {
     domain: String!
     default_apps_plan_id: Int
     is_actived: Int
-    key: String
+    key: ID
     payments_active: Int!
     ecosystem_auth: Int!
     is_public: Int!
@@ -36,25 +36,25 @@ input AppInput {
 }
 
 input appSettingInput {
-    name: String!
+    name: ID!
     value: Mixed!
 }
 
-input s3FilesystemConfig {
-    key: String!
+type s3FilesystemConfig {
+    key: ID!
     secret: String!
     region: String!
     bucket: String
     url: String
 }
 
-input gcsFilesystemConfig {
+type gcsFilesystemConfig {
     type: String!
-    project_id: String!
-    private_key_id: String!
-    private_key: String!
+    project_id: ID!
+    private_key_id: ID!
+    private_key: ID!
     client_email: String!
-    client_id: String!
+    client_id: ID!
     token_uri: String!
     auth_uri: String!
     auth_provider_x509_cert_url: String
@@ -62,22 +62,22 @@ input gcsFilesystemConfig {
 }
 
 input s3FilesystemConfigInput {
-    name: String!
+    name: ID!
     value: s3FilesystemConfig!
 }
 
 input gcsFilesystemConfigInput {
-    name: String!
+    name: ID!
     value: gcsFilesystemConfig!
 }
 
 input templateInput {
-    name: String!
+    name: ID!
     template: String!
 }
 
 type AppSettings {
-    name: String!
+    name: ID!
     description: String
     settings: Mixed!
 }

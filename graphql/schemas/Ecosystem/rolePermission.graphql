@@ -1,5 +1,5 @@
 type Role {
-    id: Int!
+    id: ID!
     name: String!
     title: String
     scope: String
@@ -10,15 +10,15 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleQuery@getAllRoles"
         )
-    hasRole(userId: Int!, role: Mixed!): Boolean
+    hasRole(userId: ID!, role: Mixed!): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleQuery@hasRole"
         )
-    can(userId: Int!, permission: String): Boolean
+    can(userId: ID!, permission: String): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RolePermissionQuery@can"
         )
-    getAllAbilities(userId: Int!): [String]
+    getAllAbilities(userId: ID!): [String]
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleAbilitiesQuery@getAllAbilities"
         )
@@ -29,25 +29,25 @@ extend type Mutation @guardByAdmin {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@createRole"
         )
-    updateRole(id: Int!, name: String, title: String): Role
+    updateRole(id: ID!, name: String, title: String): Role
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@updateRole"
         )
 
     #assign role to the company and to the app
-    assignRoleToUser(userId: Int!, role: Mixed!): Boolean
+    assignRoleToUser(userId: ID!, role: Mixed!): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@assignRoleToUser"
         )
-    removeRole(userId: Int!, role: Mixed!): Boolean
+    removeRole(userId: ID!, role: Mixed!): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@removeRoleFromUser"
         )
-    givePermissionToUser(userId: Int!, permission: String!): Boolean
+    givePermissionToUser(userId: ID!, permission: String!): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@givePermissionToUser"
         )
-    removePermissionToUser(userId: Int!, permission: String!): Boolean
+    removePermissionToUser(userId: ID!, permission: String!): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@removePermissionToUser"
         )

@@ -15,7 +15,7 @@ class UsersAbilitiesTest extends TestCase
         $this->graphQL(/** @lang GraphQL */
             '
             query getAllAbilities(
-                $userId: Int!
+                $userId: ID!
             ) {
                 getAllAbilities(
                     userId: $userId
@@ -38,7 +38,7 @@ class UsersAbilitiesTest extends TestCase
         $this->graphQL(/** @lang GraphQL */
             '
             mutation(
-                $userId: Int!
+                $userId: ID!
                 $permission: String!
             ) {
                 givePermissionToUser(
@@ -64,7 +64,7 @@ class UsersAbilitiesTest extends TestCase
         $this->graphQL(/** @lang GraphQL */
             '
             mutation(
-                $userId: Int!
+                $userId: ID!
                 $permission: String!
             ) {
                 givePermissionToUser(
@@ -85,7 +85,7 @@ class UsersAbilitiesTest extends TestCase
         $this->graphQL(/** @lang GraphQL */
             '
             mutation(
-                $userId: Int!
+                $userId: ID!
                 $permission: String!
             ) {
                 removePermissionToUser(
@@ -111,7 +111,7 @@ class UsersAbilitiesTest extends TestCase
         $this->graphQL(/** @lang GraphQL */
             '
             mutation(
-                $userId: Int!
+                $userId: ID!
                 $permission: String!
             ) {
                 givePermissionToUser(
@@ -132,7 +132,7 @@ class UsersAbilitiesTest extends TestCase
         $this->graphQL(/** @lang GraphQL */
             '
             query(
-                $userId: Int!
+                $userId: ID!
                 $permission: String!
             ) {
                 can(

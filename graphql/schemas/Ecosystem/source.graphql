@@ -1,5 +1,5 @@
 type Source {
-    id: Int!
+    id: ID!
     title: String!
     url: String!
     language: Language! @belongsTo

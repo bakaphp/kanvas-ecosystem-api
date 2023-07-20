@@ -1,10 +1,11 @@
 type Lead {
-    id: Int!
+    id: ID!
     uuid: String!
     company: Company! @belongsTo
     branch: CompanyBranch! @belongsTo
     title: String!
     people: People
+    owner: User @belongsTo
     organization: Organization @belongsTo
     receiver: LeadReceiver @belongsTo
     status: LeadStatus @belongsTo
@@ -16,9 +17,10 @@ type Lead {
     phone: String
     description: String
     reason_lost: String
-    pipeline: LeadPipeline! @belongsTo
-    stage: LeadPipelineStage! @belongsTo(relation: "stage")
-    custom_fields: [CustomField]
+    pipeline: LeadPipeline @belongsTo
+    stage: LeadPipelineStage @belongsTo(relation: "stage")
+    participants: [LeadsParticipants!]! @hasMany
+    custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 10
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
@@ -32,12 +34,12 @@ type LeadsParticipants {
     relationship: PeopleRelationship @belongsTo
 }
 type Rotation{ 
-    id: Int!
-    users_id: Int!
-    companies_id: Int!
+    id: ID!
+    users_id: ID!
+    companies_id: ID!
 }
 type LeadReceiver {
-    id: Int!
+    id: ID!
     uuid: String!
     company: Company! @belongsTo
     branch: CompanyBranch! @belongsTo
@@ -55,20 +57,20 @@ type LeadReceiver {
 }
 
 type LeadStatus {
-    id: Int!
+    id: ID!
     name: String!
     is_default: Boolean!
 }
 
 type LeadType {
-    id: Int!
+    id: ID!
     company: Company! @belongsTo
     name: String!
     description: String
 }
 
 type LeadSource {
-    id: Int!
+    id: ID!
     company: Company! @belongsTo
     name: String!
     description: String
@@ -76,7 +78,7 @@ type LeadSource {
 }
 
 type LeadPipeline {
-    id: Int!
+    id: ID!
     company: Company! @belongsTo
     module: SystemModule! @belongsTo
     stages: [LeadPipelineStage!]! @hasMany
@@ -87,7 +89,7 @@ type LeadPipeline {
 }
 
 type LeadPipelineStage {
-    id: Int!
+    id: ID!
     pipeline: LeadPipeline! @belongsTo
     name: String!
     rotting_days: Int!
@@ -100,14 +102,54 @@ input LeadsParticipantsInput {
     relationship_id: Int!
 }
 
+input LeadInput {
+    branch_id: ID
+    title: String!
+    people: PeopleInput!
+    organization: OrganizationInput
+    leads_owner_id: ID
+    receiver_id: ID
+    status_id: ID
+    type_id: ID
+    source_id: ID
+    description: String
+    reason_lost: String
+    pipeline_stage_id: ID!
+    custom_fields: [CustomFieldEntityInput!]!
+}
+
+input LeadUpdateInput {
+    branch_id: ID!
+    title: String
+    people_id: ID!
+    leads_owner_id: ID
+    organization_id: ID
+    receiver_id: ID
+    status_id: ID
+    type_id: ID
+    source_id: ID
+    description: String
+    reason_lost: String
+    pipeline_stage_id: ID
+    custom_fields: [CustomFieldEntityInput!]!
+}
+
 extend type Mutation @guard {
+    createLead(input: LeadInput!): Lead
+        @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@create")
+    updateLead(id: ID!, input: LeadUpdateInput!): Lead
+        @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@update")
+    deleteLead(id: ID!): Boolean
+        @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@delete")
+    restoreLead(id: ID!): Boolean
+        @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@restore")
     addLeadParticipant(input: LeadsParticipantsInput!): Boolean!
         @field(
-            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\Participants@add"
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\ParticipantMutation@add"
         )
     removeLeadParticipant(input: LeadsParticipantsInput!): Boolean!
         @field(
-            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\Participants@remove"
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\ParticipantMutation@remove"
         )
 }
 
@@ -129,7 +171,7 @@ extend type Query @guard {
                     "status"
                 ]
             )
-    ): [Lead]
+    ): [Lead!]!
         @paginate(
             model: "Kanvas\\Guild\\Leads\\Models\\Lead"
             scopes: ["fromCompany"]

@@ -34,7 +34,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     protected ?UserInterface $toUser = null;
 
     public array $channels = [
-        'mail'
+        'mail',
     ];
 
     public function __construct(Model $entity)
@@ -44,7 +44,6 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         $this->data = [
             'entity' => $this->entity,
             'app' => $this->app,
-            'user' => $this->toUser ? $this->toUser : null,
         ];
     }
 
@@ -72,6 +71,10 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
             $channels = array_values($enabledChannels);
         }
 
+        //set the user
+        $this->data['user'] = $notifiable;
+        $this->toUser = $notifiable;
+
         return [
              KanvasDatabaseChannel::class,
              ...$channels,
@@ -87,7 +90,6 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     {
         $fromEmail = $this->app->get('from_email_address') ?? config('mail.from.address');
         $fromName = $this->app->get('from_email_name') ?? config('mail.from.name');
-        $this->toUser = $notifiable;
 
         return (new MailMessage())
                 ->from($fromEmail, $fromName)

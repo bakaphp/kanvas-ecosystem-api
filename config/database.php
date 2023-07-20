@@ -160,7 +160,7 @@ return [
             ],
             'sticky' => true,
             'port' => env('DB_CRM_PORT', '3306'),
-            'database' => env('DB_CRM_DATABASE', 'social'),
+            'database' => env('DB_CRM_DATABASE', 'crm'),
             'username' => env('DB_CRM_USERNAME', 'kanvas'),
             'password' => env('DB_CRM_PASSWORD', ''),
             'unix_socket' => env('DB_CRM_SOCKET', ''),

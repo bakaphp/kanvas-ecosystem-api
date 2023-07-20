@@ -30,10 +30,12 @@ class UserConfig extends BaseModel
     protected $attributes = [
     ];
 
+    protected $casts = [
+        'value' => 'array',
+    ];
+
     /**
      * Users relationship.
-     *
-     * @return BelongsTo
      */
     public function user(): BelongsTo
     {
