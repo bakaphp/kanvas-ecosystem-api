@@ -25,16 +25,19 @@ class Variants
 
         $channel = Channels::getByUuid($channelUuid);
         $variants = new ModelsVariants();
+        $variantWarehouse = new VariantsWarehouses();
         $variantsChannel = new VariantsChannels();
 
         //set index
         ModelsVariants::setSearchIndex((int) $channel->companies_id);
 
-        return ModelsVariants::join($variantsChannel->getTable(), $variantsChannel->getTable() . '.products_variants_id', '=', $variants->getTable() . '.id')
-                ->where($variantsChannel->getTable() . '.channels_id', $channel->getId())
-                ->where($variantsChannel->getTable() . '.is_deleted', 0)
-                ->where($variantsChannel->getTable() . '.is_published', 1);
-    }
+        return ModelsVariants::join($variantWarehouse->getTable(), $variantWarehouse->getTable() . '.products_variants_id', '=', $variants->getTable() . '.id')
+            ->join($variantsChannel->getTable(), $variantsChannel->getTable() . '.product_variants_warehouse_id', '=', $variantWarehouse->getTable() . '.id')
+            ->join($channel->getTable(), $channel->getTable() . '.id', '=', $variantsChannel->getTable() . '.channels_id')
+            ->where($variantsChannel->getTable() . '.channels_id', $channel->getId())
+            ->where($variantsChannel->getTable() . '.is_deleted', 0)
+            ->where($variantsChannel->getTable() . '.is_published', 1);
+        }
 
     public function allVariantsInWarehouse(
         mixed $root,
