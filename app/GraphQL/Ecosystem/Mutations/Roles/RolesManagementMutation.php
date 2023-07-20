@@ -97,7 +97,7 @@ class RolesManagementMutation
     public function updateRole(mixed $rootValue, array $request): SilberRole
     {
         $role = new UpdateRoleAction(
-            $request['id'],
+            (int) $request['id'],
             $request['name'],
             $request['title'] ?? null
         );

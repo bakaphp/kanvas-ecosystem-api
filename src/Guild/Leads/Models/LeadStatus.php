@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
 
-use Baka\Traits\KanvasScopesTrait;
 use Baka\Traits\NoAppRelationshipTrait;
 use Kanvas\Guild\Models\BaseModel;
 
@@ -17,6 +16,8 @@ use Kanvas\Guild\Models\BaseModel;
  * @property string $created_at
  * @property string $updated_at
  * @property int $is_deleted
+ *
+ * @todo add company_id
  */
 class LeadStatus extends BaseModel
 {

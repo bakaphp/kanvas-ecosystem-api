@@ -26,21 +26,21 @@ class CustomFieldQuery
         /**
          * @var Builder
          */
-        $files = AppsCustomFields::where('entity_id', '=', $root->getKey())
+        $customFields = AppsCustomFields::where('entity_id', '=', $root->getKey())
             ->where('model_name', '=', $root::class)
             ->where('is_deleted', '=', StateEnums::NO->getValue());
 
         //@todo allow to share media between company only of it the apps specifies it
-        $files->when(isset($root->companies_id), function ($query) use ($root) {
+        $customFields->when(isset($root->companies_id), function ($query) use ($root) {
             $query->where('companies_id', $root->companies_id);
         });
 
-        return $files;
+        return $customFields;
     }
 
-     /**
-     * Get custom field
-     */
+    /**
+    * Get custom field
+    */
     public function get(mixed $rootValue, array $request): mixed
     {
         $customFieldInput = new  CustomFieldInput(

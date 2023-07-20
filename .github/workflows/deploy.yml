@@ -35,6 +35,7 @@ jobs:
           region: ${{ secrets.AWS_REGION }}
           create_repo: true
           tags: latest,${{ github.run_number }},
+          dockerfile: ${{ github.ref_name }}.Dockerfile
 
   Deploy:
     runs-on: ubuntu-latest

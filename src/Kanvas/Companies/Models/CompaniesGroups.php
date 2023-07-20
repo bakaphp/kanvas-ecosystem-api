@@ -35,13 +35,11 @@ class CompaniesGroups extends BaseModel
         'users_id',
         'name',
         'is_default',
-        'country_code'
+        'country_code',
     ];
 
     /**
      * CompaniesBranches relationship.
-     *
-     * @return hasMany
      */
     public function companiesAssoc(): HasMany
     {
@@ -50,8 +48,6 @@ class CompaniesGroups extends BaseModel
 
     /**
      * Companies relationship.
-     *
-     * @return BelongsToMany
      */
     public function companies(): BelongsToMany
     {
@@ -60,8 +56,6 @@ class CompaniesGroups extends BaseModel
 
     /**
      * Users relationship.
-     *
-     * @return Users
      */
     public function user(): BelongsTo
     {
@@ -70,9 +64,6 @@ class CompaniesGroups extends BaseModel
 
     /**
      * Associate Company to this group.
-     *
-     * @param Companies $company
-     * @param int $isDefault
      *
      * @return void
      */

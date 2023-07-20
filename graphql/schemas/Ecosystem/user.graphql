@@ -1,5 +1,5 @@
 type User {
-    id: Int!
+    id: ID!
     uuid: String!
     firstname: String!
     lastname: String!
@@ -16,9 +16,14 @@ type User {
     roles: Mixed! @method(name: "getRoles")
     created_at: DateTime
     updated_at: DateTime
-    branches: [CompanyBranch!] @HasManyThrough
-    companies: [Company!] @HasManyThrough
-    apps: [App!] @HasManyThrough
+    branches: [CompanyBranch!]! @HasManyThrough
+    companies: [Company!]! @HasManyThrough
+    apps: [App!]! @HasManyThrough
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 10
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\HashFieldsQuery@getAllByGraphType"
+        )
 }
 
 type AddressType {
@@ -36,7 +41,7 @@ type ContactInfo {
 }
 
 type TokenResponse {
-    id: Int!
+    id: ID!
     uuid: String!
     token: String!
     refresh_token: String!
@@ -48,7 +53,7 @@ type TokenResponse {
 }
 
 type UserLinkSource {
-    users_id: Int!
+    users_id: ID!
     source: Source! @belongsTo
     source_user_id: String!
     source_user_name: String
@@ -87,11 +92,11 @@ input RegisterInput {
     password: String! @rules(apply: ["required"])
     password_confirmation: String! @rules(apply: ["required"])
     company_name: String
-    roles_id: Int
+    roles_id: ID
 }
 
 input DeviceInput {
-    device_id: String!
+    device_id: ID!
     source_site: String!
     source_username: String
 }
@@ -108,14 +113,11 @@ input UpdateUserInput {
     address_1: String
     address_2: String
     zip_code: Int
-    city_id: Int
-        @rules(apply: ["exists:Kanvas\\Locations\\Models\\Cities,id"])
-    state_id: Int
-        @rules(apply: ["exists:Kanvas\\Locations\\Models\\States,id"])
+    city_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Models\\Cities,id"])
+    state_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Models\\States,id"])
     country_id: Int
-        @rules(
-            apply: ["exists:Kanvas\\Locations\\Models\\Countries,id"]
-        )
+        @rules(apply: ["exists:Kanvas\\Locations\\Models\\Countries,id"])
+    custom_fields: [CustomFieldEntityInput!]!
 }
 
 extend type Mutation {
@@ -123,12 +125,12 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@loginMutation"
         )
-    logout: Boolean! 
+    logout: Boolean!
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@logout"
         )
-    logoutFromAllDevices: Boolean! 
+    logoutFromAllDevices: Boolean!
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@logoutFromAllDevices"
@@ -143,6 +145,7 @@ extend type Mutation {
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@refreshToken"
         )
     changePassword(
+        current_password: String! @rules(apply: ["string"])
         new_password: String! @rules(apply: ["string", "confirmed"])
         new_password_confirmation: String
     ): Boolean!
@@ -158,7 +161,7 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@reset"
         )
-    updateUser(data: UpdateUserInput!): User!
+    updateUser(id: ID!, data: UpdateUserInput!): User!
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updateUser"

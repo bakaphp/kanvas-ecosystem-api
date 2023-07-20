@@ -1,5 +1,5 @@
 type Language {
-    id: Int!
+    id: ID!
     name: String!
     order: Int
 }

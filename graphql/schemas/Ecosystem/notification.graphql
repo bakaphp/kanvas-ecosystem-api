@@ -1,5 +1,5 @@
 type Notification {
-    id: Int!
+    id: ID!
     users: User!
     fromUsers: User!
     companies: Company!
@@ -15,7 +15,7 @@ type Notification {
 }
 
 type NotificationType {
-    id: Int!
+    id: ID!
     systemModule: SystemModule!
     parent: NotificationType
     channel: NotificationChannel
@@ -30,7 +30,7 @@ type NotificationType {
 }
 
 type NotificationChannel {
-    id: Int!
+    id: ID!
     name: String!
     slug: String!
 }
@@ -65,7 +65,7 @@ extend type Query @guard {
         whereEntity: NotificationEntityFilterInput
             @whereJsonNestedKey(key: "entity_content", nestedKey: "nested_key")
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
-    ): [Notification]!
+    ): [Notification!]!
         @paginate(
             model: "Kanvas\\Notifications\\Models\\Notifications"
             scopes: ["allNotifications"]
@@ -84,7 +84,7 @@ extend type Query @guard {
                 ]
             )
         orderBy: _ @orderBy(columns: ["id", "weight"])
-    ): [NotificationType]!
+    ): [NotificationType!]!
         @paginate(
             model: "Kanvas\\Notifications\\Models\\NotificationTypes"
             scopes: ["fromApp", "notDeleted"]
@@ -92,7 +92,7 @@ extend type Query @guard {
     notificationChannels(
         where: _ @whereConditions(columns: ["id", "name", "slug"])
         orderBy: _ @orderBy(columns: ["id"])
-    ): [NotificationChannel]!
+    ): [NotificationChannel!]!
         @paginate(
             model: "Kanvas\\Notifications\\Models\\NotificationChannel"
             scopes: ["notDeleted"]
@@ -107,8 +107,8 @@ extend type Mutation @guard {
     sendNotificationBaseOnTemplate(
         template_name: String!
         data: Mixed!
-        via: [String]!
-        users_id: [Int]!
+        via: [String!]!
+        users_id: [Int!]!
     ): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\NotificationsManagementMutation@sendNotificationBaseOnTemplate"

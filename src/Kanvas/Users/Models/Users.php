@@ -432,6 +432,17 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return $user->user_activation_forgot;
     }
 
+    public function changePassword(string $currentPassword, string $newPassword, AppInterface $app): bool
+    {
+        $user = $this->getAppProfile($app);
+
+        if (! Hash::check($currentPassword, (string) $user->password)) {
+            throw new InternalServerErrorException('Current password is incorrect');
+        }
+
+        return $this->resetPassword($newPassword, $app);
+    }
+
     /**
      * Generate a hash password and updated for the user model.
      */
@@ -439,12 +450,9 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         $user = $this->getAppProfile($app);
         $user->password = Hash::make($newPassword);
-        $user->saveOrFail();
-
         $user->user_activation_forgot = '';
-        $user->saveOrFail();
 
-        return true;
+        return $user->saveOrFail();
     }
 
     public function updateEmail(string $email): bool

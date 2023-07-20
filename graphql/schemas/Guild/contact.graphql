@@ -1,5 +1,5 @@
 type Contact {
-    id: Int!
+    id: ID!
     type: ContactType! @belongsTo
     people: People! @belongsTo
     value: String
@@ -7,14 +7,14 @@ type Contact {
 }
 
 type ContactType {
-    id: Int!
+    id: ID!
     company: Company! @belongsTo
     name: String!
     user: User! @belongsTo
 }
 
 type Address {
-    id: Int!
+    id: ID!
     people: People! @belongsTo
     address: String
     address_2: String
@@ -23,4 +23,23 @@ type Address {
     zip: String
     country: Country
     is_default: Boolean!
+}
+
+input ContactInput {
+    value: String!
+    contacts_types_id: ID!
+    weight: Int
+}
+
+input AddressInput {
+    address: String!
+    address_2: String
+    city: String
+    city_id: ID
+    state: String
+    state_id: ID
+    zip: String
+    country: String
+    country_id: ID
+    is_default: Boolean
 }

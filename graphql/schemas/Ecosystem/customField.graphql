@@ -1,15 +1,20 @@
 type CustomField {
     name: String!
-    data: Mixed
-    systemModule: SystemModule!
-    entity_id: String!
+    value: Mixed
+    systemModule: SystemModule! @belongsTo
+    entity_id: ID!
 }
 
 input CustomFieldInput {
     name: String!
     data: Mixed
     system_module_uuid: String!
-    entity_id: String!
+    entity_id: ID!
+}
+
+input CustomFieldEntityInput {
+    name: ID!
+    data: Mixed
 }
 
 extend type Mutation @guard {

@@ -6,32 +6,27 @@ namespace App\GraphQL\Ecosystem\Mutations\Users;
 
 use Illuminate\Support\Facades\Auth as AuthFacade;
 use Illuminate\Support\Facades\Hash;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Services\UserManagement as UserManagementService;
 use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
-use Kanvas\Users\Models\Users;
-use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Users\Actions\CreateInviteAction;
-use Kanvas\Users\DataTransferObject\Invite as InviteDto;
-use Kanvas\Users\Models\UsersInvite;
-use Kanvas\Users\Repositories\UsersInviteRepository;
 use Kanvas\Users\Actions\ProcessInviteAction;
 use Kanvas\Users\DataTransferObject\CompleteInviteInput;
+use Kanvas\Users\DataTransferObject\Invite as InviteDto;
+use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersInvite;
+use Kanvas\Users\Repositories\UsersInviteRepository;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class UserManagementMutation
 {
     /**
      * changePassword.
-     *
-     * @param  mixed $root
-     * @param  array $req
-     *
-     * @return bool
      */
     public function changePassword(mixed $root, array $req): bool
     {
         $user = UsersRepository::getByEmail(AuthFacade::user()->email);
-        $user->password = Hash::make($req['new_password']);
-        $user->saveOrFail();
+        $user->changePassword((string) $req['current_password'], (string) $req['new_password'], app(Apps::class));
         $user->notify(new ChangePasswordUserLogged($user));
 
         return true;
@@ -39,15 +34,14 @@ class UserManagementMutation
 
     /**
      * Update user information.
-     *
-     * @param  mixed $rootValue
-     * @param  array $request
-     *
-     * @return Users
      */
     public function updateUser(mixed $rootValue, array $request): Users
     {
-        $userManagement = new UserManagementService(Users::getById(auth()->user()->id));
+        $user = auth()->user();
+        $userId = $user->isAppOwner() && (int) $request['id'] > 0 ? $request['id'] : $user->getId();
+        $userToEdit = UsersRepository::getUserOfCompanyById($user->getCurrentCompany(), $userId);
+
+        $userManagement = new UserManagementService($userToEdit);
         $user = $userManagement->update($request['data']);
 
         return $user;
@@ -57,9 +51,6 @@ class UserManagementMutation
      * insertInvite.
      *
      * @param  mixed $rootValue
-     * @param  array $request
-     *
-     * @return UsersInvite
      */
     public function insertInvite($rootValue, array $request): UsersInvite
     {
@@ -75,6 +66,7 @@ class UserManagementMutation
             ),
             auth()->user()
         );
+
         return $invite->execute();
     }
 
@@ -82,9 +74,6 @@ class UserManagementMutation
      * deleteInvite.
      *
      * @param  mixed $rootValue
-     * @param  array $request
-     *
-     * @return bool
      */
     public function deleteInvite($rootValue, array $request): bool
     {
@@ -94,6 +83,7 @@ class UserManagementMutation
         );
 
         $invite->softDelete();
+
         return true;
     }
 
@@ -101,9 +91,6 @@ class UserManagementMutation
      * processInvite.
      *
      * @param  mixed $rootValue
-     * @param  array $request
-     *
-     * @return UsersInvite
      */
     public function getInvite($rootValue, array $request): UsersInvite
     {
@@ -115,15 +102,13 @@ class UserManagementMutation
      * Process User invite.
      *
      * @param  mixed $rootValue
-     * @param  array $request
-     *
-     * @return Users
      */
     public function process($rootValue, array $request): Users
     {
         $action = new ProcessInviteAction(
             CompleteInviteInput::from($request['input'])
         );
+
         return $action->execute();
     }
 }
