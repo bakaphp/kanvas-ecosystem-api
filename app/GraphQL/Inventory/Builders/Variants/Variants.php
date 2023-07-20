@@ -37,7 +37,7 @@ class Variants
             ->where($variantsChannel->getTable() . '.channels_id', $channel->getId())
             ->where($variantsChannel->getTable() . '.is_deleted', 0)
             ->where($variantsChannel->getTable() . '.is_published', 1);
-        }
+    }
 
     public function allVariantsInWarehouse(
         mixed $root,
