@@ -22,11 +22,6 @@ class Variants
 {
     /**
      * create.
-     *
-     * @param  mixed $root
-     * @param  array $req
-     *
-     * @return VariantModel
      */
     public function create(mixed $root, array $req): VariantModel
     {
@@ -42,26 +37,17 @@ class Variants
 
     /**
      * update.
-     *
-     * @param  mixed $root
-     * @param  array $req
-     *
-     * @return VariantModel
      */
     public function update(mixed $root, array $req): VariantModel
     {
         $variant = VariantsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
         $variant->update($req['input']);
+
         return $variant;
     }
 
     /**
      * delete.
-     *
-     * @param  mixed $root
-     * @param  array $req
-     *
-     * @return bool
      */
     public function delete(mixed $root, array $req): bool
     {
@@ -72,11 +58,6 @@ class Variants
 
     /**
      * addToWarehouse.
-     *
-     * @param  mixed $root
-     * @param  array $req
-     *
-     * @return VariantModel
      */
     public function addToWarehouse(mixed $root, array $req): VariantModel
     {
@@ -84,16 +65,12 @@ class Variants
 
         $warehouse = WarehouseRepository::getById($req['warehouse_id']);
         $variantWarehouses = VariantsWarehouses::from($req['input']);
+
         return (new AddToWarehouse($variant, $warehouse, $variantWarehouses))->execute();
     }
 
     /**
      * removeToWarehouse.
-     *
-     * @param  mixed $root
-     * @param  array $req
-     *
-     * @return VariantModel
      */
     public function removeToWarehouse(mixed $root, array $req): VariantModel
     {
@@ -101,16 +78,12 @@ class Variants
 
         $warehouse = WarehouseRepository::getById($req['warehouse_id']);
         $variant->warehouses()->detach($warehouse);
+
         return $variant;
     }
 
     /**
      * addAttribute.
-     *
-     * @param  mixed $root
-     * @param  array $req
-     *
-     * @return VariantModel
      */
     public function addAttribute(mixed $root, array $req): VariantModel
     {
@@ -118,16 +91,12 @@ class Variants
 
         $attribute = AttributesRepository::getById((int) $req['attributes_id']);
         (new AddAttributeAction($variant, $attribute, $req['input']['value']))->execute();
+
         return $variant;
     }
 
     /**
      * removeAttribute.
-     *
-     * @param  mixed $root
-     * @param  array $req
-     *
-     * @return VariantModel
      */
     public function removeAttribute(mixed $root, array $req): VariantModel
     {
@@ -135,16 +104,12 @@ class Variants
 
         $attribute = AttributesRepository::getById((int) $req['attributes_id']);
         $variant->attributes()->detach($attribute);
+
         return $variant;
     }
 
     /**
      * addToChannel.
-     *
-     * @param  mixed $root
-     * @param  array $req
-     *
-     * @return VariantModel
      */
     public function addToChannel(mixed $root, array $req): VariantModel
     {
@@ -157,16 +122,12 @@ class Variants
         $channel = ChannelRepository::getById((int) $req['channels_id']);
         $variantChannel = VariantChannel::from($req['input']);
         (new AddVariantToChannel($variantWarehouses, $channel, $variantChannel))->execute();
+
         return $variant;
     }
 
     /**
      * removeChannel.
-     *
-     * @param  mixed $root
-     * @param  array $req
-     *
-     * @return VariantModel
      */
     public function removeChannel(mixed $root, array $req): VariantModel
     {
@@ -177,6 +138,21 @@ class Variants
             ->firstOrFail();
         $channel = ChannelRepository::getById((int) $req['channels_id']);
         $variantWarehouses->channels()->where('id', $channel->getId())->detach($channel->id);
+
         return $variant;
+    }
+
+    /**
+     * Format channel data from builder
+     */
+    public function getChannel(mixed $root, array $req): array
+    {
+        return [
+            'name' => $root->channel_name,
+            'price' => $root->price,
+            'warehouses_id' => 0, //remove -_-
+            'discounted_price' => $root->discounted_price,
+            'is_published' => $root->is_published,
+        ];
     }
 }
