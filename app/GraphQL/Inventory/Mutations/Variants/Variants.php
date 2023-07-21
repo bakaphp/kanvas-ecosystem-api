@@ -187,7 +187,7 @@ class Variants
      * @param array $req
      * @return array
      */
-    public function getChannel(mixed $root, array $req) : array
+    public function getChannel(mixed $root, array $req): array
     {
         return [
             "name" => $root->channel_name,
