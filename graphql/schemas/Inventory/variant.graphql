@@ -17,7 +17,8 @@ type Variant {
     interactions(visitor: VisitorEntityInput!): Interactions
         @method(name: "getEntitySocialInteractions")
     product: Product
-    warehouses: [WarehouseVariantRelationship!]! @hasMany(relation: "variantWarehouses")
+    warehouses: [WarehouseVariantRelationship!]!
+        @hasMany(relation: "variantWarehouses")
     attributes: [VariantsAttributes!]!
     companies: Company
 }
@@ -31,8 +32,10 @@ type VariantChannel {
     short_description: String
     html_description: String
     sku: String
-    channels: VariantChannelRelationship 
-        @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@getChannel")
+    channels: VariantChannelRelationship
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@getChannel"
+        )
     price: Float
     ean: String
     files: [Filesystem]
@@ -43,7 +46,8 @@ type VariantChannel {
     interactions(visitor: VisitorEntityInput!): Interactions
         @method(name: "getEntitySocialInteractions")
     product: Product
-    warehouses: [WarehouseVariantRelationship!]! @hasMany(relation: "variantWarehouses")
+    warehouses: [WarehouseVariantRelationship!]!
+        @hasMany(relation: "variantWarehouses")
     attributes: [VariantsAttributes!]!
 }
 
@@ -73,6 +77,7 @@ type VariantsAttributes {
 type VariantChannelRelationship {
     name: String
     price: Float
+    warehouses_id: Int
     discounted_price: Float
     is_published: Boolean
 }
