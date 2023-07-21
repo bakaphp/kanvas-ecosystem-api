@@ -22,6 +22,31 @@ type Variant {
     companies: Company
 }
 
+type VariantChannel {
+    id: ID
+    uuid: String!
+    slug: String!
+    name: String!
+    description: String
+    short_description: String
+    html_description: String
+    sku: String
+    channels: VariantChannelRelationship 
+        @field(resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@getChannel")
+    price: Float
+    ean: String
+    files: [Filesystem]
+        @paginate(
+            defaultCount: 10
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    interactions(visitor: VisitorEntityInput!): Interactions
+        @method(name: "getEntitySocialInteractions")
+    product: Product
+    warehouses: [WarehouseVariantRelationship!]! @hasMany(relation: "variantWarehouses")
+    attributes: [VariantsAttributes!]!
+}
+
 type WarehouseVariantRelationship {
     id: ID!
     warehouseinfo: Warehouse @hasMany(relation: "warehouse")
@@ -203,7 +228,7 @@ extend type Query {
         search: String @search
         visitor: VisitorEntityInput
         where: _ @whereConditions(columns: ["slug", "uuid", "name"])
-    ): [Variant!]
+    ): [VariantChannel!]!
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\Variants@allVariantsPublishedInChannel"

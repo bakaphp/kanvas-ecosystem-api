@@ -179,4 +179,21 @@ class Variants
         $variantWarehouses->channels()->where('id', $channel->getId())->detach($channel->id);
         return $variant;
     }
+
+    /**
+     * Format channel data from builder
+     *
+     * @param mixed $root
+     * @param array $req
+     * @return array
+     */
+    public function getChannel(mixed $root, array $req) : array
+    {
+        return [
+            "name" => $root->channel_name,
+            "price" => $root->price,
+            "discounted_price" => $root->discounted_price,
+            "is_published" => $root->is_published,
+        ];
+    }
 }
