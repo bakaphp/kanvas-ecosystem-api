@@ -39,12 +39,12 @@ class Variants
         ->where($variantsChannel->getTable() . '.is_published', 1)
         ->select(
             $variants->getTable() . '.*',
-            $channel->getTable(). '.id as channel_id',
-            $channel->getTable(). '.name as channel_name',
-            $channel->getTable(). '.uuid as channel_uuid',
-            $variantsChannel->getTable(). '.price',
-            $variantsChannel->getTable(). '.discounted_price',
-            $variantsChannel->getTable(). '.is_published',
+            $channel->getTable() . '.id as channel_id',
+            $channel->getTable() . '.name as channel_name',
+            $channel->getTable() . '.uuid as channel_uuid',
+            $variantsChannel->getTable() . '.price',
+            $variantsChannel->getTable() . '.discounted_price',
+            $variantsChannel->getTable() . '.is_published',
         );
     }
 
@@ -74,4 +74,5 @@ class Variants
             ->where($variantWarehouse->getTable() . '.is_deleted', 0)
             ->where($variantWarehouse->getTable() . '.is_published', 1);
     }
+
 }
