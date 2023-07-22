@@ -34,7 +34,7 @@ type VariantChannel {
     sku: String
     channels: VariantChannelRelationship
         @field(
-            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@getChannel"
+            resolver: "App\\GraphQL\\Inventory\\Builders\\Variants\\Variants@getChannel"
         )
     price: Float
     ean: String

@@ -6,6 +6,7 @@ namespace App\GraphQL\Inventory\Builders\Variants;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants as ModelsVariants;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
@@ -31,17 +32,17 @@ class Variants
         //set index
         ModelsVariants::setSearchIndex((int) $channel->companies_id);
 
+        /**
+         * @var Builder
+         */
         return ModelsVariants::join($variantWarehouse->getTable(), $variantWarehouse->getTable() . '.products_variants_id', '=', $variants->getTable() . '.id')
         ->join($variantsChannel->getTable(), $variantsChannel->getTable() . '.product_variants_warehouse_id', '=', $variantWarehouse->getTable() . '.id')
-        ->join($channel->getTable(), $channel->getTable() . '.id', '=', $variantsChannel->getTable() . '.channels_id')
         ->where($variantsChannel->getTable() . '.channels_id', $channel->getId())
         ->where($variantsChannel->getTable() . '.is_deleted', 0)
         ->where($variantsChannel->getTable() . '.is_published', 1)
         ->select(
             $variants->getTable() . '.*',
-            $channel->getTable() . '.id as channel_id',
-            $channel->getTable() . '.name as channel_name',
-            $channel->getTable() . '.uuid as channel_uuid',
+            DB::raw("'{$channel->name}' as channel_name"), //add channel name
             $variantsChannel->getTable() . '.price',
             $variantsChannel->getTable() . '.discounted_price',
             $variantsChannel->getTable() . '.is_published',
@@ -73,5 +74,19 @@ class Variants
             ->where($variantWarehouse->getTable() . '.warehouses_id', $warehouse->getId())
             ->where($variantWarehouse->getTable() . '.is_deleted', 0)
             ->where($variantWarehouse->getTable() . '.is_published', 1);
+    }
+
+    /**
+     * Format channel data from builder
+     */
+    public function getChannel(mixed $root, array $req): array
+    {
+        return [
+            'name' => $root->channel_name,
+            'price' => $root->price,
+            'warehouses_id' => 0, //remove -_-
+            'discounted_price' => $root->discounted_price,
+            'is_published' => $root->is_published,
+        ];
     }
 }
