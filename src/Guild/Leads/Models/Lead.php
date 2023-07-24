@@ -35,13 +35,13 @@ use Laravel\Scout\Searchable;
  * @property int $organization_id
  * @property int $leads_types_id
  * @property int $status
- * @property string $reason_lost
+ * @property string|null $reason_lost
  * @property string $title
  * @property string $firstname
  * @property string $lastname
  * @property string $email
  * @property string $phone
- * @property string $description
+ * @property string|null $description
  * @property string $is_duplicate
  * @property string $third_party_sync_status @deprecated version 0.3
  */

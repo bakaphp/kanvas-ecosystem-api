@@ -56,6 +56,8 @@ class CreateLeadAction
         $newLead->firstname = $this->leadData->people->firstname;
         $newLead->lastname = $this->leadData->people->lastname;
         $newLead->description = $this->leadData->description;
+        $newLead->leads_status_id = $this->leadData->status_id;
+        $newLead->reason_lost = $this->leadData->reason_lost;
 
         //create people
         $people = (new CreatePeopleAction($this->leadData->people))->execute();
