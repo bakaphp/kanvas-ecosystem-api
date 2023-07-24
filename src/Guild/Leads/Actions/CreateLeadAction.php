@@ -52,10 +52,12 @@ class CreateLeadAction
         $newLead->leads_receivers_id = $this->leadData->receiver_id;
         $newLead->leads_types_id = $this->leadData->type_id;
         $newLead->leads_sources_id = $this->leadData->source_id;
-        $newLead->title = $this->leadData->title ?? $this->leadData->people->firstname . ' ' . $this->leadData->people->lastname . ' Opps';
+        $newLead->title = empty($this->leadData->title) ? $this->leadData->title : $this->leadData->people->firstname . ' ' . $this->leadData->people->lastname . ' Opps';
         $newLead->firstname = $this->leadData->people->firstname;
         $newLead->lastname = $this->leadData->people->lastname;
         $newLead->description = $this->leadData->description;
+        $newLead->leads_status_id = $this->leadData->status_id;
+        $newLead->reason_lost = $this->leadData->reason_lost;
 
         //create people
         $people = (new CreatePeopleAction($this->leadData->people))->execute();
