@@ -15,13 +15,13 @@ class Variants extends Data
         public string $name,
         public string $description,
         public int $warehouse_id,
+        public ?int $status_id = null,
         public ?string $short_description = null,
         public ?string $html_description = null,
         public ?string $sku = null,
         public ?string $ean = null,
         public ?string $barcode = null,
         public ?string $serial_number = null,
-        public bool $is_published = true,
         public ?string $slug = null
     ) {
     }
@@ -33,13 +33,13 @@ class Variants extends Data
             $request['name'],
             $request['description'] ?? '',
             $request['warehouse_id'],
+            $request['status_id'] ?? null,
             $request['short_description'] ?? null,
             $request['html_description'] ?? null,
             $request['sku'] ?? null,
             $request['ean'] ?? null,
             $request['barcode'] ?? null,
             $request['serial_number'] ?? null,
-            $request['is_published'] ?? true,
         );
     }
 }
