@@ -10,7 +10,7 @@ use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Status\DataTransferObject\Status as StatusDto;
 use Kanvas\Inventory\Status\Models\Status;
 
-class CreateStatus
+class CreateStatusAction
 {
     /**
      * __construct.
