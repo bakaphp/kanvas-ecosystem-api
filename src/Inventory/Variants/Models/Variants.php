@@ -12,14 +12,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Inventory\Attributes\Models\Attributes;
-use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
-use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
+use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
+use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Status\Models\Status;
+use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Laravel\Scout\Searchable;
@@ -136,8 +136,6 @@ class Variants extends BaseModel
      * Add/create new attributes from a variant.
      *
      * @param ModelVariants $variants
-     * @param array $attributes
-     * @return void
      */
     public function addAttributes(UserInterface $user, array $attributes): void
     {
@@ -147,7 +145,7 @@ class Variants extends BaseModel
                 'user' => $user,
                 'company' => $this->product->companies,
                 'name' => $attribute['name'],
-                'value' => $attribute['value']
+                'value' => $attribute['value'],
             ]);
 
             $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
