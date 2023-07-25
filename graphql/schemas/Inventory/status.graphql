@@ -1,6 +1,6 @@
 type Status {
-    id: Int!
-    name: String!
+    id: ID!
+    name: String
     slug: String
 }
 input StatusInput {
@@ -14,11 +14,11 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@create"
         )
-    updateStatus(id: Int!, input: StatusInputUpdate!): Status!
+    updateStatus(id: ID!, input: StatusInputUpdate!): Status!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@update"
         )
-    deleteStatus(id: Int!): Boolean!
+    deleteStatus(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@delete"
         )
@@ -34,7 +34,7 @@ extend type Query @guard {
                     "slug"
                 ]
             )
-    ): [Status!]
+    ): [Status!]!
         @paginate(
             model: "Kanvas\\Inventory\\Status\\Models\\Status"
             scopes: ["fromApp", "fromCompany"]
