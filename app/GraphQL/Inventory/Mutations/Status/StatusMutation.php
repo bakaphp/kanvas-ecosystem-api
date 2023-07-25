@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Status;
 
-use Kanvas\Inventory\Status\Actions\CreateStatus;
+use Kanvas\Inventory\Status\Actions\CreateStatusAction;
 use Kanvas\Inventory\Status\DataTransferObject\Status as StatusDto;
 use Kanvas\Inventory\Status\Models\Status as StatusModel;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
@@ -23,7 +23,7 @@ class StatusMutation
     {
         $data = $request['input'];
         $dto = StatusDto::viaRequest($data);
-        $status = (new CreateStatus($dto, auth()->user()))->execute();
+        $status = (new CreateStatusAction($dto, auth()->user()))->execute();
 
         return $status;
     }
