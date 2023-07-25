@@ -51,10 +51,10 @@ class CreateVariantsAction
                 'short_description' => $this->variantDto->short_description,
                 'html_description' => $this->variantDto->html_description,
                 'sku' => $this->variantDto->sku,
+                'status_id' => $this->variantDto->status_id,
                 'ean' => $this->variantDto->ean,
                 'barcode' => $this->variantDto->barcode,
                 'serial_number' => $this->variantDto->serial_number,
-                'is_published' => $this->variantDto->is_published
             ]
         );
     }
