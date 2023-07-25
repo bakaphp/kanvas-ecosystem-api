@@ -100,9 +100,9 @@ class Variants extends BaseModel
         return $this->hasMany(VariantsWarehouses::class, 'products_variants_id');
     }
 
-    public function status(): HasOne
+    public function status(): BelongsTo
     {
-        return $this->hasOne(Status::class, 'status_id');
+        return $this->belongsTo(Status::class, 'status_id');
     }
 
     /**
