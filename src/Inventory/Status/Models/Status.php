@@ -20,14 +20,6 @@ use Laravel\Scout\Searchable;
  * @property string uuid
  * @property string name
  * @property string slug
- * @property string description
- * @property string short_description
- * @property string html_description
- * @property string sku
- * @property string ean
- * @property string barcode
- * @property string serial_number
- * @property bool is_published
  */
 class Status extends BaseModel
 {
