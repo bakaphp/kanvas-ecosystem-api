@@ -9,6 +9,7 @@ type Variant {
     html_description: String
     sku: String
     ean: String
+    status: Status
     files: [Filesystem]
         @paginate(
             defaultCount: 10
@@ -85,6 +86,7 @@ input VariantsInput {
     files: [FilesystemInputUrl]
     slug: String
     discountPrice: Float
+    status_id: Int
     price: Float
     source_id: Mixed
     attributes: [VariantsAttributesInput]
@@ -190,7 +192,7 @@ extend type Query @guard {
         warehouseId: Int!
         search: String @search
         where: _ @whereConditions(columns: ["quantity", "price", "sku"])
-    ): [Variant!]
+    ): [Variant!]!
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\Variants@allVariantsInWarehouse"
@@ -203,7 +205,7 @@ extend type Query {
         search: String @search
         visitor: VisitorEntityInput
         where: _ @whereConditions(columns: ["slug", "uuid", "name"])
-    ): [Variant!]
+    ): [Variant!]!
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\Variants@allVariantsPublishedInChannel"
