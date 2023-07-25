@@ -71,3 +71,12 @@ extend type Query @guard {
             resolver: "App\\GraphQL\\Social\\Queries\\Messages\\MessagesQueries@getByAppModuleMessage"
         )
 }
+
+extend type Query {
+    messageIsInAnyList(
+        message_id: Int!
+    ): Boolean
+    @field(
+        resolver: "App\\GraphQL\\Social\\Queries\\Messages\\MessagesQueries@isInAnyList"
+    )
+}

@@ -19,4 +19,12 @@ class MessagesQueries
 
         return $message;
     }
+
+    public function isInAnyList(mixed $rootValue, array $req): bool
+    {
+        $message = MessageRepository::getById($req['message_id']);
+        $isInAnyList = $message->lists()->count();
+
+        return (bool) $isInAnyList;
+    }
 }

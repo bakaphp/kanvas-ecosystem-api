@@ -44,7 +44,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@delete"
         )
-    addToUserList(users_lists_id: Int!, messages_id: Int!): UserList
+    addToUserList(users_lists_id: Int!, messages_id: Int!, weight: Float): UserList
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@addToList"
         )
@@ -116,5 +116,14 @@ extend type Query {
     @field(
         resolver: "App\\GraphQL\\Social\\Queries\\UsersLists\\UsersListsQuery@getUsersListsFollowers"
     )
+
+    hasUserListItem(
+        user_list_id: Int!
+        message_id: Int!
+    ): Boolean
+    @field(
+        resolver: "App\\GraphQL\\Social\\Queries\\UsersLists\\UsersListsQuery@hasUserListItem"
+    )
+
 
 }

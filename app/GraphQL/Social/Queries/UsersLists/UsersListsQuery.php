@@ -25,11 +25,18 @@ class UsersListsQuery
         return $followers;
     }
 
-    public function isFollowingList(mixed $rootValue, array $req) : bool
+    public function isFollowingList(mixed $rootValue, array $req): bool
     {
         $userList = UserListRepository::getById($req['user_list_id']);
         $isFollowing = $userList->followers()->where('users.id', auth()->user()->id)->first();
 
         return (bool) $isFollowing;
+    }
+
+    public function hasUserListItem(mixed $rootValue, array $req): bool
+    {
+        $userList = UserListRepository::getById($req['user_list_id']);
+
+        return (bool) $userList->items()->where('messages.id', $req['message_id'])->count();
     }
 }

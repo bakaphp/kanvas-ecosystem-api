@@ -63,7 +63,9 @@ class UsersListsManagement
     public function removeFromList(mixed $rootValue, array $req): ModelUserList
     {
         $userList = UserListRepository::getById($req['users_lists_id'], auth()->user());
-        $message = Message::getById($req['messages_id']);
+        $message = Message::getById($req['messages_id'], [
+            'weight' => $req['weight'] ?? 0,
+        ]);
 
         $userList->items()->detach($message);
 
