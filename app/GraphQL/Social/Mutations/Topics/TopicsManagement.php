@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Social\Mutations\Topics;
 
 use Baka\Support\Str;
+use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Topics\Actions\AttachEntityToTopic;
 use Kanvas\Social\Topics\Actions\CreateTopicAction;
