@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class () extends Migration {
     /**
      * Run the migrations.
      */
@@ -22,7 +21,7 @@ return new class extends Migration
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
 
             $table->foreign('status_id')->references('id')->on('status');
-            $table->foreign('products_variants_warehouse_id','variant_warehouse_status')->references('id')->on('products_variants_warehouses');
+            $table->foreign('products_variants_warehouse_id', 'variant_warehouse_status')->references('id')->on('products_variants_warehouses');
         });
     }
 
