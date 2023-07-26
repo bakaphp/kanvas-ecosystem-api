@@ -44,5 +44,4 @@ class EntityTopics extends BaseModel
     {
         return $this->belongsTo(Users::class, 'users_id', 'id');
     }
-
 }
