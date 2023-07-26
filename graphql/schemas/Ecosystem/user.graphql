@@ -5,6 +5,8 @@ type User {
     lastname: String!
     displayname: String!
     description: String
+    default_company: Int!
+    default_company_branch: Int!
     email: Email!
     contact: ContactInfo
         @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@contact")
