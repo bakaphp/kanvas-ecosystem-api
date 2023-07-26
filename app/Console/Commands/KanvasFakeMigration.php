@@ -26,7 +26,6 @@ class KanvasFakeMigration extends Command
      */
     public function handle()
     {
-
         $class = $this->argument('class');
         DB::table('migrations')->insert([
             'migration' => $class,

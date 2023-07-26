@@ -78,7 +78,7 @@ class TopicsTest extends TestCase
             'status' => fake()->boolean(),
         ];
         $this->graphQL(/** @lang GRAPHQL */
-             '
+            '
                 mutation updateTopic(
                     $id: ID!
                     $input: TopicInput!
