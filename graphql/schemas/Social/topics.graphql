@@ -1,8 +1,5 @@
 type Topic {
     id: ID!
-    apps_id: ID!
-    company_id: ID!
-    users_id: ID!
     app: App!
     company: Company!
     user: User!
@@ -50,7 +47,7 @@ extend type Mutation {
         input: TopicInput!
     ): Topic 
     @field(
-        resolver: "App\\GraphQL\\Social\\Mutations\\Topics\\TopicsManagement@create"
+        resolver: "App\\GraphQL\\Social\\Mutations\\Topics\\TopicsManagementMutation@create"
     )
 
     updateTopic(
@@ -58,7 +55,7 @@ extend type Mutation {
         input: TopicInput!
     ): Topic
     @field(
-        resolver: "App\\GraphQL\\Social\\Mutations\\Topics\\TopicsManagement@update"
+        resolver: "App\\GraphQL\\Social\\Mutations\\Topics\\TopicsManagementMutation@update"
     )
 
     

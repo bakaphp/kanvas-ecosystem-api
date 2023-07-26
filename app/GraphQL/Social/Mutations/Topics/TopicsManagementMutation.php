@@ -36,7 +36,7 @@ class TopicsManagement
     public function update(mixed $rootValue, array $req): Topic
     {
         $topic = Topic::getById($req['id']);
-        if ($topic->users_id != auth()->user()->getId()) {
+        if ($topic->users_id !== auth()->user()->getId()) {
             throw new Exception('You are not allowed to update this topic');
         }
         $topic->update($req['input']);
