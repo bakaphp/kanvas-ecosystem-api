@@ -6,11 +6,11 @@ namespace App\GraphQL\Social\Mutations\Topics;
 
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Social\Topics\Actions\AttachEntityToTopic;
 use Kanvas\Social\Topics\Actions\CreateTopicAction;
+use Kanvas\Social\Topics\Actions\DetachEntityFromTopic;
 use Kanvas\Social\Topics\DataTransferObject\TopicInput;
 use Kanvas\Social\Topics\Models\Topic;
-use Kanvas\Social\Topics\Actions\AttachEntityToTopic;
-use Kanvas\Social\Topics\Actions\DetachEntityFromTopic;
 
 class TopicsManagement
 {
@@ -47,19 +47,23 @@ class TopicsManagement
     {
         $topic = Topic::getById($req['id']);
         $attachEntityToTopic = new AttachEntityToTopic(
-            $topic, $req['entityId'], 
+            $topic,
+            $req['entityId'],
             $req['entityNamespace']
         );
-        $attachEntityToTopic->execute();
+
+        return  $attachEntityToTopic->execute();
     }
 
     public function detachTopicFromEntity(mixed $rootValue, array $req): Topic
     {
         $topic = Topic::getById($req['id']);
         $detachEntityFromTopic = new DetachEntityFromTopic(
-            $topic, $req['entityId'], 
+            $topic,
+            $req['entityId'],
             $req['entityNamespace']
         );
-        $detachEntityFromTopic->execute();
+
+        return  $detachEntityFromTopic->execute();
     }
 }

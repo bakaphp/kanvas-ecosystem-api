@@ -15,11 +15,13 @@ class AttachEntityToTopic
     ) {
     }
 
-    public function execute()
+    public function execute(): Topic
     {
         $this->topic->entities()->create([
             'entity_id' => $this->entityId,
             'entity_namespace' => $this->entityNamespace,
         ]);
+
+        return $this->topic;
     }
 }

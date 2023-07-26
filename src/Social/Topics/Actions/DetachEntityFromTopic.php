@@ -15,11 +15,13 @@ class DetachEntityFromTopic
     ) {
     }
 
-    public function execute()
+    public function execute(): Topic
     {
         $this->topic->entities()->where([
             'entity_id' => $this->entityId,
             'entity_namespace' => $this->entityNamespace,
         ])->delete();
+
+        return $this->topic;
     }
 }
