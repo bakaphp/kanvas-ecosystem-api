@@ -154,4 +154,16 @@ class Variants extends BaseModel
             (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
         }
     }
+
+    /**
+     * Set status for the current variant.
+     *
+     * @param Status $status
+     * @return void
+     */
+    public function setStatus(Status $status): void
+    {
+        $this->status_id = $status->getId();
+        $this->saveOrFail();
+    }
 }
