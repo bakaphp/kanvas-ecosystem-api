@@ -1,20 +1,18 @@
 type Status {
     id: ID!
-    name: String
-    slug: String
+    name: String!
+    slug: String!
 }
 input StatusInput {
     name: String!
 }
-input StatusInputUpdate {
-    name: String!
-}
+
 extend type Mutation @guard {
     createStatus(input: StatusInput!): Status!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@create"
         )
-    updateStatus(id: ID!, input: StatusInputUpdate!): Status!
+    updateStatus(id: ID!, input: StatusInput!): Status!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@update"
         )

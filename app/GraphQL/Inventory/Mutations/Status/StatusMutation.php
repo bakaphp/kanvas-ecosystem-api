@@ -40,7 +40,7 @@ class StatusMutation
     {
         $id = $request['id'];
         $data = $request['input'];
-        $status = StatusRepository::getById($id, auth()->user()->getCurrentCompany());
+        $status = StatusRepository::getById((int) $id, auth()->user()->getCurrentCompany());
         $status->update($data);
 
         return $status;

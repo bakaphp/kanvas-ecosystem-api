@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('name', 64);
             $table->bigInteger('apps_id')->unsigned();
             $table->bigInteger('companies_id')->unsigned();
-            $table->string('slug', 32);
+            $table->string('slug', 64);
             $table->boolean('is_deleted')->default(0);
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
