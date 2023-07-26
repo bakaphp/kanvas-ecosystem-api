@@ -25,6 +25,7 @@
         "league/flysystem-aws-s3-v3": "^3.12",
         "meilisearch/meilisearch-php": "^1.1",
         "mll-lab/graphql-php-scalars": "^6.0",
+        "mll-lab/laravel-graphiql": "^3.1.0",
         "nuwave/lighthouse": "^6.0",
         "phpclassic/php-shopify": "^1.2",
         "sentry/sentry-laravel": "^3.2",
@@ -44,13 +45,12 @@
     "require-dev": {
         "fakerphp/faker": "^1.9.1",
         "kitloong/laravel-migrations-generator": "^6.8",
-        "mll-lab/laravel-graphiql": "^3.1",
         "mockery/mockery": "^1.4.4",
         "nunomaduro/collision": "^7.0",
-        "phpstan/phpstan": "^1.4.7",
-        "phpunit/phpunit": "10.2.1",
+        "phpunit/phpunit": "10.0.1",
         "spatie/laravel-ignition": "^2.0",
-        "vimeo/psalm": "^5.6"
+        "vimeo/psalm": "^5.6",
+        "phpstan/phpstan": "^1.4.7"
     },
     "autoload": {
         "psr-4": {
