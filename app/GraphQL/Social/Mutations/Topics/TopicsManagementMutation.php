@@ -13,14 +13,14 @@ use Kanvas\Social\Topics\Actions\DetachEntityFromTopic;
 use Kanvas\Social\Topics\DataTransferObject\TopicInput;
 use Kanvas\Social\Topics\Models\Topic;
 
-class TopicsManagement
+class TopicsManagementMutation
 {
     public function create($rootValue, array $req): Topic
     {
         $topic = new TopicInput(
-            app(Apps::class)->id,
-            auth()->user()->getCurrentCompany()->id,
-            auth()->user()->id,
+            app(Apps::class),
+            auth()->user()->getCurrentCompany(),
+            auth()->user(),
             $req['input']['name'],
             Str::slug($req['input']['name']),
             $req['input']['weight'],

@@ -17,9 +17,9 @@ class CreateTopicAction
     public function execute(): Topic
     {
         return Topic::create([
-            'apps_id' => $this->data->apps_id,
-            'companies_id' => $this->data->companies_id,
-            'users_id' => $this->data->users_id,
+            'apps_id' => $this->data->app->getId(),
+            'companies_id' => $this->data->company->getId(),
+            'users_id' => $this->data->user->getId(),
             'name' => $this->data->name,
             'slug' => $this->data->slug,
             'weight' => $this->data->weight,

@@ -5,12 +5,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Topics\DataTransferObject;
 
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Users\Models\Users;
+
 class TopicInput
 {
     public function __construct(
-        public int $apps_id,
-        public int $companies_id,
-        public int $users_id,
+        public Apps $app,
+        public Companies $company,
+        public Users $user,
         public string $name,
         public string $slug,
         public int $weight,
