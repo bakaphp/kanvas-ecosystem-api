@@ -39,6 +39,7 @@ type CompanyAssociation {
 type CompanyBranch {
     id: ID!
     company: Company! @belongsTo(relation: "company")
+    companies_id: Int!
     name: String!
     email: String
     phone: String
