@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Actions;
 
+use Kanvas\Inventory\Status\Actions\CreateStatusHistoryAction;
+use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses as VariantsWarehousesDto;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
@@ -33,7 +35,7 @@ class AddToWarehouseAction
             'warehouses_id' => $this->warehouses->getId(),
         ];
 
-        VariantsWarehouses::updateOrCreate(
+        $variantsWarehouses = VariantsWarehouses::updateOrCreate(
             $search,
             [
                 'quantity' => $this->variantsWarehousesDto->quantity,
@@ -52,6 +54,13 @@ class AddToWarehouseAction
                 'is_new' => $this->variantsWarehousesDto->is_new
             ]
         );
+
+        if($this->variantsWarehousesDto->status_id) {
+            (new CreateStatusHistoryAction(
+                StatusRepository::getById($this->variantsWarehousesDto->status_id),
+                $variantsWarehouses
+            ))->execute();
+        }
 
         return $this->variants;
     }
