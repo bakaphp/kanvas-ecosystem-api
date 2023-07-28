@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Models;
 
+use Baka\Traits\NoAppRelationshipTrait;
+use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -32,13 +34,15 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
  * @property int $can_pre_order
  * @property int $is_coming_soon
  * @property int $is_new
- * @property int $is_published
  * @property string $created_at
  * @property string $updated_at
  * @property bool $is_deleted
  */
 class VariantsWarehouses extends BaseModel
 {
+    use NoAppRelationshipTrait;
+    use NoCompanyRelationshipTrait;
+
     protected $table = 'products_variants_warehouses';
     protected $guarded = [];
 
@@ -72,6 +76,6 @@ class VariantsWarehouses extends BaseModel
 
     public function status(): HasOne
     {
-        return $this->hasOne(Status::class, 'status_id');
+        return $this->hasOne(Status::class, 'id', 'status_id');
     }
 }
