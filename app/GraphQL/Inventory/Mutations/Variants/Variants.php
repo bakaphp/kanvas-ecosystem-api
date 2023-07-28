@@ -29,8 +29,9 @@ class Variants
         $action = new CreateVariantsAction($variantDto, auth()->user());
         $variantModel = $action->execute();
 
-        WarehouseRepository::getById($variantDto->warehouse_id, $variantDto->product->company()->get()->first());
-        $variantModel->warehouses()->attach($variantDto->warehouse_id);
+        $warehouse = WarehouseRepository::getById($variantDto->warehouse_id, $variantDto->product->company()->get()->first());
+        $variantWarehouses = VariantsWarehouses::viaRequest($req['input']['warehouse']);
+        (new AddToWarehouse($variantModel, $warehouse, $variantWarehouses))->execute();
 
         return $variantModel;
     }
@@ -64,7 +65,7 @@ class Variants
         $variant = VariantsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
 
         $warehouse = WarehouseRepository::getById($req['warehouse_id']);
-        $variantWarehouses = VariantsWarehouses::from($req['input']);
+        $variantWarehouses = VariantsWarehouses::viaRequest($req['input']);
 
         return (new AddToWarehouse($variant, $warehouse, $variantWarehouses))->execute();
     }
