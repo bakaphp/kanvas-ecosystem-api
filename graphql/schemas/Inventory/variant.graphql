@@ -58,6 +58,7 @@ type WarehouseVariantRelationship {
     channels: [VariantChannelRelationship]
     quantity: Float
     price: Float
+    status: Status
     sku: String
     position: Int
     serial_number: String
@@ -84,6 +85,7 @@ type VariantChannelRelationship {
 }
 input VariantsWarehousesInput {
     quantity: Float!
+    status: StatusReferenceInput
     price: Float!
     sku: String
     position: Int!
@@ -96,7 +98,6 @@ input VariantsWarehousesInput {
     can_pre_order: Boolean
     is_coming_soon: Boolean
     is_new: Boolean
-    is_published: Boolean
 }
 input VariantsAttributesInput {
     name: String!
@@ -116,11 +117,11 @@ input VariantsInput {
     files: [FilesystemInputUrl]
     slug: String
     discountPrice: Float
-    status_id: Int
+    status: StatusReferenceInput
     price: Float
     source_id: Mixed
     attributes: [VariantsAttributesInput]
-    warehouse_id: Int!
+    warehouse: WarehouseReferenceInput!
 }
 input VariantsUpdateInput {
     products_id: Int
@@ -129,6 +130,7 @@ input VariantsUpdateInput {
     short_description: String
     html_description: String
     files: [FilesystemInputUrl]
+    status: StatusReferenceInput
     sku: String
     ean: String
     barcode: String

@@ -6,6 +6,10 @@ type Status {
 input StatusInput {
     name: String!
 }
+input StatusReferenceInput {
+    id: ID!
+    name: String
+}
 
 extend type Mutation @guard {
     createStatus(input: StatusInput!): Status!
