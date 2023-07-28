@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Mutations\Topics;
 
-use Baka\Support\Str;
 use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Topics\Actions\AttachEntityToTopic;
@@ -22,8 +21,7 @@ class TopicsManagementMutation
             auth()->user()->getCurrentCompany(),
             auth()->user(),
             $req['input']['name'],
-            Str::slug($req['input']['name']),
-            $req['input']['weight'],
+            $req['input']['weight'] ?? 0,
             $req['input']['is_feature'],
             $req['input']['status']
         );

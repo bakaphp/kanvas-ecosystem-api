@@ -16,8 +16,7 @@ class TopicInput
         public Companies $company,
         public Users $user,
         public string $name,
-        public string $slug,
-        public int $weight,
+        public int $weight = 0,
         public int $is_feature,
         public bool $status
     ) {
