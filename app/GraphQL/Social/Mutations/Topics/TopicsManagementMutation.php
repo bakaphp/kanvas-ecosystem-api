@@ -21,9 +21,9 @@ class TopicsManagementMutation
             auth()->user()->getCurrentCompany(),
             auth()->user(),
             $req['input']['name'],
-            $req['input']['weight'] ?? 0,
             $req['input']['is_feature'],
-            $req['input']['status']
+            $req['input']['status'],
+            $req['input']['weight'] ?? 0
         );
 
         $createTopic = new CreateTopicAction($topic);
