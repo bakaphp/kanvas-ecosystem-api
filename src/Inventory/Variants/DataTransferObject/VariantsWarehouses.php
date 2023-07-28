@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\DataTransferObject;
 
+use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Spatie\LaravelData\Data;
 
 class VariantsWarehouses extends Data
@@ -14,6 +15,7 @@ class VariantsWarehouses extends Data
         public ?string $sku = null,
         public int $position = 0,
         public ?string $serial_number = null,
+        public ?int $status_id = null,
         public bool $is_oversellable = false,
         public bool $is_default = false,
         public bool $is_best_seller = false,
@@ -22,7 +24,26 @@ class VariantsWarehouses extends Data
         public bool $can_pre_order = false,
         public bool $is_coming_son = false,
         public bool $is_new = false,
-        public bool $is_published = false,
     ) {
+    }
+
+    public static function viaRequest(array $request): self
+    {
+        return new self(
+            $request['quantity'] ?? 0.0,
+            $request['price'] ?? 0.0,
+            $request['sku'] ?? null,
+            $request['position'] ?? 0,
+            $request['serial_number'] ?? null,
+            StatusRepository::getById((int) $request['status']['id'])->getId() ?? null,
+            $request['is_oversellable'] ?? false,
+            $request['is_default'] ?? false,
+            $request['is_best_seller'] ?? false,
+            $request['is_on_sale'] ?? false,
+            $request['is_on_promo'] ?? false,
+            $request['can_pre_order'] ?? false,
+            $request['is_coming_son'] ?? false,
+            $request['is_new'] ?? false,
+        );
     }
 }
