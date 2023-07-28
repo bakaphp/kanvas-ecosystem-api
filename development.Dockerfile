@@ -17,5 +17,6 @@ RUN chmod -R ug+w /app/storage
 
 RUN cp docker/docker-php-ext-opcache-prod.ini /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
 RUN cp docker/php.ini /usr/local/etc/php/conf.d/zx-app-config.ini
+RUN cp docker/php-fpm.conf /usr/local/etc/php-fpm.d/zzz-php-fpm-production.conf
 
 WORKDIR /var/www/html

@@ -39,11 +39,11 @@ spec:
               mountPath: "/var/www/html"
           resources:
                 requests:
-                    memory: "512M"
+                    memory: "256M"
                     cpu: "300m"
                 limits:
-                    memory: "3G"
-                    cpu: "1000m"
+                    memory: "600M"
+                    cpu: "800m"
           command:
             [
               "/bin/sh",
