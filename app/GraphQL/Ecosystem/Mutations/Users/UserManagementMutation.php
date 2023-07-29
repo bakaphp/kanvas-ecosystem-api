@@ -57,7 +57,7 @@ class UserManagementMutation
         $request = $request['input'];
         $invite = new CreateInviteAction(
             new InviteDto(
-                $request['companies_branches_id'],
+                $request['companies_branches_id'] ?? auth()->user()->getCurrentBranch()->getId(),
                 $request['role_id'],
                 $request['email'],
                 $request['firstname'] ?? null,
