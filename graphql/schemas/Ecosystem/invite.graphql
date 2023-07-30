@@ -28,6 +28,7 @@ input InviteInput {
     firstname: String
     lastname: String
     description: String
+    email_template: String
 }
 
 input CompleteInviteInput {

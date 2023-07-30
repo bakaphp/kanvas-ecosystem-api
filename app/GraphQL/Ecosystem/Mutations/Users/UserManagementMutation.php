@@ -63,6 +63,7 @@ class UserManagementMutation
                 $request['firstname'] ?? null,
                 $request['lastname'] ?? null,
                 $request['description'] ?? null,
+                $request['email_template'] ?? null,
             ),
             auth()->user()
         );
