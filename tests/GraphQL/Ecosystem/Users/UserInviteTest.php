@@ -86,4 +86,132 @@ class UserInviteTest extends TestCase
 
         $this->assertEquals($response->json('data.processInvite.email'), $invite['email']);
     }
+
+    public function testDeleteInvite(): void
+    {
+        Notification::fake();
+
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation inviteUser($data: InviteInput!) {
+                inviteUser(input: $data)
+                {
+                   id,
+                   email,
+                   invite_hash,
+                }
+            }',
+            [
+                'data' => [
+                    'role_id' => RolesRepository::getByNameFromCompany('Users')->id,
+                    'email' => fake()->email(),
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                ],
+            ]
+        );
+
+        $invite = $response->json('data.inviteUser');
+
+        $this->graphQL( /** @lang GraphQL */
+            '
+            mutation deleteInvite($id: Int!) {
+                deleteInvite(id: $id)
+            }',
+            [
+                'id' => $invite['id'],
+            ]
+        )->assertSuccessful();
+    }
+
+    public function testGetInvite(): void
+    {
+        Notification::fake();
+
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation inviteUser($data: InviteInput!) {
+                inviteUser(input: $data)
+                {
+                   id,
+                   email,
+                   invite_hash,
+                }
+            }',
+            [
+                'data' => [
+                    'role_id' => RolesRepository::getByNameFromCompany('Users')->id,
+                    'email' => fake()->email(),
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                ],
+            ]
+        );
+
+        $invite = $response->json('data.inviteUser');
+
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+                mutation getInvite($hash: String!) {
+                    getInvite(hash: $hash)
+                    {
+                        email,
+                        invite_hash,
+                    }
+                }',
+            [
+
+                    'hash' => $invite['invite_hash'],
+            ]
+        )
+        ->assertSuccessful()
+        ->assertSeeText('email')
+        ->assertSeeText('invite_hash');
+
+        $this->assertEquals($response->json('data.getInvite.email'), $invite['email']);
+    }
+
+    public function testListInvites(): void
+    {
+        Notification::fake();
+
+        $this->graphQL( /** @lang GraphQL */
+            '
+            mutation inviteUser($data: InviteInput!) {
+                inviteUser(input: $data)
+                {
+                   id,
+                   email,
+                   invite_hash,
+                }
+            }',
+            [
+                'data' => [
+                    'role_id' => RolesRepository::getByNameFromCompany('Users')->id,
+                    'email' => fake()->email(),
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                ],
+            ]
+        );
+
+        $this->graphQL( /** @lang GraphQL */
+            '
+                query usersInvites {
+                    usersInvites(first: 10) {
+                        data {
+                            email,
+                            id,
+                            invite_hash
+                        }
+                    }
+                }',
+            [
+
+            ]
+        )
+        ->assertSuccessful()
+        ->assertSeeText('email')
+        ->assertSeeText('invite_hash');
+    }
 }
