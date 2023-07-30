@@ -1,4 +1,4 @@
-`<?php
+<?php
 
 declare(strict_types=1);
 
@@ -28,8 +28,6 @@ class AssignRoleAction
      * Invoke function.
      *
      * @param RegisterInput $data
-     *
-     * @return UserRoles
      */
     public function execute(string $roleName): UserRoles
     {
@@ -51,12 +49,12 @@ class AssignRoleAction
         $userRole = UserRoles::firstOrCreate([
             'users_id' => $this->user->id,
             'apps_id' => $this->app->id,
-            'companies_id' => $this->company->id
+            'companies_id' => $this->company->id,
         ], [
             'users_id' => $this->user->id,
             'roles_id' => $role->id,
             'apps_id' => $this->app->id,
-            'companies_id' => $this->company->id
+            'companies_id' => $this->company->id,
         ]);
 
         $userRole->roles_id = $role->getKey();

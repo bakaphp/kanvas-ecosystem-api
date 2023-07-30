@@ -80,9 +80,10 @@ class UserInviteTest extends TestCase
                     'invite_hash' => $invite['invite_hash'],
                 ],
             ]
-        );
+        )->assertSuccessful()
+        ->assertSeeText('email')
+        ->assertSeeText('id');
 
-        print_r($response->json());
-        die();
+        $this->assertEquals($response->json('data.processInvite.email'), $invite['email']);
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
@@ -31,7 +32,7 @@ class UserConfig extends BaseModel
     ];
 
     protected $casts = [
-        'value' => 'array',
+        'value' => Json::class,
     ];
 
     /**
