@@ -116,6 +116,7 @@ trait HashTableTrait
         $this->createSettingsModel();
         $value = $this->getSettingsByKey($key);
 
+        print_r($value); 
         if (is_object($value)) {
             return $value->value;
         }

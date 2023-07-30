@@ -1,4 +1,4 @@
-<?php
+`<?php
 
 declare(strict_types=1);
 
@@ -12,7 +12,7 @@ use Kanvas\Roles\Repositories\RolesRepository;
 use Kanvas\Users\Models\UserRoles;
 use Kanvas\Users\Models\Users;
 
-class AssignRole
+class AssignRoleAction
 {
     /**
      * Construct function.
