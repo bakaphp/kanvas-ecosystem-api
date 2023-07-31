@@ -91,6 +91,7 @@ jobs:
         
             touch helm/.helmignore
             echo "svc-lb.yaml" >> helm/.helmignore
+            echo "cluster-autoscaler-autodiscover.yaml" >> helm/.helmignore
 
             helm upgrade --install ${{ secrets.INSTANCE_NAME }} helm \
             --namespace ${{ secrets.INSTANCE_NAME }} \
