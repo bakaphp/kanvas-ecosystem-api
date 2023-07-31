@@ -4,8 +4,8 @@ metadata:
   name: {{.Values.deployments.queue.name}}
   namespace: {{.Values.namespace}}
 spec:
-  maxReplicas: 10
-  minReplicas: 5
+  maxReplicas: 15
+  minReplicas: 3
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
