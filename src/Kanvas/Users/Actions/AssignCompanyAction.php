@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Users\Actions;
 
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
-use Kanvas\AccessControlList\Models\Role;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
@@ -13,6 +12,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Users\Actions\AssignRoleAction as ActionsAssignRoleAction;
 use Kanvas\Users\Models\Users;
 
 class AssignCompanyAction
@@ -72,7 +72,7 @@ class AssignCompanyAction
             $roleLegacy = $app->name . '.' . $this->user->role()->first()->name;
         }
 
-        $assignRoleLegacy = new AssignRole($this->user, $this->company, $app);
+        $assignRoleLegacy = new ActionsAssignRoleAction($this->user, $this->company, $app);
         $assignRoleLegacy->execute($roleLegacy);
     }
 }
