@@ -55,7 +55,7 @@ class AddToWarehouseAction
             ]
         );
 
-        if($this->variantsWarehousesDto->status_id) {
+        if ($this->variantsWarehousesDto->status_id) {
             (new CreateStatusHistoryAction(
                 StatusRepository::getById($this->variantsWarehousesDto->status_id),
                 $variantsWarehouses
