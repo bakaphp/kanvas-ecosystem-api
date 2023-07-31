@@ -148,6 +148,7 @@ class UserInviteTest extends TestCase
                     'email' => fake()->email(),
                     'firstname' => fake()->firstName(),
                     'lastname' => fake()->lastName(),
+                    'custom_fields' => [],
                 ],
             ]
         );
