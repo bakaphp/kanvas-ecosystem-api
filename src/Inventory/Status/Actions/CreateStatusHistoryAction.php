@@ -31,7 +31,6 @@ class CreateStatusHistoryAction
         return VariantWarehouseStatusHistory::firstOrCreate([
             'status_id' => $this->status->getId(),
             'products_variants_warehouse_id' => $this->variantsWarehouses->getId(),
-        ], [
             'from_date' => date('Y-m-d H:i:s'),
         ]);
     }
