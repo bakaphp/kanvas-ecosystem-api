@@ -51,7 +51,7 @@ class UpdateToWarehouseAction
 
         if ($this->variantsWarehousesDto->status_id && $oldStatusId !== $this->variantsWarehouses->status_id) {
             (new CreateStatusHistoryAction(
-                StatusRepository::getById($this->variantsWarehousesDto->status_id),
+                StatusRepository::getById($this->variantsWarehousesDto->status_id, $this->variantsWarehouses->variant->product->company()),
                 $this->variantsWarehouses
             ))->execute();
         }
