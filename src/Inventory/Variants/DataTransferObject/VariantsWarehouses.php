@@ -10,8 +10,8 @@ use Spatie\LaravelData\Data;
 class VariantsWarehouses extends Data
 {
     public function __construct(
-        public float $quantity = 0.0,
-        public float $price = 0.0,
+        public ?float $quantity = null,
+        public ?float $price = null,
         public ?string $sku = null,
         public int $position = 0,
         public ?string $serial_number = null,
@@ -30,8 +30,8 @@ class VariantsWarehouses extends Data
     public static function viaRequest(array $request): self
     {
         return new self(
-            $request['quantity'] ?? 0.0,
-            $request['price'] ?? 0.0,
+            $request['quantity'] ?? null,
+            $request['price'] ?? null,
             $request['sku'] ?? null,
             $request['position'] ?? 0,
             $request['serial_number'] ?? null,
