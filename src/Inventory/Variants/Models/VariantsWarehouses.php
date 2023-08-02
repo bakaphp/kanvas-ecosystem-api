@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Status\Models\Status;
+use Kanvas\Inventory\Status\Models\VariantWarehouseStatusHistory;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 /**
@@ -77,5 +78,36 @@ class VariantsWarehouses extends BaseModel
     public function status(): HasOne
     {
         return $this->hasOne(Status::class, 'id', 'status_id');
+    }
+
+    public function statusHistory(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Status::class,
+            VariantWarehouseStatusHistory::class,
+            'products_variants_warehouse_id',
+            'status_id'
+        )
+            ->withPivot('from_date');
+    }
+
+    /**
+     * Get the status history with the status information.
+     *
+     * @return array
+     */
+    public function getStatusHistory(): array
+    {
+        $statusHistories = [];
+
+        foreach ($this->statusHistory as $status) {
+            $statusHistories[] = [
+                "id" => $status->id,
+                "name" => $status->name,
+                "from_date" => $status->pivot->from_date
+            ];
+        };
+
+        return $statusHistories;
     }
 }
