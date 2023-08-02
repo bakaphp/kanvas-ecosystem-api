@@ -10,6 +10,7 @@ use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction as AddToWarehouse;
 use Kanvas\Inventory\Variants\Actions\AddVariantToChannel;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
+use Kanvas\Inventory\Variants\Actions\UpdateToWarehouseAction;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantDto;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
@@ -29,6 +30,9 @@ class Variants
         $action = new CreateVariantsAction($variantDto, auth()->user());
         $variantModel = $action->execute();
 
+        if (isset($req['input']['attributes'])) {
+            $variantModel->addAttributes(auth()->user(), $req['input']['attributes']);
+        }
         $warehouse = WarehouseRepository::getById($variantDto->warehouse_id, $variantDto->product->company()->get()->first());
         $variantWarehouses = VariantsWarehouses::viaRequest($req['input']['warehouse']);
         (new AddToWarehouse($variantModel, $warehouse, $variantWarehouses))->execute();
@@ -68,6 +72,21 @@ class Variants
         $variantWarehouses = VariantsWarehouses::viaRequest($req['input']);
 
         return (new AddToWarehouse($variant, $warehouse, $variantWarehouses))->execute();
+    }
+
+    /**
+     * updateVariantInWarehouse.
+     */
+    public function updateVariantInWarehouse(mixed $root, array $req): VariantModel
+    {
+        $variant = VariantsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
+        $warehouse = WarehouseRepository::getById((int) $req['warehouse_id']);
+        $variantWarehousesDto = VariantsWarehouses::viaRequest($req['input']);
+        $variantWarehouses = ModelsVariantsWarehouses::where('products_variants_id', $variant->getId())
+            ->where('warehouses_id', $warehouse->getId())
+            ->firstOrFail();
+
+        return (new UpdateToWarehouseAction($variantWarehouses, $variantWarehousesDto))->execute();
     }
 
     /**
