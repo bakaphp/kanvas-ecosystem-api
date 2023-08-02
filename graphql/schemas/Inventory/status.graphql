@@ -3,6 +3,11 @@ type Status {
     name: String!
     slug: String!
 }
+type StatusHistoryRelationship {
+    id: ID!
+    name: String
+    from_date: String!
+}
 input StatusInput {
     name: String!
 }
