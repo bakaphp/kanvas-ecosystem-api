@@ -28,7 +28,7 @@ class Variants
     public function create(mixed $root, array $req): VariantModel
     {
         if (isset($req['input']['status'])) {
-            $req['input']['status_id'] = StatusRepository::getById((int) $req['input']['status']['id'])->getId();
+            $req['input']['status_id'] = StatusRepository::getById((int) $req['input']['status']['id'], auth()->user()->getCurrentCompany())->getId();
         }
 
         $variantDto = VariantDto::viaRequest($req['input']);
@@ -75,7 +75,7 @@ class Variants
 
         $warehouse = WarehouseRepository::getById($req['warehouse_id']);
         if (isset($req['input']['status'])) {
-            $req['input']['status_id'] = StatusRepository::getById((int) $req['input']['status']['id'])->getId();
+            $req['input']['status_id'] = StatusRepository::getById((int) $req['input']['status']['id'], auth()->user()->getCurrentCompany())->getId();
         }
         $variantWarehouses = VariantsWarehouses::viaRequest($req['input']);
 

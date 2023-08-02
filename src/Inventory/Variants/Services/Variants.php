@@ -37,7 +37,7 @@ class Variants
                 $variantModel->addAttributes($user, $variant['attributes']);
             }
             if (isset($variant['status_id'])) {
-                $status = StatusRepository::getById($variant['status_id']);
+                $status = StatusRepository::getById($variant['status_id'], $variantDto->product->company()->get()->first());
                 $variant->setStatus($status);
             }
 
