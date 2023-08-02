@@ -28,15 +28,15 @@ use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes as ProductsTypesModel;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction as ActionsAddAttributeAction;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction;
-use Kanvas\Inventory\Variants\Actions\AddVariantToChannel;
+use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
 use Kanvas\Inventory\Variants\Models\Variants as VariantsModel;
+use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses;
-use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehouses;
 use Throwable;
 
 class ProductImporterAction
@@ -382,8 +382,7 @@ class ProductImporterAction
             ->where('warehouses_id', $warehouse->getId())
             ->firstOrFail();
 
-
-            (new AddVariantToChannel(
+            (new AddVariantToChannelAction(
                 $variantWarehouses,
                 $channel,
                 $variantChannel

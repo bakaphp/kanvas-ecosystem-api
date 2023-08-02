@@ -8,7 +8,7 @@ use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
 use Kanvas\Inventory\Channels\Repositories\ChannelRepository;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction as AddToWarehouse;
-use Kanvas\Inventory\Variants\Actions\AddVariantToChannel;
+use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantDto;
@@ -121,7 +121,7 @@ class Variants
 
         $channel = ChannelRepository::getById((int) $req['channels_id']);
         $variantChannel = VariantChannel::from($req['input']);
-        (new AddVariantToChannel($variantWarehouses, $channel, $variantChannel))->execute();
+        (new AddVariantToChannelAction($variantWarehouses, $channel, $variantChannel))->execute();
 
         return $variant;
     }

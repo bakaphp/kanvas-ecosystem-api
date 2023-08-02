@@ -9,7 +9,7 @@ use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 
-class AddVariantToChannel
+class AddVariantToChannelAction
 {
     public function __construct(
         protected VariantsWarehouses $variantsWarehouses,
