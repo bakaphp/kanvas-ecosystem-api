@@ -88,7 +88,7 @@ class Variants
     public function updateVariantInWarehouse(mixed $root, array $req): VariantModel
     {
         $variant = VariantsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
-        $warehouse = WarehouseRepository::getById((int) $req['warehouse_id']);
+        $warehouse = WarehouseRepository::getById((int) $req['warehouse_id'], auth()->user()->getCurrentCompany());
         $variantWarehousesDto = VariantsWarehouses::viaRequest($req['input']);
         $variantWarehouses = ModelsVariantsWarehouses::where('products_variants_id', $variant->getId())
             ->where('warehouses_id', $warehouse->getId())
@@ -104,7 +104,7 @@ class Variants
     {
         $variant = VariantsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
 
-        $warehouse = WarehouseRepository::getById($req['warehouse_id']);
+        $warehouse = WarehouseRepository::getById($req['warehouse_id'], auth()->user()->getCurrentCompany());
         $variant->warehouses()->detach($warehouse);
 
         return $variant;
