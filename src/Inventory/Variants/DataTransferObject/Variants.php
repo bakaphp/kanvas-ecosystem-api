@@ -6,7 +6,6 @@ namespace Kanvas\Inventory\Variants\DataTransferObject;
 
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Products\Repositories\ProductsRepository;
-use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Spatie\LaravelData\Data;
 
 class Variants extends Data
@@ -34,7 +33,7 @@ class Variants extends Data
             $request['name'],
             $request['description'] ?? '',
             (int) $request['warehouse']['id'],
-            StatusRepository::getById((int) $request['status']['id'])->getId() ?? null,
+            $request['status_id'] ?? null,
             $request['short_description'] ?? null,
             $request['html_description'] ?? null,
             $request['sku'] ?? null,

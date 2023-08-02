@@ -6,6 +6,7 @@ namespace App\GraphQL\Inventory\Mutations\Variants;
 
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
 use Kanvas\Inventory\Channels\Repositories\ChannelRepository;
+use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction as AddToWarehouse;
 use Kanvas\Inventory\Variants\Actions\AddVariantToChannel;
@@ -26,6 +27,10 @@ class Variants
      */
     public function create(mixed $root, array $req): VariantModel
     {
+        if (isset($req['input']['status'])) {
+            $req['input']['status_id'] = StatusRepository::getById((int) $req['input']['status']['id'])->getId();
+        }
+
         $variantDto = VariantDto::viaRequest($req['input']);
         $action = new CreateVariantsAction($variantDto, auth()->user());
         $variantModel = $action->execute();
@@ -69,6 +74,9 @@ class Variants
         $variant = VariantsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
 
         $warehouse = WarehouseRepository::getById($req['warehouse_id']);
+        if (isset($req['input']['status'])) {
+            $req['input']['status_id'] = StatusRepository::getById((int) $req['input']['status']['id'])->getId();
+        }
         $variantWarehouses = VariantsWarehouses::viaRequest($req['input']);
 
         return (new AddToWarehouse($variant, $warehouse, $variantWarehouses))->execute();
