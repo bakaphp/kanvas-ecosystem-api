@@ -28,6 +28,7 @@ class Variants
             $variantDto = VariantsDto::from([
                 'product' => $product,
                 'products_id' => $product->getId(),
+                'warehouse_id' => $variant['warehouse']['id'],
                 ...$variant,
             ]);
 
