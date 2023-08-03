@@ -9,6 +9,7 @@ type Variant {
     html_description: String
     sku: String
     ean: String
+    status: Status
     files: [Filesystem]
         @paginate(
             defaultCount: 10
@@ -53,10 +54,11 @@ type VariantChannel {
 
 type WarehouseVariantRelationship {
     id: ID!
-    warehouseinfo: Warehouse @hasMany(relation: "warehouse")
+    warehouseinfo: Warehouse @belongsToMany(relation: "warehouse")
     channels: [VariantChannelRelationship]
     quantity: Float
     price: Float
+    status: Status
     sku: String
     position: Int
     serial_number: String
@@ -69,6 +71,8 @@ type WarehouseVariantRelationship {
     is_coming_soon: Boolean
     is_new: Boolean
     is_published: Boolean
+    status_history: [StatusHistoryRelationship] 
+        @method(name: "getStatusHistory")
 }
 type VariantsAttributes {
     name: String!
@@ -82,10 +86,12 @@ type VariantChannelRelationship {
     is_published: Boolean
 }
 input VariantsWarehousesInput {
-    quantity: Float!
-    price: Float!
+    warehouse_id: ID!
+    quantity: Float
+    status: StatusReferenceInput
+    price: Float
     sku: String
-    position: Int!
+    position: Int
     serial_number: String
     is_oversellable: Boolean
     is_default: Boolean
@@ -95,7 +101,6 @@ input VariantsWarehousesInput {
     can_pre_order: Boolean
     is_coming_soon: Boolean
     is_new: Boolean
-    is_published: Boolean
 }
 input VariantsAttributesInput {
     name: String!
@@ -115,10 +120,11 @@ input VariantsInput {
     files: [FilesystemInputUrl]
     slug: String
     discountPrice: Float
+    status: StatusReferenceInput
     price: Float
     source_id: Mixed
     attributes: [VariantsAttributesInput]
-    warehouse_id: Int!
+    warehouse: WarehouseReferenceInput!
 }
 input VariantsUpdateInput {
     products_id: Int
@@ -127,6 +133,7 @@ input VariantsUpdateInput {
     short_description: String
     html_description: String
     files: [FilesystemInputUrl]
+    status: StatusReferenceInput
     sku: String
     ean: String
     barcode: String
@@ -153,11 +160,17 @@ extend type Mutation @guard {
         )
     addVariantToWarehouse(
         id: ID!
-        warehouse_id: Int!
         input: VariantsWarehousesInput!
     ): Variant
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addToWarehouse"
+        )
+    updateVariantInWarehouse(
+        id: ID!
+        input: VariantsWarehousesInput!
+    ): Variant
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@updateVariantInWarehouse"
         )
     removeVariantToWarehouse(id: Int!, warehouse_id: Int!): Variant
         @field(
@@ -220,7 +233,7 @@ extend type Query @guard {
         warehouseId: Int!
         search: String @search
         where: _ @whereConditions(columns: ["quantity", "price", "sku"])
-    ): [Variant!]
+    ): [Variant!]!
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\Variants@allVariantsInWarehouse"

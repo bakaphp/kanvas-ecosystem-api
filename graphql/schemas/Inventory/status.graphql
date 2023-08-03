@@ -1,0 +1,50 @@
+type Status {
+    id: ID!
+    name: String!
+    slug: String!
+}
+type StatusHistoryRelationship {
+    id: ID!
+    name: String
+    from_date: String!
+}
+input StatusInput {
+    name: String!
+}
+input StatusReferenceInput {
+    id: ID!
+    name: String
+}
+
+extend type Mutation @guard {
+    createStatus(input: StatusInput!): Status!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@create"
+        )
+    updateStatus(id: ID!, input: StatusInput!): Status!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@update"
+        )
+    deleteStatus(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Status\\StatusMutation@delete"
+        )
+}
+
+extend type Query @guard {
+    getStatus(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "slug"
+                ]
+            )
+    ): [Status!]!
+        @paginate(
+            model: "Kanvas\\Inventory\\Status\\Models\\Status"
+            scopes: ["fromApp", "fromCompany"]
+            defaultCount: 10
+        )
+}
