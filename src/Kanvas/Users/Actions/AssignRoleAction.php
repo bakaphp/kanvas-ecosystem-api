@@ -12,7 +12,7 @@ use Kanvas\Roles\Repositories\RolesRepository;
 use Kanvas\Users\Models\UserRoles;
 use Kanvas\Users\Models\Users;
 
-class AssignRole
+class AssignRoleAction
 {
     /**
      * Construct function.
@@ -28,8 +28,6 @@ class AssignRole
      * Invoke function.
      *
      * @param RegisterInput $data
-     *
-     * @return UserRoles
      */
     public function execute(string $roleName): UserRoles
     {
@@ -51,12 +49,12 @@ class AssignRole
         $userRole = UserRoles::firstOrCreate([
             'users_id' => $this->user->id,
             'apps_id' => $this->app->id,
-            'companies_id' => $this->company->id
+            'companies_id' => $this->company->id,
         ], [
             'users_id' => $this->user->id,
             'roles_id' => $role->id,
             'apps_id' => $this->app->id,
-            'companies_id' => $this->company->id
+            'companies_id' => $this->company->id,
         ]);
 
         $userRole->roles_id = $role->getKey();

@@ -73,7 +73,9 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
         //set the user
         $this->data['user'] = $notifiable;
-        $this->toUser = $notifiable;
+        if ($notifiable instanceof UserInterface && $notifiable->getId() > 0) {
+            $this->toUser = $notifiable; //we do this validation because user invite temp user deserialize the user
+        }
 
         return [
              KanvasDatabaseChannel::class,

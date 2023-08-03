@@ -12,8 +12,6 @@ class CountriesGraphqlTest extends TestCase
 {
     /**
      * test_save.
-     *
-     * @return void
      */
     public function testCreate(): void
     {
@@ -63,8 +61,6 @@ class CountriesGraphqlTest extends TestCase
 
     /**
      * test_get.
-     *
-     * @return void
      */
     public function testGet(): void
     {
@@ -96,8 +92,6 @@ class CountriesGraphqlTest extends TestCase
 
     /**
      * test_update.
-     *
-     * @return void
      */
     public function testUpdate(): void
     {
@@ -105,7 +99,7 @@ class CountriesGraphqlTest extends TestCase
         $name = fake()->name;
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation(
-                $id: Int!
+                $id: ID!
                 $name: String!,
                 $code: String!,
                 $flag: String!
@@ -166,15 +160,15 @@ class CountriesGraphqlTest extends TestCase
                     'data' => [
                         [
                             'id' => $country->id,
-                            'name' => $country->name
-                        ]
+                            'name' => $country->name,
+                        ],
                     ],
                     'paginatorInfo' => [
                         'currentPage' => 1,
-                        'lastPage' => 1
-                    ]
+                        'lastPage' => 1,
+                    ],
                 ],
-            ]
+            ],
         ]);
     }
 
@@ -223,17 +217,17 @@ class CountriesGraphqlTest extends TestCase
                             'states' => [
                                 [
                                     'id' => $state->id,
-                                    'name' => $state->name
-                                ]
-                            ]
-                        ]
+                                    'name' => $state->name,
+                                ],
+                            ],
+                        ],
                     ],
                     'paginatorInfo' => [
                         'currentPage' => 1,
-                        'lastPage' => 1
-                    ]
+                        'lastPage' => 1,
+                    ],
                 ],
-            ]
+            ],
         ]);
     }
 }

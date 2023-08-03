@@ -10,16 +10,8 @@ class Invite extends Data
 {
     /**
      * __construct.
-     *
-     * @param int $companies_branches_id
-     * @param int $role_id
-     * @param string $email
-     * @param ?string $firstname
-     * @param ?string $lastname
-     * @param ?string $description
-     *
-     * @return void
-     */
+     * @todo move to camel case
+     **/
     public function __construct(
         public int $companies_branches_id,
         public int $role_id,
@@ -27,6 +19,7 @@ class Invite extends Data
         public ?string $firstname,
         public ?string $lastname,
         public ?string $description,
+        public ?string $email_template = null,
     ) {
     }
 }

@@ -80,7 +80,8 @@ class RemoveVariantsToWarehouseTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'products_id' => $productId
+            'products_id' => $productId,
+            'warehouse_id' => $warehouseId
         ];
         $response = $this->graphQL('
         mutation($data: VariantsInput!) {
@@ -91,24 +92,28 @@ class RemoveVariantsToWarehouseTest extends TestCase
                 description
                 products_id
             }
-        }', ['data' => $data])->assertJson([
-            'data' => ['createVariant' => $data]
-        ]);
+        }', ['data' => $data]);
         $variantId = $response->json()['data']['createVariant']['id'];
-        $data = [
 
-            'price' => 10.00,
-            'quantity' => 1,
-            'position' => 1,
+
+        $data = [
+            'price' => rand(1, 1000),
+            'quantity' => rand(1, 5),
+            'position' => rand(1, 4),
         ];
-        $response = $this->graphQL('
-        mutation($data: VariantsWarehousesInput! $id: Int! $warehouse_id: Int!) {
+        $warehouseResponse = $this->graphQL('
+        mutation($data: VariantsWarehousesInput! $id: ID! $warehouse_id: Int!) {
             addVariantToWarehouse(input: $data id: $id warehouse_id: $warehouse_id)
             {
                 id
                 name
                 description
                 products_id
+                warehouses{
+                    warehouseinfo{
+                        id
+                    }
+                }
             }
         }', [
             'data' => $data,

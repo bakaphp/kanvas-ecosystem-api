@@ -30,24 +30,6 @@ spec:
             items:
               - key: config
                 path: default.conf
-        - name: phpini
-          configMap:
-            name: php-ini-config
-            items:
-              - key: phpini
-                path: phpupdate.ini
-        - name: phpfpm
-          configMap:
-            name: php-fpm-config
-            items:
-              - key: phpfpm
-                path: zzz-php-fpm-production.conf
-        - name: phpwww
-          configMap:
-            name: php-www-config
-            items:
-              - key: phpwww
-                path: www.conf
       containers:
         - name: nginx
           image: nginx:1.18
@@ -68,9 +50,6 @@ spec:
                     cpu: "200m"
         - name: {{.Values.deployments.api.containerName}}
           image: {{.Values.apiImage}}
-          # envFrom:
-          # - configMapRef:
-          #     name: special-config
           imagePullPolicy: Always
           ports:
             - containerPort: 9000
@@ -79,24 +58,15 @@ spec:
             - name: envconfigmap
               mountPath: /app/.env
               subPath: .env
-            - name: phpini
-              mountPath: /usr/local/etc/php/conf.d/phpupdate.ini
-              subPath: phpupdate.ini
-            - name: phpfpm
-              mountPath: /usr/local/etc/php-fpm.d/zzz-php-fpm-production.conf
-              subPath: zzz-php-fpm-production.conf
-            - name: phpwww
-              mountPath: /usr/local/etc/php-fpm/php-fpm.d/www.conf
-              subPath: www.conf
             - name: webroot
               mountPath: "/var/www/html"
           resources:
                 requests:
-                    memory: "512M"
+                    memory: "256M"
                     cpu: "300m"
                 limits:
-                    memory: "1G"
-                    cpu: "700m"
+                    memory: "600M"
+                    cpu: "800m"
           lifecycle:
             postStart:
               exec:

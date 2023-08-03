@@ -1,0 +1,63 @@
+type Topic {
+    id: ID!
+    app: App!
+    company: Company!
+    user: User!
+    name: String!
+    slug: String!
+    weight: Int
+    is_feature: Int
+    status: Boolean
+}
+
+input TopicInput {
+    name: String!
+    weight: Int
+    is_feature: Int
+    status: Boolean
+}
+
+extend type Query {
+
+    getTopics(
+        where: _@whereConditions(
+            columns: [
+                "id",
+                "apps_id",
+                "company_id",
+                "users_id",
+                "name",
+                "slug",
+                "weight",
+                "is_feature",
+                "status"
+            ]
+        )
+    orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
+    search: String @search
+    ): [Topic!]! @paginate(
+        model: "Kanvas\\Social\\Topics\\Models\\Topic"
+        defaultCount: 25
+    )
+}
+
+extend type Mutation {
+
+    createTopic(
+        input: TopicInput!
+    ): Topic 
+    @field(
+        resolver: "App\\GraphQL\\Social\\Mutations\\Topics\\TopicsManagementMutation@create"
+    )
+
+    updateTopic(
+        id: ID!
+        input: TopicInput!
+    ): Topic
+    @field(
+        resolver: "App\\GraphQL\\Social\\Mutations\\Topics\\TopicsManagementMutation@update"
+    )
+
+    
+}
+

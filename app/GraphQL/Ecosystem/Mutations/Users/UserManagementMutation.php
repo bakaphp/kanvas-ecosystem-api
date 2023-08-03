@@ -6,6 +6,7 @@ namespace App\GraphQL\Ecosystem\Mutations\Users;
 
 use Illuminate\Support\Facades\Auth as AuthFacade;
 use Illuminate\Support\Facades\Hash;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Services\UserManagement as UserManagementService;
 use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
 use Kanvas\Users\Actions\CreateInviteAction;
@@ -25,8 +26,7 @@ class UserManagementMutation
     public function changePassword(mixed $root, array $req): bool
     {
         $user = UsersRepository::getByEmail(AuthFacade::user()->email);
-        $user->password = Hash::make($req['new_password']);
-        $user->saveOrFail();
+        $user->changePassword((string) $req['current_password'], (string) $req['new_password'], app(Apps::class));
         $user->notify(new ChangePasswordUserLogged($user));
 
         return true;
@@ -57,12 +57,13 @@ class UserManagementMutation
         $request = $request['input'];
         $invite = new CreateInviteAction(
             new InviteDto(
-                $request['companies_branches_id'],
+                $request['companies_branches_id'] ?? auth()->user()->getCurrentBranch()->getId(),
                 $request['role_id'],
                 $request['email'],
                 $request['firstname'] ?? null,
                 $request['lastname'] ?? null,
                 $request['description'] ?? null,
+                $request['email_template'] ?? null,
             ),
             auth()->user()
         );

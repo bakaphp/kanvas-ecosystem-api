@@ -5,6 +5,7 @@ type Lead {
     branch: CompanyBranch! @belongsTo
     title: String!
     people: People
+    user: User @belongsTo
     owner: User @belongsTo
     organization: Organization @belongsTo
     receiver: LeadReceiver @belongsTo

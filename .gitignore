@@ -21,3 +21,4 @@ package.json
 package-lock.json
 .php-cs-fixer.cache
 service-account.json
+.env.testing

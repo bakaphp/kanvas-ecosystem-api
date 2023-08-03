@@ -14,7 +14,10 @@ class RolePermissionQuery
      */
     public function can(mixed $rootValue, array $request): bool
     {
-        $user = UsersRepository::getUserOfCompanyById(auth()->user()->getCurrentCompany(), $request['userId']);
+        $user = UsersRepository::getUserOfCompanyById(
+            auth()->user()->getCurrentCompany(),
+            (int) $request['userId']
+        );
 
         if ($user->isAn((string) DefaultRoles::ADMIN->getValue())) {
             return true;

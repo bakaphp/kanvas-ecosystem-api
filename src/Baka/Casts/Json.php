@@ -16,7 +16,7 @@ class Json implements CastsAttributes
      * @param  array<string, mixed>  $attributes
      * @return array<string, mixed>
      */
-    public function get(Model $model, string $key, mixed $value, array $attributes): string|array
+    public function get(Model $model, string $key, mixed $value, array $attributes): mixed
     {
         return  Str::isJson($value) ? json_decode($value, true) : $value;
     }
@@ -26,7 +26,7 @@ class Json implements CastsAttributes
      *
      * @param  array<string, mixed>  $attributes
      */
-    public function set(Model $model, string $key, mixed $value, array $attributes): string|array
+    public function set(Model $model, string $key, mixed $value, array $attributes): mixed
     {
         return Str::isJson($value) || is_array($value) ? json_encode($value) : $value;
     }

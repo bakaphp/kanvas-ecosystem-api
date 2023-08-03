@@ -9,15 +9,15 @@ use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Inventory\Attributes\Models\Attributes;
-use Kanvas\Inventory\Channels\Models\Channels;
-use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
-use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
+use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
+use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Laravel\Scout\Searchable;
@@ -92,33 +92,22 @@ class Variants extends BaseModel
         return $this->belongsTo(Products::class, 'products_id');
     }
 
+    public function variantWarehouses(): HasMany
+    {
+        return $this->hasMany(VariantsWarehouses::class, 'products_variants_id');
+    }
+
     /**
-     * The warehouses that belong to the Variants.
+     * warehouses.
      */
     public function warehouses(): BelongsToMany
     {
         return $this->belongsToMany(
             Warehouses::class,
-            'products_variants_warehouses',
+            VariantsWarehouses::class,
             'products_variants_id',
             'warehouses_id'
-        )
-            ->withPivot(
-                'quantity',
-                'price',
-                'sku',
-                'position',
-                'serial_number',
-                'is_oversellable',
-                'is_default',
-                'is_default',
-                'is_best_seller',
-                'is_on_sale',
-                'is_on_promo',
-                'can_pre_order',
-                'is_new',
-                'is_published'
-            );
+        );
     }
 
     /**
@@ -136,30 +125,9 @@ class Variants extends BaseModel
     }
 
     /**
-     * channels.
-     */
-    public function channels(): BelongsToMany
-    {
-        return $this->belongsToMany(
-            Channels::class,
-            VariantsChannels::class,
-            'products_variants_id',
-            'channels_id'
-        )
-            ->withPivot(
-                'price',
-                'discounted_price',
-                'is_published',
-                'warehouses_id'
-            );
-    }
-
-    /**
      * Add/create new attributes from a variant.
      *
      * @param ModelVariants $variants
-     * @param array $attributes
-     * @return void
      */
     public function addAttributes(UserInterface $user, array $attributes): void
     {
@@ -169,7 +137,7 @@ class Variants extends BaseModel
                 'user' => $user,
                 'company' => $this->product->companies,
                 'name' => $attribute['name'],
-                'value' => $attribute['value']
+                'value' => $attribute['value'],
             ]);
 
             $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();

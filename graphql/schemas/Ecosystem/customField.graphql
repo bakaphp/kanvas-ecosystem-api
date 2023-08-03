@@ -1,19 +1,19 @@
 type CustomField {
     name: String!
     value: Mixed
-    systemModule: SystemModule!
-    entity_id: String!
+    systemModule: SystemModule! @belongsTo
+    entity_id: ID!
 }
 
 input CustomFieldInput {
     name: String!
     data: Mixed
     system_module_uuid: String!
-    entity_id: String!
+    entity_id: ID!
 }
 
 input CustomFieldEntityInput {
-    name: String!
+    name: ID!
     data: Mixed
 }
 

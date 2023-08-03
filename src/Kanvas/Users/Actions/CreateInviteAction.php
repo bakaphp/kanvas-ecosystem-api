@@ -45,7 +45,7 @@ class CreateInviteAction
         $invite = new UsersInvite();
         $invite->fill([
             'invite_hash' => Str::random(50),
-            'users_id' => $this->user ? $this->user->id : auth()->user()->id,
+            'users_id' => $this->user->getId(),
             'companies_id' => $company->getKey(),
             'companies_branches_id' => $companyBranch->getKey(),
             'role_id' => $this->inviteDto->role_id,
@@ -63,7 +63,7 @@ class CreateInviteAction
             'email' => $this->inviteDto->email,
             'firstname' => $this->inviteDto->firstname,
             'lastname' => $this->inviteDto->lastname,
-            'companies_id' => auth()->user()->defaultCompany->id,
+            'companies_id' => $company->getId()
         ]);
 
         $inviteEmail = new InviteTemplate($invite);

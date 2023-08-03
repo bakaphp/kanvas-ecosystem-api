@@ -36,6 +36,7 @@ use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
 use Kanvas\Inventory\Variants\Models\Variants as VariantsModel;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses;
+use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehouses;
 use Throwable;
 
 class ProductImporterAction
@@ -377,10 +378,14 @@ class ProductImporterAction
                 ]),
             ))->execute();
 
+            $variantWarehouses = ModelsVariantsWarehouses::where('products_variants_id', $variantModel->getId())
+            ->where('warehouses_id', $warehouse->getId())
+            ->firstOrFail();
+
+
             (new AddVariantToChannel(
-                $variantModel,
+                $variantWarehouses,
                 $channel,
-                $warehouse,
                 $variantChannel
             ))->execute();
         }
