@@ -57,7 +57,7 @@ class StatusMutation
     public function delete(mixed $rootValue, array $request): bool
     {
         $id = $request['id'];
-        $status = StatusRepository::getById($id, auth()->user()->getCurrentCompany());
+        $status = StatusRepository::getById((int) $id, auth()->user()->getCurrentCompany());
 
         return $status->delete();
     }
