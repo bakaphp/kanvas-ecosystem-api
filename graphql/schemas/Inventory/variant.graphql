@@ -86,6 +86,7 @@ type VariantChannelRelationship {
     is_published: Boolean
 }
 input VariantsWarehousesInput {
+    warehouse_id: ID!
     quantity: Float
     status: StatusReferenceInput
     price: Float
@@ -159,7 +160,6 @@ extend type Mutation @guard {
         )
     addVariantToWarehouse(
         id: ID!
-        warehouse_id: Int!
         input: VariantsWarehousesInput!
     ): Variant
         @field(
@@ -167,7 +167,6 @@ extend type Mutation @guard {
         )
     updateVariantInWarehouse(
         id: ID!
-        warehouse_id: Int!
         input: VariantsWarehousesInput!
     ): Variant
         @field(
