@@ -407,5 +407,4 @@ class VariantTest extends TestCase
             $warehouseResponse['data']['updateVariantInWarehouse']['warehouses'][0]['price']
         );
     }
-
 }
