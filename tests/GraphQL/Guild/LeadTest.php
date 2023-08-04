@@ -325,4 +325,26 @@ class LeadTest extends TestCase
                 ],
             ]);
     }
+
+    public function testDashboard()
+    {
+        $this->graphQL('
+        {
+            leadsDashboard(first: 1, 
+                where: {
+                    column: USERS_ID, operator: EQ, value: 1186
+                    } 
+            ) {
+                data {
+                    total_active_leads
+                    total_closed_leads
+                    total_agents
+                }
+                
+            }
+        }')->assertSuccessful()
+            ->assertSee('total_active_leads')
+            ->assertSee('total_closed_leads')
+            ->assertSee('total_agents');
+    }
 }

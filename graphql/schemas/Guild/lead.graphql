@@ -34,7 +34,7 @@ type LeadsParticipants {
     people: People! @belongsTo
     relationship: PeopleRelationship @belongsTo
 }
-type Rotation{ 
+type Rotation {
     id: ID!
     users_id: ID!
     companies_id: ID!
@@ -97,6 +97,12 @@ type LeadPipelineStage {
     weight: Int!
 }
 
+type LeadDashboard {
+    total_active_leads: Int!
+    total_closed_leads: Int!
+    total_agents: Int!
+}
+
 input LeadsParticipantsInput {
     lead_id: Int!
     people_id: Int!
@@ -137,13 +143,21 @@ input LeadUpdateInput {
 
 extend type Mutation @guard {
     createLead(input: LeadInput!): Lead
-        @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@create")
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@create"
+        )
     updateLead(id: ID!, input: LeadUpdateInput!): Lead
-        @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@update")
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@update"
+        )
     deleteLead(id: ID!): Boolean
-        @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@delete")
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@delete"
+        )
     restoreLead(id: ID!): Boolean
-        @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@restore")
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@restore"
+        )
     addLeadParticipant(input: LeadsParticipantsInput!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\ParticipantMutation@add"
@@ -177,5 +191,15 @@ extend type Query @guard {
             model: "Kanvas\\Guild\\Leads\\Models\\Lead"
             scopes: ["fromCompany"]
             defaultCount: 10
+        )
+
+    leadsDashboard(
+        where: _
+            @whereConditions(
+                columns: ["companies_branches_id", "leads_owner_id", "users_id"]
+            )
+    ): LeadDashboard!
+        @paginate(
+            builder: "App\\GraphQL\\Guild\\Builders\\Leads\\DashboardBuilder@getCompanyInfo"
         )
 }
