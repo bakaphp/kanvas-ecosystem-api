@@ -280,6 +280,7 @@ class ProductImporterAction
                 $variantDto = VariantsDto::from([
                     'product' => $this->product,
                     'products_id' => $this->product->getId(),
+                    'warehouse_id' => (int) $variant['warehouse']['id'],
                     ...$variant,
                 ]);
                 $variantModel = (new CreateVariantsAction($variantDto, $this->user))->execute();

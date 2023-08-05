@@ -25,6 +25,7 @@ class UpdateToWarehouseAction
 
     /**
      * execute.
+     * @psalm-suppress ArgumentTypeCoercion
      */
     public function execute(): Variants
     {
@@ -45,13 +46,16 @@ class UpdateToWarehouseAction
                 'is_on_promo' => $this->variantsWarehousesDto->is_on_promo ?? $this->variantsWarehouses->is_on_promo,
                 'can_pre_order' => $this->variantsWarehousesDto->can_pre_order ?? $this->variantsWarehouses->can_pre_order,
                 'is_coming_son' => $this->variantsWarehousesDto->is_coming_son ?? $this->variantsWarehouses->is_coming_son,
-                'is_new' => $this->variantsWarehousesDto->is_new ?? $this->variantsWarehouses->is_new
+                'is_new' => $this->variantsWarehousesDto->is_new ?? $this->variantsWarehouses->is_new,
             ]
         );
 
         if ($this->variantsWarehousesDto->status_id && $oldStatusId !== $this->variantsWarehouses->status_id) {
             (new CreateStatusHistoryAction(
-                StatusRepository::getById($this->variantsWarehousesDto->status_id, $this->variantsWarehouses->variant->product->company()),
+                StatusRepository::getById(
+                    $this->variantsWarehousesDto->status_id,
+                    $this->variantsWarehouses->variant->product->company()
+                ),
                 $this->variantsWarehouses
             ))->execute();
         }
