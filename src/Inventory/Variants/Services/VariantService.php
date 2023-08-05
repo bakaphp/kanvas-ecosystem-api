@@ -11,14 +11,10 @@ use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
 use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 
-class Variants
+class VariantService
 {
     /**
      * Create a new product variants.
-     *
-     * @param Products $product
-     * @param array $variants
-     * @return array
      */
     public static function createVariantsFromArray(Products $product, array $variants, UserInterface $user): array
     {

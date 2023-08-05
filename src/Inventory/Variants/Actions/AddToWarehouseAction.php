@@ -27,6 +27,7 @@ class AddToWarehouseAction
 
     /**
      * execute.
+     * @psalm-suppress ArgumentTypeCoercion
      */
     public function execute(): Variants
     {

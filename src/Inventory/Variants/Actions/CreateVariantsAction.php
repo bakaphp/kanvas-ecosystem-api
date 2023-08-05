@@ -14,8 +14,6 @@ class CreateVariantsAction
 {
     /**
      * __construct.
-     *
-     * @return void
      */
     public function __construct(
         protected VariantsDto $variantDto,
@@ -25,8 +23,6 @@ class CreateVariantsAction
 
     /**
      * execute.
-     *
-     * @return Variants
      */
     public function execute(): Variants
     {
@@ -39,7 +35,7 @@ class CreateVariantsAction
             'products_id' => $this->variantDto->product->getId(),
             'slug' => $this->variantDto->slug ?? Str::slug($this->variantDto->name),
             'companies_id' => $this->variantDto->product->companies_id,
-            'apps_id' => $this->variantDto->product->apps_id
+            'apps_id' => $this->variantDto->product->apps_id,
         ];
 
         return Variants::updateOrCreate(

@@ -9,7 +9,7 @@ use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 
-class AddVariantToChannel
+class AddVariantToChannelAction
 {
     public function __construct(
         protected VariantsWarehouses $variantsWarehouses,
@@ -26,6 +26,8 @@ class AddVariantToChannel
                     'price' => $this->variantChannel->price,
                     'discounted_price' => $this->variantChannel->discounted_price,
                     'is_published' => $this->variantChannel->is_published,
+                    'products_variants_id' => $this->variantsWarehouses->products_variants_id,
+                    'warehouses_id' => $this->variantsWarehouses->warehouses_id,
                 ]
             ]);
         } else {
@@ -34,6 +36,8 @@ class AddVariantToChannel
                     'price' => $this->variantChannel->price,
                     'discounted_price' => $this->variantChannel->discounted_price,
                     'is_published' => $this->variantChannel->is_published,
+                    'products_variants_id' => $this->variantsWarehouses->products_variants_id,
+                    'warehouses_id' => $this->variantsWarehouses->warehouses_id,
                 ]
             ]);
         }

@@ -69,12 +69,19 @@ final class ImporterTest extends TestCase
                 [
                     'url' => fake()->imageUrl(),
                     'name' => fake()->word(),
-                ]
+                ],
             ],
             'variants' => [
                 [
                     'name' => fake()->word(),
-                    'warehouse_id' => $warehouseData->getId(),
+                    //'warehouse_id' => $warehouseData->getId(),
+                    'warehouse' => [
+                        'id' => $warehouseData->getId(),
+                        'price' => fake()->randomNumber(2),
+                        'quantity' => fake()->randomNumber(2),
+                        'sku' => fake()->word(),
+                        'is_new' => fake()->boolean(),
+                    ],
                     'description' => fake()->sentence(),
                     'sku' => fake()->word(),
                     'price' => fake()->randomNumber(2),
@@ -89,12 +96,19 @@ final class ImporterTest extends TestCase
                         [
                             'url' => fake()->imageUrl(),
                             'name' => fake()->word(),
-                        ]
+                        ],
                     ],
                 ],
                 [
                     'name' => fake()->word(),
-                    'warehouse_id' => $warehouseData->getId(),
+                    //'warehouse_id' => $warehouseData->getId(),
+                    'warehouse' => [
+                        'id' => $warehouseData->getId(),
+                        'price' => fake()->randomNumber(2),
+                        'quantity' => fake()->randomNumber(2),
+                        'sku' => fake()->word(),
+                        'is_new' => fake()->boolean(),
+                    ],
                     'description' => fake()->sentence(),
                     'sku' => fake()->word(),
                     'price' => fake()->randomNumber(2),
@@ -108,9 +122,9 @@ final class ImporterTest extends TestCase
                     'name' => fake()->word(),
                     'code' => (string) fake()->randomNumber(3),
                     'position' => fake()->randomNumber(1),
-                ]
+                ],
             ],
-            ...$attributes
+            ...$attributes,
         ]);
 
         $productImporter = new ProductImporterAction(
