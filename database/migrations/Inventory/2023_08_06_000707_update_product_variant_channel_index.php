@@ -24,5 +24,11 @@ return new class () extends Migration {
      */
     public function down(): void
     {
+        Schema::table('products_variants_channels', function (Blueprint $table) {
+            $table->dropIndex('products_variants_channels_index');
+            $table->dropIndex('products_variants_published_channels_index');
+            $table->dropIndex('published_channels_index');
+            $table->dropIndex('products_variants_warehouse_published_channels_index');
+        });
     }
 };
