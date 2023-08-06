@@ -10,7 +10,6 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
@@ -140,6 +139,10 @@ class Variants extends BaseModel
     public function addAttributes(UserInterface $user, array $attributes): void
     {
         foreach ($attributes as $attribute) {
+            if (empty($attribute['value'])) {
+                continue;
+            }
+
             $attributesDto = AttributesDto::from([
                 'app' => app(Apps::class),
                 'user' => $user,
@@ -155,9 +158,6 @@ class Variants extends BaseModel
 
     /**
      * Set status for the current variant.
-     *
-     * @param Status $status
-     * @return void
      */
     public function setStatus(Status $status): void
     {
