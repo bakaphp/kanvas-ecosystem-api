@@ -6,9 +6,13 @@ type Role {
 }
 
 extend type Query @guard {
-    roles: [Role]
-        @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleQuery@getAllRoles"
+    roles(
+        where: _ @whereConditions(columns: ["id", "name", "title"])
+        orderBy: _ @orderBy(columns: ["id"])
+    ): [Role!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleQuery@getAllRoles"
+            defaultCount: 25
         )
     hasRole(userId: ID!, role: Mixed!): Boolean
         @field(
