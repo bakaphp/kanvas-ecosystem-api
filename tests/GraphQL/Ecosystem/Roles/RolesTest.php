@@ -77,8 +77,10 @@ class RolesTest extends TestCase
             '
             {
                 roles{
-                    name,
-                    id
+                    data{
+                        name,
+                        id
+                    }
                 }
             }
             '
@@ -118,13 +120,16 @@ class RolesTest extends TestCase
             '
             {
                 roles{
-                    name,
-                    id
+                    data{
+                        name,
+                        id
+                    }
                 }
             }
             '
         );
-        $id = $response->json('data.roles.*.id');
+        
+        $id = $response->json('data.roles.data.*.id');
 
         $faker = \Faker\Factory::create();
         $newName = $faker->name;
