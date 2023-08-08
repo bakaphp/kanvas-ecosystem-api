@@ -141,7 +141,7 @@ class RolesTest extends TestCase
                 }
             }',
             [
-                'id' => $id[0],
+                'id' => $id,
                 'name' => $newName,
                 'title' => 'Role Updated',
             ]
@@ -150,7 +150,7 @@ class RolesTest extends TestCase
                 'updateRole' => [
                     'name' => $newName,
                     'title' => 'Role Updated',
-                    'id' => $id[0],
+                    'id' => $id,
                 ],
             ],
         ]);

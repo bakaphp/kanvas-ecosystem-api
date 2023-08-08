@@ -12,7 +12,7 @@ extend type Query @guard {
     ): [Role!]!
         @paginate(
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleQuery@getAllRoles"
-            defaultCount: 10
+            defaultCount: 25
         )
     hasRole(userId: ID!, role: Mixed!): Boolean
         @field(
