@@ -14,11 +14,6 @@ extend type Query @guard {
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleQuery@getAllRoles"
             defaultCount: 10
         )
-
-    roles: [Role!]!
-        @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleQuery@getAllRoles"
-        )
     hasRole(userId: ID!, role: Mixed!): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleQuery@hasRole"
