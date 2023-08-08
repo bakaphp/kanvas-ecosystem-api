@@ -6,15 +6,8 @@ type Role {
 }
 
 extend type Query @guard {
-     roles(
-        where: _
-            @whereConditions(
-                columns: [
-                    "id"
-                    "name"
-                    "title"
-                ]
-            )
+    roles(
+        where: _ @whereConditions(columns: ["id", "name", "title"])
         orderBy: _ @orderBy(columns: ["id"])
     ): [Role!]!
         @paginate(
