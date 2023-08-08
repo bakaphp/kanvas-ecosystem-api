@@ -128,7 +128,7 @@ class RolesTest extends TestCase
             }
             '
         );
-        
+
         $id = $response->json('data.roles.data.*.id');
 
         $faker = \Faker\Factory::create();
