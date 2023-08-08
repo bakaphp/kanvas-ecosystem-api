@@ -6,7 +6,23 @@ type Role {
 }
 
 extend type Query @guard {
-    roles: [Role]
+     roles(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "title"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id"])
+    ): [Role!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleQuery@getAllRoles"
+            defaultCount: 10
+        )
+
+    roles: [Role!]!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleQuery@getAllRoles"
         )
