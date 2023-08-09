@@ -147,7 +147,7 @@ class UsersRepository
                 ->when($company, function ($query, $company) {
                     $query->where('companies_id', $company->getKey());
                 });
-                
+
             return $query->firstOrFail();
         } catch (ModelNotFoundException) {
             throw new ExceptionsModelNotFoundException(

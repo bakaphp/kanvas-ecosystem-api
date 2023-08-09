@@ -26,7 +26,7 @@ class FollowTest extends TestCase
             DefaultRoles::ADMIN,
             app(Apps::class)
         ))->execute();
-        
+
         $response = $this->graphQL(/** @lang GraphQL */
             '
             mutation userFollow(
@@ -58,7 +58,7 @@ class FollowTest extends TestCase
             DefaultRoles::ADMIN,
             app(Apps::class)
         ))->execute();
-        
+
         $response = $this->graphQL(/** @lang GraphQL */
             '
             mutation userFollow(
@@ -268,7 +268,7 @@ class FollowTest extends TestCase
             DefaultRoles::ADMIN,
             app(Apps::class)
         ))->execute();
-        
+
         $response = $this->graphQL(/** @lang GraphQL */
             '
             mutation userFollow(

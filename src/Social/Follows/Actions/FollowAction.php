@@ -27,8 +27,7 @@ class FollowAction
         if ($this->entity->company()) {
             $company = $this->entity->company()->firstOrFail();
         }
-        
-        //belongs to this app
+
         UsersRepository::belongsToThisApp($this->user, app(Apps::class), $company);
 
         $params = [
