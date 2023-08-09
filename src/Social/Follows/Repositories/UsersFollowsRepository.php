@@ -32,7 +32,6 @@ class UsersFollowsRepository
         return (bool) self::getByUserAndEntity($user, $entity);
     }
 
-
     /**
      * getFollowersBuilder
      * @psalm-suppress MixedReturnStatement
@@ -55,7 +54,7 @@ class UsersFollowsRepository
     public static function getFollowingBuilder(Users $user): Builder
     {
         return UsersFollows::where('users_id', $user->id)
-            ->where('is_deleted', 0);    
+            ->where('is_deleted', 0);
     }
 
     /**
