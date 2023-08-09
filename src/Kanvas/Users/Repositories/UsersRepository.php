@@ -143,12 +143,11 @@ class UsersRepository
         try {
             $query = UsersAssociatedApps::where('users_id', $user->getKey())
                 ->where('apps_id', $app->getKey())
-                ->where('is_deleted', StateEnums::NO->getValue());
-
-            if ($company) {
-                $query->whereIn('companies_id', [AppEnums::GLOBAL_COMPANY_ID->getValue(), $company->getKey()]);
-            }
-
+                ->where('is_deleted', StateEnums::NO->getValue())
+                ->when($company, function ($query, $company) {
+                    $query->where('companies_id', $company->getKey());
+                });
+                
             return $query->firstOrFail();
         } catch (ModelNotFoundException) {
             throw new ExceptionsModelNotFoundException(

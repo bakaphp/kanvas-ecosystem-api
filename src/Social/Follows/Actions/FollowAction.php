@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Social\Follows\Actions;
 
 use Illuminate\Database\Eloquent\Model as EloquentModel;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Follows\Models\UsersFollows;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class FollowAction
 {
@@ -21,6 +23,14 @@ class FollowAction
      */
     public function execute(): UsersFollows
     {
+        $company = null;
+        if ($this->entity->company()) {
+            $company = $this->entity->company()->firstOrFail();
+        }
+        
+        //belongs to this app
+        UsersRepository::belongsToThisApp($this->user, app(Apps::class), $company);
+
         $params = [
             'users_id' => $this->user->getId(),
             'entity_id' => $this->entity->getId(),

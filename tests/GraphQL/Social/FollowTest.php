@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Social;
 
+use Kanvas\Apps\Enums\DefaultRoles;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
@@ -15,6 +18,15 @@ class FollowTest extends TestCase
     public function testFollowUser(): void
     {
         $user = Users::factory()->create();
+        $branch = auth()->user()->getCurrentBranch();
+        //add user to current company
+        (new AssignCompanyAction(
+            $user,
+            $branch,
+            DefaultRoles::ADMIN,
+            app(Apps::class)
+        ))->execute();
+        
         $response = $this->graphQL(/** @lang GraphQL */
             '
             mutation userFollow(
@@ -38,6 +50,15 @@ class FollowTest extends TestCase
     public function testUnFollowUser(): void
     {
         $user = Users::factory()->create();
+        $branch = auth()->user()->getCurrentBranch();
+        //add user to current company
+        (new AssignCompanyAction(
+            $user,
+            $branch,
+            DefaultRoles::ADMIN,
+            app(Apps::class)
+        ))->execute();
+        
         $response = $this->graphQL(/** @lang GraphQL */
             '
             mutation userFollow(
@@ -78,6 +99,15 @@ class FollowTest extends TestCase
     public function testIsFollowing(): void
     {
         $user = Users::factory()->create();
+        $branch = auth()->user()->getCurrentBranch();
+        //add user to current company
+        (new AssignCompanyAction(
+            $user,
+            $branch,
+            DefaultRoles::ADMIN,
+            app(Apps::class)
+        ))->execute();
+
         $response = $this->graphQL(/** @lang GraphQL */
             '
             mutation userFollow(
@@ -116,6 +146,15 @@ class FollowTest extends TestCase
     public function testGetFollowers(): void
     {
         $user = Users::factory()->create();
+        $branch = auth()->user()->getCurrentBranch();
+        //add user to current company
+        (new AssignCompanyAction(
+            $user,
+            $branch,
+            DefaultRoles::ADMIN,
+            app(Apps::class)
+        ))->execute();
+
         $response = $this->graphQL(/** @lang GraphQL */
             '
             mutation userFollow(
@@ -168,6 +207,15 @@ class FollowTest extends TestCase
     public function testGetTotalFollowers(): void
     {
         $user = Users::factory()->create();
+        $branch = auth()->user()->getCurrentBranch();
+        //add user to current company
+        (new AssignCompanyAction(
+            $user,
+            $branch,
+            DefaultRoles::ADMIN,
+            app(Apps::class)
+        ))->execute();
+
         $response = $this->graphQL(/** @lang GraphQL */
             '
             mutation userFollow(
@@ -212,6 +260,15 @@ class FollowTest extends TestCase
     public function testGetFollowing(): void
     {
         $user = Users::factory()->create();
+        $branch = auth()->user()->getCurrentBranch();
+        //add user to current company
+        (new AssignCompanyAction(
+            $user,
+            $branch,
+            DefaultRoles::ADMIN,
+            app(Apps::class)
+        ))->execute();
+        
         $response = $this->graphQL(/** @lang GraphQL */
             '
             mutation userFollow(
