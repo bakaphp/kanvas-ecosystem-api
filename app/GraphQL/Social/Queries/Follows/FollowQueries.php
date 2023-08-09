@@ -24,7 +24,7 @@ class FollowQueries
      */
     public function getTotalFollowers(mixed $root, array $request): int
     {
-        $user = UsersRepository::getUserOfAppById($request['users_id']);
+        $user = UsersRepository::getUserOfAppById($request['user_id']);
 
         return UsersFollowsRepository::getTotalFollowers($user);
     }

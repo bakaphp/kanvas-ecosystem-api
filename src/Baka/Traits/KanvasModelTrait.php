@@ -91,6 +91,32 @@ trait KanvasModelTrait
         }
     }
 
+    public static function getByUuidFromCompany(string $uuid, CompanyInterface $company): self
+    {
+        try {
+            return self::where('uuid', $uuid)
+                ->notDeleted()
+                ->fromCompany($company)
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
+    }
+
+    public static function getByUuidFromBranch(string $uuid, CompaniesBranches $branch): self
+    {
+        try {
+            return self::where('uuid', $uuid)
+                ->notDeleted()
+                ->where('companies_branches_id', $branch->getId())
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
+    }
+
     /**
      * can't use the name company since the scope is also using the same name.
      *
