@@ -135,10 +135,10 @@ class FollowTest extends TestCase
         $response = $this->graphQL(
             /** @lang GraphQL */
             '
-            query getFollowers($users_id: Int!)
+            query getFollowers($user_id: Int!)
             {
                 getFollowers(
-                    users_id: $users_id
+                    user_id: $user_id
                 )
                 {
                     data {
@@ -148,7 +148,7 @@ class FollowTest extends TestCase
             }
             ',
             [
-                'users_id' => $user->id,
+                'user_id' => $user->id,
             ]
         )->assertJson(
             [
@@ -187,15 +187,15 @@ class FollowTest extends TestCase
         $response = $this->graphQL(
             /** @lang GraphQL */
             '
-            query getTotalFollowers($users_id: Int!)
+            query getTotalFollowers($user_id: Int!)
             {
                 getTotalFollowers(
-                    users_id: $users_id
+                    user_id: $user_id
                 )
             }
             ',
             [
-                'users_id' => $user->id,
+                'user_id' => $user->id,
             ]
         )->assertJson(
             [
@@ -231,10 +231,10 @@ class FollowTest extends TestCase
         $this->graphQL(
             /** @lang GraphQL */
             '
-            query getFollowing($users_id: Int!)
+            query getFollowing($user_id: Int!)
             {
                 getFollowing(
-                    users_id: $users_id
+                    user_id: $user_id
                 )
                 {
                     data {
@@ -246,7 +246,7 @@ class FollowTest extends TestCase
             }
             ',
             [
-                'users_id' => auth()->user()->id,
+                'user_id' => auth()->user()->id,
             ]
         )->assertJson(
             [
