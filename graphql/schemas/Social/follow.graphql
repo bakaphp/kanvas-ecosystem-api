@@ -26,7 +26,7 @@ extend type Query @guard {
             builder: "App\\GraphQL\\Social\\Builders\\Follows\\GetFollowingBuilder"
             defaultCount: 25
         )
-    getTotalFollowers(users_id: Int!): Int!
+    getTotalFollowers(user_id: Int!): Int!
         @field(
             resolver: "App\\GraphQL\\Social\\Queries\\Follows\\FollowQueries@getTotalFollowers"
         )

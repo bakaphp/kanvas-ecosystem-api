@@ -1,12 +1,12 @@
 <?php
 
-declare(strict_type=1);
+declare(strict_types=1);
 
 namespace App\GraphQL\Social\Builders\Follows;
 
+use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Users\Repositories\UsersRepository;
-use Illuminate\Database\Eloquent\Builder;
 
 class FollowBuilder
 {
@@ -17,14 +17,14 @@ class FollowBuilder
      */
     public function getFollowers(mixed $root, array $request): Builder
     {
-        $user = UsersRepository::getUserOfAppById($request['users_id']);
+        $user = UsersRepository::getUserOfAppById($request['user_id']);
 
         return UsersFollowsRepository::getFollowersBuilder($user);
     }
 
     public function getFollowing(mixed $root, array $request): Builder
     {
-        $user = UsersRepository::getUserOfAppById($request['users_id']);
+        $user = UsersRepository::getUserOfAppById($request['user_id']);
 
         return UsersFollowsRepository::getFollowingBuilder($user);
     }
