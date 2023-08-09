@@ -6,7 +6,6 @@ namespace Kanvas\Social\Follows\Actions;
 
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Kanvas\Social\Follows\Models\UsersFollows;
-use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Users\Models\Users;
 
 class FollowAction
@@ -17,20 +16,25 @@ class FollowAction
     ) {
     }
 
+    /**
+     * @psalm-suppress MixedReturnStatement
+     */
     public function execute(): UsersFollows
     {
-        $follow = UsersFollowsRepository::getByUserAndEntity($this->user, $this->entity);
+        $params = [
+            'users_id' => $this->user->getId(),
+            'entity_id' => $this->entity->getId(),
+            'entity_namespace' => get_class($this->entity),
+        ];
 
-        if ($follow) {
-            return $follow;
+        if (isset($this->entity->companies_id)) {
+            $params['companies_id'] = $this->entity->companies_id;
         }
 
-        $follow = new UsersFollows();
-        $follow->users_id = $this->user->getId();
-        $follow->entity_id = $this->entity->getId();
-        $follow->entity_namespace = get_class($this->entity);
-        $follow->saveOrFail();
+        if (isset($this->entity->companies_branches_id)) {
+            $params['companies_branches_id'] = $this->entity->companies_branches_id;
+        }
 
-        return $follow;
+        return UsersFollows::firstOrCreate($params);
     }
 }

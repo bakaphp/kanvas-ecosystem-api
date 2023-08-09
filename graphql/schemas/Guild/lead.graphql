@@ -21,6 +21,11 @@ type Lead {
     pipeline: LeadPipeline @belongsTo
     stage: LeadPipelineStage @belongsTo(relation: "stage")
     participants: [LeadsParticipants!]! @hasMany
+    followers:  [User!]!
+        @paginate(
+            defaultCount: 10
+            builder: "App\\GraphQL\\Social\\Builders\\Follows\\FollowBuilder@getEntityFollowers"
+        )
     custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 10
@@ -165,6 +170,14 @@ extend type Mutation @guard {
     removeLeadParticipant(input: LeadsParticipantsInput!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\ParticipantMutation@remove"
+        )
+    followLead(input: FollowInput!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\SocialMutation@follow"
+        )
+    unFollowLead(input: FollowInput!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\SocialMutation@unFollow"
         )
 }
 
