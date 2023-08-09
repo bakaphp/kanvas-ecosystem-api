@@ -1,0 +1,36 @@
+type Reaction {
+    id: ID!
+    name: String!
+    icon: String!
+    app: App!
+    company: Company!
+}
+
+input ReactionInput {
+    name: String!
+    icon: String!
+}
+
+extend type Mutation @guard {
+    createReaction(input: ReactionInput!): Reaction
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Reactions\\ReactionManagementMutation@create"
+        )
+    updateReaction(id: ID!, input: ReactionInput!): Reaction
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Reactions\\ReactionManagementMutation@update"
+        )
+    deleteReaction(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Reactions\\ReactionManagementMutation@delete"
+        )
+}
+
+extend type Query {
+    getReactions(
+        where: _@whereConditions(
+            columns: ["id", "name", "apps_id", "companies_id", "icon"]
+        ),    
+    ): [Reaction!]! @paginate(model: "Kanvas\\Social\\Reactions\\Models\\Reaction", defaultCount: 25)
+    getReaction(id: ID! @eq): Reaction @find(model: "Kanvas\\Social\\Reactions\\Models\\Reaction")
+}
