@@ -6,8 +6,11 @@ namespace App\GraphQL\Social\Mutations\Reactions;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Reactions\Actions\CreateReactionAction;
+use Kanvas\Social\Reactions\Actions\ReactToEntityAction;
 use Kanvas\Social\Reactions\DataTransferObject\Reaction as ReactionDto;
+use Kanvas\Social\Reactions\DataTransferObject\UserReaction as UserReactionDto;
 use Kanvas\Social\Reactions\Models\Reaction;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 class ReactionManagementMutation
 {
@@ -43,5 +46,20 @@ class ReactionManagementMutation
         $reaction->delete();
 
         return true;
+    }
+
+    public function reactToEntity(mixed $root, array $request): bool
+    {
+        $systemModule = SystemModulesRepository::getByUuidOrModelName($request['input']['system_modules_uuid']);
+        $reaction = Reaction::getById($request['input']['reaction_id']);
+        $userReactionDto = new UserReactionDto(
+            auth()->user(),
+            $reaction,
+            $request['input']['entity_id'],
+            $systemModule
+        );
+        $action = new ReactToEntityAction($userReactionDto);
+
+        return $action->execute();
     }
 }

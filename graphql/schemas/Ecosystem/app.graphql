@@ -63,7 +63,14 @@ type gcsFilesystemConfig {
 
 input s3FilesystemConfigInput {
     name: ID!
-    value: s3FilesystemConfig!
+    value: FilesystemConfigInput!
+}
+input FilesystemConfigInput {
+    key: ID!
+    secret: String!
+    region: String!
+    bucket: String
+    url: String
 }
 
 input gcsFilesystemConfigInput {
