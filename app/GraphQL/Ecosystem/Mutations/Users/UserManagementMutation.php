@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth as AuthFacade;
 use Illuminate\Support\Facades\Hash;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Services\UserManagement as UserManagementService;
+use Kanvas\Notifications\Templates\ChangeEmailUserLogged;
 use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
 use Kanvas\Users\Actions\CreateInviteAction;
 use Kanvas\Users\Actions\ProcessInviteAction;
@@ -119,7 +120,12 @@ class UserManagementMutation
         UsersRepository::belongsToThisApp($user, app(Apps::class));
 
         //sent email notification
+        $updateEmail = $user->updateEmail($request['email']);
+        $updateEmailNotification = new ChangeEmailUserLogged($user);
+        $updateEmailNotification->setFromUser($user);
 
-        return $user->updateEmail($request['email']);
+        $user->notify($updateEmailNotification);
+
+        return $updateEmail;
     }
 }
