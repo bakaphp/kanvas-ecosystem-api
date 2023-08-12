@@ -176,7 +176,7 @@ class UserTest extends TestCase
         ->assertSee('refresh_token');
     }
 
-        /**
+    /**
      * test_save.
      */
     public function testChangeEmail(): void

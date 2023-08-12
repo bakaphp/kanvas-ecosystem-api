@@ -119,7 +119,7 @@ class UserManagementMutation
         UsersRepository::belongsToThisApp($user, app(Apps::class));
 
         //sent email notification
-        
+
         return $user->updateEmail($request['email']);
     }
 }
