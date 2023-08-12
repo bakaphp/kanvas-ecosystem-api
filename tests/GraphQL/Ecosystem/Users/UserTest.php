@@ -176,14 +176,8 @@ class UserTest extends TestCase
         ->assertSee('refresh_token');
     }
 
-    /**
-     * test_save.
-     */
     public function testChangeEmail(): void
     {
-        $oldEmail = auth()->user()->email;
-        $newEmail = fake()->email;
-
         $this->graphQL(/** @lang GraphQL */ '
             mutation updateEmail(
                 $email: String!
@@ -193,10 +187,30 @@ class UserTest extends TestCase
                 )
             }
         ', [
-            'email' => $newEmail,
+            'email' => fake()->email,
         ])->assertJson([
             'data' => [
                 'updateEmail' => true,
+            ],
+        ]);
+    }
+
+
+    public function testChangeDisplayName(): void
+    {
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation updateDisplayname(
+                $displayname: String!
+            ) {
+                updateDisplayname(
+                    displayname: $displayname
+                )
+            }
+        ', [
+            'displayname' => fake()->userName(),
+        ])->assertJson([
+            'data' => [
+                'updateDisplayname' => true,
             ],
         ]);
     }

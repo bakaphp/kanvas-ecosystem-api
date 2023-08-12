@@ -3,7 +3,7 @@ type User {
     uuid: String!
     firstname: String!
     lastname: String!
-    displayname: String!
+    displayname: String! @method(name: "getAppDisplayName")
     description: String
     default_company: Int!
     default_company_branch: Int!
@@ -172,6 +172,11 @@ extend type Mutation {
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updateUserEmail"
+        )
+    updateDisplayname(displayname: String!): Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updateUserDisplayName"
         )
     switchCompanyBranch(company_branch_id: Int!): Boolean!
         @guard

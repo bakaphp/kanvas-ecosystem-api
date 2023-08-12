@@ -128,4 +128,12 @@ class UserManagementMutation
 
         return $updateEmail;
     }
+
+    public function updateUserDisplayName(mixed $rootValue, array $request): bool
+    {
+        $user = auth()->user();
+        UsersRepository::belongsToThisApp($user, app(Apps::class));
+
+        return $user->updateDisplayName($request['displayname'], app(Apps::class));
+    }
 }
