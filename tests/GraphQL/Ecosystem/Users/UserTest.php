@@ -175,4 +175,43 @@ class UserTest extends TestCase
         ->assertSee('timezone')
         ->assertSee('refresh_token');
     }
+
+    public function testChangeEmail(): void
+    {
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation updateEmail(
+                $email: String!
+            ) {
+                updateEmail(
+                    email: $email
+                )
+            }
+        ', [
+            'email' => fake()->email,
+        ])->assertJson([
+            'data' => [
+                'updateEmail' => true,
+            ],
+        ]);
+    }
+
+
+    public function testChangeDisplayName(): void
+    {
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation updateDisplayname(
+                $displayname: String!
+            ) {
+                updateDisplayname(
+                    displayname: $displayname
+                )
+            }
+        ', [
+            'displayname' => fake()->userName(),
+        ])->assertJson([
+            'data' => [
+                'updateDisplayname' => true,
+            ],
+        ]);
+    }
 }

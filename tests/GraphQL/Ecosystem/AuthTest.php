@@ -74,7 +74,7 @@ class AuthTest extends TestCase
     }
 
     /**
-     * test_save.
+     * test signup.
      */
     public function testSignup(): void
     {
