@@ -26,7 +26,6 @@ class Variants
 
         $channel = Channels::getByUuid($channelUuid);
         $variants = new ModelsVariants();
-        $variantWarehouse = new VariantsWarehouses();
         $variantsChannel = new VariantsChannels();
 
         //set index
@@ -42,8 +41,7 @@ class Variants
             $variantsChannel->getTable() . '.discounted_price',
             $variantsChannel->getTable() . '.is_published',
         )
-        ->join($variantWarehouse->getTable(), $variantWarehouse->getTable() . '.products_variants_id', '=', $variants->getTable() . '.id')
-        ->join($variantsChannel->getTable(), $variantsChannel->getTable() . '.product_variants_warehouse_id', '=', $variantWarehouse->getTable() . '.id')
+        ->join($variantsChannel->getTable(), $variantsChannel->getTable() . '.products_variants_id', '=', $variants->getTable() . '.id')
         ->where($variantsChannel->getTable() . '.channels_id', $channel->getId())
         ->where($variantsChannel->getTable() . '.is_deleted', 0)
         ->where($variantsChannel->getTable() . '.is_published', 1);

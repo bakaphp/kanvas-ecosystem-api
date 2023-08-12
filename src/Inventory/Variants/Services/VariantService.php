@@ -11,14 +11,10 @@ use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
 use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 
-class Variants
+class VariantService
 {
     /**
      * Create a new product variants.
-     *
-     * @param Products $product
-     * @param array $variants
-     * @return array
      */
     public static function createVariantsFromArray(Products $product, array $variants, UserInterface $user): array
     {
@@ -36,9 +32,10 @@ class Variants
             if (isset($variant['attributes'])) {
                 $variantModel->addAttributes($user, $variant['attributes']);
             }
-            if (isset($variant['status_id'])) {
-                $status = StatusRepository::getById($variant['status_id'], $variantDto->product->company()->get()->first());
-                $variant->setStatus($status);
+
+            if (isset($variant['status']['id'])) {
+                $status = StatusRepository::getById((int) $variant['status']['id'], $variantDto->product->company()->get()->first());
+                $variantModel->setStatus($status);
             }
 
             WarehouseRepository::getById($variantDto->warehouse_id, $variantDto->product->company()->get()->first());

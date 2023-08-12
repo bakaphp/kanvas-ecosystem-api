@@ -2008,16 +2008,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v10.18.0",
+            "version": "v10.17.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "9d41928900f7ecf409627a7d06c0a4dfecff2ea7"
+                "reference": "a82d96fd94069e346eb8037d178e6ccc4daaf3f9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/9d41928900f7ecf409627a7d06c0a4dfecff2ea7",
-                "reference": "9d41928900f7ecf409627a7d06c0a4dfecff2ea7",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/a82d96fd94069e346eb8037d178e6ccc4daaf3f9",
+                "reference": "a82d96fd94069e346eb8037d178e6ccc4daaf3f9",
                 "shasum": ""
             },
             "require": {
@@ -2204,20 +2204,20 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2023-08-08T14:30:38+00:00"
+            "time": "2023-08-02T14:59:58+00:00"
         },
         {
             "name": "laravel/octane",
-            "version": "v2.0.5",
+            "version": "v2.0.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/octane.git",
-                "reference": "f42d7f1814dda993a204e6bf8fe31092f1cfc9e6"
+                "reference": "217e93a1b9246550ee6fbe7668db99dab9c0a420"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/octane/zipball/f42d7f1814dda993a204e6bf8fe31092f1cfc9e6",
-                "reference": "f42d7f1814dda993a204e6bf8fe31092f1cfc9e6",
+                "url": "https://api.github.com/repos/laravel/octane/zipball/217e93a1b9246550ee6fbe7668db99dab9c0a420",
+                "reference": "217e93a1b9246550ee6fbe7668db99dab9c0a420",
                 "shasum": ""
             },
             "require": {
@@ -2291,20 +2291,20 @@
                 "issues": "https://github.com/laravel/octane/issues",
                 "source": "https://github.com/laravel/octane"
             },
-            "time": "2023-08-08T15:12:51+00:00"
+            "time": "2023-08-02T18:05:38+00:00"
         },
         {
             "name": "laravel/prompts",
-            "version": "v0.1.4",
+            "version": "v0.1.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/prompts.git",
-                "reference": "1b3ab520a75eddefcda99f49fb551d231769b1fa"
+                "reference": "562c26eb82c85789ef36291112cc27d730d3fed6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/prompts/zipball/1b3ab520a75eddefcda99f49fb551d231769b1fa",
-                "reference": "1b3ab520a75eddefcda99f49fb551d231769b1fa",
+                "url": "https://api.github.com/repos/laravel/prompts/zipball/562c26eb82c85789ef36291112cc27d730d3fed6",
+                "reference": "562c26eb82c85789ef36291112cc27d730d3fed6",
                 "shasum": ""
             },
             "require": {
@@ -2337,9 +2337,9 @@
             ],
             "support": {
                 "issues": "https://github.com/laravel/prompts/issues",
-                "source": "https://github.com/laravel/prompts/tree/v0.1.4"
+                "source": "https://github.com/laravel/prompts/tree/v0.1.3"
             },
-            "time": "2023-08-07T13:14:59+00:00"
+            "time": "2023-08-02T19:57:10+00:00"
         },
         {
             "name": "laravel/sanctum",
@@ -3281,16 +3281,16 @@
         },
         {
             "name": "league/mime-type-detection",
-            "version": "1.13.0",
+            "version": "1.12.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/mime-type-detection.git",
-                "reference": "a6dfb1194a2946fcdc1f38219445234f65b35c96"
+                "reference": "c7f2872fb273bf493811473dafc88d60ae829f48"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/mime-type-detection/zipball/a6dfb1194a2946fcdc1f38219445234f65b35c96",
-                "reference": "a6dfb1194a2946fcdc1f38219445234f65b35c96",
+                "url": "https://api.github.com/repos/thephpleague/mime-type-detection/zipball/c7f2872fb273bf493811473dafc88d60ae829f48",
+                "reference": "c7f2872fb273bf493811473dafc88d60ae829f48",
                 "shasum": ""
             },
             "require": {
@@ -3321,7 +3321,7 @@
             "description": "Mime-type detection for Flysystem",
             "support": {
                 "issues": "https://github.com/thephpleague/mime-type-detection/issues",
-                "source": "https://github.com/thephpleague/mime-type-detection/tree/1.13.0"
+                "source": "https://github.com/thephpleague/mime-type-detection/tree/1.12.0"
             },
             "funding": [
                 {
@@ -3333,7 +3333,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2023-08-05T12:09:49+00:00"
+            "time": "2023-08-03T07:14:11+00:00"
         },
         {
             "name": "league/oauth1-client",
@@ -6698,16 +6698,16 @@
         },
         {
             "name": "spatie/laravel-data",
-            "version": "3.8.0",
+            "version": "3.7.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-data.git",
-                "reference": "0de2ecfc8fa98bcca6e2e041d22de8c74a19c45b"
+                "reference": "5b1220596865ec8834cb5e2be5da7ab05ed38af0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-data/zipball/0de2ecfc8fa98bcca6e2e041d22de8c74a19c45b",
-                "reference": "0de2ecfc8fa98bcca6e2e041d22de8c74a19c45b",
+                "url": "https://api.github.com/repos/spatie/laravel-data/zipball/5b1220596865ec8834cb5e2be5da7ab05ed38af0",
+                "reference": "5b1220596865ec8834cb5e2be5da7ab05ed38af0",
                 "shasum": ""
             },
             "require": {
@@ -6769,7 +6769,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-data/issues",
-                "source": "https://github.com/spatie/laravel-data/tree/3.8.0"
+                "source": "https://github.com/spatie/laravel-data/tree/3.7.1"
             },
             "funding": [
                 {
@@ -6777,7 +6777,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2023-08-09T14:09:06+00:00"
+            "time": "2023-08-04T10:34:39+00:00"
         },
         {
             "name": "spatie/laravel-google-cloud-storage",
@@ -10345,16 +10345,16 @@
         },
         {
             "name": "webonyx/graphql-php",
-            "version": "v15.6.2",
+            "version": "v15.6.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/webonyx/graphql-php.git",
-                "reference": "0a917058620a197530b357c46d8d5943a054a37e"
+                "reference": "d950e2b542ee5c092c5d1375240b561282c06af1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/webonyx/graphql-php/zipball/0a917058620a197530b357c46d8d5943a054a37e",
-                "reference": "0a917058620a197530b357c46d8d5943a054a37e",
+                "url": "https://api.github.com/repos/webonyx/graphql-php/zipball/d950e2b542ee5c092c5d1375240b561282c06af1",
+                "reference": "d950e2b542ee5c092c5d1375240b561282c06af1",
                 "shasum": ""
             },
             "require": {
@@ -10406,7 +10406,7 @@
             ],
             "support": {
                 "issues": "https://github.com/webonyx/graphql-php/issues",
-                "source": "https://github.com/webonyx/graphql-php/tree/v15.6.2"
+                "source": "https://github.com/webonyx/graphql-php/tree/v15.6.0"
             },
             "funding": [
                 {
@@ -10414,7 +10414,7 @@
                     "type": "open_collective"
                 }
             ],
-            "time": "2023-08-08T17:15:12+00:00"
+            "time": "2023-08-04T09:43:22+00:00"
         }
     ],
     "packages-dev": [
@@ -11822,16 +11822,16 @@
         },
         {
             "name": "nunomaduro/collision",
-            "version": "v7.8.1",
+            "version": "v7.8.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nunomaduro/collision.git",
-                "reference": "61553ad3260845d7e3e49121b7074619233d361b"
+                "reference": "1813f0a3470f2ac171443bc37b324c2a693005f9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nunomaduro/collision/zipball/61553ad3260845d7e3e49121b7074619233d361b",
-                "reference": "61553ad3260845d7e3e49121b7074619233d361b",
+                "url": "https://api.github.com/repos/nunomaduro/collision/zipball/1813f0a3470f2ac171443bc37b324c2a693005f9",
+                "reference": "1813f0a3470f2ac171443bc37b324c2a693005f9",
                 "shasum": ""
             },
             "require": {
@@ -11911,7 +11911,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2023-08-07T08:03:21+00:00"
+            "time": "2023-08-04T10:26:10+00:00"
         },
         {
             "name": "phar-io/manifest",
