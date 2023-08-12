@@ -18,6 +18,7 @@ class AppUserManagementMutation
         $user = Users::getByUuid($request['uuid']);
         $app = app(Apps::class);
         UsersRepository::belongsToThisApp($user, $app);
+
         return $user->resetPassword($request['password'], $app);
     }
 

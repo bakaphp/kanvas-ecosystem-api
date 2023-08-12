@@ -168,6 +168,11 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updateUser"
         )
+    updateEmail(email: String!): Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updateUserEmail"
+        )
     switchCompanyBranch(company_branch_id: Int!): Boolean!
         @guard
         @field(

@@ -175,4 +175,29 @@ class UserTest extends TestCase
         ->assertSee('timezone')
         ->assertSee('refresh_token');
     }
+
+        /**
+     * test_save.
+     */
+    public function testChangeEmail(): void
+    {
+        $oldEmail = auth()->user()->email;
+        $newEmail = fake()->email;
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation updateEmail(
+                $email: String!
+            ) {
+                updateEmail(
+                    email: $email
+                )
+            }
+        ', [
+            'email' => $newEmail,
+        ])->assertJson([
+            'data' => [
+                'updateEmail' => true,
+            ],
+        ]);
+    }
 }

@@ -112,4 +112,14 @@ class UserManagementMutation
 
         return $action->execute();
     }
+
+    public function updateUserEmail(mixed $rootValue, array $request): bool
+    {
+        $user = auth()->user();
+        UsersRepository::belongsToThisApp($user, app(Apps::class));
+
+        //sent email notification
+        
+        return $user->updateEmail($request['email']);
+    }
 }
