@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Reactions\Repositories;
 
-use DB;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Social\Reactions\Models\UserReaction as UserReactionModel;
 
