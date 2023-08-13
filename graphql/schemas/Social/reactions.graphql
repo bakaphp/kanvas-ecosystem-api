@@ -12,7 +12,7 @@ input ReactionInput {
 }
 
 input UserReactionInput {
-    reaction_id: ID!
+    reactions_id: ID!
     entity_id: ID!
     system_modules_uuid: ID!
 }
@@ -56,6 +56,8 @@ extend type Query {
             @whereConditions(
                 columns: ["id", "name", "apps_id", "companies_id", "icon"]
             )
+        orderBy: _ @orderBy(columns: ["id"])
+
     ): [Reaction!]
         @paginate(
             model: "Kanvas\\Social\\Reactions\\Models\\Reaction"

@@ -51,7 +51,7 @@ class ReactionManagementMutation
     public function reactToEntity(mixed $root, array $request): bool
     {
         $systemModule = SystemModulesRepository::getByUuidOrModelName($request['input']['system_modules_uuid']);
-        $reaction = Reaction::getById($request['input']['reaction_id']);
+        $reaction = Reaction::getById($request['input']['reactions_id']);
         $userReactionDto = new UserReactionDto(
             auth()->user(),
             $reaction,
