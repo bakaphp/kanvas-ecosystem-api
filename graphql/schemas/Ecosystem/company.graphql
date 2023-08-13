@@ -11,6 +11,7 @@ type Company {
     phone: String
     groups: [CompanyGroup!]! @hasMany(relation: "groups")
     branches: [CompanyBranch!]! @hasMany(relation: "branches") #need to filter by the branches the user has access to
+    photo: Filesystem @method(name: "getPhoto")
     files: [Filesystem!]!
         @paginate(
             defaultCount: 10
@@ -48,6 +49,7 @@ type CompanyBranch {
     name: String!
     email: String
     phone: String
+    photo: Filesystem @method(name: "getPhoto")
     files: [Filesystem!]!
         @paginate(
             defaultCount: 10

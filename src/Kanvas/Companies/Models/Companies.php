@@ -17,6 +17,7 @@ use Kanvas\Companies\Enums\Defaults;
 use Kanvas\Companies\Factories\CompaniesFactory;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserCompanyApps;
@@ -231,5 +232,10 @@ class Companies extends BaseModel implements CompanyInterface
         ->where('users_associated_company.users_id', '=', $user->getKey())
         ->where('users_associated_company.is_deleted', '=', StateEnums::NO->getValue())
         ->where('companies.is_deleted', '=', StateEnums::NO->getValue());
+    }
+
+    public function getPhoto(): ?FilesystemEntities
+    {
+        return  $this->getFileByName('photo');
     }
 }
