@@ -102,6 +102,11 @@ trait HasFilesystemTrait
         return FilesystemEntitiesRepository::getFilesByEntity($this);
     }
 
+    public function getFileByName(string $name): ?FilesystemEntities
+    {
+        return FilesystemEntitiesRepository::getFileFromEntityByName($this, $name);
+    }
+
     /**
      * Get list of files attached to this model.
      */

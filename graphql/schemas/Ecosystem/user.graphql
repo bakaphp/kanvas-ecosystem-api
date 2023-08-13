@@ -21,6 +21,12 @@ type User {
     branches: [CompanyBranch!]! @HasManyThrough
     companies: [Company!]! @HasManyThrough
     apps: [App!]! @HasManyThrough
+    photo: Filesystem @method(name: "getPhoto")
+    files: [Filesystem]
+        @paginate(
+            defaultCount: 10
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
     custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 10

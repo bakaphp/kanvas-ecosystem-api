@@ -33,6 +33,8 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Locations\Models\Cities;
 use Kanvas\Locations\Models\Countries;
@@ -525,5 +527,10 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $user = $this->getAppProfile(app(Apps::class));
 
         return $user->displayname;
+    }
+
+    public function getPhoto(): ?FilesystemEntities
+    {
+        return  $this->getFileByName('photo');
     }
 }
