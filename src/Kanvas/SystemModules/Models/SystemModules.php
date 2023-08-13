@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Models\BaseModel;
+use Baka\Traits\UuidTrait;
 
 /**
  * SystemModules Model.
@@ -35,7 +36,7 @@ class SystemModules extends BaseModel
 {
     use SlugTrait;
     use Cachable;
-
+    use UuidTrait;
     /**
      * The table associated with the model.
      *
