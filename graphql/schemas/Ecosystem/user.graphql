@@ -22,7 +22,7 @@ type User {
     companies: [Company!]! @HasManyThrough
     apps: [App!]! @HasManyThrough
     photo: Filesystem @method(name: "getPhoto")
-    files: [Filesystem]
+    files: [Filesystem!]!
         @paginate(
             defaultCount: 10
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"

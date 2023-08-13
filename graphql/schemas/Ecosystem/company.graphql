@@ -11,6 +11,11 @@ type Company {
     phone: String
     groups: [CompanyGroup!]! @hasMany(relation: "groups")
     branches: [CompanyBranch!]! @hasMany(relation: "branches") #need to filter by the branches the user has access to
+    files: [Filesystem!]!
+        @paginate(
+            defaultCount: 10
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
     country_code: String
     created_at: DateTime
     updated_at: DateTime
@@ -43,6 +48,11 @@ type CompanyBranch {
     name: String!
     email: String
     phone: String
+    files: [Filesystem!]!
+        @paginate(
+            defaultCount: 10
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
     zipcode: Int
     is_default: Boolean!
     created_at: DateTime
@@ -67,6 +77,7 @@ input CompanyInput {
     timezone: String
     phone: String
     country_code: String
+    files: [FilesystemInputUrl]
 }
 
 input CompanyBranchInput {
@@ -81,6 +92,7 @@ input CompanyBranchInput {
     language: String
     timezone: String
     phone: String
+    files: [FilesystemInputUrl]
 }
 
 type CompanySettings {
