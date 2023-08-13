@@ -29,6 +29,7 @@ class UserManagement
     {
         try {
             $customFields = null;
+            $files = null;
             if (Arr::exists($data, 'custom_fields')) {
                 $customFields = $data['custom_fields'];
                 unset($data['custom_fields']);
