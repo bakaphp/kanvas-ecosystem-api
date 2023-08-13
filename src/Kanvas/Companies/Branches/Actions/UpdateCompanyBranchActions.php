@@ -49,7 +49,7 @@ class UpdateCompanyBranchActions
         if ($this->data->files) {
             $companyBranch->addMultipleFilesFromUrl($this->data->files);
         }
-        
+
         $company->associateUser($this->user, StateEnums::YES->getValue(), $companyBranch);
 
         return $companyBranch;
