@@ -44,19 +44,17 @@ trait HasFilesystemTrait
     {
         $companyId = $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
 
-        if ($companyId > 0) {
-            $company = Companies::getById($companyId);
-            $fileSystem = Filesystem::fromApp()->fromCompany($company)->where('url', $url)->first();
-        } else {
-            //@todo allow to share media between company only of it the apps specifies it
-            $fileSystem = Filesystem::fromApp()
-                            ->where('url', $url)
-                            //->andWhere('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
-                            ->first();
-        }
+        //@todo allow to share media between company only of it the apps specifies it
+        $fileSystem = Filesystem::fromApp()
+            ->when($companyId > 0, function ($query) use ($companyId) {
+                $company = Companies::getById($companyId);
 
-        if (! $fileSystem) {
-            $fileSystem = new Filesystem();
+                return $query->fromCompany($company);
+            })
+            ->where('url', $url)
+            ->firstOrNew();
+
+        if (! $fileSystem->exists) {
             $fileSystem->companies_id = $companyId;
             $fileSystem->apps_id = app(Apps::class)->getId();
             $fileSystem->users_id = $this->users_id ?? (auth()->check() ? auth()->user()->getKey() : 0);
@@ -69,9 +67,7 @@ trait HasFilesystemTrait
         }
 
         $attachFilesystem = new AttachFilesystemAction($fileSystem, $this);
-        $attachFilesystem->execute($fieldName);
-
-        return true;
+        return $attachFilesystem->execute($fieldName) instanceof FilesystemEntities;
     }
 
     /**
