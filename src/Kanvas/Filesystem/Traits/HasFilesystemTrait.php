@@ -67,7 +67,21 @@ trait HasFilesystemTrait
         }
 
         $attachFilesystem = new AttachFilesystemAction($fileSystem, $this);
+
         return $attachFilesystem->execute($fieldName) instanceof FilesystemEntities;
+    }
+
+    public function addMultipleFilesFromUrl(array $files): bool
+    {
+        foreach ($files as $file) {
+            if (! isset($file['url']) || ! isset($file['name'])) {
+                throw new ValidationException('Missing url || name index');
+            }
+
+            $this->addFileFromUrl($file['url'], $file['name']);
+        }
+
+        return true;
     }
 
     /**
