@@ -152,7 +152,7 @@ class ReactionTest extends TestCase
             'entity_id' => Str::uuid(),
             'system_modules_uuid' => $systemModule->uuid,
         ];
-        $this->graphQL(/** @lang GRAPHQL */
+        $response = $this->graphQL(/** @lang GRAPHQL */
            '
                mutation reactToEntity(
                    $input: UserReactionInput!
@@ -163,7 +163,9 @@ class ReactionTest extends TestCase
             [
                 'input' => $input,
             ]
-        )->assertJson([
+        );
+        dump($response->json());
+        $response->assertJson([
             'data' => [
                 'reactToEntity' => true,
             ],
