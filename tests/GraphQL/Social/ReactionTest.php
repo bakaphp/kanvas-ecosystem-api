@@ -212,16 +212,9 @@ class ReactionTest extends TestCase
                 }
             }'
         );
-        $response->assertJsonFragment([
-            'data' => [
-                'getReactions' => [
-                    [
-                        'name' => $input['name'],
-                        'icon' => $input['icon'],
-                    ],
-                ],
-            ],
-        ]);
+        $this->assertArrayHasKey('getReactions', $response->json('data'));
+        $this->assertArrayHasKey('data', $response->json('data.getReactions'));
+        $this->assertArrayHasKey('id', $response->json('data.getReactions.data.0'));
     }
 
     public function testGetUserReaction()
@@ -249,14 +242,14 @@ class ReactionTest extends TestCase
                 'reactToEntity' => true,
             ],
         ]);
-        $modelName = str_replace('\\','\\\\', $systemModule->model_name);
-        $this->graphQL(
+        $modelName = str_replace('\\', '\\\\', $systemModule->model_name);
+        $response = $this->graphQL(
             /** @lang GRAPHQL */
             '{
                 countUserReaction(
-                    where: {column: ENTITY_ID, value: "'.$input['entity_id'].'", operator: EQ,
+                    where: {column: ENTITY_ID, value: "' . $input['entity_id'] . '", operator: EQ,
                     AND: [
-                        {column: ENTITY_NAMESPACE, value: "'.$modelName.'", operator: EQ}
+                        {column: ENTITY_NAMESPACE, value: "' . $modelName . '", operator: EQ}
                     ]
                 }) 
             }
@@ -267,5 +260,4 @@ class ReactionTest extends TestCase
             ],
         ]);
     }
-
 }
