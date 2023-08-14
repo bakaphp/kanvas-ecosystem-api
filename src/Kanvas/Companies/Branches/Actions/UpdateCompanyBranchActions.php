@@ -46,6 +46,10 @@ class UpdateCompanyBranchActions
         $companyBranch->zipcode = $this->data->zipcode;
         $companyBranch->updateOrFail();
 
+        if ($this->data->files) {
+            $companyBranch->addMultipleFilesFromUrl($this->data->files);
+        }
+
         $company->associateUser($this->user, StateEnums::YES->getValue(), $companyBranch);
 
         return $companyBranch;

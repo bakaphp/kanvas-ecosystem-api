@@ -70,6 +70,12 @@ class UserTest extends TestCase
                             'data' => 'test',
                         ],
                     ],
+                    'files' => [
+                        [
+                            'name' => 'photo',
+                            'url' => fake()->url,
+                        ],
+                    ],
                 ],
             ]
         )
@@ -194,7 +200,6 @@ class UserTest extends TestCase
             ],
         ]);
     }
-
 
     public function testChangeDisplayName(): void
     {

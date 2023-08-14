@@ -1,21 +1,3 @@
-input ProductInput {
-    products_types_id: Int
-    name: String!
-    description: String!
-    slug: String
-    short_description: String
-    html_description: String
-    warranty_terms: String
-    upc: String
-    is_published: Boolean
-    categories: [Int]
-    warehouses: [Int]
-    source_id: Mixed
-    variants: [VariantsInput]
-    attributes: [AttributeInput]
-    price: Float
-}
-
 type Product {
     id: Int!
     products_types_id: Int
@@ -37,6 +19,24 @@ type Product {
     variants: [Variant]
     productsTypes: ProductType
     companies: Company
+}
+
+input ProductInput {
+    products_types_id: Int
+    name: String!
+    description: String!
+    slug: String
+    short_description: String
+    html_description: String
+    warranty_terms: String
+    upc: String
+    is_published: Boolean
+    categories: [Int]
+    warehouses: [Int]
+    source_id: Mixed
+    variants: [VariantsInput]
+    attributes: [AttributeInput]
+    price: Float
 }
 
 input ProductInputUpdate {

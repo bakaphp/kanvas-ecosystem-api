@@ -71,13 +71,14 @@ type WarehouseVariantRelationship {
     is_coming_soon: Boolean
     is_new: Boolean
     is_published: Boolean
-    status_history: [StatusHistoryRelationship] 
+    status_history: [StatusHistoryRelationship]
         @method(name: "getStatusHistory")
 }
 type VariantsAttributes {
     name: String!
     value: Mixed
 }
+
 type VariantChannelRelationship {
     name: String
     price: Float
@@ -85,6 +86,7 @@ type VariantChannelRelationship {
     discounted_price: Float
     is_published: Boolean
 }
+
 input VariantsWarehousesInput {
     warehouse_id: ID!
     quantity: Float
@@ -102,10 +104,12 @@ input VariantsWarehousesInput {
     is_coming_soon: Boolean
     is_new: Boolean
 }
+
 input VariantsAttributesInput {
     name: String!
     value: Mixed
 }
+
 input VariantsInput {
     products_id: Int
     name: String!
@@ -126,6 +130,7 @@ input VariantsInput {
     attributes: [VariantsAttributesInput]
     warehouse: WarehouseReferenceInput!
 }
+
 input VariantsUpdateInput {
     products_id: Int
     name: String
@@ -158,17 +163,11 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@delete"
         )
-    addVariantToWarehouse(
-        id: ID!
-        input: VariantsWarehousesInput!
-    ): Variant
+    addVariantToWarehouse(id: ID!, input: VariantsWarehousesInput!): Variant
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addToWarehouse"
         )
-    updateVariantInWarehouse(
-        id: ID!
-        input: VariantsWarehousesInput!
-    ): Variant
+    updateVariantInWarehouse(id: ID!, input: VariantsWarehousesInput!): Variant
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@updateVariantInWarehouse"
         )

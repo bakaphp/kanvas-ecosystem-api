@@ -129,6 +129,16 @@ class TemplateSeeder extends Seeder
             'template' => $defaultTemplate,
             'created_at' => date('Y-m-d H:i:s'),
         ]);
+        
+        Templates::create([
+            'apps_id' => 0,
+            'users_id' => 1,
+            'companies_id' => 0,
+            'parent_template_id' => 0,
+            'name' => 'user-email-update',
+            'template' => $defaultTemplate,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
 
         Templates::create([
             'apps_id' => 0,
