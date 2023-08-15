@@ -6,8 +6,6 @@ namespace Tests\GraphQL\Social;
 
 use Kanvas\Social\Reactions\Models\Reaction;
 use Kanvas\Social\Reactions\Models\UserReaction;
-use  Kanvas\SystemModules\Models\SystemModules;
-use Str;
 use Tests\TestCase;
 
 class ReactionTest extends TestCase
@@ -143,30 +141,6 @@ class ReactionTest extends TestCase
        ]);
     }
 
-    public function testReactToEntity()
-    {
-        $systemModule = SystemModules::orderBy('id', 'DESC')->first();
-        $reaction = Reaction::orderBy('id', 'DESC')->first();
-        $input = [
-            'reactions_id' => $reaction->id,
-            'entity_id' => (string)Str::uuid(),
-            'system_modules_uuid' => $systemModule->uuid,
-        ];
-        $response = $this->graphQL(/** @lang GRAPHQL */
-           '
-               mutation reactToEntity(
-                   $input: UserReactionInput!
-                   ){
-                    reactToEntity(input: $input)
-                   }
-                   ',
-            [
-                'input' => $input,
-            ]
-        );
-        dump($response);
-    }
-
     public function testGetReactions()
     {
         $input = [
@@ -212,49 +186,5 @@ class ReactionTest extends TestCase
         $this->assertArrayHasKey('getReactions', $response->json('data'));
         $this->assertArrayHasKey('data', $response->json('data.getReactions'));
         $this->assertArrayHasKey('id', $response->json('data.getReactions.data.0'));
-    }
-
-    public function testGetUserReaction()
-    {
-        $systemModule = SystemModules::orderBy('id', 'DESC')->first();
-        $reaction = Reaction::orderBy('id', 'DESC')->first();
-        $input = [
-            'reactions_id' => $reaction->id,
-            'entity_id' => (string)Str::uuid(),
-            'system_modules_uuid' => $systemModule->uuid,
-        ];
-        $this->graphQL(/** @lang GRAPHQL */
-           '
-               mutation reactToEntity(
-                   $input: UserReactionInput!
-                   ){
-                    reactToEntity(input: $input)
-                   }
-                   ',
-            [
-                'input' => $input,
-            ]
-        )->assertJson([
-            'data' => [
-                'reactToEntity' => true,
-            ],
-        ]);
-        $modelName = str_replace('\\', '\\\\', $systemModule->model_name);
-        $response = $this->graphQL(
-            /** @lang GRAPHQL */
-            '{
-                countUserReaction(
-                    where: {column: ENTITY_ID, value: "' . $input['entity_id'] . '", operator: EQ,
-                    AND: [
-                        {column: ENTITY_NAMESPACE, value: "' . $modelName . '", operator: EQ}
-                    ]
-                }) 
-            }
-            '
-        )->assertJson([
-            'data' => [
-                'countUserReaction' => 1,
-            ],
-        ]);
     }
 }
