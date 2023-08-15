@@ -50,6 +50,21 @@ class Variants extends BaseModel
     use SocialInteractionsTrait;
 
     protected $table = 'products_variants';
+    protected $fillable = [
+        'users_id',
+        'products_id',
+        'name',
+        'uuid',
+        'description',
+        'short_description',
+        'status_id',
+        'barcode',
+        'serial_number',
+        'slug',
+        'html_description',
+        'sku',
+        'ean'
+    ];
     protected $guarded = [];
     protected static ?string $overWriteSearchIndex = null;
 

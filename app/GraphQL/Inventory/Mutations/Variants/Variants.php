@@ -50,8 +50,16 @@ class Variants
      */
     public function update(mixed $root, array $req): VariantModel
     {
+        if (isset($req['input']['status'])) {
+            $req['input']['status_id'] = StatusRepository::getById((int) $req['input']['status']['id'], auth()->user()->getCurrentCompany())->getId();
+        }  
+
         $variant = VariantsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
         $variant->update($req['input']);
+
+        if (isset($req['input']['attributes'])) {
+            $variant->addAttributes(auth()->user(), $req['input']['attributes']);
+        }
 
         return $variant;
     }
