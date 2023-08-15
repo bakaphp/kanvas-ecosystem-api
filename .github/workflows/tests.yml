@@ -127,3 +127,10 @@ jobs:
       - name: Run Tests
         if: success()
         run: php artisan test
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@master
+        if: failure()
+        with:
+          name: Logs
+          path: ./storage/logs
