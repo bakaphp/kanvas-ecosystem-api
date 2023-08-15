@@ -149,7 +149,7 @@ class ReactionTest extends TestCase
         $reaction = Reaction::orderBy('id', 'DESC')->first();
         $input = [
             'reactions_id' => $reaction->id,
-            'entity_id' => Str::uuid(),
+            'entity_id' => (string)Str::uuid(),
             'system_modules_uuid' => $systemModule->uuid,
         ];
         $response = $this->graphQL(/** @lang GRAPHQL */
@@ -225,7 +225,7 @@ class ReactionTest extends TestCase
         $reaction = Reaction::orderBy('id', 'DESC')->first();
         $input = [
             'reactions_id' => $reaction->id,
-            'entity_id' => Str::uuid(),
+            'entity_id' => (string)Str::uuid(),
             'system_modules_uuid' => $systemModule->uuid,
         ];
         $this->graphQL(/** @lang GRAPHQL */
