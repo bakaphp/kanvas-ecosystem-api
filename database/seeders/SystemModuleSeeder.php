@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class SystemModuleSeeder extends Seeder
 {
@@ -19,6 +20,7 @@ class SystemModuleSeeder extends Seeder
                 'name' => 'Companies',
                 'slug' => 'companies',
                 'model_name' => 'Kanvas\\Models\\Companies',
+                'uuid' => Str::uuid(),
                 'apps_id' => '1',
                 'parents_id' => '0',
                 'menu_order' => null,
@@ -30,12 +32,13 @@ class SystemModuleSeeder extends Seeder
                 'is_deleted' => '0',
                 'mobile_component_type' => null,
                 'mobile_navigation_type' => null,
-                'mobile_tab_index' => '0'
+                'mobile_tab_index' => '0',
             ],
             [
                 'name' => 'Users',
                 'slug' => 'users',
                 'model_name' => 'Kanvas\\Models\\Users',
+                'uuid' => Str::uuid(),
                 'apps_id' => '1',
                 'parents_id' => '0',
                 'menu_order' => null,
@@ -47,12 +50,13 @@ class SystemModuleSeeder extends Seeder
                 'is_deleted' => '0',
                 'mobile_component_type' => null,
                 'mobile_navigation_type' => null,
-                'mobile_tab_index' => '0'
+                'mobile_tab_index' => '0',
             ],
             [
                 'name' => 'Users',
                 'slug' => 'users',
                 'model_name' => 'Gewaer\\Models\\Users',
+                'uuid' => Str::uuid(),
                 'apps_id' => '1',
                 'parents_id' => '0',
                 'menu_order' => null,
@@ -64,12 +68,13 @@ class SystemModuleSeeder extends Seeder
                 'is_deleted' => '0',
                 'mobile_component_type' => null,
                 'mobile_navigation_type' => null,
-                'mobile_tab_index' => '0'
+                'mobile_tab_index' => '0',
             ],
             [
                 'name' => 'Companies Branches',
                 'slug' => 'companies-branches',
                 'model_name' => 'Kanvas\\Models\\CompaniesBranches',
+                'uuid' => Str::uuid(),
                 'apps_id' => '1',
                 'parents_id' => '0',
                 'menu_order' => null,
@@ -81,12 +86,13 @@ class SystemModuleSeeder extends Seeder
                 'is_deleted' => '0',
                 'mobile_component_type' => null,
                 'mobile_navigation_type' => null,
-                'mobile_tab_index' => '0'
+                'mobile_tab_index' => '0',
             ],
             [
                 'name' => 'Active Users',
                 'slug' => 'users-active',
                 'model_name' => 'Kanvas\\Models\\Users',
+                'uuid' => Str::uuid(),
                 'apps_id' => '1',
                 'parents_id' => '0',
                 'menu_order' => null,
@@ -98,12 +104,13 @@ class SystemModuleSeeder extends Seeder
                 'is_deleted' => '0',
                 'mobile_component_type' => null,
                 'mobile_navigation_type' => null,
-                'mobile_tab_index' => '0'
+                'mobile_tab_index' => '0',
             ],
             [
                 'name' => 'Invited Users',
                 'slug' => 'users-invite',
                 'model_name' => 'Kanvas\\Models\\Users',
+                'uuid' => Str::uuid(),
                 'apps_id' => '1',
                 'parents_id' => '0',
                 'menu_order' => null,
@@ -115,12 +122,13 @@ class SystemModuleSeeder extends Seeder
                 'is_deleted' => '0',
                 'mobile_component_type' => null,
                 'mobile_navigation_type' => null,
-                'mobile_tab_index' => '0'
+                'mobile_tab_index' => '0',
             ],
             [
                 'name' => 'Inactive Users',
                 'slug' => 'users-inactive',
                 'model_name' => 'Kanvas\\Models\\Users',
+                'uuid' => Str::uuid(),
                 'apps_id' => '1',
                 'parents_id' => '0',
                 'menu_order' => null,
@@ -132,12 +140,13 @@ class SystemModuleSeeder extends Seeder
                 'is_deleted' => '0',
                 'mobile_component_type' => null,
                 'mobile_navigation_type' => null,
-                'mobile_tab_index' => '0'
+                'mobile_tab_index' => '0',
             ],
             [
                 'name' => 'Roles',
                 'slug' => 'roles',
                 'model_name' => 'Kanvas\\Models\\Roles',
+                'uuid' => Str::uuid(),
                 'apps_id' => '1',
                 'parents_id' => '0',
                 'menu_order' => null,
@@ -149,12 +158,13 @@ class SystemModuleSeeder extends Seeder
                 'is_deleted' => '0',
                 'mobile_component_type' => null,
                 'mobile_navigation_type' => null,
-                'mobile_tab_index' => '0'
+                'mobile_tab_index' => '0',
             ],
             [
                 'name' => 'Custom Fields Modules',
                 'slug' => 'custom-fields-modules',
                 'model_name' => 'Kanvas\\Models\\CustomFieldsModules',
+                'uuid' => Str::uuid(),
                 'apps_id' => '1',
                 'parents_id' => '0',
                 'menu_order' => null,
@@ -166,12 +176,13 @@ class SystemModuleSeeder extends Seeder
                 'is_deleted' => '0',
                 'mobile_component_type' => null,
                 'mobile_navigation_type' => null,
-                'mobile_tab_index' => '0'
+                'mobile_tab_index' => '0',
             ],
             [
                 'name' => 'Users Invite',
                 'slug' => 'users-invite',
                 'model_name' => 'Kanvas\\Models\\UsersInvite',
+                'uuid' => Str::uuid(),
                 'apps_id' => '1',
                 'parents_id' => '0',
                 'menu_order' => null,
@@ -183,7 +194,7 @@ class SystemModuleSeeder extends Seeder
                 'is_deleted' => '0',
                 'mobile_component_type' => null,
                 'mobile_navigation_type' => null,
-                'mobile_tab_index' => '0'
+                'mobile_tab_index' => '0',
             ]
         );
     }
