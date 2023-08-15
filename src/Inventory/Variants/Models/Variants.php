@@ -51,6 +51,8 @@ class Variants extends BaseModel
 
     protected $table = 'products_variants';
     protected $fillable = [
+        'users_id',
+        'products_id',
         'name',
         'uuid',
         'description',
