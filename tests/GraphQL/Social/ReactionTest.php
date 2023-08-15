@@ -164,7 +164,7 @@ class ReactionTest extends TestCase
                 'input' => $input,
             ]
         );
-        dump($response->json());
+        $response->dumpSession();
         $response->assertJson([
             'data' => [
                 'reactToEntity' => true,
