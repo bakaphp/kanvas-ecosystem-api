@@ -20,7 +20,7 @@ class ReactionTest extends TestCase
         'icon' => fake()->emoji(),
        ];
         $this->graphQL(/** @lang GRAPHQL */
-           '
+            '
                mutation createReaction(
                    $input: ReactionInput!
                ) 
@@ -49,7 +49,7 @@ class ReactionTest extends TestCase
         'icon' => fake()->emoji(),
        ];
         $response = $this->graphQL(/** @lang GRAPHQL */
-           '
+            '
                mutation createReaction(
                    $input: ReactionInput!
                ) 
@@ -71,7 +71,7 @@ class ReactionTest extends TestCase
             'icon' => fake()->emoji(),
         ];
         $this->graphQL(/** @lang GRAPHQL */
-           '
+            '
                mutation updateReaction(
                    $id: ID!
                    $input: ReactionInput!
@@ -105,7 +105,7 @@ class ReactionTest extends TestCase
         'icon' => fake()->emoji(),
        ];
         $response = $this->graphQL(/** @lang GRAPHQL */
-           '
+            '
                mutation createReaction(
                    $input: ReactionInput!
                ) 
@@ -123,7 +123,7 @@ class ReactionTest extends TestCase
         );
         $id = $response->json('data.createReaction.id');
         $this->graphQL(/** @lang GRAPHQL */
-           '
+            '
                mutation deleteReaction(
                    $id: ID!
                ) 
@@ -148,7 +148,7 @@ class ReactionTest extends TestCase
             'icon' => fake()->emoji(),
         ];
         $this->graphQL(/** @lang GRAPHQL */
-           '
+            '
                mutation createReaction(
                    $input: ReactionInput!
                ) 
