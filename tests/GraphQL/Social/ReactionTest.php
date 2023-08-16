@@ -6,6 +6,7 @@ namespace Tests\GraphQL\Social;
 
 use Kanvas\Social\Reactions\Models\Reaction;
 use Kanvas\Social\Reactions\Models\UserReaction;
+use Kanvas\SystemModules\Models\SystemModules;
 use Tests\TestCase;
 
 class ReactionTest extends TestCase
