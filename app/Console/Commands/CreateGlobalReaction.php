@@ -16,7 +16,7 @@ class CreateGlobalReaction extends Command
      *
      * @var string
      */
-    protected $signature = 'app:create-global-reaction {name} {icon}';
+    protected $signature = 'app:create-global-reaction {name} {icon} {apps}';
 
     /**
      * The console command description.
@@ -33,7 +33,7 @@ class CreateGlobalReaction extends Command
         $reactionDto = ReactionDto::from([
             'name' => $this->argument('name'),
             'icon' => $this->argument('icon'),
-            'apps' => app(Apps::class),
+            'apps' => Apps::find($this->argument('apps')),
             'companies' => Companies::find(AppEnums::GLOBAL_COMPANY_ID->getValue()),
         ]);
 

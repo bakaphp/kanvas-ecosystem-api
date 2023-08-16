@@ -11,7 +11,7 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::connection('social')->table('users_reactions', function (Blueprint $table) {
-            $table->string('entity_id')->change();
+            $table->char('entity_id', 255)->change();
         });
     }
 

@@ -31,7 +31,7 @@ class ReactionManagementMutation
 
     public function update(mixed $root, array $request): Reaction
     {
-        $reaction = Reaction::getById($request['id']);
+        $reaction = Reaction::getById($request['id'], app(Apps::class));
         $reaction->update([
             'name' => $request['input']['name'],
             'icon' => $request['input']['icon'],
@@ -42,7 +42,7 @@ class ReactionManagementMutation
 
     public function delete(mixed $root, array $request): bool
     {
-        $reaction = Reaction::getById($request['id']);
+        $reaction = Reaction::getById($request['id'], app(Apps::class));
         $reaction->delete();
 
         return true;
@@ -51,7 +51,7 @@ class ReactionManagementMutation
     public function reactToEntity(mixed $root, array $request): bool
     {
         $systemModule = SystemModulesRepository::getByUuidOrModelName($request['input']['system_modules_uuid']);
-        $reaction = Reaction::getById($request['input']['reactions_id']);
+        $reaction = Reaction::getById($request['input']['reactions_id'], app(Apps::class));
         $userReactionDto = new UserReactionDto(
             auth()->user(),
             $reaction,

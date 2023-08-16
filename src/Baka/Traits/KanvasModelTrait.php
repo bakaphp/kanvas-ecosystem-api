@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Schema;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Apps\Models\Apps as KanvasApps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\StateEnums;
@@ -53,12 +54,16 @@ trait KanvasModelTrait
         }
     }
 
-    public static function getById(mixed $id): self
+    public static function getById(mixed $id, ?KanvasApps $apps = null): self
     {
         try {
-            return self::where('id', $id)
-                ->notDeleted()
-                ->firstOrFail();
+            $builder = self::where('id', $id);
+            if ($apps) {
+                $builder->where('apps_id', $apps->getId());
+            }
+
+            return $builder->notDeleted()
+            ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
             throw new ExceptionsModelNotFoundException($e->getMessage());

@@ -58,10 +58,11 @@ extend type Query {
             )
         orderBy: _ @orderBy(columns: ["id"])
 
-    ): [Reaction!]
+    ): [Reaction]!
         @paginate(
             model: "Kanvas\\Social\\Reactions\\Models\\Reaction"
             defaultCount: 25
+            scopes: ["fromApp"]
         )
     getReaction(id: ID! @eq): Reaction
         @find(model: "Kanvas\\Social\\Reactions\\Models\\Reaction")
