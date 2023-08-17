@@ -199,7 +199,7 @@ class ReactionTest extends TestCase
             'system_modules_uuid' => $systemModule->uuid,
         ];
         $this->graphQL(/** @lang GRAPHQL */
-           '
+            '
                mutation reactToEntity(
                    $input: UserReactionInput!
                    ){
@@ -226,7 +226,7 @@ class ReactionTest extends TestCase
             'system_modules_uuid' => $systemModule->uuid,
         ];
         $this->graphQL(/** @lang GRAPHQL */
-           '
+            '
                mutation reactToEntity(
                    $input: UserReactionInput!
                    ){
