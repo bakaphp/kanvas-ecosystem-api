@@ -12,6 +12,7 @@ type Filesystem {
 input FilesystemInputUrl {
     url: String!
     name: String!
+    attributes: JSON
 }
 
 input FilesystemAttachInput {

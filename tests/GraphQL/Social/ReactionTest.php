@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Social;
 
+use Baka\Support\Str;
 use Kanvas\Social\Reactions\Models\Reaction;
 use Kanvas\Social\Reactions\Models\UserReaction;
 use Kanvas\SystemModules\Models\SystemModules;

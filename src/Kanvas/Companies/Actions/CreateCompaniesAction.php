@@ -39,6 +39,10 @@ class CreateCompaniesAction
         $companies->country_code = $this->data->country_code;
         $companies->saveOrFail();
 
+        if ($this->data->files) {
+            $companies->addMultipleFilesFromUrl($this->data->files);
+        }
+
         return $companies;
     }
 }

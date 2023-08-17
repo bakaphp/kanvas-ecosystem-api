@@ -33,6 +33,8 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Locations\Models\Cities;
 use Kanvas\Locations\Models\Countries;
@@ -455,6 +457,24 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return $user->saveOrFail();
     }
 
+    public function updateDisplayName(string $displayName, AppInterface $app): bool
+    {
+        $user = $this->getAppProfile($app);
+
+        $validator = Validator::make(
+            ['displayname' => $displayName],
+            ['displayname' => 'required|unique:users_associated_apps,displayname,NULL,users_id,apps_id,' . $app->getId()]
+        );
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
+
+        $user->displayname = $displayName;
+
+        return $user->updateOrFail();
+    }
+
     public function updateEmail(string $email): bool
     {
         $this->email = $email;
@@ -500,5 +520,17 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         }
 
         return $mapAbilities->all();
+    }
+
+    public function getAppDisplayName(): string
+    {
+        $user = $this->getAppProfile(app(Apps::class));
+
+        return $user->displayname;
+    }
+
+    public function getPhoto(): ?FilesystemEntities
+    {
+        return  $this->getFileByName('photo');
     }
 }

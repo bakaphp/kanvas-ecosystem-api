@@ -32,6 +32,7 @@ class CompaniesPostData extends Data
         public ?string $language = null,
         public ?string $timezone = null,
         public ?string $country_code = null,
+        public ?array $files = null
     ) {
     }
 
@@ -95,6 +96,7 @@ class CompaniesPostData extends Data
             language : $data['language'] ?? null,
             timezone : $data['timezone'] ?? null,
             country_code : $data['country_code'] ?? null,
+            files: $data['files'] ?? null
         );
     }
 }
