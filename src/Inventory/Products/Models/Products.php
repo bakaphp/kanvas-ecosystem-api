@@ -6,6 +6,7 @@ namespace Kanvas\Inventory\Products\Models;
 
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -109,5 +110,16 @@ class Products extends BaseModel
     public function companies(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
+    }
+
+    /**
+     * Get data without deleted.
+     *
+     * @param Builder $query
+     * @return Builder
+     */
+    public function scopeWithoutDeleted(Builder $query): Builder
+    {
+        return $query->where('is_deleted', 0);
     }
 }
