@@ -8,7 +8,7 @@
 [![static analysis](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/static-analysis.yml/badge.svg)](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/static-analysis.yml)
 [![CI](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/tests.yml/badge.svg)](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/tests.yml)
 
-Originating from an agency background, we've catered to clients with unique requirements. Over time, we realized we were repeatedly solving the same challenges: whether it was crafting a full-fledged solution, integrating with existing systems, enhancing inventory connectivity, offering agent portals for CRM expansion, introducing social interactions to headless sites, or establishing workflows for seamless system integration.
+Originating from our agency background, we've catered to clients with unique requirements. Over time, we realized we were repeatedly solving the same challenges: whether it was crafting a full-fledged solution, integrating with existing systems, enhancing inventory connectivity, offering agent portals for CRM expansion, introducing social interactions to headless sites, or establishing workflows for seamless system integration.
 
 ## **Enter Kanvas Niche.**
 Born from the need to streamline these repetitive tasks, Kanvas Niche offers a suite of headless modules tailored to accelerate the development of headless applications. We've encapsulated our years of experience into these modules, addressing the common hurdles we face daily in app development.
@@ -59,7 +59,7 @@ Todo:
 9. To check if the API is working just make a GET request to  ```http://localhost:80/v1/``` and see if the response returns ```"Woot Kanvas"```
 
 ### Setup Inventory
-1. php artisan migrate --path database/migrations/Inventory/ --database inventory
+1. composer migrate-inventory
 2. Set env var in .env
 ```
 DB_INVENTORY_HOST=mysql
@@ -72,7 +72,7 @@ DB_INVENTORY_PASSWORD=password
 `php artisan inventory:setup` to create and initialize the inventory module for a current company
 
 ### Setup Social
-1. php artisan migrate --path database/migrations/Social/ --database social
+1. composer migrate-social
 2. Set env var in .env
 ```
 DB_SOCIAL_HOST=mysql
@@ -85,7 +85,7 @@ DB_SOCIAL_PASSWORD=password
 `php artisan social:setup` to create and initialize the social module for a current company
 
 ### Setup Guild
-1. php artisan migrate --path database/migrations/Guild/ --database crm
+1. composer migrate-crm
 2. Set env var in .env
 ```
 DB_CRM_HOST=mysql
