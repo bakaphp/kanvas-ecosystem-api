@@ -21,6 +21,7 @@ class AddLeadParticipantAction
 
     /**
      * execute.
+     * @psalm-suppress MixedReturnStatement
      */
     public function execute(): LeadParticipant
     {

@@ -21,6 +21,7 @@ class RemoveLeadParticipantAction
 
     /**
      * Execute.
+     * @psalm-suppress MixedReturnStatement
      */
     public function execute(): bool
     {
