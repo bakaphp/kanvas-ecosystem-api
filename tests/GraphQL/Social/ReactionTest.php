@@ -192,8 +192,8 @@ class ReactionTest extends TestCase
 
     public function testReactToEntity()
     {
-        $systemModule = SystemModules::orderBy('id', 'DESC')->first();
-        $reaction = Reaction::orderBy('id', 'DESC')->first();
+        $systemModule = SystemModules::fromApp()->orderBy('id', 'ASC')->first();
+        $reaction = Reaction::fromApp()->orderBy('id', 'DESC')->first();
         $input = [
             'reactions_id' => $reaction->id,
             'entity_id' => Str::uuid(),
@@ -219,8 +219,8 @@ class ReactionTest extends TestCase
 
     public function testGetUserReaction()
     {
-        $systemModule = SystemModules::orderBy('id', 'DESC')->first();
-        $reaction = Reaction::orderBy('id', 'DESC')->first();
+        $systemModule = SystemModules::fromApp()->orderBy('id', 'ASC')->first();
+        $reaction = Reaction::fromApp()->orderBy('id', 'DESC')->first();
         $input = [
             'reactions_id' => $reaction->id,
             'entity_id' => Str::uuid(),
