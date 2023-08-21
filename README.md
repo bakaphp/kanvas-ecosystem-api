@@ -8,8 +8,6 @@
 [![static analysis](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/static-analysis.yml/badge.svg)](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/static-analysis.yml)
 [![CI](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/tests.yml/badge.svg)](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/tests.yml)
 
-# Welcome to Kanvas Niche! 🚀
-
 Originating from an agency background, we've catered to clients with unique requirements. Over time, we realized we were repeatedly solving the same challenges: whether it was crafting a full-fledged solution, integrating with existing systems, enhancing inventory connectivity, offering agent portals for CRM expansion, introducing social interactions to headless sites, or establishing workflows for seamless system integration.
 
 ## **Enter Kanvas Niche.**
