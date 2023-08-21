@@ -132,7 +132,7 @@ class Lead extends BaseModel
 
     public function close(): void
     {
-        $this->leads_status_id = 6; //change to a bete format
+        $this->leads_status_id = 6; //change by dynamic
         $this->saveOrFail();
     }
 }
