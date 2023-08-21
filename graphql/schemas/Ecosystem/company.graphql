@@ -44,6 +44,7 @@ type CompanyAssociation {
 
 type CompanyBranch {
     id: ID!
+    uuid: String!
     company: Company! @belongsTo(relation: "company")
     companies_id: Int!
     name: String!
