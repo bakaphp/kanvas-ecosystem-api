@@ -111,15 +111,4 @@ class Products extends BaseModel
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }
-
-    /**
-     * Get data without deleted.
-     *
-     * @param Builder $query
-     * @return Builder
-     */
-    public function scopeWithoutDeleted(Builder $query): Builder
-    {
-        return $query->where('is_deleted', 0);
-    }
 }
