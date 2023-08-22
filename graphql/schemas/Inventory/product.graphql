@@ -102,7 +102,7 @@ extend type Query @guard {
     ): [Product]
         @paginate(
             model: "Kanvas\\Inventory\\Products\\Models\\Products"
-            scopes: ["fromApp", "fromCompany", "withoutDeleted"]
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
             defaultCount: 10
         )
 }

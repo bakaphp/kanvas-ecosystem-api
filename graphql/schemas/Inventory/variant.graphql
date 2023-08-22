@@ -225,7 +225,7 @@ extend type Query @guard {
     ): [Variant]
         @paginate(
             defaultCount: 25
-            scopes: ["fromApp", "fromCompany"]
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
             model: "Kanvas\\Inventory\\Variants\\Models\\Variants"
         )
 
