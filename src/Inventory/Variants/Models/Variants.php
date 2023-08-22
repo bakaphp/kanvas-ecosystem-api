@@ -63,7 +63,7 @@ class Variants extends BaseModel
         'slug',
         'html_description',
         'sku',
-        'ean'
+        'ean',
     ];
     protected $guarded = [];
     protected static ?string $overWriteSearchIndex = null;

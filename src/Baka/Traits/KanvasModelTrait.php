@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Baka\Traits;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -53,12 +54,16 @@ trait KanvasModelTrait
         }
     }
 
-    public static function getById(mixed $id): self
+    public static function getById(mixed $id, ?AppInterface $apps = null): self
     {
         try {
-            return self::where('id', $id)
-                ->notDeleted()
-                ->firstOrFail();
+            $builder = self::where('id', $id);
+            if ($apps) {
+                $builder->where('apps_id', $apps->getId());
+            }
+
+            return $builder->notDeleted()
+            ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
             throw new ExceptionsModelNotFoundException($e->getMessage());
