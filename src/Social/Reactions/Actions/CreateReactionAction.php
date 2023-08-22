@@ -16,7 +16,7 @@ class CreateReactionAction
 
     public function execute(): Reaction
     {
-        $reaction = Reaction::create([
+        $reaction = Reaction::firstOrCreate([
             'apps_id' => $this->reactionDto->apps->getId(),
             'companies_id' => $this->reactionDto->companies->getId(),
             'name' => $this->reactionDto->name,

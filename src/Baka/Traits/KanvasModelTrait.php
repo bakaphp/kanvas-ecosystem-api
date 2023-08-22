@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Baka\Traits;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Schema;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Apps\Models\Apps as KanvasApps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\StateEnums;
@@ -54,7 +54,7 @@ trait KanvasModelTrait
         }
     }
 
-    public static function getById(mixed $id, ?KanvasApps $apps = null): self
+    public static function getById(mixed $id, ?AppInterface $apps = null): self
     {
         try {
             $builder = self::where('id', $id);

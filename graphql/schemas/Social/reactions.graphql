@@ -2,7 +2,6 @@ type Reaction {
     id: ID!
     name: String!
     icon: String!
-    app: App!
     company: Company!
 }
 
