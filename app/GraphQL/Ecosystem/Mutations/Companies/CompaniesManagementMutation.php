@@ -66,7 +66,7 @@ class CompaniesManagementMutation
          * @todo only super admin can do this
          */
         $companyDelete = new DeleteCompaniesAction(Auth::user());
-        $companyDelete->execute($request['id']);
+        $companyDelete->execute((int) $request['id']);
 
         return true;
     }
@@ -97,7 +97,7 @@ class CompaniesManagementMutation
     {
         $dto = CompaniesBranchPutData::fromArray($request['input']);
         $action = new  UpdateCompanyBranchActions(Auth::user(), $dto);
-        return $action->execute($request['id']);
+        return $action->execute((int) $request['id']);
     }
 
     /**
@@ -113,7 +113,7 @@ class CompaniesManagementMutation
          * @todo only super admin can do this
          */
         $companyBranchDelete = new DeleteCompanyBranchActions(Auth::user());
-        $branch = $companyBranchDelete->execute($request['id']);
+        $branch = $companyBranchDelete->execute((int) $request['id']);
 
         return 'Successfully Delete Company Branch : ' . $branch->name;
     }
