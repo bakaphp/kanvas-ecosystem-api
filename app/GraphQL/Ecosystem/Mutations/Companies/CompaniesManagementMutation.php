@@ -50,7 +50,7 @@ class CompaniesManagementMutation
     {
         $dto = CompaniesPutData::fromArray($request['input']);
         $action = new UpdateCompaniesAction(Auth::user(), $dto);
-        return $action->execute($request['id']);
+        return $action->execute((int) $request['id']);
     }
 
     /**
