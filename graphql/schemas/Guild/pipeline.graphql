@@ -1,0 +1,84 @@
+type LeadPipeline {
+    id: ID!
+    company: Company! @belongsTo
+    module: SystemModule! @belongsTo
+    stages: [LeadPipelineStage!]! @hasMany
+    name: String!
+    slug: String!
+    weight: Int!
+    is_default: Boolean!
+}
+
+type LeadPipelineStage {
+    id: ID!
+    pipeline: LeadPipeline! @belongsTo
+    name: String!
+    rotting_days: Int!
+    weight: Int!
+}
+
+input PipelineInput {
+    name: String!
+    slug: String
+    weight: Int!
+    is_default: Boolean!
+    stages: [PipelineStageInput!]!
+}
+
+input PipelineStageInput {
+    pipeline_id: ID!
+    name: String!
+    rotting_days: Int!
+    weight: Int!
+}
+
+extend type Mutation @guard {
+    createPipeline(input: PipelineInput!): LeadPipeline
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Pipelines\\PipelineManagementMutation@create"
+        )
+    updatePipeline(id: ID!, input: PipelineInput!): Lead
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Pipelines\\PipelineManagementMutation@update"
+        )
+    deletePipeline(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Pipelines\\PipelineManagementMutation@delete"
+        )
+    restorePipeline(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Pipelines\\PipelineManagementMutation@restore"
+        )
+    createPipelineStage(input: PipelineStageInput!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Pipelines\\SocialMutation@follow"
+        )
+    updatePipelineStage(input: PipelineStageInput!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Pipelines\\SocialMutation@follow"
+        )
+    deletePipelineStage(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Pipelines\\SocialMutation@follow"
+        )
+}
+
+extend type Query @guard {
+    pipelines(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "companies_id"
+                    "slug"
+                    "weight"
+                    "is_default"
+                ]
+            )
+    ): [LeadPipeline!]!
+        @paginate(
+            model: "Kanvas\\Guild\\Pipelines\\Models\\Pipeline"
+            scopes: ["fromCompany", "notDeleted"]
+            defaultCount: 10
+        )
+}

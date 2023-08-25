@@ -83,25 +83,6 @@ type LeadSource {
     type: LeadType
 }
 
-type LeadPipeline {
-    id: ID!
-    company: Company! @belongsTo
-    module: SystemModule! @belongsTo
-    stages: [LeadPipelineStage!]! @hasMany
-    name: String!
-    slug: String!
-    weight: Int!
-    is_default: Boolean!
-}
-
-type LeadPipelineStage {
-    id: ID!
-    pipeline: LeadPipeline! @belongsTo
-    name: String!
-    rotting_days: Int!
-    weight: Int!
-}
-
 type LeadDashboard {
     total_active_leads: Int!
     total_closed_leads: Int!
@@ -202,7 +183,7 @@ extend type Query @guard {
     ): [Lead!]!
         @paginate(
             model: "Kanvas\\Guild\\Leads\\Models\\Lead"
-            scopes: ["fromCompany"]
+            scopes: ["fromCompany", "notDeleted"]
             defaultCount: 10
         )
 

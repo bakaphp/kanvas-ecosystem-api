@@ -28,9 +28,12 @@ class Pipeline extends BaseModel
 
     protected $table = 'pipelines';
     protected $guarded = [];
+    protected $casts = [
+        'is_default' => 'boolean',
+    ];
 
     public function stages(): HasMany
     {
-        return $this->hasMany(PipelineStage::class, 'pipelines_id', 'id');
+        return $this->hasMany(PipelineStage::class, 'pipelines_id', 'id')->orderBy('weight', 'ASC');
     }
 }
