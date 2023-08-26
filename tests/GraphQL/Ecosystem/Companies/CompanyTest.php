@@ -83,6 +83,58 @@ class CompanyTest extends TestCase
         ->assertSee('language', $companyData['language']);
     }
 
+    public function testGetCompanies(): void
+    {
+        $this->graphQL( /** @lang GraphQL */
+            '
+            {
+                companies(first: 10) {     
+                    data {
+            
+                            id,
+                            name,
+                            website,
+                            address,
+                            zipcode,
+                            email,
+                            language,
+                            timezone,
+                            phone,
+                            country_code,
+                            created_at,
+                            updated_at
+                        },
+                        paginatorInfo {
+                          currentPage
+                          lastPage
+                        }
+                    }
+            }
+            
+            '
+        )
+        ->assertSuccessful()
+        ->assertSee('name');
+    }
+
+    public function testGetCompanySettings()
+    {
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            {
+                companySettings {  
+                    name,
+                    settings
+                }
+            }
+            
+            
+            '
+        )
+        ->assertSuccessful()
+        ->assertSee('name');
+    }
+
     public function testDeleteCompany(): void
     {
         $companyData = $this->companyInputData();
@@ -112,7 +164,7 @@ class CompanyTest extends TestCase
                 deleteCompany(id: $id)
             }',
             [
-                'id' => $response['id']
+                'id' => $response['id'],
             ]
         )
         ->assertSuccessful()

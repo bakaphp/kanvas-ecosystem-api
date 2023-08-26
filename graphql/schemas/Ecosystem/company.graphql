@@ -223,19 +223,19 @@ extend type Mutation @guardByAdmin {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@deleteCompanyBranch"
         )
-    addUserToBranch(id: ID!, users_id: ID!): Boolean!
+    addUserToBranch(id: ID!, user_id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@addUserToBranch"
         )
-    removeUserFromBranch(id: ID!, users_id: ID!): Boolean!
+    removeUserFromBranch(id: ID!, user_id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@removeUserFromBranch"
         )
-    addUserToCompany(id: ID!, users_id: ID!): Boolean!
+    addUserToCompany(id: ID!, user_id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@addUserToCompany"
         )
-    removeUserFromCompany(id: ID!, users_id: ID!): Boolean!
+    removeUserFromCompany(id: ID!, user_id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@removeUserFromCompany"
         )

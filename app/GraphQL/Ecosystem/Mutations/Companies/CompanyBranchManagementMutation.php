@@ -63,7 +63,7 @@ class CompanyBranchManagementMutation
      */
     public function addUserToBranch($rootValue, array $request): bool
     {
-        $user = Users::getById($request['users_id']);
+        $user = Users::getById($request['user_id']);
         $branch = CompaniesBranches::getById($request['id']);
         $company = $branch->company()->get()->first();
 
@@ -89,7 +89,7 @@ class CompanyBranchManagementMutation
      */
     public function removeUserFromBranch($rootValue, array $request): bool
     {
-        $user = Users::getById($request['users_id']);
+        $user = Users::getById($request['user_id']);
         $branch = CompaniesBranches::getById($request['id']);
         $company = $branch->company()->get()->first();
 

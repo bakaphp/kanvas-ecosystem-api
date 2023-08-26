@@ -58,7 +58,7 @@ class CompanyManagementMutation
 
     public function addUserToCompany($rootValue, array $request): bool
     {
-        $user = Users::getById($request['users_id']);
+        $user = Users::getById($request['user_id']);
         $company = Companies::getById($request['id']);
 
         CompaniesRepository::userAssociatedToCompany(
@@ -77,7 +77,7 @@ class CompanyManagementMutation
 
     public function removeUserFromCompany($rootValue, array $request): bool
     {
-        $user = Users::getById($request['users_id']);
+        $user = Users::getById($request['user_id']);
         $company = Companies::getById($request['id']);
 
         if ($company->users_id == $user->getId()) {
