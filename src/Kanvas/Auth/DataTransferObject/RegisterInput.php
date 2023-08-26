@@ -16,13 +16,6 @@ class RegisterInput extends Data
 {
     /**
      * Construct function.
-     *
-     * @param string $firstname
-     * @param string $lastname
-     * @param string $displayname
-     * @param string $email
-     * @param string $password
-     * @param string|null $default_company
      */
     public function __construct(
         public string $firstname,
@@ -39,8 +32,6 @@ class RegisterInput extends Data
      * Create new instance of DTO from request.
      *
      * @param Request $request Request Input data
-     *
-     * @return self
      */
     public static function viaRequest(Request $request): self
     {
@@ -51,15 +42,12 @@ class RegisterInput extends Data
             email: $request->get('email'),
             password: Hash::make($request->get('password')),
             default_company: $request->get('default_company') ?? null,
+            roles_id: (int) ($request->get('roles_id') ?? null),
         );
     }
 
     /**
      * Generaet new instance of DTO from array.
-     *
-     * @param array $request
-     *
-     * @return self
      */
     public static function fromArray(array $request): self
     {
@@ -70,7 +58,7 @@ class RegisterInput extends Data
             email: $request['email'],
             password: Hash::make($request['password']),
             default_company: $request['default_company'] ?? null,
-            roles_id: $request['roles_id'] ?? null,
+            roles_id: isset($request['roles_id']) ? (int) $request['roles_id'] : null,
         );
     }
 }
