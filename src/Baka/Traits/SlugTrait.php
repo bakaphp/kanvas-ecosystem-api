@@ -20,15 +20,14 @@ trait SlugTrait
         static::creating(function ($model) {
             $model->slug = $model->slug ?? Str::slug($model->name);
         });
+
+        static::updating(function ($model) {
+            $model->slug = $model->slug ?? Str::slug($model->name);
+        });
     }
 
     /**
      * Get Model.
-     *
-     * @param string $slug
-     * @param CompanyInterface $company
-     *
-     * @return self
      */
     public static function getBySlug(string $slug, CompanyInterface $company): self
     {

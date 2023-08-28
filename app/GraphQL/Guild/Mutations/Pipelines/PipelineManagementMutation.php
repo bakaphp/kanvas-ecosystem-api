@@ -4,15 +4,17 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Guild\Mutations\Pipelines;
 
-use Kanvas\Guild\Leads\DataTransferObject\Lead;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Pipelines\Actions\CreatePipelineAction;
+use Kanvas\Guild\Pipelines\Actions\UpdatePipelineAction;
 use Kanvas\Guild\Pipelines\DataTransferObject\Pipeline;
 use Kanvas\Guild\Pipelines\Models\Pipeline as ModelsPipeline;
+use Throwable;
 
 class PipelineManagementMutation
 {
     /**
-     * Create new lead
+     * Create new pipeline
      */
     public function create(mixed $root, array $req): ModelsPipeline
     {
@@ -28,5 +30,52 @@ class PipelineManagementMutation
         );
 
         return $pipeline->execute();
+    }
+
+    public function update(mixed $root, array $req): ModelsPipeline
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $branch = $user->getCurrentBranch();
+        $id = (int) $req['id'];
+
+        $pipeline = ModelsPipeline::getByIdFromCompany($id, $company);
+
+        $updatePipeline = new UpdatePipelineAction(
+            $pipeline,
+            Pipeline::viaRequest(
+                $user,
+                $branch,
+                $req['input']
+            )
+        );
+
+        return $updatePipeline->execute();
+    }
+
+    public function delete(mixed $root, array $req): bool
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $id = (int) $req['id'];
+
+        $pipeline = ModelsPipeline::getByIdFromCompany($id, $company);
+
+        try {
+            if ($pipeline->isDefault()) {
+                $nextPipeline = ModelsPipeline::fromCompany($company)
+                    ->notDeleted()
+                    ->where('id', '!=', $pipeline->getId())
+                    ->where('is_default', '0')
+                    ->orderBy('weight', 'ASC')
+                    ->firstOrFail();
+
+                $nextPipeline->switchDefaultPipeline();
+            }
+        } catch (Throwable $e) {
+            throw new ValidationException('Can\'t Delete you have to have at least one default pipeline');
+        }
+
+        return $pipeline->softDelete();
     }
 }

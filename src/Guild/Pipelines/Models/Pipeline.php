@@ -36,4 +36,17 @@ class Pipeline extends BaseModel
     {
         return $this->hasMany(PipelineStage::class, 'pipelines_id', 'id')->orderBy('weight', 'ASC');
     }
+
+    public function switchDefaultPipeline(): void
+    {
+        $this->getConnection()->transaction(function () {
+            $this->update(['is_default' => 1]);
+            self::where('id', '!=', $this->id)->where('companies_id', '=', $this->companies_id)->update(['is_default' => 0]);
+        });
+    }
+
+    public function isDefault(): bool
+    {
+        return (bool) $this->is_default;
+    }
 }
