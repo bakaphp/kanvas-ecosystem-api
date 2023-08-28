@@ -78,4 +78,19 @@ class PipelineManagementMutation
 
         return $pipeline->softDelete();
     }
+
+    /**
+     * @psalm-suppress MixedReturnStatement
+     */
+    public function restore(mixed $root, array $req): bool
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $id = (int) $req['id'];
+
+        return ModelsPipeline::where('id', $id)
+            ->where('is_deleted', '1')
+            ->fromCompany($company)
+            ->firstOrFail()->restoreRecord();
+    }
 }

@@ -41,7 +41,9 @@ class Pipeline extends BaseModel
     {
         $this->getConnection()->transaction(function () {
             $this->update(['is_default' => 1]);
-            self::where('id', '!=', $this->id)->where('companies_id', '=', $this->companies_id)->update(['is_default' => 0]);
+            self::where('id', '!=', $this->id)
+                ->where('companies_id', $this->companies_id)
+                ->update(['is_default' => 0]);
         });
     }
 
