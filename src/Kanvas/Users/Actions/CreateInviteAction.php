@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Actions;
 
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
@@ -57,19 +58,22 @@ class CreateInviteAction
         ]);
 
         $invite->saveOrFail();
+
+        /*
         $userTemp = new Users();
-
         $userTemp->fill([
-            'email' => $this->inviteDto->email,
-            'firstname' => $this->inviteDto->firstname,
-            'lastname' => $this->inviteDto->lastname,
-            'companies_id' => $company->getId()
-        ]);
-
+             'email' => $this->inviteDto->email,
+             'firstname' => $this->inviteDto->firstname,
+             'lastname' => $this->inviteDto->lastname,
+             'default_company' => $company->getId(),
+             'default_company_branch' => $companyBranch->getId(),
+         ]);
+ */
         $inviteEmail = new InviteTemplate($invite);
         $inviteEmail->setFromUser($this->user);
 
-        $userTemp->notify($inviteEmail);
+        Notification::route('mail', $this->inviteDto->email)
+            ->notify($inviteEmail);
 
         return $invite;
     }
