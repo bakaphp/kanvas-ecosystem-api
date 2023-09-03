@@ -30,6 +30,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
     protected Model $entity;
     protected AppInterface $app;
+    protected ?string $subject = null;
     protected ?NotificationTypes $type = null;
     protected ?UserInterface $fromUser = null;
     protected ?UserInterface $toUser = null;
@@ -59,13 +60,16 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     /**
      * Create a new notification channel.
      *
-     * @return array<int, string>
+     * @return array<array-key, mixed>
      */
     public function via(object $notifiable): array
     {
         $channels = $this->channels();
 
         if (! empty($channels) && $this->type instanceof NotificationTypes) {
+            /**
+             * @psalm-suppress MissingClosureReturnType
+             */
             $enabledChannels = array_filter($channels, function ($channel) use ($notifiable) {
                 return $notifiable->isNotificationSettingEnable($this->type, $channel);
             });
@@ -94,10 +98,16 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         $fromEmail = $this->app->get('from_email_address') ?? config('mail.from.address');
         $fromName = $this->app->get('from_email_name') ?? config('mail.from.name');
 
-        return (new MailMessage())
+        $mailMessage = (new MailMessage())
                 ->from($fromEmail, $fromName)
                 //->subject($this->app->get('name') . ' - ' . $this->getTitle()
                 ->view('emails.layout', ['html' => $this->message()]);
+
+        if ($this->subject) {
+            $mailMessage->subject($this->subject);
+        }
+
+        return $mailMessage;
     }
 
     /**
