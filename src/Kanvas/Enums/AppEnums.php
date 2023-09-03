@@ -47,6 +47,7 @@ enum AppEnums implements EnumsInterface
     case KANVAS_APP_BRANCH_HEADER;
     case KANVAS_APP_COMPANY_AUTH_HEADER;
     case DISPLAYNAME_LOGIN;
+    case ANONYMOUS_USER_ID;
 
     /**
      * Get value.
@@ -93,6 +94,7 @@ enum AppEnums implements EnumsInterface
             self::KANVAS_APP_COMPANY_AUTH_HEADER => 'Company-Authorization', //@deprecated
             self::DISPLAYNAME_LOGIN => 'displayname_login',
             self::VERSION => '1.0-BETA-10',
+            self::ANONYMOUS_USER_ID => -1
         };
     }
 

@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification as LaravelNotification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Notifications\Channels\KanvasDatabase as KanvasDatabaseChannel;
 use Kanvas\Notifications\Interfaces\EmailInterfaces;
 use Kanvas\Notifications\Models\NotificationTypes;
@@ -29,6 +30,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
     protected Model $entity;
     protected AppInterface $app;
+    protected ?string $subject = null;
     protected ?NotificationTypes $type = null;
     protected ?UserInterface $fromUser = null;
     protected ?UserInterface $toUser = null;
@@ -37,7 +39,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         'mail',
     ];
 
-    public function __construct(Model $entity)
+    public function __construct(Model $entity, array $options = [])
     {
         $this->entity = $entity;
         $this->app = app(Apps::class);
@@ -45,6 +47,12 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
             'entity' => $this->entity,
             'app' => $this->app,
         ];
+
+        $this->handleFromUserOption($options);
+        /**
+         * @psalm-suppress MixedAssignment
+         */
+        $this->subject = $options['subject'] ?? null;
     }
 
     /**
@@ -55,16 +63,26 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         return $this->channels;
     }
 
+    protected function handleFromUserOption(array $options): void
+    {
+        if (isset($options['fromUser']) && $options['fromUser'] instanceof UserInterface) {
+            $this->setFromUser($options['fromUser']);
+        }
+    }
+
     /**
-     * Create a new notification channel.
-     *
-     * @return array<int, string>
-     */
+         * Create a new notification channel.
+         *
+         * @return array<array-key, mixed>
+         */
     public function via(object $notifiable): array
     {
         $channels = $this->channels();
 
         if (! empty($channels) && $this->type instanceof NotificationTypes) {
+            /**
+             * @psalm-suppress MissingClosureReturnType
+             */
             $enabledChannels = array_filter($channels, function ($channel) use ($notifiable) {
                 return $notifiable->isNotificationSettingEnable($this->type, $channel);
             });
@@ -93,9 +111,16 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         $fromEmail = $this->app->get('from_email_address') ?? config('mail.from.address');
         $fromName = $this->app->get('from_email_name') ?? config('mail.from.name');
 
-        return (new MailMessage())
+        $mailMessage = (new MailMessage())
                 ->from($fromEmail, $fromName)
+                //->subject($this->app->get('name') . ' - ' . $this->getTitle()
                 ->view('emails.layout', ['html' => $this->message()]);
+
+        if ($this->subject) {
+            $mailMessage->subject($this->subject);
+        }
+
+        return $mailMessage;
     }
 
     /**
@@ -140,6 +165,10 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      */
     public function getFromUser(): UserInterface
     {
+        if ($this->fromUser !== null && ! $this->app->get('notification_from_user_id')) {
+            throw new ValidationException('Please contact admin to configure the notification_from_user_id');
+        }
+
         return $this->fromUser !== null
                 ? $this->fromUser
                 : Users::getById($this->app->get('notification_from_user_id'));

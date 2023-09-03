@@ -6,27 +6,36 @@ namespace Kanvas\Notifications\Traits;
 
 use Baka\Users\Contracts\UserInterface;
 use Exception;
+use Illuminate\Notifications\AnonymousNotifiable;
+use Kanvas\Enums\AppEnums;
 
 trait NotificationStorageTrait
 {
     /**
      * toKanvasDatabase.
      */
-    public function toKanvasDatabase(UserInterface $notifiable): array
+    public function toKanvasDatabase(UserInterface|AnonymousNotifiable $notifiable): array
     {
-        $this->toUser = $notifiable;
+        $this->toUser = $notifiable instanceof UserInterface ? $notifiable : null;
+        $companiesId = AppEnums::GLOBAL_COMPANY_ID->getValue();
+        $userId = AppEnums::GLOBAL_USER_ID->getValue();
 
         try {
             $fromUserId = $this->getFromUser()->getId();
         } catch (Exception $e) {
             //for now, we need to clean this up -_-
-            $fromUserId = 0;
+            $fromUserId = AppEnums::GLOBAL_USER_ID->getValue();
+        }
+
+        if ($notifiable instanceof UserInterface) {
+            $companiesId = $notifiable->getCurrentCompany()->getId();
+            $userId = $notifiable->getId();
         }
 
         return [
-            'users_id' => $notifiable->getId(),
+            'users_id' => $userId,
             'from_users_id' => $fromUserId,
-            'companies_id' => $notifiable->getCurrentCompany()->getId(),
+            'companies_id' => $companiesId,
             'apps_id' => $this->app->getId(),
             'system_modules_id' => $this->getType()->system_modules_id,
             'notification_type_id' => $this->getType()->getId(),
