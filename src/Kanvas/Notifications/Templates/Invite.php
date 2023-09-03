@@ -17,9 +17,4 @@ class Invite extends Notification
             'fromUser' => $this->getFromUser(),
         ];
     }
-
-    public function setSubject(): void
-    {
-        $this->subject = 'You have been invited to join ' . $this->app->name;
-    }
 }

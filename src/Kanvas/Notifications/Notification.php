@@ -39,7 +39,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         'mail',
     ];
 
-    public function __construct(Model $entity)
+    public function __construct(Model $entity, array $options = [])
     {
         $this->entity = $entity;
         $this->app = app(Apps::class);
@@ -47,6 +47,12 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
             'entity' => $this->entity,
             'app' => $this->app,
         ];
+
+        $this->handleFromUserOption($options);
+        /**
+         * @psalm-suppress MixedAssignment
+         */
+        $this->subject = $options['subject'] ?? null;
     }
 
     /**
@@ -57,11 +63,18 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         return $this->channels;
     }
 
+    protected function handleFromUserOption(array $options): void
+    {
+        if (isset($options['fromUser']) && $options['fromUser'] instanceof UserInterface) {
+            $this->setFromUser($options['fromUser']);
+        }
+    }
+
     /**
-     * Create a new notification channel.
-     *
-     * @return array<array-key, mixed>
-     */
+         * Create a new notification channel.
+         *
+         * @return array<array-key, mixed>
+         */
     public function via(object $notifiable): array
     {
         $channels = $this->channels();

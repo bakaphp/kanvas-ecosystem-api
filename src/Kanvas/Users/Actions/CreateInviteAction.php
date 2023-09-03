@@ -69,8 +69,10 @@ class CreateInviteAction
              'default_company_branch' => $companyBranch->getId(),
          ]);
  */
-        $inviteEmail = new InviteTemplate($invite);
-        $inviteEmail->setFromUser($this->user);
+        $inviteEmail = new InviteTemplate($invite, [
+            'fromUser' => $this->user,
+            'subject' => 'You have been invited to join ' . $company->name,
+        ]);
 
         Notification::route('mail', $this->inviteDto->email)
             ->notify($inviteEmail);
