@@ -40,7 +40,7 @@ class UserManagementMutation
     {
         $user = auth()->user();
         $userId = $user->isAppOwner() && (int) $request['id'] > 0 ? $request['id'] : $user->getId();
-        $userToEdit = UsersRepository::getUserOfCompanyById($user->getCurrentCompany(), $userId);
+        $userToEdit = UsersRepository::getUserOfCompanyById($user->getCurrentCompany(), (int) $userId);
 
         $userManagement = new UserManagementService($userToEdit);
         $user = $userManagement->update($request['data']);
@@ -80,7 +80,7 @@ class UserManagementMutation
     public function deleteInvite($rootValue, array $request): bool
     {
         $invite = UsersInviteRepository::getById(
-            $request['id'],
+            (int) $request['id'],
             auth()->user()->getCurrentCompany()
         );
 
