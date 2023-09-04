@@ -54,7 +54,7 @@ class UpdateToWarehouseAction
             (new CreateStatusHistoryAction(
                 StatusRepository::getById(
                     $this->variantsWarehousesDto->status_id,
-                    $this->variantsWarehouses->variant->product->company()
+                    $this->variantsWarehouses->variant->product->company
                 ),
                 $this->variantsWarehouses
             ))->execute();
