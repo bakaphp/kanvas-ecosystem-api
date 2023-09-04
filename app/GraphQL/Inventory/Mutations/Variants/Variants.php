@@ -97,6 +97,9 @@ class Variants
     {
         $variant = VariantsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
         $warehouse = WarehouseRepository::getById((int) $req['input']['warehouse_id'], auth()->user()->getCurrentCompany());
+        if (isset($req['input']['status'])) {
+            $req['input']['status_id'] = StatusRepository::getById((int) $req['input']['status']['id'], auth()->user()->getCurrentCompany())->getId();
+        }
         $variantWarehousesDto = VariantsWarehouses::viaRequest($req['input']);
         $variantWarehouses = ModelsVariantsWarehouses::where('products_variants_id', $variant->getId())
             ->where('warehouses_id', $warehouse->getId())
