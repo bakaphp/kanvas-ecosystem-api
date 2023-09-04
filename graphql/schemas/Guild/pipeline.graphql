@@ -79,6 +79,7 @@ extend type Query @guard {
                     "is_default"
                 ]
             )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "weight", "slug", "name", "weight", "is_default"])
     ): [LeadPipeline!]!
         @paginate(
             model: "Kanvas\\Guild\\Pipelines\\Models\\Pipeline"

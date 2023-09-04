@@ -60,6 +60,7 @@ extend type Query @guard {
                     "dob"
                 ]
             )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name", "dob"])
     ): [People!]!
         @paginate(
             model: "Kanvas\\Guild\\Customers\\Models\\People"

@@ -180,11 +180,12 @@ extend type Query @guard {
                     "status"
                 ]
             )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "title", "status", "pipeline_stage_id", "firstname", "lastname", "email", "phone"])
     ): [Lead!]!
         @paginate(
             model: "Kanvas\\Guild\\Leads\\Models\\Lead"
             scopes: ["fromCompany", "notDeleted"]
-            defaultCount: 10
+            defaultCount: 25
         )
 
     leadsDashboard(
