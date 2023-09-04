@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Baka\Contracts;
 
-interface AppInterface
+interface AppInterface extends HashTableInterface
 {
     public function getId(): mixed;
 

@@ -91,10 +91,8 @@ trait HasCustomFields
 
     /**
      * Get the Custom Field.
-     *
-     * @return mixed
      */
-    public function get(string $name)
+    public function get(string $name): mixed
     {
         if ($value = $this->getFromRedis($name)) {
             return $value;
@@ -104,7 +102,7 @@ trait HasCustomFields
             return Str::jsonToArray($field->value);
         }
 
-        return ;
+        return null;
     }
 
     /**
@@ -151,10 +149,8 @@ trait HasCustomFields
 
     /**
      * Set value.
-     *
-     * @param mixed $value
      */
-    public function set(string $name, $value): AppsCustomFields
+    public function set(string $name, mixed $value): AppsCustomFields
     {
         $companyId = $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
         $modelName = get_class($this);

@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Pipelines\Models;
 
 use Baka\Traits\NoAppRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 
 /**
@@ -28,5 +29,10 @@ class PipelineStage extends BaseModel
     public function pipeline(): BelongsTo
     {
         return $this->belongsTo(Pipeline::class, 'pipelines_id', 'id');
+    }
+
+    public function leads(): BelongsTo
+    {
+        return $this->belongsTo(Lead::class, 'pipeline_stage_id', 'id');
     }
 }
