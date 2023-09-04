@@ -71,10 +71,10 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     }
 
     /**
-         * Create a new notification channel.
-         *
-         * @return array<array-key, mixed>
-         */
+     * Create a new notification channel.
+     *
+     * @return array<array-key, mixed>
+     */
     public function via(object $notifiable): array
     {
         $channels = $this->channels();

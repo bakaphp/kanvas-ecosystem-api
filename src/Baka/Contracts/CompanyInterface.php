@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-interface CompanyInterface
+interface CompanyInterface extends CustomFieldInterface
 {
     public function getId(): mixed;
 
