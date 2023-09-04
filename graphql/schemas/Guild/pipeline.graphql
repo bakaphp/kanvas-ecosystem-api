@@ -49,17 +49,17 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Pipelines\\PipelineManagementMutation@restore"
         )
-    createPipelineStage(input: PipelineStageInput!): Boolean
+    createPipelineStage(input: PipelineStageInput!): LeadPipelineStage
         @field(
-            resolver: "App\\GraphQL\\Guild\\Mutations\\Pipelines\\SocialMutation@follow"
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Pipelines\\PipelineStageManagementMutation@create"
         )
-    updatePipelineStage(input: PipelineStageInput!): Boolean
+    updatePipelineStage(input: PipelineStageInput!): LeadPipelineStage
         @field(
-            resolver: "App\\GraphQL\\Guild\\Mutations\\Pipelines\\SocialMutation@follow"
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Pipelines\\PipelineStageManagementMutation@update"
         )
     deletePipelineStage(id: ID!): Boolean
         @field(
-            resolver: "App\\GraphQL\\Guild\\Mutations\\Pipelines\\SocialMutation@follow"
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Pipelines\\PipelineStageManagementMutation@delete"
         )
 }
 

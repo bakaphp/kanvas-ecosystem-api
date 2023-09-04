@@ -61,6 +61,11 @@ class PipelineManagementMutation
 
         $pipeline = ModelsPipeline::getByIdFromCompany($id, $company);
 
+        //cant delete if its been used by a lead
+        if ($pipeline->leads()->count() > 0) {
+            throw new ValidationException('Can\'t Delete pipeline is being used by a lead');
+        }
+
         try {
             if ($pipeline->isDefault()) {
                 $nextPipeline = ModelsPipeline::fromCompany($company)

@@ -7,6 +7,7 @@ namespace Kanvas\Guild\Pipelines\Models;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\SlugTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 
 /**
@@ -35,6 +36,11 @@ class Pipeline extends BaseModel
     public function stages(): HasMany
     {
         return $this->hasMany(PipelineStage::class, 'pipelines_id', 'id')->orderBy('weight', 'ASC');
+    }
+
+    public function leads(): HasMany
+    {
+        return $this->hasMany(Lead::class, 'pipelines_id', 'id');
     }
 
     public function switchDefaultPipeline(): void

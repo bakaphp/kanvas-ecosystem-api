@@ -37,6 +37,6 @@ class CreatePipelineAction
 
         //create stages
 
-        return $pipeline;
+        return $pipeline;   
     }
 }
