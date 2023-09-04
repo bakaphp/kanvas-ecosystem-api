@@ -35,7 +35,7 @@ class VariantsWarehouses extends Data
             $request['sku'] ?? null,
             $request['position'] ?? 0,
             $request['serial_number'] ?? null,
-            (int) $request['status']['id'] ?? null,
+            $request['status']['id'] ?? null,
             $request['is_oversellable'] ?? false,
             $request['is_default'] ?? false,
             $request['is_best_seller'] ?? false,
