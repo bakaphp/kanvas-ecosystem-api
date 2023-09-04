@@ -9,6 +9,7 @@ type Company {
     language: String
     timezone: String
     phone: String
+    user: User @belongsTo(relation: "user")
     groups: [CompanyGroup!]! @hasMany(relation: "groups")
     branches: [CompanyBranch!]! @hasMany(relation: "branches") #need to filter by the branches the user has access to
     photo: Filesystem @method(name: "getPhoto")
