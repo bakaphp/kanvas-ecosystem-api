@@ -36,8 +36,8 @@ class UpdateStagePipelineAction
         $validator = Validator::make($data, [
             'name' => [
                 'required',
-                Rule::unique('pipelines_stages')->where(function ($query) use ($data) {
-                    return $query->where('pipelines_id', $data['pipeline_id']);
+                Rule::unique(ModelsPipelineStage::class)->where(function ($query) use ($data) {
+                    return $query->where('pipelines_id', $data['pipelines_id']);
                 })->ignore($this->stage->getId()),
             ],
             'pipelines_id' => 'required',

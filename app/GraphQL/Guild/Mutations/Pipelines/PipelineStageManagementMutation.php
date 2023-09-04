@@ -65,12 +65,12 @@ class PipelineStageManagementMutation
         $company = $user->getCurrentCompany();
         $id = (int) $req['id'];
 
-        $pipeline = ModelsPipeline::getByIdFromCompany(
-            (int) $req['input']['pipeline_id'],
+        $pipelineStage = ModelsPipelineStage::getById($id);
+
+        ModelsPipeline::getByIdFromCompany(
+            $pipelineStage->pipelines_id,
             $user->getCurrentCompany()
         );
-
-        $pipelineStage = $pipeline->stages()->where('id', $id)->firstOrFail();
 
         //cant delete if its been used by a lead
         if ($pipelineStage->leads()->count() > 0) {
@@ -86,17 +86,15 @@ class PipelineStageManagementMutation
     public function restore(mixed $root, array $req): bool
     {
         $user = auth()->user();
-        $company = $user->getCurrentCompany();
         $id = (int) $req['id'];
 
-        $pipeline = ModelsPipeline::getByIdFromCompany(
-            (int) $req['input']['pipeline_id'],
+        $pipelineStage = ModelsPipelineStage::where('id', $id)->firstOrFail();
+
+        ModelsPipeline::getByIdFromCompany(
+            $pipelineStage->pipelines_id,
             $user->getCurrentCompany()
         );
 
-        return $pipeline->stages()
-            ->where('id', $id)
-            ->firstOrFail()
-            ->restoreRecord();
+        return $pipelineStage->restoreRecord();
     }
 }
