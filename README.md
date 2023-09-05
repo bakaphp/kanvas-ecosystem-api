@@ -14,7 +14,7 @@ Originating from our agency background, we've catered to clients with unique req
 Born from the need to streamline these repetitive tasks, Kanvas Niche offers a suite of headless modules tailored to accelerate the development of headless applications. We've encapsulated our years of experience into these modules, addressing the common hurdles we face daily in app development.
 
 ## **What Kanvas Niche Offers:**
-- **Ecosystem**: Dive into authentication and team (or company) management.
+- **Ecosystem**: Dive into authentication and teams (or multi-tenant) management.
 - **Inventory**: Manage products, their variants, and distribution channels efficiently.
 - **Social**: Engage with features like follows, comments, reactions, and messaging.
 - **CRM**: Navigate through leads, deals, and pipelines with ease.
