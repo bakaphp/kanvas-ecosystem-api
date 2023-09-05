@@ -39,6 +39,10 @@ class Variants
             $variantModel->addAttributes(auth()->user(), $req['input']['attributes']);
         }
         $warehouse = WarehouseRepository::getById($variantDto->warehouse_id, $variantDto->product->company()->get()->first());
+
+        if (isset($req['input']['warehouse']['status'])) {
+            $req['input']['warehouse']['status_id'] = StatusRepository::getById((int) $req['input']['warehouse']['status']['id'], auth()->user()->getCurrentCompany())->getId();
+        }
         $variantWarehouses = VariantsWarehouses::viaRequest($req['input']['warehouse']);
         (new AddToWarehouse($variantModel, $warehouse, $variantWarehouses))->execute();
 
