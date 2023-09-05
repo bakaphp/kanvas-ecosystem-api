@@ -6,6 +6,8 @@ namespace App\GraphQL\Ecosystem\Mutations\Users;
 
 use Illuminate\Support\Facades\Auth as AuthFacade;
 use Illuminate\Support\Facades\Hash;
+use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Services\UserManagement as UserManagementService;
 use Kanvas\Notifications\Templates\ChangeEmailUserLogged;
@@ -56,10 +58,11 @@ class UserManagementMutation
     public function insertInvite($rootValue, array $request): UsersInvite
     {
         $request = $request['input'];
+        $company = auth()->user()->getCurrentCompany();
         $invite = new CreateInviteAction(
             new InviteDto(
                 $request['companies_branches_id'] ?? auth()->user()->getCurrentBranch()->getId(),
-                $request['role_id'],
+                $request['role_id'] ?? RolesRepository::getByNameFromCompany(RolesEnums::USER->value, $company)->id,
                 $request['email'],
                 $request['firstname'] ?? null,
                 $request['lastname'] ?? null,
