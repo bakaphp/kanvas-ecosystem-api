@@ -19,7 +19,7 @@ jobs:
     steps:
       - id: checkout
         name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - id: 'auth'
         name: 'Authenticate to Google Cloud'
@@ -56,7 +56,7 @@ jobs:
       packages: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - id: 'auth'
         name: 'Authenticate to Google Cloud'
