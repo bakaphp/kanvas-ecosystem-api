@@ -26,7 +26,6 @@ class UpdateCitiesAction
     {
         $i = 0;
         if (($handle = fopen(storage_path("locations/cities.csv"), "r")) !== false) {
-        
             while (($importData = fgetcsv($handle, 1000, ",")) !== false) {
                 if ($i === 0) {
                     $i = 1;
