@@ -28,12 +28,12 @@ class UpdateStatesAction
         if (($handle = fopen(storage_path("locations/states.csv"), "r")) !== false) {
         
             while (($importData = fgetcsv($handle, 1000, ",")) !== false) {
-                if($i === 0) {
+                if ($i === 0) {
                     $i = 1;
                     continue;
                 }
                 // Remove the first iteration as it's not "real" data
-        
+
                 States::updateOrCreate(
                     ['id' => $importData[0]],
                     [
