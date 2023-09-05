@@ -18,6 +18,7 @@ package.json
 /storage/framework/cache/views/*
 /storage/app/*
 /storage/logs/*
+/storage/locations/*
 package-lock.json
 .php-cs-fixer.cache
 service-account.json
