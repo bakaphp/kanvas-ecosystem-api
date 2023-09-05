@@ -68,6 +68,10 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         if (isset($options['fromUser']) && $options['fromUser'] instanceof UserInterface) {
             $this->setFromUser($options['fromUser']);
         }
+
+        if (isset($options['template']) && $options['template'] !== null) {
+            $this->templateName = (string) $options['template'];
+        }
     }
 
     /**
