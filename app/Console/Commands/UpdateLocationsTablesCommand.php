@@ -28,6 +28,6 @@ class UpdateLocationsTablesCommand extends Command
         $updateLocations = new UpdateAllLocationsAction();
         $updateLocations->execute();
 
-        $this->info('Tables Cities, Countries, Locales and States updated successfully.');
+        $this->info('Tables Cities, Countries and States updated successfully.');
     }
 }
