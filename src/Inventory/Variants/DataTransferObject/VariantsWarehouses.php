@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\DataTransferObject;
 
-use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Spatie\LaravelData\Data;
 
 class VariantsWarehouses extends Data
