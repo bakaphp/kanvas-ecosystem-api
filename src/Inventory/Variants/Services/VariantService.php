@@ -43,7 +43,7 @@ class VariantService
             $warehouse = WarehouseRepository::getById($variantDto->warehouse_id, $variantDto->product->company()->get()->first());
 
             if (isset($variant['warehouse']['status'])) {
-                $variant['warehouse']['status_id'] = StatusRepository::getById((int) $variant['warehouse']['status']['id'], auth()->user()->getCurrentCompany())->getId();
+                $variant['warehouse']['status_id'] = StatusRepository::getById((int) $variant['warehouse']['status']['id'], $variantDto->product->company()->get()->first())->getId();
             }
 
             $variantWarehouses = VariantsWarehouses::from($variant['warehouse']);
