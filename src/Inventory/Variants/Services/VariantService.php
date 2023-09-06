@@ -7,9 +7,11 @@ namespace Kanvas\Inventory\Variants\Services;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
+use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction as AddToWarehouse;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
 use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
+use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
 
 class VariantService
 {
@@ -38,8 +40,14 @@ class VariantService
                 $variantModel->setStatus($status);
             }
 
-            WarehouseRepository::getById($variantDto->warehouse_id, $variantDto->product->company()->get()->first());
-            $variantModel->warehouses()->attach($variantDto->warehouse_id);
+            $warehouse = WarehouseRepository::getById($variantDto->warehouse_id, $variantDto->product->company()->get()->first());
+
+            if (isset($variant['warehouse']['status'])) {
+                $variant['warehouse']['status_id'] = StatusRepository::getById((int) $variant['warehouse']['status']['id'], auth()->user()->getCurrentCompany())->getId();
+            }
+
+            $variantWarehouses = VariantsWarehouses::from($variant['warehouse']);
+            (new AddToWarehouse($variantModel, $warehouse, $variantWarehouses))->execute();
             $variantsData[] = $variantModel;
         }
 
