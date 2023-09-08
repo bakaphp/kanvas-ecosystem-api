@@ -53,6 +53,12 @@ class LeadTest extends TestCase
                     ],
                 ],
                 'custom_fields' => [],
+                'files' => [
+                    [
+                        'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                        'name' => 'dummy.pdf',
+                    ],
+                ],
             ];
         }
 
@@ -112,6 +118,12 @@ class LeadTest extends TestCase
                     'data' => 'test',
                 ],
             ],
+            'files' => [
+                [
+                    'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'name' => 'dummy.pdf',
+                ],
+            ],
         ];
 
         $this->graphQL('
@@ -166,6 +178,12 @@ class LeadTest extends TestCase
                 [
                     'name' => 'test',
                     'data' => 'test',
+                ],
+            ],
+            'files' => [
+                [
+                    'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'name' => 'dummy.pdf',
                 ],
             ],
         ];
@@ -240,6 +258,12 @@ class LeadTest extends TestCase
                     'data' => 'test',
                 ],
             ],
+            'files' => [
+                [
+                    'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'name' => 'dummy.pdf',
+                ],
+            ],
         ];
 
         $response = $this->createLeadAndGetResponse($input);
@@ -294,6 +318,12 @@ class LeadTest extends TestCase
                 [
                     'name' => 'test',
                     'data' => 'test',
+                ],
+            ],
+            'files' => [
+                [
+                    'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'name' => 'dummy.pdf',
                 ],
             ],
         ];
@@ -386,6 +416,12 @@ class LeadTest extends TestCase
                     'data' => 'test',
                 ],
             ],
+            'files' => [
+                [
+                    'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'name' => 'dummy.pdf',
+                ],
+            ],
         ];
 
         $response = $this->createLeadAndGetResponse($input);
@@ -443,6 +479,12 @@ class LeadTest extends TestCase
                 [
                     'name' => 'test',
                     'data' => 'test',
+                ],
+            ],
+            'files' => [
+                [
+                    'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'name' => 'dummy.pdf',
                 ],
             ],
         ];
