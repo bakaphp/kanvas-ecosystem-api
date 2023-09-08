@@ -55,13 +55,14 @@ trait HasFilesystemTrait
             ->firstOrNew();
 
         if (! $fileSystem->exists) {
+            $fileInfo = pathinfo($url);
             $fileSystem->companies_id = $companyId;
             $fileSystem->apps_id = app(Apps::class)->getId();
             $fileSystem->users_id = $this->users_id ?? (auth()->check() ? auth()->user()->getKey() : 0);
-            $fileSystem->path = $url;
+            $fileSystem->path = $fileInfo['dirname'] . '/' . $fileInfo['basename'];
             $fileSystem->url = $url;
-            $fileSystem->name = $url;
-            $fileSystem->file_type = 'unknown';
+            $fileSystem->name = $fileInfo['basename'];
+            $fileSystem->file_type = $fileInfo['extension'];
             $fileSystem->size = 0;
             $fileSystem->saveOrFail();
         }
