@@ -62,7 +62,7 @@ trait HasFilesystemTrait
             $fileSystem->path = $fileInfo['dirname'] . '/' . $fileInfo['basename'];
             $fileSystem->url = $url;
             $fileSystem->name = $fileInfo['basename'];
-            $fileSystem->file_type = $fileInfo['extension'];
+            $fileSystem->file_type = $fileInfo['extension'] ?? 'unknown';
             $fileSystem->size = 0;
             $fileSystem->saveOrFail();
         }
