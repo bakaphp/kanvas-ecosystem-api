@@ -198,6 +198,7 @@ class LeadTest extends TestCase
             'title' => $title,
             'people_id' => $peopleId,
             'custom_fields' => [],
+            'files' => [],
         ];
 
         $this->graphQL('
