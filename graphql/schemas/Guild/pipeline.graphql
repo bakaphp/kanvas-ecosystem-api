@@ -84,6 +84,6 @@ extend type Query @guard {
         @paginate(
             model: "Kanvas\\Guild\\Pipelines\\Models\\Pipeline"
             scopes: ["fromCompany", "notDeleted"]
-            defaultCount: 10
+            defaultCount: 25
         )
 }

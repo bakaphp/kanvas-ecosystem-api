@@ -29,27 +29,9 @@ class Agent extends BaseModel
     protected $table = 'agents';
     protected $guarded = [];
 
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(
-            Users::class,
-            'users_id',
-            'id'
-        );
-    }
-
-    public function company(): BelongsTo
-    {
-        return $this->belongsTo(
-            Companies::class,
-            'companies_id',
-            'id'
-        );
-    }
-
     public function owner(): BelongsTo
     {
-        return $this->belongsTo(
+        return $this->setConnection('ecosystem')->belongsTo(
             Users::class,
             'owner_id',
             'id'

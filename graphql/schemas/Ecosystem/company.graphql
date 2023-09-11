@@ -15,7 +15,7 @@ type Company {
     photo: Filesystem @method(name: "getPhoto")
     files: [Filesystem!]!
         @paginate(
-            defaultCount: 10
+            defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
     country_code: String
@@ -54,7 +54,7 @@ type CompanyBranch {
     photo: Filesystem @method(name: "getPhoto")
     files: [Filesystem!]!
         @paginate(
-            defaultCount: 10
+            defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
     zipcode: Int
@@ -168,7 +168,7 @@ extend type Query @guard {
     ): [User!]!
         @paginate(
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagementQuery@getAllCompanyUsers"
-            defaultCount: 10
+            defaultCount: 25
         )
 
     companyBranchUsers(
@@ -190,7 +190,7 @@ extend type Query @guard {
     ): [User!]!
         @paginate(
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagementQuery@getAllCompanyBranchUsers"
-            defaultCount: 10
+            defaultCount: 25
         )
 
     companySettings: CompanySettings

@@ -23,17 +23,17 @@ type Lead {
     participants: [LeadsParticipants!]! @hasMany
     files: [Filesystem!]!
         @paginate(
-            defaultCount: 10
+            defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
     followers:  [User!]!
         @paginate(
-            defaultCount: 10
+            defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Follows\\FollowBuilder@getEntityFollowers"
         )
     custom_fields: [CustomField!]!
         @paginate(
-            defaultCount: 10
+            defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
     created_at: DateTime!
