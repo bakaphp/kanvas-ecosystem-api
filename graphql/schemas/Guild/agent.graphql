@@ -1,0 +1,27 @@
+type Agent {
+    id: ID!
+    name: String!
+    member_id: Int!
+    user: User! @belongsTo
+    owner: User! @belongsTo
+    company: Company! @belongsTo
+}
+
+extend type Query @guard {
+    agents(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "member_id"
+                    "owner_id"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name", "member_id"])
+    ): [Agent!]!
+        @paginate(
+            model: "Kanvas\\Guild\\Agents\\Models\\Agent"
+            scopes: ["fromCompany"]
+            defaultCount: 25
+        )
+}

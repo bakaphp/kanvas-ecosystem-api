@@ -12,7 +12,7 @@ type Variant {
     status: Status
     files: [Filesystem]
         @paginate(
-            defaultCount: 10
+            defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
     interactions(visitor: VisitorEntityInput!): Interactions
@@ -41,7 +41,7 @@ type VariantChannel {
     ean: String
     files: [Filesystem]
         @paginate(
-            defaultCount: 10
+            defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
     interactions(visitor: VisitorEntityInput!): Interactions
