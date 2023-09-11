@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\UsersInteractions\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Social\Interactions\DataTransferObject\LikeEntityInput;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Interactions\Repositories\EntityInteractionsRepository;
