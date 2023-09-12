@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Interactions\UsersInteractions\DataTransferObject;
+namespace Kanvas\Social\UsersInteractions\DataTransferObject;
 
 use Kanvas\Social\Interactions\Models\Interactions;
 

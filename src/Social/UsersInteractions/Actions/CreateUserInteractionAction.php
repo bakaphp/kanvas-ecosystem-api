@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Interactions\UsersInteractions\Actions;
+namespace Kanvas\Social\UsersInteractions\Actions;
 
-use Kanvas\Social\Interactions\UsersInteractions\DataTransferObject\UserInteraction as UserInteractionDto;
-use Kanvas\Social\Interactions\UsersInteractions\Models\UserInteraction;
+use Kanvas\Social\UsersInteractions\DataTransferObject\UserInteraction as UserInteractionDto;
+use Kanvas\Social\UsersInteractions\Models\UserInteraction;
 
 class CreateUserInteractionAction
 {

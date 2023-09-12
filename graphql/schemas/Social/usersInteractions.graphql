@@ -1,15 +1,23 @@
 type UserInteraction {
-    id: ID!
+    id: Int!
     user: User!
-    interactions: Interactions
-        @method(name: "getGroupInteractions")
-    entity_id: ID!
+    interactions: Interaction!
+    entity_id: String!
     entity_namespace: String!
-    interactions_id: ID!
-}
+    interactions_id: String!
 
+}
+type Interaction {
+    id: Int!
+    name: String!
+    description: String
+    icon: String
+    color: String
+    created_at: String
+    updated_at: String
+}
 input UserInteractionInput {
-    entity_id: ID!
+    entity_id: String!
     entity_namespace: String!
 }
 extend type Mutation @guard {
@@ -38,7 +46,7 @@ extend type Query @guard {
         )
     ): [UserInteraction]
     @paginate(
-        model: "Kanvas\\Social\\Interactions\\UsersInteractions\\Models\\UserInteraction",
+        model: "Kanvas\\Social\\UsersInteractions\\Models\\UserInteraction",
         defaultCount: 25
     )
 }
