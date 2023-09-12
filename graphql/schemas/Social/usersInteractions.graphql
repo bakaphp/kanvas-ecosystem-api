@@ -1,0 +1,52 @@
+type UserInteraction {
+    id: Int!
+    user: User!
+    interactions: Interaction!
+    entity_id: String!
+    entity_namespace: String!
+    interactions_id: String!
+
+}
+type Interaction {
+    id: Int!
+    name: String!
+    description: String
+    icon: String
+    color: String
+    created_at: String
+    updated_at: String
+}
+input UserInteractionInput {
+    entity_id: String!
+    entity_namespace: String!
+}
+extend type Mutation @guard {
+    userLikeEntity(input: UserInteractionInput!): Boolean
+    @field(
+        resolver: "App\\GraphQL\\Social\\Mutations\\UsersInteractions\\UsersInteractionsManagement@like"
+    )
+    userUnLikeEntity(input: UserInteractionInput!): Boolean
+    @field(
+        resolver: "App\\GraphQL\\Social\\Mutations\\UsersInteractions\\UsersInteractionsManagement@unlike"
+    )
+    userDislikeEntity(input: UserInteractionInput!): Boolean
+    @field(
+        resolver: "App\\GraphQL\\Social\\Mutations\\UsersInteractions\\UsersInteractionsManagement@dislike"
+    )
+}
+
+extend type Query @guard {
+    getUserInteractions(
+        where: __@whereConditions(
+            columns: [
+                "entity_id",
+                "entity_namespace",
+                "interactions_id",
+            ]
+        )
+    ): [UserInteraction]
+    @paginate(
+        model: "Kanvas\\Social\\UsersInteractions\\Models\\UserInteraction",
+        defaultCount: 25
+    )
+}
