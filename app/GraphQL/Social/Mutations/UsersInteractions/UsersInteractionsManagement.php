@@ -8,9 +8,9 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Enums\StateEnums;
 use Kanvas\Social\Interactions\Actions\CreateInteraction;
 use Kanvas\Social\Interactions\DataTransferObject\Interaction;
-use Kanvas\Social\UsersInteractions\Actions\CreateUserInteractionAction;
-use Kanvas\Social\UsersInteractions\DataTransferObject\UserInteraction;
-use Kanvas\Social\UsersInteractions\Models\UserInteraction as UserInteractionModel;
+use Kanvas\Social\Interactions\UsersInteractions\Actions\CreateUserInteractionAction;
+use Kanvas\Social\Interactions\UsersInteractions\DataTransferObject\UserInteraction;
+use Kanvas\Social\Interactions\UsersInteractions\Models\UserInteraction as UserInteractionModel;
 
 class UsersInteractionsManagement
 {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\UsersInteractions\DataTransferObject;
+namespace Kanvas\Social\Interactions\UsersInteractions\DataTransferObject;
 
 use Kanvas\Social\Interactions\Models\Interactions;
 
@@ -16,7 +16,7 @@ class UserInteraction extends Data
         public Interactions $interaction,
         public string $entity_id,
         public string $entity_namespace,
-        public string $notes = '',
+        public ?string $notes = null,
     ) {
     }
 }
