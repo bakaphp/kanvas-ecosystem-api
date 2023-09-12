@@ -10,7 +10,7 @@ return new class () extends Migration {
      */
     public function up(): void
     {
-        Schema::table('users_interactions', function (Blueprint $table) {
+        Schema::connection('social')->table('users_interactions', function (Blueprint $table) {
             $table->string('notes')->nullable()->change();
         });
     }
