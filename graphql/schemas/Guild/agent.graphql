@@ -5,6 +5,9 @@ type Agent {
     user: User! @belongsTo
     owner: User! @belongsTo
     company: Company! @belongsTo
+    total_leads: Int!
+    status_id: Int!
+    created_at: DateTime!
 }
 
 extend type Query @guard {
@@ -15,9 +18,11 @@ extend type Query @guard {
                     "id"
                     "member_id"
                     "owner_id"
+                    "status_id"
+                    "total_leads"
                 ]
             )
-        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name", "member_id"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name", "member_id", "total_leads"])
     ): [Agent!]!
         @paginate(
             model: "Kanvas\\Guild\\Agents\\Models\\Agent"
