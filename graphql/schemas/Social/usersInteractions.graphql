@@ -1,14 +1,14 @@
 type UserInteraction {
-    id: Int!
+    id: ID!
     user: User!
     interactions: Interaction!
-    entity_id: String!
+    entity_id: ID!
     entity_namespace: String!
     interactions_id: String!
 
 }
 type Interaction {
-    id: Int!
+    id: ID!
     name: String!
     description: String
     icon: String
@@ -17,8 +17,8 @@ type Interaction {
     updated_at: String
 }
 input UserInteractionInput {
-    entity_id: String!
-    entity_namespace: String!
+    entity_id: ID!
+    entity_namespace: ID!
 }
 extend type Mutation @guard {
     userLikeEntity(input: UserInteractionInput!): Boolean
