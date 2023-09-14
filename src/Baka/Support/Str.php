@@ -43,4 +43,9 @@ class Str extends IlluminateStr
     {
         return strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $string)));
     }
+
+    public static function sanitizePhoneNumber(?string $phone) : string
+    {
+        return $phone ? preg_replace('/\D+/', '', $phone) : '';
+    }
 }
