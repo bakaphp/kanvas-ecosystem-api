@@ -41,7 +41,7 @@ trait CreatesApplication
         $company = $user->getCurrentCompany();
         $setupGuild = new Setup(
             app(Apps::class),
-            auth()->user(),
+            $user,
             $company
         );
         $setupGuild->run();
