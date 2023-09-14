@@ -39,7 +39,7 @@ class KanvasAppUserMigration extends Command
         $users = UsersAssociatedApps::fromApp($app)
                 ->notDeleted()
                 ->where('companies_id', '<>', 0)
-                ->groupBy('users_id','apps_id', 'companies_id')
+                ->groupBy('users_id', 'apps_id', 'companies_id')
                 ->orderBy('users_id', 'desc')
                 ->get();
 
