@@ -7,14 +7,14 @@ namespace Tests\Ecosystem\Integration\Apps;
 use Kanvas\Locations\Actions\UpdateCountriesAction;
 use Tests\TestCase;
 
-final class UpdateOrCreateCountriesText extends TestCase
+final class UpdateCountriesActionTest extends TestCase
 {
     /**
      * Test Update Or Create Countries.
      *
      * @return void
      */
-    public function UpdateOrCreateCountriesAction(): void
+    public function UpdateCountriesAction(): void
     {
         $updateCountries = new UpdateCountriesAction();
 
