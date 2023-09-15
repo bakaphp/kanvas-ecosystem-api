@@ -25,7 +25,7 @@ class UpdateStatesAction
     public function execute()
     {
         $i = 0;
-        if (($handle = fopen(storage_path("locations/states.csv"), "r")) !== false) {
+        if (($handle = fopen(env('STATES_URL_CSV'), "r")) !== false) {
             while (($importData = fgetcsv($handle, 1000, ",")) !== false) {
                 if ($i === 0) {
                     $i = 1;

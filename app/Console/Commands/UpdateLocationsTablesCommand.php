@@ -6,6 +6,9 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Kanvas\Locations\Actions\UpdateAllLocationsAction;
+use Kanvas\Locations\Actions\UpdateCitiesAction;
+use Kanvas\Locations\Actions\UpdateCountriesAction;
+use Kanvas\Locations\Actions\UpdateStatesAction;
 
 class UpdateLocationsTablesCommand extends Command
 {
@@ -25,8 +28,14 @@ class UpdateLocationsTablesCommand extends Command
 
     public function handle(): void
     {
-        $updateLocations = new UpdateAllLocationsAction();
-        $updateLocations->execute();
+        $countries = new UpdateCountriesAction();
+        $countries->execute();
+
+        $states = new UpdateStatesAction();
+        $states->execute();
+
+        $cities = new UpdateCitiesAction();
+        $cities->execute();
 
         $this->info('Tables Cities, Countries and States updated successfully.');
     }
