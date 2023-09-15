@@ -22,7 +22,7 @@ class UpdateStatesAction
      *
      * @return bool
      */
-    public function execute() : bool
+    public function execute(): bool
     {
         $i = 0;
         if (($handle = fopen(config('locations.locationsUrl.states'), "r")) !== false) {
