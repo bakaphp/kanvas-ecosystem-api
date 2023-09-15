@@ -20,12 +20,12 @@ class UpdateCitiesAction
     /**
      * execute.
      *
-     * @return
+     * @return bool
      */
-    public function execute()
+    public function execute() : bool
     {
         $i = 0;
-        if (($handle = fopen(env('CITIES_URL_CSV'), "r")) !== false) {
+        if (($handle = fopen(config('locations.locationsUrl.cities'), "r")) !== false) {
             while (($importData = fgetcsv($handle, 1000, ",")) !== false) {
                 if ($i === 0) {
                     $i = 1;
@@ -46,6 +46,7 @@ class UpdateCitiesAction
                 $i++;
             }
             fclose($handle);
+            return true;
         }
     }
 }

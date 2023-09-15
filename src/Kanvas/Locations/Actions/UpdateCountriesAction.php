@@ -20,12 +20,12 @@ class UpdateCountriesAction
     /**
      * execute.
      *
-     * @return
+     * @return bool
      */
-    public function execute()
+    public function execute() : bool
     {
         $i = 0;
-        if (($handle = fopen(env('COUNTRIES_URL_CSV'), "r")) !== false) {
+        if (($handle = fopen(config('locations.locationsUrl.countries'), "r")) !== false) {
             while (($importData = fgetcsv($handle, 1000, ",")) !== false) {
                 if ($i === 0) {
                     $i = 1;
@@ -43,6 +43,7 @@ class UpdateCountriesAction
                 $i++;
             }
             fclose($handle);
+            return true;
         }
     }
 }
