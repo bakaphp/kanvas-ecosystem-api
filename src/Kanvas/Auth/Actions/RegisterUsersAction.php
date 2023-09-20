@@ -123,7 +123,7 @@ class RegisterUsersAction
         }
 
         try {
-            if ($this->app->get(AppSettingsEnums::SEND_WELCOME_EMAIL->getValue())) {
+            if ($this->app->get((string) AppSettingsEnums::SEND_WELCOME_EMAIL->getValue())) {
                 $user->notify(new Welcome($user));
             }
         } catch (ModelNotFoundException $e) {
