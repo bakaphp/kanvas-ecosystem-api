@@ -30,7 +30,7 @@ jobs:
           service_account: "${{secrets.GCP_SERVICE_ACCOUNT}}"
 
       - name: Login to Artifact Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ${{ secrets.GOOGLE_REGISTRY }}
           username: oauth2accesstoken
