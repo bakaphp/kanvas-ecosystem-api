@@ -21,6 +21,7 @@ use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Templates\Welcome;
 use Kanvas\Users\Enums\StatusEnums;
+use Kanvas\Users\Jobs\OnBoardingJob;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 
@@ -79,7 +80,7 @@ class RegisterUsersAction
                     )
                 );
 
-                $createCompany->execute();
+                $company = $createCompany->execute();
             }
         } catch(ModelNotFoundException $e) {
             $user = new Users();
@@ -88,7 +89,6 @@ class RegisterUsersAction
             $user->displayname = $this->data->displayname;
             $user->email = $this->data->email;
             $user->password = $this->data->password;
-            $user->default_company = $this->data->default_company;
             $user->sex = AppEnums::DEFAULT_SEX->getValue();
             $user->dob = date('Y-m-d');
             $user->lastvisit = date('Y-m-d H:i:s');
@@ -99,7 +99,7 @@ class RegisterUsersAction
             $user->banned = StateEnums::NO->getValue();
             $user->user_login_tries = 0;
             $user->user_last_login_try = 0;
-            $user->default_company = $user->default_company ?? StateEnums::NO->getValue();
+            $user->default_company = $this->data->default_company ?? StateEnums::NO->getValue();
             $user->session_time = time();
             $user->session_page = StateEnums::NO->getValue();
             $user->password = $this->data->password;
@@ -131,6 +131,11 @@ class RegisterUsersAction
         }
 
         //create CRM + Inventory for user company send it to job
+        OnBoardingJob::dispatch(
+            $user,
+            isset($company) ? $company->defaultBranch()->firstOrFail() : $user->getCurrentBranch(),
+            $this->app
+        );
 
         return $user;
     }
