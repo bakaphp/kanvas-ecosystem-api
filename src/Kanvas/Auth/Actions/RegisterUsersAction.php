@@ -16,6 +16,7 @@ use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\CompaniesPostData;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Templates\Welcome;
@@ -122,10 +123,14 @@ class RegisterUsersAction
         }
 
         try {
-            $user->notify(new Welcome($user));
+            if ($this->app->get(AppSettingsEnums::SEND_WELCOME_EMAIL->getValue())) {
+                $user->notify(new Welcome($user));
+            }
         } catch (ModelNotFoundException $e) {
             //no email sent
         }
+
+        //create CRM + Inventory for user company send it to job
 
         return $user;
     }
