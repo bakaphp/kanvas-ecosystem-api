@@ -49,7 +49,7 @@ class RegisterUsersAction
     {
         $newUser = false;
         $company = null;
-        
+
         $validator = Validator::make(
             ['email' => $this->data->email],
             ['email' => 'required|email']
