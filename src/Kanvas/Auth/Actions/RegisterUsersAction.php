@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\Actions;
 
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -129,11 +130,11 @@ class RegisterUsersAction
             }
 
             //create CRM + Inventory for user company send it to job
-  /*           OnBoardingJob::dispatch(
+            OnBoardingJob::dispatch(
                 $user,
-                isset($company) ? $company->defaultBranch()->firstOrFail() : $user->getCurrentBranch(),
+                $company instanceof CompanyInterface ? $company->defaultBranch()->firstOrFail() : $user->getCurrentBranch(),
                 $this->app
-            ); */
+            );
         } catch (Throwable $e) {
             //no email sent
         }
