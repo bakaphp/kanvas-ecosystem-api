@@ -129,11 +129,11 @@ class RegisterUsersAction
             }
 
             //create CRM + Inventory for user company send it to job
-            OnBoardingJob::dispatch(
+  /*           OnBoardingJob::dispatch(
                 $user,
                 isset($company) ? $company->defaultBranch()->firstOrFail() : $user->getCurrentBranch(),
                 $this->app
-            );
+            ); */
         } catch (Throwable $e) {
             //no email sent
         }
