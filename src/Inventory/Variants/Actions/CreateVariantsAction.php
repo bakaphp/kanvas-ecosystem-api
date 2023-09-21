@@ -41,8 +41,8 @@ class CreateVariantsAction
         ];
         // dd($this->variantDto->product->companies_id);
         // dd($search);
-        $variant =  Variants::create(
-            // $search,
+        $variant =  Variants::updateOrCreate(
+            $search,
             [
                 // 'companies_id' => 114,
                 'name' => $this->variantDto->name,
