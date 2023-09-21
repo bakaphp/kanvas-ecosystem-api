@@ -47,6 +47,9 @@ class RegisterUsersAction
      */
     public function execute(): Users
     {
+        $newUser = false;
+        $company = null;
+        
         $validator = Validator::make(
             ['email' => $this->data->email],
             ['email' => 'required|email']
@@ -56,7 +59,6 @@ class RegisterUsersAction
         if ($validator->fails()) {
             throw new ValidationException($validator);
         }
-        $newUser = false;
 
         try {
             /**
