@@ -49,6 +49,14 @@ class OnBoardingJob implements ShouldQueue
      */
     public function handle()
     {
+        $runOnboardingGuild = $this->app->get(AppSettingsEnums::ONBOARDING_GUILD_SETUP->getValue());
+        $runOnboardingInventory = $this->app->get(AppSettingsEnums::ONBOARDING_INVENTORY_SETUP->getValue());
+        $runOnboarding = $runOnboardingGuild || $runOnboardingInventory;
+
+        if (! $runOnboarding) {
+            return;
+        }
+
         config(['laravel-model-caching.disabled' => true]);
         Auth::loginUsingId($this->user->getId());
         $this->overwriteAppService($this->app);
@@ -59,7 +67,7 @@ class OnBoardingJob implements ShouldQueue
          */
         $company = $this->branch->company()->firstOrFail();
 
-        if ($this->app->get(AppSettingsEnums::ONBOARDING_GUILD_SETUP->getValue())) {
+        if ($runOnboardingGuild) {
             (new GuildSetup(
                 $this->app,
                 $this->user,
@@ -67,7 +75,7 @@ class OnBoardingJob implements ShouldQueue
             ))->run();
         }
 
-        if ($this->app->get(AppSettingsEnums::ONBOARDING_INVENTORY_SETUP->getValue())) {
+        if ($runOnboardingInventory) {
             (new InventorySetup(
                 $this->app,
                 $this->user,
