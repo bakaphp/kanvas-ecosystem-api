@@ -75,6 +75,7 @@ class ProductImporterAction
             DB::connection('inventory')->beginTransaction();
 
             if ($this->product === null) {
+                // dd($this->importedProduct);
                 $productDto = ProductsDto::from([
                     'app' => $this->app,
                     'company' => $this->company,
@@ -86,6 +87,7 @@ class ProductImporterAction
                     'html_description' => $this->importedProduct->htmlDescription,
                     'warranty_terms' => $this->importedProduct->warrantyTerms,
                     'upc' => $this->importedProduct->upc,
+                    'variants' => $this->importedProduct->variants,
                     'is_published' => $this->importedProduct->isPublished,
                 ]);
                 $this->product = (new CreateProductAction($productDto, $this->user))->execute();
@@ -114,7 +116,7 @@ class ProductImporterAction
 
             $this->productWarehouse();
 
-            $this->variants();
+            // $this->variants();
 
             if (! empty($this->importedProduct->productType)) {
                 $this->productType();
@@ -283,6 +285,7 @@ class ProductImporterAction
                     'warehouse_id' => (int) $variant['warehouse']['id'],
                     ...$variant,
                 ]);
+
                 $variantModel = (new CreateVariantsAction($variantDto, $this->user))->execute();
                 if (isset($variant['source_id']) && $this->importedProduct->isFromThirdParty()) {
                     $variantModel->setLinkedSource($this->importedProduct->source, $variant['source_id']);

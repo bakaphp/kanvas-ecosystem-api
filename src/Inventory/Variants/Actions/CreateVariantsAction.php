@@ -30,17 +30,21 @@ class CreateVariantsAction
             $this->variantDto->product->company()->get()->first(),
             $this->user
         );
+            // dd($this->variantDto->product->companies_id);
 
+        // dd($this->variantDto->product->company()->get()->first()->getId());
         $search = [
             'products_id' => $this->variantDto->product->getId(),
             'slug' => $this->variantDto->slug ?? Str::slug($this->variantDto->name),
             'companies_id' => $this->variantDto->product->companies_id,
             'apps_id' => $this->variantDto->product->apps_id,
         ];
-
-        return Variants::updateOrCreate(
-            $search,
+        // dd($this->variantDto->product->companies_id);
+        // dd($search);
+        $variant =  Variants::create(
+            // $search,
             [
+                // 'companies_id' => 114,
                 'name' => $this->variantDto->name,
                 'users_id' => $this->user->getId(),
                 'description' => $this->variantDto->description,
@@ -53,5 +57,7 @@ class CreateVariantsAction
                 'serial_number' => $this->variantDto->serial_number,
             ]
         );
+        dd($variant);
+        return $variant;
     }
 }

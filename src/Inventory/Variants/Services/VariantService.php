@@ -29,8 +29,9 @@ class VariantService
                 'warehouse_id' => $variant['warehouse']['id'],
                 ...$variant,
             ]);
-
+            // dd($variantDto);
             $variantModel = (new CreateVariantsAction($variantDto, $user))->execute();
+            dd($variantModel);
             if (isset($variant['attributes'])) {
                 $variantModel->addAttributes($user, $variant['attributes']);
             }

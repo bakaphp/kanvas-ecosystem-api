@@ -16,7 +16,7 @@ enum AppEnums implements EnumsInterface
     public function getValue(): mixed
     {
         return match ($this) {
-            self::PRODUCT_VARIANTS_SEARCH_INDEX => 'products_variants_company_',
+            self::PRODUCT_VARIANTS_SEARCH_INDEX => 'local_products_variants_company_',
         };
     }
 }
