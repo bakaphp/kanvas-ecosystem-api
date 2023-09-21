@@ -15,6 +15,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Guild\Support\Setup as GuildSetup;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter as ImporterDto;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
@@ -58,16 +59,20 @@ class OnBoardingJob implements ShouldQueue
          */
         $company = $this->branch->company()->firstOrFail();
 
-        (new GuildSetup(
-            $this->app,
-            $this->user,
-            $company
-        ))->run();
+        if ($this->app->get(AppSettingsEnums::ONBOARDING_GUILD_SETUP->getValue())) {
+            (new GuildSetup(
+                $this->app,
+                $this->user,
+                $company
+            ))->run();
+        }
 
-        (new InventorySetup(
-            $this->app,
-            $this->user,
-            $company
-        ))->run();
+        if ($this->app->get(AppSettingsEnums::ONBOARDING_INVENTORY_SETUP->getValue())) {
+            (new InventorySetup(
+                $this->app,
+                $this->user,
+                $company
+            ))->run();
+        }
     }
 }

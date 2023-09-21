@@ -56,6 +56,7 @@ class RegisterUsersAction
         if ($validator->fails()) {
             throw new ValidationException($validator);
         }
+        $newUser = false;
 
         try {
             /**
@@ -85,6 +86,7 @@ class RegisterUsersAction
                 $company = $createCompany->execute();
             }
         } catch(ModelNotFoundException $e) {
+            $newUser = true;
             $user = new Users();
             $user->firstname = $this->data->firstname;
             $user->lastname = $this->data->lastname;
@@ -130,11 +132,13 @@ class RegisterUsersAction
             }
 
             //create CRM + Inventory for user company send it to job
-            OnBoardingJob::dispatch(
-                $user,
-                $company instanceof CompanyInterface ? $company->defaultBranch()->firstOrFail() : $user->getCurrentBranch(),
-                $this->app
-            );
+            if ($newUser) {
+                OnBoardingJob::dispatch(
+                    $user,
+                    $company instanceof CompanyInterface ? $company->defaultBranch()->firstOrFail() : $user->getCurrentBranch(),
+                    $this->app
+                );
+            }
         } catch (Throwable $e) {
             //no email sent
         }
