@@ -48,5 +48,6 @@ class UpdateStatesAction
             fclose($handle);
             return true;
         }
+        return false;
     }
 }

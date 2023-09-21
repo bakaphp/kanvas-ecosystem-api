@@ -50,5 +50,6 @@ class UpdateCitiesAction
             fclose($handle);
             return true;
         }
+        return false;
     }
 }

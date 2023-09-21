@@ -47,5 +47,6 @@ class UpdateCountriesAction
             fclose($handle);
             return true;
         }
+        return false;
     }
 }
