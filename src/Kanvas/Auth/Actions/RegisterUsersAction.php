@@ -24,6 +24,7 @@ use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Jobs\OnBoardingJob;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
+use Throwable;
 
 class RegisterUsersAction
 {
@@ -126,16 +127,16 @@ class RegisterUsersAction
             if ($this->app->get((string) AppSettingsEnums::SEND_WELCOME_EMAIL->getValue())) {
                 $user->notify(new Welcome($user));
             }
-        } catch (ModelNotFoundException $e) {
+
+            //create CRM + Inventory for user company send it to job
+            OnBoardingJob::dispatch(
+                $user,
+                isset($company) ? $company->defaultBranch()->firstOrFail() : $user->getCurrentBranch(),
+                $this->app
+            );
+        } catch (Throwable $e) {
             //no email sent
         }
-
-        //create CRM + Inventory for user company send it to job
-        OnBoardingJob::dispatch(
-            $user,
-            isset($company) ? $company->defaultBranch()->firstOrFail() : $user->getCurrentBranch(),
-            $this->app
-        );
 
         return $user;
     }
