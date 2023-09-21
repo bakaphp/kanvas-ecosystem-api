@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\Actions;
 
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -21,8 +22,10 @@ use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Templates\Welcome;
 use Kanvas\Users\Enums\StatusEnums;
+use Kanvas\Users\Jobs\OnBoardingJob;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
+use Throwable;
 
 class RegisterUsersAction
 {
@@ -44,6 +47,9 @@ class RegisterUsersAction
      */
     public function execute(): Users
     {
+        $newUser = false;
+        $company = null;
+
         $validator = Validator::make(
             ['email' => $this->data->email],
             ['email' => 'required|email']
@@ -79,16 +85,16 @@ class RegisterUsersAction
                     )
                 );
 
-                $createCompany->execute();
+                $company = $createCompany->execute();
             }
         } catch(ModelNotFoundException $e) {
+            $newUser = true;
             $user = new Users();
             $user->firstname = $this->data->firstname;
             $user->lastname = $this->data->lastname;
             $user->displayname = $this->data->displayname;
             $user->email = $this->data->email;
             $user->password = $this->data->password;
-            $user->default_company = $this->data->default_company;
             $user->sex = AppEnums::DEFAULT_SEX->getValue();
             $user->dob = date('Y-m-d');
             $user->lastvisit = date('Y-m-d H:i:s');
@@ -99,7 +105,7 @@ class RegisterUsersAction
             $user->banned = StateEnums::NO->getValue();
             $user->user_login_tries = 0;
             $user->user_last_login_try = 0;
-            $user->default_company = $user->default_company ?? StateEnums::NO->getValue();
+            $user->default_company = $this->data->default_company ?? StateEnums::NO->getValue();
             $user->session_time = time();
             $user->session_page = StateEnums::NO->getValue();
             $user->password = $this->data->password;
@@ -126,11 +132,18 @@ class RegisterUsersAction
             if ($this->app->get((string) AppSettingsEnums::SEND_WELCOME_EMAIL->getValue())) {
                 $user->notify(new Welcome($user));
             }
-        } catch (ModelNotFoundException $e) {
+
+            //create CRM + Inventory for user company send it to job
+            if ($newUser) {
+                OnBoardingJob::dispatch(
+                    $user,
+                    $company instanceof CompanyInterface ? $company->defaultBranch()->firstOrFail() : $user->getCurrentBranch(),
+                    $this->app
+                );
+            }
+        } catch (Throwable $e) {
             //no email sent
         }
-
-        //create CRM + Inventory for user company send it to job
 
         return $user;
     }
