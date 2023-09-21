@@ -42,19 +42,17 @@ class UpdateLocationsTablesCommand extends Command
                 $states = new UpdateStatesAction();
                 $states->execute($app);
                 break;
-        
             case '3':
                 $cities = new UpdateCitiesAction();
                 $cities->execute($app);
                 break;
-            
             case null:
                 $countries = new UpdateCountriesAction();
                 $countries->execute($app);
-        
+
                 $states = new UpdateStatesAction();
                 $states->execute($app);
-        
+
                 $cities = new UpdateCitiesAction();
                 $cities->execute($app);
                 break;
