@@ -50,15 +50,7 @@ class RegisterUsersAction
         $newUser = false;
         $company = null;
 
-        $validator = Validator::make(
-            ['email' => $this->data->email],
-            ['email' => 'required|email']
-        );
-
-        // This is the second time that we need get user data without an exception.
-        if ($validator->fails()) {
-            throw new ValidationException($validator);
-        }
+        $this->validateEmail();
 
         try {
             /**
@@ -73,8 +65,7 @@ class RegisterUsersAction
 
                 throw new AuthenticationException('Email has already been taken.');
             } catch (ModelNotFoundException $e) {
-                $userRegisterInApp = new RegisterUsersAppAction($user);
-                $userRegisterInApp->execute($this->data->password);
+                $this->registerUserInApp($user);
 
                 //create new company for user on this app
                 $createCompany = new CreateCompaniesAction(
@@ -89,45 +80,80 @@ class RegisterUsersAction
             }
         } catch(ModelNotFoundException $e) {
             $newUser = true;
-            $user = new Users();
-            $user->firstname = $this->data->firstname;
-            $user->lastname = $this->data->lastname;
-            $user->displayname = $this->data->displayname;
-            $user->email = $this->data->email;
-            $user->password = $this->data->password;
-            $user->sex = AppEnums::DEFAULT_SEX->getValue();
-            $user->dob = date('Y-m-d');
-            $user->lastvisit = date('Y-m-d H:i:s');
-            $user->registered = date('Y-m-d H:i:s');
-            $user->timezone = AppEnums::DEFAULT_TIMEZONE->getValue();
-            $user->user_active = StatusEnums::ACTIVE->getValue();
-            $user->status = StatusEnums::ACTIVE->getValue();
-            $user->banned = StateEnums::NO->getValue();
-            $user->user_login_tries = 0;
-            $user->user_last_login_try = 0;
-            $user->default_company = $this->data->default_company ?? StateEnums::NO->getValue();
-            $user->session_time = time();
-            $user->session_page = StateEnums::NO->getValue();
-            $user->password = $this->data->password;
-            $user->language = $user->language ?: AppEnums::DEFAULT_LANGUAGE->getValue();
-            $user->user_activation_key = Hash::make(time());
-            $user->roles_id = $this->data->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue(); //@todo : remove this , legacy code
-
-            //create a new user assign it to the app and create the default company
-            $user->saveOrFail();
-
-            $userRegisterInApp = new RegisterUsersAppAction($user);
-            $userRegisterInApp->execute($this->data->password);
-
-            $userRole = RolesRepository::getByMixedParamFromCompany($this->data->roles_id ?? DefaultRoles::ADMIN->getValue());
-
-            $assignRole = new AssignRoleAction(
-                $user,
-                $userRole
-            );
-            $assignRole->execute();
+            $user = $this->createNewUser();
+            $this->registerUserInApp($user);
+            $this->assignUserRole($user);
         }
 
+        $this->sendWelcomeEmail($user, $newUser, $company);
+
+        return $user;
+    }
+
+    protected function validateEmail(): void
+    {
+        $validator = Validator::make(
+            ['email' => $this->data->email],
+            ['email' => 'required|email']
+        );
+
+        // This is the second time that we need get user data without an exception.
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
+    }
+
+    protected function createNewUser(): Users
+    {
+        $user = new Users();
+        $user->firstname = $this->data->firstname;
+        $user->lastname = $this->data->lastname;
+        $user->displayname = $this->data->displayname;
+        $user->email = $this->data->email;
+        $user->password = $this->data->password;
+        $user->sex = AppEnums::DEFAULT_SEX->getValue();
+        $user->dob = date('Y-m-d');
+        $user->lastvisit = date('Y-m-d H:i:s');
+        $user->registered = date('Y-m-d H:i:s');
+        $user->timezone = AppEnums::DEFAULT_TIMEZONE->getValue();
+        $user->user_active = StatusEnums::ACTIVE->getValue();
+        $user->status = StatusEnums::ACTIVE->getValue();
+        $user->banned = StateEnums::NO->getValue();
+        $user->user_login_tries = 0;
+        $user->user_last_login_try = 0;
+        $user->default_company = $this->data->default_company ?? StateEnums::NO->getValue();
+        $user->session_time = time();
+        $user->session_page = StateEnums::NO->getValue();
+        $user->password = $this->data->password;
+        $user->language = $user->language ?: AppEnums::DEFAULT_LANGUAGE->getValue();
+        $user->user_activation_key = Hash::make(time());
+        $user->roles_id = $this->data->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue(); //@todo : remove this , legacy code
+
+        //create a new user assign it to the app and create the default company
+        $user->saveOrFail();
+
+        return $user;
+    }
+
+    protected function registerUserInApp(Users $user): void
+    {
+        $userRegisterInApp = new RegisterUsersAppAction($user, $this->app);
+        $userRegisterInApp->execute($this->data->password);
+    }
+
+    protected function assignUserRole(Users $user): void
+    {
+        $userRole = RolesRepository::getByMixedParamFromCompany($this->data->roles_id ?? DefaultRoles::ADMIN->getValue());
+
+        $assignRole = new AssignRoleAction(
+            $user,
+            $userRole
+        );
+        $assignRole->execute();
+    }
+
+    protected function sendWelcomeEmail(Users $user, bool $newUser, ?CompanyInterface $company = null): void
+    {
         try {
             if ($this->app->get((string) AppSettingsEnums::SEND_WELCOME_EMAIL->getValue())) {
                 $user->notify(new Welcome($user));
@@ -144,7 +170,5 @@ class RegisterUsersAction
         } catch (Throwable $e) {
             //no email sent
         }
-
-        return $user;
     }
 }
