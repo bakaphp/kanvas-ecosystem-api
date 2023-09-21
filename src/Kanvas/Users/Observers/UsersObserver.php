@@ -46,7 +46,7 @@ class UsersObserver
             $user->default_company_branch = $company->defaultBranch()->first()->id;
             $user->saveOrFail();
         }
-        
+
         $company = CompaniesRepository::getById((int)$user->default_company);
         $branch = $company->branch()->firstOrFail();
 
