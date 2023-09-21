@@ -22,10 +22,10 @@ class UpdateStatesAction
      *
      * @return bool
      */
-    public function execute(): bool
+    public function execute($app) : bool
     {
         $i = 0;
-        if (($handle = fopen(config('locations.locationsUrl.states'), "r")) !== false) {
+        if (($handle = fopen($app->get('states_url'), "r")) !== false) {
             while (($importData = fgetcsv($handle, 1000, ",")) !== false) {
                 if ($i === 0) {
                     $i = 1;
@@ -34,10 +34,12 @@ class UpdateStatesAction
                 // Remove the first iteration as it's not "real" data
 
                 States::updateOrCreate(
-                    ['id' => $importData[0]],
                     [
+                        "id" => $importData[0],
                         "countries_id" => $importData[2],
                         "name" => $importData[1],
+                    ],
+                    [
                         "code" => $importData[5],
                     ]
                 );

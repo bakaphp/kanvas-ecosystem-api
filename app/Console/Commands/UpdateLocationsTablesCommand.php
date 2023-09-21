@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Locations\Actions\UpdateAllLocationsAction;
 use Kanvas\Locations\Actions\UpdateCitiesAction;
 use Kanvas\Locations\Actions\UpdateCountriesAction;
@@ -17,7 +18,7 @@ class UpdateLocationsTablesCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:update-locations-tables';
+    protected $signature = 'kanvas:update-locations-tables {app_uuid} {tableNumber?}';
 
     /**
      * The console command description.
@@ -28,15 +29,37 @@ class UpdateLocationsTablesCommand extends Command
 
     public function handle(): void
     {
-        $countries = new UpdateCountriesAction();
-        $countries->execute();
+        $appUid = $this->argument('app_uuid');
+        $app = Apps::getByUuid($appUid);
+        $table = $this->argument('tableNumber') ?? null;
 
-        $states = new UpdateStatesAction();
-        $states->execute();
+        switch ($table) {
+            case '1':
+                $countries = new UpdateCountriesAction();
+                $countries->execute($app);
+                break;
+            case '2':
+                $states = new UpdateStatesAction();
+                $states->execute($app);
+                break;
+        
+            case '3':
+                $cities = new UpdateCitiesAction();
+                $cities->execute($app);
+                break;
+            
+            case null:
+                $countries = new UpdateCountriesAction();
+                $countries->execute($app);
+        
+                $states = new UpdateStatesAction();
+                $states->execute($app);
+        
+                $cities = new UpdateCitiesAction();
+                $cities->execute($app);
+                break;
+        }
 
-        $cities = new UpdateCitiesAction();
-        $cities->execute();
-
-        $this->info('Tables Cities, Countries and States updated successfully.');
+        $this->info('Tables updated successfully.');
     }
 }

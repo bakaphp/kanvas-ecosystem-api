@@ -22,10 +22,10 @@ class UpdateCitiesAction
      *
      * @return bool
      */
-    public function execute(): bool
+    public function execute($app): bool
     {
         $i = 0;
-        if (($handle = fopen(config('locations.locationsUrl.cities'), "r")) !== false) {
+        if (($handle = fopen($app->get('cities_url'), "r")) !== false) {
             while (($importData = fgetcsv($handle, 1000, ",")) !== false) {
                 if ($i === 0) {
                     $i = 1;
@@ -34,10 +34,12 @@ class UpdateCitiesAction
                 // Remove the first iteration as it's not "real" datas
 
                 Cities::updateOrCreate(
-                    ['id' => $importData[0]],
                     [
+                        "id" => $importData[0],
                         "states_id" => $importData[2],
                         "countries_id" => $importData[5],
+                    ],
+                    [
                         "name" => $importData[1],
                         "latitude" => $importData[8],
                         "longitude" => $importData[9],
