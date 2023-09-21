@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Ecosystem\Integration\Apps;
 
 use Kanvas\Locations\Actions\UpdateCountriesAction;
+use Kanvas\Apps\Models\Apps;
 use Tests\TestCase;
 
 final class UpdateCountriesActionTest extends TestCase
@@ -19,7 +20,7 @@ final class UpdateCountriesActionTest extends TestCase
         $updateCountries = new UpdateCountriesAction();
 
         $this->assertTrue(
-            $updateCountries->execute()
+            $updateCountries->execute(app(Apps::class))
         );
     }
 }
