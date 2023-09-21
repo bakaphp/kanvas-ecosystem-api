@@ -22,7 +22,7 @@ class UpdateStatesAction
      *
      * @return bool
      */
-    public function execute($app) : bool
+    public function execute($app): bool
     {
         $i = 0;
         if (($handle = fopen($app->get('states_url'), "r")) !== false) {
