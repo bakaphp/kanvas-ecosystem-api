@@ -1,0 +1,31 @@
+{
+    "listeners": {
+        "*:80": {
+            "pass": "routes"
+        }
+    },
+    "routes": [
+        {
+            "match": {
+                "uri": "!/index.php"
+            },
+            "action": {
+                "share": "/var/www/html/public$uri",
+                "fallback": {
+                    "pass": "applications/laravel"
+                }
+            }
+        }
+    ],
+    "applications": {
+        "laravel": {
+            "type": "php",
+            "root": "/var/www/html/public/",
+            "script": "index.php",
+            "options":{
+                "file": "/usr/local/etc/php/conf.d/zx-app-config.ini"
+            },
+            "processes":{}
+        }
+    }
+}
