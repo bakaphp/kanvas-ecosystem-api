@@ -73,15 +73,11 @@ class Variants extends BaseModel
       */
     public function searchableAs(): string
     {
-        $currentEnvironment = app()->environment();
-
-        $environmentPrefix = $currentEnvironment !== 'production' ? $currentEnvironment . '_' : '';
-
         $indexName = (! isset($this->companies_id) || $this->companies_id === null) && self::$overWriteSearchIndex !== null
             ? self::$overWriteSearchIndex
             : (string) AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue() . (string) $this->companies_id;
 
-        return $environmentPrefix . $indexName;
+        return config('scout.prefix') . $indexName;
     }
 
     /**
