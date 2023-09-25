@@ -181,7 +181,7 @@ class PipelineTest extends TestCase
                 ],
             ]);
 
-    
+
         $pipeline = $this->graphQL('
             query($id: Mixed!){
                 pipelines(where: {column: ID, operator: EQ, value: $id}){
