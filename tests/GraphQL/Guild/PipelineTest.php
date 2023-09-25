@@ -180,6 +180,24 @@ class PipelineTest extends TestCase
                     ],
                 ],
             ]);
+
+    
+        $pipeline = $this->graphQL('
+            query($id: Mixed!){
+                pipelines(where: {column: ID, operator: EQ, value: $id}){
+                    data{
+                    id,
+                    name,
+                    stages{
+                            id,
+                            name
+                        
+                    }
+                }
+            }}
+            ', [
+                'id' => $data['pipeline']['id'],
+            ])->assertSee($name);
     }
 
     public function testUpdatePipelineStage()
