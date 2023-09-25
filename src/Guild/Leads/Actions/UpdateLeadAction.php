@@ -112,6 +112,10 @@ class UpdateLeadAction
         $lead->setCustomFields($this->leadData->custom_fields);
         $lead->saveCustomFields();
 
+        if ($this->leadData->files) {
+            $lead->addMultipleFilesFromUrl($this->leadData->files);
+        }
+
         if ($this->leadAttempt) {
             $this->leadAttempt->leads_id = $lead->getId();
             $this->leadAttempt->saveOrFail();

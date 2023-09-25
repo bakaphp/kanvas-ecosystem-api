@@ -36,6 +36,7 @@ input ProductInput {
     source_id: Mixed
     variants: [VariantsInput]
     attributes: [AttributeInput]
+    files: [FilesystemInputUrl]
     price: Float
 }
 
@@ -48,6 +49,7 @@ input ProductInputUpdate {
     warranty_terms: String
     upc: String
     is_published: Boolean
+    files: [FilesystemInputUrl]
 }
 
 extend type Mutation @guard {
@@ -103,6 +105,6 @@ extend type Query @guard {
         @paginate(
             model: "Kanvas\\Inventory\\Products\\Models\\Products"
             scopes: ["fromApp", "fromCompany", "notDeleted"]
-            defaultCount: 10
+            defaultCount: 25
         )
 }

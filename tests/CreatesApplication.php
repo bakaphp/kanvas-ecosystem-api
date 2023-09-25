@@ -4,6 +4,9 @@ namespace Tests;
 
 use Illuminate\Contracts\Console\Kernel;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Support\Setup;
+use Kanvas\Inventory\Support\Setup as SupportSetup;
+use Kanvas\Social\Support\Setup as SocialSupportSetup;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -33,7 +36,33 @@ trait CreatesApplication
         //$user = Users::where('id', '>', 0)->first();
         //$user = Users::factory(1)->create()->first();
         $this->app = $app;
-        $this->actingAs($this->createUser(), 'api');
+        $user = $this->createUser();
+        $this->actingAs($user, 'api');
+
+        //setup CRM
+        $company = $user->getCurrentCompany();
+        $setupGuild = new Setup(
+            app(Apps::class),
+            $user,
+            $company
+        );
+        $setupGuild->run();
+
+        //setup inventory
+        $setupInventory = new SupportSetup(
+            app(Apps::class),
+            $user,
+            $company
+        );
+        //$setupInventory->run();
+
+        //setup social
+        $setupSocial = new SocialSupportSetup(
+            app(Apps::class),
+            $user,
+            $company
+        );
+        //$setupSocial->run();
 
         return $app;
     }
