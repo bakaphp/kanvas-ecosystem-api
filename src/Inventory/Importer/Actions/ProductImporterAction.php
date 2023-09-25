@@ -75,7 +75,6 @@ class ProductImporterAction
             DB::connection('inventory')->beginTransaction();
 
             if ($this->product === null) {
-                // dd($this->importedProduct);
                 $productDto = ProductsDto::from([
                     'app' => $this->app,
                     'company' => $this->company,
