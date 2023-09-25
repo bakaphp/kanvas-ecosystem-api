@@ -6,7 +6,6 @@ namespace Kanvas\Inventory\Products\Models;
 
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
-use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -48,6 +47,17 @@ class Products extends BaseModel
 
     protected $table = 'products';
     protected $guarded = [];
+
+    /**
+      * Get the name of the index associated with the model.
+      */
+    public function searchableAs(): string
+    {
+        $currentEnvironment = app()->environment();
+
+        $environmentPrefix = $currentEnvironment !== 'production' ? $currentEnvironment . '_' : '';
+        return $environmentPrefix . parent::searchableAs();
+    }
 
     /**
      * categories.

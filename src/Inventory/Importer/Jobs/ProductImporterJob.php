@@ -21,6 +21,7 @@ use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter as ImporterDto;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Laravel\Scout\EngineManager;
+use Throwable;
 
 class ProductImporterJob implements ShouldQueue
 {
@@ -77,9 +78,13 @@ class ProductImporterJob implements ShouldQueue
          * so we need to move the index to be specific of the channel we are importing
          * to avoid future issues
          */
-        $meiliSearchEngine->deleteIndex(
-            (string) AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue() . $company->getId()
-        );
+        try {
+            $meiliSearchEngine->deleteIndex(
+                (string) AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue() . $company->getId()
+            );
+        } catch (Throwable $e) {
+            //do nothing
+        }
 
         foreach ($this->importer as $request) {
             (new ProductImporterAction(
