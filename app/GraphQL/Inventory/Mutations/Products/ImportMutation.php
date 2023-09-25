@@ -28,8 +28,8 @@ class ImportMutation
             $company,
             auth()->user()
         );
-        
-        if(!isset($req['regionId'])) {
+
+        if (!isset($req['regionId'])) {
             $region = Regions::where('id', '=', 1)->firstOrFail();
         } else {
             $region = RegionRepository::getById($req['regionId'], $company);
