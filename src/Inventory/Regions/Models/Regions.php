@@ -7,8 +7,6 @@ namespace Kanvas\Inventory\Regions\Models;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Models\BaseModel;
 
@@ -37,25 +35,6 @@ class Regions extends BaseModel
     protected $table = 'regions';
     protected $guarded = [];
 
-    /**
-     * Get the companies that owns the Warehouses.
-     */
-    public function companies(): BelongsTo
-    {
-        return $this->belongsTo(Companies::class, 'companies_id');
-    }
-
-    /**
-     *
-     */
-    public function apps(): BelongsTo
-    {
-        return $this->belongsTo(Apps::class, 'apps_id');
-    }
-
-    /**
-     *
-     */
     public function currencies(): BelongsTo
     {
         return $this->belongsTo(Currencies::class, 'currency_id');

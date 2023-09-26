@@ -38,7 +38,7 @@ class CreateVariantsAction
             'apps_id' => $this->variantDto->product->apps_id,
         ];
 
-        $variant =  Variants::updateOrCreate(
+        return Variants::updateOrCreate(
             $search,
             [
                 'name' => $this->variantDto->name,
@@ -53,7 +53,5 @@ class CreateVariantsAction
                 'serial_number' => $this->variantDto->serial_number,
             ]
         );
-
-        return $variant;
     }
 }
