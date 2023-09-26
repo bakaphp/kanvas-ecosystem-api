@@ -10,7 +10,10 @@ type Product {
     warranty_terms: String
     upc: String
     files: [Filesystem]
-    is_published: Boolean
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )    is_published: Boolean
     created_at: String
     updated_at: String
     categories: [Category]
