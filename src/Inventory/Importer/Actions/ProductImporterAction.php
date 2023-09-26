@@ -86,7 +86,7 @@ class ProductImporterAction
                     'html_description' => $this->importedProduct->htmlDescription,
                     'warranty_terms' => $this->importedProduct->warrantyTerms,
                     'upc' => $this->importedProduct->upc,
-                    'variants' => $this->importedProduct->variants,
+                    //'variants' => $this->importedProduct->variants,
                     'is_published' => $this->importedProduct->isPublished,
                 ]);
                 $this->product = (new CreateProductAction($productDto, $this->user))->execute();
@@ -115,7 +115,7 @@ class ProductImporterAction
 
             $this->productWarehouse();
 
-            // $this->variants();
+            $this->variants();
 
             if (! empty($this->importedProduct->productType)) {
                 $this->productType();

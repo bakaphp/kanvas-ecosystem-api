@@ -80,7 +80,7 @@ class ProductImporterJob implements ShouldQueue
          */
         try {
             $meiliSearchEngine->deleteIndex(
-                (string) AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue() . $company->getId()
+                config('scout.prefix') . AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue() . $company->getId()
             );
         } catch (Throwable $e) {
             //do nothing
