@@ -35,7 +35,8 @@ class FilesystemQuery
             'filesystem.url',
             'filesystem.size',
             'filesystem.file_type',
-            'size'
+            'filesystem.file_type as type',
+            'filesystem_entities.id',
         )
             ->join('filesystem_entities', 'filesystem_entities.filesystem_id', '=', 'filesystem.id')
             ->where('filesystem_entities.entity_id', '=', $root->getKey())
