@@ -222,6 +222,7 @@ extend type Query @guard {
                     "is_published"
                 ]
             )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name", "products_id", "is_published"])
     ): [Variant]
         @paginate(
             defaultCount: 25

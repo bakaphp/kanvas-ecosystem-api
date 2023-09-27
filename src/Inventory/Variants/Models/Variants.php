@@ -73,9 +73,11 @@ class Variants extends BaseModel
       */
     public function searchableAs(): string
     {
-        return (! isset($this->companies_id) || $this->companies_id === null) && self::$overWriteSearchIndex !== null
+        $indexName = (! isset($this->companies_id) || $this->companies_id === null) && self::$overWriteSearchIndex !== null
             ? self::$overWriteSearchIndex
             : (string) AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue() . (string) $this->companies_id;
+
+        return config('scout.prefix') . $indexName;
     }
 
     /**

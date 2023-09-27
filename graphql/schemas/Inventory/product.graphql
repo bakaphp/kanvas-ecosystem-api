@@ -10,6 +10,10 @@ type Product {
     warranty_terms: String
     upc: String
     files: [Filesystem]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        ) 
     is_published: Boolean
     created_at: String
     updated_at: String
@@ -101,6 +105,7 @@ extend type Query @guard {
                     "is_published"
                 ]
             )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [Product]
         @paginate(
             model: "Kanvas\\Inventory\\Products\\Models\\Products"

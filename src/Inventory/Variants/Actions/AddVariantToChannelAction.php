@@ -27,6 +27,7 @@ class AddVariantToChannelAction
                     'discounted_price' => $this->variantChannel->discounted_price,
                     'is_published' => $this->variantChannel->is_published,
                     'products_variants_id' => $this->variantsWarehouses->products_variants_id,
+                    'product_variants_warehouse_id' => $this->variantsWarehouses->getId(),
                     'warehouses_id' => $this->variantsWarehouses->warehouses_id,
                 ]
             ]);
@@ -37,6 +38,7 @@ class AddVariantToChannelAction
                     'discounted_price' => $this->variantChannel->discounted_price,
                     'is_published' => $this->variantChannel->is_published,
                     'products_variants_id' => $this->variantsWarehouses->products_variants_id,
+                    'product_variants_warehouse_id' => $this->variantsWarehouses->getId(),
                     'warehouses_id' => $this->variantsWarehouses->warehouses_id,
                 ]
             ]);

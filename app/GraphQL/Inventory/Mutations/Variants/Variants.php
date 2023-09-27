@@ -32,6 +32,7 @@ class Variants
         }
 
         $variantDto = VariantDto::viaRequest($req['input']);
+
         $action = new CreateVariantsAction($variantDto, auth()->user());
         $variantModel = $action->execute();
 
@@ -42,6 +43,11 @@ class Variants
 
         if (isset($req['input']['warehouse']['status'])) {
             $req['input']['warehouse']['status_id'] = StatusRepository::getById((int) $req['input']['warehouse']['status']['id'], auth()->user()->getCurrentCompany())->getId();
+        }
+        if (!empty($variantDto->files)) {
+            foreach ($variantDto->files as $file) {
+                $variantModel->addFileFromUrl($file['url'], $file['name']);
+            }
         }
         $variantWarehouses = VariantsWarehouses::viaRequest($req['input']['warehouse']);
         (new AddToWarehouse($variantModel, $warehouse, $variantWarehouses))->execute();
