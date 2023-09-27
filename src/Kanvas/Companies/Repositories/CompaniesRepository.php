@@ -55,7 +55,7 @@ class CompaniesRepository
                                 ->where('is_deleted', StateEnums::NO->getValue())
                                 ->firstOrFail();
         } catch (ModelNotFoundException) {
-            throw new ExceptionsModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
+            throw new ExceptionsModelNotFoundException('User doesn\'t belong to this company ' . $company->id . ' , talk to the Admin');
         }
     }
 

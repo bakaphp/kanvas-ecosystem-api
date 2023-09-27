@@ -22,7 +22,8 @@ class Variants extends Data
         public ?string $ean = null,
         public ?string $barcode = null,
         public ?string $serial_number = null,
-        public ?string $slug = null
+        public ?string $slug = null,
+        public array $files = []
     ) {
     }
 
@@ -40,6 +41,8 @@ class Variants extends Data
             $request['ean'] ?? null,
             $request['barcode'] ?? null,
             $request['serial_number'] ?? null,
+            $request['slug'] ?? null,
+            $request['files'] ?? []
         );
     }
 }
