@@ -52,7 +52,6 @@ class CreateProductAction
                 'apps_id' => $this->productDto->app->getId(),
                 'companies_id' => $this->productDto->company->getId(),
             ];
-
             $products = Products::updateOrCreate(
                 $search,
                 [

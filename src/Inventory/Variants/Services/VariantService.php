@@ -31,6 +31,7 @@ class VariantService
             ]);
 
             $variantModel = (new CreateVariantsAction($variantDto, $user))->execute();
+
             if (isset($variant['attributes'])) {
                 $variantModel->addAttributes($user, $variant['attributes']);
             }
@@ -39,7 +40,11 @@ class VariantService
                 $status = StatusRepository::getById((int) $variant['status']['id'], $variantDto->product->company()->get()->first());
                 $variantModel->setStatus($status);
             }
-
+            if (!empty($variantDto->files)) {
+                foreach ($variantDto->files as $file) {
+                    $variantModel->addFileFromUrl($file['url'], $file['name']);
+                }
+            }
             $warehouse = WarehouseRepository::getById($variantDto->warehouse_id, $variantDto->product->company()->get()->first());
 
             if (isset($variant['warehouse']['status'])) {

@@ -19,6 +19,7 @@ type Cities {
     id: ID!
     name: String!
     country: Country! @belongsTo
+    countries_id: Int!
     states_id: Int!
     latitude: Float
     longitude: Float

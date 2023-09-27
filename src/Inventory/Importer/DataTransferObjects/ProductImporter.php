@@ -16,7 +16,7 @@ class ProductImporter extends Data
         public string $sku,
         public float $price,
         public array $variants,
-        public array $categories,
+        public array $categories = [],
         public int $quantity = 0,
         public bool $isPublished = true,
         public float $discountPrice = 0.0,
