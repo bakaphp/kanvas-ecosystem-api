@@ -40,7 +40,7 @@ class Pipeline extends BaseModel
 
     public function leads(): HasMany
     {
-        return $this->hasMany(Lead::class, 'pipelines_id', 'id');
+        return $this->hasMany(Lead::class, 'pipeline_id', 'id');
     }
 
     public function switchDefaultPipeline(): void

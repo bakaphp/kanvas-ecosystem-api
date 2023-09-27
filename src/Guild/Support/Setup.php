@@ -127,7 +127,7 @@ class Setup
             'source_name' => 'Default Receiver',
         ]);
 
-        return LeadType::fromCompany()->count() == count($this->leadTypes) &&
+        return LeadType::fromCompany($this->company)->count() == count($this->leadTypes) &&
             LeadReceiver::fromCompany($this->company)->count() > 0 &&
             LeadSource::fromApp($this->app)->fromCompany($this->company)->count() == count($this->leadSources) &&
             Pipeline::fromCompany($this->company)->count() > 0 &&

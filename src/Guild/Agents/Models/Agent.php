@@ -6,7 +6,6 @@ namespace Kanvas\Guild\Agents\Models;
 
 use Baka\Traits\NoAppRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 
@@ -19,6 +18,8 @@ use Kanvas\Users\Models\Users;
  * @property string $name
  * @property string $users_linked_source_id
  * @property string $member_id
+ * @property int $status_id
+ * @property int $total_leads
  * @property int $owner_id
  * @property string $owner_linked_source_id
  */
@@ -29,30 +30,23 @@ class Agent extends BaseModel
     protected $table = 'agents';
     protected $guarded = [];
 
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(
-            Users::class,
-            'users_id',
-            'id'
-        );
-    }
-
-    public function company(): BelongsTo
-    {
-        return $this->belongsTo(
-            Companies::class,
-            'companies_id',
-            'id'
-        );
-    }
-
     public function owner(): BelongsTo
     {
-        return $this->belongsTo(
+        return $this->setConnection('ecosystem')->belongsTo(
             Users::class,
             'owner_id',
             'id'
         );
+    }
+
+    /**
+     * For the Enum in graph
+     */
+    public function getStatusAttribute(): array
+    {
+        return [
+            'id' => $this->status_id,
+            'name' => $this->status_id,
+        ];
     }
 }

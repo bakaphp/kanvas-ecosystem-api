@@ -31,8 +31,6 @@ class UsersObserver
      */
     public function created(Users $user): void
     {
-        $app = app(Apps::class);
-
         if ($user->isFirstSignup()) {
             $createCompany = new CreateCompaniesAction(
                 new CompaniesPostData(
@@ -48,8 +46,10 @@ class UsersObserver
             $user->default_company_branch = $company->defaultBranch()->first()->id;
             $user->saveOrFail();
         }
+
         $company = CompaniesRepository::getById((int)$user->default_company);
-        $branch = $company->branch()->first();
+        $branch = $company->branch()->firstOrFail();
+
         $action = new AssignCompanyAction($user, $branch);
         $action->execute();
     }

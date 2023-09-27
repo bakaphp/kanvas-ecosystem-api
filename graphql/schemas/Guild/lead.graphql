@@ -21,14 +21,19 @@ type Lead {
     pipeline: LeadPipeline @belongsTo
     stage: LeadPipelineStage @belongsTo(relation: "stage")
     participants: [LeadsParticipants!]! @hasMany
+    files: [Filesystem!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
     followers:  [User!]!
         @paginate(
-            defaultCount: 10
+            defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Follows\\FollowBuilder@getEntityFollowers"
         )
     custom_fields: [CustomField!]!
         @paginate(
-            defaultCount: 10
+            defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
     created_at: DateTime!
@@ -109,6 +114,7 @@ input LeadInput {
     reason_lost: String
     pipeline_stage_id: ID!
     custom_fields: [CustomFieldEntityInput!]!
+    files: [FilesystemInputUrl!]!
 }
 
 input LeadUpdateInput {
@@ -125,6 +131,7 @@ input LeadUpdateInput {
     reason_lost: String
     pipeline_stage_id: ID
     custom_fields: [CustomFieldEntityInput!]!
+    files: [FilesystemInputUrl!]!
 }
 
 extend type Mutation @guard {

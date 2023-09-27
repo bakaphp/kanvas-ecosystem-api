@@ -67,6 +67,10 @@ class CreateLeadAction
         $newLead->setCustomFields($this->leadData->custom_fields);
         $newLead->saveCustomFields();
 
+        if ($this->leadData->files) {
+            $newLead->addMultipleFilesFromUrl($this->leadData->files);
+        }
+
         //create organization
         if ($this->leadData->organization instanceof Organization) {
             $organization = (new CreateOrganizationAction($this->leadData->organization))->execute();

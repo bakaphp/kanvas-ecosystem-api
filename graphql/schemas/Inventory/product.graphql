@@ -10,6 +10,10 @@ type Product {
     warranty_terms: String
     upc: String
     files: [Filesystem]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        ) 
     is_published: Boolean
     created_at: String
     updated_at: String
@@ -36,6 +40,7 @@ input ProductInput {
     source_id: Mixed
     variants: [VariantsInput]
     attributes: [AttributeInput]
+    files: [FilesystemInputUrl]
     price: Float
 }
 
@@ -48,6 +53,7 @@ input ProductInputUpdate {
     warranty_terms: String
     upc: String
     is_published: Boolean
+    files: [FilesystemInputUrl]
 }
 
 extend type Mutation @guard {
@@ -99,10 +105,11 @@ extend type Query @guard {
                     "is_published"
                 ]
             )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [Product]
         @paginate(
             model: "Kanvas\\Inventory\\Products\\Models\\Products"
             scopes: ["fromApp", "fromCompany", "notDeleted"]
-            defaultCount: 10
+            defaultCount: 25
         )
 }

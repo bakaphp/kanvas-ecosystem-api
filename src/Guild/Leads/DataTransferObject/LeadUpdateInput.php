@@ -25,6 +25,7 @@ class LeadUpdateInput extends Data
         public readonly ?string $description = null,
         public readonly ?string $reason_lost = null,
         public readonly array $custom_fields = [],
+        public readonly array $files = []
     ) {
     }
 }

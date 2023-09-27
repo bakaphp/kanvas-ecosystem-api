@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\DataTransferObject;
 
-use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Spatie\LaravelData\Data;
 
 class VariantsWarehouses extends Data
@@ -35,7 +34,7 @@ class VariantsWarehouses extends Data
             $request['sku'] ?? null,
             $request['position'] ?? 0,
             $request['serial_number'] ?? null,
-            $request['status']['id'] ?? null,
+            $request['status_id'] ?? null,
             $request['is_oversellable'] ?? false,
             $request['is_default'] ?? false,
             $request['is_best_seller'] ?? false,
