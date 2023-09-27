@@ -28,13 +28,13 @@ RUN apt-get update && apt-get install -y \
 
 
 # Set working directory
-WORKDIR /var/www/html
+WORKDIR /app
 
 # RUN groupadd -g 1000 unit
 # RUN useradd -u 1000 -ms /bin/bash -g unit unit
 
 # Copy code to /var/www
-COPY . /var/www/html/
+COPY . /app
 # COPY chown -R unit:unit /var/www/html/
 
 # Install composer
@@ -51,3 +51,5 @@ RUN cp docker/php.ini /usr/local/etc/php/conf.d/zx-app-config.ini
 # RUN cp docker/php-fpm.conf /usr/local/etc/php-fpm.d/zzz-php-fpm-production.conf
 
 EXPOSE 8080
+
+WORKDIR /var/www/html/
