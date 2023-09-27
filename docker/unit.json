@@ -1,6 +1,6 @@
 {
     "listeners": {
-        "*:80": {
+        "*:8080": {
             "pass": "routes"
         }
     },
@@ -22,10 +22,10 @@
             "type": "php",
             "root": "/var/www/html/public/",
             "script": "index.php",
-            "options":{
+            "options": {
                 "file": "/usr/local/etc/php/conf.d/zx-app-config.ini"
             },
-            "processes":{}
+            "processes": {}
         }
     }
 }
