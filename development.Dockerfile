@@ -2,7 +2,6 @@ FROM unit:php8.2
 
 COPY ./docker/unit.json /docker-entrypoint.d/
 
-
 # Add docker php ext repo
 ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
 
@@ -50,3 +49,5 @@ RUN composer install --optimize-autoloader
 RUN cp docker/docker-php-ext-opcache-prod.ini /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
 RUN cp docker/php.ini /usr/local/etc/php/conf.d/zx-app-config.ini
 # RUN cp docker/php-fpm.conf /usr/local/etc/php-fpm.d/zzz-php-fpm-production.conf
+
+EXPOSE 8080
