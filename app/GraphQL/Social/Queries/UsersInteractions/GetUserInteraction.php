@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Queries\UsersInteractions;
 
-use DB;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Social\UsersInteractions\Models\UserInteraction as UserInteractionModel;
 
 class GetUserInteraction
