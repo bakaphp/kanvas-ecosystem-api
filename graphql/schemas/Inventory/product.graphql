@@ -106,6 +106,8 @@ extend type Query @guard {
                 ]
             )
         hasCategories: _ @whereHasConditions(relation: "categories", columns: ["id", "name"])
+        hasWarehouses: _ @whereHasConditions(relation: "warehouses", columns: ["id", "name", "uuid"])
+        hasAttributes: _ @whereHasConditions(relation: "attributes", columns: ["id", "name", "uuid"])
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [Product]
         @paginate(
