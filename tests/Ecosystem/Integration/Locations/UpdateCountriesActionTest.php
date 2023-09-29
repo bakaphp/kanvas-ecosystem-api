@@ -17,10 +17,10 @@ final class UpdateCountriesActionTest extends TestCase
      */
     public function UpdateCountriesAction(): void
     {
-        $updateCountries = new UpdateCountriesAction();
+        $updateCountries = new UpdateCountriesAction(app(Apps::class));
 
         $this->assertTrue(
-            $updateCountries->execute(app(Apps::class))
+            $updateCountries->execute()
         );
     }
 }

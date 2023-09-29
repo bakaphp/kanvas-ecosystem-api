@@ -17,10 +17,10 @@ final class UpdateStatesActionTest extends TestCase
      */
     public function UpdateStatesAction(): void
     {
-        $updateStates = new UpdateStatesAction();
+        $updateStates = new UpdateStatesAction(app(Apps::class));
 
         $this->assertTrue(
-            $updateStates->execute(app(Apps::class))
+            $updateStates->execute()
         );
     }
 }
