@@ -61,6 +61,7 @@
             "Kanvas\\Inventory\\": "src/Inventory",
             "Kanvas\\Social\\": "src/Social",
             "Kanvas\\Guild\\": "src/Guild",
+            "Kanvas\\ContentEngine\\": "src/ContentEngine",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }
