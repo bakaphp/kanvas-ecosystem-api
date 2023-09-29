@@ -34,9 +34,9 @@ class UpdateLocationsTablesCommand extends Command
         $table = $this->argument('tableName') ?? null;
 
         $updateLocations = match ($table) {
-            'countries' => (new UpdateCountriesAction($app))->$countries->execute(),
-            'states' => (new UpdateStatesAction($app))->$countries->execute(),
-            'cities' => (new UpdateCitiesAction($app))->$countries->execute(),
+            'countries' => (new UpdateCountriesAction($app))->execute(),
+            'states' => (new UpdateStatesAction($app))->execute(),
+            'cities' => (new UpdateCitiesAction($app))->execute(),
             null => call_user_func(function () {
                 $countries = new UpdateCountriesAction($app);
                 $countries->execute();
