@@ -13,8 +13,9 @@ class UpdateCountriesAction
      *
      * @return void
      */
-    public function __construct(
-    ) {
+    public function __construct($app) 
+    {
+        $this->app = $app;
     }
 
     /**
@@ -22,10 +23,10 @@ class UpdateCountriesAction
      *
      * @return bool
      */
-    public function execute($app): bool
+    public function execute(): bool
     {
         $i = 0;
-        if (($handle = fopen($app->get('countries_url'), "r")) !== false) {
+        if (($handle = fopen($this->app->get('countries_url'), "r")) !== false) {
             while (($importData = fgetcsv($handle, 1000, ",")) !== false) {
                 if ($i === 0) {
                     $i = 1;
