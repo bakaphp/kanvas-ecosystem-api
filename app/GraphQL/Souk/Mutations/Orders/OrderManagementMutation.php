@@ -31,10 +31,7 @@ class OrderManagementMutation
         $response = $payment->chargeCreditCard($order);
 
         if ($response != null) {
-            // Check to see if the API request was successfully received and acted upon
             if ($response->getMessages()->getResultCode() == 'Ok') {
-                // Since the API request was successful, look for a transaction response
-                // and parse it to display the results of authorizing the card
                 $tresponse = $response->getTransactionResponse();
 
                 if ($tresponse != null && $tresponse->getMessages() != null) {
@@ -48,10 +45,9 @@ class OrderManagementMutation
                 } else {
                     return [
                       'error_code' => $tresponse->getErrors()[0]->getErrorCode(),
-                         'error_message' => $tresponse->getErrors()[0]->getErrorText(),
+                    'error_message' => $tresponse->getErrors()[0]->getErrorText(),
                     ];
                 }
-            // Or, print errors if the API request wasn't successful
             } else {
                 return [
                     'error_code' => $response->getMessages()->getMessage()[0]->getCode(),
