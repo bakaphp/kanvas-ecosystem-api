@@ -25,3 +25,4 @@ scalar Null  @scalar(class: "MLL\\GraphQLScalars\\NullScalar")
 #import schemas/Guild/*.graphql
 #import schemas/Social/*.graphql
 #import schemas/ContentEngine/*.graphql
+#import schemas/Souk/*.graphql

@@ -1,0 +1,39 @@
+type Cart {
+    id: ID!
+    name: String!
+    items: [CartItem!]!
+    total: Float!
+}
+
+type CartItem {
+    id: ID!
+    name: String!
+    price: Float!
+    quantity: Int!
+    attributes: Mixed
+}
+
+input CartItemInput {
+    quantity: Int!
+    variant_id: ID!
+    attributes: Mixed
+}
+
+extend type Mutation @guard {
+    addToCart(items: [CartItemInput!]!): [CartItem!]!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Cart\\CartManagementMutation@add"
+        )
+    updateCart(variant_id: ID!, quantity: Int!): [CartItem!]!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Cart\\CartManagementMutation@update"
+        )
+    removeFromCart(variant_id: ID!): [CartItem!]!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Cart\\CartManagementMutation@remove"
+        )
+}
+
+extend type Query {
+    cart: Cart @field(resolver: "App\\GraphQL\\Souk\\Queries\\Cart\\Cart@index")
+}

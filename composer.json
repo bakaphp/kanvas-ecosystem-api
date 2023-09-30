@@ -11,6 +11,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "darryldecode/cart": "^4.2",
         "genealabs/laravel-model-caching": "^0.13",
         "goldspecdigital/laravel-eloquent-uuid": "^10.0",
         "guzzlehttp/guzzle": "^7.6",
@@ -62,6 +63,7 @@
             "Kanvas\\Social\\": "src/Social",
             "Kanvas\\Guild\\": "src/Guild",
             "Kanvas\\ContentEngine\\": "src/ContentEngine",
+            "Kanvas\\Souk\\": "src/Souk",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }
