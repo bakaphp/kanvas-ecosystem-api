@@ -14,7 +14,7 @@ class CartManagementMutation
         $items = $request['items'];
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        $cart = Cart::session($user->getId());
+        $cart = app('cart')->session($user->getId());
 
         //@todo send warehouse via header
 
@@ -37,7 +37,7 @@ class CartManagementMutation
     public function update(mixed $root, array $request): array
     {
         $user = auth()->user();
-        $cart = Cart::session($user->getId());
+        $cart = app('cart')->session($user->getId());
 
         if (! $cart->has($request['variant_id'])) {
             return [];
@@ -54,7 +54,7 @@ class CartManagementMutation
     public function remove(mixed $root, array $request): array
     {
         $user = auth()->user();
-        $cart = Cart::session($user->getId());
+        $cart = app('cart')->session($user->getId());
 
         $cart->remove($request['variant_id']);
 
