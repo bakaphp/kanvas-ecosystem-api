@@ -12,6 +12,7 @@ class CartQuery
         $cart = app('cart')->session($user->getId());
 
         return [
+            'id' => 'default',
             'items' => $cart->getContent()->toArray(),
             'total' => $cart->getTotal(),
         ];
