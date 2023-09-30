@@ -27,6 +27,6 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             model: "Kanvas\\ContentEngine\\Reviews\\Models\\CompanyReviewType"
-            scopes: ["fromCompany"]
+            scopes: ["fromCompany", "notDeleted"]
         )
 }
