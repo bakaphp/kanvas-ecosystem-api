@@ -1,6 +1,4 @@
 type Cart {
-    id: ID!
-    name: String!
     items: [CartItem!]!
     total: Float!
 }
@@ -35,5 +33,5 @@ extend type Mutation @guard {
 }
 
 extend type Query {
-    cart: Cart @field(resolver: "App\\GraphQL\\Souk\\Queries\\Cart\\Cart@index")
+    cart: Cart @field(resolver: "App\\GraphQL\\Souk\\Queries\\Cart\\CartQuery@index")
 }
