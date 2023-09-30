@@ -29,6 +29,7 @@
         "mll-lab/laravel-graphiql": "^3.1.0",
         "nuwave/lighthouse": "^6.0",
         "phpclassic/php-shopify": "^1.2",
+        "powersync/authorizenet-sdk-php": "^2.0",
         "sentry/sentry-laravel": "^3.2",
         "shopify/shopify-api": "^4.1",
         "silber/bouncer": "^1.0",

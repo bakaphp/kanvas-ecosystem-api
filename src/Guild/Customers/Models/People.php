@@ -99,4 +99,14 @@ class People extends BaseModel
             'lastName' => isset($name[1]) ? implode(' ', $name) : '',
         ];
     }
+
+    public function getFirstname(): string
+    {
+        return $this->getFirstAndLastName()['firstName'];
+    }
+
+    public function getLastname(): string
+    {
+        return $this->getFirstAndLastName()['lastName'];
+    }
 }

@@ -1,4 +1,5 @@
 type Cart {
+    id: ID!
     items: [CartItem!]!
     total: Float!
 }
