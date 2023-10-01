@@ -17,7 +17,8 @@ type Variant {
         )
     interactions(visitor: VisitorEntityInput!): Interactions
         @method(name: "getEntitySocialInteractions")
-    user_interactions: Mixed! @method(name: "getUserSocialInteractions") @guard
+    user_interactions: Mixed! 
+        @method(name: "getUserSocialInteractions") @guard
     product: Product
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
