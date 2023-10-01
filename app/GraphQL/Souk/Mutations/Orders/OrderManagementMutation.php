@@ -41,6 +41,7 @@ class OrderManagementMutation
                 $tresponse = $response->getTransactionResponse();
 
                 if ($tresponse != null && $tresponse->getMessages() != null) {
+                    
                     //bought the variant so flag it
                     $interaction = (new CreateInteraction(
                         new Interaction(
