@@ -53,7 +53,7 @@ class OrderManagementMutation
                     ))->execute();
 
                     foreach ($cart->getContent() as $item) {
-                        $userInteraction = (new CreateUserInteractionAction(
+                        (new CreateUserInteractionAction(
                             new UserInteraction(
                                 $user,
                                 $interaction,

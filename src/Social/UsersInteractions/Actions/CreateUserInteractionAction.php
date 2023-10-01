@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\UsersInteractions\Actions;
 
-use Baka\Support\Str;
-use Illuminate\Support\Facades\Redis;
 use Kanvas\Social\UsersInteractions\DataTransferObject\UserInteraction as UserInteractionDto;
 use Kanvas\Social\UsersInteractions\Models\UserInteraction;
 
@@ -18,9 +16,7 @@ class CreateUserInteractionAction
 
     public function execute(): UserInteraction
     {
-        $this->addToCache();
-
-        return UserInteraction::firstOrCreate([
+        $userInteraction = UserInteraction::firstOrCreate([
             'users_id' => $this->userInteractionData->user->getId(),
             'entity_id' => $this->userInteractionData->entity_id,
             'entity_namespace' => $this->userInteractionData->entity_namespace,
@@ -28,18 +24,19 @@ class CreateUserInteractionAction
         ], [
             'notes' => $this->userInteractionData->notes,
         ]);
+
+        $this->addToCache($userInteraction);
+
+        return $userInteraction;
     }
 
-    protected function addToCache(): void
+    protected function addToCache(UserInteraction $userInteraction): void
     {
-        $key = 'user_interactions:' . $this->userInteractionData->user->getId();
-        $hashKey = Str::simpleSlug($this->userInteractionData->entity_namespace) . '-' . $this->userInteractionData->entity_id;
-        $currentData = Redis::hGet($key, $hashKey) ?? [];
+        $currentData = $this->userInteractionData->user->get($userInteraction->getCacheKey()) ?? [];
         $currentData[$this->userInteractionData->interaction->name] = true;
 
-        Redis::hSet(
-            $key,
-            $hashKey,
+        $this->userInteractionData->user->set(
+            $userInteraction->getCacheKey(),
             $currentData
         );
     }

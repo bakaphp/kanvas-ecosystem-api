@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\UsersInteractions\Models;
 
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Models\BaseModel;
@@ -28,5 +29,10 @@ class UserInteraction extends BaseModel
     public function interactions(): BelongsTo
     {
         return $this->belongsTo(Interactions::class, 'interactions_id', 'id');
+    }
+
+    public function getCacheKey(): string
+    {
+        return Str::simpleSlug($this->entity_namespace) . '-' . $this->entity_id;
     }
 }
