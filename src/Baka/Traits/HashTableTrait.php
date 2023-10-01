@@ -7,6 +7,9 @@ namespace Baka\Traits;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Exceptions\ConfigurationException;
 
+/**
+ * @todo implement redis hashtable for speed
+ */
 trait HashTableTrait
 {
     protected ?Model $settingsModel = null;

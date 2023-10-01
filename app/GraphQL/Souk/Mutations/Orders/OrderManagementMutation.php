@@ -41,7 +41,10 @@ class OrderManagementMutation
                 $tresponse = $response->getTransactionResponse();
 
                 if ($tresponse != null && $tresponse->getMessages() != null) {
-                    //bought the variant so flag it
+                    /**
+                     * for now use interaction to flag user bought a product
+                     * @todo clean this up
+                     */
                     $interaction = (new CreateInteraction(
                         new Interaction(
                             'bought',
@@ -52,7 +55,7 @@ class OrderManagementMutation
                     ))->execute();
 
                     foreach ($cart->getContent() as $item) {
-                        $userInteraction = (new CreateUserInteractionAction(
+                        (new CreateUserInteractionAction(
                             new UserInteraction(
                                 $user,
                                 $interaction,
