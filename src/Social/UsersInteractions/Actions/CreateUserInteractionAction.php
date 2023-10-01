@@ -20,7 +20,8 @@ class CreateUserInteractionAction
             'users_id' => $this->userInteractionData->user->getId(),
             'entity_id' => $this->userInteractionData->entity_id,
             'entity_namespace' => $this->userInteractionData->entity_namespace,
-            'interactions_id' => $this->userInteractionData->interaction->getId(),
+            'interactions_id' => $this->userInteractionData->interaction->getId()
+        ], [
             'notes' => $this->userInteractionData->notes,
         ]);
     }
