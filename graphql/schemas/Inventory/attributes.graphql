@@ -28,7 +28,7 @@ type ProductAttribute {
     value: Mixed
 }
 
-type VariantAttribute {
+type VariantsAttributes {
     name: String!
     value: Mixed
 }
