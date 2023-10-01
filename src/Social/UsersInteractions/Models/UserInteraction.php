@@ -31,6 +31,9 @@ class UserInteraction extends BaseModel
         return $this->belongsTo(Interactions::class, 'interactions_id', 'id');
     }
 
+    /**
+     * @override
+     */
     public function getCacheKey(): string
     {
         return Str::simpleSlug($this->entity_namespace) . '-' . $this->entity_id;

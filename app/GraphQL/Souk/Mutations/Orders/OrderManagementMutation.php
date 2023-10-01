@@ -42,7 +42,10 @@ class OrderManagementMutation
 
                 if ($tresponse != null && $tresponse->getMessages() != null) {
                     
-                    //bought the variant so flag it
+                    /**
+                     * for now use interaction to flag user bought a product
+                     * @todo clean this up
+                     */
                     $interaction = (new CreateInteraction(
                         new Interaction(
                             'bought',

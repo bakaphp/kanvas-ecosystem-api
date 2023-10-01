@@ -6,6 +6,7 @@ namespace Kanvas\Social\UsersInteractions\Actions;
 
 use Kanvas\Social\UsersInteractions\DataTransferObject\UserInteraction as UserInteractionDto;
 use Kanvas\Social\UsersInteractions\Models\UserInteraction;
+use Kanvas\Users\Enums\UserConfigEnum;
 
 class CreateUserInteractionAction
 {
@@ -32,11 +33,11 @@ class CreateUserInteractionAction
 
     protected function addToCache(UserInteraction $userInteraction): void
     {
-        $currentData = $this->userInteractionData->user->get($userInteraction->getCacheKey()) ?? [];
-        $currentData[$this->userInteractionData->interaction->name] = true;
+        $currentData = $this->userInteractionData->user->get(UserConfigEnum::USER_INTERACTIONS->value) ?? [];
+        $currentData[$userInteraction->getCacheKey()][$this->userInteractionData->interaction->name] = true;
 
         $this->userInteractionData->user->set(
-            $userInteraction->getCacheKey(),
+            UserConfigEnum::USER_INTERACTIONS->value,
             $currentData
         );
     }

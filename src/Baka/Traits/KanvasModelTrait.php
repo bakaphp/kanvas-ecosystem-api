@@ -6,6 +6,7 @@ namespace Baka\Traits;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Schema;
@@ -206,5 +207,10 @@ trait KanvasModelTrait
     {
         return Schema::connection($this->getConnectionName())
                 ->hasColumn($this->getTableName(), $name);
+    }
+
+    public function getCacheKey(): string
+    {
+        return Str::simpleSlug(static::class) . '-' . $this->getId();
     }
 }
