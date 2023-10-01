@@ -41,7 +41,6 @@ class OrderManagementMutation
                 $tresponse = $response->getTransactionResponse();
 
                 if ($tresponse != null && $tresponse->getMessages() != null) {
-                    
                     /**
                      * for now use interaction to flag user bought a product
                      * @todo clean this up
