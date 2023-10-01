@@ -19,7 +19,7 @@ type Product {
     updated_at: String
     categories: [Category] @BelongsToMany
     warehouses: [Warehouse] @BelongsToMany
-    attributes: [Attributes] @BelongsToMany
+    attributes: [ProductAttribute] @BelongsToMany
     variants: [Variant] @HasMany
     productsTypes: ProductType @belongsTo
     companies: Company @belongsTo
