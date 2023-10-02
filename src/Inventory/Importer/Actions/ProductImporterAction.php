@@ -291,13 +291,13 @@ class ProductImporterAction
                 }
             }
 
-          /*   if (! empty($variant['files'])) {
-                foreach ($variant['files'] as $file) {
-                    $variantModel->addFileFromUrl($file['url'], $file['name']);
-                }
-            }
+            /*   if (! empty($variant['files'])) {
+                  foreach ($variant['files'] as $file) {
+                      $variantModel->addFileFromUrl($file['url'], $file['name']);
+                  }
+              }
 
-            $this->variantsAttributes($variantModel, $variant); */
+              $this->variantsAttributes($variantModel, $variant); */
 
             $this->addVariantsToLocation($variantModel);
         }
