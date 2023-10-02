@@ -8,10 +8,10 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction as AddToWarehouse;
-use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
-use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
+use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
+use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 
 class VariantService
 {
@@ -40,7 +40,7 @@ class VariantService
                 $status = StatusRepository::getById((int) $variant['status']['id'], $variantDto->product->company()->get()->first());
                 $variantModel->setStatus($status);
             }
-            if (!empty($variantDto->files)) {
+            if (! empty($variantDto->files)) {
                 foreach ($variantDto->files as $file) {
                     $variantModel->addFileFromUrl($file['url'], $file['name']);
                 }
