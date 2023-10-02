@@ -115,6 +115,8 @@ class ProductImporterAction
 
             $this->productWarehouse();
 
+            $this->variants();
+
             if (! empty($this->importedProduct->productType)) {
                 $this->productType();
             }
@@ -289,13 +291,13 @@ class ProductImporterAction
                 }
             }
 
-            if (! empty($variant['files'])) {
+          /*   if (! empty($variant['files'])) {
                 foreach ($variant['files'] as $file) {
                     $variantModel->addFileFromUrl($file['url'], $file['name']);
                 }
             }
 
-            $this->variantsAttributes($variantModel, $variant);
+            $this->variantsAttributes($variantModel, $variant); */
 
             $this->addVariantsToLocation($variantModel);
         }
