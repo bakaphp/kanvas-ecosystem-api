@@ -6,7 +6,7 @@ input UserListInput {
 }
 
 type UserList @model(class: "\\Kanvas\\Social\\UsersLists\\Models\\UserList"){
-    id: Int!
+    id: ID!
     slug: String!
     name: String!
     description: String
