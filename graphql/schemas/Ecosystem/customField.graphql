@@ -22,17 +22,19 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@create"
         )
+    deleteCustomField(input: CustomFieldInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@delete"
+        )
+    #deprecated
     getCustomField(input: CustomFieldInput!): Mixed
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@get"
         )
+    #deprecated
     getAllCustomField(input: CustomFieldInput!): Mixed
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@getAll"
-        )
-    deleteCustomField(input: CustomFieldInput!): Boolean!
-        @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@delete"
         )
 }
 
@@ -51,7 +53,6 @@ extend type Query @guard {
         entity_id: String!
     ): Mixed
         @field(
-            resolver:
-              "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAll"
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAll"
         )
 }
