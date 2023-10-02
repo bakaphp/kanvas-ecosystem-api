@@ -26,12 +26,16 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@delete"
         )
-    #deprecated
+    """
+    deprecated
+    """
     getCustomField(input: CustomFieldInput!): Mixed
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@get"
         )
-    #deprecated
+    """
+    deprecated
+    """
     getAllCustomField(input: CustomFieldInput!): Mixed
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\CustomFields\\CustomFieldMutation@getAll"
