@@ -50,6 +50,6 @@ RUN cp docker/docker-php-ext-opcache-prod.ini /usr/local/etc/php/conf.d/docker-p
 RUN cp docker/php.ini /usr/local/etc/php/conf.d/zx-app-config.ini
 # RUN cp docker/php-fpm.conf /usr/local/etc/php-fpm.d/zzz-php-fpm-production.conf
 
-EXPOSE 8080
-
 WORKDIR /var/www/html/
+
+EXPOSE 8080
