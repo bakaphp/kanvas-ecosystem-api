@@ -11,12 +11,12 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('user_config', function (Blueprint $table) {
-            $table->string('name', 255)->change();
+            $table->string('name', 190)->change();
             $table->tinyInteger('is_public')->after('value')->default(1)->index('is_public');
         });
 
         Schema::table('companies_settings', function (Blueprint $table) {
-            $table->string('name', 255)->change();
+            $table->string('name', 190)->change();
         });
     }
 
