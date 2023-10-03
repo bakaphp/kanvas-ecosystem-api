@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Branches\Factories\CompaniesBranchesFactory;
+use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 
@@ -93,5 +94,10 @@ class CompaniesBranches extends BaseModel
         $branch->id = 0;
 
         return $branch;
+    }
+
+    public function getPhoto(): ?FilesystemEntities
+    {
+        return  $this->getFileByName('photo');
     }
 }

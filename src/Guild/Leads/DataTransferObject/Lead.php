@@ -38,6 +38,7 @@ class Lead extends Data
         public readonly ?string $reason_lost = null,
         public readonly Organization|null $organization = null,
         public readonly array $custom_fields = [],
+        public readonly array $files = [],
     ) {
     }
 
@@ -87,6 +88,7 @@ class Lead extends Data
                 ...$request['organization'],
             ]) : null,
             $request['custom_fields'] ?? [],
+            $request['files'] ?? []
         );
     }
 }

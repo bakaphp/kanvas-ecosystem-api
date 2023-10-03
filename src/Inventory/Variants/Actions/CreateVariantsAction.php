@@ -14,8 +14,6 @@ class CreateVariantsAction
 {
     /**
      * __construct.
-     *
-     * @return void
      */
     public function __construct(
         protected VariantsDto $variantDto,
@@ -25,8 +23,6 @@ class CreateVariantsAction
 
     /**
      * execute.
-     *
-     * @return Variants
      */
     public function execute(): Variants
     {
@@ -39,7 +35,7 @@ class CreateVariantsAction
             'products_id' => $this->variantDto->product->getId(),
             'slug' => $this->variantDto->slug ?? Str::slug($this->variantDto->name),
             'companies_id' => $this->variantDto->product->companies_id,
-            'apps_id' => $this->variantDto->product->apps_id
+            'apps_id' => $this->variantDto->product->apps_id,
         ];
 
         return Variants::updateOrCreate(
@@ -51,10 +47,10 @@ class CreateVariantsAction
                 'short_description' => $this->variantDto->short_description,
                 'html_description' => $this->variantDto->html_description,
                 'sku' => $this->variantDto->sku,
+                'status_id' => $this->variantDto->status_id,
                 'ean' => $this->variantDto->ean,
                 'barcode' => $this->variantDto->barcode,
                 'serial_number' => $this->variantDto->serial_number,
-                'is_published' => $this->variantDto->is_published
             ]
         );
     }

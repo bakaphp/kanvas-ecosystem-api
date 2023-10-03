@@ -36,6 +36,10 @@ class UpdateCompaniesAction
         CompaniesRepository::userAssociatedToCompany($companies, $this->user);
         $companies->updateOrFail($this->data->toArray());
 
+        if ($this->data->files) {
+            $companies->addMultipleFilesFromUrl($this->data->files);
+        }
+
         return $companies;
     }
 }

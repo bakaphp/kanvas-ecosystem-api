@@ -6,8 +6,11 @@ namespace App\GraphQL\Ecosystem\Mutations\Users;
 
 use Illuminate\Support\Facades\Auth as AuthFacade;
 use Illuminate\Support\Facades\Hash;
+use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Services\UserManagement as UserManagementService;
+use Kanvas\Notifications\Templates\ChangeEmailUserLogged;
 use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
 use Kanvas\Users\Actions\CreateInviteAction;
 use Kanvas\Users\Actions\ProcessInviteAction;
@@ -39,7 +42,7 @@ class UserManagementMutation
     {
         $user = auth()->user();
         $userId = $user->isAppOwner() && (int) $request['id'] > 0 ? $request['id'] : $user->getId();
-        $userToEdit = UsersRepository::getUserOfCompanyById($user->getCurrentCompany(), $userId);
+        $userToEdit = UsersRepository::getUserOfCompanyById($user->getCurrentCompany(), (int) $userId);
 
         $userManagement = new UserManagementService($userToEdit);
         $user = $userManagement->update($request['data']);
@@ -55,10 +58,11 @@ class UserManagementMutation
     public function insertInvite($rootValue, array $request): UsersInvite
     {
         $request = $request['input'];
+        $company = auth()->user()->getCurrentCompany();
         $invite = new CreateInviteAction(
             new InviteDto(
                 $request['companies_branches_id'] ?? auth()->user()->getCurrentBranch()->getId(),
-                $request['role_id'],
+                $request['role_id'] ?? RolesRepository::getByNameFromCompany(RolesEnums::USER->value, $company)->id,
                 $request['email'],
                 $request['firstname'] ?? null,
                 $request['lastname'] ?? null,
@@ -79,7 +83,7 @@ class UserManagementMutation
     public function deleteInvite($rootValue, array $request): bool
     {
         $invite = UsersInviteRepository::getById(
-            $request['id'],
+            (int) $request['id'],
             auth()->user()->getCurrentCompany()
         );
 
@@ -111,5 +115,28 @@ class UserManagementMutation
         );
 
         return $action->execute();
+    }
+
+    public function updateUserEmail(mixed $rootValue, array $request): bool
+    {
+        $user = auth()->user();
+        UsersRepository::belongsToThisApp($user, app(Apps::class));
+
+        //sent email notification
+        $updateEmail = $user->updateEmail($request['email']);
+        $updateEmailNotification = new ChangeEmailUserLogged($user);
+        $updateEmailNotification->setFromUser($user);
+
+        $user->notify($updateEmailNotification);
+
+        return $updateEmail;
+    }
+
+    public function updateUserDisplayName(mixed $rootValue, array $request): bool
+    {
+        $user = auth()->user();
+        UsersRepository::belongsToThisApp($user, app(Apps::class));
+
+        return $user->updateDisplayName($request['displayname'], app(Apps::class));
     }
 }

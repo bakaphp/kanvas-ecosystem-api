@@ -14,6 +14,7 @@ use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
+use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Users\Models\Users;
 use Laravel\Scout\Searchable;
 
@@ -50,6 +51,7 @@ class Lead extends BaseModel
     use UuidTrait;
     use Searchable;
     use NoAppRelationshipTrait;
+    use FollowersTrait;
 
     protected $table = 'leads';
     protected $guarded = [];
@@ -130,7 +132,7 @@ class Lead extends BaseModel
 
     public function close(): void
     {
-        $this->leads_status_id = 6; //change to a bete format
+        $this->leads_status_id = 6; //change by dynamic
         $this->saveOrFail();
     }
 }

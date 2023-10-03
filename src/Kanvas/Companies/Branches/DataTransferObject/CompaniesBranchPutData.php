@@ -27,6 +27,7 @@ class CompaniesBranchPutData extends Data
         public ?string $address = null,
         public ?string $phone = null,
         public ?int $zipcode = null,
+        public ?array $files = null
     ) {
     }
 
@@ -43,7 +44,8 @@ class CompaniesBranchPutData extends Data
             name: $request->get('name'),
             companies_id: (int) $request->get('companies_id'),
             is_default: (int) $request->get('is_default'),
-            email : $request->get('email')
+            email : $request->get('email'),
+            files : $request->get('files'),
         );
     }
 
@@ -63,6 +65,7 @@ class CompaniesBranchPutData extends Data
             email : $data['email'] ?? null,
             phone : $data['phone'] ?? null,
             zipcode : $data['zipcode'] ?? null,
+            files : $data['files'] ?? null,
         );
     }
 }

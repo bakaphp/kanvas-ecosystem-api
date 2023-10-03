@@ -37,7 +37,7 @@ extend type Query @guard {
     ): [Region]
         @paginate(
             builder: "App\\GraphQL\\Inventory\\Builders\\Regions\\Region@all"
-            defaultCount: 10
+            defaultCount: 25
         )
 }
 extend type Mutation @guard {

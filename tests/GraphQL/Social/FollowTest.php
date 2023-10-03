@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Social;
 
+use Kanvas\Apps\Enums\DefaultRoles;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
@@ -15,6 +18,15 @@ class FollowTest extends TestCase
     public function testFollowUser(): void
     {
         $user = Users::factory()->create();
+        $branch = auth()->user()->getCurrentBranch();
+        //add user to current company
+        (new AssignCompanyAction(
+            $user,
+            $branch,
+            DefaultRoles::ADMIN,
+            app(Apps::class)
+        ))->execute();
+
         $response = $this->graphQL(/** @lang GraphQL */
             '
             mutation userFollow(
@@ -38,6 +50,15 @@ class FollowTest extends TestCase
     public function testUnFollowUser(): void
     {
         $user = Users::factory()->create();
+        $branch = auth()->user()->getCurrentBranch();
+        //add user to current company
+        (new AssignCompanyAction(
+            $user,
+            $branch,
+            DefaultRoles::ADMIN,
+            app(Apps::class)
+        ))->execute();
+
         $response = $this->graphQL(/** @lang GraphQL */
             '
             mutation userFollow(
@@ -78,6 +99,15 @@ class FollowTest extends TestCase
     public function testIsFollowing(): void
     {
         $user = Users::factory()->create();
+        $branch = auth()->user()->getCurrentBranch();
+        //add user to current company
+        (new AssignCompanyAction(
+            $user,
+            $branch,
+            DefaultRoles::ADMIN,
+            app(Apps::class)
+        ))->execute();
+
         $response = $this->graphQL(/** @lang GraphQL */
             '
             mutation userFollow(
@@ -116,6 +146,15 @@ class FollowTest extends TestCase
     public function testGetFollowers(): void
     {
         $user = Users::factory()->create();
+        $branch = auth()->user()->getCurrentBranch();
+        //add user to current company
+        (new AssignCompanyAction(
+            $user,
+            $branch,
+            DefaultRoles::ADMIN,
+            app(Apps::class)
+        ))->execute();
+
         $response = $this->graphQL(/** @lang GraphQL */
             '
             mutation userFollow(
@@ -135,10 +174,10 @@ class FollowTest extends TestCase
         $response = $this->graphQL(
             /** @lang GraphQL */
             '
-            query getFollowers($users_id: Int!)
+            query getFollowers($user_id: Int!)
             {
                 getFollowers(
-                    users_id: $users_id
+                    user_id: $user_id
                 )
                 {
                     data {
@@ -148,7 +187,7 @@ class FollowTest extends TestCase
             }
             ',
             [
-                'users_id' => $user->id,
+                'user_id' => $user->id,
             ]
         )->assertJson(
             [
@@ -168,6 +207,15 @@ class FollowTest extends TestCase
     public function testGetTotalFollowers(): void
     {
         $user = Users::factory()->create();
+        $branch = auth()->user()->getCurrentBranch();
+        //add user to current company
+        (new AssignCompanyAction(
+            $user,
+            $branch,
+            DefaultRoles::ADMIN,
+            app(Apps::class)
+        ))->execute();
+
         $response = $this->graphQL(/** @lang GraphQL */
             '
             mutation userFollow(
@@ -187,15 +235,15 @@ class FollowTest extends TestCase
         $response = $this->graphQL(
             /** @lang GraphQL */
             '
-            query getTotalFollowers($users_id: Int!)
+            query getTotalFollowers($user_id: Int!)
             {
                 getTotalFollowers(
-                    users_id: $users_id
+                    user_id: $user_id
                 )
             }
             ',
             [
-                'users_id' => $user->id,
+                'user_id' => $user->id,
             ]
         )->assertJson(
             [
@@ -212,6 +260,15 @@ class FollowTest extends TestCase
     public function testGetFollowing(): void
     {
         $user = Users::factory()->create();
+        $branch = auth()->user()->getCurrentBranch();
+        //add user to current company
+        (new AssignCompanyAction(
+            $user,
+            $branch,
+            DefaultRoles::ADMIN,
+            app(Apps::class)
+        ))->execute();
+
         $response = $this->graphQL(/** @lang GraphQL */
             '
             mutation userFollow(
@@ -231,10 +288,10 @@ class FollowTest extends TestCase
         $this->graphQL(
             /** @lang GraphQL */
             '
-            query getFollowing($users_id: Int!)
+            query getFollowing($user_id: Int!)
             {
                 getFollowing(
-                    users_id: $users_id
+                    user_id: $user_id
                 )
                 {
                     data {
@@ -246,7 +303,7 @@ class FollowTest extends TestCase
             }
             ',
             [
-                'users_id' => auth()->user()->id,
+                'user_id' => auth()->user()->id,
             ]
         )->assertJson(
             [

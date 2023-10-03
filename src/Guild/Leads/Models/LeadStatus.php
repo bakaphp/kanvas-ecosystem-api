@@ -25,4 +25,12 @@ class LeadStatus extends BaseModel
 
     protected $table = 'leads_status';
     protected $guarded = [];
+
+    public static function getDefault(): self
+    {
+        /**
+         * @psalm-suppress MixedReturnStatement
+         */
+        return self::where('is_default', 1)->firstOrFail();
+    }
 }

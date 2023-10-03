@@ -29,14 +29,25 @@ class UserManagement
     {
         try {
             $customFields = null;
+            $files = null;
             if (Arr::exists($data, 'custom_fields')) {
                 $customFields = $data['custom_fields'];
                 unset($data['custom_fields']);
             }
+
+            if (Arr::exists($data, 'files')) {
+                $files = $data['files'];
+                unset($data['files']);
+            }
+
             $this->user->update(array_filter($data));
 
             if ($customFields) {
                 $this->user->setAll($customFields);
+            }
+
+            if ($files) {
+                $this->user->addMultipleFilesFromUrl($files);
             }
         } catch (InternalServerErrorException $e) {
             throw new InternalServerErrorException($e->getMessage());

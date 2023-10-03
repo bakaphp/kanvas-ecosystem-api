@@ -1,0 +1,42 @@
+type Agent {
+    id: ID!
+    name: String!
+    member_id: Int!
+    user: User! @belongsTo
+    owner: User! @belongsTo
+    company: Company! @belongsTo
+    total_leads: Int!
+    status: AgentStatus!
+    created_at: DateTime!
+}
+
+type AgentStatus {
+    id: ID!
+    name: AgentStatusEnum!
+}
+
+enum AgentStatusEnum {
+    ACTIVE @enum(value: 1)
+    INACTIVE @enum(value: 0)
+}
+
+extend type Query @guard {
+    agents(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "member_id"
+                    "owner_id"
+                    "status_id"
+                    "total_leads"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name", "member_id", "total_leads"])
+    ): [Agent!]!
+        @paginate(
+            model: "Kanvas\\Guild\\Agents\\Models\\Agent"
+            scopes: ["fromCompany"]
+            defaultCount: 25
+        )
+}

@@ -231,11 +231,15 @@ class ProductsTest extends TestCase
         $this->assertArrayHasKey('id', $response->json()['data']['products']['data'][0]);
 
         $id = $response->json()['data']['products']['data'][0]['id'];
+
+        $warehouseData = [
+            'id' => $warehouseResponse['data']['createWarehouse']['id'],
+        ];
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
             'products_id' => $id,
-            'warehouse_id' => $warehouseResponse['data']['createWarehouse']['id'],
+            'warehouse' => $warehouseData
         ];
         $variantResponse = $this->graphQL('
         mutation($data: VariantsInput!) {
@@ -335,11 +339,15 @@ class ProductsTest extends TestCase
         $this->assertArrayHasKey('id', $response->json()['data']['products']['data'][0]);
 
         $id = $response->json()['data']['products']['data'][0]['id'];
+
+        $warehouseData = [
+            'id' => $warehouseResponse['data']['createWarehouse']['id'],
+        ];
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
             'products_id' => $id,
-            'warehouse_id' => $warehouseResponse['data']['createWarehouse']['id'],
+            'warehouse' => $warehouseData
         ];
         $variantResponse = $this->graphQL('
         mutation($data: VariantsInput!) {

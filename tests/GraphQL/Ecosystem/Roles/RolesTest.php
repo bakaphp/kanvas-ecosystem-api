@@ -77,8 +77,10 @@ class RolesTest extends TestCase
             '
             {
                 roles{
-                    name,
-                    id
+                    data{
+                        name,
+                        id
+                    }
                 }
             }
             '
@@ -92,8 +94,10 @@ class RolesTest extends TestCase
     public function testUpdateRole(): void
     {
         $user = auth()->user();
+        $faker = \Faker\Factory::create();
+        $newName = $faker->name;
 
-        $this->graphQL( /** @lang GraphQL */
+        $create = $this->graphQL( /** @lang GraphQL */
             '
             mutation(
                 $name: String!
@@ -109,23 +113,13 @@ class RolesTest extends TestCase
                 }
             }',
             [
-                'name' => 'No Admin',
+                'name' => $newName,
                 'title' => 'No Admin',
             ]
         );
 
-        $response = $this->graphQL(/** @lang GraphQL */
-            '
-            {
-                roles{
-                    name,
-                    id
-                }
-            }
-            '
-        );
-        $id = $response->json('data.roles.*.id');
 
+        $id = $create->json('data.createRole.id');
         $faker = \Faker\Factory::create();
         $newName = $faker->name;
 
@@ -147,7 +141,7 @@ class RolesTest extends TestCase
                 }
             }',
             [
-                'id' => $id[0],
+                'id' => $id,
                 'name' => $newName,
                 'title' => 'Role Updated',
             ]
@@ -156,7 +150,7 @@ class RolesTest extends TestCase
                 'updateRole' => [
                     'name' => $newName,
                     'title' => 'Role Updated',
-                    'id' => $id[0],
+                    'id' => $id,
                 ],
             ],
         ]);

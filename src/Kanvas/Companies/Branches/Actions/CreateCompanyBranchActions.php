@@ -24,8 +24,6 @@ class CreateCompanyBranchActions
 
     /**
      * Invoke function.
-     *
-     * @return CompaniesBranches
      */
     public function execute(): CompaniesBranches
     {
@@ -51,6 +49,10 @@ class CreateCompanyBranchActions
         $companyBranch->zipcode = $this->data->zipcode;
 
         $company->branches()->save($companyBranch);
+
+        if ($this->data->files) {
+            $companyBranch->addMultipleFilesFromUrl($this->data->files);
+        }
 
         $company->associateUser($this->user, StateEnums::YES->getValue(), $companyBranch);
 

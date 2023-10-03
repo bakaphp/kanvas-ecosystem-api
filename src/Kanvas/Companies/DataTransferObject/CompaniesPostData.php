@@ -16,9 +16,7 @@ class CompaniesPostData extends Data
     /**
      * Construct function.
      *
-     * @param string $name
      * @param int|null $users_id
-     * @param array|null $files
      */
     public function __construct(
         public string $name,
@@ -32,6 +30,7 @@ class CompaniesPostData extends Data
         public ?string $language = null,
         public ?string $timezone = null,
         public ?string $country_code = null,
+        public ?array $files = null
     ) {
     }
 
@@ -39,8 +38,6 @@ class CompaniesPostData extends Data
      * Create new instance of DTO from request.
      *
      * @param Request $request Request Input data
-     *
-     * @return self
      */
     public static function viaRequest(Request $request): self
     {
@@ -54,8 +51,6 @@ class CompaniesPostData extends Data
      * Create new instance of DTO from Console Command.
      *
      * @param array $data Input data
-     *
-     * @return self
      */
     public static function fromConsole(array $data): self
     {
@@ -78,8 +73,6 @@ class CompaniesPostData extends Data
      * Create new instance of DTO from array of data.
      *
      * @param array $data Input data
-     *
-     * @return self
      */
     public static function fromArray(array $data): self
     {
@@ -95,6 +88,7 @@ class CompaniesPostData extends Data
             language : $data['language'] ?? null,
             timezone : $data['timezone'] ?? null,
             country_code : $data['country_code'] ?? null,
+            files: $data['files'] ?? null
         );
     }
 }

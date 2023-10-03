@@ -1,0 +1,25 @@
+type Order {
+    user: User!
+    cart: Cart!
+    paymentResponse: Mixed!
+}
+
+input CreditCard {
+    name: String!
+    number: String!
+    exp_month: Int!
+    exp_year: Int!
+    cvv: Int!
+}
+
+input OrderInput {
+    cartId: ID!
+    payment: CreditCard!
+}
+
+extend type Mutation @guard {
+    createOrder(input: OrderInput!): Mixed!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@create"
+        )
+}

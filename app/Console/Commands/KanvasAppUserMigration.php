@@ -36,7 +36,13 @@ class KanvasAppUserMigration extends Command
         $appUid = $this->argument('app_uuid');
         $app = Apps::getByUuid($appUid);
 
-        $users = UsersAssociatedApps::fromApp($app)->notDeleted()->orderBy('users_id', 'desc')->get();
+        $users = UsersAssociatedApps::fromApp($app)
+                ->notDeleted()
+                ->where('companies_id', '<>', 0)
+                ->groupBy('users_id', 'apps_id', 'companies_id')
+                ->orderBy('users_id', 'desc')
+                ->get();
+
         foreach ($users as $user) {
             try {
                 $userData = $user->user()->firstOrFail();

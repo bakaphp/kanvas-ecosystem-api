@@ -63,12 +63,32 @@ type gcsFilesystemConfig {
 
 input s3FilesystemConfigInput {
     name: ID!
-    value: s3FilesystemConfig!
+    value: FilesystemConfigInput!
+}
+input FilesystemConfigInput {
+    key: ID!
+    secret: String!
+    region: String!
+    bucket: String
+    url: String
 }
 
 input gcsFilesystemConfigInput {
     name: ID!
-    value: gcsFilesystemConfig!
+    value: FilesystemConfigInput!
+}
+
+input FilesystemConfigInput {
+    type: String!
+    project_id: ID!
+    private_key_id: ID!
+    private_key: ID!
+    client_email: String!
+    client_id: ID!
+    token_uri: String!
+    auth_uri: String!
+    auth_provider_x509_cert_url: String
+    client_x509_cert_url: String
 }
 
 input templateInput {
@@ -126,7 +146,7 @@ extend type Query @guardByAppKey {
     ): [User!]!
         @paginate(
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\AppUserManagementQuery@getAllAppUsers"
-            defaultCount: 10
+            defaultCount: 25
         )
 }
 

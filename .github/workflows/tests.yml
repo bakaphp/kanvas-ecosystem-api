@@ -86,7 +86,7 @@ jobs:
         ports:
           - 7700:7700
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -127,3 +127,10 @@ jobs:
       - name: Run Tests
         if: success()
         run: php artisan test
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@master
+        if: failure()
+        with:
+          name: Logs
+          path: ./storage/logs

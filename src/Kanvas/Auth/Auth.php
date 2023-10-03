@@ -18,7 +18,6 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Models\Users;
-use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Repositories\UsersRepository;
 use Lcobucci\JWT\Token;
 use stdClass;
@@ -27,33 +26,25 @@ class Auth
 {
     /**
      * User login.
-     *
-     * @param string $email
-     * @param string $password
-     * @param string $userIp
-     *
-     * @return Users
      */
     public static function login(
         LoginInput $loginInput
     ): UserInterface {
         $app = app(Apps::class);
 
-        if ($app->get(AppEnums::DISPLAYNAME_LOGIN->getValue())) {
-            $user = Users::notDeleted()
-                ->where('email', $loginInput->getEmail())
-                ->orWhere('displayname', $loginInput->getEmail())
-                ->first();
-        } else {
-            $user = Users::notDeleted()
-            ->where('email', $loginInput->getEmail())
-            ->first();
-        }
+        /**
+         * @todo use email per app
+         */
+        $user = Users::notDeleted()
+        ->where('email', $loginInput->getEmail())
+        ->when($app->get(AppEnums::DISPLAYNAME_LOGIN->getValue()), function ($query) use ($loginInput) {
+            return $query->orWhere('displayname', $loginInput->getEmail());
+        })
+        ->first();
 
         if (! $user) {
             throw new AuthenticationException('Invalid email or password.');
         }
-
 
         try {
             /**
@@ -87,8 +78,6 @@ class Auth
 
     /**
      * Check the user login attempt to the app.
-     *
-     * @param Users $user
      *
      * @throws Exception
      */

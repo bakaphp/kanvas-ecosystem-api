@@ -8,6 +8,7 @@ use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 /**
  * Class Variants Channels.
@@ -38,5 +39,20 @@ class VariantsChannels extends BaseModel
     public function channel(): BelongsTo
     {
         return $this->belongsTo(Channels::class, 'channels_id');
+    }
+
+    public function productVariantWarehouse(): BelongsTo
+    {
+        return $this->belongsTo(VariantsWarehouses::class, 'product_variants_warehouse_id');
+    }
+
+    public function variant(): BelongsTo
+    {
+        return $this->belongsTo(Variants::class, 'products_variants_id');
+    }
+
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouses::class, 'warehouses_id');
     }
 }

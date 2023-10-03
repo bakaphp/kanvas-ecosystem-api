@@ -17,6 +17,7 @@ use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
@@ -35,6 +36,7 @@ use Laravel\Scout\Searchable;
  * @property string short_description
  * @property string html_description
  * @property string sku
+ * @property int status_id
  * @property string ean
  * @property string barcode
  * @property string serial_number
@@ -48,6 +50,21 @@ class Variants extends BaseModel
     use SocialInteractionsTrait;
 
     protected $table = 'products_variants';
+    protected $fillable = [
+        'users_id',
+        'products_id',
+        'name',
+        'uuid',
+        'description',
+        'short_description',
+        'status_id',
+        'barcode',
+        'serial_number',
+        'slug',
+        'html_description',
+        'sku',
+        'ean',
+    ];
     protected $guarded = [];
     protected static ?string $overWriteSearchIndex = null;
 
@@ -56,9 +73,11 @@ class Variants extends BaseModel
       */
     public function searchableAs(): string
     {
-        return (! isset($this->companies_id) || $this->companies_id === null) && self::$overWriteSearchIndex !== null
+        $indexName = (! isset($this->companies_id) || $this->companies_id === null) && self::$overWriteSearchIndex !== null
             ? self::$overWriteSearchIndex
             : (string) AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue() . (string) $this->companies_id;
+
+        return config('scout.prefix') . $indexName;
     }
 
     /**
@@ -97,6 +116,11 @@ class Variants extends BaseModel
         return $this->hasMany(VariantsWarehouses::class, 'products_variants_id');
     }
 
+    public function status(): BelongsTo
+    {
+        return $this->belongsTo(Status::class, 'status_id');
+    }
+
     /**
      * warehouses.
      */
@@ -132,6 +156,10 @@ class Variants extends BaseModel
     public function addAttributes(UserInterface $user, array $attributes): void
     {
         foreach ($attributes as $attribute) {
+            if (empty($attribute['value'])) {
+                continue;
+            }
+
             $attributesDto = AttributesDto::from([
                 'app' => app(Apps::class),
                 'user' => $user,
@@ -143,5 +171,14 @@ class Variants extends BaseModel
             $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
             (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
         }
+    }
+
+    /**
+     * Set status for the current variant.
+     */
+    public function setStatus(Status $status): void
+    {
+        $this->status_id = $status->getId();
+        $this->saveOrFail();
     }
 }

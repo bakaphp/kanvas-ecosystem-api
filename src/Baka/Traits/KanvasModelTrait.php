@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Baka\Traits;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Schema;
@@ -53,12 +55,16 @@ trait KanvasModelTrait
         }
     }
 
-    public static function getById(mixed $id): self
+    public static function getById(mixed $id, ?AppInterface $apps = null): self
     {
         try {
-            return self::where('id', $id)
-                ->notDeleted()
-                ->firstOrFail();
+            $builder = self::where('id', $id);
+            if ($apps) {
+                $builder->where('apps_id', $apps->getId());
+            }
+
+            return $builder->notDeleted()
+            ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
             throw new ExceptionsModelNotFoundException($e->getMessage());
@@ -82,6 +88,32 @@ trait KanvasModelTrait
     {
         try {
             return self::where('id', $id)
+                ->notDeleted()
+                ->where('companies_branches_id', $branch->getId())
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
+    }
+
+    public static function getByUuidFromCompany(string $uuid, CompanyInterface $company): self
+    {
+        try {
+            return self::where('uuid', $uuid)
+                ->notDeleted()
+                ->fromCompany($company)
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
+    }
+
+    public static function getByUuidFromBranch(string $uuid, CompaniesBranches $branch): self
+    {
+        try {
+            return self::where('uuid', $uuid)
                 ->notDeleted()
                 ->where('companies_branches_id', $branch->getId())
                 ->firstOrFail();
@@ -175,5 +207,10 @@ trait KanvasModelTrait
     {
         return Schema::connection($this->getConnectionName())
                 ->hasColumn($this->getTableName(), $name);
+    }
+
+    public function getCacheKey(): string
+    {
+        return Str::simpleSlug(static::class) . '-' . $this->getId();
     }
 }

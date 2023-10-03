@@ -15,7 +15,7 @@ use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Inventory\Variants\Services\Variants as VariantsServices;
+use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 use Throwable;
 
@@ -52,7 +52,6 @@ class CreateProductAction
                 'apps_id' => $this->productDto->app->getId(),
                 'companies_id' => $this->productDto->company->getId(),
             ];
-
             $products = Products::updateOrCreate(
                 $search,
                 [
@@ -100,7 +99,7 @@ class CreateProductAction
             }
 
             if ($this->productDto->variants) {
-                VariantsServices::createVariantsFromArray($products, $this->productDto->variants, $this->user);
+                VariantService::createVariantsFromArray($products, $this->productDto->variants, $this->user);
             }
 
             DB::connection('inventory')->commit();

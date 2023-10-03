@@ -8,8 +8,13 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
 
-enum RolesEnums
+enum RolesEnums: string
 {
+    case ADMIN = 'Admins';
+    case USER = 'Users';
+    case AGENT = 'Agents';
+    case DEVELOPER = 'Developer';
+
     /**
      * Roles are scoped by app
      * in the future companies may create there own roles

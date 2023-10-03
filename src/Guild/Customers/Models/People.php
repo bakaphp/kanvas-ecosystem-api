@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Models;
 
+use Baka\Contracts\CompanyInterface;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Models\BaseModel;
 use Laravel\Scout\Searchable;
 
@@ -94,5 +98,15 @@ class People extends BaseModel
             'firstName' => trim($firstName),
             'lastName' => isset($name[1]) ? implode(' ', $name) : '',
         ];
+    }
+
+    public function getFirstname(): string
+    {
+        return $this->getFirstAndLastName()['firstName'];
+    }
+
+    public function getLastname(): string
+    {
+        return $this->getFirstAndLastName()['lastName'];
     }
 }

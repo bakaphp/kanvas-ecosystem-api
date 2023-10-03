@@ -11,6 +11,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "darryldecode/cart": "^4.2",
         "genealabs/laravel-model-caching": "^0.13",
         "goldspecdigital/laravel-eloquent-uuid": "^10.0",
         "guzzlehttp/guzzle": "^7.6",
@@ -23,11 +24,12 @@
         "laravel/tinker": "^2.7",
         "lcobucci/jwt": "^4.3",
         "league/flysystem-aws-s3-v3": "^3.12",
-        "meilisearch/meilisearch-php": "^1.1",
+        "meilisearch/meilisearch-php": "^1.4",
         "mll-lab/graphql-php-scalars": "^6.0",
         "mll-lab/laravel-graphiql": "^3.1.0",
         "nuwave/lighthouse": "^6.0",
         "phpclassic/php-shopify": "^1.2",
+        "powersync/authorizenet-sdk-php": "^2.0",
         "sentry/sentry-laravel": "^3.2",
         "shopify/shopify-api": "^4.1",
         "silber/bouncer": "^1.0",
@@ -62,6 +64,7 @@
             "Kanvas\\Social\\": "src/Social",
             "Kanvas\\Guild\\": "src/Guild",
             "Kanvas\\ContentEngine\\": "src/ContentEngine",
+            "Kanvas\\Souk\\": "src/Souk",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }

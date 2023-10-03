@@ -3,8 +3,9 @@ type User {
     uuid: String!
     firstname: String!
     lastname: String!
-    displayname: String!
+    displayname: String! @method(name: "getAppDisplayName")
     description: String
+    dob: String
     default_company: Int!
     default_company_branch: Int!
     email: Email!
@@ -21,9 +22,17 @@ type User {
     branches: [CompanyBranch!]! @HasManyThrough
     companies: [Company!]! @HasManyThrough
     apps: [App!]! @HasManyThrough
-    custom_fields: [CustomField!]!
+    photo: Filesystem @method(name: "getPhoto")
+    files: [Filesystem!]!
         @paginate(
-            defaultCount: 10
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    custom_fields(
+        orderBy: _ @orderBy(columns: ["updated_at", "created_at"])
+    ): [CustomField!]!
+        @paginate(
+            defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\HashFieldsQuery@getAllByGraphType"
         )
 }
@@ -120,6 +129,7 @@ input UpdateUserInput {
     country_id: Int
         @rules(apply: ["exists:Kanvas\\Locations\\Models\\Countries,id"])
     custom_fields: [CustomFieldEntityInput!]!
+    files: [FilesystemInputUrl]
 }
 
 extend type Mutation {
@@ -167,6 +177,16 @@ extend type Mutation {
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updateUser"
+        )
+    updateEmail(email: String!): Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updateUserEmail"
+        )
+    updateDisplayname(displayname: String!): Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updateUserDisplayName"
         )
     switchCompanyBranch(company_branch_id: Int!): Boolean!
         @guard

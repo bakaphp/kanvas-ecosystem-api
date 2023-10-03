@@ -44,32 +44,43 @@ trait HasFilesystemTrait
     {
         $companyId = $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
 
-        if ($companyId > 0) {
-            $company = Companies::getById($companyId);
-            $fileSystem = Filesystem::fromApp()->fromCompany($company)->where('url', $url)->first();
-        } else {
-            //@todo allow to share media between company only of it the apps specifies it
-            $fileSystem = Filesystem::fromApp()
-                            ->where('url', $url)
-                            //->andWhere('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
-                            ->first();
-        }
+        //@todo allow to share media between company only of it the apps specifies it
+        $fileSystem = Filesystem::fromApp()
+            ->when($companyId > 0, function ($query) use ($companyId) {
+                $company = Companies::getById($companyId);
 
-        if (! $fileSystem) {
-            $fileSystem = new Filesystem();
+                return $query->fromCompany($company);
+            })
+            ->where('url', $url)
+            ->firstOrNew();
+
+        if (! $fileSystem->exists) {
+            $fileInfo = pathinfo($url);
             $fileSystem->companies_id = $companyId;
             $fileSystem->apps_id = app(Apps::class)->getId();
             $fileSystem->users_id = $this->users_id ?? (auth()->check() ? auth()->user()->getKey() : 0);
-            $fileSystem->path = $url;
+            $fileSystem->path = $fileInfo['dirname'] . '/' . $fileInfo['basename'];
             $fileSystem->url = $url;
-            $fileSystem->name = $url;
-            $fileSystem->file_type = 'unknown';
+            $fileSystem->name = $fileInfo['basename'];
+            $fileSystem->file_type = $fileInfo['extension'] ?? 'unknown';
             $fileSystem->size = 0;
             $fileSystem->saveOrFail();
         }
 
         $attachFilesystem = new AttachFilesystemAction($fileSystem, $this);
-        $attachFilesystem->execute($fieldName);
+
+        return $attachFilesystem->execute($fieldName) instanceof FilesystemEntities;
+    }
+
+    public function addMultipleFilesFromUrl(array $files): bool
+    {
+        foreach ($files as $file) {
+            if (! isset($file['url']) || ! isset($file['name'])) {
+                throw new ValidationException('Missing url || name index');
+            }
+
+            $this->addFileFromUrl($file['url'], $file['name']);
+        }
 
         return true;
     }
@@ -104,6 +115,11 @@ trait HasFilesystemTrait
     {
         //move to use $this->files();
         return FilesystemEntitiesRepository::getFilesByEntity($this);
+    }
+
+    public function getFileByName(string $name): ?FilesystemEntities
+    {
+        return FilesystemEntitiesRepository::getFileFromEntityByName($this, $name);
     }
 
     /**

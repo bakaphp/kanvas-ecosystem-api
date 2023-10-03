@@ -28,15 +28,15 @@ use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes as ProductsTypesModel;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction as ActionsAddAttributeAction;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction;
-use Kanvas\Inventory\Variants\Actions\AddVariantToChannel;
+use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
 use Kanvas\Inventory\Variants\Models\Variants as VariantsModel;
+use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses;
-use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehouses;
 use Throwable;
 
 class ProductImporterAction
@@ -86,6 +86,7 @@ class ProductImporterAction
                     'html_description' => $this->importedProduct->htmlDescription,
                     'warranty_terms' => $this->importedProduct->warrantyTerms,
                     'upc' => $this->importedProduct->upc,
+                    'variants' => $this->importedProduct->variants,
                     'is_published' => $this->importedProduct->isPublished,
                 ]);
                 $this->product = (new CreateProductAction($productDto, $this->user))->execute();
@@ -280,21 +281,23 @@ class ProductImporterAction
                 $variantDto = VariantsDto::from([
                     'product' => $this->product,
                     'products_id' => $this->product->getId(),
+                    'warehouse_id' => (int) $variant['warehouse']['id'],
                     ...$variant,
                 ]);
+
                 $variantModel = (new CreateVariantsAction($variantDto, $this->user))->execute();
                 if (isset($variant['source_id']) && $this->importedProduct->isFromThirdParty()) {
                     $variantModel->setLinkedSource($this->importedProduct->source, $variant['source_id']);
                 }
             }
 
-            if (! empty($variant['files'])) {
-                foreach ($variant['files'] as $file) {
-                    $variantModel->addFileFromUrl($file['url'], $file['name']);
-                }
-            }
+            /*   if (! empty($variant['files'])) {
+                  foreach ($variant['files'] as $file) {
+                      $variantModel->addFileFromUrl($file['url'], $file['name']);
+                  }
+              }
 
-            $this->variantsAttributes($variantModel, $variant);
+              $this->variantsAttributes($variantModel, $variant); */
 
             $this->addVariantsToLocation($variantModel);
         }
@@ -382,8 +385,7 @@ class ProductImporterAction
             ->where('warehouses_id', $warehouse->getId())
             ->firstOrFail();
 
-
-            (new AddVariantToChannel(
+            (new AddVariantToChannelAction(
                 $variantWarehouses,
                 $channel,
                 $variantChannel

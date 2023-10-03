@@ -12,6 +12,7 @@ type Filesystem {
 input FilesystemInputUrl {
     url: String!
     name: String!
+    attributes: JSON
 }
 
 input FilesystemAttachInput {
@@ -34,7 +35,7 @@ extend type Query @guard {
     ): [Filesystem!]!
         @paginate(
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFilesFromSystemModuleEntity"
-            defaultCount: 10
+            defaultCount: 25
         )
 }
 

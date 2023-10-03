@@ -6,6 +6,7 @@ namespace Kanvas\Inventory\Products\Models;
 
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;

@@ -9,7 +9,7 @@ type People {
     address: [Address!]! @hasMany
     custom_fields: [CustomField!]!
         @paginate(
-            defaultCount: 10
+            defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
 }
@@ -60,18 +60,19 @@ extend type Query @guard {
                     "dob"
                 ]
             )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name", "dob"])
     ): [People!]!
         @paginate(
             model: "Kanvas\\Guild\\Customers\\Models\\People"
             scopes: ["fromCompany"]
-            defaultCount: 10
+            defaultCount: 25
         )
     peopleRelationships(
         where: _ @whereConditions(columns: ["name", "description", "id"])
     ): [PeopleRelationship!]!
         @paginate(
             model: "Kanvas\\Guild\\Customers\\Models\\PeopleRelationship"
-            defaultCount: 10
+            defaultCount: 25
             scopes: ["fromApp", "fromCompany"]
         )
 }

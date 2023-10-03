@@ -36,12 +36,12 @@ class AttachFilesystemAction
              * @var FilesystemEntities
              */
             $fileEntity = FilesystemEntities::firstOrCreate([
-                'filesystem_id' => $this->filesystem->getKey(),
-                'entity_id' => $this->entity->getKey(),
-                'system_modules_id' => $systemModule->getKey(),
-                'companies_id' => $this->filesystem->companies_id,
+               'entity_id' => $this->entity->getKey(),
+               'system_modules_id' => $systemModule->getKey(),
+               'filesystem_id' => $this->filesystem->getKey(),
+               //'companies_id' => $this->filesystem->companies_id,
             ], [
-                'field_name' => $fieldName,
+               'companies_id' => $this->filesystem->companies_id,
             ]);
         }
 

@@ -52,7 +52,7 @@ spec:
           image: {{.Values.apiImage}}
           imagePullPolicy: Always
           ports:
-            - containerPort: 9000
+            - containerPort: 8080
               protocol: TCP
           volumeMounts:
             - name: envconfigmap
