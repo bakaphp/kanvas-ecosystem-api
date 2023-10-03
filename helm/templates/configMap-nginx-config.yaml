@@ -1,8 +1,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: nginx-config
-  namespace: {{.Values.namespace}}
+    name: nginx-config
+    namespace: {{.Values.namespace}}
+    labels:
+        tier: backend
 data:
   nginx.conf: |
     user  nginx;
