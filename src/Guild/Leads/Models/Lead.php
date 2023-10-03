@@ -76,10 +76,10 @@ class Lead extends BaseModel
         );
     }
 
-    public function scopeFilterSettings(Builder $query, ?UserInterface $user): Builder
+    public function scopeFilterSettings(Builder $query, mixed $user = null): Builder
     {
         $app = app(Apps::class);
-        $user = $user ?? auth()->user();
+        $user = $user instanceof UserInterface ? $user : auth()->user();
 
         if ($app->get('FITTER_BY_USER')) {
             return $query->where('leads_owner_id', $user->getId());
