@@ -7,8 +7,11 @@ namespace Kanvas\Guild\Leads\Models;
 use Baka\Support\Str;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -71,6 +74,26 @@ class Lead extends BaseModel
             'id',
             'id'
         );
+    }
+
+    public function scopeFilterSettings(Builder $query, ?UserInterface $user): Builder
+    {
+        $app = app(Apps::class);
+        $user = $user ?? auth()->user();
+
+        if ($app->get('FITTER_BY_USER')) {
+            return $query->where('leads_owner_id', $user->getId());
+        }
+
+        if ($app->get('FILTER_BY_BRANCH')) {
+            return $query->where('companies_branches_id', $user->getCurrentBranch()->getId());
+        }
+
+        if ($app->get('FILTER_BY_AGENTS')) {
+            //@todo
+        }
+
+        return $query;
     }
 
     public function owner(): BelongsTo
