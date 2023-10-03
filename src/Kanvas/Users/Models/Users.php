@@ -183,12 +183,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         // return $this->hasMany(Companies::class, 'users_id');
         return $this->hasManyThrough(
             Companies::class,
-            UsersAssociatedCompanies::class,
+            UsersAssociatedApps::class,
             'users_id',
             'id',
             'id',
             'companies_id'
-        )->where('companies.is_deleted', StateEnums::NO->getValue())->distinct();
+        )->where('users_associated_apps.apps_id', app(Apps::class)->getId())
+        ->where('companies.is_deleted', StateEnums::NO->getValue())->distinct();
     }
 
     /**
@@ -350,6 +351,19 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function isFirstSignup(): bool
     {
         return empty($this->default_company);
+    }
+
+    /**
+     * override the default company name based on the current request
+     */
+    public function getDefaultCompanyAttribute(): int
+    {
+        return $this->currentCompanyId();
+    }
+
+    public function getDefaultCompanyBranchAttribute(): int
+    {
+        return $this->currentBranchId();
     }
 
     /**
