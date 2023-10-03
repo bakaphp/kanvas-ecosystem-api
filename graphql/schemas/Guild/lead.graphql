@@ -191,7 +191,7 @@ extend type Query @guard {
     ): [Lead!]!
         @paginate(
             model: "Kanvas\\Guild\\Leads\\Models\\Lead"
-            scopes: ["fromCompany", "notDeleted"]
+            scopes: ["fromCompany", "notDeleted", "filterSettings"]
             defaultCount: 25
         )
 

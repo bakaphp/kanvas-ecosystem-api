@@ -22,8 +22,7 @@ class OrderManagementMutation
         $creditCard = CreditCard::from($request['input']['payment']);
         $payment = new AuthorizeNetProvider(
             app(Apps::class),
-            $user->getCurrentBranch()
-        );
+            $user->getCurrentBranch() );
         $cart = app('cart')->session($user->getId());
 
         $order = new Order(
