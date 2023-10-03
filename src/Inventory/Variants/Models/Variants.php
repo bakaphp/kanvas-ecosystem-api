@@ -94,7 +94,7 @@ class Variants extends BaseModel
 
     public function isPublished(): bool
     {
-        return !((bool) $this->is_deleted);
+        return (int) $this->is_deleted === 0;
     }
 
     /**
