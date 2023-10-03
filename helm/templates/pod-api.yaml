@@ -44,7 +44,7 @@ spec:
               protocol: TCP
           volumeMounts:
             - name: nginx-config
-              mountPath: /etc/nginx/nginx.conf
+              mountPath: /etc/nginx/nginx2.conf
             - name: config
               mountPath: /etc/nginx/conf.d
             - name: webroot
