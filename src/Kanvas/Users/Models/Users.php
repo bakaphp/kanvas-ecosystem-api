@@ -34,7 +34,6 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Exceptions\ModelNotFoundException;
-use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Locations\Models\Cities;
@@ -345,7 +344,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         return empty($this->default_company);
     }
-   
+
     public function defaultCompany(): Attribute
     {
         return Attribute::make(
