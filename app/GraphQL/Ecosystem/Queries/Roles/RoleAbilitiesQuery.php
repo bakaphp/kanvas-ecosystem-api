@@ -11,7 +11,7 @@ class RoleAbilitiesQuery
     public function getAllAbilities(mixed $root, array $query): array
     {
         $abilities = UsersRepository::getUserOfCompanyById(
-            auth()->user()->defaultCompany,
+            auth()->user()->getCurrentCompany(),
             $query['userId']
         )->getAbilities();
 

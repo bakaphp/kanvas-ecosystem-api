@@ -182,7 +182,7 @@ trait HasCustomFields
     public function createCustomField(string $name): CustomFields
     {
         $appsId = app(Apps::class)->id;
-        $companiesId = Auth::user() !== null ? Auth::user()->defaultCompany()->first()->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
+        $companiesId = Auth::user() !== null ? Auth::user()->getCurrentCompany()->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
         $textField = 1;
         // $cacheKey = Slug::generate(get_class($this) . '-' . $appsId . '-' . $name);
         //$lifetime = 604800;
