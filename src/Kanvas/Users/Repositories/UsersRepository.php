@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Repositories;
 
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -56,7 +57,7 @@ class UsersRepository
      * Get the user if he exist in the current company.
      * @psalm-suppress MixedReturnStatement
      */
-    public static function getUserOfCompanyById(Companies $company, int $id): Users
+    public static function getUserOfCompanyById(CompanyInterface $company, int $id): Users
     {
         try {
             return Users::join('users_associated_company', 'users_associated_company.users_id', 'users.id')
@@ -99,7 +100,7 @@ class UsersRepository
      * @psalm-suppress MixedReturnStatement
      * @throws ExceptionsModelNotFoundException
      */
-    public static function belongsToCompany(Users $user, Companies $company): UsersAssociatedCompanies
+    public static function belongsToCompany(Users $user, CompanyInterface $company): UsersAssociatedCompanies
     {
         try {
             return UsersAssociatedCompanies::where('users_id', $user->getKey())
@@ -118,7 +119,7 @@ class UsersRepository
      * @psalm-suppress MixedReturnStatement
      * @throws ExceptionsModelNotFoundException
      */
-    public static function belongsToCompanyBranch(Users $user, Companies $company, CompaniesBranches $branch): UsersAssociatedCompanies
+    public static function belongsToCompanyBranch(Users $user, CompanyInterface $company, CompaniesBranches $branch): UsersAssociatedCompanies
     {
         try {
             return UsersAssociatedCompanies::where('users_id', $user->getKey())
@@ -138,7 +139,7 @@ class UsersRepository
      * @psalm-suppress MixedReturnStatement
      * @throws ExceptionsModelNotFoundException
      */
-    public static function belongsToThisApp(Users $user, Apps $app, ?Companies $company = null): UsersAssociatedApps
+    public static function belongsToThisApp(Users $user, Apps $app, ?CompanyInterface $company = null): UsersAssociatedApps
     {
         try {
             $query = UsersAssociatedApps::where('users_id', $user->getKey())

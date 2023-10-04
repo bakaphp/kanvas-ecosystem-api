@@ -10,6 +10,7 @@ use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\KanvasModelTrait;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFoundException;
@@ -33,7 +34,6 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Exceptions\ModelNotFoundException;
-use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Locations\Models\Cities;
@@ -148,14 +148,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
-     * Default Company relationship.
-     */
-    public function defaultCompany(): HasOne
-    {
-        return $this->hasOne(Companies::class, 'id', 'default_company');
-    }
-
-    /**
      * Apps relationship.
      * use distinct() to avoid duplicate apps.
      * @psalm-suppress MixedReturnStatement
@@ -183,12 +175,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         // return $this->hasMany(Companies::class, 'users_id');
         return $this->hasManyThrough(
             Companies::class,
-            UsersAssociatedCompanies::class,
+            UsersAssociatedApps::class,
             'users_id',
             'id',
             'id',
             'companies_id'
-        )->where('companies.is_deleted', StateEnums::NO->getValue())->distinct();
+        )->where('users_associated_apps.apps_id', app(Apps::class)->getId())
+        ->where('companies.is_deleted', StateEnums::NO->getValue())->distinct();
     }
 
     /**
@@ -352,6 +345,20 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return empty($this->default_company);
     }
 
+    public function defaultCompany(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->currentCompanyId(),
+        );
+    }
+
+    public function defaultCompanyBranch(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->currentBranchId(),
+        );
+    }
+
     /**
      * What the current company the users is logged in with
      * in this current session?
@@ -366,7 +373,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             $currentCompanyId = app(CompaniesBranches::class)->company()->first()->getId();
         }
 
-        return $currentCompanyId ? (int) $currentCompanyId : $this->default_company;
+        return $currentCompanyId ? (int) $currentCompanyId : ($this->default_company ?? 0);
     }
 
     /**

@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
@@ -81,15 +82,15 @@ class Lead extends BaseModel
         $app = app(Apps::class);
         $user = $user instanceof UserInterface ? $user : auth()->user();
 
-        if ($app->get('FITTER_BY_USER')) {
-            return $query->where('leads_owner_id', $user->getId());
+        if ($app->get(LeadFilterEnum::FITTER_BY_USER->value)) {
+            return $query->where('users_id', $user->getId());
         }
 
-        if ($app->get('FILTER_BY_BRANCH')) {
+        if ($app->get(LeadFilterEnum::FILTER_BY_BRANCH->value)) {
             return $query->where('companies_branches_id', $user->getCurrentBranch()->getId());
         }
 
-        if ($app->get('FILTER_BY_AGENTS')) {
+        if ($app->get(LeadFilterEnum::FILTER_BY_AGENTS->value)) {
             //@todo
         }
 
