@@ -63,8 +63,6 @@ class Warehouses extends BaseModel
 
     /**
      * quantityAttribute.
-     *
-     * @return void
      */
     public function quantity(): Attribute
     {
