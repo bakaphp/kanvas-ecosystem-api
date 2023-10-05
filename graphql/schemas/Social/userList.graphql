@@ -23,24 +23,24 @@ extend type Mutation @guard {
     @field (
         resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@create"
     )
-    updateUserList(id: Int!, input: UserListInput!): UserList 
+    updateUserList(id: ID!, input: UserListInput!): UserList 
     @field (
         resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@update"
     )
-    deleteUserList(id: Int!): Boolean 
+    deleteUserList(id: ID!): Boolean 
     @field (
         resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@delete"
     )
     addToUserList(
-        users_lists_id: Int!,
-        messages_id: Int!
+        users_lists_id: ID!,
+        messages_id: ID!
     ): Boolean 
     @field (
         resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@addToList"
     )
     removeFromUserList(
-        users_lists_id: Int!,
-        messages_id: Int!
+        users_lists_id: ID!,
+        messages_id: ID!
     ): Boolean
     @field (
         resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@removeFromList"

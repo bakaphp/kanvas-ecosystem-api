@@ -32,7 +32,7 @@ class UsersListsManagement
 
     public function update(mixed $rootValue, array $req): ModelUserList
     {
-        $userList = UserListRepository::getById($req['id'], auth()->user());
+        $userList = UserListRepository::getById((int)$req['id'], auth()->user());
 
         $userList->update($req['input']);
 
@@ -44,15 +44,15 @@ class UsersListsManagement
      */
     public function delete(mixed $rootValue, array $req): bool
     {
-        $userList = UserListRepository::getById($req['id'], auth()->user());
+        $userList = UserListRepository::getById((int)$req['id'], auth()->user());
 
         return $userList->delete();
     }
 
     public function addToList(mixed $rootValue, array $req): bool
     {
-        $userList = UserListRepository::getById($req['users_lists_id'], auth()->user());
-        $message = Message::getById($req['messages_id']);
+        $userList = UserListRepository::getById((int)$req['users_lists_id'], auth()->user());
+        $message = Message::getById((int)$req['messages_id']);
         $userList->items()->attach($message);
 
         return true;
@@ -60,8 +60,8 @@ class UsersListsManagement
 
     public function removeFromList(mixed $rootValue, array $req): bool
     {
-        $userList = UserListRepository::getById($req['users_lists_id'], auth()->user());
-        $message = Message::getById($req['messages_id']);
+        $userList = UserListRepository::getById((int)$req['users_lists_id'], auth()->user());
+        $message = Message::getById((int)$req['messages_id']);
 
         $userList->items()->detach($message);
 
