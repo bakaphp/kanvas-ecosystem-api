@@ -40,7 +40,6 @@ use Laravel\Scout\Searchable;
  * @property string ean
  * @property string barcode
  * @property string serial_number
- * @property bool is_published
  */
 class Variants extends BaseModel
 {
@@ -95,7 +94,7 @@ class Variants extends BaseModel
 
     public function isPublished(): bool
     {
-        return (bool) $this->is_published;
+        return (int) $this->is_deleted === 0;
     }
 
     /**
@@ -150,8 +149,6 @@ class Variants extends BaseModel
 
     /**
      * Add/create new attributes from a variant.
-     *
-     * @param ModelVariants $variants
      */
     public function addAttributes(UserInterface $user, array $attributes): void
     {

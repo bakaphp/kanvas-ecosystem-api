@@ -20,8 +20,6 @@ class TokenResponse
 
     /**
      * Given a token format it to the standard response.
-     *
-     * @param UserInterface $user
      */
     public static function format(Users $user, array $token): array
     {

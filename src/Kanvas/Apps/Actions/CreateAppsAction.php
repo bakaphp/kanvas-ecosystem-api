@@ -29,8 +29,6 @@ class CreateAppsAction
     /**
      * Invoke function.
      *
-     * @return Apps
-     *
      * @throws Throwable
      */
     public function execute(): Apps
@@ -119,10 +117,6 @@ class CreateAppsAction
 
     /**
      * Create the system modules.
-     *
-     * @param Apps $app
-     *
-     * @return void
      */
     public function systemModules(Apps $app): void
     {
@@ -145,6 +139,7 @@ class CreateAppsAction
     {
         $roles = [
             'Admins',
+            //DefaultRoles::ADMIN->getValue(), replace from admins when migration is complete
             DefaultRoles::USER->getValue(),
             DefaultRoles::MANAGER->getValue(),
             DefaultRoles::DEVELOPER->getValue(),

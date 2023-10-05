@@ -6,7 +6,7 @@ namespace App\GraphQL\Inventory\Mutations\Products;
 
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob as ImporterJob;
@@ -21,15 +21,14 @@ class ImportMutation
      */
     public function product(mixed $root, array $req): string
     {
-        $branch = CompaniesBranches::getById($req['branchId']);
-        $company = $branch->company()->firstOrFail();
+        $company = Companies::getById($req['companyId']);
 
         CompaniesRepository::userAssociatedToCompany(
             $company,
             auth()->user()
         );
 
-        $region = RegionRepository::getById($req['regionId'], $company);
+        $region = ! isset($req['regionId']) ? RegionRepository::getDefault($company) : RegionRepository::getById($req['regionId'], $company);
 
         //verify it has the correct format
         ProductImporter::from($req['input'][0]);
@@ -39,7 +38,7 @@ class ImportMutation
         ImporterJob::dispatch(
             $jobUuid,
             $req['input'],
-            $branch,
+            $company->branch,
             auth()->user(),
             $region,
             app(Apps::class)

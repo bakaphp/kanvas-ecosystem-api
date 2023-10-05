@@ -1,0 +1,32 @@
+type CompanyReviewType {
+    id: ID!
+    user: User! @belongsTo
+    type: ReviewType! @belongsTo
+    branch: branch! @belongsTo
+    link: String!
+    config: Mixed
+}
+
+type ReviewType {
+    id: ID!
+    user: User! @belongsTo
+    name: String!
+}
+
+extend type Query @guard {
+    companyReviewTypes(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "review_types_id"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
+    ): [CompanyReviewType!]!
+        @paginate(
+            defaultCount: 25
+            model: "Kanvas\\ContentEngine\\Reviews\\Models\\CompanyReviewType"
+            scopes: ["fromCompany", "notDeleted"]
+        )
+}

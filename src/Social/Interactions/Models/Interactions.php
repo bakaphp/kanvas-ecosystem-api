@@ -11,7 +11,7 @@ use Kanvas\Social\Models\BaseModel;
  *
  * @property int $id
  * @property int $apps_id
- * @property string $ame
+ * @property string $name
  * @property string $title
  * @property string $icon
  * @property string $description

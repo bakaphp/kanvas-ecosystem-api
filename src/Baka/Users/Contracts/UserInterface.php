@@ -28,8 +28,6 @@ interface UserInterface extends Authenticatable
 
     public function getEmail(): string;
 
-    public function defaultCompany(): HasOne;
-
     public function apps(): HasManyThrough;
 
     public function companies(): HasManyThrough;

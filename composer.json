@@ -11,6 +11,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "darryldecode/cart": "^4.2",
         "genealabs/laravel-model-caching": "^0.13",
         "goldspecdigital/laravel-eloquent-uuid": "^10.0",
         "guzzlehttp/guzzle": "^7.6",
@@ -28,6 +29,7 @@
         "mll-lab/laravel-graphiql": "^3.1.0",
         "nuwave/lighthouse": "^6.0",
         "phpclassic/php-shopify": "^1.2",
+        "powersync/authorizenet-sdk-php": "^2.0",
         "sentry/sentry-laravel": "^3.2",
         "shopify/shopify-api": "^4.1",
         "silber/bouncer": "^1.0",
@@ -61,6 +63,8 @@
             "Kanvas\\Inventory\\": "src/Inventory",
             "Kanvas\\Social\\": "src/Social",
             "Kanvas\\Guild\\": "src/Guild",
+            "Kanvas\\ContentEngine\\": "src/ContentEngine",
+            "Kanvas\\Souk\\": "src/Souk",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }

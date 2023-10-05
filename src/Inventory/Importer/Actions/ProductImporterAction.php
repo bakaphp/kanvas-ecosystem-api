@@ -86,6 +86,7 @@ class ProductImporterAction
                     'html_description' => $this->importedProduct->htmlDescription,
                     'warranty_terms' => $this->importedProduct->warrantyTerms,
                     'upc' => $this->importedProduct->upc,
+                    'variants' => $this->importedProduct->variants,
                     'is_published' => $this->importedProduct->isPublished,
                 ]);
                 $this->product = (new CreateProductAction($productDto, $this->user))->execute();
@@ -283,19 +284,20 @@ class ProductImporterAction
                     'warehouse_id' => (int) $variant['warehouse']['id'],
                     ...$variant,
                 ]);
+
                 $variantModel = (new CreateVariantsAction($variantDto, $this->user))->execute();
                 if (isset($variant['source_id']) && $this->importedProduct->isFromThirdParty()) {
                     $variantModel->setLinkedSource($this->importedProduct->source, $variant['source_id']);
                 }
             }
 
-            if (! empty($variant['files'])) {
-                foreach ($variant['files'] as $file) {
-                    $variantModel->addFileFromUrl($file['url'], $file['name']);
-                }
-            }
+            /*   if (! empty($variant['files'])) {
+                  foreach ($variant['files'] as $file) {
+                      $variantModel->addFileFromUrl($file['url'], $file['name']);
+                  }
+              }
 
-            $this->variantsAttributes($variantModel, $variant);
+              $this->variantsAttributes($variantModel, $variant); */
 
             $this->addVariantsToLocation($variantModel);
         }

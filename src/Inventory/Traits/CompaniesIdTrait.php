@@ -12,7 +12,7 @@ trait CompaniesIdTrait
     public static function bootCompaniesIdTrait()
     {
         static::creating(function ($model) {
-            $model->companies_id = $model->companies_id ?? auth()->user()->default_company;
+            $model->companies_id = $model->companies_id ?? auth()->user()->getCurrentCompany()->getId();
         });
     }
 }

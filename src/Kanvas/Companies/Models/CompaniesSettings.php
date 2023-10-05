@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Models;
 
+use Baka\Casts\Json;
+use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
 
@@ -13,20 +15,21 @@ use Kanvas\Models\BaseModel;
  * @property int $companies_id
  * @property string $name
  * @property string $value
- *
  */
 class CompaniesSettings extends BaseModel
 {
+    use HasCompositePrimaryKeyTrait;
+
     protected $table = 'companies_settings';
 
+    protected $primaryKey = ['companies_id', 'name'];
+
     protected $casts = [
-        'value' => 'array',
+        'value' => Json::class,
     ];
 
     /**
      * Companies relationship.
-     *
-     * @return BelongsTo
      */
     public function companies(): BelongsTo
     {

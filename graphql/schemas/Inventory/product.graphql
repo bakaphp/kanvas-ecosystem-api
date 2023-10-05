@@ -17,12 +17,12 @@ type Product {
     is_published: Boolean
     created_at: String
     updated_at: String
-    categories: [Category]
-    warehouses: [Warehouse]
-    attributes: [Attributes]
-    variants: [Variant]
-    productsTypes: ProductType
-    companies: Company
+    categories: [Category] @BelongsToMany
+    warehouses: [Warehouse] @BelongsToMany
+    attributes: [ProductAttribute] @BelongsToMany
+    variants: [Variant] @HasMany
+    productsTypes: ProductType @belongsTo
+    companies: Company @belongsTo
 }
 
 input ProductInput {
@@ -93,6 +93,7 @@ extend type Mutation @guard {
 
 extend type Query @guard {
     products(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [
@@ -105,6 +106,10 @@ extend type Query @guard {
                     "is_published"
                 ]
             )
+        hasCategories: _ @whereHasConditions(relation: "categories", columns: ["id", "name"])
+        hasWarehouses: _ @whereHasConditions(relation: "warehouses", columns: ["id", "name", "uuid"])
+        hasAttributes: _ @whereHasConditions(relation: "attributes", columns: ["id", "name", "uuid"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [Product]
         @paginate(
             model: "Kanvas\\Inventory\\Products\\Models\\Products"

@@ -36,7 +36,7 @@ class UsersInvite extends BaseModel
      */
     public function scopeCompany(Builder $query): Builder
     {
-        return $query->where('companies_id', auth()->user()->defaultCompany->id);
+        return $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
     }
 
     /**
