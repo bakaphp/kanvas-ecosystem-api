@@ -1,0 +1,46 @@
+type SocialChannel {
+    id: ID!
+    name: String!
+    slug: String
+    description: String!
+    entity_namespace: String!
+    entity_id: ID!
+    last_message_id: ID!
+    messages: [Messages]
+    users: [Users]
+}
+
+input SocialChannelInput {
+    name: String!
+    slug: String
+    description: String!
+    entity_namespace: String!
+    entity_id: ID!
+}
+
+extends type Query {
+    getSocialChannels(
+        where: _@whereConditions(
+            [
+                "id",
+                "name",
+                "slug",
+                "description",
+                "entity_namespace",
+                "entity_id",
+            ]
+        )
+    ): [SocialChannel] @paginate(
+        model: "Kanvas\\Social\\Channels\\Models\\SocialChannel"
+        defaultCount: 25
+        scopes: ["fromApp"]
+    )
+}
+
+extends type Mutation {
+    createChannel(input: SocialChannelInput!): SocialChannel 
+    updateChannel(id: ID!, input: SocialChannelInput!): SocialChannel
+    deleteChannel(id: ID! @whereKey): Boolean @delete(
+        model: "Kanvas\\Social\\Channels\\Models\\SocialChannel"
+    )
+}
