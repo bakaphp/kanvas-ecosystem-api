@@ -42,16 +42,6 @@ class UserList extends BaseModel
         'files',
     ];
 
-    public function app(): BelongsTo
-    {
-        return $this->setConnection('ecosystem')->belongsTo(Apps::class, 'apps_id');
-    }
-
-    public function company(): BelongsTo
-    {
-        return $this->setConnection('ecosystem')->belongsTo(Companies::class, 'companies_id');
-    }
-
     public function items(): BelongsToMany
     {
         return $this->belongsToMany(Message::class, 'users_lists_messages', 'users_lists_id', 'messages_id');
