@@ -45,30 +45,6 @@ class Templates extends BaseModel
      */
     protected $guarded = [];
 
-    /**
-     * Users relationship.
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(Users::class, 'users_id');
-    }
-
-    /**
-     * Users relationship.
-     */
-    public function company(): BelongsTo
-    {
-        return $this->belongsTo(Companies::class, 'companies_id');
-    }
-
-    /**
-     * Users relationship.
-     */
-    public function app(): BelongsTo
-    {
-        return $this->belongsTo(Apps::class, 'apps_id');
-    }
-
     public function addParentTemplate(Templates $template): void
     {
         $this->parent_template_id = $template->id;
