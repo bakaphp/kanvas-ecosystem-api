@@ -6,6 +6,7 @@ namespace Kanvas\Templates\Repositories;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Templates\Models\Templates;
 
@@ -21,7 +22,7 @@ class TemplatesRepository
         try {
             return Templates::notDeleted()
                                 // ->where('companies_id',$companyId)
-                                ->fromApp($app)
+                                ->whereIn('apps_id', [AppEnums::LEGACY_APP_ID->getValue(), $app->getId()])
                                 ->where('name', $name)
                                 ->orderBy('id', 'desc')
                                 ->firstOrFail();
