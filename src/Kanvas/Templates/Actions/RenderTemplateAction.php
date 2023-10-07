@@ -17,7 +17,7 @@ class RenderTemplateAction
     public function __construct(
         protected ?AppInterface $app = null
     ) {
-        $this->app = $app === null ? app(Apps::class) : $app;
+        $this->app = $app ?? app(Apps::class);
     }
 
     /**
