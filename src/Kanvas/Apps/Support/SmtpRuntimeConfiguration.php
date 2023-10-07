@@ -12,12 +12,13 @@ class SmtpRuntimeConfiguration
 {
     protected string $appSmtp = 'appSmtp';
     protected string $companySmtp = 'companySmtp';
-    protected string $defaultSmtp = 'smtp';
+    protected string $defaultSmtp;
 
     public function __construct(
         protected AppInterface $app,
         protected ?CompanyInterface $company = null
     ) {
+        $this->defaultSmtp = config('mail.default');
     }
 
     /**
