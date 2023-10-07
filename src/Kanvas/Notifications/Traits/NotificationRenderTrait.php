@@ -36,7 +36,7 @@ trait NotificationRenderTrait
             throw new Exception('This notification type does not have an email template');
         }
 
-        $renderTemplate = new RenderTemplateAction($this->app);
+        $renderTemplate = new RenderTemplateAction($this->app, $this->company);
 
         return $renderTemplate->execute(
             $this->getTemplateName(),
