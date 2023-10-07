@@ -20,7 +20,7 @@ class SmtpRuntimeConfiguration
     ) {
     }
 
-   /**
+    /**
      * Load SMTP settings from the given source.
      */
     protected function loadSmtpSettingsFromSource(string $provider, HashTableInterface $source): void
