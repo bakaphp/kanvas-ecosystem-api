@@ -30,7 +30,7 @@ class SmtpRuntimeConfiguration
             "mail.mailers.{$provider}.port" => $source->get('smtp_port'),
             "mail.mailers.{$provider}.username" => $source->get('smtp_username'),
             "mail.mailers.{$provider}.password" => $source->get('smtp_password'),
-            "mail.mailers.{$provider}.encryption" => $source->get('smtp_encryption'),
+            "mail.mailers.{$provider}.encryption" => $source->get('smtp_encryption') ?? 'tls',
             'mail.mailers.from.address' => $source->get('from_email_address'),
             'mail.mailers.from.name' => $source->get('from_email_name'),
         ]);

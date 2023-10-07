@@ -83,8 +83,6 @@ trait HashTableTrait
 
     /**
      * Get all the setting of a given record.
-     *
-     * @param bool $all
      */
     public function getAllSettings(bool $onlyPublicSettings = false): array
     {
