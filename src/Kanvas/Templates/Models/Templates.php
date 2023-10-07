@@ -7,10 +7,8 @@ namespace Kanvas\Templates\Models;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Models\BaseModel;
-use Kanvas\Users\Models\Users;
 
 /**
  * Apps Model.
