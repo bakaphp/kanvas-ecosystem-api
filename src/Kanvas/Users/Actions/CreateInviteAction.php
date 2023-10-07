@@ -73,6 +73,7 @@ class CreateInviteAction
             'fromUser' => $this->user,
             'subject' => 'You have been invited to join ' . $company->name,
             'template' => $this->inviteDto->email_template,
+            'company' => $company,
         ]);
 
         Notification::route('mail', $this->inviteDto->email)

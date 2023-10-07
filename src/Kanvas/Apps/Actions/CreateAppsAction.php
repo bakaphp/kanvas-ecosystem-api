@@ -107,6 +107,9 @@ class CreateAppsAction
             ], [
                 'name' => 'default_feeds_comments',
                 'value' => '3',
+            ], [
+                'name' => 'notification_from_user_id',
+                'value' => $this->user->getId(),
             ],
         ];
 
