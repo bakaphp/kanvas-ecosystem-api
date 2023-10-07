@@ -19,8 +19,7 @@ class TemplatesRepository
         // $companyId = userData->currentCompanyId() ?? 0;
 
         try {
-            return Templates::fromApp()
-                                ->notDeleted()
+            return Templates::notDeleted()
                                 // ->where('companies_id',$companyId)
                                 ->fromApp($app)
                                 ->where('name', $name)
