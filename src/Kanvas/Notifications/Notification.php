@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification as LaravelNotification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Notifications\Channels\KanvasDatabase as KanvasDatabaseChannel;
 use Kanvas\Notifications\Interfaces\EmailInterfaces;
@@ -123,10 +124,15 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      */
     public function toMail($notifiable): ?MailMessage
     {
-        $fromEmail = $this->app->get('from_email_address') ?? config('mail.from.address');
-        $fromName = $this->app->get('from_email_name') ?? config('mail.from.name');
+        $smtpConfiguration = new SmtpRuntimeConfiguration($this->app, $this->company);
+        $mailer = $smtpConfiguration->loadSmtpSettings();
+        $fromMail = $smtpConfiguration->getFromEmail();
+
+        $fromEmail = $fromMail['address'];
+        $fromName = $fromMail['name'];
 
         $mailMessage = (new MailMessage())
+                ->mailer($mailer)
                 ->from($fromEmail, $fromName)
                 //->subject($this->app->get('name') . ' - ' . $this->getTitle()
                 ->view('emails.layout', ['html' => $this->message()]);

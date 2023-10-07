@@ -53,6 +53,9 @@ class CreateAppsAction
             $this->settings($app);
             $this->systemModules($app);
             $this->acl($app);
+
+            //@todo
+            // $this->createEmailTemplate($app);
         });
 
         return $app;
