@@ -1,11 +1,11 @@
 type Message {
-    id: Int!
-    parent_id: Int
+    id: ID!
+    parent_id: ID
     parent_unique_id: Mixed
     uuid: String!
-    companies_id: Int!
-    users_id: Int!
-    message_types_id: Int!
+    companies_id: ID!
+    users_id: ID!
+    message_types_id: ID!
     message: Mixed
     reactions_count: Int
     comment_count: Int
@@ -17,9 +17,9 @@ type Message {
 }
 
 input MessageInput {
-    message_types_id: Int!
+    message_types_id: ID!
     message: Mixed!
-    system_modules_id: Int!
+    system_modules_id: ID!
     entity_id: Mixed!
 }
 extend type Mutation @guard {

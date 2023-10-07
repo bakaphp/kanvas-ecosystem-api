@@ -11,15 +11,13 @@ use Kanvas\Templates\Repositories\TemplatesRepository;
 
 class RenderTemplateAction
 {
-    protected AppInterface $app;
-
     /**
      * Construct function.
      */
     public function __construct(
-        ?AppInterface $app = null
+        protected ?AppInterface $app = null
     ) {
-        $this->app = $app === null ? app(Apps::class) : $app;
+        $this->app = $app ?? app(Apps::class);
     }
 
     /**

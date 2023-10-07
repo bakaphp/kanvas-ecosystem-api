@@ -14,7 +14,6 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Models\BaseModel;
-use Kanvas\Users\Models\Users;
 use Laravel\Scout\Searchable;
 
 /**
@@ -42,21 +41,6 @@ class UserList extends BaseModel
     protected $guarded = [
         'files',
     ];
-
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(Users::class, 'users_id');
-    }
-
-    public function app(): BelongsTo
-    {
-        return $this->belongsTo(Apps::class, 'apps_id');
-    }
-
-    public function company(): BelongsTo
-    {
-        return $this->belongsTo(Companies::class, 'companies_id');
-    }
 
     public function items(): BelongsToMany
     {

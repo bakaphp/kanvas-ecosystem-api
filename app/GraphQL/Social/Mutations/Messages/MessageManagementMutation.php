@@ -25,11 +25,11 @@ class MessageManagementMutation
     {
         $parent = null;
         if (key_exists('parent_id', $request['input'])) {
-            $parent = MessageRepository::getById($request['input']['parent_id']);
+            $parent = MessageRepository::getById((int)$request['input']['parent_id']);
         }
 
-        $messageType = MessagesTypesRepository::getById($request['input']['message_types_id']);
-        $systemModule = SystemModules::getById($request['input']['system_modules_id']);
+        $messageType = MessagesTypesRepository::getById((int)$request['input']['message_types_id']);
+        $systemModule = SystemModules::getById((int)$request['input']['system_modules_id']);
 
         $request['input']['parent_id'] = $parent ? $parent->id : 0;
         $request['input']['parent_unique_id'] = $parent?->uuid;

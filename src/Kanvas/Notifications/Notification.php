@@ -149,10 +149,12 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
          */
         return NotificationTypes::firstOrCreate([
             'apps_id' => $this->app->getId(),
-            'key' => self::class,
-            'name' => Str::slug(self::class),
+            'key' => static::class,
+            'name' => Str::slug(static::class),
             'system_modules_id' => SystemModulesRepository::getByModelName(self::class, $this->app)->getId(),
             'is_deleted' => 0,
+        ], [
+            'template' => $this->templateName ?? null,
         ]);
     }
 
