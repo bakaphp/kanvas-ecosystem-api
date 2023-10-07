@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Users;
 
-use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Mail;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Users\Models\Users;
@@ -204,7 +204,7 @@ class UserTest extends TestCase
 
     public function testChangeDisplayName(): void
     {
-        Notification::fake();
+        Mail::fake();
 
         $this->graphQL(/** @lang GraphQL */ '
             mutation updateDisplayname(
