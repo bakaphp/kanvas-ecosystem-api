@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Agents\Models;
 
 use Baka\Traits\NoAppRelationshipTrait;
+use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Guild\Agents\Enums\AgentFilterEnum;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 
@@ -42,11 +46,28 @@ class Agent extends BaseModel
     /**
      * For the Enum in graph
      */
-    public function getStatusAttribute(): array
+    public function status(): Attribute
     {
-        return [
-            'id' => $this->status_id,
-            'name' => $this->status_id,
-        ];
+        return Attribute::make(
+            get: fn () => [
+                'id' => $this->status_id,
+                'name' => $this->status_id,
+            ]
+        );
+    }
+
+    public function scopeFilterSettings(Builder $query, mixed $user = null): Builder
+    {
+        $user = $user instanceof UserInterface ? $user : auth()->user();
+
+        if ($this->company->get(AgentFilterEnum::FITTER_BY_USER->value)) {
+            return $query->where('users_id', $user->getId());
+        }
+
+        if ($this->company->get(AgentFilterEnum::FILTER_BY_BRANCH->value)) {
+            return $query->where('companies_branches_id', $user->getCurrentBranch()->getId());
+        }
+
+        return $query;
     }
 }
