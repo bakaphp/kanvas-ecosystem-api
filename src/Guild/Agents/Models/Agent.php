@@ -60,12 +60,16 @@ class Agent extends BaseModel
     {
         $user = $user instanceof UserInterface ? $user : auth()->user();
 
+        $query->where('users_id', '>', 0);
+
         if ($this->company->get(AgentFilterEnum::FITTER_BY_USER->value)) {
-            return $query->where('users_id', $user->getId());
+            $memberId = $user->get('member_number_' . $this->company->getId()) ? $user->get('member_number_' . $this->company->getId()) : $user->getId();
+
+            return $query->where('owner_id', $memberId);
         }
 
         if ($this->company->get(AgentFilterEnum::FILTER_BY_BRANCH->value)) {
-            return $query->where('companies_branches_id', $user->getCurrentBranch()->getId());
+            return $query->where('companies_id', $user->getCurrentCompany()->getId());
         }
 
         return $query;
