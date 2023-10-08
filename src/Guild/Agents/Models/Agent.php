@@ -59,17 +59,18 @@ class Agent extends BaseModel
     public function scopeFilterSettings(Builder $query, mixed $user = null): Builder
     {
         $user = $user instanceof UserInterface ? $user : auth()->user();
+        $company = $user->getCurrentCompany();
 
         $query->where('users_id', '>', 0);
 
-        if ($this->company->get(AgentFilterEnum::FITTER_BY_USER->value)) {
-            $memberId = $user->get('member_number_' . $this->company->getId()) ? $user->get('member_number_' . $this->company->getId()) : $user->getId();
+        if ($company->get(AgentFilterEnum::FITTER_BY_USER->value)) {
+            $memberId = $user->get('member_number_' . $company->getId()) ? $user->get('member_number_' . $company->getId()) : $user->getId();
 
             return $query->where('owner_id', $memberId);
         }
 
-        if ($this->company->get(AgentFilterEnum::FILTER_BY_BRANCH->value)) {
-            return $query->where('companies_id', $user->getCurrentCompany()->getId());
+        if ($company->get(AgentFilterEnum::FILTER_BY_BRANCH->value)) {
+            return $query->where('companies_id', $company->getId());
         }
 
         return $query;
