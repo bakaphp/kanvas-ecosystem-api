@@ -12,6 +12,7 @@ return new class () extends Migration {
     {
         Schema::table('agents', function (Blueprint $table) {
             $table->integer('total_leads')->default(0);
+            $table->bigInteger('member_id')->change();
             $table->tinyInteger('status_id')->default(1);
             $table->index('status_id');
             $table->index('total_leads');
