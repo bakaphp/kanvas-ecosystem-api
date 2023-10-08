@@ -2,7 +2,7 @@ type CompanyReviewType {
     id: ID!
     user: User! @belongsTo
     type: ReviewType! @belongsTo
-    branch: branch! @belongsTo
+    branch: CompanyBranch! @belongsTo
     link: String!
     config: Mixed
 }

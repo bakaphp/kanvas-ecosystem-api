@@ -72,7 +72,7 @@ class UsersListsTest extends TestCase
         $newName = fake()->name();
         $this->graphQL(
             '
-                mutation updateUserList($id: Int!, $input: UserListInput!) {
+                mutation updateUserList($id: ID!, $input: UserListInput!) {
                     updateUserList(id: $id, input: $input) {
                         id
                         name
@@ -126,7 +126,7 @@ class UsersListsTest extends TestCase
         $id = $response->json('data.createUserList.id');
         $this->graphQL(
             '
-                mutation deleteUserList($id: Int!) {
+                mutation deleteUserList($id: ID!) {
                     deleteUserList(id: $id) 
                 }
             ',
@@ -165,7 +165,7 @@ class UsersListsTest extends TestCase
 
         $this->graphQL(
             '
-                mutation addToUserList($users_lists_id: Int!, $messages_id: Int!) {
+                mutation addToUserList($users_lists_id: ID!, $messages_id: ID!) {
                     addToUserList(users_lists_id: $users_lists_id, messages_id: $messages_id) 
                 }
             ',
@@ -205,7 +205,7 @@ class UsersListsTest extends TestCase
 
         $this->graphQL(
             '
-                mutation addToUserList($users_lists_id: Int!, $messages_id: Int!) {
+                mutation addToUserList($users_lists_id: ID!, $messages_id: ID!) {
                     addToUserList(users_lists_id: $users_lists_id, messages_id: $messages_id) 
                 }
             ',
@@ -221,7 +221,7 @@ class UsersListsTest extends TestCase
 
         $this->graphQL(
             '
-                mutation removeFromUserList($users_lists_id: Int!, $messages_id: Int!) {
+                mutation removeFromUserList($users_lists_id: ID!, $messages_id: ID!) {
                     removeFromUserList(users_lists_id: $users_lists_id, messages_id: $messages_id) 
                 }
             ',
