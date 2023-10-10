@@ -1,3 +1,8 @@
+extend type User {
+    pivot: SocialChannelPivot
+}
+
+
 type SocialChannel {
     id: ID!
     name: String!
@@ -6,22 +11,33 @@ type SocialChannel {
     entity_namespace: String!
     entity_id: ID!
     last_message_id: ID!
-    messages: [Messages]
-    users: [Users]
+    messages: [Message]
+    users: [User] @belongsToMany
+    systemModule: SystemModule!
 }
 
 input SocialChannelInput {
     name: String!
     slug: String
     description: String!
-    entity_namespace: String!
+    entity_namespace_uuid: String!
     entity_id: ID!
 }
 
-extends type Query {
+enum UsersRolesChannel{
+    Admin @enum(value: 1)
+    User @enum(value: 2)
+}
+
+type SocialChannelPivot {
+    roles_id: UsersRolesChannel!
+}
+
+
+extend type Query {
     getSocialChannels(
         where: _@whereConditions(
-            [
+            columns: [
                 "id",
                 "name",
                 "slug",
@@ -31,16 +47,19 @@ extends type Query {
             ]
         )
     ): [SocialChannel] @paginate(
-        model: "Kanvas\\Social\\Channels\\Models\\SocialChannel"
         defaultCount: 25
-        scopes: ["fromApp"]
+        builder: "App\\GraphQL\\Social\\Builders\\Channels\\GetSocialChannels@getChannels"
     )
 }
 
-extends type Mutation {
-    createChannel(input: SocialChannelInput!): SocialChannel 
-    updateChannel(id: ID!, input: SocialChannelInput!): SocialChannel
-    deleteChannel(id: ID! @whereKey): Boolean @delete(
-        model: "Kanvas\\Social\\Channels\\Models\\SocialChannel"
-    )
+
+extend type Mutation {
+    createSocialChannel(input: SocialChannelInput!): SocialChannel 
+    @field(resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagement@createChannel")
+    updateSocialChannel(id: ID!, input: SocialChannelInput!): SocialChannel
+    @field(resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagement@updateChannel")
+    attachUserToSocialChannel(channel_id: ID!, user_id: ID!, roles_id: UsersRolesChannel!): SocialChannel
+    @field(resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagement@attachUserToChannel")
+    detachUserToSocialChannel(channel_id: ID!, user_id: ID!): SocialChannel
+    @field(resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagement@detachUserToChannel")
 }

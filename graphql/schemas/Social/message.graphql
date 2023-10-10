@@ -27,8 +27,8 @@ input MessageInput {
 
 enum DistributionType {
     ALL @enum(value: 1)
-    Channels: @enum(value: 2)
-    Followers: @enum(value: 3)
+    Channels @enum(value: 2)
+    Followers @enum(value: 3)
 }
 
 input DistributionInput {
