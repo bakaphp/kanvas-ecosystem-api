@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Agents\Models;
 
+use Baka\Contracts\CompanyInterface;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -54,6 +55,14 @@ class Agent extends BaseModel
                 'name' => $this->status_id,
             ]
         );
+    }
+
+    public function getNextAgentNumber(CompanyInterface $company): int
+    {
+        $maxMemberId = Agent::where('companies_id', $company->getId())
+                            ->max('member_id');
+
+        return $maxMemberId + 1;
     }
 
     public function scopeFilterSettings(Builder $query, mixed $user = null): Builder

@@ -14,8 +14,12 @@ class AgentTest extends TestCase
             query {
                 agents {
                     data {
-                        member_id
-                        name
+                        member_id,
+                        name,
+                        status {
+                            name
+                        }, 
+                        total_leads,
                         user {
                             displayname
                         }
