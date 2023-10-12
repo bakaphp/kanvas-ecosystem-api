@@ -141,7 +141,6 @@ class ChannelsTest extends TestCase
                 'roles_id' => 'Admin',
             ]
         );
-        dump($response);
         $response->assertJsonStructure([
             'data' => [
                 'attachUserToSocialChannel' => [

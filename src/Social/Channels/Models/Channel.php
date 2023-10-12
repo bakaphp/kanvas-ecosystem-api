@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace  Kanvas\Social\Channels\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
@@ -26,7 +28,7 @@ class Channel extends BaseModel
 
     protected $guarded = [];
 
-    public function users()
+    public function users(): BelongsToMany
     {
         $databaseSocial = config('database.social.database', 'social');
 
@@ -39,5 +41,11 @@ class Channel extends BaseModel
     public function systemModule(): BelongsTo
     {
         return $this->belongsTo(SystemModules::class, 'entity_namespace', 'uuid');
+    }
+
+    public function messages(): BelongsToMany
+    {
+        return $this->belongsToMany(Message::class, 'channel_messages', 'channel_id', 'messages_id')
+                ->withTimestamps();
     }
 }
