@@ -1,8 +1,8 @@
 type User {
     id: ID!
     uuid: String!
-    firstname: String!
-    lastname: String!
+    firstname: String
+    lastname: String
     displayname: String! @method(name: "getAppDisplayName")
     description: String
     dob: String

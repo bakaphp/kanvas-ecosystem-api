@@ -53,6 +53,9 @@ class CreateAppsAction
             $this->settings($app);
             $this->systemModules($app);
             $this->acl($app);
+
+            //@todo
+            // $this->createEmailTemplate($app);
         });
 
         return $app;
@@ -107,6 +110,9 @@ class CreateAppsAction
             ], [
                 'name' => 'default_feeds_comments',
                 'value' => '3',
+            ], [
+                'name' => 'notification_from_user_id',
+                'value' => $this->user->getId(),
             ],
         ];
 

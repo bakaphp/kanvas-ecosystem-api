@@ -32,6 +32,7 @@ trait NotificationStorageTrait
             $userId = $notifiable->getId();
         }
 
+        //@todo if content is empty, we should return empty array
         return [
             'users_id' => $userId,
             'from_users_id' => $fromUserId,
