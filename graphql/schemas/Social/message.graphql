@@ -14,7 +14,6 @@ type Message {
     parent: Message
     user: User!
     messageType: MessageType!
-    
 }
 
 input MessageInput {
@@ -31,15 +30,26 @@ enum DistributionType {
     Followers
 }
 
+enum InteractionType {
+    LIKE @enum(value: 1)
+    SAVE @enum(value: 2)
+    SHARE @enum(value: 3)
+    REPORT @enum(value: 4)
+}
+
 input DistributionInput {
     distributionType: DistributionType!
-    channels: [ID!]
-    followers: [ID!] 
+    channels: [ID]!
+    followers: [ID]!
 }
 extend type Mutation @guard {
     createMessage(input: MessageInput!): Message
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@create"
+        )
+    interactionMessage(id: ID!, type: InteractionType!): Message
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@interaction"
         )
 }
 

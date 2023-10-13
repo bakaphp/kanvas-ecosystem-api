@@ -8,7 +8,9 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Channels\Repositories\ChannelRepository;
 use Kanvas\Social\Distribution\Jobs\SendToChannelJob;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\Actions\InteractionMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Enums\ActivityType;
 use Kanvas\Social\Messages\Enums\DistributionType;
 use Kanvas\Social\Messages\Jobs\FillUserMessage;
 use Kanvas\Social\Messages\Models\Message;
@@ -20,6 +22,16 @@ use Kanvas\Users\Models\Users;
 
 class MessageManagementMutation
 {
+
+    public function interaction(mixed $root, array $request): Message
+    {
+        $message = MessageRepository::getById((int)$request['id']);
+        $action = new InteractionMessageAction($message, auth()->user(), ActivityType::from($request['type']));
+        $userMessage = $action->execute();
+
+        return $message;
+    }
+
     /**
      * create
      *
