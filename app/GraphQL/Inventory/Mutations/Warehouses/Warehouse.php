@@ -41,19 +41,15 @@ class Warehouse
      */
     public function update(mixed $root, array $request): Warehouses
     {
-        try {
-            $warehouse = WarehouseRepository::getById($request['id'], auth()->user()->getCurrentCompany());
-            $request = $request['input'];
-            if (key_exists('regions_id', $request)) {
-                $request['regions_id'] = RegionRepository::getById(
-                    $request['regions_id'],
-                    auth()->user()->getCurrentCompany()
-                )->getKey();
-            }
-            $warehouse->update($request);
-        } catch (ValidationException $e) {
-            throw new ValidationException($e->getMessage());
+        $warehouse = WarehouseRepository::getById($request['id'], auth()->user()->getCurrentCompany());
+        $request = $request['input'];
+        if (key_exists('regions_id', $request)) {
+            $request['regions_id'] = RegionRepository::getById(
+                $request['regions_id'],
+                auth()->user()->getCurrentCompany()
+            )->getKey();
         }
+        $warehouse->update($request);
 
         return $warehouse;
     }

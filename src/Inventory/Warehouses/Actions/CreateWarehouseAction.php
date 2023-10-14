@@ -37,21 +37,17 @@ class CreateWarehouseAction
             $this->user
         );
 
-        try {
-            $warehouse = Warehouses::firstOrCreate([
-                'name' => $this->data->name,
-                'companies_id' => $this->data->company->getId(),
-                'apps_id' => $this->data->app->getId(),
-                'regions_id' => $this->data->region->getId(),
-            ], [
-                'users_id' => $this->data->user->getId(),
-                'location' => $this->data->location,
-                'is_default' => $this->data->is_default,
-                'is_published' => $this->data->is_published,
-            ]);
-        } catch (ValidationException $e) {
-            throw new ValidationException($e->getMessage());
-        }
+        $warehouse = Warehouses::firstOrCreate([
+            'name' => $this->data->name,
+            'companies_id' => $this->data->company->getId(),
+            'apps_id' => $this->data->app->getId(),
+            'regions_id' => $this->data->region->getId(),
+        ], [
+            'users_id' => $this->data->user->getId(),
+            'location' => $this->data->location,
+            'is_default' => $this->data->is_default,
+            'is_published' => $this->data->is_published,
+        ]);
 
         return $warehouse;
     }
