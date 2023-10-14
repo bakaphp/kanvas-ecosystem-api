@@ -6,31 +6,45 @@ namespace Kanvas\Inventory\Warehouses\Observers;
 
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
-use Throwable;
 
 class WarehouseObserver
 {
-    public function saving(Warehouses $warehouse): void
+    public function creating(Warehouses $warehouse): void
     {
-        try {
-            $defaultWarehouse = Warehouses::where('companies_id', $warehouse->companies_id)
-            ->where('is_default', 1)
-            ->first();
-    
-            // if default already exist remove its default
-            if ($warehouse->is_default && $defaultWarehouse) {
-                $defaultWarehouse->is_default = false;
-                $defaultWarehouse->saveOrFail();
-            }
-    
-            if(!$warehouse->is_default && !$defaultWarehouse) {
-                throw new ValidationException('Can\'t Save, you have to have at least one default Warehouse');
-            }
-        } catch (Throwable $e) {
-            dd($e);
-            // throw new ValidationException('Can\'t Save, you have to have at least one default Warehouse');
+        $defaultWarehouse = Warehouses::where('companies_id', $warehouse->companies_id)
+        ->where('is_default', 1)
+        ->first();
+
+        // if default already exist remove its default
+        if ($warehouse->is_default && $defaultWarehouse) {
+            $defaultWarehouse->is_default = false;
+            $defaultWarehouse->saveQuietly();
         }
 
+        if(!$warehouse->is_default && !$defaultWarehouse) {
+            throw new ValidationException('Can\'t Save, you have to have at least one default Warehouse');
+        }
+    }
+
+    public function updating(Warehouses $warehouse): void
+    {
+        $defaultWarehouse = Warehouses::where('companies_id', $warehouse->companies_id)
+        ->where('is_default', 1)
+        ->first();
+
+        // if default already exist remove its default
+        if ($defaultWarehouse &&
+            $warehouse->is_default &&  
+            $warehouse->getId() != $defaultWarehouse->getId()
+        ) {
+            $defaultWarehouse->is_default = false;
+            $defaultWarehouse->saveQuietly();
+        }elseif ($defaultWarehouse &&
+            !$warehouse->is_default &&
+            $warehouse->getId() == $defaultWarehouse->getId()
+            ) {
+            throw new ValidationException('Can\'t Save, you have to have at least one default Warehouse');
+        }
     }
 
 }
