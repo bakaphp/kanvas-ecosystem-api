@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Warehouses;
 
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses as WarehousesDto;
@@ -40,15 +41,20 @@ class Warehouse
      */
     public function update(mixed $root, array $request): Warehouses
     {
-        $warehouse = WarehouseRepository::getById($request['id'], auth()->user()->getCurrentCompany());
-        $request = $request['input'];
-        if (key_exists('regions_id', $request)) {
-            $request['regions_id'] = RegionRepository::getById(
-                $request['regions_id'],
-                auth()->user()->getCurrentCompany()
-            )->getKey();
+        try {
+            $warehouse = WarehouseRepository::getById($request['id'], auth()->user()->getCurrentCompany());
+            $request = $request['input'];
+            if (key_exists('regions_id', $request)) {
+                $request['regions_id'] = RegionRepository::getById(
+                    $request['regions_id'],
+                    auth()->user()->getCurrentCompany()
+                )->getKey();
+            }
+            $warehouse->update($request);
+        } catch (ValidationException $e) {
+            throw new ValidationException($e->getMessage());
         }
-        $warehouse->update($request);
+
         return $warehouse;
     }
 
