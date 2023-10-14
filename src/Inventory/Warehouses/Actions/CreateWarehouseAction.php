@@ -6,6 +6,7 @@ namespace Kanvas\Inventory\Warehouses\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses as WarehousesDto;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
@@ -36,7 +37,7 @@ class CreateWarehouseAction
             $this->user
         );
 
-        return Warehouses::firstOrCreate([
+        $warehouse = Warehouses::firstOrCreate([
             'name' => $this->data->name,
             'companies_id' => $this->data->company->getId(),
             'apps_id' => $this->data->app->getId(),
@@ -47,5 +48,7 @@ class CreateWarehouseAction
             'is_default' => $this->data->is_default,
             'is_published' => $this->data->is_published,
         ]);
+
+        return $warehouse;
     }
 }

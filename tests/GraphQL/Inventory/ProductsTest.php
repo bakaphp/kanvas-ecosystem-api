@@ -181,8 +181,8 @@ class ProductsTest extends TestCase
             'regions_id' => $regionResponse['data']['createRegion']['id'],
             'name' => fake()->name,
             'location' => 'Test Location',
-            'is_default' => false,
-            'is_published' => 1,
+            'is_default' => true,
+            'is_published' => true,
         ];
 
         $warehouseResponse = $this->graphQL('
@@ -289,8 +289,8 @@ class ProductsTest extends TestCase
             'regions_id' => $regionResponse['data']['createRegion']['id'],
             'name' => fake()->name,
             'location' => 'Test Location',
-            'is_default' => false,
-            'is_published' => 1,
+            'is_default' => true,
+            'is_published' => true,
         ];
 
         $warehouseResponse = $this->graphQL('

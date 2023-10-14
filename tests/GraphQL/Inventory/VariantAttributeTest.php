@@ -42,8 +42,8 @@ class VariantAttributeTest extends TestCase
             'regions_id' => $idRegion,
             'name' => 'Test Warehouse',
             'location' => 'Test Location',
-            'is_default' => false,
-            'is_published' => 1,
+            'is_default' => true,
+            'is_published' => true,
         ];
 
         $response = $this->graphQL('
@@ -167,8 +167,8 @@ class VariantAttributeTest extends TestCase
             'regions_id' => $idRegion,
             'name' => 'Test Warehouse',
             'location' => 'Test Location',
-            'is_default' => false,
-            'is_published' => 1,
+            'is_default' => true,
+            'is_published' => true,
         ];
 
         $response = $this->graphQL('
