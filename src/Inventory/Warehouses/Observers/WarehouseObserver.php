@@ -46,5 +46,4 @@ class WarehouseObserver
             throw new ValidationException('Can\'t Save, you have to have at least one default Warehouse');
         }
     }
-
 }
