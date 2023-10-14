@@ -12,6 +12,7 @@ use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
+use Kanvas\Inventory\Warehouses\Services\WarehouseService;
 
 class VariantService
 {
@@ -26,7 +27,6 @@ class VariantService
             $variantDto = VariantsDto::from([
                 'product' => $product,
                 'products_id' => $product->getId(),
-                'warehouse_id' => $variant['warehouse']['id'],
                 ...$variant,
             ]);
 
@@ -35,7 +35,9 @@ class VariantService
             if (isset($variant['attributes'])) {
                 $variantModel->addAttributes($user, $variant['attributes']);
             }
-
+            if (!$variantDto->warehouse_id) {
+                $variantDto->warehouse_id = WarehouseService::getDefault()->getId();
+            }
             if (isset($variant['status']['id'])) {
                 $status = StatusRepository::getById((int) $variant['status']['id'], $variantDto->product->company()->get()->first());
                 $variantModel->setStatus($status);
@@ -50,8 +52,11 @@ class VariantService
             if (isset($variant['warehouse']['status'])) {
                 $variant['warehouse']['status_id'] = StatusRepository::getById((int) $variant['warehouse']['status']['id'], $variantDto->product->company()->get()->first())->getId();
             }
-
-            $variantWarehouses = VariantsWarehouses::from($variant['warehouse']);
+            if (isset($req['input']['warehouse'])) {
+                $variantWarehouses = VariantsWarehouses::viaRequest($req['input']['warehouse']);
+            } else {
+                $variantWarehouses = VariantsWarehouses::viaRequest([]);
+            }
             (new AddToWarehouse($variantModel, $warehouse, $variantWarehouses))->execute();
             $variantsData[] = $variantModel;
         }
