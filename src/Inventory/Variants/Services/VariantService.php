@@ -52,8 +52,8 @@ class VariantService
             if (isset($variant['warehouse']['status'])) {
                 $variant['warehouse']['status_id'] = StatusRepository::getById((int) $variant['warehouse']['status']['id'], $variantDto->product->company()->get()->first())->getId();
             }
-            if (isset($req['input']['warehouse'])) {
-                $variantWarehouses = VariantsWarehouses::viaRequest($req['input']['warehouse']);
+            if (isset($variant['warehouse'])) {
+                $variantWarehouses = VariantsWarehouses::viaRequest($variant['warehouse']);
             } else {
                 $variantWarehouses = VariantsWarehouses::viaRequest([]);
             }
