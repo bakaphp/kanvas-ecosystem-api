@@ -31,7 +31,7 @@ class ProductDashboardBuilder
 
         return [
             'total_products' => Products::fromCompany($company)->where('is_published', 1)->count(),
-            'status' => $resultArray ?? [],
+            'product_status' => $resultArray ?? [],
         ];
     }
 }
