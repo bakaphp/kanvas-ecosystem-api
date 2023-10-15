@@ -11,7 +11,7 @@ type SocialChannel {
     entity_namespace: String!
     entity_id: ID!
     last_message_id: ID!
-    messages: [Message]
+    messages: [Message]! @belongsToMany
     users: [User] @belongsToMany
     systemModule: SystemModule!
 }
