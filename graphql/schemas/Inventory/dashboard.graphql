@@ -1,0 +1,6 @@
+extend type Query @guard {
+    productDashboard: Mixed!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Builders\\Dashboard\\ProductDashboardBuilder@getCompanyInfo"
+        )
+}
