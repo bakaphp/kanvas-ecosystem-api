@@ -45,8 +45,8 @@ class VariantTest extends TestCase
             'regions_id' => $regionResponse['data']['createRegion']['id'],
             'name' => fake()->name,
             'location' => 'Test Location',
-            'is_default' => false,
-            'is_published' => 1,
+            'is_default' => true,
+            'is_published' => true,
         ];
 
         $warehouseResponse = $this->graphQL('
@@ -172,8 +172,8 @@ class VariantTest extends TestCase
             'regions_id' => $idRegion,
             'name' => 'Test Warehouse',
             'location' => 'Test Location',
-            'is_default' => false,
-            'is_published' => 1,
+            'is_default' => true,
+            'is_published' => true,
         ];
 
         $response = $this->graphQL('
@@ -233,8 +233,8 @@ class VariantTest extends TestCase
             'regions_id' => $idRegion,
             'name' => fake()->name,
             'location' => 'Test Location',
-            'is_default' => false,
-            'is_published' => 1,
+            'is_default' => true,
+            'is_published' => true,
         ];
         $response = $this->graphQL('
         mutation($data: WarehouseInput!) {
@@ -319,8 +319,8 @@ class VariantTest extends TestCase
             'regions_id' => $idRegion,
             'name' => 'Test Warehouse',
             'location' => 'Test Location',
-            'is_default' => false,
-            'is_published' => 1,
+            'is_default' => true,
+            'is_published' => true,
         ];
 
         $response = $this->graphQL('

@@ -10,7 +10,7 @@ type Warehouse {
     name: String!
     location: String
     is_default: Boolean!
-    is_published: Int!
+    is_published: Boolean!
 }
 
 input WarehouseInput {
@@ -18,7 +18,7 @@ input WarehouseInput {
     name: String!
     location: String
     is_default: Boolean!
-    is_published: Int!
+    is_published: Boolean!
     source_id: Mixed
 }
 

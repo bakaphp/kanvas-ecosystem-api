@@ -12,6 +12,8 @@ use Kanvas\Companies\Observers\CompaniesObserver;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Observers\LeadObserver;
 use Kanvas\Social\Messages\Models\UserMessage;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Inventory\Warehouses\Observers\WarehouseObserver;
 use Kanvas\Social\Messages\Models\UserMessageActivity;
 use Kanvas\Social\Messages\Observers\UserMessageActivityObserver;
 use Kanvas\Social\Messages\Observers\UserMessageObserver;
@@ -44,6 +46,7 @@ class EventServiceProvider extends ServiceProvider
         UserList::observe(UsersListsObserver::class);
         Lead::observe(LeadObserver::class);
         UserMessage::observe(UserMessageObserver::class);
+        Warehouses::observe(WarehouseObserver::class);
     }
 
     /**
