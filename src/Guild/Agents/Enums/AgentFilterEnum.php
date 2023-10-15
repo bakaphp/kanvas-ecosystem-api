@@ -8,4 +8,5 @@ enum AgentFilterEnum: string
 {
     case FITTER_BY_USER = 'FITTER_BY_USER';
     case FILTER_BY_BRANCH = 'FILTER_BY_BRANCH';
+    case MEMBER_NUMBER = 'member_number_';
 }
