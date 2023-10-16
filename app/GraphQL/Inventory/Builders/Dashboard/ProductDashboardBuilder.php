@@ -30,7 +30,7 @@ class ProductDashboardBuilder
         $resultArray = $result->pluck('total_amount', 'name')->toArray();
 
         return [
-            'total_products' => Products::fromCompany($company)->where('is_published', 1)->count(),
+            'total_products' => Products::fromCompany($company)->notDeleted()->where('is_published', 1)->count(),
             'product_status' => $resultArray ?? [],
         ];
     }
