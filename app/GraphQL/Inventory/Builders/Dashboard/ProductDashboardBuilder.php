@@ -6,6 +6,7 @@ namespace App\GraphQL\Inventory\Builders\Dashboard;
 
 use Illuminate\Support\Facades\DB;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Models\Variants;
 
 class ProductDashboardBuilder
 {
@@ -17,15 +18,17 @@ class ProductDashboardBuilder
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        $result = DB::connection('inventory')
-            ->table('products_variants_warehouse_status_history as h')
-                ->select('s.id', 's.name', DB::raw('COUNT(*) as total_amount'))
-                ->join('status as s', 'h.status_id', '=', 's.id')
-                ->where('h.is_deleted', 0)
-                ->where('s.companies_id', $company->getId())
-                ->where('s.is_deleted', 0)
-                ->groupBy('s.id', 's.name')
-            ->get();
+        $result = Variants::query()
+            ->select('status.id', 'status.name', DB::raw('COUNT(*) as total_amount'))
+            ->join('status', function ($join) {
+                $join->on('products_variants.status_id', '=', 'status.id')
+                    ->on('status.companies_id', '=', 'products_variants.companies_id');
+            })
+            ->where('products_variants.is_deleted', 0)
+            ->where('status.is_deleted', 0)
+            ->where('products_variants.companies_id', $company->getId())
+            ->groupBy('status.id', 'status.name')
+        ->get();
 
         $resultArray = $result->pluck('total_amount', 'name')->toArray();
 
