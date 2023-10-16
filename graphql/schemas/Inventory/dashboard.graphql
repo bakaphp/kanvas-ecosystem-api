@@ -1,5 +1,6 @@
 type productDashboard {
     total_products: Int!
+    total_variants: Int!
     product_status: Mixed
 }
 
