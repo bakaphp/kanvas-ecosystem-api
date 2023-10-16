@@ -263,11 +263,5 @@ return [
             'database' => 2,
         ],
 
-    ],
-
-    'dbal' => [
-        'types' => [
-            'timestamp' => TimestampType::class,
-        ],
-    ],
+    ]
 ];
