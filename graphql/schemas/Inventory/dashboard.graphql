@@ -1,0 +1,11 @@
+type productDashboard {
+    total_products: Int!
+    product_status: Mixed
+}
+
+extend type Query @guard {
+    productDashboard: productDashboard!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Builders\\Dashboard\\ProductDashboardBuilder@getCompanyInfo"
+        )
+}
