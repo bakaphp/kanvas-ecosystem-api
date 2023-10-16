@@ -17,6 +17,7 @@ class ProductDashboardTest extends TestCase
             query {
                 productDashboard {
                     total_products
+                    total_variants
                     product_status
                 }
             }')->assertOk();

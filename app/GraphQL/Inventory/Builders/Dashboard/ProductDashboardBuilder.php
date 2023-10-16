@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Inventory\Builders\Dashboard;
 
 use Illuminate\Support\Facades\DB;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 
@@ -17,6 +18,7 @@ class ProductDashboardBuilder
     {
         $user = auth()->user();
         $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
 
         $result = Variants::query()
             ->select('status.id', 'status.name', DB::raw('COUNT(*) as total_amount'))
@@ -33,7 +35,8 @@ class ProductDashboardBuilder
         $resultArray = $result->pluck('total_amount', 'name')->toArray();
 
         return [
-            'total_products' => Products::fromCompany($company)->notDeleted()->where('is_published', 1)->count(),
+            'total_products' => Products::fromApp($app)->fromCompany($company)->notDeleted()->where('is_published', 1)->count(),
+            'total_variants' => Variants::fromApp($app)->fromCompany($company)->notDeleted()->count(),
             'product_status' => $resultArray ?? [],
         ];
     }
