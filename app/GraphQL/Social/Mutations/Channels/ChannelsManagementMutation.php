@@ -49,7 +49,7 @@ class ChannelsManagement
     {
 
         $channel = ChannelRepository::getById((int)$request['channel_id'], auth()->user());
-        $user = Users::getById($request['user_id']);
+        $user = Users::getByIdFromCompany($request['user_id'], auth()->user()->getCurrentCompany());
 
         $channel->users()->attach($user->id, ['roles_id' => $request['roles_id']]);
 
