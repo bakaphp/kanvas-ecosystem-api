@@ -11,7 +11,6 @@ class ChannelsTest extends TestCase
 {
     public function testCreateChannel()
     {
-
         $systemModule = SystemModules::all()->random(1)->first();
         $data = [
             'name' => fake()->name(),
@@ -46,7 +45,6 @@ class ChannelsTest extends TestCase
 
     public function testUpdateChannel()
     {
-
         $systemModule = SystemModules::all()->random(1)->first();
         $data = [
             'name' => fake()->name(),
