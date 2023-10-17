@@ -15,7 +15,6 @@ class ChannelsManagementMutation
 {
     public function createChannel(mixed $rootValue, array $request): Channel
     {
-
         $systemModule = SystemModules::getByUuid($request['input']['entity_namespace_uuid']);
         $channelDto = new ChannelDto(
             users: auth()->user(),
@@ -47,7 +46,6 @@ class ChannelsManagementMutation
 
     public function attachUserToChannel(mixed $rootValue, array $request): Channel
     {
-
         $channel = ChannelRepository::getById((int)$request['channel_id'], auth()->user());
         $user = Users::getByIdFromCompany($request['user_id'], auth()->user()->getCurrentCompany());
 

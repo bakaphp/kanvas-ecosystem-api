@@ -19,13 +19,13 @@ class InteractionMessageAction
 
     public function execute()
     {
-        if($this->activityType === ActivityTypeEnum::LIKE) {
+        if ($this->activityType === ActivityTypeEnum::LIKE) {
             $text = 'liked this message';
-        } elseif($this->activityType === ActivityTypeEnum::SAVE) {
+        } elseif ($this->activityType === ActivityTypeEnum::SAVE) {
             $text = 'saved this message';
-        } elseif($this->activityType === ActivityTypeEnum::SHARE) {
+        } elseif ($this->activityType === ActivityTypeEnum::SHARE) {
             $text = 'shared this message';
-        } elseif($this->activityType === ActivityTypeEnum::REPORT) {
+        } elseif ($this->activityType === ActivityTypeEnum::REPORT) {
             $text = 'reported this message';
         }
 
@@ -41,13 +41,13 @@ class InteractionMessageAction
             ]
         ))->execute();
 
-        if($this->activityType === ActivityTypeEnum::LIKE) {
+        if ($this->activityType === ActivityTypeEnum::LIKE) {
             $userMessage->is_liked = ! $userMessage->is_liked;
-        } elseif($this->activityType === ActivityTypeEnum::SAVE) {
+        } elseif ($this->activityType === ActivityTypeEnum::SAVE) {
             $userMessage->is_saved = ! $userMessage->is_saved;
-        } elseif($this->activityType === ActivityTypeEnum::SHARE) {
+        } elseif ($this->activityType === ActivityTypeEnum::SHARE) {
             $userMessage->is_shared = ! $userMessage->is_shared;
-        } elseif($this->activityType === ActivityTypeEnum::REPORT) {
+        } elseif ($this->activityType === ActivityTypeEnum::REPORT) {
             $userMessage->is_reported = ! $userMessage->is_reported;
         }
 

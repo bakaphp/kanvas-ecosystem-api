@@ -53,24 +53,22 @@ class MessageManagementMutation
         $action = new CreateMessageAction($data, $systemModule, $request['input']['entity_id']);
         $message = $action->execute();
 
-        if(! key_exists('distribution', $request['input'])) {
+        if (! key_exists('distribution', $request['input'])) {
             return $message;
         }
         $distributionType = DistributionTypeEnum::from($request['input']['distribution']['distributionType']);
 
-        if($distributionType->value == DistributionTypeEnum::ALL->value) {
+        if ($distributionType->value == DistributionTypeEnum::ALL->value) {
             $channels = key_exists('channels', $request['input']['distribution']) ? $request['input']['distribution']['channels'] : [];
             (new DistributeChannelAction($channels, $message, auth()->user()))->execute();
             (new DistributeToUsers($message))->execute();
-
-        } elseif($distributionType->value == DistributionTypeEnum::Channels->value) {
+        } elseif ($distributionType->value == DistributionTypeEnum::Channels->value) {
             $channels = key_exists('channels', $request['input']['distribution']) ? $request['input']['distribution']['channels'] : [];
             (new DistributeChannelAction($channels, $message, auth()->user()))->execute();
-        } elseif($distributionType->value == DistributionTypeEnum::Users->value) {
+        } elseif ($distributionType->value == DistributionTypeEnum::Users->value) {
             (new DistributeToUsers($message))->execute();
         }
 
         return $message;
-
     }
 }
