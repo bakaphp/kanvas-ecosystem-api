@@ -23,3 +23,5 @@ package-lock.json
 service-account.json
 .env.testing
 ./tools/*
+./tools/php-cs-fixer/*
+./tools/php-cs-fixer/vendor/*
