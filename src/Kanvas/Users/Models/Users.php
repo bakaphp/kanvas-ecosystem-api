@@ -35,6 +35,7 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Locations\Models\Cities;
@@ -548,5 +549,18 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function getPhoto(): ?FilesystemEntities
     {
         return  $this->getFileByName('photo');
+    }
+
+    public static function getByIdFromCompany(mixed $id, CompanyInterface $company): self
+    {
+        try {
+            return self::where('id', $id)
+                ->whereRelation('companies', 'id', $company->getId())
+                ->notDeleted()
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
     }
 }

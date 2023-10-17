@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Social;
 
 use Kanvas\SystemModules\Models\SystemModules;
-use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 class ChannelsTest extends TestCase
@@ -115,7 +114,46 @@ class ChannelsTest extends TestCase
         ]);
         $channelId = $response['data']['createSocialChannel']['id'];
 
-        $user = Users::all()->random(1)->first();
+        $response = $this->graphQL(
+            '
+            mutation inviteUser($input: InviteInput!) {
+                inviteUser(input: $input) {
+                    id,
+                    invite_hash
+                }
+            }
+        ',
+            [
+                'input' => [
+                    'email' => fake()->email(),
+                    'firstname' => fake()->name(),
+                    'lastname' => fake()->name(),
+                    'custom_fields' => [],
+                ],
+            ]
+        );
+        $inviteHash = $response['data']['inviteUser']['invite_hash'];
+
+        $response = $this->graphQL(
+            '
+                mutation processInvite(
+                    $input: CompleteInviteInput!
+                ){
+                    processInvite(input: $input){
+                        id
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'invite_hash' => $inviteHash,
+                    'lastname' => fake()->name(),
+                    'firstname' => fake()->name(),
+                    'password' => 'password',
+                ],
+            ]
+        );
+        $user = $response['data']['processInvite']['id'];
 
         $response = $this->graphQL(
             '
@@ -137,7 +175,7 @@ class ChannelsTest extends TestCase
         ',
             [
                 'channel_id' => $channelId,
-                'user_id' => $user->id,
+                'user_id' => $user,
                 'roles_id' => 'Admin',
             ]
         );

@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Mutations\Channels;
 
-use Kanvas\Social\Channels\Actions\CreateChannel;
+use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Repositories\ChannelRepository;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 
-class ChannelsManagement
+class ChannelsManagementMutation
 {
     public function createChannel(mixed $rootValue, array $request): Channel
     {
@@ -25,7 +25,7 @@ class ChannelsManagement
             entity_namespace: $systemModule->uuid,
         );
 
-        $createChannel = new CreateChannel($channelDto);
+        $createChannel = new CreateChannelAction($channelDto);
         $channel = $createChannel->execute();
 
         return $channel;

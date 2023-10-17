@@ -11,10 +11,10 @@ class Channel extends Data
 {
     public function __construct(
         public Users $users,
-        public string $name = '',
-        public string $description = '',
         public string $entity_id,
         public string $entity_namespace,
-    ) {
+        public string $name = '',
+        public string $description = '',
+        ) {
     }
 }

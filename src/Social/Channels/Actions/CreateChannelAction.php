@@ -8,7 +8,7 @@ use Baka\Support\Str;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
 
-class CreateChannel
+class CreateChannelAction
 {
     public function __construct(
         protected ChannelDto $channelDto
@@ -17,14 +17,13 @@ class CreateChannel
 
     public function execute(): Channel
     {
-        $channel = new Channel();
-        $channel->name = $this->channelDto->name;
-        $channel->slug = Str::slug($this->channelDto->name);
-        $channel->description = $this->channelDto->description;
-        $channel->entity_id = $this->channelDto->entity_id;
-        $channel->entity_namespace = $this->channelDto->entity_namespace;
-        $channel->saveOrFail();
-
+        $channel = Channel::firstOrCreate([
+            'name' => $this->channelDto->name,
+            'slug' => Str::slug($this->channelDto->name),
+            'description' => $this->channelDto->description,
+            'entity_id' => $this->channelDto->entity_id,
+            'entity_namespace' => $this->channelDto->entity_namespace,
+        ]);
         $channel->users()->attach($this->channelDto->users->id, ['roles_id' => 1]);
 
         return $channel;

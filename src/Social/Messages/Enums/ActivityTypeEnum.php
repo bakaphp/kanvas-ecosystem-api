@@ -2,10 +2,9 @@
 
 declare(strict_types=1);
 
-
 namespace Kanvas\Social\Messages\Enums;
 
-enum ActivityType : int
+enum ActivityTypeEnum: int
 {
     case LIKE = 1;
     case SAVE = 2;

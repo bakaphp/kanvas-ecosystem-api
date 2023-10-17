@@ -7,7 +7,7 @@ namespace Kanvas\Social\Distribution;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 
-class Distribution
+class DistributionMessage
 {
     public static function sentToChannelFeed(Channel $channel, Message $message): Channel
     {

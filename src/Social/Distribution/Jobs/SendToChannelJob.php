@@ -6,12 +6,12 @@ namespace Kanvas\Social\Distribution\Jobs;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Kanvas\Social\Distribution\Distribution;
+use Kanvas\Social\Distribution\DistributionMessage;
 use Kanvas\Social\Messages\Models\Message;
-use Illuminate\Database\Eloquent\Collection;
 
 class SendToChannelJob implements ShouldQueue
 {
@@ -30,7 +30,7 @@ class SendToChannelJob implements ShouldQueue
     public function handle()
     {
         foreach($this->channels as $channel) {
-            Distribution::sentToChannelFeed($channel, $this->message);
+            DistributionMessage::sentToChannelFeed($channel, $this->message);
         }
     }
 }

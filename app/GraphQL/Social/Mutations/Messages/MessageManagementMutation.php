@@ -5,28 +5,23 @@ declare(strict_types=1);
 namespace App\GraphQL\Social\Mutations\Messages;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Social\Channels\Repositories\ChannelRepository;
-use Kanvas\Social\Distribution\Jobs\SendToChannelJob;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\Actions\DistributeChannelAction;
+use Kanvas\Social\Messages\Actions\DistributeToUsers;
 use Kanvas\Social\Messages\Actions\InteractionMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
-use Kanvas\Social\Messages\Enums\ActivityType;
-use Kanvas\Social\Messages\Enums\DistributionType;
-use Kanvas\Social\Messages\Jobs\FillUserMessage;
+use Kanvas\Social\Messages\Enums\ActivityTypeEnum;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Messages\Models\UserMessageActivityType;
 use Kanvas\Social\Messages\Repositories\MessageRepository;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\SystemModules\Models\SystemModules;
-use Kanvas\Users\Models\Users;
 
 class MessageManagementMutation
 {
-
     public function interaction(mixed $root, array $request): Message
     {
         $message = MessageRepository::getById((int)$request['id']);
-        $action = new InteractionMessageAction($message, auth()->user(), ActivityType::from($request['type']));
+        $action = new InteractionMessageAction($message, auth()->user(), ActivityTypeEnum::from($request['type']));
         $userMessage = $action->execute();
 
         return $message;
@@ -60,50 +55,21 @@ class MessageManagementMutation
         if(! key_exists('distribution', $request['input'])) {
             return $message;
         }
-        $distributionType = DistributionType::from($request['input']['distribution']['distributionType']);
+        $distributionType = DistributionTypeEnum::from($request['input']['distribution']['distributionType']);
 
-        if($distributionType->value == DistributionType::ALL->value) {
+        if($distributionType->value == DistributionTypeEnum::ALL->value) {
             $channels = key_exists('channels', $request['input']['distribution']) ? $request['input']['distribution']['channels'] : [];
-            $this->distributeChannels($channels, $message, auth()->user());
-            $this->distributeUsers($message);
+            (new DistributeChannelAction($channels, $message, auth()->user()))->execute();
+            (new DistributeToUsers($message))->execute();
 
-        } elseif($distributionType->value == DistributionType::Channels->value) {
+        } elseif($distributionType->value == DistributionTypeEnum::Channels->value) {
             $channels = key_exists('channels', $request['input']['distribution']) ? $request['input']['distribution']['channels'] : [];
-            $this->distributeChannels($channels, $message, auth()->user());
-        } elseif($distributionType->value == DistributionType::Users->value) {
-            $this->distributeUsers($message);
+            (new DistributeChannelAction($channels, $message, auth()->user()))->execute();
+        } elseif($distributionType->value == DistributionTypeEnum::Users->value) {
+            (new DistributeToUsers($message))->execute();
         }
 
         return $message;
-
-    }
-
-    private function distributeChannels(array $channels, Message $message, Users $user): void
-    {
-        $channelsDataBase = [];
-        if($channels) {
-            foreach($channels as $channel) {
-                $channelsDataBase[] = ChannelRepository::getById((int)$channel, $user);
-            }
-        } else {
-            $channelsDataBase = $user->channels;
-        }
-        SendToChannelJob::dispatch($channelsDataBase, $message)->onQueue('kanvas-social');
-    }
-
-    private function distributeUsers(Message $message): void
-    {
-        $activity = [];
-
-        $activityType = UserMessageActivityType::where('name', 'follow')->firstOrFail();
-        $activity = [
-                    'username' => '',
-                    'entity_namespace' => '',
-                    'text' => ' ',
-                    'type' => $activityType->id,
-            ];
-
-        FillUserMessage::dispatch($message, $message->user, $activity)->onQueue('message');
 
     }
 }
