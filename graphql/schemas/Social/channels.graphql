@@ -58,6 +58,8 @@ extend type Mutation {
     @field(resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@createChannel")
     updateSocialChannel(id: ID!, input: SocialChannelInput!): SocialChannel
     @field(resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@updateChannel")
+    deleteSocialChannel(id: ID!): SocialChannel
+    @field(resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@deleteChannel")
     attachUserToSocialChannel(channel_id: ID!, user_id: ID!, roles_id: UsersRolesChannel!): SocialChannel
     @field(resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@attachUserToChannel")
     detachUserToSocialChannel(channel_id: ID!, user_id: ID!): SocialChannel

@@ -45,6 +45,17 @@ class ChannelsManagementMutation
         return $channel;
     }
 
+    public function deleteChannel(mixed $rootValue, array $request): Channel
+    {
+        $channel = ChannelRepository::getByIdBuilder(auth()->user())
+            ->where('channel_users.roles_id', 1)
+            ->find($request['id']);
+
+        $channel->delete();
+
+        return $channel;
+    }
+
     public function attachUserToChannel(mixed $rootValue, array $request): Channel
     {
 
