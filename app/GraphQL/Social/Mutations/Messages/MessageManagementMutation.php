@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Social\Mutations\Messages;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Social\Messages\Enums\DistributionTypeEnum;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\Actions\DistributeChannelAction;
 use Kanvas\Social\Messages\Actions\DistributeToUsers;

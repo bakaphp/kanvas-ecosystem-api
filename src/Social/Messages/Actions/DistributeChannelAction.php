@@ -22,7 +22,7 @@ class DistributeChannelAction
     {
         $channelsDataBase = [];
         if($this->channels) {
-            foreach($channels as $channel) {
+            foreach($this->channels as $channel) {
                 $channelsDataBase[] = ChannelRepository::getById((int)$channel, $this->user);
             }
         } else {

@@ -39,8 +39,8 @@ enum InteractionType {
 
 input DistributionInput {
     distributionType: DistributionType!
-    channels: [ID]!
-    followers: [ID]!
+    channels: [ID!]
+    followers: [ID!]
 }
 extend type Mutation @guard {
     createMessage(input: MessageInput!): Message

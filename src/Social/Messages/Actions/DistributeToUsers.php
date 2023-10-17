@@ -11,7 +11,7 @@ use Kanvas\Social\Messages\Models\UserMessageActivityType;
 class DistributeToUsers
 {
     public function __construct(
-        Message $message
+        protected Message $message
     ) {
 
     }
