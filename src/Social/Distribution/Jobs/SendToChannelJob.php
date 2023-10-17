@@ -29,7 +29,7 @@ class SendToChannelJob implements ShouldQueue
 
     public function handle()
     {
-        foreach($this->channels as $channel) {
+        foreach ($this->channels as $channel) {
             DistributionMessage::sentToChannelFeed($channel, $this->message);
         }
     }

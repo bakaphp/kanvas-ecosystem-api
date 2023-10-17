@@ -21,8 +21,8 @@ class DistributeChannelAction
     public function execute()
     {
         $channelsDataBase = [];
-        if($this->channels) {
-            foreach($this->channels as $channel) {
+        if ($this->channels) {
+            foreach ($this->channels as $channel) {
                 $channelsDataBase[] = ChannelRepository::getById((int)$channel, $this->user);
             }
         } else {

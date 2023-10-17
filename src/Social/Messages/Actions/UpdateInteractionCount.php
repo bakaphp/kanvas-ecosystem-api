@@ -16,7 +16,6 @@ class UpdateInteractionCount
 
     public function execute()
     {
-
         $this->message->total_liked = UserMessage::where('messages_id', $this->message->id)
             ->where('is_liked', true)
             ->count();

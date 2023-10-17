@@ -13,7 +13,6 @@ class DistributeToUsers
     public function __construct(
         protected Message $message
     ) {
-
     }
 
     public function execute()

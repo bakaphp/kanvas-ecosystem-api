@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types=1);
+declare(strict_types=1);
 
 namespace Kanvas\Social\Channels\DataTransferObject;
 
@@ -15,6 +15,6 @@ class Channel extends Data
         public string $entity_namespace,
         public string $name = '',
         public string $description = '',
-        ) {
+    ) {
     }
 }
