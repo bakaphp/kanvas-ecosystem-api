@@ -18,6 +18,7 @@ use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
 use Kanvas\Inventory\Variants\Models\Variants as VariantModel;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehouses;
 use Kanvas\Inventory\Variants\Repositories\VariantsRepository;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 
 class Variants
@@ -40,7 +41,7 @@ class Variants
             $variantModel->addAttributes(auth()->user(), $req['input']['attributes']);
         }
         if (!$variantDto->warehouse_id) {
-            $variantDto->warehouse_id = WarehouseRepository::getDefault()->getId();
+            $variantDto->warehouse_id = Warehouses::getDefault($variantDto->product->company()->get()->first())->getId();
         }
         $warehouse = WarehouseRepository::getById($variantDto->warehouse_id, $variantDto->product->company()->get()->first());
 
