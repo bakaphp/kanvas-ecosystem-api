@@ -9,6 +9,7 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Inventory\Traits\DefaultTraits;
 
 /**
  * Class Regions.
@@ -31,6 +32,7 @@ class Regions extends BaseModel
 {
     use UuidTrait;
     use SlugTrait;
+    use DefaultTraits;
 
     protected $table = 'regions';
     protected $guarded = [];
