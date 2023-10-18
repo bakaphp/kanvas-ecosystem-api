@@ -15,14 +15,4 @@ class WarehouseRepository
     {
         return new Warehouses();
     }
-
-    /**
-     * Get default warehouse.
-     */
-    public static function getDefault(): ?Warehouses
-    {
-        return Warehouses::where('companies_id', auth()->user()->getCurrentCompany()->getId())
-        ->where('is_default', 1)
-        ->first();
-    }
 }
