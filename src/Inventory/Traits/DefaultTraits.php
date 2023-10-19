@@ -14,7 +14,7 @@ trait DefaultTraits
      */
     public static function getDefault(CompanyInterface $company): ?BaseModel
     {
-        return self::where('companies_id', $company->getId())
+        return self::fromCompany($company)
         ->where('is_default', 1)
         ->first();
     }

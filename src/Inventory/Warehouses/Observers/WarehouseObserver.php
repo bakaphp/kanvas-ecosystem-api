@@ -12,7 +12,7 @@ class WarehouseObserver
 {
     public function creating(Warehouses $warehouse): void
     {
-        $defaultWarehouse = $warehouse::getDefault(auth()->user()->getCurrentCompany());
+        $defaultWarehouse = $warehouse::getDefault($warehouse->companies);
 
         // if default already exist remove its default
         if ($warehouse->is_default && $defaultWarehouse) {
