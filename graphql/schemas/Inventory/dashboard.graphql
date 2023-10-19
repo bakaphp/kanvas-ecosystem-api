@@ -1,7 +1,16 @@
 type productDashboard {
     total_products: Int!
     total_variants: Int!
-    product_status: Mixed
+    product_status: [productStatus]
+}
+
+type productStatus {
+    status_id: ID!
+    status_name: String!
+    warehouses_name: String!
+    warehouses_id: ID!
+    total_amount: Int
+
 }
 
 extend type Query @guard {
