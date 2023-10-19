@@ -27,7 +27,7 @@ class WarehouseObserver
 
     public function updating(Warehouses $warehouse): void
     {
-        $defaultWarehouse = Warehouses::getDefault(auth()->user()->getCurrentCompany());
+        $defaultWarehouse = Warehouses::getDefault($warehouse->companies);
 
         // if default already exist remove its default
         if ($defaultWarehouse &&
