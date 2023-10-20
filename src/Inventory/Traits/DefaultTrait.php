@@ -7,7 +7,7 @@ namespace Kanvas\Inventory\Traits;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Inventory\Models\BaseModel;
 
-trait DefaultTraits
+trait DefaultTrait
 {
     /**
      * get default entity of the model.

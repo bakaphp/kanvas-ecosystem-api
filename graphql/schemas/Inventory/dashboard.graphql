@@ -1,10 +1,10 @@
 type productDashboard {
     total_products: Int!
     total_variants: Int!
-    product_status: [productStatus]
+    product_status: [productStatusDashboard]
 }
 
-type productStatus {
+type productStatusDashboard {
     status_id: ID!
     status_name: String!
     warehouses_name: String!

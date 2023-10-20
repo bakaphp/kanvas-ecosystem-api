@@ -11,7 +11,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Regions\Models\Regions;
-use Kanvas\Inventory\Traits\DefaultTraits;
+use Kanvas\Inventory\Traits\DefaultTrait;
 
 /**
  * Class Warehouses.
@@ -33,7 +33,7 @@ use Kanvas\Inventory\Traits\DefaultTraits;
 class Warehouses extends BaseModel
 {
     use UuidTrait;
-    use DefaultTraits;
+    use DefaultTrait;
 
     protected $table = 'warehouses';
 
