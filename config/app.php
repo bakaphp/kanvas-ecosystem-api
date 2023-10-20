@@ -188,6 +188,7 @@ return [
         Nuwave\Lighthouse\WhereConditions\WhereConditionsServiceProvider::class,
         Nuwave\Lighthouse\Scout\ScoutServiceProvider::class,
         App\Providers\HealthProvider::class,
+        Berkayk\OneSignal\OneSignalServiceProvider::class
     ],
 
     /*
@@ -202,7 +203,7 @@ return [
     */
 
     'aliases' => Facade::defaultAliases()->merge([
-        // ...
+        'OneSignal' => Berkayk\OneSignal\OneSignalFacade::class
     ])->toArray(),
 
 ];

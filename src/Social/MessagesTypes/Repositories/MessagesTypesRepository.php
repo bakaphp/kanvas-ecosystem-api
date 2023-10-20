@@ -23,4 +23,13 @@ class MessagesTypesRepository
     {
         return MessageType::getByUuid($uuid);
     }
+
+    /**
+     * getByUuid
+     */
+    public static function getByVerb(string $verb): MessageType
+    {
+        return MessageType::where('verb', $verb)
+            ->first();
+    }
 }
