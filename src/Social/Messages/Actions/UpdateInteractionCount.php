@@ -19,6 +19,12 @@ class UpdateInteractionCount
         $this->message->total_liked = UserMessage::where('messages_id', $this->message->id)
             ->where('is_liked', true)
             ->count();
+        $this->message->total_saved = UserMessage::where('messages_id', $this->message->id)
+            ->where('is_saved', true)
+            ->count();
+        $this->message->total_shared = UserMessage::where('messages_id', $this->message->id)
+            ->where('is_shared', true)
+            ->count();
         $this->message->save();
     }
 }

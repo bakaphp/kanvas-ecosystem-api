@@ -119,4 +119,18 @@ class Message extends BaseModel
     {
         return $this->setConnection('user_messages')->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
     }
+
+    public function getMyInteraction(): array
+    {
+        $userMessage = UserMessage::where('users_id', auth()->user()->id)
+            ->where('messages_id', $this->id)
+            ->first();
+
+        return [
+            'is_liked' => $userMessage ? $userMessage->is_liked : 0,
+            'is_saved' => $userMessage ? $userMessage->is_saved : 0,
+            'is_shared' => $userMessage ? $userMessage->is_shared : 0,
+            'is_reported' => $userMessage ? $userMessage->is_reported : 0,
+        ];
+    }
 }
