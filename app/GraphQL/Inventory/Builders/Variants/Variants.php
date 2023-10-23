@@ -8,6 +8,7 @@ use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Models\Variants as ModelsVariants;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
@@ -86,5 +87,38 @@ class Variants
             'discounted_price' => $root->discounted_price,
             'is_published' => $root->is_published,
         ];
+    }
+
+    public function getVariantsByStatus(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): Builder {
+        $warehouseId = $args['warehouseId'];
+        $statusId = $args['statusId'];
+
+        $warehouse = Warehouses::fromApp()
+                    ->fromCompany(auth()->user()->getCurrentCompany())
+                    ->where('id', $warehouseId)->firstOrFail();
+        
+        $status = Status::fromApp()
+                 ->fromCompany(auth()->user()->getCurrentCompany())
+                 ->where('id', $statusId)->firstOrFail();
+        // dd($status);
+        $variants = new ModelsVariants();
+        $variantWarehouse = new VariantsWarehouses();
+
+        //set index
+        ModelsVariants::setSearchIndex((int) $warehouse->companies_id);
+
+        /**
+         * @var Builder
+         */
+        return ModelsVariants::join($variantWarehouse->getTable(), $variantWarehouse->getTable() . '.products_variants_id', '=', $variants->getTable() . '.id')
+            ->where($variantWarehouse->getTable() . '.warehouses_id', '=', $warehouse->getId())
+            ->where($variantWarehouse->getTable() . '.status_id', $status->getId())
+            ->where($variantWarehouse->getTable() . '.is_deleted', 0)
+            ->select($variants->getTable() . '.*');
     }
 }
