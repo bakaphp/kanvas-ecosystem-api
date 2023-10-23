@@ -18,6 +18,7 @@ use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
 use Kanvas\Inventory\Variants\Models\Variants as VariantModel;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehouses;
 use Kanvas\Inventory\Variants\Repositories\VariantsRepository;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 
 class Variants
@@ -39,6 +40,9 @@ class Variants
         if (isset($req['input']['attributes'])) {
             $variantModel->addAttributes(auth()->user(), $req['input']['attributes']);
         }
+        if (!$variantDto->warehouse_id) {
+            $variantDto->warehouse_id = Warehouses::getDefault($variantDto->product->company()->get()->first())->getId();
+        }
         $warehouse = WarehouseRepository::getById($variantDto->warehouse_id, $variantDto->product->company()->get()->first());
 
         if (isset($req['input']['warehouse']['status'])) {
@@ -49,7 +53,8 @@ class Variants
                 $variantModel->addFileFromUrl($file['url'], $file['name']);
             }
         }
-        $variantWarehouses = VariantsWarehouses::viaRequest($req['input']['warehouse']);
+        $variantWarehouses = VariantsWarehouses::viaRequest($req['input']['warehouse'] ?? []);
+
         (new AddToWarehouse($variantModel, $warehouse, $variantWarehouses))->execute();
 
         return $variantModel;

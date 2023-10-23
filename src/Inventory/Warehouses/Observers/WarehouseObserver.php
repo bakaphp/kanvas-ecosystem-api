@@ -6,14 +6,13 @@ namespace Kanvas\Inventory\Warehouses\Observers;
 
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 
 class WarehouseObserver
 {
     public function creating(Warehouses $warehouse): void
     {
-        $defaultWarehouse = Warehouses::where('companies_id', $warehouse->companies_id)
-        ->where('is_default', 1)
-        ->first();
+        $defaultWarehouse = $warehouse::getDefault($warehouse->companies);
 
         // if default already exist remove its default
         if ($warehouse->is_default && $defaultWarehouse) {
@@ -28,9 +27,7 @@ class WarehouseObserver
 
     public function updating(Warehouses $warehouse): void
     {
-        $defaultWarehouse = Warehouses::where('companies_id', $warehouse->companies_id)
-        ->where('is_default', 1)
-        ->first();
+        $defaultWarehouse = Warehouses::getDefault($warehouse->companies);
 
         // if default already exist remove its default
         if ($defaultWarehouse &&

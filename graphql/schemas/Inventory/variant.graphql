@@ -49,7 +49,7 @@ input VariantsInput {
     price: Float
     source_id: Mixed
     attributes: [VariantsAttributesInput]
-    warehouse: WarehouseReferenceInput!
+    warehouse: WarehouseReferenceInput
 }
 
 input VariantsUpdateInput {

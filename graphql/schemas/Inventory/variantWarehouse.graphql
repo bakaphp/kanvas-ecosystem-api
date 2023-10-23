@@ -64,4 +64,14 @@ extend type Query @guard {
             defaultCount: 25
             builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\Variants@allVariantsInWarehouse"
         )
+    variantsByStatus(
+    warehouse_id: ID!
+    status_id: ID!
+    search: String @search
+    where: _ @whereConditions(columns: ["quantity", "price", "sku"])
+): [Variant!]!
+    @paginate(
+        defaultCount: 25
+        builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\Variants@getVariantsByStatus"
+    )
 }

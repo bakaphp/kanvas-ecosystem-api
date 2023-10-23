@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 
 class ProductDashboardBuilder
 {
@@ -20,24 +21,24 @@ class ProductDashboardBuilder
         $company = $user->getCurrentCompany();
         $app = app(Apps::class);
 
-        $result = Variants::query()
-            ->select('status.id', 'status.name', DB::raw('COUNT(*) as total_amount'))
+        $result = VariantsWarehouses::query()
+            ->select('status.id as status_id', 'status.name as status_name', DB::raw('COUNT(*) as total_amount'), 'warehouses.name as warehouses_name', 'warehouses.id as warehouses_id')
             ->join('status', function ($join) {
-                $join->on('products_variants.status_id', '=', 'status.id')
-                    ->on('status.companies_id', '=', 'products_variants.companies_id');
+                $join->on('products_variants_warehouses.status_id', '=', 'status.id');
             })
-            ->where('products_variants.is_deleted', 0)
+            ->join('warehouses', function ($join) {
+                $join->on('products_variants_warehouses.warehouses_id', '=', 'warehouses.id');
+            })
+            ->where('products_variants_warehouses.is_deleted', 0)
             ->where('status.is_deleted', 0)
-            ->where('products_variants.companies_id', $company->getId())
-            ->groupBy('status.id', 'status.name')
+            ->where('warehouses.companies_id', $company->getId())
+            ->groupBy('warehouses.id', 'status.id')
         ->get();
-
-        $resultArray = $result->pluck('total_amount', 'name')->toArray();
 
         return [
             'total_products' => Products::fromApp($app)->fromCompany($company)->notDeleted()->where('is_published', 1)->count(),
             'total_variants' => Variants::fromApp($app)->fromCompany($company)->notDeleted()->count(),
-            'product_status' => $resultArray ?? [],
+            'product_status' => $result->toArray() ?? [],
         ];
     }
 }
