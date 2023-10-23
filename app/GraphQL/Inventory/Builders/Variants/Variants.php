@@ -106,7 +106,7 @@ class Variants
                  ->fromCompany(auth()->user()->getCurrentCompany())
                  ->where('id', $statusId)->firstOrFail();
 
-                 $variants = new ModelsVariants();
+        $variants = new ModelsVariants();
         $variantWarehouse = new VariantsWarehouses();
 
         //set index
