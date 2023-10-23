@@ -101,12 +101,12 @@ class Variants
         $warehouse = Warehouses::fromApp()
                     ->fromCompany(auth()->user()->getCurrentCompany())
                     ->where('id', $warehouseId)->firstOrFail();
-        
+
         $status = Status::fromApp()
                  ->fromCompany(auth()->user()->getCurrentCompany())
                  ->where('id', $statusId)->firstOrFail();
-        // dd($status);
-        $variants = new ModelsVariants();
+
+                 $variants = new ModelsVariants();
         $variantWarehouse = new VariantsWarehouses();
 
         //set index
