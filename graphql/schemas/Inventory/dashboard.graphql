@@ -1,7 +1,7 @@
 type productDashboard {
     total_products: Int!
     total_variants: Int!
-    product_status: [productStatusDashboard]
+    product_status: [productStatusDashboard!]!
 }
 
 type productStatusDashboard {
