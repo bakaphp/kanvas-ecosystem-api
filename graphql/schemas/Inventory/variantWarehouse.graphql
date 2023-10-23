@@ -65,8 +65,8 @@ extend type Query @guard {
             builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\Variants@allVariantsInWarehouse"
         )
     variantsByStatus(
-    warehouseId: ID!
-    statusId: ID!
+    warehouse_id: ID!
+    status_id: ID!
     search: String @search
     where: _ @whereConditions(columns: ["quantity", "price", "sku"])
 ): [Variant!]!
