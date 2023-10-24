@@ -68,15 +68,15 @@ class Variants extends BaseModel
     protected static ?string $overWriteSearchIndex = null;
 
     /**
-      * Get the name of the index associated with the model.
-      */
+     * Get the name of the index associated with the model.
+     */
     public function searchableAs(): string
     {
         $indexName = (! isset($this->companies_id) || $this->companies_id === null) && self::$overWriteSearchIndex !== null
             ? self::$overWriteSearchIndex
             : (string) AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue() . (string) $this->companies_id;
 
-        return config('scout.prefix') . $indexName;
+        return config('scout.prefix') . '_app_' . $this->apps_id . $indexName;
     }
 
     /**
