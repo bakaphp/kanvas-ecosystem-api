@@ -21,7 +21,6 @@ class ProductBuilder
 
         Products::setSearchIndex($company->getId());
 
-
         /**
          * @var Builder
          */
