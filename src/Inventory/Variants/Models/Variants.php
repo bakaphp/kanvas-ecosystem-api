@@ -76,7 +76,7 @@ class Variants extends BaseModel
             ? self::$overWriteSearchIndex
             : (string) AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue() . (string) $this->companies_id;
 
-        return config('scout.prefix') . '_app_' . $this->apps_id . '_' . $indexName;
+        return config('scout.prefix') . 'app_' . $this->apps_id . '_' . $indexName;
     }
 
     /**
