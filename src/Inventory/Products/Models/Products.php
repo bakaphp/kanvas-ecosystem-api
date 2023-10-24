@@ -121,7 +121,7 @@ class Products extends BaseModel
      */
     public function searchableAs(): string
     {
-        return config('scout.prefix') . '_app_' . $this->apps_id . AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue() . $this->companies_id;
+        return config('scout.prefix') . 'app_' . $this->apps_id . '_' . AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue() . $this->companies_id;
     }
 
     public function shouldBeSearchable(): bool
