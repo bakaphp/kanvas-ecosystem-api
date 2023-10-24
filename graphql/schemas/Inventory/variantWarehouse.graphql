@@ -62,7 +62,7 @@ extend type Query @guard {
     ): [Variant!]!
         @paginate(
             defaultCount: 25
-            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\Variants@allVariantsInWarehouse"
+            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantWarehouseBuilder@allVariantsInWarehouse"
         )
     variantsByStatus(
     warehouse_id: ID!
@@ -72,6 +72,6 @@ extend type Query @guard {
 ): [Variant!]!
     @paginate(
         defaultCount: 25
-        builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\Variants@getVariantsByStatus"
+        builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantWarehouseBuilder@getVariantsByStatus"
     )
 }
