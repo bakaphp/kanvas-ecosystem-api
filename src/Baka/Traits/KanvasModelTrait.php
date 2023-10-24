@@ -213,4 +213,9 @@ trait KanvasModelTrait
     {
         return Str::simpleSlug(static::class) . '-' . $this->getId();
     }
+
+    public function isDeleted(): bool
+    {
+        return (int) $this->is_deleted === StateEnums::YES->getValue();
+    }
 }
