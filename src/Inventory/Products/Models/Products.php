@@ -6,13 +6,13 @@ namespace Kanvas\Inventory\Products\Models;
 
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
-use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Models\Categories;
+use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -48,6 +48,10 @@ class Products extends BaseModel
 
     protected $table = 'products';
     protected $guarded = [];
+
+    protected $casts = [
+        'is_published' => 'boolean',
+    ];
 
     /**
      * categories.
@@ -111,4 +115,22 @@ class Products extends BaseModel
     {
         return $this->belongsTo(Companies::class, 'companies_id');
     }
+
+     /**
+      * Get the name of the index associated with the model.
+      */
+      public function searchableAs(): string
+      {
+          return config('scout.prefix') . AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue() . $this->apps_id . $this->companies_id;
+      }
+
+      public function shouldBeSearchable(): bool
+      {
+          return $this->isPublished();
+      }
+
+      public function isPublished(): bool
+      {
+          return $this->is_published;
+      }
 }
