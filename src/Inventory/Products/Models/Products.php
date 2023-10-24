@@ -116,21 +116,21 @@ class Products extends BaseModel
         return $this->belongsTo(Companies::class, 'companies_id');
     }
 
-     /**
-      * Get the name of the index associated with the model.
-      */
-      public function searchableAs(): string
-      {
-          return config('scout.prefix') . '_app_' . $this->apps_id . AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue() . $this->companies_id;
-      }
+    /**
+     * Get the name of the index associated with the model.
+     */
+    public function searchableAs(): string
+    {
+        return config('scout.prefix') . '_app_' . $this->apps_id . AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue() . $this->companies_id;
+    }
 
-      public function shouldBeSearchable(): bool
-      {
-          return $this->isPublished();
-      }
+    public function shouldBeSearchable(): bool
+    {
+        return $this->isPublished();
+    }
 
-      public function isPublished(): bool
-      {
-          return $this->is_published;
-      }
+    public function isPublished(): bool
+    {
+        return $this->is_published;
+    }
 }
