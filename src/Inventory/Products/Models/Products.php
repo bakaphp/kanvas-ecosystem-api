@@ -9,6 +9,7 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Models\Categories;
@@ -48,6 +49,7 @@ class Products extends BaseModel
 
     protected $table = 'products';
     protected $guarded = [];
+    protected static ?string $overWriteSearchIndex = null;
 
     protected $casts = [
         'is_published' => 'boolean',
@@ -121,7 +123,21 @@ class Products extends BaseModel
      */
     public function searchableAs(): string
     {
-        return config('scout.prefix') . 'app_' . $this->apps_id . '_' . AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue() . $this->companies_id;
+        $appId = $this->apps_id ?? app(Apps::class)->getId();
+
+        $indexName = (! isset($this->companies_id) || $this->companies_id === null) && self::$overWriteSearchIndex !== null
+            ? self::$overWriteSearchIndex
+            : (string) AppEnums::PRODUCT_SEARCH_INDEX->getValue() . (string) $this->companies_id;
+
+        return config('scout.prefix') . 'app_' . $appId . '_' . $indexName;
+    }
+
+    /**
+     * Overwrite the search index when calling the method via static methods
+     */
+    public static function setSearchIndex(int $companyId): void
+    {
+        self::$overWriteSearchIndex = (string) AppEnums::PRODUCT_SEARCH_INDEX->getValue() . $companyId;
     }
 
     public function shouldBeSearchable(): bool
