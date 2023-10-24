@@ -112,8 +112,8 @@ extend type Query @guard {
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [Product]
         @paginate(
-            model: "Kanvas\\Inventory\\Products\\Models\\Products"
             scopes: ["fromApp", "fromCompany", "notDeleted"]
+            builder: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProducts"
             defaultCount: 25
         )
 }
