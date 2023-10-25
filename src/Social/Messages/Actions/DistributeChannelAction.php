@@ -26,7 +26,7 @@ class DistributeChannelAction
                 $channelsDataBase[] = ChannelRepository::getById((int)$channel, $this->user);
             }
         } else {
-            $channelsDataBase = $user->channels;
+            $channelsDataBase = $this->user->channels;
         }
         SendToChannelJob::dispatch($channelsDataBase, $this->message)->onQueue('kanvas-social');
     }

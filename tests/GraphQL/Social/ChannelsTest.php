@@ -156,14 +156,11 @@ class ChannelsTest extends TestCase
         $response = $this->graphQL(
             '
             mutation attachUserToSocialChannel(
-                $channel_id:ID!
-                $user_id: ID!
-                $roles_id: UsersRolesChannel!
+                $input: AttachUserInput!
                 ) {
                     attachUserToSocialChannel(
-                        channel_id: $channel_id,
-                        user_id: $user_id
-                        roles_id: $roles_id
+                        input: $input
+
                     ) {
                         users {
                             id 
@@ -172,9 +169,11 @@ class ChannelsTest extends TestCase
             }
         ',
             [
-                'channel_id' => $channelId,
-                'user_id' => $user,
-                'roles_id' => 'Admin',
+                'input' => [
+                    'channel_id' => $channelId,
+                    'user_id' => $user,
+                    'roles_id' => 'Admin',
+                ],
             ]
         );
         $response->assertJsonStructure([

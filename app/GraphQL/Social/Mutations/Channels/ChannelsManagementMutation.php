@@ -4,19 +4,22 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Mutations\Channels;
 
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Repositories\ChannelRepository;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
-
+use Kanvas\Apps\Models\Apps;
 class ChannelsManagementMutation
 {
     public function createChannel(mixed $rootValue, array $request): Channel
     {
         $systemModule = SystemModules::getByUuid($request['input']['entity_namespace_uuid']);
         $channelDto = new ChannelDto(
+            apps: app(Apps::class),
+            companies: auth()->user()->getCurrentCompany(),
             users: auth()->user(),
             name: $request['input']['name'],
             description: $request['input']['description'],
@@ -48,7 +51,7 @@ class ChannelsManagementMutation
     {
         $channel = ChannelRepository::getByIdBuilder(auth()->user())
             ->where('channel_users.roles_id', 1)
-            ->find($request['id']);
+            ->findOrFail($request['id']);
 
         $channel->delete();
 
@@ -57,10 +60,10 @@ class ChannelsManagementMutation
 
     public function attachUserToChannel(mixed $rootValue, array $request): Channel
     {
-        $channel = ChannelRepository::getById((int)$request['channel_id'], auth()->user());
-        $user = Users::getByIdFromCompany($request['user_id'], auth()->user()->getCurrentCompany());
-
-        $channel->users()->attach($user->id, ['roles_id' => $request['roles_id']]);
+        $channel = ChannelRepository::getById((int)$request['input']['channel_id'], auth()->user());
+        $user = Users::getByIdFromCompany($request['input']['user_id'], auth()->user()->getCurrentCompany());
+        $roles = RolesRepository::getByIdFromCompany($request['input']['roles_id'], auth()->user()->getCurrentCompany());
+        $channel->users()->attach($user->id, ['roles_id' => $roles->id]);
 
         return $channel;
     }

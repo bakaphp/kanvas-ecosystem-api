@@ -18,6 +18,8 @@ class CreateChannelAction
     public function execute(): Channel
     {
         $channel = Channel::firstOrCreate([
+            'apps_id' => $this->channelDto->apps->id,
+            'companies_id' => $this->channelDto->companies->id,
             'name' => $this->channelDto->name,
             'slug' => Str::slug($this->channelDto->name),
             'description' => $this->channelDto->description,

@@ -127,10 +127,10 @@ class Message extends BaseModel
             ->first();
 
         return [
-            'is_liked' => $userMessage ? $userMessage->is_liked : 0,
-            'is_saved' => $userMessage ? $userMessage->is_saved : 0,
-            'is_shared' => $userMessage ? $userMessage->is_shared : 0,
-            'is_reported' => $userMessage ? $userMessage->is_reported : 0,
+            'is_liked' => (int) ($userMessage?->is_liked),
+            'is_saved' => (int) ($userMessage?->is_saved),
+            'is_shared' => (int) ($userMessage?->is_shared),
+            'is_reported' => (int) ($userMessage?->is_reported),
         ];
     }
 }

@@ -2,7 +2,6 @@ extend type User {
     pivot: SocialChannelPivot
 }
 
-
 type SocialChannel {
     id: ID!
     name: String!
@@ -12,7 +11,7 @@ type SocialChannel {
     entity_id: ID!
     last_message_id: ID!
     messages: [Message!]! @belongsToMany
-    users: [User] @belongsToMany
+    users: [User!]! @belongsToMany
     systemModule: SystemModule!
 }
 
@@ -24,7 +23,7 @@ input SocialChannelInput {
     entity_id: ID!
 }
 
-enum UsersRolesChannel{
+enum UsersRolesChannel {
     Admin @enum(value: 1)
     User @enum(value: 2)
 }
@@ -33,35 +32,52 @@ type SocialChannelPivot {
     roles_id: UsersRolesChannel!
 }
 
+input AttachUserInput {
+    channel_id: ID!
+    user_id: ID!
+    roles_id: UsersRolesChannel!
+}
 
 extend type Query {
     getSocialChannels(
-        where: _@whereConditions(
-            columns: [
-                "id",
-                "name",
-                "slug",
-                "description",
-                "entity_namespace",
-                "entity_id",
-            ]
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "slug"
+                    "description"
+                    "entity_namespace"
+                    "entity_id"
+                ]
+            )
+    ): [SocialChannel]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Builders\\Channels\\GetSocialChannelsBuilder@getChannels"
+            scopes: ["fromCompany", "fromApp"]
         )
-    ): [SocialChannel] @paginate(
-        defaultCount: 25
-        builder: "App\\GraphQL\\Social\\Builders\\Channels\\GetSocialChannelsBuilder@getChannels"
-    )
 }
 
-
 extend type Mutation {
-    createSocialChannel(input: SocialChannelInput!): SocialChannel 
-    @field(resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@createChannel")
+    createSocialChannel(input: SocialChannelInput!): SocialChannel
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@createChannel"
+        )
     updateSocialChannel(id: ID!, input: SocialChannelInput!): SocialChannel
-    @field(resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@updateChannel")
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@updateChannel"
+        )
     deleteSocialChannel(id: ID!): SocialChannel
-    @field(resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@deleteChannel")
-    attachUserToSocialChannel(channel_id: ID!, user_id: ID!, roles_id: UsersRolesChannel!): SocialChannel
-    @field(resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@attachUserToChannel")
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@deleteChannel"
+        )
+    attachUserToSocialChannel(input: AttachUserInput!): SocialChannel
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@attachUserToChannel"
+        )
     detachUserToSocialChannel(channel_id: ID!, user_id: ID!): SocialChannel
-    @field(resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@detachUserToChannel")
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@detachUserToChannel"
+        )
 }
