@@ -11,7 +11,10 @@ class ChannelsTest extends TestCase
 {
     public function testCreateChannel()
     {
-        $systemModule = SystemModules::all()->random(1)->first();
+        $systemModule = SystemModules::fromApp()
+                        ->fromApp()
+                        ->notDeleted()
+                        ->firstOrFail();
         $data = [
             'name' => fake()->name(),
             'description' => fake()->text(),
@@ -45,7 +48,10 @@ class ChannelsTest extends TestCase
 
     public function testUpdateChannel()
     {
-        $systemModule = SystemModules::all()->random(1)->first();
+        $systemModule = SystemModules::fromApp()
+                        ->fromApp()
+                        ->notDeleted()
+                        ->firstOrFail();
         $data = [
             'name' => fake()->name(),
             'description' => fake()->text(),
@@ -92,7 +98,10 @@ class ChannelsTest extends TestCase
 
     public function testAttachUserToSocialChannel()
     {
-        $systemModule = SystemModules::all()->random(1)->first();
+        $systemModule = SystemModules::fromApp()
+                        ->fromApp()
+                        ->notDeleted()
+                        ->firstOrFail();
         $data = [
             'name' => fake()->name(),
             'description' => fake()->text(),
