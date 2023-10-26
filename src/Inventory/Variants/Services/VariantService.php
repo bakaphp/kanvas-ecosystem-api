@@ -75,7 +75,7 @@ class VariantService
     public static function updateWarehouseVariant(Variants $variant, Warehouses $warehouse, array $data): Variants
     {
         if (isset($data['status'])) {
-            $data['status_id'] = StatusRepository::getById((int) $data['status']['id'], auth()->user()->getCurrentCompany())->getId();
+            $data['status_id'] = StatusRepository::getById((int) $data['status']['id'], $variant->product->company()->get()->first())->getId();
         }
 
         $variantWarehousesDto = VariantsWarehouses::viaRequest($data);
