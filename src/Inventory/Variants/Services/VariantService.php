@@ -9,8 +9,11 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction as AddToWarehouse;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
+use Kanvas\Inventory\Variants\Actions\UpdateToWarehouseAction;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
+use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 
@@ -59,5 +62,27 @@ class VariantService
         }
 
         return $variantsData;
+    }
+
+    /**
+     * Update data of variant in a warehouse.
+     *
+     * @param Variants $variant
+     * @param Warehouses $warehouse
+     * @param array $data
+     * @return Variants
+     */
+    public static function updateWarehouseVariant(Variants $variant, Warehouses $warehouse, array $data): Variants
+    {
+        if (isset($data['status'])) {
+            $data['status_id'] = StatusRepository::getById((int) $data['status']['id'], auth()->user()->getCurrentCompany())->getId();
+        }
+
+        $variantWarehousesDto = VariantsWarehouses::viaRequest($data);
+        $variantWarehouses = ModelsVariantsWarehouses::where('products_variants_id', $variant->getId())
+            ->where('warehouses_id', $warehouse->getId())
+            ->firstOrFail();
+
+        return (new UpdateToWarehouseAction($variantWarehouses, $variantWarehousesDto))->execute();
     }
 }
