@@ -13,7 +13,7 @@ class BuilderMacroServiceProvider extends ServiceProvider
     {
         Builder::macro('wheresContain', function (string $column, string $operator, mixed $value) {
             $wheres = $this->getQuery()->wheres;
-            
+
             foreach ($wheres as $where) {
                 if ($where['type'] === 'Basic'
                     && $where['column'] === $column
