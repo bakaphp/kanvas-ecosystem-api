@@ -22,7 +22,7 @@ class MessageManagementMutation
     public function interaction(mixed $root, array $request): Message
     {
         $message = MessageRepository::getById((int)$request['id']);
-        $action = new InteractionMessageAction($message, auth()->user(), ActivityTypeEnum::from($request['type']));
+        $action = new p($message, auth()->user(), ActivityTypeEnum::from($request['type']));
         $userMessage = $action->execute();
 
         return $message;
@@ -65,7 +65,7 @@ class MessageManagementMutation
         } elseif ($distributionType->value == DistributionTypeEnum::Channels->value) {
             $channels = key_exists('channels', $request['input']['distribution']) ? $request['input']['distribution']['channels'] : [];
             (new DistributeChannelAction($channels, $message, auth()->user()))->execute();
-        } elseif ($distributionType->value == DistributionTypeEnum::Users->value) {
+        } elseif ($distributionType->value == DistributionTypeEnum::Followers->value) {
             (new DistributeToUsers($message))->execute();
         }
 

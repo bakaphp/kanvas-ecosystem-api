@@ -49,7 +49,7 @@ class MessageTest extends TestCase
         ]);
     }
 
-    public function testGetMessages()
+    public function testmessages()
     {
         $messageType = MessageType::factory()->create();
         $message = fake()->text();
@@ -116,7 +116,7 @@ class MessageTest extends TestCase
         $this->graphQL(
             '
             query {
-                getMessages(
+                messages(
                     where: {
                         column: ID, operator: EQ, value: ' . $createdMessageId . '
                         } 
@@ -130,7 +130,7 @@ class MessageTest extends TestCase
             '
         )->assertJson([
             'data' => [
-                'getMessages' => [
+                'messages' => [
                     'data' => [
                         [
                             'message' => $message,
@@ -168,8 +168,8 @@ class MessageTest extends TestCase
 
         $this->graphQL(
             '
-                query getMessages($text: String!) {
-                    getMessages(search: $text) {
+                query messages($text: String!) {
+                    messages(search: $text) {
                         data {
                             message
                             message_types_id
@@ -182,7 +182,7 @@ class MessageTest extends TestCase
             ]
         )->assertJson([
             'data' => [
-                'getMessages' => [
+                'messages' => [
                     'data' => [
                         [
                             'message' => $message,
