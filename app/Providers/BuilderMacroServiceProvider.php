@@ -9,6 +9,9 @@ use Illuminate\Support\ServiceProvider;
 
 class BuilderMacroServiceProvider extends ServiceProvider
 {
+    /**
+    * @psalm-suppress UndefinedMethod
+    */
     public function boot()
     {
         Builder::macro('wheresContain', function (string $column, string $operator, mixed $value) {
