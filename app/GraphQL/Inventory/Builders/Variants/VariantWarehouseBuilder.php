@@ -20,7 +20,7 @@ class VariantWarehouseBuilder
         GraphQLContext $context,
         ResolveInfo $resolveInfo
     ): Builder {
-        $warehouseId = $args['warehouseId'];
+        $warehouseId = $args['warehouse_id'];
 
         $warehouse = Warehouses::fromApp()
                     ->fromCompany(auth()->user()->getCurrentCompany())
@@ -47,8 +47,8 @@ class VariantWarehouseBuilder
         GraphQLContext $context,
         ResolveInfo $resolveInfo
     ): Builder {
-        $warehouseId = $args['warehouseId'];
-        $statusId = $args['statusId'];
+        $warehouseId = $args['warehouse_id'];
+        $statusId = $args['status_id'];
 
         $warehouse = Warehouses::fromApp()
                     ->fromCompany(auth()->user()->getCurrentCompany())
