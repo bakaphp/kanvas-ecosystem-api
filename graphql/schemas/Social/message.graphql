@@ -11,21 +11,62 @@ type Message {
     comment_count: Int
     total_liked: Int
     total_saved: Int
+    total_shared: Int
     parent: Message
     user: User!
     messageType: MessageType!
+    appModuleMessage: AppModuleMessage!
+    myInteraction: myInteraction @method(name: "getMyInteraction")
+}
+
+type AppModuleMessage {
+    id: ID!
+    system_modules: String!
+    entity_id: Mixed!
+}
+
+type myInteraction {
+    is_liked: Boolean
+    is_saved: Boolean
+    is_shared: Boolean
+    is_reported: Boolean
 }
 
 input MessageInput {
     message_types_id: ID!
     message: Mixed!
+    parent_id: ID
     system_modules_id: ID!
     entity_id: Mixed!
+    distribution: DistributionInput
+}
+
+enum DistributionType {
+    ALL
+    Channels
+    Followers
+}
+
+enum InteractionType {
+    LIKE @enum(value: 1)
+    SAVE @enum(value: 2)
+    SHARE @enum(value: 3)
+    REPORT @enum(value: 4)
+}
+
+input DistributionInput {
+    distributionType: DistributionType!
+    channels: [ID!]!
+    followers: [ID!]!
 }
 extend type Mutation @guard {
     createMessage(input: MessageInput!): Message
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@create"
+        )
+    interactionMessage(id: ID!, type: InteractionType!): Message
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@interaction"
         )
 }
 
@@ -48,6 +89,8 @@ extend type Query @guard {
                     "total_shared"
                 ]
             )
+        hasAppModuleMessage: _
+            @whereHasConditions(columns: ["entity_id", "system_modules"])
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
         search: String @search
     ): [Message]
