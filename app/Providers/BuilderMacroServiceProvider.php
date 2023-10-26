@@ -15,6 +15,10 @@ class BuilderMacroServiceProvider extends ServiceProvider
     public function boot()
     {
         Builder::macro('wheresContain', function (string $column, string $operator, mixed $value) {
+            if (! method_exists($this, 'getQuery')) {
+                return false;
+            }
+
             $wheres = $this->getQuery()->wheres;
 
             foreach ($wheres as $where) {
