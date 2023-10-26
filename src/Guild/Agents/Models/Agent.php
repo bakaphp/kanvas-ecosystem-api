@@ -79,7 +79,9 @@ class Agent extends BaseModel
 
         $query->where('users_id', '>', 0);
 
-        if ($company->get(AgentFilterEnum::FITTER_BY_USER->value)) {
+        $lookingForSpecificUser = $query->wheresContain('users_id', '=', $user->getId());
+
+        if ($company->get(AgentFilterEnum::FITTER_BY_USER->value) && ! $lookingForSpecificUser) {
             $memberId = $user->get('member_number_' . $company->getId()) ? $user->get('member_number_' . $company->getId()) : $user->getId();
 
             return $query->where('owner_id', $memberId);

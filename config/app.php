@@ -188,6 +188,7 @@ return [
         Nuwave\Lighthouse\WhereConditions\WhereConditionsServiceProvider::class,
         Nuwave\Lighthouse\Scout\ScoutServiceProvider::class,
         App\Providers\HealthProvider::class,
+        App\Providers\BuilderMacroServiceProvider::class
     ],
 
     /*
