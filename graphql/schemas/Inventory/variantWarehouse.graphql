@@ -1,5 +1,5 @@
 type WarehouseVariantRelationship {
-    id: ID!
+    warehouses_id: ID!
     warehouseinfo: Warehouse @belongsToMany(relation: "warehouse")
     channels: [VariantChannelRelationship]
     quantity: Float
