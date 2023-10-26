@@ -39,7 +39,7 @@ input AttachUserInput {
 }
 
 extend type Query {
-    getSocialChannels(
+    socialChannels(
         where: _
             @whereConditions(
                 columns: [

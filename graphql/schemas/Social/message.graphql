@@ -56,8 +56,8 @@ enum InteractionType {
 
 input DistributionInput {
     distributionType: DistributionType!
-    channels: [ID!]
-    followers: [ID!]
+    channels: [ID!]!
+    followers: [ID!]!
 }
 extend type Mutation @guard {
     createMessage(input: MessageInput!): Message
@@ -71,7 +71,7 @@ extend type Mutation @guard {
 }
 
 extend type Query @guard {
-    getMessages(
+    messages(
         where: _
             @whereConditions(
                 columns: [

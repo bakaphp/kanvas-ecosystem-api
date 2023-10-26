@@ -5,18 +5,19 @@ declare(strict_types=1);
 namespace App\GraphQL\Social\Mutations\Channels;
 
 use Kanvas\AccessControlList\Repositories\RolesRepository;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Repositories\ChannelRepository;
-use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
-use Kanvas\Apps\Models\Apps;
+
 class ChannelsManagementMutation
 {
     public function createChannel(mixed $rootValue, array $request): Channel
     {
-        $systemModule = SystemModules::getByUuid($request['input']['entity_namespace_uuid']);
+        $systemModule = SystemModulesRepository::getByUuidOrModelName($request['input']['entity_namespace_uuid']);
         $channelDto = new ChannelDto(
             apps: app(Apps::class),
             companies: auth()->user()->getCurrentCompany(),
@@ -36,7 +37,7 @@ class ChannelsManagementMutation
     public function updateChannel(mixed $rootValue, array $request): Channel
     {
         $channel = ChannelRepository::getById((int)$request['id'], auth()->user());
-        $systemModule = SystemModules::getByUuid($request['input']['entity_namespace_uuid']);
+        $systemModule = SystemModulesRepository::getByUuidOrModelName($request['input']['entity_namespace_uuid']);
 
         $channel->name = $request['input']['name'];
         $channel->description = $request['input']['description'];
