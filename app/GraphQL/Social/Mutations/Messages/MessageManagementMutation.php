@@ -22,7 +22,7 @@ class MessageManagementMutation
     public function interaction(mixed $root, array $request): Message
     {
         $message = MessageRepository::getById((int)$request['id']);
-        $action = new p($message, auth()->user(), ActivityTypeEnum::from($request['type']));
+        $action = new CreateMessageAction($message, auth()->user(), ActivityTypeEnum::from($request['type']));
         $userMessage = $action->execute();
 
         return $message;
