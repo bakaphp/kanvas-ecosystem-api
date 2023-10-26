@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Warehouses;
 
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses as WarehousesDto;
