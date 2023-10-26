@@ -6,13 +6,14 @@ namespace Kanvas\Inventory\Products\Models;
 
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
-use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Models\Categories;
+use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -48,6 +49,11 @@ class Products extends BaseModel
 
     protected $table = 'products';
     protected $guarded = [];
+    protected static ?string $overWriteSearchIndex = null;
+
+    protected $casts = [
+        'is_published' => 'boolean',
+    ];
 
     /**
      * categories.
@@ -110,5 +116,37 @@ class Products extends BaseModel
     public function companies(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
+    }
+
+    /**
+     * Get the name of the index associated with the model.
+     */
+    public function searchableAs(): string
+    {
+        $appId = $this->apps_id ?? app(Apps::class)->getId();
+
+        $indexName = (! isset($this->companies_id) || $this->companies_id === null) && self::$overWriteSearchIndex !== null
+            ? self::$overWriteSearchIndex
+            : (string) AppEnums::PRODUCT_SEARCH_INDEX->getValue() . (string) $this->companies_id;
+
+        return config('scout.prefix') . 'app_' . $appId . '_' . $indexName;
+    }
+
+    /**
+     * Overwrite the search index when calling the method via static methods
+     */
+    public static function setSearchIndex(int $companyId): void
+    {
+        self::$overWriteSearchIndex = (string) AppEnums::PRODUCT_SEARCH_INDEX->getValue() . $companyId;
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return $this->isPublished();
+    }
+
+    public function isPublished(): bool
+    {
+        return $this->is_published && ! $this->isDeleted();
     }
 }

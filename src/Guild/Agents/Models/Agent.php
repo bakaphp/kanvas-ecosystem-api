@@ -57,6 +57,13 @@ class Agent extends BaseModel
         );
     }
 
+    public static function getMemberNumber(UserInterface $user, CompanyInterface $company): int
+    {
+        $memberId = AgentFilterEnum::MEMBER_NUMBER . $company->getId();
+
+        return (int) ($user->get($memberId) ? $user->get($memberId) : $user->getId());
+    }
+
     public function getNextAgentNumber(CompanyInterface $company): int
     {
         $maxMemberId = Agent::where('companies_id', $company->getId())

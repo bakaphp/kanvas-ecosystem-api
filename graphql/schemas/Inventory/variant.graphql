@@ -49,7 +49,7 @@ input VariantsInput {
     price: Float
     source_id: Mixed
     attributes: [VariantsAttributesInput]
-    warehouse: WarehouseReferenceInput!
+    warehouse: WarehouseReferenceInput
 }
 
 input VariantsUpdateInput {
@@ -126,6 +126,6 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             scopes: ["fromApp", "fromCompany", "notDeleted"]
-            model: "Kanvas\\Inventory\\Variants\\Models\\Variants"
+            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantBuilder@getVariants"
         )
 }

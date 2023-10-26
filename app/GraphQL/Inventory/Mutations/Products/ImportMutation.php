@@ -10,6 +10,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob as ImporterJob;
+use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 
 class ImportMutation
@@ -28,7 +29,7 @@ class ImportMutation
             auth()->user()
         );
 
-        $region = ! isset($req['regionId']) ? RegionRepository::getDefault($company) : RegionRepository::getById($req['regionId'], $company);
+        $region = ! isset($req['regionId']) ? Regions::getDefault($company) : RegionRepository::getById($req['regionId'], $company);
 
         //verify it has the correct format
         ProductImporter::from($req['input'][0]);
