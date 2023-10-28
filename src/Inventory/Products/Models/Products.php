@@ -19,6 +19,8 @@ use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
+use Kanvas\Traits\HashSearchableDynamicIndex;
+use Kanvas\Traits\SearchableDynamicIndex;
 use Laravel\Scout\Searchable;
 
 /**
@@ -44,12 +46,11 @@ class Products extends BaseModel
 {
     use UuidTrait;
     use SlugTrait;
-    use Searchable;
     use LikableTrait;
+    use SearchableDynamicIndex;
 
     protected $table = 'products';
     protected $guarded = [];
-    protected static ?string $overWriteSearchIndex = null;
 
     protected $casts = [
         'is_published' => 'boolean',
@@ -118,26 +119,9 @@ class Products extends BaseModel
         return $this->belongsTo(Companies::class, 'companies_id');
     }
 
-    /**
-     * Get the name of the index associated with the model.
-     */
-    public function searchableAs(): string
+    public static function searchableIndex(): string
     {
-        $appId = $this->apps_id ?? app(Apps::class)->getId();
-
-        $indexName = (! isset($this->companies_id) || $this->companies_id === null) && self::$overWriteSearchIndex !== null
-            ? self::$overWriteSearchIndex
-            : (string) AppEnums::PRODUCT_SEARCH_INDEX->getValue() . (string) $this->companies_id;
-
-        return config('scout.prefix') . 'app_' . $appId . '_' . $indexName;
-    }
-
-    /**
-     * Overwrite the search index when calling the method via static methods
-     */
-    public static function setSearchIndex(int $companyId): void
-    {
-        self::$overWriteSearchIndex = (string) AppEnums::PRODUCT_SEARCH_INDEX->getValue() . $companyId;
+        return AppEnums::PRODUCT_SEARCH_INDEX->getValue();
     }
 
     public function shouldBeSearchable(): bool

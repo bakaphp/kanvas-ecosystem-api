@@ -21,6 +21,7 @@ use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
+use Kanvas\Traits\SearchableDynamicIndex;
 use Laravel\Scout\Searchable;
 
 /**
@@ -45,8 +46,8 @@ class Variants extends BaseModel
 {
     use SlugTrait;
     use UuidTrait;
-    use Searchable;
     use SocialInteractionsTrait;
+    use SearchableDynamicIndex;
 
     protected $table = 'products_variants';
     protected $fillable = [
@@ -67,26 +68,9 @@ class Variants extends BaseModel
     protected $guarded = [];
     protected static ?string $overWriteSearchIndex = null;
 
-    /**
-     * Get the name of the index associated with the model.
-     */
-    public function searchableAs(): string
+    public static function searchableIndex(): string
     {
-        $appId = $this->apps_id ?? app(Apps::class)->getId();
-
-        $indexName = (! isset($this->companies_id) || $this->companies_id === null) && self::$overWriteSearchIndex !== null
-            ? self::$overWriteSearchIndex
-            : (string) AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue() . (string) $this->companies_id;
-
-        return config('scout.prefix') . 'app_' . $appId . '_' . $indexName;
-    }
-
-    /**
-     * Overwrite the search index when calling the method via static methods
-     */
-    public static function setSearchIndex(int $companyId): void
-    {
-        self::$overWriteSearchIndex = (string) AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue() . $companyId;
+        return AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue();
     }
 
     public function shouldBeSearchable(): bool
