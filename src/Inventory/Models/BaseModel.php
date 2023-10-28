@@ -20,9 +20,7 @@ class BaseModel extends EloquentModel
 {
     use HasFactory;
     use SourceTrait;
-    use KanvasModelTrait {
-        softDelete as public KanvasSoftDelete;
-    }
+    use KanvasModelTrait;
     use AppsIdTrait;
     use CompaniesIdTrait;
     use KanvasScopesTrait;
@@ -36,14 +34,4 @@ class BaseModel extends EloquentModel
     ];
 
     protected $connection = 'inventory';
-
-    //#[Override]
-    public function softDelete(): bool
-    {
-        if (isset($this->companies_id) && method_exists($this, 'setSearchIndex')) {
-            static::setSearchIndex($this->companies_id);
-        }
-
-        return $this->KanvasSoftDelete();
-    }
 }
