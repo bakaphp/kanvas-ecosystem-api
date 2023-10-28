@@ -10,11 +10,12 @@ use Laravel\Scout\Searchable;
 trait SearchableDynamicIndex
 {
     use Searchable;
-    
+
     protected static ?string $overWriteSearchIndex = null;
 
-    public abstract static function searchableIndex(): string;
-    public abstract function shouldBeSearchable(): bool;
+    abstract public static function searchableIndex(): string;
+
+    abstract public function shouldBeSearchable(): bool;
 
     /**
      * Get the name of the index associated with the model.
