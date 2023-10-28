@@ -95,8 +95,6 @@ class Warehouses extends BaseModel
 
     /**
      * position.
-     *
-     * @return Attributre
      */
     public function position(): Attribute
     {

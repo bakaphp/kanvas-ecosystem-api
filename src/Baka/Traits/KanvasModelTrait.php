@@ -167,10 +167,6 @@ trait KanvasModelTrait
     {
         $this->is_deleted = StateEnums::YES->getValue();
 
-        if (method_exists($this, 'unsearchable')) {
-            $this->unsearchable();
-        }
-
         return $this->saveOrFail();
     }
 
