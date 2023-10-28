@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -34,6 +35,7 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Locations\Models\Cities;
@@ -42,6 +44,7 @@ use Kanvas\Locations\Models\States;
 use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Notifications\Traits\HasNotificationSettings;
 use Kanvas\Roles\Models\Roles;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Factories\UsersFactory;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 
@@ -281,6 +284,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function linkedSources(): HasMany
     {
         return $this->hasMany(UserLinkedSources::class, 'users_id');
+    }
+
+    public function channels(): BelongsToMany
+    {
+        $databaseSocial = config('database.social.database', 'social');
+
+        return $this->belongsToMany(Channel::class, $databaseSocial . '.channel_users', 'users_id', 'channel_id');
     }
 
     /**
@@ -539,5 +549,18 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function getPhoto(): ?FilesystemEntities
     {
         return  $this->getFileByName('photo');
+    }
+
+    public static function getByIdFromCompany(mixed $id, CompanyInterface $company): self
+    {
+        try {
+            return self::where('id', $id)
+                ->whereRelation('companies', 'id', $company->getId())
+                ->notDeleted()
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
     }
 }
