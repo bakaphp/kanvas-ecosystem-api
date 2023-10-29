@@ -1,5 +1,5 @@
 type WarehouseVariantRelationship {
-    id: ID!
+    warehouses_id: ID!
     warehouseinfo: Warehouse @belongsToMany(relation: "warehouse")
     channels: [VariantChannelRelationship]
     quantity: Float
@@ -62,6 +62,16 @@ extend type Query @guard {
     ): [Variant!]!
         @paginate(
             defaultCount: 25
-            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\Variants@allVariantsInWarehouse"
+            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantWarehouseBuilder@allVariantsInWarehouse"
         )
+    variantsByStatus(
+    warehouse_id: ID!
+    status_id: ID!
+    search: String @search
+    where: _ @whereConditions(columns: ["quantity", "price", "sku"])
+): [Variant!]!
+    @paginate(
+        defaultCount: 25
+        builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantWarehouseBuilder@getVariantsByStatus"
+    )
 }

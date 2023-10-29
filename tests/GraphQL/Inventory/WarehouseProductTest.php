@@ -41,8 +41,8 @@ class WarehouseProductTest extends TestCase
             'regions_id' => $response['data']['createRegion']['id'],
             'name' => 'Test Warehouse',
             'location' => 'Test Location',
-            'is_default' => false,
-            'is_published' => 1,
+            'is_default' => true,
+            'is_published' => true,
         ];
 
         $response = $this->graphQL('

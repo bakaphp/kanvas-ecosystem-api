@@ -9,7 +9,7 @@ type VariantChannel {
     sku: String
     channels: VariantChannelRelationship
         @field(
-            resolver: "App\\GraphQL\\Inventory\\Builders\\Variants\\Variants@getChannel"
+            resolver: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantChannelBuilder@getChannel"
         )
     price: Float
     ean: String
@@ -69,6 +69,6 @@ extend type Query {
     ): [VariantChannel!]!
         @paginate(
             defaultCount: 25
-            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\Variants@allVariantsPublishedInChannel"
+            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantChannelBuilder@allVariantsPublishedInChannel"
         )
 }

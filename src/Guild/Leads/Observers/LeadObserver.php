@@ -33,7 +33,7 @@ class LeadObserver
         }
 
         // if no pipeline assign one
-        if (!$lead->pipeline_id) {
+        if (! $lead->pipeline_id) {
             $pipeline = Pipeline::where('companies_id', $lead->companies_id)
                 ->where('is_deleted', 0)
                 ->first();
@@ -56,7 +56,7 @@ class LeadObserver
                     ->first();
             }
 
-            $lead->leads_receivers_id = $receiver->id;
+            $lead->leads_receivers_id = $receiver ? $receiver->id : 0;
         }
     }
 }

@@ -6,18 +6,21 @@ namespace Kanvas\Inventory\Products\Models;
 
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
-use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Models\Categories;
+use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
+use Kanvas\Traits\HashSearchableDynamicIndex;
+use Kanvas\Traits\SearchableDynamicIndex;
 use Laravel\Scout\Searchable;
 
 /**
@@ -43,11 +46,15 @@ class Products extends BaseModel
 {
     use UuidTrait;
     use SlugTrait;
-    use Searchable;
     use LikableTrait;
+    use SearchableDynamicIndex;
 
     protected $table = 'products';
     protected $guarded = [];
+
+    protected $casts = [
+        'is_published' => 'boolean',
+    ];
 
     /**
      * categories.
@@ -110,5 +117,20 @@ class Products extends BaseModel
     public function companies(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');
+    }
+
+    public static function searchableIndex(): string
+    {
+        return AppEnums::PRODUCT_SEARCH_INDEX->getValue();
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return $this->isPublished();
+    }
+
+    public function isPublished(): bool
+    {
+        return $this->is_published && ! $this->isDeleted();
     }
 }

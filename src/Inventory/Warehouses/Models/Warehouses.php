@@ -11,6 +11,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Inventory\Traits\DefaultTrait;
 
 /**
  * Class Warehouses.
@@ -32,6 +33,7 @@ use Kanvas\Inventory\Regions\Models\Regions;
 class Warehouses extends BaseModel
 {
     use UuidTrait;
+    use DefaultTrait;
 
     protected $table = 'warehouses';
 
@@ -93,8 +95,6 @@ class Warehouses extends BaseModel
 
     /**
      * position.
-     *
-     * @return Attributre
      */
     public function position(): Attribute
     {

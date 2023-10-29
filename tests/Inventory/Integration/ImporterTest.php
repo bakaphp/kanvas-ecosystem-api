@@ -45,7 +45,7 @@ final class ImporterTest extends TestCase
             'name' => fake()->word(),
             'regions_id' => $region->getId(),
             'is_default' => true,
-            'is_published' => 1,
+            'is_published' => true,
         ];
 
         $warehouseData = (new CreateWarehouseAction(

@@ -13,7 +13,7 @@ class Variants extends Data
     public function __construct(
         public Products $product,
         public string $name,
-        public int $warehouse_id,
+        public ?int $warehouse_id = null,
         public ?string $description = null,
         public ?int $status_id = null,
         public ?string $short_description = null,
@@ -32,7 +32,7 @@ class Variants extends Data
         return new self(
             ProductsRepository::getById($request['products_id'], auth()->user()->getCurrentCompany()),
             $request['name'],
-            (int) $request['warehouse']['id'],
+            isset($request['warehouse']['id']) ? (int) $request['warehouse']['id'] : null,
             $request['description'] ?? null,
             $request['status_id'] ?? null,
             $request['short_description'] ?? null,

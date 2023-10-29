@@ -26,10 +26,8 @@ class CreateUserMessageAction
 
     /**
      * execute
-     *
-     * @return void
      */
-    public function execute(): void
+    public function execute(): UserMessage
     {
         $userMessage = UserMessage::firstOrCreate([
             'messages_id' => $this->message->id,
@@ -43,5 +41,7 @@ class CreateUserMessageAction
             'type' => $this->activity['type'],
             'text' => $this->activity['text'],
         ]);
+
+        return $userMessage;
     }
 }

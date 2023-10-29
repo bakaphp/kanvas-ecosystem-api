@@ -30,7 +30,7 @@ class Warehouses extends Data
         public string $name,
         public ?string $location = null,
         public bool $is_default = false,
-        public int $is_published = 1,
+        public bool $is_published = true,
     ) {
     }
 
@@ -57,7 +57,7 @@ class Warehouses extends Data
             $request['name'],
             $request['location'] ?? null,
             $request['is_default'] ?? (bool) StateEnums::NO->getValue(),
-            $request['is_published'] ?? StateEnums::YES->getValue(),
+            $request['is_published'] ?? (bool) StateEnums::YES->getValue(),
         );
     }
 }

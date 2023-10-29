@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Agents\Models;
 
+use Baka\Contracts\CompanyInterface;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -56,6 +57,21 @@ class Agent extends BaseModel
         );
     }
 
+    public static function getMemberNumber(UserInterface $user, CompanyInterface $company): int
+    {
+        $memberId = AgentFilterEnum::MEMBER_NUMBER . $company->getId();
+
+        return (int) ($user->get($memberId) ? $user->get($memberId) : $user->getId());
+    }
+
+    public function getNextAgentNumber(CompanyInterface $company): int
+    {
+        $maxMemberId = Agent::where('companies_id', $company->getId())
+                            ->max('member_id');
+
+        return $maxMemberId + 1;
+    }
+
     public function scopeFilterSettings(Builder $query, mixed $user = null): Builder
     {
         $user = $user instanceof UserInterface ? $user : auth()->user();
@@ -63,7 +79,9 @@ class Agent extends BaseModel
 
         $query->where('users_id', '>', 0);
 
-        if ($company->get(AgentFilterEnum::FITTER_BY_USER->value)) {
+        $lookingForSpecificUser = $query->wheresContain('users_id', '=', $user->getId());
+
+        if ($company->get(AgentFilterEnum::FITTER_BY_USER->value) && ! $lookingForSpecificUser) {
             $memberId = $user->get('member_number_' . $company->getId()) ? $user->get('member_number_' . $company->getId()) : $user->getId();
 
             return $query->where('owner_id', $memberId);
