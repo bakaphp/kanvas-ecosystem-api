@@ -16,6 +16,7 @@
         "goldspecdigital/laravel-eloquent-uuid": "^10.0",
         "guzzlehttp/guzzle": "^7.6",
         "http-interop/http-factory-guzzle": "^1.0",
+        "laravel-workflow/laravel-workflow": "^1.0",
         "laravel/framework": "^10.0",
         "laravel/octane": "^2.0",
         "laravel/sanctum": "^3.2",
@@ -65,7 +66,7 @@
             "Kanvas\\ContentEngine\\": "src/Domains/ContentEngine",
             "Kanvas\\Souk\\": "src/Domains/Souk",
             "Kanvas\\Workflow\\": "src/Domains/Workflow",
-            "Kanvas\\Integrations\\": "src/Integrations",
+            "Kanvas\\Integrations\\": "src/Domains/Integrations",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }
@@ -101,6 +102,12 @@
         ],
         "migrate-crm": [
             "php artisan migrate --path database/migrations/Guild/ --database crm"
+        ],
+        "migrate-workflow": [
+            "php artisan migrate --path database/migrations/Workflow/ --database workflow"
+        ],
+        "migrate-laravel-workflow": [
+            "php artisan migrate --path vendor/laravel-workflow/laravel-workflow/src/migrations/ --database workflow"
         ]
     },
     "extra": {
