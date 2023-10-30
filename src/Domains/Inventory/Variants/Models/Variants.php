@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Variants\Models;
 
 use Baka\Traits\SlugTrait;
+use Baka\Traits\SoftDeletes;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -48,6 +49,10 @@ class Variants extends BaseModel
     use UuidTrait;
     use SocialInteractionsTrait;
     use SearchableDynamicIndex;
+    use SoftDeletes;
+
+    protected $is_deleted = ['is_deleted'];
+    const DELETED_AT = 'is_deleted';
 
     protected $table = 'products_variants';
     protected $fillable = [
