@@ -26,6 +26,7 @@ extend type Query @guard {
             @whereConditions(
                 columns: [
                     "id"
+                    "users_id"
                     "member_id"
                     "owner_id"
                     "status_id"

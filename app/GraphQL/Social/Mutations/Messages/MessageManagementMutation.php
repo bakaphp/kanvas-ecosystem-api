@@ -5,23 +5,36 @@ declare(strict_types=1);
 namespace App\GraphQL\Social\Mutations\Messages;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Social\Messages\Enums\DistributionTypeEnum;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\Actions\DistributeChannelAction;
+use Kanvas\Social\Messages\Actions\DistributeToUsers;
+use Kanvas\Social\Messages\Actions\InteractionMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
-use Kanvas\Social\Messages\Jobs\FillUserMessage;
-use Kanvas\Social\Messages\Models\UserMessageActivityType;
+use Kanvas\Social\Messages\Enums\ActivityTypeEnum;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Repositories\MessageRepository;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\SystemModules\Models\SystemModules;
 
 class MessageManagementMutation
 {
+    public function interaction(mixed $root, array $request): Message
+    {
+        $message = MessageRepository::getById((int)$request['id']);
+        $action = new CreateMessageAction($message, auth()->user(), ActivityTypeEnum::from($request['type']));
+        $userMessage = $action->execute();
+
+        return $message;
+    }
+
     /**
      * create
      *
      * @param  mixed $request
      * @return void
      */
-    public function create(mixed $root, array $request)
+    public function create(mixed $root, array $request): Message
     {
         $parent = null;
         if (key_exists('parent_id', $request['input'])) {
@@ -39,17 +52,22 @@ class MessageManagementMutation
         $data = MessageInput::from($request['input']);
         $action = new CreateMessageAction($data, $systemModule, $request['input']['entity_id']);
         $message = $action->execute();
-        $activity = [];
 
-        $activityType = UserMessageActivityType::where('name', 'follow')->firstOrFail();
-        $activity = [
-                    'username' => '',
-                    'entity_namespace' => '',
-                    'text' => ' ',
-                    'type' => $activityType->id,
-            ];
+        if (! key_exists('distribution', $request['input'])) {
+            return $message;
+        }
+        $distributionType = DistributionTypeEnum::from($request['input']['distribution']['distributionType']);
 
-        FillUserMessage::dispatch($message, $message->user, $activity)->onQueue('message');
+        if ($distributionType->value == DistributionTypeEnum::ALL->value) {
+            $channels = key_exists('channels', $request['input']['distribution']) ? $request['input']['distribution']['channels'] : [];
+            (new DistributeChannelAction($channels, $message, auth()->user()))->execute();
+            (new DistributeToUsers($message))->execute();
+        } elseif ($distributionType->value == DistributionTypeEnum::Channels->value) {
+            $channels = key_exists('channels', $request['input']['distribution']) ? $request['input']['distribution']['channels'] : [];
+            (new DistributeChannelAction($channels, $message, auth()->user()))->execute();
+        } elseif ($distributionType->value == DistributionTypeEnum::Followers->value) {
+            (new DistributeToUsers($message))->execute();
+        }
 
         return $message;
     }

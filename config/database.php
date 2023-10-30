@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Database\DBAL\TimestampType;
 use Illuminate\Support\Str;
 
 return [
@@ -262,6 +263,5 @@ return [
             'database' => 2,
         ],
 
-    ],
-
+    ]
 ];
