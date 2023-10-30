@@ -127,6 +127,7 @@ extend type Query @guard {
 
 extend type Query @guardByAppKey {
     appUsers(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [
