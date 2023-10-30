@@ -45,6 +45,7 @@ use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Notifications\Traits\HasNotificationSettings;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Traits\SearchableDynamicIndex;
 use Kanvas\Users\Factories\UsersFactory;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 
@@ -108,6 +109,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use HasFilesystemTrait;
     use KanvasModelTrait;
     use HasNotificationSettings;
+    use SearchableDynamicIndex;
 
     protected ?string $defaultCompanyName = null;
     protected $guarded = [];
@@ -562,5 +564,15 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             //we want to expose the not found msg
             throw new ExceptionsModelNotFoundException($e->getMessage());
         }
+    }
+
+    public static function searchableIndex(): string
+    {
+        return 'users_index_';
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted() && $this->isActive() && $this->banned == 0;
     }
 }
