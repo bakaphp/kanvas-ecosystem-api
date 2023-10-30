@@ -71,6 +71,7 @@ class VariantWarehouseBuilder
             ->where($variantWarehouse->getTable() . '.warehouses_id', '=', $warehouse->getId())
             ->where($variantWarehouse->getTable() . '.status_id', $status->getId())
             ->where($variantWarehouse->getTable() . '.is_deleted', 0)
+            ->where($variants->getTable() . '.is_deleted', 0)
             ->select($variants->getTable() . '.*');
     }
 }
