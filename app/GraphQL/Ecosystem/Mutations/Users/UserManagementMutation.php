@@ -30,7 +30,7 @@ class UserManagementMutation
     {
         $user = UsersRepository::getByEmail(AuthFacade::user()->email);
         $user->changePassword((string) $req['current_password'], (string) $req['new_password'], app(Apps::class));
-        $user->notify(new ChangePasswordUserLogged($user));
+        $user->notify(new ChangePasswordUserLogged($user, ['company' => $user->getCurrentCompany()]));
 
         return true;
     }
