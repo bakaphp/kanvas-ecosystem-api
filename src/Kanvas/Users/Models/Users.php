@@ -575,4 +575,15 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         return ! $this->isDeleted() && $this->isActive() && $this->banned == 0;
     }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->getId(),
+            'firstname' => $this->firstname,
+            'lastname' => $this->lastname,
+            'displayname' => $this->displayname,
+            'email' => $this->email,
+        ];
+    }
 }
