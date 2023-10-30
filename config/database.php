@@ -203,6 +203,34 @@ return [
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
+        'workflow' => [
+            'driver' => 'mysql',
+            'read' => [
+                'host' => [
+                    env('DB_WORKFLOW_HOST_READ', env('DB_WORKFLOW_HOST', '127.0.0.1')),
+                ],
+            ],
+            'write' => [
+                'host' => [
+                    env('DB_WORKFLOW_HOST', '127.0.0.1'),
+                ],
+            ],
+            'sticky' => true,
+            'port' => env('DB_WORKFLOW_PORT', '3306'),
+            'database' => env('DB_WORKFLOW_DATABASE', 'workflow'),
+            'username' => env('DB_WORKFLOW_USERNAME', 'kanvas'),
+            'password' => env('DB_WORKFLOW_PASSWORD', ''),
+            'unix_socket' => env('DB_WORKFLOW_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_520_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => 'InnoDB',
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
     ],
 
     /*

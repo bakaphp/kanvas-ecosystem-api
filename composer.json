@@ -16,6 +16,7 @@
         "goldspecdigital/laravel-eloquent-uuid": "^10.0",
         "guzzlehttp/guzzle": "^7.6",
         "http-interop/http-factory-guzzle": "^1.0",
+        "laravel-workflow/laravel-workflow": "^1.0",
         "laravel/framework": "^10.0",
         "laravel/octane": "^2.0",
         "laravel/sanctum": "^3.2",
@@ -42,7 +43,8 @@
         "symfony/http-client": "^6.2",
         "symfony/mailgun-mailer": "^6.2",
         "vladimir-yuldashev/laravel-queue-rabbitmq": "^13.3",
-        "vlucas/phpdotenv": "^5.5"
+        "vlucas/phpdotenv": "^5.5",
+        "webleit/zohocrmapi": "^5.3"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",
@@ -59,12 +61,13 @@
             "App\\": "app/",
             "Kanvas\\": "src/Kanvas",
             "Baka\\": "src/Baka",
-            "Domains\\": "src/Domains",
-            "Kanvas\\Inventory\\": "src/Inventory",
-            "Kanvas\\Social\\": "src/Social",
-            "Kanvas\\Guild\\": "src/Guild",
-            "Kanvas\\ContentEngine\\": "src/ContentEngine",
-            "Kanvas\\Souk\\": "src/Souk",
+            "Kanvas\\Inventory\\": "src/Domains/Inventory",
+            "Kanvas\\Social\\": "src/Domains/Social",
+            "Kanvas\\Guild\\": "src/Domains/Guild",
+            "Kanvas\\ContentEngine\\": "src/Domains/ContentEngine",
+            "Kanvas\\Souk\\": "src/Domains/Souk",
+            "Kanvas\\Workflow\\": "src/Domains/Workflow",
+            "Kanvas\\Connectors\\": "src/Domains/Connectors",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }
@@ -100,6 +103,12 @@
         ],
         "migrate-crm": [
             "php artisan migrate --path database/migrations/Guild/ --database crm"
+        ],
+        "migrate-workflow": [
+            "php artisan migrate --path database/migrations/Workflow/ --database workflow"
+        ],
+        "migrate-laravel-workflow": [
+            "php artisan migrate --path vendor/laravel-workflow/laravel-workflow/src/migrations/ --database workflow"
         ]
     },
     "extra": {
