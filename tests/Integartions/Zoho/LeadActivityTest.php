@@ -22,7 +22,7 @@ final class LeadActivityTest extends TestCase
             StoredWorkflow::make(),
             []
         );
-        
+
         $result = $activity->execute($lead);
         $this->assertSame('processing lead ' . $lead->id, $result);
     }

@@ -4,9 +4,6 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Integrations\Zoho\Workflows\ZohoLeadWorkflow;
-use Workflow\WorkflowStub;
 
 class KanvasFakeMigration extends Command
 {
@@ -29,12 +26,6 @@ class KanvasFakeMigration extends Command
      */
     public function handle()
     {
-        $workflow = WorkflowStub::make(ZohoLeadWorkflow::class);
-        $workflow->start(Lead::first());
-
-        print_r($workflow);
-        die();
-
         $class = $this->argument('class');
         DB::table('migrations')->insert([
             'migration' => $class,
