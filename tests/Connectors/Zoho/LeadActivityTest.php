@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Tests\Integrations\Zoho;
+namespace Tests\Connectors\Zoho;
 
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Integrations\Zoho\Workflows\ZohoLeadActivity;
+use Kanvas\Connectors\Zoho\Workflows\ZohoLeadActivity;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\TestCase;
 

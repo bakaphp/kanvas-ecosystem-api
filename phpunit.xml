@@ -16,6 +16,9 @@
         <testsuite name="Social">
             <directory suffix="Test.php">./tests/Guild</directory>
         </testsuite>
+        <testsuite name="Connectors">
+            <directory suffix="Test.php">./tests/Connectors</directory>
+        </testsuite>
     </testsuites>
     <php>
         <env name="APP_ENV" value="testing"/>
