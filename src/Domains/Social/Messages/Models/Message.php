@@ -17,6 +17,7 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 use Laravel\Scout\Searchable;
+use Kanvas\Social\MessagesComments\Models\MessageComment;
 
 /**
  *  Class Message
@@ -118,6 +119,11 @@ class Message extends BaseModel
     public function users()
     {
         return $this->setConnection('user_messages')->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
+    }
+
+    public function comments()
+    {
+        return $this->hasMany(MessageComment::class, 'message_id');
     }
 
     public function getMyInteraction(): array
