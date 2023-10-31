@@ -33,6 +33,6 @@ extend type Mutation @guard {
         )
 }
 
-extend type Query {
+extend type Query @guard {
     cart: Cart @field(resolver: "App\\GraphQL\\Souk\\Queries\\Cart\\CartQuery@index")
 }
