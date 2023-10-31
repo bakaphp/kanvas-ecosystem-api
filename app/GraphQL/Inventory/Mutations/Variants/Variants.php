@@ -91,7 +91,7 @@ class Variants
     {
         $variant = VariantsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
 
-        return $variant->softdelete();
+        return $variant->delete();
     }
 
     /**

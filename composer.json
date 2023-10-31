@@ -12,6 +12,7 @@
     "require": {
         "php": "^8.2",
         "darryldecode/cart": "^4.2",
+        "dyrynda/laravel-cascade-soft-deletes": "^4.3",
         "genealabs/laravel-model-caching": "^0.13",
         "goldspecdigital/laravel-eloquent-uuid": "^10.0",
         "guzzlehttp/guzzle": "^7.6",

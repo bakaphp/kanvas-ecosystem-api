@@ -6,9 +6,19 @@ namespace Baka\Traits;
 
 use Illuminate\Database\Eloquent\SoftDeletes as EloquentSoftDeletes;
 
-trait SoftDeletes
+trait SoftDeletesTrait
 {
     use EloquentSoftDeletes;
+
+    /**
+     * Boot the soft deleting trait for a model.
+     *
+     * @return void
+     */
+    public static function bootSoftDeletes()
+    {
+        static::addGlobalScope(new SoftDeletingScope());
+    }
 
     /**
      * Perform the actual delete query on this model instance.

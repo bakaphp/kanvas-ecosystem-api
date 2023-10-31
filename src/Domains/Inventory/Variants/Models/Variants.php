@@ -7,6 +7,7 @@ namespace Kanvas\Inventory\Variants\Models;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -47,6 +48,10 @@ class Variants extends BaseModel
     use UuidTrait;
     use SocialInteractionsTrait;
     use SearchableDynamicIndexTrait;
+    use CascadeSoftDeletes;
+
+    protected $is_deleted;
+    protected $cascadeDeletes = ['variantWarehouses'];
 
     protected $table = 'products_variants';
     protected $fillable = [

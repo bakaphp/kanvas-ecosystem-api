@@ -14,7 +14,7 @@ use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Inventory\Traits\AppsIdTrait;
 use Kanvas\Inventory\Traits\CompaniesIdTrait;
 use Kanvas\Inventory\Traits\SourceTrait;
-use Kanvas\Traits\SoftDeletes;
+use Baka\Traits\SoftDeletesTrait;
 
 class BaseModel extends EloquentModel
 {
@@ -27,11 +27,13 @@ class BaseModel extends EloquentModel
     use HasCustomFields;
     use HasFilesystemTrait;
     //use Cachable;
-    //use SoftDeletes;
+    use SoftDeletesTrait;
 
     protected $attributes = [
         'is_deleted' => 0,
     ];
 
     protected $connection = 'inventory';
+
+    public const DELETED_AT = 'is_deleted';
 }

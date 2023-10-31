@@ -53,6 +53,8 @@ class Products extends BaseModel
         'is_published' => 'boolean',
     ];
 
+    protected $is_deleted;
+
     /**
      * categories.
      */

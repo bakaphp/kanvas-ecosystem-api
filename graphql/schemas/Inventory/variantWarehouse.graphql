@@ -68,7 +68,25 @@ extend type Query @guard {
     warehouse_id: ID!
     status_id: ID!
     search: String @search
-    where: _ @whereConditions(columns: ["quantity", "price", "sku"])
+    where: _ 
+        @whereConditions(
+            columns: [
+                "quantity",
+                "price",
+                "sku",
+            ]
+        )
+    orderBy: _
+    @orderBy(
+        columns: [
+            "id"
+            "created_at"
+            "updated_at"
+            "name"
+            "products_id"
+            "is_published"
+        ]
+    )
 ): [Variant!]!
     @paginate(
         defaultCount: 25
