@@ -6,7 +6,7 @@ namespace Kanvas\Social\UsersLists\Models;
 
 use Baka\Traits\KanvasAppScopesTrait;
 use Baka\Traits\SlugTrait;
-use Baka\Traits\SoftDeletes;
+use Baka\Traits\SoftDeletesTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Apps\Models\Apps;
@@ -32,7 +32,7 @@ class UserList extends BaseModel
 {
     use SlugTrait;
     use KanvasAppScopesTrait;
-    use SoftDeletes;
+    use SoftDeletesTrait;
     use Searchable;
     use HasFilesystemTrait;
 
