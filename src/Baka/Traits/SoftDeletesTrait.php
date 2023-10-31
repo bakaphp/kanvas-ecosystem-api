@@ -6,7 +6,7 @@ namespace Baka\Traits;
 
 use Illuminate\Database\Eloquent\SoftDeletes as EloquentSoftDeletes;
 
-trait SoftDeletes
+trait SoftDeletesTrait
 {
     use EloquentSoftDeletes;
 
