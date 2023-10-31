@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Variants\Models;
 
 use Baka\Traits\SlugTrait;
-use Baka\Traits\SoftDeletes;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,7 +22,7 @@ use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Traits\SearchableDynamicIndex;
-use Laravel\Scout\Searchable;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 
 /**
  * Class Attributes.
@@ -49,10 +48,10 @@ class Variants extends BaseModel
     use UuidTrait;
     use SocialInteractionsTrait;
     use SearchableDynamicIndex;
-    use SoftDeletes;
+    use CascadeSoftDeletes;
 
     protected $is_deleted = ['is_deleted'];
-    const DELETED_AT = 'is_deleted';
+    protected $cascadeDeletes = ['variantWarehouses'];
 
     protected $table = 'products_variants';
     protected $fillable = [
