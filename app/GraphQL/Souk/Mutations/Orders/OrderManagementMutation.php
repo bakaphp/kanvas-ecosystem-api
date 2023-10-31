@@ -12,7 +12,7 @@ use Kanvas\Social\UsersInteractions\Actions\CreateUserInteractionAction;
 use Kanvas\Social\UsersInteractions\DataTransferObject\UserInteraction;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
-use Kanvas\Souk\Payments\Providers\AuthorizeNetProvider;
+use Kanvas\Souk\Payments\Providers\AuthorizeNetPaymentProcessor;
 
 class OrderManagementMutation
 {
@@ -20,7 +20,7 @@ class OrderManagementMutation
     {
         $user = auth()->user();
         $creditCard = CreditCard::from($request['input']['payment']);
-        $payment = new AuthorizeNetProvider(
+        $payment = new AuthorizeNetPaymentProcessor(
             app(Apps::class),
             $user->getCurrentBranch()
         );
@@ -33,7 +33,7 @@ class OrderManagementMutation
             $cart
         );
 
-        $response = $payment->chargeCreditCard($order);
+        $response = $payment->processCreditCardPayment($order);
 
         //clean cart and add interaction
         if ($response != null) {
