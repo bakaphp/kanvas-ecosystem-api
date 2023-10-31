@@ -27,4 +27,6 @@ class BaseModel extends EloquentModel
     ];
 
     protected $connection = 'social';
+    protected $is_deleted;
+    public const DELETED_AT = 'is_deleted';
 }
