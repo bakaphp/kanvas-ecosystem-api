@@ -21,8 +21,7 @@ use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
-use Kanvas\Traits\SearchableDynamicIndex;
-use Laravel\Scout\Searchable;
+use Kanvas\Traits\SearchableDynamicIndexTrait;
 
 /**
  * Class Attributes.
@@ -47,7 +46,7 @@ class Variants extends BaseModel
     use SlugTrait;
     use UuidTrait;
     use SocialInteractionsTrait;
-    use SearchableDynamicIndex;
+    use SearchableDynamicIndexTrait;
 
     protected $table = 'products_variants';
     protected $fillable = [

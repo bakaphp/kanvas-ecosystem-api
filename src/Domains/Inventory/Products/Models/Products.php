@@ -9,7 +9,6 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Models\Categories;
@@ -19,9 +18,7 @@ use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
-use Kanvas\Traits\HashSearchableDynamicIndex;
-use Kanvas\Traits\SearchableDynamicIndex;
-use Laravel\Scout\Searchable;
+use Kanvas\Traits\SearchableDynamicIndexTrait;
 
 /**
  * Class Products.
@@ -47,7 +44,7 @@ class Products extends BaseModel
     use UuidTrait;
     use SlugTrait;
     use LikableTrait;
-    use SearchableDynamicIndex;
+    use SearchableDynamicIndexTrait;
 
     protected $table = 'products';
     protected $guarded = [];
