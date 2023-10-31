@@ -7,7 +7,7 @@ namespace Kanvas\Traits;
 use Kanvas\Apps\Models\Apps;
 use Laravel\Scout\Searchable;
 
-trait SearchableDynamicIndex
+trait SearchableDynamicIndexTrait
 {
     use Searchable;
 

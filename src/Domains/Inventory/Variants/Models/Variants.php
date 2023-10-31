@@ -7,6 +7,7 @@ namespace Kanvas\Inventory\Variants\Models;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -21,8 +22,7 @@ use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
-use Kanvas\Traits\SearchableDynamicIndex;
-use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Kanvas\Traits\SearchableDynamicIndexTrait;
 
 /**
  * Class Attributes.
@@ -47,7 +47,7 @@ class Variants extends BaseModel
     use SlugTrait;
     use UuidTrait;
     use SocialInteractionsTrait;
-    use SearchableDynamicIndex;
+    use SearchableDynamicIndexTrait;
     use CascadeSoftDeletes;
 
     protected $is_deleted;
