@@ -9,7 +9,6 @@ use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Agents\Enums\AgentFilterEnum;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Users\Models\Users;
@@ -35,13 +34,12 @@ class Agent extends BaseModel
     protected $table = 'agents';
     protected $guarded = [];
 
-    public function owner(): BelongsTo
+    public function owner(): Users
     {
-        return $this->setConnection('ecosystem')->belongsTo(
-            Users::class,
-            'owner_id',
-            'id'
-        );
+        return self::setConnection('crm')
+            ->where('member_id', $this->owner_id)
+            ->where('companies_id', $this->companies_id)
+            ->firstOrFail()->user;
     }
 
     /**
