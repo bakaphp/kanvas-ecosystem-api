@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Mutations\Cart;
 
-use Cart;
 use Kanvas\Inventory\Variants\Models\Variants;
 
 class CartManagementMutation
@@ -59,5 +58,13 @@ class CartManagementMutation
         $cart->remove($request['variant_id']);
 
         return $cart->getContent()->toArray();
+    }
+
+    public function clear(mixed $root, array $request): bool
+    {
+        $user = auth()->user();
+        $cart = app('cart')->session($user->getId());
+
+        return $cart->clear();
     }
 }
