@@ -50,7 +50,7 @@ class Variants extends BaseModel
     use SearchableDynamicIndex;
     use CascadeSoftDeletes;
 
-    protected $is_deleted = ['is_deleted'];
+    protected $is_deleted;
     protected $cascadeDeletes = ['variantWarehouses'];
 
     protected $table = 'products_variants';
