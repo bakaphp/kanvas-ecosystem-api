@@ -35,5 +35,5 @@ class BaseModel extends EloquentModel
 
     protected $connection = 'inventory';
 
-    const DELETED_AT = 'is_deleted';
+    public const DELETED_AT = 'is_deleted';
 }

@@ -19,5 +19,4 @@ class SoftDeletingScope extends EloquentSoftDeletingScope
     {
         $builder->where($model->getQualifiedDeletedAtColumn(), '=', 0);
     }
-
 }
