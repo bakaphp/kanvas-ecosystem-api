@@ -31,6 +31,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Cart\\CartManagementMutation@remove"
         )
+    clearCart: Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Cart\\CartManagementMutation@clear"
+        )
 }
 
 extend type Query @guard {
