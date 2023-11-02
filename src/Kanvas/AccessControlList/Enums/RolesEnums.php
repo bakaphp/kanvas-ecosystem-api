@@ -10,10 +10,12 @@ use Kanvas\Enums\AppEnums;
 
 enum RolesEnums: string
 {
-    case ADMIN = 'Admins';
+    case OWNER = 'Owner';
+    case ADMIN = 'Admin';
     case USER = 'Users';
     case AGENT = 'Agents';
     case DEVELOPER = 'Developer';
+    case MANAGER = 'Managers';
 
     /**
      * Roles are scoped by app

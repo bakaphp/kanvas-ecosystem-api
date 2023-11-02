@@ -1,0 +1,16 @@
+
+input CreateUserInput {
+    firstname: String
+    lastname: String
+    displayname: String
+    email: Email! @rules(apply: ["required"])
+    company_name: String
+    roles_id: ID
+}
+
+extend type Mutation @guardByAppKey {
+     appCreateUser(data: CreateUserInput!): User!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@createUser"
+        )
+}

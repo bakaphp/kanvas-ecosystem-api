@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Directives;
 
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Enums\DefaultRoles;
 use Nuwave\Lighthouse\Auth\AuthServiceProvider;
 use Nuwave\Lighthouse\Auth\GuardDirective;
@@ -39,7 +40,7 @@ GRAPHQL;
                 $with = (array) $this->directiveArgValue('with', current(AuthServiceProvider::guards()));
                 $user = $this->authenticate($with);
 
-                if (! $user->isAn((string) DefaultRoles::ADMIN->getValue())) {
+                if (! $user->isAn(RolesEnums::ADMIN->value)) {
                     throw new AuthorizationException('You are not authorized to perform this action please contact your administrator');
                 }
 
