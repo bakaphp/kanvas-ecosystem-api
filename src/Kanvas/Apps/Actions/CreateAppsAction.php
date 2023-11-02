@@ -148,11 +148,11 @@ class CreateAppsAction
     {
         $roles = [
             'Admins',
-            RolesEnums::OWNER,
-            RolesEnums::ADMIN->getValue(), //replace from admins when migration is complete
-            RolesEnums::USER->getValue(),
-            RolesEnums::MANAGER->getValue(),
-            RolesEnums::DEVELOPER->getValue(),
+            RolesEnums::OWNER->value,
+            RolesEnums::ADMIN->value, //replace from admins when migration is complete
+            RolesEnums::USER->value,
+            RolesEnums::MANAGER->value,
+            RolesEnums::DEVELOPER->value,
         ];
 
         foreach ($roles as $role) {
