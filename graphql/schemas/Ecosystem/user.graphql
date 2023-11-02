@@ -6,7 +6,7 @@ type User {
     displayname: String! @method(name: "getAppDisplayName")
     description: String
     dob: String
-    default_company: Int!
+    default_company: Int! @method(name: "defaultCompany")
     default_company_branch: Int!
     email: Email!
     contact: ContactInfo

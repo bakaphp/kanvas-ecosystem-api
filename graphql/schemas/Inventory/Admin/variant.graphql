@@ -1,0 +1,34 @@
+extend type Query @guardByAppKey {
+    appVariants(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "products_id"
+                    "name"
+                    "slug"
+                    "uuid"
+                    "sku"
+                    "serial_number"
+                    "is_published"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "products_id"
+                    "is_published"
+                ]
+            )
+    ): [Variant]
+        @paginate(
+            defaultCount: 25
+            scopes: ["fromApp", "notDeleted"]
+            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantBuilder@getVariants"
+        )
+}

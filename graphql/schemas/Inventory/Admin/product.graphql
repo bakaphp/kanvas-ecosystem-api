@@ -1,0 +1,26 @@
+extend type Query @guardByAppKey {
+    appProducts(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "products_types_id"
+                    "name"
+                    "slug"
+                    "code"
+                    "uuid"
+                    "is_published"
+                ]
+            )
+        hasCategories: _ @whereHasConditions(relation: "categories", columns: ["id", "name"])
+        hasWarehouses: _ @whereHasConditions(relation: "warehouses", columns: ["id", "name", "uuid"])
+        hasAttributes: _ @whereHasConditions(relation: "attributes", columns: ["id", "name", "uuid"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [Product]
+        @paginate(
+            scopes: ["fromApp", "notDeleted"]
+            builder: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProducts"
+            defaultCount: 25
+        )
+}
