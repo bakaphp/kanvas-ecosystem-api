@@ -357,11 +357,9 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return empty($this->default_company);
     }
 
-    public function defaultCompany(): Attribute
+    public function defaultCompany()
     {
-        return Attribute::make(
-            get: fn () => $this->currentCompanyId(),
-        );
+        return $this->currentCompanyId();
     }
 
     public function defaultCompanyBranch(): Attribute
@@ -385,7 +383,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             $currentCompanyId = app(CompaniesBranches::class)->company()->first()->getId();
         }
 
-        return $currentCompanyId ? (int) $currentCompanyId : ($this->default_company ?? 0);
+        return $currentCompanyId ? (int) $currentCompanyId : $this->default_company;
     }
 
     /**
