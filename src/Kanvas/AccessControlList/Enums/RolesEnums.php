@@ -15,6 +15,7 @@ enum RolesEnums: string
     case USER = 'Users';
     case AGENT = 'Agents';
     case DEVELOPER = 'Developer';
+    case MANAGER = 'Managers';
 
     /**
      * Roles are scoped by app

@@ -6,6 +6,8 @@ namespace Kanvas\Apps\Actions;
 
 use Illuminate\Support\Facades\DB;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
+use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
@@ -49,6 +51,7 @@ class CreateAppsAction
             $app->saveOrFail();
 
             $app->associateUser($this->user, $this->data->is_actived);
+            $this->user->assign(RolesEnums::OWNER);
 
             $this->settings($app);
             $this->systemModules($app);
@@ -145,10 +148,11 @@ class CreateAppsAction
     {
         $roles = [
             'Admins',
-            DefaultRoles::ADMIN->getValue(), //replace from admins when migration is complete
-            DefaultRoles::USER->getValue(),
-            DefaultRoles::MANAGER->getValue(),
-            DefaultRoles::DEVELOPER->getValue(),
+            RolesEnums::OWNER,
+            RolesEnums::ADMIN->getValue(), //replace from admins when migration is complete
+            RolesEnums::USER->getValue(),
+            RolesEnums::MANAGER->getValue(),
+            RolesEnums::DEVELOPER->getValue(),
         ];
 
         foreach ($roles as $role) {
