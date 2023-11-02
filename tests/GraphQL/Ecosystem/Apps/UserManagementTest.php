@@ -9,7 +9,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\RegisterUsersAppAction;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Users\Models\Users;
-use Kanvas\Users\Models\UsersAssociatedApps;
 use Tests\TestCase;
 
 class UserManagementTest extends TestCase
@@ -161,7 +160,7 @@ class UserManagementTest extends TestCase
 
         $user = auth()->user();
         $user->assign(RolesEnums::ADMIN->value);
-        
+
         $email = fake()->email();
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation appCreateUser($data: CreateUserInput!) {

@@ -26,7 +26,7 @@ class RegisterUsersAppAction
 
     /**
      * Register an user into a new app with a password for the login.
-     * 
+     *
      * @psalm-suppress MixedReturnStatement
      */
     public function execute(string $password): UsersAssociatedApps
