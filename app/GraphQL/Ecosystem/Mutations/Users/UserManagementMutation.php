@@ -148,7 +148,8 @@ class UserManagementMutation
     {
         $user = auth()->user();
 
-        if (! $user->isAn(RolesEnums::ADMIN->value)) {
+        //move to middleware
+        if (! $user->isAn(RolesEnums::OWNER->value)) {
             throw new ValidationException('You are not allowed to create users');
         }
 

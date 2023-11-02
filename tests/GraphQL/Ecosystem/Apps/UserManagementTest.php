@@ -159,7 +159,7 @@ class UserManagementTest extends TestCase
         $app = app(Apps::class);
 
         $user = $app->keys()->first()->user()->firstOrFail();
-        $user->assign(RolesEnums::ADMIN->value);
+        $user->assign(RolesEnums::OWNER->value);
 
         $email = fake()->email();
         $response = $this->graphQL(/** @lang GraphQL */ '

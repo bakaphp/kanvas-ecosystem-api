@@ -55,7 +55,7 @@ class CreateAppKeyAction
         $app->saveOrFail();
 
         //@todo change to use scope
-        $this->data->user->assign(RolesEnums::ADMIN->value);
+        $this->data->user->assign(RolesEnums::OWNER->value);
 
         return $app;
     }
