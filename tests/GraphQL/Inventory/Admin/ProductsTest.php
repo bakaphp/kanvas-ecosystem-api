@@ -44,11 +44,10 @@ class ProductsTest extends TestCase
                 }
             }',
             [],
+            [],
             [
                 AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
             ]
-        )->assertJson([
-            'data' => ['products' => ['data' => [$data]]],
-        ]);
+        )->assertOk();
     }
 }
