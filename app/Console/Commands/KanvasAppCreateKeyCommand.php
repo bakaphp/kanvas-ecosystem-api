@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use Bouncer;
 use Illuminate\Console\Command;
-use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Actions\CreateAppKeyAction;
 use Kanvas\Apps\DataTransferObject\AppKeyInput;
 use Kanvas\Apps\Models\Apps;
@@ -61,18 +59,5 @@ class KanvasAppCreateKeyCommand extends Command
         $this->info('Secret: ' . $appKey->client_secret_id);
 
         return;
-    }
-
-    /**
-     * allow me to reassign the roles to the user.
-     */
-    protected function resyncAppRoles(Apps $app)
-    {
-        Bouncer::scope()->to(RolesEnums::getScope($app));
-
-        foreach ($app->keys() as $key) {
-            $key->user->assign(RolesEnums::OWNER->value);
-            $key->user->assign(RolesEnums::ADMIN->value);
-        }
     }
 }
