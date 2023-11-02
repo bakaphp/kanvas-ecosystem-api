@@ -148,11 +148,6 @@ class UserManagementMutation
     {
         $user = auth()->user();
 
-        //move to middleware
-        if (! $user->isAn(RolesEnums::OWNER->value)) {
-            throw new ValidationException('You are not allowed to create users');
-        }
-
         UsersRepository::belongsToThisApp($user, app(Apps::class));
 
         $request['data']['password'] = Str::random(15);
