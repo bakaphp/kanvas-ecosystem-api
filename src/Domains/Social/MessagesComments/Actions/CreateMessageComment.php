@@ -7,7 +7,7 @@ namespace Kanvas\Social\MessagesComments\Actions;
 use Kanvas\Social\MessagesComments\DataTransferObject\MessageComment as CommentsDto;
 use Kanvas\Social\MessagesComments\Models\MessageComment;
 
-class CreateComment
+class CreateMessageComment
 {
     public function __construct(
         protected CommentsDto $commentsDto
@@ -21,7 +21,7 @@ class CreateComment
             'companies_id' => $this->commentsDto->companies->id,
             'users_id' => $this->commentsDto->users->id,
             'message' => $this->commentsDto->message,
-            'parent_id' => $this->commentsDto->parentId,
+            'parent_id' => $this->commentsDto->parent_id,
             'message_id' => $this->commentsDto->messages->id,
         ]);
 

@@ -9,15 +9,16 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Social\Messages\Factories\MessageFactory;
+use Kanvas\Social\MessagesComments\Models\MessageComment;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 use Laravel\Scout\Searchable;
-use Kanvas\Social\MessagesComments\Models\MessageComment;
 
 /**
  *  Class Message
@@ -121,7 +122,7 @@ class Message extends BaseModel
         return $this->setConnection('user_messages')->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
     }
 
-    public function comments()
+    public function comments(): HasMany
     {
         return $this->hasMany(MessageComment::class, 'message_id');
     }

@@ -19,7 +19,7 @@ class MessageComment extends Data
         public Users $users,
         public Message $messages,
         public string $message,
-        public int $parentId = 0
+        public int $parent_id = 0
     ) {
     }
 }

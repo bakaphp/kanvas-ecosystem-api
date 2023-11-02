@@ -17,6 +17,16 @@ type Message {
     messageType: MessageType!
     appModuleMessage: AppModuleMessage!
     myInteraction: myInteraction @method(name: "getMyInteraction")
+    comments: [MessageComments!]!
+}
+
+type MessageComments {
+    id: ID!
+    users: User!
+    companies: Company!
+    parent: MessageComments
+    messages: Message! @belongsTo
+    message: String!
 }
 
 type AppModuleMessage {
@@ -59,6 +69,11 @@ input DistributionInput {
     channels: [ID!]!
     followers: [ID!]!
 }
+input CommentInput {
+    message_id: ID!
+    message: String!
+    parent_id: ID
+}
 extend type Mutation @guard {
     createMessage(input: MessageInput!): Message
         @field(
@@ -68,6 +83,18 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@interaction"
         )
+    addComment(input: CommentInput!): Message
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@addComment"
+        )
+    updateComment(comment_id: ID!, input: CommentInput!): Message 
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@updateComment"
+        )
+    deleteComment(id: ID! @whereKey): Boolean @delete(
+        scopes: ["fromUser"]
+        model: "Kanvas\\Social\\MessagesComments\\Models\\MessageComment"
+    )
 }
 
 extend type Query @guard {

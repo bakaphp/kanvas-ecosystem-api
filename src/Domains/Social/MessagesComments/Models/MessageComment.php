@@ -10,13 +10,25 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 
+/**
+ *  class MessageComment.
+ *  @property int $id
+ *  @property int $message_id
+ *  @property int $apps_id
+ *  @property int $companies_id
+ *  @property int $users_id
+ *  @property string $message
+ *  @property int $reactions_count
+ */
 class MessageComment extends BaseModel
 {
     protected $table = 'message_comments';
 
+    protected $guarded = [];
+
     public function messages(): BelongsTo
     {
-        return $this->belongsTo(Message::class, 'messages_id');
+        return $this->belongsTo(Message::class, 'message_id');
     }
 
     public function companies(): BelongsTo
