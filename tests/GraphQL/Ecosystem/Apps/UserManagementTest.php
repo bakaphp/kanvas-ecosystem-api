@@ -16,6 +16,7 @@ class UserManagementTest extends TestCase
     public function testGetAllAppUsers()
     {
         $app = app(Apps::class);
+        $app->keys()->first()->user()->firstOrFail()->assign(RolesEnums::OWNER->value);
 
         $response = $this->graphQL(
             /** @lang GraphQL */
@@ -46,6 +47,7 @@ class UserManagementTest extends TestCase
     public function testUpdateUserPassword()
     {
         $app = app(Apps::class);
+        $app->keys()->first()->user()->firstOrFail()->assign(RolesEnums::OWNER->value);
 
         $response = $this->graphQL(
             /** @lang GraphQL */
@@ -104,6 +106,7 @@ class UserManagementTest extends TestCase
     public function testUpdateUserEmail()
     {
         $app = app(Apps::class);
+        $app->keys()->first()->user()->firstOrFail()->assign(RolesEnums::OWNER->value);
 
         $response = $this->graphQL(
             /** @lang GraphQL */
