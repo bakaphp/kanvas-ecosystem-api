@@ -158,7 +158,7 @@ class UserManagementTest extends TestCase
     {
         $app = app(Apps::class);
 
-        $user = auth()->user();
+        $user = $app->keys()->first()->user()->firstOrFail();
         $user->assign(RolesEnums::ADMIN->value);
 
         $email = fake()->email();
