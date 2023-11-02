@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Users;
 
+use Baka\Support\Str;
 use Illuminate\Support\Facades\Auth as AuthFacade;
 use Illuminate\Support\Facades\Hash;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Actions\CreateUserAction;
+use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Services\UserManagement as UserManagementService;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Notifications\Templates\ChangeEmailUserLogged;
 use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
 use Kanvas\Users\Actions\CreateInviteAction;
@@ -138,5 +142,22 @@ class UserManagementMutation
         UsersRepository::belongsToThisApp($user, app(Apps::class));
 
         return $user->updateDisplayName($request['displayname'], app(Apps::class));
+    }
+
+    public function createUser(mixed $rootValue, array $request): Users
+    {
+        $user = auth()->user();
+
+        if (! $user->isAn(RolesEnums::ADMIN->value)) {
+            throw new ValidationException('You are not allowed to create users');
+        }
+
+        UsersRepository::belongsToThisApp($user, app(Apps::class));
+
+        $request['data']['password'] = Str::random(15);
+        $data = RegisterInput::fromArray($request['data']);
+        $user = new CreateUserAction($data);
+
+        return $user->execute();
     }
 }
