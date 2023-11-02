@@ -6,6 +6,9 @@ namespace Kanvas\Apps\Enums;
 
 use Baka\Contracts\EnumsInterface;
 
+/**
+ * @deprecated version 1.0
+ */
 enum DefaultRoles implements EnumsInterface
 {
     case ADMIN;

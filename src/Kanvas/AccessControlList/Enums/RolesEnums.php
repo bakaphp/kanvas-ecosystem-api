@@ -11,7 +11,7 @@ use Kanvas\Enums\AppEnums;
 enum RolesEnums: string
 {
     case OWNER = 'Owner';
-    case ADMIN = 'Admins';
+    case ADMIN = 'Admin';
     case USER = 'Users';
     case AGENT = 'Agents';
     case DEVELOPER = 'Developer';

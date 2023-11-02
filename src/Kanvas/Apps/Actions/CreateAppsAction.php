@@ -145,7 +145,7 @@ class CreateAppsAction
     {
         $roles = [
             'Admins',
-            //DefaultRoles::ADMIN->getValue(), replace from admins when migration is complete
+            DefaultRoles::ADMIN->getValue(), //replace from admins when migration is complete
             DefaultRoles::USER->getValue(),
             DefaultRoles::MANAGER->getValue(),
             DefaultRoles::DEVELOPER->getValue(),
