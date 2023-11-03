@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Models\BaseModel;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Kanvas\Notifications\Models\NotificationTypes;
 
 /**
  * Apps Model.
@@ -65,5 +67,15 @@ class Templates extends BaseModel
     public function hasParentTemplate(): bool
     {
         return $this->parent_template_id > 0;
+    }
+
+    /**
+     * NotificationTypes Relationship
+     * 
+     * @return HasOne
+     */
+    public function notificationType(): HasOne
+    {
+        return $this->hasOne(NotificationTypes::class,'template_id');
     }
 }

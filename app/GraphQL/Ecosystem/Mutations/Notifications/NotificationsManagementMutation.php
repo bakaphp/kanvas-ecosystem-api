@@ -6,12 +6,16 @@ namespace App\GraphQL\Ecosystem\Mutations\Notifications;
 
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Notifications\Jobs\NotificationsHandlerJob;
+use Kanvas\Notifications\Actions\EvaluateNotificationsLogicAction;
+use Kanvas\Notifications\Jobs\PushNotificationsHandlerJob;
 use Kanvas\Notifications\Repositories\NotificationTypesMessageLogicRepository;
+use Kanvas\Notifications\Repositories\NotificationTypesRepository;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Notifications\Templates\Welcome;
+use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
+use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
-use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
 
 class NotificationsManagementMutation
 {
@@ -39,79 +43,63 @@ class NotificationsManagementMutation
      */
     public function sendNotificationByMessage(mixed $root, array $request): bool
     {
+        $app = app(Apps::class);
         $message = $request['message'];
         $messageJson = json_decode(json_encode($request['message']));
-        $expressionLanguage = new ExpressionLanguage();
 
-
-        //Get Message Type by verb
         $messageType = MessagesTypesRepository::getByVerb($message['metadata']['verb']);
-        $app = app(Apps::class);
-
-        //Get message logic witb message_type id
         $noticationTypeMessageLogic = NotificationTypesMessageLogicRepository::getByMessageType($app, $messageType->getId());
 
-        $logic = json_decode($noticationTypeMessageLogic->logic);
-        $conditions = $logic->conditions;
+        $evaluateNotificationsLogic = new EvaluateNotificationsLogicAction($noticationTypeMessageLogic, $messageJson);
+        $results = $evaluateNotificationsLogic->execute();
 
-        $dateInTenMins = date('Y-m-d H:i:s', strtotime('+10 minutes'));
-        $dateNow = date('Y-m-d H:i:s');
-
-        $results = $expressionLanguage->evaluate(
-            $conditions,
-            [
-                'message' => $messageJson,
-                'creationDate' => $dateInTenMins,
-            ]
-        );
-
-
-        /**
-         * We need to know the event that happened to that entity.
-         * By knowing the event and verb we can determine the template information for both email and push notifications?
-         * Or, maybe for push notifications the content is on the message and for emails it's on the email_temaplates table
-         */
-
-
+        //Just for now use a user from the database, later it should be a the logged in user
+        $LoggedUser = Users::getById(2);
 
         if ($results) {
-            /**
-             * @todo This could be solved with the Notifications Channel Enum?
-             */
-            switch ($message['metadata']['channel']) {
-                case 'push':
-                    NotificationsHandlerJob::dispatch($message);
 
-                    break;
-                case 'mail':
+            $followers = UsersFollowsRepository::getFollowersBuilder($LoggedUser)->get();
 
-                    //Get email template and send mail
+            foreach ($followers as $follower) {
 
-                    $data = [
-                        "name" => "John"
-                    ];
+                foreach ($message['metadata']['channels'] as $channel) {
 
-                    $users = UsersRepository::findUsersByIds([2]);
-                    $notification = new Blank(
-                        'default',
-                        $data,
-                        [$message['metadata']['channel']],
-                        auth()->user()
-                    );
-                    $notification->setFromUser(auth()->user());
+                    switch ($channel) {
+                        case 'push':
+                            PushNotificationsHandlerJob::dispatch($follower, $message);
 
-                    Notification::send($users, $notification);
+                            break;
+                        case 'mail':
+
+                            $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent($message['metadata']['verb'], $message['metadata']['event'], $app);
+                            $user = Users::getById($follower->getOriginal()['id']);
+
+                            $data = [
+                                'body' => "HELLLOOOOOOOOOOO",
+                            ];
+
+                            // $notification->setFromUser(auth()->user());
+                            $user->notify(new Blank(
+                                $notificationType->template()->firstOrFail()->name,
+                                $data,
+                                ['mail'],
+                                $user
+                            ));
+
+                            break;
+                        default:
+                            # code...
+                            break;
+                    }
+                }
 
 
-                    break;
-                case 'realtime':
-                    break;
-                default:
-                    # code...
-                    break;
             }
+
+            return true;
+
         }
 
-        return true;
+        return false;
     }
 }

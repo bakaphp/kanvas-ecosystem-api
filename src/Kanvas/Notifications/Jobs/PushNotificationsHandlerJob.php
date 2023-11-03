@@ -9,9 +9,10 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Kanvas\Social\Follows\Models\UsersFollows;
 use OneSignal;
 
-class NotificationsHandlerJob implements ShouldQueue
+class PushNotificationsHandlerJob implements ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
@@ -21,7 +22,7 @@ class NotificationsHandlerJob implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct(private array $message)
+    public function __construct(private UsersFollows $usersFollow, private array $message)
     {
         $this->onQueue('notifications');
     }
