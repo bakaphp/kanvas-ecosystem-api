@@ -36,7 +36,7 @@ class ProductsTest extends TestCase
         $this->graphQL(
             '
             query {
-                appProducts {
+                products {
                     data {
                         name
                         description

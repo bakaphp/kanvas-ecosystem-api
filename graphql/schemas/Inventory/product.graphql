@@ -13,7 +13,7 @@ type Product {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
-        ) 
+        )
     is_published: Boolean
     created_at: String
     updated_at: String
@@ -106,9 +106,18 @@ extend type Query @guard {
                     "is_published"
                 ]
             )
-        hasCategories: _ @whereHasConditions(relation: "categories", columns: ["id", "name"])
-        hasWarehouses: _ @whereHasConditions(relation: "warehouses", columns: ["id", "name", "uuid"])
-        hasAttributes: _ @whereHasConditions(relation: "attributes", columns: ["id", "name", "uuid"])
+        hasCategories: _
+            @whereHasConditions(relation: "categories", columns: ["id", "name"])
+        hasWarehouses: _
+            @whereHasConditions(
+                relation: "warehouses"
+                columns: ["id", "name", "uuid"]
+            )
+        hasAttributes: _
+            @whereHasConditions(
+                relation: "attributes"
+                columns: ["id", "name", "uuid"]
+            )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [Product]
         @paginate(
