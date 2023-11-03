@@ -45,7 +45,7 @@ class MessageManagementMutation
     public function updateComment(mixed $root, array $request): Message
     {
         $comment = MessageComment::getById($request['comment_id']);
-        if($comment->users_id != auth()->user()->id) {
+        if ($comment->users_id != auth()->user()->id) {
             throw new Exception('You are not allowed to update this comment');
         }
         $parentId = key_exists('parent_id', $request['input']) ? MessageComment::getById($request['input']['parent_id'])->id : $comment->parent_id;
