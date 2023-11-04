@@ -19,8 +19,7 @@ class NotificationTypesRepository
         string $verb,
         string $event,
         AppInterface $app
-    ): NotificationTypes
-    {
+    ): NotificationTypes {
         /**
          * whereIn not working properly. giving error.
          */

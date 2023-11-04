@@ -44,14 +44,6 @@ class NotificationTypes extends BaseModel
         'is_published',
     ];
 
-    /**
-     * getByName.
-     */
-    public static function getByName(string $name): self
-    {
-        return self::where('name', $name)->firstOrFail();
-    }
-
     public function systemModule(): BelongsTo
     {
         return $this->belongsTo(SystemModules::class, 'system_modules_id');
@@ -64,7 +56,7 @@ class NotificationTypes extends BaseModel
 
     public function template(): BelongsTo
     {
-        return $this->belongsTo(Templates::class, 'template_id','id');
+        return $this->belongsTo(Templates::class, 'template_id', 'id');
     }
 
     /**

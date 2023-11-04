@@ -45,6 +45,5 @@ class PushNotificationsHandlerJob implements ShouldQueue
             $this->message['metadata']['notification_content']['subtitle'],
             $this->message['metadata']['notification_content']['title']
         );
-
     }
 }

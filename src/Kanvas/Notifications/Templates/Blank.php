@@ -17,8 +17,7 @@ class Blank extends Notification
         array $data,
         array $via,
         Model $user
-    )
-    {
+    ) {
         parent::__construct($user);
         $this->setType('blank');
         $this->setTemplateName($templateName);

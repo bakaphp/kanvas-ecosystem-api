@@ -6,10 +6,10 @@ namespace Kanvas\Templates\Models;
 
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Models\BaseModel;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Notifications\Models\NotificationTypes;
 
 /**
@@ -71,11 +71,9 @@ class Templates extends BaseModel
 
     /**
      * NotificationTypes Relationship
-     * 
-     * @return HasOne
      */
     public function notificationType(): HasOne
     {
-        return $this->hasOne(NotificationTypes::class,'template_id');
+        return $this->hasOne(NotificationTypes::class, 'template_id');
     }
 }
