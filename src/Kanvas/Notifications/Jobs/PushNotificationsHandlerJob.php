@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Jobs;
 
+use Berkayk\OneSignal\OneSignalFacade;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Social\Follows\Models\UsersFollows;
-use OneSignal;
 
 class PushNotificationsHandlerJob implements ShouldQueue
 {
@@ -35,7 +35,7 @@ class PushNotificationsHandlerJob implements ShouldQueue
     public function handle()
     {
         $userId = 'ebef012f-6a32-4447-bb6b-ccd23697ede7';
-        OneSignal::sendNotificationToUser(
+        OneSignalFacade::sendNotificationToUser(
             $this->message['metadata']['notification_content']['message'],
             $userId,
             $url = null,

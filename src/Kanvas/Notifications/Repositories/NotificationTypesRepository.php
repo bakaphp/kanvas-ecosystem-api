@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Notifications\Repositories;
 
 use Baka\Contracts\AppInterface;
-use Kanvas\Exceptions\ExceptionsModelNotFoundException;
+use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFoundException;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Models\NotificationTypes;
 
@@ -30,8 +30,8 @@ class NotificationTypesRepository
                 ->where('event', $event);
 
             return $query->firstOrFail();
-        } catch (ModelNotFoundException $e) {
-            throw new ExceptionsModelNotFoundException('Template not found for verb ' . $verb . ' and event ' . $event);
+        } catch (EloquentModelNotFoundException $e) {
+            throw new ModelNotFoundException('Template not found for verb ' . $verb . ' and event ' . $event);
         }
     }
 }
