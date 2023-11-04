@@ -12,7 +12,12 @@ class Blank extends Notification
     /**
      * __construct
      */
-    public function __construct(string $templateName, array $data, array $via, Model $user)
+    public function __construct(
+        string $templateName,
+        array $data,
+        array $via,
+        Model $user
+    )
     {
         parent::__construct($user);
         $this->setType('blank');

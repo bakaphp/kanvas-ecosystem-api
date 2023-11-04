@@ -42,7 +42,6 @@ class NotificationsManagementMutation
         );
 
         $notification->setFromUser($user);
-
         Notification::send($userToNotify, $notification);
 
         return true;
