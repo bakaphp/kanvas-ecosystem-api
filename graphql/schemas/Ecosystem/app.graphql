@@ -127,6 +127,7 @@ extend type Query @guard {
 
 extend type Query @guardByAppKey {
     appUsers(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [
@@ -142,7 +143,7 @@ extend type Query @guardByAppKey {
                     "updated_at"
                 ]
             )
-        orderBy: _ @orderBy(columns: ["id"])
+        orderBy: _ @orderBy(columns: ["id", "firstname", "lastname", "displayname", "email"])
     ): [User!]!
         @paginate(
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\AppUserManagementQuery@getAllAppUsers"

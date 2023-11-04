@@ -11,7 +11,6 @@ use Kanvas\Notifications\Jobs\PushNotificationsHandlerJob;
 use Kanvas\Notifications\Repositories\NotificationTypesMessageLogicRepository;
 use Kanvas\Notifications\Repositories\NotificationTypesRepository;
 use Kanvas\Notifications\Templates\Blank;
-use Kanvas\Notifications\Templates\Welcome;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\Users\Models\Users;
@@ -57,13 +56,10 @@ class NotificationsManagementMutation
         $LoggedUser = Users::getById(2);
 
         if ($results) {
-
             $followers = UsersFollowsRepository::getFollowersBuilder($LoggedUser)->get();
 
             foreach ($followers as $follower) {
-
                 foreach ($message['metadata']['channels'] as $channel) {
-
                     switch ($channel) {
                         case 'push':
                             PushNotificationsHandlerJob::dispatch($follower, $message);
@@ -75,7 +71,7 @@ class NotificationsManagementMutation
                             $user = Users::getById($follower->getOriginal()['id']);
 
                             $data = [
-                                'body' => "HELLLOOOOOOOOOOO",
+                                'body' => 'HELLLOOOOOOOOOOO',
                             ];
 
                             // $notification->setFromUser(auth()->user());
@@ -92,12 +88,9 @@ class NotificationsManagementMutation
                             break;
                     }
                 }
-
-
             }
 
             return true;
-
         }
 
         return false;
