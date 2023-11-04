@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Notifications;
 
+use Baka\Support\Str;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
@@ -21,6 +22,7 @@ class NotificationsManagementMutation
 {
     /**
      * sendNotificationBaseOnTemplate
+     * @psalm-suppress MixedArgument
      */
     public function sendNotificationBaseOnTemplate(mixed $root, array $request): bool
     {
@@ -31,12 +33,11 @@ class NotificationsManagementMutation
             $userToNotify = UsersRepository::findUsersByIds($request['users_id']);
         } else {
             $userToNotify = UsersRepository::findUsersByIds($request['users_id'], $company);
-            //$userToNotify = UsersRepository::getUserOfCompanyById($user->getCurrentCompany(), $request['users_id']);
         }
 
         $notification = new Blank(
             $request['template_name'],
-            is_string($request['data']) ? json_decode($request['data']) : $request['data'], // This can have more validation like validate if is array o json
+            Str::isJson($request['data']) ? json_decode($request['data'], true) : (array) $request['data'], // This can have more validation like validate if is array o json
             $request['via'],
             $user
         );
