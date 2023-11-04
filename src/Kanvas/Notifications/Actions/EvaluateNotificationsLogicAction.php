@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Actions;
 
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Models\NotificationTypesMessageLogic;
 use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
 
@@ -23,8 +22,6 @@ class EvaluateNotificationsLogicAction
 
     /**
      * Evaluate Notifications Logic
-     * 
-     * @return bool
      */
     public function execute(): bool
     {
@@ -46,6 +43,5 @@ class EvaluateNotificationsLogicAction
                 'creationDate' => $dateInTenMins,
             ]
         );
-
     }
 }

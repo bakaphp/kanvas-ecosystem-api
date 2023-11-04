@@ -13,7 +13,7 @@ class MessagesTypesRepository
      */
     public static function getById(int $id): MessageType
     {
-        return MessageType::findOrFail($id);
+        return MessageType::fromApp()->findOrFail($id);
     }
 
     /**
@@ -29,7 +29,7 @@ class MessagesTypesRepository
      */
     public static function getByVerb(string $verb): MessageType
     {
-        return MessageType::where('verb', $verb)
+        return MessageType::fromApp()->where('verb', $verb)
             ->first();
     }
 }

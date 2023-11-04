@@ -31,6 +31,7 @@ class NotificationsManagementMutation
             $userToNotify = UsersRepository::findUsersByIds($request['users_id']);
         } else {
             $userToNotify = UsersRepository::findUsersByIds($request['users_id'], $company);
+            //$userToNotify = UsersRepository::getUserOfCompanyById($user->getCurrentCompany(), $request['users_id']);
         }
 
         $notification = new Blank(
