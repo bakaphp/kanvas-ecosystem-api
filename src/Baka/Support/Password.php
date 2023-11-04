@@ -11,11 +11,6 @@ class Password extends Hash
 {
     /**
      * Given any entity with password , verify if the password need rehash and update it.
-     *
-     * @param string $password
-     * @param Authenticatable $entity
-     *
-     * @return bool
      */
     public static function rehash(string $password, Authenticatable $entity): bool
     {
