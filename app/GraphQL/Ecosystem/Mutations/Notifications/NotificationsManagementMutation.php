@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Mutations\Notifications;
 
 use Illuminate\Support\Facades\Notification;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Actions\EvaluateNotificationsLogicAction;
 use Kanvas\Notifications\Jobs\PushNotificationsHandlerJob;
@@ -23,16 +24,25 @@ class NotificationsManagementMutation
      */
     public function sendNotificationBaseOnTemplate(mixed $root, array $request): bool
     {
-        $users = UsersRepository::findUsersByIds($request['users_id']);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        if ($user->isAn(RolesEnums::OWNER->value)) {
+            $userToNotify = UsersRepository::findUsersByIds($request['users_id']);
+        } else {
+            $userToNotify = UsersRepository::findUsersByIds($request['users_id'], $company);
+        }
+
         $notification = new Blank(
             $request['template_name'],
             is_string($request['data']) ? json_decode($request['data']) : $request['data'], // This can have more validation like validate if is array o json
             $request['via'],
-            auth()->user()
+            $user
         );
-        $notification->setFromUser(auth()->user());
 
-        Notification::send($users, $notification);
+        $notification->setFromUser($user);
+
+        Notification::send($userToNotify, $notification);
 
         return true;
     }
