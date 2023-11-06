@@ -25,7 +25,7 @@ class VariantWarehouseBuilder
         if (auth()->user()->isAppOwner()) {
             $warehouse = Warehouses::fromApp()
             ->where('id', $warehouseId)->firstOrFail();
-        }else {
+        } else {
             $warehouse = Warehouses::fromApp()
             ->fromCompany(auth()->user()->getCurrentCompany())
             ->where('id', $warehouseId)->firstOrFail();

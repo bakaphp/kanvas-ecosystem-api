@@ -47,7 +47,7 @@ class Product extends Data
     {
         if (auth()->user()->isAppOwner() && isset($request['company_id'])) {
             $company = Companies::getById($request['company_id']);
-        }else {
+        } else {
             $company = auth()->user()->getCurrentCompany();
         }
 
