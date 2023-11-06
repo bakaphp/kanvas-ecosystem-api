@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Apps;
 
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
@@ -14,6 +15,7 @@ class AppsCrudTest extends TestCase
     public function testCreate()
     {
         $app = app(Apps::class);
+        $app->keys()->first()->user()->firstOrFail()->assign(RolesEnums::OWNER->value);
 
         $input = [
             'name' => fake()->name,
@@ -97,6 +99,7 @@ class AppsCrudTest extends TestCase
         $user = auth()->user();
         $apps->associateUser($user, StateEnums::ON->getValue());
         $app = app(Apps::class);
+        $app->keys()->first()->user()->firstOrFail()->assign(RolesEnums::OWNER->value);
 
         $input = [
             'name' => fake()->name,

@@ -66,6 +66,8 @@ class OrderManagementMutation
                         ))->execute();
                     }
 
+                    $cart->clear();
+
                     return [
                         'transaction_id' => $tresponse->getTransId(),
                         'response_code' => $tresponse->getResponseCode(),

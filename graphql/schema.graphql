@@ -22,7 +22,9 @@ scalar Null  @scalar(class: "MLL\\GraphQLScalars\\NullScalar")
 #import schemas/Ecosystem/*.graphql
 #import schemas/*.graphql
 #import schemas/Inventory/*.graphql
+#import schemas/Inventory/Admin/*.graphql
 #import schemas/Guild/*.graphql
 #import schemas/Social/*.graphql
 #import schemas/ContentEngine/*.graphql
 #import schemas/Souk/*.graphql
+#import schemas/Ecosystem/Admin/*.graphql
