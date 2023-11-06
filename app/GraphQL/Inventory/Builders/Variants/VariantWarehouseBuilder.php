@@ -22,7 +22,7 @@ class VariantWarehouseBuilder
     ): Builder {
         $warehouseId = $args['warehouse_id'];
 
-        if (app()->bound(AppKey::class)) {
+        if (auth()->user()->isAppOwner()) {
             $warehouse = Warehouses::fromApp()
             ->where('id', $warehouseId)->firstOrFail();
         }else {

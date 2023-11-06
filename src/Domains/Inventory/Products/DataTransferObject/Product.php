@@ -45,7 +45,7 @@ class Product extends Data
 
     public static function viaRequest(array $request): self
     {
-        if (app()->bound(AppKey::class) && isset($request['company_id'])) {
+        if (auth()->user()->isAppOwner() && isset($request['company_id'])) {
             $company = Companies::getById($request['company_id']);
         }else {
             $company = auth()->user()->getCurrentCompany();
