@@ -61,7 +61,7 @@ class VariantWarehouseBuilder
 
             $status = Status::fromApp()
             ->where('id', $statusId)->firstOrFail();
-        }else {
+        } else {
             $warehouse = Warehouses::fromApp()
             ->fromCompany(auth()->user()->getCurrentCompany())
             ->where('id', $warehouseId)->firstOrFail();
