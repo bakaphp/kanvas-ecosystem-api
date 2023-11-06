@@ -22,9 +22,14 @@ class VariantWarehouseBuilder
     ): Builder {
         $warehouseId = $args['warehouse_id'];
 
-        $warehouse = Warehouses::fromApp()
-                    ->fromCompany(auth()->user()->getCurrentCompany())
-                    ->where('id', $warehouseId)->firstOrFail();
+        if (app()->bound(AppKey::class)) {
+            $warehouse = Warehouses::fromApp()
+            ->where('id', $warehouseId)->firstOrFail();
+        }else {
+            $warehouse = Warehouses::fromApp()
+            ->fromCompany(auth()->user()->getCurrentCompany())
+            ->where('id', $warehouseId)->firstOrFail();
+        }
 
         $variants = new ModelsVariants();
         $variantWarehouse = new VariantsWarehouses();
@@ -50,13 +55,21 @@ class VariantWarehouseBuilder
         $warehouseId = $args['warehouse_id'];
         $statusId = $args['status_id'];
 
-        $warehouse = Warehouses::fromApp()
-                    ->fromCompany(auth()->user()->getCurrentCompany())
-                    ->where('id', $warehouseId)->firstOrFail();
+        if (app()->bound(AppKey::class)) {
+            $warehouse = Warehouses::fromApp()
+            ->where('id', $warehouseId)->firstOrFail();
 
-        $status = Status::fromApp()
-                 ->fromCompany(auth()->user()->getCurrentCompany())
-                 ->where('id', $statusId)->firstOrFail();
+            $status = Status::fromApp()
+            ->where('id', $statusId)->firstOrFail();
+        }else {
+            $warehouse = Warehouses::fromApp()
+            ->fromCompany(auth()->user()->getCurrentCompany())
+            ->where('id', $warehouseId)->firstOrFail();
+
+            $status = Status::fromApp()
+            ->fromCompany(auth()->user()->getCurrentCompany())
+            ->where('id', $statusId)->firstOrFail();
+        }
 
         $variants = new ModelsVariants();
         $variantWarehouse = new VariantsWarehouses();
