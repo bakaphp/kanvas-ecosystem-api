@@ -22,8 +22,8 @@ type Message {
 
 type MessageComments {
     id: ID!
-    users: User!
-    companies: Company!
+    user: User!
+    company: Company!
     parent: MessageComments
     messages: Message! @belongsTo
     message: String!
@@ -85,11 +85,11 @@ extend type Mutation @guard {
         )
     addComment(input: CommentInput!): Message
         @field(
-            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@addComment"
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageCommentManagementMutation@addComment"
         )
     updateComment(comment_id: ID!, input: CommentInput!): Message 
         @field(
-            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@updateComment"
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageCommentManagementMutation@updateComment"
         )
     deleteComment(id: ID! @whereKey): Boolean @delete(
         scopes: ["fromUser"]

@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Social\MessagesComments\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Models\BaseModel;
-use Kanvas\Users\Models\Users;
 
 /**
  *  class MessageComment.
@@ -29,16 +27,6 @@ class MessageComment extends BaseModel
     public function messages(): BelongsTo
     {
         return $this->belongsTo(Message::class, 'message_id');
-    }
-
-    public function companies(): BelongsTo
-    {
-        return $this->belongsTo(Companies::class, 'companies_id');
-    }
-
-    public function users(): BelongsTo
-    {
-        return $this->belongsTo(Users::class, 'users_id');
     }
 
     public function parent(): BelongsTo
