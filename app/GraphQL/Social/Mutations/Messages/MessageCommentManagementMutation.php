@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Mutations\Messages;
 
+use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Repositories\MessageRepository;
