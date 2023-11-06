@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Products;
 
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
 use Kanvas\Inventory\Products\Actions\AddAttributeAction;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
@@ -19,7 +20,13 @@ class Products
      */
     public function create(mixed $root, array $req): ProductsModel
     {
-        $productDto = ProductDto::viaRequest($req['input']);
+        if (auth()->user()->isAppOwner() && isset($req['input']['company_id'])) {
+            $company = Companies::getById($req['input']['company_id']);
+        } else {
+            $company = auth()->user()->getCurrentCompany();
+        }
+
+        $productDto = ProductDto::viaRequest($req['input'], $company);
         $action = new CreateProductAction($productDto, auth()->user());
 
         return $action->execute();

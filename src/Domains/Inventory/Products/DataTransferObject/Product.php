@@ -43,14 +43,8 @@ class Product extends Data
     ) {
     }
 
-    public static function viaRequest(array $request): self
+    public static function viaRequest(array $request, CompanyInterface $company): self
     {
-        if (auth()->user()->isAppOwner() && isset($request['company_id'])) {
-            $company = Companies::getById($request['company_id']);
-        } else {
-            $company = auth()->user()->getCurrentCompany();
-        }
-
         return new self(
             app(Apps::class),
             $company,
