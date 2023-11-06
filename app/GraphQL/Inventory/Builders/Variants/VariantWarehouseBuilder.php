@@ -6,7 +6,6 @@ namespace App\GraphQL\Inventory\Builders\Variants;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
-use Kanvas\Apps\Models\AppKey;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Models\Variants as ModelsVariants;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
@@ -56,21 +55,20 @@ class VariantWarehouseBuilder
         $warehouseId = $args['warehouse_id'];
         $statusId = $args['status_id'];
 
-        if (app()->bound(AppKey::class)) {
-            $warehouse = Warehouses::fromApp()
-            ->where('id', $warehouseId)->firstOrFail();
+        $warehouse = Warehouses::fromApp()
+        ->where('id', $warehouseId)
+        ->unless(auth()->user()->isAppOwner(), function (Builder $warehouse) {
+            $warehouse->fromCompany(auth()->user()->getCurrentCompany());
+        });
 
-            $status = Status::fromApp()
-            ->where('id', $statusId)->firstOrFail();
-        } else {
-            $warehouse = Warehouses::fromApp()
-            ->fromCompany(auth()->user()->getCurrentCompany())
-            ->where('id', $warehouseId)->firstOrFail();
+        $status = Status::fromApp()
+        ->where('id', $statusId)
+        ->unless(auth()->user()->isAppOwner(), function (Builder $status) {
+            $status->fromCompany(auth()->user()->getCurrentCompany());
+        });
 
-            $status = Status::fromApp()
-            ->fromCompany(auth()->user()->getCurrentCompany())
-            ->where('id', $statusId)->firstOrFail();
-        }
+        $warehouse = $warehouse->firstOrFail();
+        $status = $status->firstOrFail();
 
         $variants = new ModelsVariants();
         $variantWarehouse = new VariantsWarehouses();
