@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Social\Mutations\Messages;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Repositories\MessageRepository;
 use Kanvas\Social\MessagesComments\Actions\CreateMessageComment;
 use Kanvas\Social\MessagesComments\DataTransferObject\MessageComment as CommentsDto;
