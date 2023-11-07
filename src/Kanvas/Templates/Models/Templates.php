@@ -29,7 +29,7 @@ use Kanvas\Notifications\Models\NotificationTypes;
 class Templates extends BaseModel
 {
     use HasCustomFields;
-    use Cachable;
+    // use Cachable;
 
     /**
      * The table associated with the model.

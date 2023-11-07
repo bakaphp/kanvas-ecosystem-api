@@ -17,6 +17,7 @@ use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Notifications\Actions\SendMessageNotificationsToFollowersAction;
 
 class NotificationsManagementMutation
 {
@@ -63,44 +64,9 @@ class NotificationsManagementMutation
         $evaluateNotificationsLogic = new EvaluateNotificationsLogicAction($noticationTypeMessageLogic, $messageJson);
         $results = $evaluateNotificationsLogic->execute();
 
-        //Just for now use a user from the database, later it should be a the logged in user
-        $LoggedUser = Users::getById(2);
-
         if ($results) {
-            $followers = UsersFollowsRepository::getFollowersBuilder($LoggedUser)->get();
-
-            foreach ($followers as $follower) {
-                foreach ($message['metadata']['channels'] as $channel) {
-                    switch ($channel) {
-                        case 'push':
-                            PushNotificationsHandlerJob::dispatch($follower, $message);
-
-                            break;
-                        case 'mail':
-
-                            $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent($message['metadata']['verb'], $message['metadata']['event'], $app);
-                            $user = Users::getById($follower->getOriginal()['id']);
-
-                            $data = [
-                                'body' => 'HELLLOOOOOOOOOOO',
-                            ];
-
-                            // $notification->setFromUser(auth()->user());
-                            $user->notify(new Blank(
-                                $notificationType->template()->firstOrFail()->name,
-                                $data,
-                                ['mail'],
-                                $user
-                            ));
-
-                            break;
-                        default:
-                            # code...
-                            break;
-                    }
-                }
-            }
-
+            $sendNotificationsToFollowers =  new SendMessageNotificationsToFollowersAction($message);
+            $sendNotificationsToFollowers->execute();
             return true;
         }
 
