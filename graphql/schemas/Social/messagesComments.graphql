@@ -1,0 +1,46 @@
+input CommentInput {
+    message_id: ID!
+    message: String!
+    parent_id: ID
+}
+type MessageComments {
+    id: ID!
+    user: User!
+    company: Company!
+    parent: MessageComments
+    messages: Message! @belongsTo
+    message: String!
+}
+extend type Mutation {
+    addComment(input: CommentInput!): Message
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageCommentManagementMutation@addComment"
+        )
+    updateComment(comment_id: ID!, input: CommentInput!): Message
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageCommentManagementMutation@updateComment"
+        )
+    deleteComment(id: ID! @whereKey): Boolean
+        @delete(
+            scopes: ["fromUser"]
+            model: "Kanvas\\Social\\MessagesComments\\Models\\MessageComment"
+        )
+}
+
+extend type Query {
+    comments(
+        where: _@whereConditions(
+            [
+                "message_id",
+                "apps_id",
+                "companies_id",
+                "users_id",
+                "message"
+            ]
+        )
+    ): [MessageComments]
+        @paginate(
+            model: "Kanvas\\Social\\MessagesComments\\Models\\MessageComment"
+            defaultCount: 15
+        )
+}
