@@ -47,10 +47,10 @@ class CompaniesRepository
      *
      * @throws ExceptionsModelNotFoundException
      */
-    public static function userAssociatedToCompany(Companies $company, Users $user): ?UsersAssociatedCompanies
+    public static function userAssociatedToCompany(Companies $company, Users $user): UsersAssociatedCompanies
     {
         if ($user->isAppOwner()) {
-            return null;
+            return new UsersAssociatedCompanies();
         }
 
         try {
