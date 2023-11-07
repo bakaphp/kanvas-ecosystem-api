@@ -29,15 +29,16 @@ extend type Mutation {
 
 extend type Query {
     comments(
-        where: _@whereConditions(
-            [
-                "message_id",
-                "apps_id",
-                "companies_id",
-                "users_id",
-                "message"
-            ]
-        )
+        where: _
+            @whereConditions(
+                columns: [
+                    "message_id"
+                    "apps_id"
+                    "companies_id"
+                    "users_id"
+                    "message"
+                ]
+            )
     ): [MessageComments]
         @paginate(
             model: "Kanvas\\Social\\MessagesComments\\Models\\MessageComment"
