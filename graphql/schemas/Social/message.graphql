@@ -17,6 +17,7 @@ type Message {
     messageType: MessageType!
     appModuleMessage: AppModuleMessage!
     myInteraction: myInteraction @method(name: "getMyInteraction")
+    comments: [MessageComments!]!
 }
 
 type AppModuleMessage {
@@ -59,6 +60,7 @@ input DistributionInput {
     channels: [ID!]!
     followers: [ID!]!
 }
+
 extend type Mutation @guard {
     createMessage(input: MessageInput!): Message
         @field(
@@ -97,5 +99,6 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getAll"
+            scopes: ["fromApp"]
         )
 }

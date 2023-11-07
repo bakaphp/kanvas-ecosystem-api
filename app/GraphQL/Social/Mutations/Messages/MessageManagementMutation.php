@@ -5,13 +5,12 @@ declare(strict_types=1);
 namespace App\GraphQL\Social\Mutations\Messages;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Social\Messages\Enums\DistributionTypeEnum;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\Actions\DistributeChannelAction;
 use Kanvas\Social\Messages\Actions\DistributeToUsers;
-use Kanvas\Social\Messages\Actions\InteractionMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Enums\ActivityTypeEnum;
+use Kanvas\Social\Messages\Enums\DistributionTypeEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Repositories\MessageRepository;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;

@@ -24,6 +24,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
@@ -509,15 +510,15 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
-     * Is the creator of the current app.
+     * Is the owner of the current app.
      *  @psalm-suppress MixedReturnStatement
      */
     public function isAppOwner(): bool
     {
-        return (bool) AppKey::where('users_id', $this->getId())
-            ->where('apps_id', app(Apps::class)->getId())
-            ->notDeleted()
-            ->exists();
+        if (app()->bound(AppKey::class) && $this->isAn(RolesEnums::OWNER->value)) {
+            return true;
+        }
+        return false;
     }
 
     /**
