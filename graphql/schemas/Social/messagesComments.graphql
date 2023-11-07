@@ -39,9 +39,10 @@ extend type Query {
                     "message"
                 ]
             )
-    ): [MessageComments]
+    ): [MessageComments!]!
         @paginate(
             model: "Kanvas\\Social\\MessagesComments\\Models\\MessageComment"
             defaultCount: 15
+            scopes: ["fromApp"]
         )
 }
