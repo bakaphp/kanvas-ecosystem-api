@@ -17,6 +17,7 @@ class Products
 {
     /**
      * create.
+     * @todo allow to search only companies with access to the app
      */
     public function create(mixed $root, array $req): ProductsModel
     {

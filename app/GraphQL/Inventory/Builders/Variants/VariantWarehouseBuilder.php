@@ -22,14 +22,11 @@ class VariantWarehouseBuilder
     ): Builder {
         $warehouseId = $args['warehouse_id'];
 
-        if (auth()->user()->isAppOwner()) {
-            $warehouse = Warehouses::fromApp()
-            ->where('id', $warehouseId)->firstOrFail();
-        } else {
-            $warehouse = Warehouses::fromApp()
-            ->fromCompany(auth()->user()->getCurrentCompany())
-            ->where('id', $warehouseId)->firstOrFail();
-        }
+        $warehouse = Warehouses::fromApp()
+        ->where('id', $warehouseId)
+        ->unless(auth()->user()->isAppOwner(), function (Builder $warehouse) {
+            $warehouse->fromCompany(auth()->user()->getCurrentCompany());
+        });
 
         $variants = new ModelsVariants();
         $variantWarehouse = new VariantsWarehouses();
