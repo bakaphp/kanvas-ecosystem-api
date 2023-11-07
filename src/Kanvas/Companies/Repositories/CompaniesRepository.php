@@ -49,7 +49,7 @@ class CompaniesRepository
      */
     public static function userAssociatedToCompany(Companies $company, Users $user): ?UsersAssociatedCompanies
     {
-        if($user->isAppOwner()) {
+        if ($user->isAppOwner()) {
             return null;
         }
 
