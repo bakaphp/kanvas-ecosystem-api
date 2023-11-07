@@ -49,7 +49,7 @@ class MessageTest extends TestCase
         ]);
     }
 
-    public function testmessages()
+    public function testMessages()
     {
         $messageType = MessageType::factory()->create();
         $message = fake()->text();
