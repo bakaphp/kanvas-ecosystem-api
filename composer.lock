@@ -119,16 +119,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.283.17",
+            "version": "3.284.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "b1a52f85e9eb3952d8f1909d5404849fc2f2af4e"
+                "reference": "eb03db9795bfdaed3501ebc7f33b4e6cee0c15b4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/b1a52f85e9eb3952d8f1909d5404849fc2f2af4e",
-                "reference": "b1a52f85e9eb3952d8f1909d5404849fc2f2af4e",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/eb03db9795bfdaed3501ebc7f33b4e6cee0c15b4",
+                "reference": "eb03db9795bfdaed3501ebc7f33b4e6cee0c15b4",
                 "shasum": ""
             },
             "require": {
@@ -208,9 +208,9 @@
             "support": {
                 "forum": "https://forums.aws.amazon.com/forum.jspa?forumID=80",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.283.17"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.284.1"
             },
-            "time": "2023-11-01T18:11:41+00:00"
+            "time": "2023-11-06T19:08:09+00:00"
         },
         {
             "name": "brick/math",
@@ -1291,16 +1291,16 @@
         },
         {
             "name": "google/cloud-core",
-            "version": "v1.52.7",
+            "version": "v1.52.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-core.git",
-                "reference": "f79480d1e2b31a695ae98b42ca10b67b41da9fb1"
+                "reference": "2ebcaa410f7e92dca5677dd9cc4ec1f9f315e83c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-core/zipball/f79480d1e2b31a695ae98b42ca10b67b41da9fb1",
-                "reference": "f79480d1e2b31a695ae98b42ca10b67b41da9fb1",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-core/zipball/2ebcaa410f7e92dca5677dd9cc4ec1f9f315e83c",
+                "reference": "2ebcaa410f7e92dca5677dd9cc4ec1f9f315e83c",
                 "shasum": ""
             },
             "require": {
@@ -1350,22 +1350,22 @@
             ],
             "description": "Google Cloud PHP shared dependency, providing functionality useful to all components.",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-core/tree/v1.52.7"
+                "source": "https://github.com/googleapis/google-cloud-php-core/tree/v1.52.8"
             },
-            "time": "2023-10-16T22:54:31+00:00"
+            "time": "2023-11-02T19:15:44+00:00"
         },
         {
             "name": "google/cloud-storage",
-            "version": "v1.33.4",
+            "version": "v1.34.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-storage.git",
-                "reference": "02f53c6cbbc18c4ee8f5d12cbd7887ceec575724"
+                "reference": "4589dd3c8f4171db4ce3eb335fc7d894661ca0e9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-storage/zipball/02f53c6cbbc18c4ee8f5d12cbd7887ceec575724",
-                "reference": "02f53c6cbbc18c4ee8f5d12cbd7887ceec575724",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-storage/zipball/4589dd3c8f4171db4ce3eb335fc7d894661ca0e9",
+                "reference": "4589dd3c8f4171db4ce3eb335fc7d894661ca0e9",
                 "shasum": ""
             },
             "require": {
@@ -1406,9 +1406,9 @@
             ],
             "description": "Cloud Storage Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-storage/tree/v1.33.4"
+                "source": "https://github.com/googleapis/google-cloud-php-storage/tree/v1.34.0"
             },
-            "time": "2023-10-16T22:54:31+00:00"
+            "time": "2023-11-02T19:15:44+00:00"
         },
         {
             "name": "graham-campbell/result-type",
@@ -2181,16 +2181,16 @@
         },
         {
             "name": "laravel-workflow/laravel-workflow",
-            "version": "1.0.14",
+            "version": "1.0.15",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel-workflow/laravel-workflow.git",
-                "reference": "785a0b2204d149923132d97944f46340aa322e19"
+                "reference": "c11192c3bd42805372598f0bda943ad65654d9cb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel-workflow/laravel-workflow/zipball/785a0b2204d149923132d97944f46340aa322e19",
-                "reference": "785a0b2204d149923132d97944f46340aa322e19",
+                "url": "https://api.github.com/repos/laravel-workflow/laravel-workflow/zipball/c11192c3bd42805372598f0bda943ad65654d9cb",
+                "reference": "c11192c3bd42805372598f0bda943ad65654d9cb",
                 "shasum": ""
             },
             "require": {
@@ -2232,22 +2232,22 @@
             "description": "Durable workflow engine that allows users to write long running persistent distributed workflows (orchestrations) in PHP powered by Laravel queues.",
             "support": {
                 "issues": "https://github.com/laravel-workflow/laravel-workflow/issues",
-                "source": "https://github.com/laravel-workflow/laravel-workflow/tree/1.0.14"
+                "source": "https://github.com/laravel-workflow/laravel-workflow/tree/1.0.15"
             },
-            "time": "2023-10-18T09:51:39+00:00"
+            "time": "2023-11-05T19:16:55+00:00"
         },
         {
             "name": "laravel/framework",
-            "version": "v10.30.1",
+            "version": "v10.31.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "7a2da50258c4d0f693b738d3f3c69b2693aea6c1"
+                "reference": "507ce9b28bce4b5e4140c28943092ca38e9a52e4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/7a2da50258c4d0f693b738d3f3c69b2693aea6c1",
-                "reference": "7a2da50258c4d0f693b738d3f3c69b2693aea6c1",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/507ce9b28bce4b5e4140c28943092ca38e9a52e4",
+                "reference": "507ce9b28bce4b5e4140c28943092ca38e9a52e4",
                 "shasum": ""
             },
             "require": {
@@ -2436,7 +2436,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2023-11-01T13:52:17+00:00"
+            "time": "2023-11-07T13:48:30+00:00"
         },
         {
             "name": "laravel/octane",
@@ -3250,16 +3250,16 @@
         },
         {
             "name": "league/flysystem",
-            "version": "3.18.0",
+            "version": "3.19.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/flysystem.git",
-                "reference": "015633a05aee22490495159237a5944091d8281e"
+                "reference": "1b2aa10f2326e0351399b8ce68e287d8e9209a83"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/flysystem/zipball/015633a05aee22490495159237a5944091d8281e",
-                "reference": "015633a05aee22490495159237a5944091d8281e",
+                "url": "https://api.github.com/repos/thephpleague/flysystem/zipball/1b2aa10f2326e0351399b8ce68e287d8e9209a83",
+                "reference": "1b2aa10f2326e0351399b8ce68e287d8e9209a83",
                 "shasum": ""
             },
             "require": {
@@ -3324,7 +3324,7 @@
             ],
             "support": {
                 "issues": "https://github.com/thephpleague/flysystem/issues",
-                "source": "https://github.com/thephpleague/flysystem/tree/3.18.0"
+                "source": "https://github.com/thephpleague/flysystem/tree/3.19.0"
             },
             "funding": [
                 {
@@ -3336,20 +3336,20 @@
                     "type": "github"
                 }
             ],
-            "time": "2023-10-20T17:59:40+00:00"
+            "time": "2023-11-07T09:04:28+00:00"
         },
         {
             "name": "league/flysystem-aws-s3-v3",
-            "version": "3.16.0",
+            "version": "3.19.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/flysystem-aws-s3-v3.git",
-                "reference": "ded9ba346bb01cb9cc4cc7f2743c2c0e14d18e1c"
+                "reference": "03be643c8ed4dea811d946101be3bc875b5cf214"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/flysystem-aws-s3-v3/zipball/ded9ba346bb01cb9cc4cc7f2743c2c0e14d18e1c",
-                "reference": "ded9ba346bb01cb9cc4cc7f2743c2c0e14d18e1c",
+                "url": "https://api.github.com/repos/thephpleague/flysystem-aws-s3-v3/zipball/03be643c8ed4dea811d946101be3bc875b5cf214",
+                "reference": "03be643c8ed4dea811d946101be3bc875b5cf214",
                 "shasum": ""
             },
             "require": {
@@ -3390,7 +3390,7 @@
             ],
             "support": {
                 "issues": "https://github.com/thephpleague/flysystem-aws-s3-v3/issues",
-                "source": "https://github.com/thephpleague/flysystem-aws-s3-v3/tree/3.16.0"
+                "source": "https://github.com/thephpleague/flysystem-aws-s3-v3/tree/3.19.0"
             },
             "funding": [
                 {
@@ -3402,20 +3402,20 @@
                     "type": "github"
                 }
             ],
-            "time": "2023-08-30T10:14:57+00:00"
+            "time": "2023-11-06T20:35:28+00:00"
         },
         {
             "name": "league/flysystem-google-cloud-storage",
-            "version": "3.16.0",
+            "version": "3.19.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/flysystem-google-cloud-storage.git",
-                "reference": "5f4a67906552d0272014648bdf96fc284df2a81b"
+                "reference": "3c3fea643ba5615ed5250f28e3874a60cb1fe7fb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/flysystem-google-cloud-storage/zipball/5f4a67906552d0272014648bdf96fc284df2a81b",
-                "reference": "5f4a67906552d0272014648bdf96fc284df2a81b",
+                "url": "https://api.github.com/repos/thephpleague/flysystem-google-cloud-storage/zipball/3c3fea643ba5615ed5250f28e3874a60cb1fe7fb",
+                "reference": "3c3fea643ba5615ed5250f28e3874a60cb1fe7fb",
                 "shasum": ""
             },
             "require": {
@@ -3449,7 +3449,7 @@
             ],
             "support": {
                 "issues": "https://github.com/thephpleague/flysystem-google-cloud-storage/issues",
-                "source": "https://github.com/thephpleague/flysystem-google-cloud-storage/tree/3.16.0"
+                "source": "https://github.com/thephpleague/flysystem-google-cloud-storage/tree/3.19.0"
             },
             "funding": [
                 {
@@ -3461,20 +3461,20 @@
                     "type": "github"
                 }
             ],
-            "time": "2023-08-30T10:23:18+00:00"
+            "time": "2023-11-06T20:35:28+00:00"
         },
         {
             "name": "league/flysystem-local",
-            "version": "3.18.0",
+            "version": "3.19.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/flysystem-local.git",
-                "reference": "e7381ef7643f658b87efb7dbe98fe538fb1bbf32"
+                "reference": "8d868217f9eeb4e9a7320db5ccad825e9a7a4076"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/flysystem-local/zipball/e7381ef7643f658b87efb7dbe98fe538fb1bbf32",
-                "reference": "e7381ef7643f658b87efb7dbe98fe538fb1bbf32",
+                "url": "https://api.github.com/repos/thephpleague/flysystem-local/zipball/8d868217f9eeb4e9a7320db5ccad825e9a7a4076",
+                "reference": "8d868217f9eeb4e9a7320db5ccad825e9a7a4076",
                 "shasum": ""
             },
             "require": {
@@ -3509,7 +3509,7 @@
             ],
             "support": {
                 "issues": "https://github.com/thephpleague/flysystem-local/issues",
-                "source": "https://github.com/thephpleague/flysystem-local/tree/3.18.0"
+                "source": "https://github.com/thephpleague/flysystem-local/tree/3.19.0"
             },
             "funding": [
                 {
@@ -3521,7 +3521,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2023-10-19T20:07:13+00:00"
+            "time": "2023-11-06T20:35:28+00:00"
         },
         {
             "name": "league/mime-type-detection",
@@ -7299,16 +7299,16 @@
         },
         {
             "name": "spatie/laravel-health",
-            "version": "1.23.4",
+            "version": "1.23.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-health.git",
-                "reference": "1f89cdeb7418c550a23f7fc7843745aaaf20d3c0"
+                "reference": "4adda720b43e25c1dff36ff3ed25426130ecbdc0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/1f89cdeb7418c550a23f7fc7843745aaaf20d3c0",
-                "reference": "1f89cdeb7418c550a23f7fc7843745aaaf20d3c0",
+                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/4adda720b43e25c1dff36ff3ed25426130ecbdc0",
+                "reference": "4adda720b43e25c1dff36ff3ed25426130ecbdc0",
                 "shasum": ""
             },
             "require": {
@@ -7379,7 +7379,7 @@
                 "spatie"
             ],
             "support": {
-                "source": "https://github.com/spatie/laravel-health/tree/1.23.4"
+                "source": "https://github.com/spatie/laravel-health/tree/1.23.5"
             },
             "funding": [
                 {
@@ -7387,7 +7387,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2023-09-14T19:30:27+00:00"
+            "time": "2023-11-03T13:05:50+00:00"
         },
         {
             "name": "spatie/laravel-model-states",
@@ -12012,16 +12012,16 @@
         },
         {
             "name": "filp/whoops",
-            "version": "2.15.3",
+            "version": "2.15.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/filp/whoops.git",
-                "reference": "c83e88a30524f9360b11f585f71e6b17313b7187"
+                "reference": "a139776fa3f5985a50b509f2a02ff0f709d2a546"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/filp/whoops/zipball/c83e88a30524f9360b11f585f71e6b17313b7187",
-                "reference": "c83e88a30524f9360b11f585f71e6b17313b7187",
+                "url": "https://api.github.com/repos/filp/whoops/zipball/a139776fa3f5985a50b509f2a02ff0f709d2a546",
+                "reference": "a139776fa3f5985a50b509f2a02ff0f709d2a546",
                 "shasum": ""
             },
             "require": {
@@ -12071,7 +12071,7 @@
             ],
             "support": {
                 "issues": "https://github.com/filp/whoops/issues",
-                "source": "https://github.com/filp/whoops/tree/2.15.3"
+                "source": "https://github.com/filp/whoops/tree/2.15.4"
             },
             "funding": [
                 {
@@ -12079,7 +12079,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2023-07-13T12:00:00+00:00"
+            "time": "2023-11-03T12:00:00+00:00"
         },
         {
             "name": "hamcrest/hamcrest-php",
@@ -12731,16 +12731,16 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "1.10.40",
+            "version": "1.10.41",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpstan/phpstan.git",
-                "reference": "93c84b5bf7669920d823631e39904d69b9c7dc5d"
+                "reference": "c6174523c2a69231df55bdc65b61655e72876d76"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/93c84b5bf7669920d823631e39904d69b9c7dc5d",
-                "reference": "93c84b5bf7669920d823631e39904d69b9c7dc5d",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/c6174523c2a69231df55bdc65b61655e72876d76",
+                "reference": "c6174523c2a69231df55bdc65b61655e72876d76",
                 "shasum": ""
             },
             "require": {
@@ -12789,7 +12789,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2023-10-30T14:48:31+00:00"
+            "time": "2023-11-05T12:57:57+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
