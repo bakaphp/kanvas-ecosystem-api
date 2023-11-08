@@ -33,7 +33,6 @@ class SendMessageNotificationsToFollowersAction
         $followers = UsersFollowsRepository::getFollowersBuilder($LoggedUser)->get();
 
         foreach ($followers as $follower) {
-
             if (in_array('push', $this->message['metadata']['channels'])) {
                 PushNotificationsHandlerJob::dispatch($follower->getOriginal()['id'], $this->message);
             }
