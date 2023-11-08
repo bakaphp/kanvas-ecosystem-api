@@ -11,6 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Social\Follows\Models\UsersFollows;
+use Kanvas\Users\Repositories\UsersLinkedSourcesRepository;
 
 class PushNotificationsHandlerJob implements ShouldQueue
 {
@@ -34,10 +35,12 @@ class PushNotificationsHandlerJob implements ShouldQueue
      */
     public function handle()
     {
-        $userId = 'ebef012f-6a32-4447-bb6b-ccd23697ede7';
+        //get users linked sources here of the follower
+
+        $userOneSignalId = UsersLinkedSourcesRepository::getByUsersId($usersFollow->getOriginal()['id'])->source_users_id;
         OneSignalFacade::sendNotificationToUser(
             $this->message['metadata']['notification_content']['message'],
-            $userId,
+            $userOneSignalId,
             $url = null,
             $data = null,
             $buttons = null,
