@@ -5,6 +5,8 @@ input CreateUserInput {
     displayname: String
     email: Email! @rules(apply: ["required"])
     company_name: String
+    phone_number: String
+    cell_phone_number: String
     roles_id: ID
 }
 

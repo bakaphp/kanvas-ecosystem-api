@@ -42,6 +42,7 @@ input ProductInput {
     attributes: [AttributeInput]
     files: [FilesystemInputUrl]
     price: Float
+    company_id: ID
 }
 
 input ProductInputUpdate {

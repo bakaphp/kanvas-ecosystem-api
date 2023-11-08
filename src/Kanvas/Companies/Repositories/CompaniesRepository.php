@@ -49,6 +49,10 @@ class CompaniesRepository
      */
     public static function userAssociatedToCompany(Companies $company, Users $user): UsersAssociatedCompanies
     {
+        if ($user->isAppOwner()) {
+            return new UsersAssociatedCompanies();
+        }
+
         try {
             return UsersAssociatedCompanies::where('users_id', $user->getKey())
                                 ->where('companies_id', $company->getKey())
