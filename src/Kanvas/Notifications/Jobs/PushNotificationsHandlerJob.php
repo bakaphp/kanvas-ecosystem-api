@@ -37,7 +37,7 @@ class PushNotificationsHandlerJob implements ShouldQueue
     {
         //get users linked sources here of the follower
 
-        $userOneSignalId = UsersLinkedSourcesRepository::getByUsersId($usersFollow->getOriginal()['id'])->source_users_id;
+        $userOneSignalId = UsersLinkedSourcesRepository::getByUsersId($this->usersFollow->getOriginal()['id'])->source_users_id;
         OneSignalFacade::sendNotificationToUser(
             $this->message['metadata']['notification_content']['message'],
             $userOneSignalId,
