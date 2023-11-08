@@ -9,15 +9,11 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Actions\EvaluateNotificationsLogicAction;
-use Kanvas\Notifications\Jobs\PushNotificationsHandlerJob;
-use Kanvas\Notifications\Repositories\NotificationTypesMessageLogicRepository;
-use Kanvas\Notifications\Repositories\NotificationTypesRepository;
-use Kanvas\Notifications\Templates\Blank;
-use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
-use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
-use Kanvas\Users\Models\Users;
-use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Notifications\Actions\SendMessageNotificationsToFollowersAction;
+use Kanvas\Notifications\Repositories\NotificationTypesMessageLogicRepository;
+use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class NotificationsManagementMutation
 {
@@ -55,18 +51,22 @@ class NotificationsManagementMutation
     public function sendNotificationByMessage(mixed $root, array $request): bool
     {
         $app = app(Apps::class);
+
+        /**
+         * @todo Validate incoming $request['message'] data to prevent failures.
+         */
         $message = $request['message'];
         $messageJson = json_decode(json_encode($request['message']));
 
         $messageType = MessagesTypesRepository::getByVerb($message['metadata']['verb']);
         $noticationTypeMessageLogic = NotificationTypesMessageLogicRepository::getByMessageType($app, $messageType->getId());
-
         $evaluateNotificationsLogic = new EvaluateNotificationsLogicAction($noticationTypeMessageLogic, $messageJson);
         $results = $evaluateNotificationsLogic->execute();
 
         if ($results) {
-            $sendNotificationsToFollowers =  new SendMessageNotificationsToFollowersAction($message);
+            $sendNotificationsToFollowers = new SendMessageNotificationsToFollowersAction($message);
             $sendNotificationsToFollowers->execute();
+
             return true;
         }
 
