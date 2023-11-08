@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Actions;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Jobs\PushNotificationsHandlerJob;
 use Kanvas\Notifications\Repositories\NotificationTypesRepository;
 use Kanvas\Notifications\Templates\Blank;
-use Kanvas\Social\Follows\Models\UsersFollows;
-use Kanvas\Users\Models\Users;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
-use Kanvas\Apps\Models\Apps;
+use Kanvas\Users\Models\Users;
 
 class SendMessageNotificationsToFollowersAction
 {
@@ -34,35 +33,27 @@ class SendMessageNotificationsToFollowersAction
         $followers = UsersFollowsRepository::getFollowersBuilder($LoggedUser)->get();
 
         foreach ($followers as $follower) {
-            foreach ($this->message['metadata']['channels'] as $channel) {
-                switch ($channel) {
-                    case 'push':
-                        PushNotificationsHandlerJob::dispatch($follower, $this->message);
 
-                        break;
-                    case 'mail':
+            if (in_array('push', $this->message['metadata']['channels'])) {
+                PushNotificationsHandlerJob::dispatch($follower->getOriginal()['id'], $this->message);
+            }
 
-                        $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent($this->message['metadata']['verb'], $this->message['metadata']['event'], $app);
-                        $user = Users::getById($follower->getOriginal()['id']);
+            if (in_array('mail', $this->message['metadata']['channels'])) {
+                $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent($this->message['metadata']['verb'], $this->message['metadata']['event'], $app);
+                $user = Users::getById($follower->getOriginal()['id']);
 
-                        /** @todo Maybe here we could manipulate de message entity data? */
-                        $data = [
-                            'author' => $LoggedUser->displayname
-                        ];
+                /** @todo Maybe here we could manipulate de message entity data? */
+                $data = [
+                    'author' => $LoggedUser->displayname,
+                ];
 
-                        // $notification->setFromUser(auth()->user());
-                        $user->notify(new Blank(
-                            $notificationType->template()->firstOrFail()->name,
-                            $data,
-                            ['mail'],
-                            $user
-                        ));
-
-                        break;
-                    default:
-                        # code...
-                        break;
-                }
+                // $notification->setFromUser(auth()->user());
+                $user->notify(new Blank(
+                    $notificationType->template()->firstOrFail()->name,
+                    $data,
+                    ['mail'],
+                    $user
+                ));
             }
         }
     }
