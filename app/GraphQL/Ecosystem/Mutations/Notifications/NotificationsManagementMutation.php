@@ -9,10 +9,12 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Actions\EvaluateNotificationsLogicAction;
-use Kanvas\Notifications\Actions\SendMessageNotificationsToFollowersAction;
+use Kanvas\Notifications\Actions\SendMessageNotificationsToAllFollowersAction;
+use Kanvas\Notifications\Actions\SendMessageNotificationsToOneFollowerAction;
 use Kanvas\Notifications\Repositories\NotificationTypesMessageLogicRepository;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
+use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 
 class NotificationsManagementMutation
@@ -64,7 +66,15 @@ class NotificationsManagementMutation
         $results = $evaluateNotificationsLogic->execute();
 
         if ($results) {
-            $sendNotificationsToFollowers = new SendMessageNotificationsToFollowersAction($message);
+
+            if ($message['metadata']['distribution']['type'] == 'one' && $follower = Users::getById($message['metadata']['distribution']['userId'])) {
+                $sendNotificationsToFollower = new SendMessageNotificationsToOneFollowerAction($follower, $message);
+                $sendNotificationsToFollower->execute();
+
+                return true;
+            }
+
+            $sendNotificationsToFollowers = new SendMessageNotificationsToAllFollowersAction($message);
             $sendNotificationsToFollowers->execute();
 
             return true;

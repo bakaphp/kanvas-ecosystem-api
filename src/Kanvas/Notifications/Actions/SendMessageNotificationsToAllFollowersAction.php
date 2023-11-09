@@ -11,7 +11,7 @@ use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Users\Models\Users;
 
-class SendMessageNotificationsToFollowersAction
+class SendMessageNotificationsToAllFollowersAction
 {
     /**
      * __construct.
