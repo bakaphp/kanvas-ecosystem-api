@@ -66,7 +66,6 @@ class NotificationsManagementMutation
         $results = $evaluateNotificationsLogic->execute();
 
         if ($results) {
-
             if ($message['metadata']['distribution']['type'] == 'one' && $follower = Users::getById($message['metadata']['distribution']['userId'])) {
                 $sendNotificationsToFollower = new SendMessageNotificationsToOneFollowerAction($follower, $message);
                 $sendNotificationsToFollower->execute();

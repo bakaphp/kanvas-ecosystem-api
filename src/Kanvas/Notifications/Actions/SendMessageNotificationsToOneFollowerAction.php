@@ -18,7 +18,6 @@ class SendMessageNotificationsToOneFollowerAction
      *
      * @param Users $user
      * @param array $message
-     * 
      * @return void
      */
     public function __construct(
