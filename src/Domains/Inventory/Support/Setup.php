@@ -135,6 +135,8 @@ class Setup
             $this->user
         );
 
+        $defaultProductType = $createDefaultProductType->execute();
+
         $createDefaultStatus = new CreateStatusAction(
             new Status(
                 $this->app,
@@ -146,13 +148,13 @@ class Setup
             $this->user
         );
 
-        $defaultProductType = $createDefaultProductType->execute();
+        $defaultStatus = $createDefaultStatus->execute();
 
         return $defaultCategory instanceof Categories &&
             $defaultChannel instanceof ModelsChannels &&
             $defaultRegion instanceof Regions &&
             $defaultWarehouse instanceof ModelsWarehouses &&
             $defaultProductType instanceof ModelsProductsTypes &&
-            $createDefaultStatus instanceof ModelsStatus;
+            $defaultStatus instanceof ModelsStatus;
     }
 }
