@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\DataTransferObject;
 
+use Baka\Users\Contracts\UserInterface;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Products\Repositories\ProductsRepository;
 use Spatie\LaravelData\Data;
@@ -27,10 +28,16 @@ class Variants extends Data
     ) {
     }
 
-    public static function viaRequest(array $request): self
+    public static function viaRequest(array $request, UserInterface $user): self
     {
+        if ($user->isAppOwner()) {
+            $product = ProductsRepository::getById($request['products_id']);
+        } else {
+            $product = ProductsRepository::getById($request['products_id'], $user->getCurrentCompany());
+        }
+
         return new self(
-            ProductsRepository::getById($request['products_id'], auth()->user()->getCurrentCompany()),
+            $product,
             $request['name'],
             isset($request['warehouse']['id']) ? (int) $request['warehouse']['id'] : null,
             $request['description'] ?? null,

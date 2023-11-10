@@ -8,6 +8,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
+use Kanvas\Inventory\Status\Actions\CreateStatusAction;
+use Kanvas\Inventory\Status\DataTransferObject\Status;
 use Kanvas\Inventory\Support\Setup;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses as WarehousesDto;
@@ -53,6 +55,17 @@ final class ImporterTest extends TestCase
             auth()->user()
         ))->execute();
 
+        $statusData = (new CreateStatusAction(
+            new Status(
+                app(Apps::class),
+                $company,
+                auth()->user(),
+                "Default",
+                true
+            ),
+            auth()->user()
+        ))->execute();
+
         $productData = ProductImporter::from([
             'name' => fake()->word(),
             'description' => fake()->sentence(),
@@ -81,6 +94,7 @@ final class ImporterTest extends TestCase
                         'quantity' => fake()->randomNumber(2),
                         'sku' => fake()->word(),
                         'is_new' => fake()->boolean(),
+                        'status' => $statusData
                     ],
                     'description' => fake()->sentence(),
                     'sku' => fake()->word(),

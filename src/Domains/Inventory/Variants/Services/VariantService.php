@@ -6,6 +6,7 @@ namespace Kanvas\Inventory\Variants\Services;
 
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction as AddToWarehouse;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
@@ -54,6 +55,8 @@ class VariantService
 
             if (isset($variant['warehouse']['status'])) {
                 $variant['warehouse']['status_id'] = StatusRepository::getById((int) $variant['warehouse']['status']['id'], $variantDto->product->company()->get()->first())->getId();
+            } else {
+                $variant['warehouse']['status_id'] = Status::getDefault($variantDto->product->company()->get()->first())->getId();
             }
             $variantWarehouses = VariantsWarehouses::viaRequest($variant['warehouse'] ?? []);
 

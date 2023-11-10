@@ -6,6 +6,7 @@ namespace Kanvas\Inventory\Status\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Enums\StateEnums;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -23,6 +24,7 @@ class Status extends Data
         public CompanyInterface $company,
         public UserInterface $user,
         public string $name,
+        public bool $is_default = false
     ) {
     }
 
@@ -33,6 +35,7 @@ class Status extends Data
             isset($request['company_id']) ? Companies::getById($request['company_id']) : auth()->user()->getCurrentCompany(),
             auth()->user(),
             $request['name'],
+            $request['is_default'] ?? (bool) StateEnums::NO->getValue(),
         );
     }
 }
