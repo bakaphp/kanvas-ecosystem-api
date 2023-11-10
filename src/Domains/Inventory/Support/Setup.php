@@ -24,6 +24,9 @@ use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes as ModelsProductsTypes;
 use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
 use Kanvas\Inventory\Regions\DataTransferObject\Region;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Inventory\Status\Actions\CreateStatusAction;
+use Kanvas\Inventory\Status\DataTransferObject\Status;
+use Kanvas\Inventory\Status\Models\Status as ModelsStatus;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses;
@@ -134,10 +137,24 @@ class Setup
 
         $defaultProductType = $createDefaultProductType->execute();
 
+        $createDefaultStatus = new CreateStatusAction(
+            new Status(
+                $this->app,
+                $this->company,
+                $this->user,
+                "Default",
+                true
+            ),
+            $this->user
+        );
+
+        $defaultStatus = $createDefaultStatus->execute();
+
         return $defaultCategory instanceof Categories &&
             $defaultChannel instanceof ModelsChannels &&
             $defaultRegion instanceof Regions &&
             $defaultWarehouse instanceof ModelsWarehouses &&
-            $defaultProductType instanceof ModelsProductsTypes;
+            $defaultProductType instanceof ModelsProductsTypes &&
+            $defaultStatus instanceof ModelsStatus;
     }
 }

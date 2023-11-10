@@ -41,6 +41,7 @@ class CreateStatusAction
             'name' => $this->dto->name,
         ], [
             'slug' => Str::slug($this->dto->name),
+            'is_default' => $this->dto->is_default
         ]);
     }
 }

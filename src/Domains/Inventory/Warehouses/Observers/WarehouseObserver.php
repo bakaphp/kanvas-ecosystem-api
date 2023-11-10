@@ -6,10 +6,13 @@ namespace Kanvas\Inventory\Warehouses\Observers;
 
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
-use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 
 class WarehouseObserver
 {
+    /**
+     * @todo change companies to company relation
+     *
+     */
     public function creating(Warehouses $warehouse): void
     {
         $defaultWarehouse = $warehouse::getDefault($warehouse->companies);

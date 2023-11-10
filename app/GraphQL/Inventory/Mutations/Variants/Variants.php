@@ -6,6 +6,7 @@ namespace App\GraphQL\Inventory\Mutations\Variants;
 
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
 use Kanvas\Inventory\Channels\Repositories\ChannelRepository;
+use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction as AddToWarehouse;
@@ -32,8 +33,7 @@ class Variants
             $req['input']['status_id'] = StatusRepository::getById((int) $req['input']['status']['id'], auth()->user()->getCurrentCompany())->getId();
         }
 
-        $variantDto = VariantDto::viaRequest($req['input']);
-
+        $variantDto = VariantDto::viaRequest($req['input'], auth()->user());
         $action = new CreateVariantsAction($variantDto, auth()->user());
         $variantModel = $action->execute();
 
@@ -46,8 +46,12 @@ class Variants
         $warehouse = WarehouseRepository::getById($variantDto->warehouse_id, $variantDto->product->company()->get()->first());
 
         if (isset($req['input']['warehouse']['status'])) {
-            $req['input']['warehouse']['status_id'] = StatusRepository::getById((int) $req['input']['warehouse']['status']['id'], auth()->user()->getCurrentCompany())->getId();
+            $status = StatusRepository::getById((int) $req['input']['warehouse']['status']['id'], $variantDto->product->company()->get()->first())->getId();
+        } else {
+            $status = Status::getDefault($variantDto->product->company()->get()->first());
         }
+        $req['input']['warehouse']['status_id'] = $status ? $status->getId() : null;
+
         if (!empty($variantDto->files)) {
             foreach ($variantDto->files as $file) {
                 $variantModel->addFileFromUrl($file['url'], $file['name']);
