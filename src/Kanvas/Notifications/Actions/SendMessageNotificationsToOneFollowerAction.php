@@ -44,7 +44,9 @@ class SendMessageNotificationsToOneFollowerAction
             $user = Users::getById($follower->users_id);
             /** @todo Maybe here we could manipulate de message entity data? */
             $data = [
-                'author' => $LoggedUser->displayname,
+                'fromUser' => $LoggedUser,
+                'message' => $this->message,
+                'app' => $app
             ];
 
             // $notification->setFromUser(auth()->user());

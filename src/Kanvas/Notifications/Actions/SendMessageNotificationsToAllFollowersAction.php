@@ -42,8 +42,8 @@ class SendMessageNotificationsToAllFollowersAction
                 $user = Users::getById($follower->getOriginal()['id']);
 
                 $data = [
-                    'fromUser' => $LoggedUser->displayname,
-                    'message' => $message,
+                    'fromUser' => $LoggedUser,
+                    'message' => $this->message,
                     'app' => $app
                 ];
 
