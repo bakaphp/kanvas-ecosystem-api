@@ -45,12 +45,4 @@ class Status extends BaseModel
     {
         return $this->hasMany(VariantsWarehouses::class, 'products_variants_id');
     }
-
-    /**
-     * Get the companies that owns the Warehouses.
-     */
-    public function companies(): BelongsTo
-    {
-        return $this->belongsTo(Companies::class, 'companies_id');
-    }
 }
