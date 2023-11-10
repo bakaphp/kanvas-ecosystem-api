@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Actions;
 
-use Kanvas\Apps\Models\Apps;
+use Baka\Contracts\AppInterface;
 use Kanvas\Notifications\Jobs\PushNotificationsHandlerJob;
 use Kanvas\Notifications\Repositories\NotificationTypesRepository;
 use Kanvas\Notifications\Templates\Blank;
@@ -13,13 +13,10 @@ use Kanvas\Users\Models\Users;
 
 class SendMessageNotificationsToAllFollowersAction
 {
-    /**
-     * __construct.
-     *
-     * @return void
-     */
     public function __construct(
-        private array $message
+        protected Users $user,
+        protected AppInterface $app,
+        protected array $message
     ) {
     }
 
@@ -28,8 +25,7 @@ class SendMessageNotificationsToAllFollowersAction
      */
     public function execute(): void
     {
-        $app = app(Apps::class);
-        $LoggedUser = auth()->user();
+        $LoggedUser = $this->user;
         $followers = UsersFollowsRepository::getFollowersBuilder($LoggedUser)->get();
 
         foreach ($followers as $follower) {
@@ -38,13 +34,14 @@ class SendMessageNotificationsToAllFollowersAction
             }
 
             if (in_array('mail', $this->message['metadata']['channels'])) {
-                $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent($this->message['metadata']['verb'], $this->message['metadata']['event'], $app);
+                $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent(
+                    $this->message['metadata']['verb'], $this->message['metadata']['event'], $this->app);
                 $user = Users::getById($follower->getOriginal()['id']);
 
                 $data = [
                     'fromUser' => $LoggedUser,
                     'message' => $this->message,
-                    'app' => $app
+                    'app' => $this->app,
                 ];
 
                 // $notification->setFromUser(auth()->user());
