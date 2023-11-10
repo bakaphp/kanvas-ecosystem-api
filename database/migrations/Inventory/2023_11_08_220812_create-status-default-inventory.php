@@ -12,6 +12,7 @@ return new class () extends Migration {
     {
         Schema::table('status', function (Blueprint $table) {
             $table->boolean('is_default')->default(false);
+            $table->index(['is_default', 'companies_id'], 'is_default_companies_id');
         });
     }
 
