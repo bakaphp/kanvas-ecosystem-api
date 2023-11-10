@@ -104,7 +104,7 @@ After doing all the steps above, you could run the project with Laravel Octane b
 Use `--watch` in development allowing you to refresh modified files, this works assuming to have `npm install chokidar` installed in the project.
 ****
 
-## Running the project with Laravel Octane
+## Working with kanvas
 - [Coding guideline](https://github.com/bakaphp/kanvas-ecosystem-api/wiki/Coding-Guidelines)
 - [Wiki](https://github.com/alexeymezenin/laravel-best-practices#follow-laravel-naming-conventions)
 - [TypeScript SDK](https://github.com/bakaphp/kanvas-core-js)
