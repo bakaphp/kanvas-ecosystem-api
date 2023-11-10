@@ -41,9 +41,10 @@ class SendMessageNotificationsToAllFollowersAction
                 $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent($this->message['metadata']['verb'], $this->message['metadata']['event'], $app);
                 $user = Users::getById($follower->getOriginal()['id']);
 
-                /** @todo Maybe here we could manipulate de message entity data? */
                 $data = [
-                    'author' => $LoggedUser->displayname,
+                    'fromUser' => $LoggedUser->displayname,
+                    'message' => $message,
+                    'app' => $app
                 ];
 
                 // $notification->setFromUser(auth()->user());
