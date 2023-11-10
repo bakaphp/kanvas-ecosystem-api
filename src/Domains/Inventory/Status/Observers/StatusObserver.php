@@ -11,7 +11,7 @@ class StatusObserver
 {
     public function creating(Status $status): void
     {
-        $defaultStatus = $status::getDefault($status->companies);
+        $defaultStatus = $status::getDefault($status->company);
 
         // if default already exist remove its default
         if ($status->is_default && $defaultStatus) {
@@ -26,7 +26,7 @@ class StatusObserver
 
     public function updating(Status $status): void
     {
-        $defaultStatus = Status::getDefault($status->companies);
+        $defaultStatus = Status::getDefault($status->company);
 
         // if default already exist remove its default
         if ($defaultStatus &&

@@ -112,6 +112,7 @@ class Products extends BaseModel
 
     /**
      * Get the companies that owns the product.
+     * @todo remove and change companies for company
      */
     public function companies(): BelongsTo
     {

@@ -64,7 +64,7 @@ final class ImporterTest extends TestCase
                 true
             ),
             auth()->user()
-        ));
+        ))->execute();
 
         $productData = ProductImporter::from([
             'name' => fake()->word(),
