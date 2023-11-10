@@ -140,7 +140,8 @@ class Setup
                 $this->app,
                 $this->company,
                 $this->user,
-                "Default"
+                "Default",
+                true
             ),
             $this->user
         );
