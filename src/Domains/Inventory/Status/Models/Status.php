@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Status\Models;
 
 use Baka\Traits\SlugTrait;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Inventory\Traits\DefaultTrait;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Laravel\Scout\Searchable;
@@ -25,6 +28,7 @@ class Status extends BaseModel
 {
     use SlugTrait;
     use Searchable;
+    use DefaultTrait;
 
     protected $table = 'status';
     protected $guarded = [];
@@ -40,5 +44,13 @@ class Status extends BaseModel
     public function variantWarehouses(): HasMany
     {
         return $this->hasMany(VariantsWarehouses::class, 'products_variants_id');
+    }
+
+    /**
+     * Get the companies that owns the Warehouses.
+     */
+    public function companies(): BelongsTo
+    {
+        return $this->belongsTo(Companies::class, 'companies_id');
     }
 }
