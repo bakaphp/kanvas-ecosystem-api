@@ -6,7 +6,6 @@ namespace Kanvas\Inventory\Warehouses\Observers;
 
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
-use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 
 class WarehouseObserver
 {
