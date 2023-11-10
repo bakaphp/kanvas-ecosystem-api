@@ -46,7 +46,7 @@ class KanvasInventoryStatusUpdate extends Command
             $defaultWarehouses = Warehouses::getDefault($companyData);
             $defaultStatus = Status::getDefault($companyData);
             echo("Checking company {$companyData->getId()} \n");
-            if($defaultWarehouses && !$defaultStatus) {
+            if ($defaultWarehouses && !$defaultStatus) {
                 echo("Working company {$companyData->getId()} \n");
                 try {
                     Status::firstOrCreate([

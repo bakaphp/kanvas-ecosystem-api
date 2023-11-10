@@ -30,7 +30,7 @@ class Variants extends Data
 
     public static function viaRequest(array $request, UserInterface $user): self
     {
-        if($user->isAppOwner()) {
+        if ($user->isAppOwner()) {
             $product = ProductsRepository::getById($request['products_id']);
         } else {
             $product = ProductsRepository::getById($request['products_id'], $user->getCurrentCompany());

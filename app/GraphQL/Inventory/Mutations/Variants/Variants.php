@@ -46,7 +46,7 @@ class Variants
         $warehouse = WarehouseRepository::getById($variantDto->warehouse_id, $variantDto->product->company()->get()->first());
 
         if (isset($req['input']['warehouse']['status'])) {
-            $status = StatusRepository::getById( (int) $req['input']['warehouse']['status']['id'], $variantDto->product->company()->get()->first())->getId();
+            $status = StatusRepository::getById((int) $req['input']['warehouse']['status']['id'], $variantDto->product->company()->get()->first())->getId();
         } else {
             $status = Status::getDefault($variantDto->product->company()->get()->first());
         }
