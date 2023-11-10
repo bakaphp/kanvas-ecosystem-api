@@ -25,8 +25,7 @@ class PushNotificationsHandlerJob implements ShouldQueue
     public function __construct(
         private int $usersFollowId,
         private array $message
-    )
-    {
+    ) {
         $this->onQueue('notifications');
     }
 

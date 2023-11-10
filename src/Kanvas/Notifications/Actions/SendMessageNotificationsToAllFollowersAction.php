@@ -35,7 +35,10 @@ class SendMessageNotificationsToAllFollowersAction
 
             if (in_array('mail', $this->message['metadata']['channels'])) {
                 $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent(
-                    $this->message['metadata']['verb'], $this->message['metadata']['event'], $this->app);
+                    $this->message['metadata']['verb'],
+                    $this->message['metadata']['event'],
+                    $this->app
+                );
                 $user = Users::getById($follower->getOriginal()['id']);
 
                 $data = [
