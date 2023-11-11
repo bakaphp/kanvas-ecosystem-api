@@ -43,7 +43,7 @@ class KanvasInventoryStatusUpdate extends Command
 
         foreach ($associatedApps as $company) {
             $companyData = $company->company;
-            if(!$companyData) {
+            if (!$companyData) {
                 continue;
             }
             $defaultWarehouses = Warehouses::getDefault($companyData);
