@@ -42,13 +42,15 @@ class KanvasInventoryStatusUpdate extends Command
         $associatedApps = UserCompanyApps::where('apps_id', $app->getId())->get();
 
         foreach ($associatedApps as $company) {
-            $companyData = Companies::getById($company['companies_id']);
+            $companyData = $company->company;
+            if(!$companyData) {
+                continue;
+            }
             $defaultWarehouses = Warehouses::getDefault($companyData);
             $defaultStatus = Status::getDefault($companyData);
             $this->info("Checking company {$companyData->getId()} \n");
             if ($defaultWarehouses && !$defaultStatus) {
                 $this->info("Working company {$companyData->getId()} \n");
-                echo("Working company {$companyData->getId()} \n");
                 try {
                     Status::firstOrCreate([
                         'apps_id' => $app->getId(),
