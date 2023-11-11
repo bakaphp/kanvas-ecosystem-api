@@ -57,6 +57,7 @@ class Variants extends BaseModel
     protected $fillable = [
         'users_id',
         'products_id',
+        'companies_id',
         'name',
         'uuid',
         'description',
