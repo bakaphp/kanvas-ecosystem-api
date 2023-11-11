@@ -140,6 +140,9 @@ class Variants extends BaseModel
 
     /**
      * Add/create new attributes from a variant.
+     * @psalm-suppress MixedAssignment
+     * @psalm-suppress MixedArrayAccess
+     * @psalm-suppress MixedPropertyFetch
      */
     public function addAttributes(UserInterface $user, array $attributes): void
     {
