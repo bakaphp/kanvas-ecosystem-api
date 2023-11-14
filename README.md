@@ -108,6 +108,7 @@ Use `--watch` in development allowing you to refresh modified files, this works 
 - [Coding guideline](https://github.com/bakaphp/kanvas-ecosystem-api/wiki/Coding-Guidelines)
 - [Wiki](https://github.com/alexeymezenin/laravel-best-practices#follow-laravel-naming-conventions)
 - [TypeScript SDK](https://github.com/bakaphp/kanvas-core-js)
+- [Documentation](https://github.com/bakaphp/kanvas-doc)
 
 Note: 
 - To install Swoole you can use the command ```pecl install swoole``` 
