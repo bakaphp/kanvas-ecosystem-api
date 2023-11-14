@@ -41,6 +41,7 @@ extend type Query @guard {
                     "id"
                     "name"
                     "slug"
+                    "companies_id"
                 ]
             )
     ): [Status!]!
