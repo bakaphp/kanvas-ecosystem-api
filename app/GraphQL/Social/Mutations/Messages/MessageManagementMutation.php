@@ -22,7 +22,7 @@ class MessageManagementMutation
     {
         $message = MessageRepository::getById((int)$request['id']);
         $action = new CreateMessageAction($message, auth()->user(), ActivityTypeEnum::from($request['type']));
-        $userMessage = $action->execute();
+        $action->execute();
 
         return $message;
     }
@@ -31,21 +31,21 @@ class MessageManagementMutation
      * create
      *
      * @param  mixed $request
-     * @return void
      */
     public function create(mixed $root, array $request): Message
     {
+        $app = app(Apps::class);
         $parent = null;
         if (key_exists('parent_id', $request['input'])) {
             $parent = MessageRepository::getById((int)$request['input']['parent_id']);
         }
 
-        $messageType = MessagesTypesRepository::getById((int)$request['input']['message_types_id']);
+        $messageType = MessagesTypesRepository::getById((int)$request['input']['message_types_id'], $app);
         $systemModule = SystemModules::getById((int)$request['input']['system_modules_id']);
 
         $request['input']['parent_id'] = $parent ? $parent->id : 0;
         $request['input']['parent_unique_id'] = $parent?->uuid;
-        $request['input']['apps_id'] = app(Apps::class)->id;
+        $request['input']['apps_id'] = $app->getId();
         $request['input']['companies_id'] = auth()->user()->getCurrentCompany()->getId();
         $request['input']['users_id'] = auth()->user()->id;
         $data = MessageInput::from($request['input']);

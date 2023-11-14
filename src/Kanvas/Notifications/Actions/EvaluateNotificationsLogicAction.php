@@ -9,14 +9,9 @@ use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
 
 class EvaluateNotificationsLogicAction
 {
-    /**
-     * __construct.
-     *
-     * @return void
-     */
     public function __construct(
         public NotificationTypesMessageLogic $notificationsLogic,
-        public object $message
+        public array $message
     ) {
     }
 

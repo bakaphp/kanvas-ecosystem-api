@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Actions;
 
-use Kanvas\Apps\Models\Apps;
+use Baka\Contracts\AppInterface;
 use Kanvas\Notifications\Jobs\PushNotificationsHandlerJob;
 use Kanvas\Notifications\Repositories\NotificationTypesRepository;
 use Kanvas\Notifications\Templates\Blank;
@@ -13,16 +13,11 @@ use Kanvas\Users\Models\Users;
 
 class SendMessageNotificationsToOneFollowerAction
 {
-    /**
-     * __construct.
-     *
-     * @param Users $user
-     * @param array $message
-     * @return void
-     */
     public function __construct(
-        private Users $user,
-        private array $message
+        protected Users $user,
+        protected Users $follower,
+        protected AppInterface $app,
+        protected array $message
     ) {
     }
 
@@ -31,22 +26,25 @@ class SendMessageNotificationsToOneFollowerAction
      */
     public function execute(): void
     {
-        $app = app(Apps::class);
-        $LoggedUser = auth()->user();
-        $follower = UsersFollowsRepository::getByUserAndEntity($this->user, $LoggedUser);
+        $LoggedUser = $this->user;
+        $follower = UsersFollowsRepository::getByUserAndEntity($this->follower, $LoggedUser);
 
         if (in_array('push', $this->message['metadata']['channels'])) {
             PushNotificationsHandlerJob::dispatch($follower->users_id, $this->message);
         }
 
         if (in_array('mail', $this->message['metadata']['channels'])) {
-            $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent($this->message['metadata']['verb'], $this->message['metadata']['event'], $app);
+            $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent(
+                $this->message['metadata']['verb'],
+                $this->message['metadata']['event'],
+                $this->app
+            );
             $user = Users::getById($follower->users_id);
             /** @todo Maybe here we could manipulate de message entity data? */
             $data = [
                 'fromUser' => $LoggedUser,
                 'message' => $this->message,
-                'app' => $app
+                'app' => $this->app,
             ];
 
             // $notification->setFromUser(auth()->user());

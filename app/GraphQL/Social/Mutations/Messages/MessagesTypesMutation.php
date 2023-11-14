@@ -37,8 +37,9 @@ class MessagesTypesMutation
      */
     public function update(mixed $root, array $request): MessageType
     {
+        $app = app(Apps::class);
         Languages::getById($request['input']['languages_id']);
-        $messageType = MessagesTypesRepository::getById($request['id']);
+        $messageType = MessagesTypesRepository::getById($request['id'], $app);
         $messageType->update($request['input']);
 
         return $messageType;
