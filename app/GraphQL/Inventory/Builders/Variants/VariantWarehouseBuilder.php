@@ -51,6 +51,7 @@ class VariantWarehouseBuilder
     ): Builder {
         $warehouseId = $args['warehouse_id'];
         $statusId = $args['status_id'];
+        $statusIdArray = [];
 
         $warehouse = Warehouses::fromApp()
         ->where('id', $warehouseId)
@@ -58,14 +59,15 @@ class VariantWarehouseBuilder
             $warehouse->fromCompany(auth()->user()->getCurrentCompany());
         });
 
-        $status = Status::fromApp()
-        ->where('id', $statusId)
-        ->unless(auth()->user()->isAppOwner(), function (Builder $status) {
-            $status->fromCompany(auth()->user()->getCurrentCompany());
-        });
-
+        foreach ($statusId as $ids) {
+            $status = Status::fromApp()
+            ->where('id', $ids)
+            ->unless(auth()->user()->isAppOwner(), function (Builder $status) {
+                $status->fromCompany(auth()->user()->getCurrentCompany());
+            });
+            $statusIdArray[] = $status->firstOrFail()->getId();
+        }
         $warehouse = $warehouse->firstOrFail();
-        $status = $status->firstOrFail();
 
         $variants = new ModelsVariants();
         $variantWarehouse = new VariantsWarehouses();
@@ -78,7 +80,7 @@ class VariantWarehouseBuilder
          */
         return ModelsVariants::join($variantWarehouse->getTable(), $variantWarehouse->getTable() . '.products_variants_id', '=', $variants->getTable() . '.id')
             ->where($variantWarehouse->getTable() . '.warehouses_id', '=', $warehouse->getId())
-            ->where($variantWarehouse->getTable() . '.status_id', $status->getId())
+            ->whereIn($variantWarehouse->getTable() . '.status_id', $statusIdArray)
             ->where($variantWarehouse->getTable() . '.is_deleted', 0)
             ->where($variants->getTable() . '.is_deleted', 0)
             ->select($variants->getTable() . '.*');
