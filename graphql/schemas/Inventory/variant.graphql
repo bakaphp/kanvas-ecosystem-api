@@ -106,6 +106,7 @@ extend type Query @guard {
                     "products_id"
                     "name"
                     "slug"
+                    "status_id"
                     "uuid"
                     "sku"
                     "serial_number"
@@ -120,6 +121,7 @@ extend type Query @guard {
                     "updated_at"
                     "name"
                     "products_id"
+                    "status_id"
                     "is_published"
                 ]
             )
