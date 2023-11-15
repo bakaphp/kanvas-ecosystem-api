@@ -19,7 +19,7 @@ class OrderManagementMutation
     public function create(mixed $root, array $request): array
     {
         $user = auth()->user();
-        
+
         $creditCard = CreditCard::from($request['input']['payment']);
         $payment = new AuthorizeNetPaymentProcessor(
             app(Apps::class),
