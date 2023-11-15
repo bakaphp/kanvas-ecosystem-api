@@ -45,6 +45,10 @@ class AuthorizeNetPaymentProcessor
         $creditCard->setExpirationDate($orderInput->creditCard->exp_month . '-' . $orderInput->creditCard->exp_year);
         $creditCard->setCardCode($orderInput->creditCard->cvv);
 
+        $order = new AnetAPI\OrderType();
+        $order->setInvoiceNumber(time() + $orderInput->user->getId());
+        $order->setDescription($orderInput->cart->getContent()->first()->name);
+
         // Add the payment data to a paymentType object
         $paymentOne = new AnetAPI\PaymentType();
         $paymentOne->setCreditCard($creditCard);
@@ -55,6 +59,16 @@ class AuthorizeNetPaymentProcessor
         $customerData->setType('individual');
         $customerData->setId($orderInput->user->getId());
         $customerData->setEmail($orderInput->user->email);
+
+        $customerAddress = new AnetAPI\CustomerAddressType();
+        $customerAddress->setFirstName($orderInput->user->firstname);
+        $customerAddress->setLastName($orderInput->user->lastname);
+        $customerAddress->setCompany($orderInput->user->getId());
+        $customerAddress->setAddress($orderInput->creditCard->billing->address);
+        $customerAddress->setCity($orderInput->creditCard->billing->city);
+        $customerAddress->setState($orderInput->creditCard->billing->state);
+        $customerAddress->setZip($orderInput->creditCard->billing->zip);
+        $customerAddress->setCountry($orderInput->creditCard->billing->country);
 
         // Add values for transaction settings
         $duplicateWindowSetting = new AnetAPI\SettingType();
@@ -77,6 +91,8 @@ class AuthorizeNetPaymentProcessor
         $transactionRequestType->setAmount($orderInput->cart->getTotal()); //$orderInput->cart->getTotal());
         $transactionRequestType->setPayment($paymentOne);
         $transactionRequestType->setCustomer($customerData);
+        $transactionRequestType->setOrder($order);
+        $transactionRequestType->setBillTo($customerAddress);
         $transactionRequestType->addToTransactionSettings($duplicateWindowSetting);
         //$transactionRequestType->addToUserFields($merchantDefinedField1);
         //$transactionRequestType->addToUserFields($merchantDefinedField2);
