@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Payments\DataTransferObject;
 
+use Illuminate\Support\Arr;
 use Spatie\LaravelData\Data;
 
 class CreditCard extends Data
@@ -13,7 +14,32 @@ class CreditCard extends Data
         public string $number,
         public int $exp_month,
         public int $exp_year,
-        public int $cvv
+        public int $cvv,
+        public ?CreditCardBilling $billing = null
     ) {
+    }
+
+    public static function viaRequest(array $orderInput): self
+    {
+        $paymentData = Arr::get($orderInput, 'input.payment', []);
+        $billingData = Arr::get($orderInput, 'input.billing', []);
+
+        $billing = $billingData ? new CreditCardBilling(
+            $billingData['address'],
+            $billingData['city'],
+            $billingData['state'],
+            $billingData['zip'],
+            $billingData['country'],
+            $billingData['address2'] ?? null
+        ) : null;
+
+        return new self(
+            $paymentData['name'],
+            $paymentData['number'],
+            $paymentData['exp_month'],
+            $paymentData['exp_year'],
+            $paymentData['cvv'],
+            $billing
+        );
     }
 }
