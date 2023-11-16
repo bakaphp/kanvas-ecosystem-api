@@ -9,6 +9,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use net\authorize\api\constants\ANetEnvironment;
+use net\authorize\api\contract\v1\ANetApiResponseType;
 use net\authorize\api\contract\v1 as AnetAPI;
 use net\authorize\api\controller as AnetController;
 
@@ -23,7 +24,7 @@ class AuthorizeNetProvider
         $this->company = $this->branch->company;
     }
 
-    public function chargeCreditCard(Order $orderInput)
+    public function chargeCreditCard(Order $orderInput): ANetApiResponseType
     {
         /* Create a merchantAuthenticationType object with authentication details
              retrieved from the constants file */
@@ -40,6 +41,10 @@ class AuthorizeNetProvider
         $creditCard->setExpirationDate($orderInput->creditCard->exp_month . '-' . $orderInput->creditCard->exp_year);
         $creditCard->setCardCode($orderInput->creditCard->cvv);
 
+        $order = new AnetAPI\OrderType();
+        $order->setInvoiceNumber(time() + $orderInput->user->getId());
+        $order->setDescription($orderInput->cart->getContent()->first()->name);
+
         // Add the payment data to a paymentType object
         $paymentOne = new AnetAPI\PaymentType();
         $paymentOne->setCreditCard($creditCard);
@@ -50,6 +55,16 @@ class AuthorizeNetProvider
         $customerData->setType('individual');
         $customerData->setId($orderInput->user->getId());
         $customerData->setEmail($orderInput->user->email);
+
+        $customerAddress = new AnetAPI\CustomerAddressType();
+        $customerAddress->setFirstName($orderInput->user->firstname);
+        $customerAddress->setLastName($orderInput->user->lastname);
+        $customerAddress->setCompany($orderInput->user->getId());
+        $customerAddress->setAddress($orderInput->creditCard->billing->address);
+        $customerAddress->setCity($orderInput->creditCard->billing->city);
+        $customerAddress->setState($orderInput->creditCard->billing->state);
+        $customerAddress->setZip($orderInput->creditCard->billing->zip);
+        $customerAddress->setCountry($orderInput->creditCard->billing->country);
 
         // Add values for transaction settings
         $duplicateWindowSetting = new AnetAPI\SettingType();
@@ -69,9 +84,11 @@ class AuthorizeNetProvider
         // Create a TransactionRequestType object and add the previous objects to it
         $transactionRequestType = new AnetAPI\TransactionRequestType();
         $transactionRequestType->setTransactionType('authCaptureTransaction');
-        $transactionRequestType->setAmount(1000); //$orderInput->cart->getTotal());
+        $transactionRequestType->setAmount($orderInput->cart->getTotal()); //$orderInput->cart->getTotal());
         $transactionRequestType->setPayment($paymentOne);
         $transactionRequestType->setCustomer($customerData);
+        $transactionRequestType->setOrder($order);
+        $transactionRequestType->setBillTo($customerAddress);
         $transactionRequestType->addToTransactionSettings($duplicateWindowSetting);
         //$transactionRequestType->addToUserFields($merchantDefinedField1);
         //$transactionRequestType->addToUserFields($merchantDefinedField2);
@@ -84,8 +101,9 @@ class AuthorizeNetProvider
 
         // Create the controller and get the response
         $controller = new AnetController\CreateTransactionController($request);
-        $response = $controller->executeWithApiResponse(ANetEnvironment::SANDBOX);
 
-        return $response;
+        return $controller->executeWithApiResponse(
+            $this->company->get('MERCHANT_PRODUCTION') ? ANetEnvironment::PRODUCTION : ANetEnvironment::SANDBOX
+        );
     }
 }
