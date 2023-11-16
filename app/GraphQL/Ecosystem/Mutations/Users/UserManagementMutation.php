@@ -13,7 +13,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\CreateUserAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Services\UserManagement as UserManagementService;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Notifications\Templates\ChangeEmailUserLogged;
 use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
 use Kanvas\Users\Actions\CreateInviteAction;
@@ -155,5 +154,15 @@ class UserManagementMutation
         $user = new CreateUserAction($data);
 
         return $user->execute();
+    }
+
+    public function deleteFromUsersAssociatesApp(mixed $rootValue, array $request): bool
+    {
+        $user = Users::find((int)$request['user_id']);
+        $app = Apps::find((int)$request['app_id']);
+        $userAssociateApp = UsersRepository::belongsToThisApp($user, $app);
+
+        return $userAssociateApp->delete();
+
     }
 }

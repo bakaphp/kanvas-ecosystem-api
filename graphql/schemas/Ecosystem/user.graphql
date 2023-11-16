@@ -207,6 +207,15 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserDeviceMutation@remove"
         )
+    deleteFromUsersAssociatesApp(
+        user_id: ID!
+        app_id: ID
+    ): Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@deleteFromUsersAssociatesApp"
+        )   
+    )
 }
 
 type Query @guard {
