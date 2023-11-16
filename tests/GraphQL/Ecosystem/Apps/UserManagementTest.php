@@ -189,6 +189,7 @@ class UserManagementTest extends TestCase
             'data' => [
                 'appCreateUser' => [
                     'email' => $email,
+                    'custom_fields' => [],
                 ],
             ],
         ]);
