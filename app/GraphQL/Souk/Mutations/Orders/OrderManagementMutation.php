@@ -19,7 +19,7 @@ class OrderManagementMutation
     public function create(mixed $root, array $request): array
     {
         $user = auth()->user();
-        $creditCard = CreditCard::from($request['input']['payment']);
+        $creditCard = CreditCard::viaRequest($request['input']);
         $payment = new AuthorizeNetProvider(
             app(Apps::class),
             $user->getCurrentBranch()
