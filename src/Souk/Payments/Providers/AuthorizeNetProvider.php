@@ -24,7 +24,7 @@ class AuthorizeNetProvider
         $this->company = $this->branch->company;
     }
 
-    public function processCreditCardPayment(Order $orderInput): ANetApiResponseType
+    public function chargeCreditCard(Order $orderInput): ANetApiResponseType
     {
         /* Create a merchantAuthenticationType object with authentication details
              retrieved from the constants file */
