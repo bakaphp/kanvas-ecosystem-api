@@ -22,8 +22,8 @@ class StatusMutation
      */
     public function create(mixed $rootValue, array $request): StatusModel
     {
-        if (auth()->user()->isAppOwner() && isset($req['input']['company_id'])) {
-            $company = Companies::getById($req['input']['company_id']);
+        if (auth()->user()->isAppOwner() && isset($request['input']['company_id'])) {
+            $company = Companies::getById($request['input']['company_id']);
         } else {
             $company = auth()->user()->getCurrentCompany();
         }
