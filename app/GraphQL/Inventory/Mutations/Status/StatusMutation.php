@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Status;
 
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Status\Actions\CreateStatusAction;
 use Kanvas\Inventory\Status\DataTransferObject\Status as StatusDto;
 use Kanvas\Inventory\Status\Models\Status as StatusModel;
@@ -21,8 +22,13 @@ class StatusMutation
      */
     public function create(mixed $rootValue, array $request): StatusModel
     {
-        $data = $request['input'];
-        $dto = StatusDto::viaRequest($data);
+        if (auth()->user()->isAppOwner() && isset($req['input']['company_id'])) {
+            $company = Companies::getById($req['input']['company_id']);
+        } else {
+            $company = auth()->user()->getCurrentCompany();
+        }
+
+        $dto = StatusDto::viaRequest($request['input'], $company);
         $status = (new CreateStatusAction($dto, auth()->user()))->execute();
 
         return $status;

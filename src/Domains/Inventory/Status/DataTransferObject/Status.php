@@ -28,11 +28,11 @@ class Status extends Data
     ) {
     }
 
-    public static function viaRequest(array $request): self
+    public static function viaRequest(array $request, CompanyInterface $company): self
     {
         return new self(
             app(Apps::class),
-            isset($request['company_id']) ? Companies::getById($request['company_id']) : auth()->user()->getCurrentCompany(),
+            $company,
             auth()->user(),
             $request['name'],
             $request['is_default'] ?? (bool) StateEnums::NO->getValue(),
