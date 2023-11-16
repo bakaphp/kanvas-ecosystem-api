@@ -177,6 +177,7 @@ class UserManagementTest extends TestCase
                     'firstname' => fake()->firstName(),
                     'lastname' => fake()->lastName(),
                     'email' => $email,
+                    'custom_fields' => [],
                 ],
             ],
             [],
