@@ -58,7 +58,7 @@ class VariantWarehouseBuilder
             $warehouse->fromCompany(auth()->user()->getCurrentCompany());
         });
 
-        $statusId = collect($statusId)->map(function ($id){
+        $statusId = collect($statusId)->map(function ($id) {
             $status = Status::fromApp()
             ->where('id', $id)
             ->unless(auth()->user()->isAppOwner(), function (Builder $status) {
@@ -81,7 +81,7 @@ class VariantWarehouseBuilder
         ->where($variants->getTable() . '.is_deleted', 0)
         ->select($variants->getTable() . '.*');
 
-        if(!auth()->user()->isAppOwner()) {
+        if (!auth()->user()->isAppOwner()) {
             $builder->where($variantWarehouse->getTable() . '.warehouses_id', '=', $warehouse->getId());
         }
         /**
