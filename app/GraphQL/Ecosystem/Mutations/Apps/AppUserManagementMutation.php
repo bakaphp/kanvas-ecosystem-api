@@ -32,11 +32,18 @@ class AppUserManagementMutation
 
     public function appDeleteUser(mixed $root, array $req): bool
     {
-        UsersRepository::userOwnsThisApp(auth()->user(), $app);
-
         $user = Users::find($req['users_id']);
         $userAssociate = UsersRepository::belongsToThisApp($user, app(Apps::class));
 
         return $userAssociate->delete();
+    }
+
+    public function restoreDeletedUser(mixed $root, array $request): bool
+    {
+        $user = Users::find((int)$request['user_id']);
+        $userAssociate = UsersRepository::deleteBelongsToThisApp($user, app(Apps::class));
+        $userAssociate->restore();
+
+        return true;
     }
 }
