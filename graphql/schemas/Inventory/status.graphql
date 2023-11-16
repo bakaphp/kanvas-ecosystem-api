@@ -12,6 +12,7 @@ type StatusHistoryRelationship {
 input StatusInput {
     name: String!
     is_default: Boolean
+    company_id: ID
 }
 input StatusReferenceInput {
     id: ID!
