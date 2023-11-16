@@ -155,14 +155,4 @@ class UserManagementMutation
 
         return $user->execute();
     }
-
-    public function deleteFromUsersAssociatesApp(mixed $rootValue, array $request): bool
-    {
-        $user = Users::find((int)$request['user_id']);
-        $app = Apps::find((int)$request['app_id']);
-        $userAssociateApp = UsersRepository::belongsToThisApp($user, $app);
-
-        return $userAssociateApp->delete();
-
-    }
 }

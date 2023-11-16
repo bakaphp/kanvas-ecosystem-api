@@ -29,4 +29,14 @@ class AppUserManagementMutation
 
         return $user->updateEmail($request['email']);
     }
+
+    public function appDeleteUser(mixed $root, array $req): bool
+    {
+        UsersRepository::userOwnsThisApp(auth()->user(), $app);
+
+        $user = Users::find($req['users_id']);
+        $userAssociate = UsersRepository::belongsToThisApp($user, app(Apps::class));
+
+        return $userAssociate->delete();
+    }
 }
