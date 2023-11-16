@@ -51,7 +51,6 @@ class VariantWarehouseBuilder
     ): Builder {
         $warehouseId = $args['warehouse_id'];
         $statusId = $args['status_id'];
-        $statusIdArray = [];
 
         $warehouse = Warehouses::fromApp()
         ->where('id', $warehouseId)
@@ -59,14 +58,15 @@ class VariantWarehouseBuilder
             $warehouse->fromCompany(auth()->user()->getCurrentCompany());
         });
 
-        foreach ($statusId as $ids) {
+        $statusId = collect($statusId)->map(function ($id){
             $status = Status::fromApp()
-            ->where('id', $ids)
+            ->where('id', $id)
             ->unless(auth()->user()->isAppOwner(), function (Builder $status) {
                 $status->fromCompany(auth()->user()->getCurrentCompany());
             });
-            $statusIdArray[] = $status->firstOrFail()->getId();
-        }
+            return $status->firstOrFail()->getId();
+        })->toArray();
+
         $warehouse = $warehouse->firstOrFail();
 
         $variants = new ModelsVariants();
@@ -75,14 +75,18 @@ class VariantWarehouseBuilder
         //set index
         ModelsVariants::setSearchIndex((int) $warehouse->companies_id);
 
+        $builder = ModelsVariants::join($variantWarehouse->getTable(), $variantWarehouse->getTable() . '.products_variants_id', '=', $variants->getTable() . '.id')
+        ->whereIn($variantWarehouse->getTable() . '.status_id', $statusId)
+        ->where($variantWarehouse->getTable() . '.is_deleted', 0)
+        ->where($variants->getTable() . '.is_deleted', 0)
+        ->select($variants->getTable() . '.*');
+
+        if(!auth()->user()->isAppOwner()) {
+            $builder->where($variantWarehouse->getTable() . '.warehouses_id', '=', $warehouse->getId());
+        }
         /**
          * @var Builder
          */
-        return ModelsVariants::join($variantWarehouse->getTable(), $variantWarehouse->getTable() . '.products_variants_id', '=', $variants->getTable() . '.id')
-            ->where($variantWarehouse->getTable() . '.warehouses_id', '=', $warehouse->getId())
-            ->whereIn($variantWarehouse->getTable() . '.status_id', $statusIdArray)
-            ->where($variantWarehouse->getTable() . '.is_deleted', 0)
-            ->where($variants->getTable() . '.is_deleted', 0)
-            ->select($variants->getTable() . '.*');
+        return $builder;
     }
 }
