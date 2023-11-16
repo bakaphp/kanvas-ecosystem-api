@@ -163,6 +163,5 @@ class UserManagementMutation
         $userAssociateApp = UsersRepository::belongsToThisApp($user, $app);
 
         return $userAssociateApp->delete();
-
     }
 }
