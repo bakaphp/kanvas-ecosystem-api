@@ -40,7 +40,8 @@ class SendMessageNotificationsToOneFollowerAction
                 $this->app
             );
             $user = Users::getById($follower->users_id);
-            /** @todo Maybe here we could manipulate de message entity data? */
+            
+            // TODO Maybe here we could manipulate de message entity data?
             $data = [
                 'fromUser' => $LoggedUser,
                 'message' => $this->message,

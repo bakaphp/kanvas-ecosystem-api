@@ -6,6 +6,7 @@ namespace Kanvas\Notifications\Actions;
 
 use Baka\Contracts\AppInterface;
 use Kanvas\Notifications\Jobs\PushNotificationsHandlerJob;
+use Kanvas\Notifications\Repositories\NotificationChannelsRepository;
 use Kanvas\Notifications\Repositories\NotificationTypesRepository;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
@@ -25,34 +26,56 @@ class SendMessageNotificationsToAllFollowersAction
      */
     public function execute(): void
     {
-        $LoggedUser = $this->user;
-        $followers = UsersFollowsRepository::getFollowersBuilder($LoggedUser)->get();
+        $fromUser = $this->user;
+        $followers = UsersFollowsRepository::getFollowersBuilder($fromUser)->get();
 
         foreach ($followers as $follower) {
-            if (in_array('push', $this->message['metadata']['channels'])) {
-                PushNotificationsHandlerJob::dispatch($follower->getOriginal()['id'], $this->message);
-            }
 
-            if (in_array('mail', $this->message['metadata']['channels'])) {
+            $toUser = Users::getById($follower->getOriginal()['id']);
+
+            if (in_array('push', $this->message['metadata']['channels'])) {
+
+                $notificationChannel = NotificationChannelsRepository::getBySlug('push');
                 $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent(
+                    $notificationChannel->id,
                     $this->message['metadata']['verb'],
                     $this->message['metadata']['event'],
                     $this->app
                 );
-                $user = Users::getById($follower->getOriginal()['id']);
+
+                $buildPushTemplateNotification = new BuildPushTemplateNotificationAction(
+                    $notificationType->template()->firstOrFail()->template,
+                    $fromUser,
+                    $toUser,
+                    $this->message
+                );
+                $message = $buildPushTemplateNotification->execute();
+
+                PushNotificationsHandlerJob::dispatch($follower->getOriginal()['id'], $message, $notificationType);
+            }
+
+            if (in_array('mail', $this->message['metadata']['channels'])) {
+
+                $notificationChannel = NotificationChannelRepository::getBySlug($this->message['metadata']['channels']);
+                $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent(
+                    $notificationChannel->id,
+                    $this->message['metadata']['verb'],
+                    $this->message['metadata']['event'],
+                    $this->app
+                );
 
                 $data = [
-                    'fromUser' => $LoggedUser,
+                    'fromUser' => $fromUser,
                     'message' => $this->message,
                     'app' => $this->app,
                 ];
 
                 // $notification->setFromUser(auth()->user());
-                $user->notify(new Blank(
+                $toUser->notify(new Blank(
                     $notificationType->template()->firstOrFail()->name,
                     $data,
                     ['mail'],
-                    $user
+                    $toUser
                 ));
             }
         }

@@ -16,6 +16,7 @@ class NotificationTypesRepository
      * @psalm-suppress MixedReturnStatement
      */
     public static function getTemplateByVerbAndEvent(
+        int $notificationChannelId,
         string $verb,
         string $event,
         AppInterface $app
@@ -26,6 +27,7 @@ class NotificationTypesRepository
         try {
             $query = NotificationTypes::notDeleted()
                 ->where('apps_id', $app->getId())
+                ->where('notification_channel_id', $notificationChannelId)
                 ->where('verb', $verb)
                 ->where('event', $event);
 

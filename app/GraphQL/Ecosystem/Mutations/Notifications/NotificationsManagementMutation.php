@@ -48,7 +48,8 @@ class NotificationsManagementMutation
     }
 
     /**
-     * sendNotificationBaseOnTemplate
+     * sendNotificationByMessage
+     * @psalm-suppress MixedArgument
      */
     public function sendNotificationByMessage(mixed $root, array $request): bool
     {
