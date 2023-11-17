@@ -157,16 +157,6 @@ class UsersRepository
         }
     }
 
-    public static function deleteBelongsToThisApp(Users $user, Apps $app): bool
-    {
-        $userAssociatedApp = UsersAssociatedApps::where('users_id', $user->getKey())
-            ->where('apps_id', $app->getKey())
-            ->where('is_deleted', StateEnums::YES->getValue())
-            ->firstOrFail();
-
-        return $userAssociatedApp;
-    }
-
     /**
      * Is this user owner of the app?
      * @psalm-suppress MixedReturnStatement

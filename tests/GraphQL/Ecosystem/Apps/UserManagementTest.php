@@ -193,4 +193,106 @@ class UserManagementTest extends TestCase
             ],
         ]);
     }
+
+    public function testDeletedUser()
+    {
+        $app = app(Apps::class);
+
+        $user = $app->keys()->first()->user()->firstOrFail();
+        $user->assign(RolesEnums::OWNER->value);
+
+        $email = fake()->email();
+        $response = $this->graphQL(/** @lang GraphQL */ '
+            mutation appCreateUser($data: CreateUserInput!) {
+                appCreateUser(data: $data) {
+                    id
+                    email
+                }
+              }',
+            [
+                'data' => [
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                    'email' => $email,
+                ],
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        );
+
+        $userId = $response->json('data.appCreateUser.id');
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation appDeleteUser($user_id: ID!) {
+                appDeleteUser(user_id: $user_id) 
+            }',
+            [
+                'user_id' => $userId,
+            ]
+        )->assertJson([
+            'data' => [
+                'appDeleteUser' => true,
+            ],
+        ]);
+
+    }
+
+    public function testRestoreDeletedUser()
+    {
+        $app = app(Apps::class);
+
+        $user = $app->keys()->first()->user()->firstOrFail();
+        $user->assign(RolesEnums::OWNER->value);
+
+        $email = fake()->email();
+        $response = $this->graphQL(/** @lang GraphQL */ '
+            mutation appCreateUser($data: CreateUserInput!) {
+                appCreateUser(data: $data) {
+                    id
+                    email
+                }
+              }',
+            [
+                'data' => [
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                    'email' => $email,
+                ],
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        );
+
+        $userId = $response->json('data.appCreateUser.id');
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation appDeleteUser($user_id: ID!) {
+                appDeleteUser(user_id: $user_id) 
+            }',
+            [
+                'user_id' => $userId,
+            ]
+        )->assertJson([
+            'data' => [
+                'appDeleteUser' => true,
+            ],
+        ]);
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation restoreDeletedUser($user_id: ID!) {
+                restoreDeletedUser(user_id: $user_id) 
+            }',
+            [
+                'user_id' => $userId,
+            ]
+        )->assertJson([
+            'data' => [
+                'restoreDeletedUser' => true,
+            ],
+        ]);
+    }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Users\Models;
 
 use Baka\Traits\HasCompositePrimaryKeyTrait;
+use Baka\Traits\SoftDeletesTrait;
 use Baka\Users\Contracts\UserAppInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\AccessControlList\Models\Role;
@@ -37,6 +38,8 @@ use Kanvas\Users\Enums\StatusEnums;
 class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppInterface
 {
     use HasCompositePrimaryKeyTrait;
+    use SoftDeletesTrait;
+    public const DELETED_AT = 'is_deleted';
 
     /**
      * The table associated with the model.
