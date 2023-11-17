@@ -36,7 +36,7 @@ class AppUserManagementMutation
         $user = Users::find((int)$req['user_id']);
         $userAssociate = UsersRepository::belongsToThisApp($user, app(Apps::class));
 
-        return $userAssociate->delete();
+        return $userAssociate->softDelete();
     }
 
     public function restoreDeletedUser(mixed $root, array $request): bool
@@ -45,7 +45,7 @@ class AppUserManagementMutation
         $userAssociatedApp = UsersAssociatedApps::where('users_id', $user->getKey())
                             ->where('apps_id', app(Apps::class)->getKey())
                             ->firstOrFail();
-        $userAssociatedApp->restore();
+        $userAssociatedApp->update(['is_deleted' => 0]);
 
         return true;
     }

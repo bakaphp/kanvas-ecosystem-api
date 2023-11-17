@@ -38,8 +38,8 @@ use Kanvas\Users\Enums\StatusEnums;
 class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppInterface
 {
     use HasCompositePrimaryKeyTrait;
-    use SoftDeletesTrait;
-    public const DELETED_AT = 'is_deleted';
+    // use SoftDeletesTrait;
+    // public const DELETED_AT = 'is_deleted';
 
     /**
      * The table associated with the model.
