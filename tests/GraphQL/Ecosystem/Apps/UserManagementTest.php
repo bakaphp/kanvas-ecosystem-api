@@ -236,7 +236,6 @@ class UserManagementTest extends TestCase
                 'appDeleteUser' => true,
             ],
         ]);
-
     }
 
     public function testRestoreDeletedUser()
