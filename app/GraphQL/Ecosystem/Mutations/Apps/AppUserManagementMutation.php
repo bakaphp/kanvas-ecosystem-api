@@ -45,7 +45,7 @@ class AppUserManagementMutation
         $userAssociatedApp = UsersAssociatedApps::where('users_id', $user->getKey())
                             ->where('apps_id', app(Apps::class)->getKey())
                             ->firstOrFail();
-        $userAssociatedApp->update(['is_deleted' => 0]);
+        $userAssociatedApp->restoreRecord();
 
         return true;
     }
