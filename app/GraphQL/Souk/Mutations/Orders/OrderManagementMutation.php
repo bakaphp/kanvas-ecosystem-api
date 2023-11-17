@@ -66,6 +66,8 @@ class OrderManagementMutation
                         ))->execute();
                     }
 
+                    $cart->clear();
+
                     return [
                         'transaction_id' => $tresponse->getTransId(),
                         'response_code' => $tresponse->getResponseCode(),
@@ -74,18 +76,24 @@ class OrderManagementMutation
                         'description' => $tresponse->getMessages()[0]->getDescription(),
                     ];
                 } else {
+                    $cart->clear(); //for now
+
                     return [
                         'error_code' => $tresponse->getErrors()[0]->getErrorCode(),
                         'error_message' => $tresponse->getErrors()[0]->getErrorText(),
                     ];
                 }
             } else {
+                $cart->clear(); //for now
+
                 return [
                     'error_code' => $response->getMessages()->getMessage()[0]->getCode(),
                     'error_message' => $response->getMessages()->getMessage()[0]->getText(),
                 ];
             }
         } else {
+            $cart->clear(); //for now
+
             return [
                 'error_code' => 'No response returned',
                 'error_message' => 'No response returned',
