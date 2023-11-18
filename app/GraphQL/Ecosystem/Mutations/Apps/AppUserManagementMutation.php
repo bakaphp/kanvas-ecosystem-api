@@ -45,8 +45,10 @@ class AppUserManagementMutation
         $userAssociatedApp = UsersAssociatedApps::where('users_id', $user->getKey())
                             ->where('apps_id', app(Apps::class)->getKey())
                             ->firstOrFail();
-                            
+
         $userAssociatedApp->restoreRecord();
+
+        //@todo if we delete a user , do cascade delete on all the user's data
 
         return true;
     }
