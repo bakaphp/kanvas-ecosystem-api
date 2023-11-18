@@ -100,7 +100,7 @@ input RegisterInput {
     lastname: String
     displayname: String
     email: Email! @rules(apply: ["required"])
-    password: String! @rules(apply: ["required"])
+    password: String! @rules(apply: ["required", "min:8"])
     password_confirmation: String! @rules(apply: ["required"])
     company_name: String
     roles_id: ID

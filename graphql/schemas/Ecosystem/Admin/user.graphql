@@ -5,7 +5,7 @@ input CreateUserInput {
     email: Email! @rules(apply: ["required"])
     company_name: String
     phone_number: String
-    password: String
+    password: String @rules(apply: ["min:8"])
     cell_phone_number: String
     roles_id: ID
     custom_fields: [CustomFieldEntityInput!]
