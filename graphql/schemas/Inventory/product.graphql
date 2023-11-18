@@ -1,7 +1,7 @@
 type Product {
-    id: Int!
+    id: ID!
     products_types_id: Int
-    uuid: String
+    uuid: String!
     name: String!
     slug: String!
     description: String!
@@ -22,7 +22,7 @@ type Product {
     attributes: [ProductAttribute] @BelongsToMany
     variants: [Variant] @HasMany
     productsTypes: ProductType @belongsTo
-    companies: Company @belongsTo
+    companies: Company! @belongsTo
 }
 
 input ProductInput {
@@ -100,6 +100,7 @@ extend type Query @guard {
                 columns: [
                     "id"
                     "products_types_id"
+                    "companies_id"
                     "name"
                     "slug"
                     "code"
