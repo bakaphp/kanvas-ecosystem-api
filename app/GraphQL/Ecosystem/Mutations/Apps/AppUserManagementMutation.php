@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Apps;
 
+use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Actions\CreateUserAction;
+use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Repositories\UsersRepository;
@@ -29,6 +32,20 @@ class AppUserManagementMutation
         UsersRepository::belongsToThisApp($user, app(Apps::class));
 
         return $user->updateEmail($request['email']);
+    }
+
+    public function createUser(mixed $rootValue, array $request): Users
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        UsersRepository::belongsToThisApp($user, app(Apps::class));
+
+        $request['data']['password'] = Str::random(15);
+        $data = RegisterInput::fromArray($request['data'], $company);
+        $user = new CreateUserAction($data);
+
+        return $user->execute();
     }
 
     public function appDeleteUser(mixed $root, array $req): bool

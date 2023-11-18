@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
@@ -21,6 +22,7 @@ use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Templates\Welcome;
+use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Jobs\OnBoardingJob;
 use Kanvas\Users\Models\Users;
@@ -85,6 +87,8 @@ class CreateUserAction
             $this->assignUserRole($user);
         }
 
+        $this->assignCompany($user);
+
         return $user;
     }
 
@@ -130,6 +134,8 @@ class CreateUserAction
         //create a new user assign it to the app and create the default company
         $user->saveOrFail();
 
+        $user->setAll($this->data->custom_fields);
+
         return $user;
     }
 
@@ -148,6 +154,26 @@ class CreateUserAction
             $userRole
         );
         $assignRole->execute();
+    }
+
+    protected function assignCompany(Users $user): void
+    {
+        if ($this->data->branch === null) {
+            return ;
+        }
+
+        try {
+            $role = RolesRepository::getByMixedParamFromCompany($this->data->roles_id ?? RolesEnums::USER->value);
+        } catch (Throwable $e) {
+            $role = RolesRepository::getByMixedParamFromCompany(RolesEnums::USER->value);
+        }
+
+        (new AssignCompanyAction(
+            $user,
+            $this->data->branch,
+            $role,
+            $this->app
+        ))->execute();
     }
 
     protected function sendWelcomeEmail(Users $user, bool $newUser, ?CompanyInterface $company = null): void
