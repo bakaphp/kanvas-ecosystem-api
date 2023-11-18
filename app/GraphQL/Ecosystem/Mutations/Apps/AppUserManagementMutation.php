@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Apps;
 
+use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\CreateUserAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Notifications\Templates\CreateUserTemplate;
 use Kanvas\Users\Models\Users;
@@ -50,20 +52,7 @@ class AppUserManagementMutation
         $data = RegisterInput::fromArray($request['data'], $branch);
         $user = (new CreateUserAction($data))->execute();
 
-        if ($app->get((string) AppSettingsEnums::SEND_CREATE_USER_EMAIL->getValue())) {
-            $createUserNotification = new CreateUserTemplate(
-                $user,
-                [
-                    'company' => $branch->company,
-                ]
-            );
-
-            $createUserNotification->setData([
-                'request' => $request['data'],
-            ]);
-
-            $user->notify($createUserNotification);
-        }
+        $this->sendCreateUserEmail($app, $branch, $user, $request);
 
         return $user;
     }
@@ -88,5 +77,27 @@ class AppUserManagementMutation
         //@todo if we delete a user , do cascade delete on all the user's data
 
         return true;
+    }
+
+    protected function sendCreateUserEmail(
+        AppInterface $app,
+        CompaniesBranches $branch,
+        Users $user,
+        array $request
+    ): void {
+        if ($app->get((string) AppSettingsEnums::SEND_CREATE_USER_EMAIL->getValue())) {
+            $createUserNotification = new CreateUserTemplate(
+                $user,
+                [
+                    'company' => $branch->company,
+                ]
+            );
+
+            $createUserNotification->setData([
+                'request' => $request['data'],
+            ]);
+
+            $user->notify($createUserNotification);
+        }
     }
 }
