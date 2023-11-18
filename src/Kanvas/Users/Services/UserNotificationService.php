@@ -44,7 +44,10 @@ class UserNotificationService
     ): void {
         try {
             if ($app->get((string) AppSettingsEnums::SEND_WELCOME_EMAIL->getValue())) {
-                $user->notify(new Welcome($user));
+                $user->notify(new Welcome(
+                    $user,
+                    $company ? ['company' => $company] : []
+                ));
             }
         } catch (Throwable $e) {
             //no email sent

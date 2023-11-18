@@ -18,10 +18,8 @@ use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\CompaniesPostData;
 use Kanvas\Enums\AppEnums;
-use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
-use Kanvas\Notifications\Templates\Welcome;
 use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Jobs\OnBoardingJob;
@@ -175,7 +173,7 @@ class CreateUserAction
         ))->execute();
     }
 
-    protected function onBoarding(Users $user, CompanyInterface $company): void
+    protected function onBoarding(Users $user, ?CompanyInterface $company = null): void
     {
         try {
             OnBoardingJob::dispatch(
