@@ -14,7 +14,7 @@ input CreateUserInput {
 extend type Mutation @guardByAppKey {
     appCreateUser(data: CreateUserInput!): User!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\AppUserManagementMutation@createUser"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@createUser"
         )
     appDeleteUser(user_id: ID): Boolean
         @field(
