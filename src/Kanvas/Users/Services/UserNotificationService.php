@@ -41,8 +41,7 @@ class UserNotificationService
         AppInterface $app,
         UserInterface $user,
         ?CompanyInterface $company = null
-    ): void
-    {
+    ): void {
         try {
             if ($app->get((string) AppSettingsEnums::SEND_WELCOME_EMAIL->getValue())) {
                 $user->notify(new Welcome($user));
