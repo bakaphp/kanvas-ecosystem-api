@@ -37,12 +37,12 @@ class AppUserManagementMutation
     public function createUser(mixed $rootValue, array $request): Users
     {
         $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $branch = $user->getCurrentBranch();
 
         UsersRepository::belongsToThisApp($user, app(Apps::class));
 
         $request['data']['password'] = Str::random(15);
-        $data = RegisterInput::fromArray($request['data'], $company);
+        $data = RegisterInput::fromArray($request['data'], $branch);
         $user = new CreateUserAction($data);
 
         return $user->execute();
