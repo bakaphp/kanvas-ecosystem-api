@@ -9,7 +9,7 @@ input CreateUserInput {
     password: String
     cell_phone_number: String
     roles_id: ID
-    custom_fields: [CustomFieldEntityInput!]!
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 extend type Mutation @guardByAppKey {

@@ -32,7 +32,7 @@ input PeopleInput {
     dob: String
     contacts: [ContactInput!]!
     address: [AddressInput!]!
-    custom_fields: [CustomFieldEntityInput!]!
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 input PeopleParticipantInput {
