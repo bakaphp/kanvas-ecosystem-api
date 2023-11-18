@@ -57,7 +57,7 @@ class AppUserManagementMutation
                     'company' => $branch->company,
                 ]
             );
-            
+
             $createUserNotification->setData([
                 'request' => $request['data'],
             ]);
