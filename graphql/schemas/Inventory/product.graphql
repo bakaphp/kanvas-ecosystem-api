@@ -62,31 +62,31 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@create"
         )
-    updateProduct(id: Int!, input: ProductInputUpdate): Product
+    updateProduct(id: ID!, input: ProductInputUpdate): Product
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@update"
         )
-    deleteProduct(id: Int!): Boolean
+    deleteProduct(id: ID!): Boolean
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@delete"
         )
-    addAttribute(id: Int!, attribute_id: Int!, value: String!): Product
+    addAttribute(id: ID!, attribute_id: Int!, value: String!): Product
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addAttribute"
         )
-    removeAttribute(id: Int!, attribute_id: Int!): Product
+    removeAttribute(id: ID!, attribute_id: Int!): Product
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@removeAttribute"
         )
-    addWarehouse(id: Int!, warehouse_id: Int!): Product
+    addWarehouse(id: ID!, warehouse_id: Int!): Product
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addWarehouse"
         )
-    removeWarehouse(id: Int!, warehouse_id: Int!): Product
+    removeWarehouse(id: ID!, warehouse_id: Int!): Product
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@removeWarehouse"
         )
-    addCategory(id: Int!, category_id: Int!): Product
+    addCategory(id: ID!, category_id: Int!): Product
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addCategory"
         )
