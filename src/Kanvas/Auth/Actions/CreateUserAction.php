@@ -175,17 +175,6 @@ class CreateUserAction
         ))->execute();
     }
 
-    protected function sendWelcomeEmail(Users $user, ?CompanyInterface $company = null): void
-    {
-        try {
-            if ($this->app->get((string) AppSettingsEnums::SEND_WELCOME_EMAIL->getValue())) {
-                $user->notify(new Welcome($user));
-            }
-        } catch (Throwable $e) {
-            //no email sent
-        }
-    }
-
     protected function onBoarding(Users $user, CompanyInterface $company): void
     {
         try {

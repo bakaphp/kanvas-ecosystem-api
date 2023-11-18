@@ -11,6 +11,7 @@ use Kanvas\Companies\DataTransferObject\CompaniesPostData;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Users\Services\UserNotificationService;
 
 class RegisterUsersAction extends CreateUserAction
 {
@@ -60,7 +61,7 @@ class RegisterUsersAction extends CreateUserAction
             $this->assignUserRole($user);
         }
 
-        $this->sendWelcomeEmail($user, $company);
+        UserNotificationService::sendWelcomeEmail($this->app, $user, $company);
 
         if ($newUser) {
             $this->onBoarding($user, $company);
