@@ -45,6 +45,7 @@ class AppUserManagementMutation
         $userAssociatedApp = UsersAssociatedApps::where('users_id', $user->getKey())
                             ->where('apps_id', app(Apps::class)->getKey())
                             ->firstOrFail();
+                            
         $userAssociatedApp->restoreRecord();
 
         return true;
