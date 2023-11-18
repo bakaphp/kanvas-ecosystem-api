@@ -60,7 +60,11 @@ class RegisterUsersAction extends CreateUserAction
             $this->assignUserRole($user);
         }
 
-        $this->sendWelcomeEmail($user, $newUser, $company);
+        $this->sendWelcomeEmail($user, $company);
+
+        if ($newUser) {
+            $this->onBoarding($user, $company);
+        }
 
         return $user;
     }

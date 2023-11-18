@@ -175,21 +175,25 @@ class CreateUserAction
         ))->execute();
     }
 
-    protected function sendWelcomeEmail(Users $user, bool $newUser, ?CompanyInterface $company = null): void
+    protected function sendWelcomeEmail(Users $user, ?CompanyInterface $company = null): void
     {
         try {
             if ($this->app->get((string) AppSettingsEnums::SEND_WELCOME_EMAIL->getValue())) {
                 $user->notify(new Welcome($user));
             }
+        } catch (Throwable $e) {
+            //no email sent
+        }
+    }
 
-            //create CRM + Inventory for user company send it to job
-            if ($newUser) {
-                OnBoardingJob::dispatch(
-                    $user,
-                    $company instanceof CompanyInterface ? $company->defaultBranch()->firstOrFail() : $user->getCurrentBranch(),
-                    $this->app
-                );
-            }
+    protected function onBoarding(Users $user, CompanyInterface $company): void
+    {
+        try {
+            OnBoardingJob::dispatch(
+                $user,
+                $company instanceof CompanyInterface ? $company->defaultBranch()->firstOrFail() : $user->getCurrentBranch(),
+                $this->app
+            );
         } catch (Throwable $e) {
             //no email sent
         }

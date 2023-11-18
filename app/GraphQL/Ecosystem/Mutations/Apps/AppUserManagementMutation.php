@@ -8,6 +8,8 @@ use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\CreateUserAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
+use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Notifications\Templates\CreateUserTemplate;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Repositories\UsersRepository;
@@ -38,6 +40,7 @@ class AppUserManagementMutation
     {
         $user = auth()->user();
         $branch = $user->getCurrentBranch();
+        $app = app(Apps::class);
 
         UsersRepository::belongsToThisApp($user, app(Apps::class));
 
@@ -45,9 +48,24 @@ class AppUserManagementMutation
             $request['data']['password'] = Str::random(15);
         }
         $data = RegisterInput::fromArray($request['data'], $branch);
-        $user = new CreateUserAction($data);
+        $user = (new CreateUserAction($data))->execute();
 
-        return $user->execute();
+        if ($app->get((string) AppSettingsEnums::SEND_CREATE_USER_EMAIL->getValue())) {
+            $createUserNotification = new CreateUserTemplate(
+                $user,
+                [
+                    'company' => $branch->company,
+                ]
+            );
+            
+            $createUserNotification->setData([
+                'request' => $request['data'],
+            ]);
+
+            $user->notify($createUserNotification);
+        }
+
+        return $user;
     }
 
     public function appDeleteUser(mixed $root, array $req): bool
