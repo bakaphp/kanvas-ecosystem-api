@@ -6,6 +6,7 @@ namespace Kanvas\Workflow\Rules\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Workflow\Models\BaseModel;
+use Kanvas\Workflow\Rules\Factories\RuleActionFactory;
 
 class RuleAction extends BaseModel
 {
@@ -21,5 +22,10 @@ class RuleAction extends BaseModel
     public function workflowAction(): BelongsTo
     {
         return $this->belongsTo(RuleWorkflowAction::class, 'rules_workflow_actions_id', 'id');
+    }
+
+    protected static function newFactory()
+    {
+        return RuleActionFactory::new();
     }
 }

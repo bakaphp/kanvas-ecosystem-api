@@ -10,6 +10,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
+use Kanvas\Workflow\Enums\RuleTypeEnum;
 
 class LeadObserver
 {
@@ -58,5 +59,12 @@ class LeadObserver
 
             $lead->leads_receivers_id = $receiver ? $receiver->id : 0;
         }
+
+        $lead->fireWorkflow(RuleTypeEnum::CREATED->value);
+    }
+
+    public function updating(Lead $lead): void
+    {
+        $lead->fireWorkflow(RuleTypeEnum::UPDATED->value);
     }
 }

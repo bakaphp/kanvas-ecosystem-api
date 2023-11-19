@@ -7,6 +7,7 @@ namespace Kanvas\Workflow\Rules\Models;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Models\BaseModel;
+use Kanvas\Workflow\Rules\Factories\RuleFactory;
 
 class Rule extends BaseModel
 {
@@ -16,7 +17,7 @@ class Rule extends BaseModel
 
     protected $casts = [
         'params' => 'array',
-        'is_async' => 'boolean'
+        'is_async' => 'boolean',
     ];
 
     public function type(): BelongsTo
@@ -27,5 +28,10 @@ class Rule extends BaseModel
     public function systemModule(): BelongsTo
     {
         return $this->setConnection('ecosystem')->belongsTo(SystemModules::class, 'systems_modules_id', 'id');
+    }
+
+    protected static function newFactory()
+    {
+        return RuleFactory::new();
     }
 }

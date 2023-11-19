@@ -6,6 +6,7 @@ namespace Kanvas\Workflow\Models;
 
 use Baka\Traits\KanvasModelTrait;
 use Baka\Traits\KanvasScopesTrait;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
@@ -17,6 +18,7 @@ class BaseModel extends EloquentModel
     use KanvasScopesTrait;
     use HasCustomFields;
     use HasFilesystemTrait;
+    use HasFactory;
     //use SoftDeletes;
 
     protected $attributes = [

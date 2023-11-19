@@ -20,6 +20,7 @@ use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 
 /**
@@ -56,6 +57,7 @@ class Lead extends BaseModel
     use Searchable;
     use NoAppRelationshipTrait;
     use FollowersTrait;
+    use CanUseWorkflow;
 
     protected $table = 'leads';
     protected $guarded = [];
