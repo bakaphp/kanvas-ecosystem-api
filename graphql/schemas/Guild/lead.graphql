@@ -113,8 +113,8 @@ input LeadInput {
     description: String
     reason_lost: String
     pipeline_stage_id: ID!
-    custom_fields: [CustomFieldEntityInput!]!
-    files: [FilesystemInputUrl!]!
+    custom_fields: [CustomFieldEntityInput!]
+    files: [FilesystemInputUrl!]
 }
 
 input LeadUpdateInput {
@@ -130,8 +130,8 @@ input LeadUpdateInput {
     description: String
     reason_lost: String
     pipeline_stage_id: ID
-    custom_fields: [CustomFieldEntityInput!]!
-    files: [FilesystemInputUrl!]!
+    custom_fields: [CustomFieldEntityInput!]
+    files: [FilesystemInputUrl!]
 }
 
 extend type Mutation @guard {

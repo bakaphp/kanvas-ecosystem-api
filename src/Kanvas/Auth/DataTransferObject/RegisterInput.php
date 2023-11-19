@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\DataTransferObject;
 
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\Random;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Spatie\LaravelData\Data;
 
 /**
@@ -24,7 +26,9 @@ class RegisterInput extends Data
         public string $email,
         public string $password,
         public ?string $default_company = null,
-        public ?int $roles_id = null
+        public ?int $roles_id = null,
+        public array $custom_fields = [],
+        public ?CompaniesBranches $branch = null
     ) {
     }
 
@@ -43,13 +47,14 @@ class RegisterInput extends Data
             password: Hash::make($request->get('password')),
             default_company: $request->get('default_company') ?? null,
             roles_id: (int) ($request->get('roles_id') ?? null),
+            custom_fields: $request->get('custom_fields') ?? []
         );
     }
 
     /**
-     * Generaet new instance of DTO from array.
+     * Generate new instance of DTO from array.
      */
-    public static function fromArray(array $request): self
+    public static function fromArray(array $request, ?CompaniesBranches $branch = null): self
     {
         return new self(
             firstname: $request['firstname'] ?? '',
@@ -59,6 +64,8 @@ class RegisterInput extends Data
             password: Hash::make($request['password']),
             default_company: $request['default_company'] ?? null,
             roles_id: isset($request['roles_id']) ? (int) $request['roles_id'] : null,
+            custom_fields: $request['custom_fields'] ?? [],
+            branch: $branch
         );
     }
 }

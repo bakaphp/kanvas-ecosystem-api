@@ -285,15 +285,15 @@ class UserManagementTest extends TestCase
         ]);
 
         $this->graphQL(/** @lang GraphQL */ '
-            mutation restoreDeletedUser($user_id: ID!) {
-                restoreDeletedUser(user_id: $user_id) 
+            mutation appRestoreDeletedUser($user_id: ID!) {
+                appRestoreDeletedUser(user_id: $user_id) 
             }',
             [
                 'user_id' => $userId,
             ]
         )->assertJson([
             'data' => [
-                'restoreDeletedUser' => true,
+                'appRestoreDeletedUser' => true,
             ],
         ]);
     }

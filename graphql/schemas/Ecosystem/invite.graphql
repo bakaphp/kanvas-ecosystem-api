@@ -29,7 +29,7 @@ input InviteInput {
     lastname: String
     description: String
     email_template: String
-    custom_fields: [CustomFieldEntityInput!]!
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 input CompleteInviteInput {
