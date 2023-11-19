@@ -20,6 +20,16 @@ class RuleWorkflowAction extends BaseModel
         return $this->belongsTo(Action::class, 'actions_id', 'id');
     }
 
+    public function actionName(): string
+    {
+        return $this->action->name;
+    }
+
+    public function actionClass(): string
+    {
+        return $this->action->model_name;
+    }
+
     public function systemModule(): BelongsTo
     {
         return $this->setConnection('ecosystem')->belongsTo(SystemModules::class, 'systems_modules_id', 'id');

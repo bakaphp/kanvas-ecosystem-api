@@ -6,6 +6,7 @@ namespace Kanvas\Workflow\Rules\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Enums\RuleTypeEnum;
@@ -29,7 +30,7 @@ class RuleFactory extends Factory
 
         return [
             'systems_modules_id' => SystemModulesRepository::getByModelName(Lead::class),
-            'companies_id' => 1,
+            'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
             'apps_id' => $app->getId(),
             'rules_types_id' => $ruleType->getId(),
             'name' => 'Lead Zoho Test',

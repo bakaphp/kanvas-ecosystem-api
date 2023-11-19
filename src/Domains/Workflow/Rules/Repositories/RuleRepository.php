@@ -24,9 +24,9 @@ class RuleRepository
         $bind = [
             'systems_module_id' => $systemModule->getId(),
             'rules_types_id' => $ruleType->getId(),
-            'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getvla,
-            'global_companies' => AppEnums::GLOBAL_COMPANY_ID,
-            'global_apps_id' => AppEnums::ECOSYSTEM_APP_ID,
+            'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
+            'global_companies' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
+            'global_apps_id' => AppEnums::ECOSYSTEM_APP_ID->getValue(),
             'apps_id' => $app->getId(),
         ];
 
@@ -42,6 +42,7 @@ class RuleRepository
                 ->whereIn('companies_id', [$bind['companies_id'], $bind['global_companies']])
                 ->whereIn('apps_id', [$bind['global_apps_id'], $bind['apps_id']])
                 ->where('is_deleted', 0)
+                ->notDeleted()
                 ->get();
     }
 }

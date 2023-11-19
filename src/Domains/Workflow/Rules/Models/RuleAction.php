@@ -19,7 +19,7 @@ class RuleAction extends BaseModel
         return $this->belongsTo(Rule::class, 'rules_id', 'id');
     }
 
-    public function workflowAction(): BelongsTo
+    public function activity(): BelongsTo
     {
         return $this->belongsTo(RuleWorkflowAction::class, 'rules_workflow_actions_id', 'id');
     }

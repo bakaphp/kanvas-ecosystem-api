@@ -59,11 +59,14 @@ class LeadObserver
 
             $lead->leads_receivers_id = $receiver ? $receiver->id : 0;
         }
+    }
 
+    public function created(Lead $lead): void
+    {
         $lead->fireWorkflow(RuleTypeEnum::CREATED->value);
     }
 
-    public function updating(Lead $lead): void
+    public function updated(Lead $lead): void
     {
         $lead->fireWorkflow(RuleTypeEnum::UPDATED->value);
     }

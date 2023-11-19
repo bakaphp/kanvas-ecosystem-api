@@ -26,6 +26,7 @@ class BaseModel extends EloquentModel
     //use KanvasScopesTrait;
     use HasCustomFields;
     use HasFilesystemTrait;
+    use HasFactory;
     //use Cachable; -> until we implement workflows
     //use SoftDeletes;
 

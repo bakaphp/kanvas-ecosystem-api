@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
+use Kanvas\Guild\Leads\Factories\LeadFactory;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
@@ -160,5 +161,10 @@ class Lead extends BaseModel
     {
         $this->leads_status_id = 6; //change by dynamic
         $this->saveOrFail();
+    }
+
+    protected static function newFactory()
+    {
+        return new LeadFactory();
     }
 }
