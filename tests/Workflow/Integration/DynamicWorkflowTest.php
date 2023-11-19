@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Workflow\Integration;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Zoho\Workflows\ZohoLeadWorkflow;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Actions\ProcessWorkflowEventAction;
 use Kanvas\Workflow\Enums\RuleTypeEnum;
@@ -38,7 +37,7 @@ final class DynamicWorkflowTest extends TestCase
         $processWorkflow = new ProcessWorkflowEventAction($app, $lead);
         $processWorkflow->execute(RuleTypeEnum::CREATED->value, $params);
 
-        
+
         $this->assertEquals($totalWorkflows + Rule::count(), StoredWorkflow::count());
     }
 }

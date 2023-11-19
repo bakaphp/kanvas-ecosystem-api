@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Rules\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\RuleWorkflowAction;
