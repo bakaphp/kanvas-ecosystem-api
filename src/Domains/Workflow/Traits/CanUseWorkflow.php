@@ -12,12 +12,9 @@ trait CanUseWorkflow
         string $event,
         bool $async = true,
         array $params = []
-    ): void
-    {
-        if (!$this->enableWorkflows) {
+    ): void {
+        if (! $this->enableWorkflows) {
             return;
         }
-
-        
     }
 }
