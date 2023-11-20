@@ -107,6 +107,7 @@ extend type Query @guard {
                     "name"
                     "slug"
                     "status_id"
+                    "companies_id"
                     "uuid"
                     "sku"
                     "serial_number"
