@@ -52,7 +52,7 @@ trait SearchableDynamicIndexTrait
         return isset($this->id) && isset($this->is_deleted) && ! isset($this->companies_id);
     }
 
-    public function appSearchableIndex()
+    public function appSearchableIndex(): void
     {
         $appId = $this->apps_id ?? app(Apps::class)->getId();
         $indexName = self::$overWriteSearchIndex !== null
