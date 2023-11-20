@@ -17,7 +17,8 @@ class VariantBuilder
         GraphQLContext $context,
         ResolveInfo $resolveInfo
     ): Builder {
-        $company = auth()->user()->getCurrentCompany();
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
 
         if (! $user->isAppOwner()) {
             Variants::setSearchIndex($company->getId());
