@@ -21,8 +21,8 @@ class IndexInMeiliSearchJob implements ShouldQueue
      * Create a new job instance.
      */
     public function __construct(
-        protected string $indexName,
-        protected Model $model
+        public string $indexName,
+        public Model $model
     ) {
         $this->model = $model;
         $this->indexName = $indexName;
