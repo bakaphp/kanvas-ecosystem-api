@@ -50,4 +50,25 @@ trait SearchableDynamicIndexTrait
     {
         return isset($this->id) && isset($this->is_deleted) && ! isset($this->companies_id);
     }
+
+    public function appSearchableIndex()
+    {
+        $appId = $this->apps_id ?? app(Apps::class)->getId();
+        $indexName = self::$overWriteSearchIndex !== null
+            ? self::$overWriteSearchIndex
+            : self::searchableIndex();
+
+        $indexName = config('scout.prefix') . 'app_' . $appId . '_' . $indexName;
+        $searchableArray = $this->toSearchableArray();
+
+        // Manually index the model in the second index
+        app('meilisearch')->index($indexName)->addDocuments([$searchableArray]);
+    }
+
+    protected static function booted()
+    {
+        static::saved(function ($model) {
+            $model->appSearchableIndex();
+        });
+    }
 }
