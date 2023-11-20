@@ -26,7 +26,7 @@ class MeiliSearchService
             $model->toSearchableArray()
         );
 
-        $primaryKey = $model->getKeyName(); 
+        $primaryKey = $model->getKeyName();
         $index = $this->meiliClient->index($indexName);
         $index->addDocuments($documents, $primaryKey);
     }
