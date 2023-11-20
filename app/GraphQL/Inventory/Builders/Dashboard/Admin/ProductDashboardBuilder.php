@@ -20,7 +20,13 @@ class ProductDashboardBuilder
         $app = app(Apps::class);
 
         $result = VariantsWarehouses::query()
-            ->select('status.id as status_id', 'status.name as status_name', 'status.slug as status_slug', DB::raw('COUNT(*) as total_amount'))
+            ->select(
+                'status.id as status_id',
+                'status.name as status_name',
+                'status.slug as status_slug',
+                'status.companies_id as status_companies_id',
+                DB::raw('COUNT(*) as total_amount')
+            )
             ->join('status', function ($join) {
                 $join->on('products_variants_warehouses.status_id', '=', 'status.id');
             })
