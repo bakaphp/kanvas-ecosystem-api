@@ -20,7 +20,8 @@ class ProductDashboardBuilder
         $app = app(Apps::class);
 
         $result = VariantsWarehouses::query()
-            ->select('status.id as statusId',
+            ->select(
+                'status.id as statusId',
                 'status.name as statusName',
                 'status.slug as statusSlug',
                 'status.companies_id as statusCompaniesId',
