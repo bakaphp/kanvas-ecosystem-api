@@ -111,6 +111,8 @@ class CreateUserAction
         $user->displayname = $this->data->displayname;
         $user->email = $this->data->email;
         $user->password = $this->data->password;
+        $user->phone_number = $this->data->phone_number;
+        $user->cell_phone_number = $this->data->cell_phone_number;
         $user->sex = AppEnums::DEFAULT_SEX->getValue();
         $user->dob = date('Y-m-d');
         $user->lastvisit = date('Y-m-d H:i:s');

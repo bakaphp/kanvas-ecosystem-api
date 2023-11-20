@@ -30,8 +30,8 @@ Todo:
 - [x] Inventory (in progress)
 - [x] CRM (in progress)
 - [x] Social (in progress)
-- [ ] Workflow (in progress)
-- [ ] GraphQL Documentation (in progress)
+- [x] Workflow (in progress)
+- [x] GraphQL Documentation (in progress)
 
 ## Prerequisites
 

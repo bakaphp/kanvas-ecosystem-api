@@ -28,7 +28,9 @@ class RegisterInput extends Data
         public ?string $default_company = null,
         public ?int $roles_id = null,
         public array $custom_fields = [],
-        public ?CompaniesBranches $branch = null
+        public ?CompaniesBranches $branch = null,
+        public ?string $phone_number = null,
+        public ?string $cell_phone_number = null,
     ) {
     }
 
@@ -65,7 +67,9 @@ class RegisterInput extends Data
             default_company: $request['default_company'] ?? null,
             roles_id: isset($request['roles_id']) ? (int) $request['roles_id'] : null,
             custom_fields: $request['custom_fields'] ?? [],
-            branch: $branch
+            branch: $branch,
+            phone_number: $request['phone_number'] ?? null,
+            cell_phone_number: $request['cell_phone_number'] ?? null
         );
     }
 }

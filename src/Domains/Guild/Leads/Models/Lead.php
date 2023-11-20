@@ -14,12 +14,14 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
+use Kanvas\Guild\Leads\Factories\LeadFactory;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 
 /**
@@ -56,6 +58,7 @@ class Lead extends BaseModel
     use Searchable;
     use NoAppRelationshipTrait;
     use FollowersTrait;
+    use CanUseWorkflow;
 
     protected $table = 'leads';
     protected $guarded = [];
@@ -158,5 +161,10 @@ class Lead extends BaseModel
     {
         $this->leads_status_id = 6; //change by dynamic
         $this->saveOrFail();
+    }
+
+    protected static function newFactory()
+    {
+        return new LeadFactory();
     }
 }
