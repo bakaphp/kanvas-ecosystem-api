@@ -1,14 +1,15 @@
 type adminProductDashboard {
-    total_products: Int!
-    total_variants: Int!
-    product_status: [adminProductStatusDashboard!]!
+    totalProducts: Int!
+    totalVariants: Int!
+    productStatus: [adminProductStatusDashboard!]!
 }
 
 type adminProductStatusDashboard {
-    status_id: ID!
-    status_name: String!
-    status_slug: String!
-    total_amount: Int
+    statusId: ID!
+    statusName: String!
+    statusSlug: String!
+    statusCompaniesId: ID!
+    totalAmount: Int
 
 }
 
