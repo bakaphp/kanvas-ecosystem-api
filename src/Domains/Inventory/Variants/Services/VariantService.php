@@ -39,7 +39,7 @@ class VariantService
             if (isset($variant['attributes'])) {
                 $variantModel->addAttributes($user, $variant['attributes']);
             }
-            if (!$variantDto->warehouse_id) {
+            if (! $variantDto->warehouse_id) {
                 $variantDto->warehouse_id = Warehouses::getDefault($variantDto->product->company()->get()->first())->getId();
             }
             if (isset($variant['status']['id'])) {
@@ -69,11 +69,6 @@ class VariantService
 
     /**
      * Update data of variant in a warehouse.
-     *
-     * @param Variants $variant
-     * @param Warehouses $warehouse
-     * @param array $data
-     * @return Variants
      */
     public static function updateWarehouseVariant(Variants $variant, Warehouses $warehouse, array $data): Variants
     {

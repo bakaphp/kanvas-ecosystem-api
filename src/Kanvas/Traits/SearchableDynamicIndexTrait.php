@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Traits;
 
+use Baka\Search\IndexInMeiliSearchJob;
 use Kanvas\Apps\Models\Apps;
 use Laravel\Scout\Searchable;
 
@@ -59,10 +60,9 @@ trait SearchableDynamicIndexTrait
             : self::searchableIndex();
 
         $indexName = config('scout.prefix') . 'app_' . $appId . '_' . $indexName;
-        $searchableArray = $this->toSearchableArray();
 
         // Manually index the model in the second index
-        app('meilisearch')->index($indexName)->addDocuments([$searchableArray]);
+        IndexInMeiliSearchJob::dispatch($indexName, $this);
     }
 
     protected static function booted()
