@@ -34,8 +34,8 @@ input PeopleInput {
     linkedin_contact_id: String
     google_contact_id: String
     dob: String
-    contacts: [ContactInput!]!
-    address: [AddressInput!]!
+    contacts: [ContactInput!]
+    address: [AddressInput!]
     custom_fields: [CustomFieldEntityInput!]
 }
 
@@ -50,8 +50,8 @@ input PeopleParticipantInput {
     linkedin_contact_id: String
     google_contact_id: String
     dob: Date
-    contacts: [ContactInput!]!
-    address: [AddressInput!]!
+    contacts: [ContactInput!]
+    address: [AddressInput!]
 }
 
 extend type Query @guard {
