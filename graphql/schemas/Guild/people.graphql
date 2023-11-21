@@ -3,7 +3,7 @@ type People {
     uuid: String!
     company: Company! @belongsTo
     user: User! @belongsTo
-    name: String!
+    name: String! @method(name: "getName")
     firstname: String!
     middlename: String
     lastname: String!
