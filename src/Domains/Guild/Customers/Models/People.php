@@ -88,6 +88,9 @@ class People extends BaseModel
                 ->get();
     }
 
+    /**
+     * @todo move to laravel attributes.
+     */
     public function getName(): string
     {
         return $this->firstname . ' ' . $this->middlename . ' ' . $this->lastname;
