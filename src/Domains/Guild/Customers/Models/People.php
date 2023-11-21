@@ -93,7 +93,8 @@ class People extends BaseModel
      */
     public function getName(): string
     {
-        return $this->firstname . ' ' . $this->middlename . ' ' . $this->lastname;
+        $name = trim($this->firstname . ' ' . $this->middlename . ' ' . $this->lastname);
+        return preg_replace('/\s+/', ' ', $name);
     }
 
     protected static function newFactory()
