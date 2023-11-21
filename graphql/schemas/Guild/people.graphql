@@ -4,6 +4,9 @@ type People {
     company: Company! @belongsTo
     user: User! @belongsTo
     name: String!
+    firstname: String!
+    middlename: String
+    lastname: String!
     dob: Date
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
@@ -24,6 +27,7 @@ type PeopleRelationship {
 input PeopleInput {
     id: ID
     firstname: String!
+    middlename: String
     lastname: String!
     facebook_contact_id: String
     twitter_contact_id: String
@@ -38,6 +42,7 @@ input PeopleInput {
 input PeopleParticipantInput {
     id: ID
     firstname: String!
+    middlename: String
     lastname: String!
     participants_types_id: ID!
     facebook_contact_id: String
