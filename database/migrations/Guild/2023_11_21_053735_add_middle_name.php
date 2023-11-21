@@ -22,8 +22,11 @@ return new class () extends Migration {
         DB::statement("
             UPDATE peoples
             SET
-                firstname = SUBSTRING_INDEX(name, ' ', 1),
-                lastname = SUBSTRING_INDEX(SUBSTRING_INDEX(name, ' ', -1), ' ', 1)
+                firstname = IF(LOCATE(' ', name) > 0, SUBSTRING_INDEX(name, ' ', 1), name),
+                lastname = CASE
+                    WHEN LOCATE(' ', name) > 0 THEN SUBSTRING(name, LOCATE(' ', name) + 1)
+                    ELSE ''
+                END
             WHERE name IS NOT NULL
         ");
     }
