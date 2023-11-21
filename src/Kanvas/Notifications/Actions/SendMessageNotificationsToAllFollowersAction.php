@@ -15,7 +15,7 @@ use Kanvas\Users\Models\Users;
 class SendMessageNotificationsToAllFollowersAction
 {
     public function __construct(
-        protected Users $user,
+        protected Users $fromUser,
         protected AppInterface $app,
         protected array $message
     ) {
@@ -26,8 +26,7 @@ class SendMessageNotificationsToAllFollowersAction
      */
     public function execute(): void
     {
-        $fromUser = $this->user;
-        $followers = UsersFollowsRepository::getFollowersBuilder($fromUser)->get();
+        $followers = UsersFollowsRepository::getFollowersBuilder($this->fromUser)->get();
 
         foreach ($followers as $follower) {
 
@@ -45,18 +44,18 @@ class SendMessageNotificationsToAllFollowersAction
 
                 $buildPushTemplateNotification = new BuildPushTemplateNotificationAction(
                     $notificationType->template()->firstOrFail()->template,
-                    $fromUser,
+                    $this->fromUser,
                     $toUser,
                     $this->message
                 );
                 $message = $buildPushTemplateNotification->execute();
 
-                PushNotificationsHandlerJob::dispatch($follower->getOriginal()['id'], $message, $notificationType);
+                PushNotificationsHandlerJob::dispatch($follower->getId(), $message);
             }
 
             if (in_array('mail', $this->message['metadata']['channels'])) {
 
-                $notificationChannel = NotificationChannelRepository::getBySlug($this->message['metadata']['channels']);
+                $notificationChannel = NotificationChannelsRepository::getBySlug($this->message['metadata']['channels']);
                 $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent(
                     $notificationChannel->id,
                     $this->message['metadata']['verb'],
@@ -65,12 +64,11 @@ class SendMessageNotificationsToAllFollowersAction
                 );
 
                 $data = [
-                    'fromUser' => $fromUser,
+                    'fromUser' => $this->fromUser,
                     'message' => $this->message,
                     'app' => $this->app,
                 ];
 
-                // $notification->setFromUser(auth()->user());
                 $toUser->notify(new Blank(
                     $notificationType->template()->firstOrFail()->name,
                     $data,
