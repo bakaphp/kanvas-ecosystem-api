@@ -20,6 +20,9 @@ use Laravel\Scout\Searchable;
  * @property int $users_id
  * @property int $companies_id
  * @property string $name
+ * @property string $firstname
+ * @property string|null $middlename = null
+ * @property string $lastname
  * @property string|null $dob = null
  * @property string|null $google_contact_id
  * @property string|null $facebook_contact_id
@@ -85,26 +88,13 @@ class People extends BaseModel
                 ->get();
     }
 
-    public function getFirstAndLastName(): array
+    /**
+     * @todo move to laravel attributes.
+     */
+    public function getName(): string
     {
-        $name = explode(' ', trim($this->name));
-        $firstName = $name[0];
-        unset($name[0]);
-
-        return [
-            'firstName' => trim($firstName),
-            'lastName' => isset($name[1]) ? implode(' ', $name) : '',
-        ];
-    }
-
-    public function getFirstname(): string
-    {
-        return $this->getFirstAndLastName()['firstName'];
-    }
-
-    public function getLastname(): string
-    {
-        return $this->getFirstAndLastName()['lastName'];
+        $name = trim($this->firstname . ' ' . $this->middlename . ' ' . $this->lastname);
+        return preg_replace('/\s+/', ' ', $name);
     }
 
     protected static function newFactory()

@@ -27,7 +27,10 @@ class UpdatePeopleAction
     public function execute(): People
     {
         $attributes = [
-            'name' => $this->peopleData->firstname . ' ' . $this->peopleData->lastname,
+            'firstname' => $this->peopleData->firstname,
+            'middlename' => $this->peopleData->middlename,
+            'lastname' => $this->peopleData->lastname,
+            'name' => $this->peopleData->firstname . ' ' . $this->peopleData->lastname, // @todo remove this
             'dob' => $this->peopleData->dob,
             'google_contact_id' => $this->peopleData->google_contact_id,
             'facebook_contact_id' => $this->peopleData->facebook_contact_id,

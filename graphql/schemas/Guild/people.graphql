@@ -3,7 +3,10 @@ type People {
     uuid: String!
     company: Company! @belongsTo
     user: User! @belongsTo
-    name: String!
+    name: String! @method(name: "getName")
+    firstname: String!
+    middlename: String
+    lastname: String!
     dob: Date
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
@@ -24,20 +27,22 @@ type PeopleRelationship {
 input PeopleInput {
     id: ID
     firstname: String!
+    middlename: String
     lastname: String!
     facebook_contact_id: String
     twitter_contact_id: String
     linkedin_contact_id: String
     google_contact_id: String
     dob: String
-    contacts: [ContactInput!]!
-    address: [AddressInput!]!
+    contacts: [ContactInput!]
+    address: [AddressInput!]
     custom_fields: [CustomFieldEntityInput!]
 }
 
 input PeopleParticipantInput {
     id: ID
     firstname: String!
+    middlename: String
     lastname: String!
     participants_types_id: ID!
     facebook_contact_id: String
@@ -45,8 +50,8 @@ input PeopleParticipantInput {
     linkedin_contact_id: String
     google_contact_id: String
     dob: Date
-    contacts: [ContactInput!]!
-    address: [AddressInput!]!
+    contacts: [ContactInput!]
+    address: [AddressInput!]
 }
 
 extend type Query @guard {
