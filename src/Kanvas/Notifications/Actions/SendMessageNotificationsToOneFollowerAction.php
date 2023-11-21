@@ -30,7 +30,6 @@ class SendMessageNotificationsToOneFollowerAction
         $follower = UsersFollowsRepository::getByUserAndEntity($this->toUser, $this->fromUser);
 
         if (in_array('push', $this->message['metadata']['channels'])) {
-
             $notificationChannel = NotificationChannelsRepository::getBySlug('push');
             $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent(
                 $notificationChannel->id,

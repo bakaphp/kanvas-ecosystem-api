@@ -29,11 +29,9 @@ class SendMessageNotificationsToAllFollowersAction
         $followers = UsersFollowsRepository::getFollowersBuilder($this->fromUser)->get();
 
         foreach ($followers as $follower) {
-
             $toUser = Users::getById($follower->getOriginal()['id']);
 
             if (in_array('push', $this->message['metadata']['channels'])) {
-
                 $notificationChannel = NotificationChannelsRepository::getBySlug('push');
                 $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent(
                     $notificationChannel->id,
@@ -54,7 +52,6 @@ class SendMessageNotificationsToAllFollowersAction
             }
 
             if (in_array('mail', $this->message['metadata']['channels'])) {
-
                 $notificationChannel = NotificationChannelsRepository::getBySlug($this->message['metadata']['channels']);
                 $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent(
                     $notificationChannel->id,
