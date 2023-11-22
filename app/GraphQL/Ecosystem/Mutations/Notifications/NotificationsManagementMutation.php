@@ -55,13 +55,9 @@ class NotificationsManagementMutation
     {
         $app = app(Apps::class);
         $user = auth()->user();
-
-        /**
-         * @todo Validate incoming $request['message'] data to prevent failures.
-         */
         $message = $request['message'];
-        //$messageJson = json_decode(json_encode($request['message']));
 
+        // TODO Maybe get rid of the notification_type_id on notification_types_message_logic table, not doin anything there?
         $messageType = MessagesTypesRepository::getByVerb($message['metadata']['verb'], $app);
         $noticationTypeMessageLogic = NotificationTypesMessageLogicRepository::getByMessageType($app, $messageType->getId());
         $evaluateNotificationsLogic = new EvaluateNotificationsLogicAction($noticationTypeMessageLogic, $message);
