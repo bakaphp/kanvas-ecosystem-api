@@ -50,7 +50,7 @@ class VariantService
                 );
                 $variantModel->setStatus($status);
             }
-            
+
             if (! empty($variantDto->files)) {
                 foreach ($variantDto->files as $file) {
                     $variantModel->addFileFromUrl($file['url'], $file['name']);
