@@ -50,7 +50,7 @@ class SendMessageNotificationsToOneFollowerAction
         }
 
         if (in_array('mail', $this->message['metadata']['channels'])) {
-            $notificationChannel = NotificationChannelsRepository::getBySlug($this->message['metadata']['channels']);
+            $notificationChannel = NotificationChannelsRepository::getBySlug('mail');
             $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent(
                 $notificationChannel->id,
                 $this->message['metadata']['verb'],
