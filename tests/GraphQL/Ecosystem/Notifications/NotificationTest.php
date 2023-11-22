@@ -77,7 +77,7 @@ class NotificationTest extends TestCase
             ', [
                 'message' => [
                     'metadata' => [
-                        "verb" => "memos",
+                        "verb" => "entity",
                         "event" => "creation",
                         "channels" =>  ["push","email"],
                         "distribution" => [
@@ -85,7 +85,7 @@ class NotificationTest extends TestCase
                             "userId" => $user->getId()
                         ]
                     ],
-                    "title" => "MemoT",
+                    "title" => "Example Title",
                     "is_public" => 1,
                     "is_published" => 1,
                 ],
@@ -128,7 +128,7 @@ class NotificationTest extends TestCase
             ', [
                 'message' => [
                     'metadata' => [
-                        "verb" => "memos",
+                        "verb" => "entity",
                         "event" => "creation",
                         "channels" =>  ["push"],
                         "distribution" => [
