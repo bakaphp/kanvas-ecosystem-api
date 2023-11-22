@@ -1,6 +1,6 @@
 <?php
 
-namespace Database\Seeders;
+namespace Database\Seeders\Social;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +17,7 @@ class MessageTypesSeeder extends Seeder
             [
                 'uuid' => (string) Str::uuid(),
                 'apps_id' => 1,
-                'languages_id' => 'Email',
+                'languages_id' => 1,
                 'name' => 'entity',
                 'verb' => 'entity',
                 'template' => null,
