@@ -36,6 +36,7 @@ class KanvasUserRemoveFromCompany extends Command
         $branch = CompaniesBranches::findOrFail($branchId);
         $company = $branch->company()->first();
 
+        //@todo reset default company settings
         $assignCompanyAction = new RemoveCompanyAction(
             UsersRepository::getByEmail($email),
             $branch,
