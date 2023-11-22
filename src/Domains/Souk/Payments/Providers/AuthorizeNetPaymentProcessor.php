@@ -64,11 +64,15 @@ class AuthorizeNetPaymentProcessor
         $customerAddress->setFirstName($orderInput->user->firstname);
         $customerAddress->setLastName($orderInput->user->lastname);
         $customerAddress->setCompany($orderInput->user->getId());
-        $customerAddress->setAddress($orderInput->creditCard->billing->address);
-        $customerAddress->setCity($orderInput->creditCard->billing->city);
-        $customerAddress->setState($orderInput->creditCard->billing->state);
-        $customerAddress->setZip($orderInput->creditCard->billing->zip);
-        $customerAddress->setCountry($orderInput->creditCard->billing->country);
+
+        $billingAddress = $orderInput->creditCard?->billing;
+        if ($billingAddress !== null) {
+            $customerAddress->setAddress($billingAddress->address);
+            $customerAddress->setCity($billingAddress->city);
+            $customerAddress->setState($billingAddress->state);
+            $customerAddress->setZip($billingAddress->zip);
+            $customerAddress->setCountry($billingAddress->country);
+        }
 
         // Add values for transaction settings
         $duplicateWindowSetting = new AnetAPI\SettingType();

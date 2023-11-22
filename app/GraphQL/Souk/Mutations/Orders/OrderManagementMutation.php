@@ -19,8 +19,7 @@ class OrderManagementMutation
     public function create(mixed $root, array $request): array
     {
         $user = auth()->user();
-
-        $creditCard = CreditCard::from($request['input']['payment']);
+        $creditCard = CreditCard::viaRequest($request['input']);
         $payment = new AuthorizeNetPaymentProcessor(
             app(Apps::class),
             $user->getCurrentBranch()
@@ -77,18 +76,24 @@ class OrderManagementMutation
                         'description' => $tresponse->getMessages()[0]->getDescription(),
                     ];
                 } else {
+                    $cart->clear(); //for now
+
                     return [
                         'error_code' => $tresponse->getErrors()[0]->getErrorCode(),
                         'error_message' => $tresponse->getErrors()[0]->getErrorText(),
                     ];
                 }
             } else {
+                $cart->clear(); //for now
+
                 return [
                     'error_code' => $response->getMessages()->getMessage()[0]->getCode(),
                     'error_message' => $response->getMessages()->getMessage()[0]->getText(),
                 ];
             }
         } else {
+            $cart->clear(); //for now
+
             return [
                 'error_code' => 'No response returned',
                 'error_message' => 'No response returned',
