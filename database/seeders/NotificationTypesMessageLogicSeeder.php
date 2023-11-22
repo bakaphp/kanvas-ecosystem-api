@@ -14,7 +14,7 @@ class NotificationTypesMessageLogicSeeder extends Seeder
      */
     public function run(): void
     {
-        $notificationType = NotificationTypes::last();
+        $notificationType = NotificationTypes::latest()->first();
         DB::table('notification_types_message_logic')->insert(
             [
                 'apps_id' => 1,
