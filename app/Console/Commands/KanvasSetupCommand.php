@@ -45,7 +45,6 @@ class KanvasSetupCommand extends Command
             'migrate --path vendor/laravel-workflow/laravel-workflow/src/migrations/ --database workflow',
             'db:seed',
             'db:seed --class=Database\\\Seeders\\\GuildSeeder --database crm',
-            'db:seed --class=Database\\\Seeders\\\SocialSeeder --database social',
             'kanvas:create-role Admin',
             'kanvas:create-role Users',
             'kanvas:create-role Agents',
