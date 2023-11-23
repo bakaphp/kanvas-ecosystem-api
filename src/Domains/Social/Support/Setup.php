@@ -16,6 +16,10 @@ use Kanvas\Social\UsersFollows\Actions\CreateFollowAction;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
 use Kanvas\Users\Actions\CreateUserLinkedSourcesAction;
 use Kanvas\Users\Models\Sources;
+use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
+use Kanvas\Notifications\Actions\CreateNotificationTypesMessageLogicAction;
+use Kanvas\Notifications\Repositories\NotificationTypesRepository;
 
 class Setup
 {
@@ -121,6 +125,35 @@ class Setup
         );
 
         $createUserLinkedSource->execute();
+
+        $messageTypeInput = MessageTypeInput::from([
+            'apps_id' => $this->app->getId(),
+            'languages_id' => 1,
+            'name' => "entity",
+            'verb' => "entity",
+            'template' => '',
+            'template_plura' => ''
+        ]);
+
+        $createMessageType = new CreateMessageTypeAction($messageTypeInput);
+        $messageType = $createMessageType->execute();
+
+        $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent(2,$messageType->verb,'creation',$this->app);
+        $logic = '{
+            "conditions": "message.is_public == 1 and message.is_published == 1"
+        }';
+
+        // TODO Create Notifications Type Message Logic Action
+        $createNotificationTypeMessageLogic = new CreateNotificationTypesMessageLogicAction(
+            $this->app,
+            $messageType,
+            $notificationType,
+            $logic
+        );
+
+        $createNotificationTypeMessageLogic->execute();
+
+        
 
         return $defaultInteraction instanceof Interactions;
     }
