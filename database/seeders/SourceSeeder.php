@@ -16,53 +16,56 @@ class SourceSeeder extends Seeder
     public function run()
     {
         DB::table('sources')->insert(
+        [
             [
                 'title' => SourceEnum::BAKA,
                 'url' => 'baka.io',
                 'created_at' => date('Y-m-d H:i:s'),
                 'is_deleted' => 0,
-        ]);
-        DB::table('sources')->insert([
+            ],
+            [
                 'title' => SourceEnum::ANDROID,
                 'url' => 'bakaapp.io',
                 'created_at' => date('Y-m-d H:i:s'),
                 'is_deleted' => 0,
-        ]);
-        DB::table('sources')->insert([
+            ],
+            [
                 'title' => SourceEnum::IOS,
                 'url' => 'bakaios.io',
                 'created_at' => date('Y-m-d H:i:s'),
                 'is_deleted' => 0,
-        ]);
-        DB::table('sources')->insert([
+            ],
+            [
                 'title' => 'google',
                 'url' => 'google.com',
                 'created_at' => date('Y-m-d H:i:s'),
                 'is_deleted' => 0,
-        ]);
-        DB::table('sources')->insert([
+            ],
+            [
                 'title' => 'facebook',
                 'url' => 'facebook.com',
                 'created_at' => date('Y-m-d H:i:s'),
                 'is_deleted' => 0,
-        ]);
-        DB::table('sources')->insert([
+            ],
+            [
                 'title' => 'github',
                 'url' => 'github.com',
                 'created_at' => date('Y-m-d H:i:s'),
                 'is_deleted' => 0,
-        ]);
-        DB::table('sources')->insert([
+            ],
+            [
                 'title' => 'apple',
                 'url' => 'apple.com',
                 'created_at' => date('Y-m-d H:i:s'),
                 'is_deleted' => 0,
-        ]);
-        DB::table('sources')->insert([
+            ],
+            [
                 'title' => SourceEnum::WEBAPP,
                 'url' => 'webapp.io',
                 'created_at' => date('Y-m-d H:i:s'),
                 'is_deleted' => 0,
-        ]);
+            ],
+        ]
+        );
     }
 }
