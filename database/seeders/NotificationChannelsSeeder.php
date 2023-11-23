@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
+use Kanvas\Notifications\Models\NotificationChannel;
 
 class NotificationChannelsSeeder extends Seeder
 {
@@ -12,19 +12,18 @@ class NotificationChannelsSeeder extends Seeder
      */
     public function run(): void
     {
-        DB::table('notification_channels')->insert(
-            [
-                'name' => 'Email',
-                'slug' => 'email',
-                'created_at' => date('Y-m-d H:i:s'),
-                'is_deleted' => 0,
-            ],
-            [
-                'name' => 'Push',
-                'slug' => 'push',
-                'created_at' => date('Y-m-d H:i:s'),
-                'is_deleted' => 0,
-            ]
-        );
+        NotificationChannel::create([
+            'name' => 'Email',
+            'slug' => 'email',
+            'created_at' => date('Y-m-d H:i:s'),
+            'is_deleted' => 0,
+        ]);
+
+        NotificationChannel::create([
+            'name' => 'Push',
+            'slug' => 'push',
+            'created_at' => date('Y-m-d H:i:s'),
+            'is_deleted' => 0,
+        ]);
     }
 }
