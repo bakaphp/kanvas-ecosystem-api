@@ -70,4 +70,28 @@ class MessageManagementMutation
 
         return $message;
     }
+
+    public function update(mixed $root, array $request): Message
+    {
+        $message = MessageRepository::getById((int)$request['id']);
+        $message->update($request['input']);
+
+        return $message;
+    }
+
+    public function attachTopicToMessage(mixed $root, array $request): Message
+    {
+        $message = MessageRepository::getById((int)$request['id']);
+        $message->topics()->attach($request['topicId']);
+
+        return $message;
+    }
+
+    public function detachTopicToMessage(mixed $root, array $request): Message
+    {
+        $message = MessageRepository::getById((int)$request['id']);
+        $message->topics()->detach($request['topicId']);
+
+        return $message;
+    }
 }
