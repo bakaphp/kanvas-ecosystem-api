@@ -35,28 +35,37 @@ class VariantService
             ]);
 
             $variantModel = (new CreateVariantsAction($variantDto, $user))->execute();
+            $company = $variantDto->product->company()->get()->first();
 
             if (isset($variant['attributes'])) {
                 $variantModel->addAttributes($user, $variant['attributes']);
             }
             if (! $variantDto->warehouse_id) {
-                $variantDto->warehouse_id = Warehouses::getDefault($variantDto->product->company()->get()->first())->getId();
+                $variantDto->warehouse_id = Warehouses::getDefault($company)->getId();
             }
             if (isset($variant['status']['id'])) {
-                $status = StatusRepository::getById((int) $variant['status']['id'], $variantDto->product->company()->get()->first());
+                $status = StatusRepository::getById(
+                    (int) $variant['status']['id'],
+                    $company
+                );
                 $variantModel->setStatus($status);
             }
+
             if (! empty($variantDto->files)) {
                 foreach ($variantDto->files as $file) {
                     $variantModel->addFileFromUrl($file['url'], $file['name']);
                 }
             }
-            $warehouse = WarehouseRepository::getById($variantDto->warehouse_id, $variantDto->product->company()->get()->first());
+
+            $warehouse = WarehouseRepository::getById($variantDto->warehouse_id, $company);
 
             if (isset($variant['warehouse']['status'])) {
-                $variant['warehouse']['status_id'] = StatusRepository::getById((int) $variant['warehouse']['status']['id'], $variantDto->product->company()->get()->first())->getId();
+                $variant['warehouse']['status_id'] = StatusRepository::getById(
+                    (int) $variant['warehouse']['status']['id'],
+                    $company
+                )->getId();
             } else {
-                $variant['warehouse']['status_id'] = Status::getDefault($variantDto->product->company()->get()->first())->getId();
+                $variant['warehouse']['status_id'] = Status::getDefault($company)->getId();
             }
             $variantWarehouses = VariantsWarehouses::viaRequest($variant['warehouse'] ?? []);
 
@@ -73,7 +82,10 @@ class VariantService
     public static function updateWarehouseVariant(Variants $variant, Warehouses $warehouse, array $data): Variants
     {
         if (isset($data['status'])) {
-            $data['status_id'] = StatusRepository::getById((int) $data['status']['id'], $variant->product->company()->get()->first())->getId();
+            $data['status_id'] = StatusRepository::getById(
+                (int) $data['status']['id'],
+                $variant->product->company()->get()->first()
+            )->getId();
         }
 
         $variantWarehousesDto = VariantsWarehouses::viaRequest($data);

@@ -42,13 +42,13 @@ input VariantsInput {
     barcode: String
     serial_number: String
     is_published: Boolean
-    files: [FilesystemInputUrl]
+    files: [FilesystemInputUrl!]
     slug: String
     discountPrice: Float
     status: StatusReferenceInput
     price: Float
     source_id: Mixed
-    attributes: [VariantsAttributesInput]
+    attributes: [VariantsAttributesInput!]
     warehouse: WarehouseReferenceInput
 }
 
@@ -58,12 +58,12 @@ input VariantsUpdateInput {
     description: String
     short_description: String
     html_description: String
-    files: [FilesystemInputUrl]
+    files: [FilesystemInputUrl!]
     status: StatusReferenceInput
     sku: String
     ean: String
     barcode: String
-    attributes: [VariantsAttributesInput]
+    attributes: [VariantsAttributesInput!]
     serial_number: String
     is_published: Boolean
     warehouse: VariantsWarehousesInput
