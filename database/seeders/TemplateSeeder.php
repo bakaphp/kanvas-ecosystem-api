@@ -254,6 +254,13 @@ class TemplateSeeder extends Seeder
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
+
+        $pushTemplate = '{
+            "title": "Hello {{$toUser->displayname}}",
+            "subtitle": "New entity has been created",
+            "message": "{{$fromUser->displayname}} has created a new entity: {{$entity[\"title\"]}}"
+         }';
+
         Templates::create([
             'id' => 7,
             'apps_id' => 0,
@@ -261,11 +268,7 @@ class TemplateSeeder extends Seeder
             'companies_id' => 0,
             'name' => 'new-push-default',
             'parent_template_id' => 1,
-            'template' => '{
-                "title": "Hello {{$toUser->displayname}}",
-                "subtitle": "New entity has been created",
-                "message" : " {{$fromUser->displayname}} has created a new entity: {{$entity["title"]}}"
-            }',
+            'template' => $pushTemplate,
             'created_at' => date('Y-m-d H:i:s'),
         ]);
     }
