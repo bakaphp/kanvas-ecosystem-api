@@ -116,7 +116,7 @@ class Setup
 
         $createFollow->execute();
 
-        $source = SourcesRepository::getByTitle('iosapp');
+        $source = SourcesRepository::getByTitle('github');
         $createUserLinkedSource = new CreateUserLinkedSourcesAction(
             $this->user,
             $source->getId(),
