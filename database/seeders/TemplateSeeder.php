@@ -263,8 +263,8 @@ class TemplateSeeder extends Seeder
             'parent_template_id' => 1,
             'template' => '{
                 "title": "Hello {{$toUser->displayname}}",
-                "subtitle": "New memo has been created",
-                "message" : " {{$fromUser->displayname}} has created a new memod: {{$entity["title"]}}"
+                "subtitle": "New entity has been created",
+                "message" : " {{$fromUser->displayname}} has created a new entity: {{$entity["title"]}}"
             }',
             'created_at' => date('Y-m-d H:i:s'),
         ]);
