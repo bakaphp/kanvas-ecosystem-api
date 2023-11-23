@@ -115,7 +115,7 @@ class Setup
 
         $createFollow->execute();
 
-        $source = Sources::first();
+        $source = Sources::latest()->first();
         $createUserLinkedSource = new CreateUserLinkedSourcesAction(
             $this->user,
             $source->getId(),
@@ -143,7 +143,6 @@ class Setup
             "conditions": "message.is_public == 1 and message.is_published == 1"
         }';
 
-        // TODO Create Notifications Type Message Logic Action
         $createNotificationTypeMessageLogic = new CreateNotificationTypesMessageLogicAction(
             $this->app,
             $messageType,
