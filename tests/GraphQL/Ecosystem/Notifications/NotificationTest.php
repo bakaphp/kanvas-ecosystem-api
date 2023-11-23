@@ -130,7 +130,7 @@ class NotificationTest extends TestCase
                     'metadata' => [
                         "verb" => "entity",
                         "event" => "creation",
-                        "channels" =>  ["push"],
+                        "channels" =>  ["push","mail"],
                         "distribution" => [
                             "type" =>  "all",
                         ]
