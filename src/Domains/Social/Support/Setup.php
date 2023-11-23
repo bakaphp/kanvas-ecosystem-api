@@ -20,6 +20,7 @@ use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Notifications\Actions\CreateNotificationTypesMessageLogicAction;
 use Kanvas\Notifications\Repositories\NotificationTypesRepository;
+use Kanvas\Users\Repositories\SourcesRepository;
 
 class Setup
 {
@@ -115,7 +116,7 @@ class Setup
 
         $createFollow->execute();
 
-        $source = Sources::latest()->first();
+        $source = SourcesRepository::getByTitle('iosapp');
         $createUserLinkedSource = new CreateUserLinkedSourcesAction(
             $this->user,
             $source->getId(),
