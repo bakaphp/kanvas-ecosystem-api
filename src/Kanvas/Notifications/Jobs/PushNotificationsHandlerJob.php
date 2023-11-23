@@ -37,15 +37,19 @@ class PushNotificationsHandlerJob implements ShouldQueue
     public function handle()
     {
         $userOneSignalId = UsersLinkedSourcesRepository::getByUsersId($this->usersFollowId)->source_users_id;
-        OneSignalFacade::sendNotificationToUser(
-            $this->message['message'],
-            $userOneSignalId,
-            $url = null,
-            $data = null,
-            $buttons = null,
-            $schedule = null,
-            $this->message['subtitle'],
-            $this->message['title']
-        );
+
+        if (getenv('APP_ENV') !== 'testing') {
+            OneSignalFacade::sendNotificationToUser(
+                $this->message['message'],
+                $userOneSignalId,
+                $url = null,
+                $data = null,
+                $buttons = null,
+                $schedule = null,
+                $this->message['subtitle'],
+                $this->message['title']
+            );
+        }
+
     }
 }
