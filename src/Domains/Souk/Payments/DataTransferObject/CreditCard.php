@@ -21,8 +21,8 @@ class CreditCard extends Data
 
     public static function viaRequest(array $orderInput): self
     {
-        $paymentData = Arr::get($orderInput, 'input.payment', []);
-        $billingData = Arr::get($orderInput, 'input.billing', []);
+        $paymentData = Arr::get($orderInput, 'payment', []);
+        $billingData = Arr::get($orderInput, 'billing', []);
 
         $billing = $billingData ? new CreditCardBilling(
             $billingData['address'],
