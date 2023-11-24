@@ -7,4 +7,5 @@ namespace Kanvas\AccessControlList\Enums;
 enum AbilityEnum: string
 {
     case MANAGE_ROLES = 'MANAGE_ROLES';
+    case MANAGE_USERS = 'MANAGE_USERS';
 }

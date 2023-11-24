@@ -524,7 +524,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     public function isAdmin(): bool
     {
-        return $this->isAn(RolesEnums::ADMIN->value);
+        return $this->isAppOwner() || $this->isAn(RolesEnums::ADMIN->value);
     }
 
     /**
