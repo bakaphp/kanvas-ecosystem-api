@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Repositories;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -75,10 +76,11 @@ class UsersRepository
      * Get the user if he exist in the current app.
      * @psalm-suppress MixedReturnStatement
      */
-    public static function getUserOfAppById(int $id): Users
+    public static function getUserOfAppById(int $id, ?AppInterface $app = null): Users
     {
+        $app = $app ?? app(Apps::class);
         return Users::join('users_associated_apps', 'users_associated_apps.users_id', 'users.id')
-            ->where('users_associated_apps.apps_id', app(Apps::class)->id)
+            ->where('users_associated_apps.apps_id', $app->getId())
             ->where('users.id', $id)
             ->firstOrFail();
     }
