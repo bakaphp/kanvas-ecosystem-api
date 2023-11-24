@@ -36,7 +36,6 @@ class AppUserManagementQuery
                 ->join('users_associated_apps', 'users_associated_apps.users_id', 'users.id')
                 ->where('users_associated_apps.apps_id', app(Apps::class)->getId())
                 ->where('users_associated_apps.companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
-                ->where('users_associated_apps.is_deleted', StateEnums::NO->getValue())
-               ;
+                ->where('users_associated_apps.is_deleted', StateEnums::NO->getValue());
     }
 }

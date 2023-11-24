@@ -54,7 +54,7 @@ class UsersObserver
         $action->execute();
     }
 
-    public function updating(Users $user): void
+    public function updated(Users $user): void
     {
         //@todo for now , we are allowing this , but we have to move to just update appUserProfile
         $appUser = $user->getAppProfile(app(Apps::class));

@@ -226,7 +226,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
                 ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
                 ->firstOrFail();
         } catch (EloquentModelNotFoundException $e) {
-            throw new ModelNotFoundException('User not found -'. $this->getId(). ' - ' . $app->getId());
+            throw new ModelNotFoundException('User not found - ' . $this->getId());
         }
     }
 
@@ -518,6 +518,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         if (app()->bound(AppKey::class) && $this->isAn(RolesEnums::OWNER->value)) {
             return true;
         }
+
         return false;
     }
 
