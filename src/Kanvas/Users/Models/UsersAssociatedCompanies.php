@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Users\Models;
 
 use Baka\Traits\HasCompositePrimaryKeyTrait;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
 
 /**
@@ -42,23 +40,15 @@ class UsersAssociatedCompanies extends BaseModel
         'user_role',
     ];
 
-    /**
-     * Users relationship.
-     *
-     * @return Users
-     */
-    public function user(): BelongsTo
+    public function deActive(): bool
     {
-        return $this->belongsTo(Users::class, 'users_id');
+        $this->user_active = 0;
+        return $this->saveOrFail();
     }
 
-    /**
-     * Users relationship.
-     *
-     * @return Companies
-     */
-    public function company(): BelongsTo
+    public function active(): bool
     {
-        return $this->belongsTo(Companies::class, 'companies_id');
+        $this->user_active = 1;
+        return $this->saveOrFail();
     }
 }

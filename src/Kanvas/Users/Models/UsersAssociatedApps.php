@@ -9,9 +9,7 @@ use Baka\Traits\SoftDeletesTrait;
 use Baka\Users\Contracts\UserAppInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\AccessControlList\Models\Role;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Contracts\Authenticatable;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Enums\StatusEnums;
 
@@ -23,7 +21,11 @@ use Kanvas\Users\Enums\StatusEnums;
  * @property int $companies_id
  * @property ?string $identify_id
  * @property ?string $password
+ * @property ?string $firstname
+ * @property ?string $lastname
+ * @property ?string $email
  * @property int $user_active
+ * @property string $is_active
  * @property string $user_role
  * @property string $displayname
  * @property string $lastvisit
@@ -75,35 +77,26 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
 
     protected $casts = [
         'configuration' => 'array',
+        'is_active' => 'boolean',
     ];
-
-    /**
-     * Users relationship.
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(Users::class, 'users_id');
-    }
-
-    /**
-     * Users relationship.
-     */
-    public function company(): BelongsTo
-    {
-        return $this->belongsTo(Companies::class, 'companies_id');
-    }
 
     public function role(): BelongsTo
     {
         return $this->belongsTo(Role::class, 'user_role');
     }
 
-    /**
-     * Users relationship.
-     */
-    public function app(): BelongsTo
+    public function deActive(): bool
     {
-        return $this->belongsTo(Apps::class, 'apps_id');
+        $this->is_active = 0;
+
+        return $this->saveOrFail();
+    }
+
+    public function active(): bool
+    {
+        $this->is_active = 1;
+
+        return $this->saveOrFail();
     }
 
     /**

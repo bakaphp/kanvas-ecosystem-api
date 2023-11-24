@@ -8,7 +8,8 @@ type User {
     dob: String
     default_company: Int! @method(name: "defaultCompany")
     default_company_branch: Int!
-    email: Email!
+    email: Email! @method(name: "getAppEmail")
+    is_active: Boolean! @method(name: "getAppIsActive")
     contact: ContactInfo
         @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@contact")
     address: AddressType

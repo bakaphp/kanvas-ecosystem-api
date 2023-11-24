@@ -53,4 +53,16 @@ class UsersObserver
         $action = new AssignCompanyAction($user, $branch);
         $action->execute();
     }
+
+    public function updating(Users $user): void
+    {
+        //@todo for now , we are allowing this , but we have to move to just update appUserProfile
+        $appUser = $user->getAppProfile(app(Apps::class));
+        $appUser->update([
+            'firstname' => $user->firstname,
+            'lastname' => $user->lastname,
+            'displayname' => $user->displayname,
+            'email' => $user->email,
+        ]);
+    }
 }
