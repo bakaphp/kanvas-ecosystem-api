@@ -6,9 +6,11 @@ namespace Kanvas\Users\Observers;
 
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Actions\RegisterUsersAppAction;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\CompaniesPostData;
 use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Models\Users;
@@ -57,7 +59,12 @@ class UsersObserver
     public function updated(Users $user): void
     {
         //@todo for now , we are allowing this , but we have to move to just update appUserProfile
-        $appUser = $user->getAppProfile(app(Apps::class));
+        try {
+            $appUser = $user->getAppProfile(app(Apps::class));
+        } catch(ModelNotFoundException $e) {
+            $userRegisterInApp = new RegisterUsersAppAction($user);
+            $appUser = $userRegisterInApp->execute($user->password);
+        }
         $appUser->update([
             'firstname' => $user->firstname,
             'lastname' => $user->lastname,
