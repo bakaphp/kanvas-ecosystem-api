@@ -59,7 +59,7 @@ class UsersObserver
     public function updated(Users $user): void
     {
         //@todo for now , we are allowing this , but we have to move to just update appUserProfile
-        try {
+      /*   try {
             $appUser = $user->getAppProfile(app(Apps::class));
         } catch(ModelNotFoundException $e) {
             $userRegisterInApp = new RegisterUsersAppAction($user);
@@ -70,6 +70,6 @@ class UsersObserver
             'lastname' => $user->lastname,
             'displayname' => $user->displayname,
             'email' => $user->email,
-        ]);
+        ]); */
     }
 }
