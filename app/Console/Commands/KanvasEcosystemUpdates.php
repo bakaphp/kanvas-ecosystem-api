@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use Bouncer;
 use Illuminate\Console\Command;
+use Kanvas\AccessControlList\Enums\AbilityEnum;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Enums\AppEnums;
@@ -47,6 +48,12 @@ class KanvasEcosystemUpdates extends Command
 
             $appKey->user->assign(RolesEnums::OWNER->value);
             $appKey->user->assign(RolesEnums::ADMIN->value);
+
+            Bouncer::allow(RolesEnums::OWNER)->to(AbilityEnum::MANAGE_USERS->value);
+            Bouncer::allow(RolesEnums::OWNER)->to(AbilityEnum::MANAGE_ROLES->value);
+            Bouncer::allow(RolesEnums::ADMIN)->to(AbilityEnum::MANAGE_USERS->value);
+            Bouncer::allow(RolesEnums::ADMIN)->to(AbilityEnum::MANAGE_ROLES->value);
+
         }
 
         $this->info('Updated to 1.0-BETA-14 successfully');
