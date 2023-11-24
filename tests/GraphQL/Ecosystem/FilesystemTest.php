@@ -228,7 +228,7 @@ class FilesystemTest extends TestCase
             [
                 'uuid' => $results['data']['attachFile'],
             ]
-        );
+        )->assertSuccessful();
     }
 
     public function testDeAttachFiles(): void
@@ -293,6 +293,6 @@ class FilesystemTest extends TestCase
                     $results['data']['attachFile'],
                 ],
             ]
-        );
+        )->assertSuccessful();
     }
 }
