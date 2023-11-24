@@ -53,7 +53,6 @@ class UsersFollowsRepository
             ->where('users_follows.is_deleted', 0)
             ->where('entity_id', $entity->id)
             ->where('entity_namespace', get_class($entity))
-            ->groupBy('users.id')
             ->select('users.*');
     }
 

@@ -17,7 +17,7 @@ class GetFollowersBuilder
     {
         $user = UsersRepository::getUserOfAppById($request['user_id']);
         $app = app(Apps::class);
-        
+
         return UsersFollowsRepository::getFollowersBuilder($user, $app);
     }
 }
