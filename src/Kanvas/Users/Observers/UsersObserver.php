@@ -59,10 +59,11 @@ class UsersObserver
     public function updated(Users $user): void
     {
         //@todo for now , we are allowing this , but we have to move to just update appUserProfile
+        $app = app(Apps::class);
         try {
-            $appUser = $user->getAppProfile(app(Apps::class));
+            $appUser = $user->getAppProfile($app);
         } catch(ModelNotFoundException $e) {
-            $userRegisterInApp = new RegisterUsersAppAction($user);
+            $userRegisterInApp = new RegisterUsersAppAction($user, $app);
             $appUser = $userRegisterInApp->execute($user->password);
         }
         $appUser->update([
