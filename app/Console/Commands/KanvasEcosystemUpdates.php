@@ -53,7 +53,6 @@ class KanvasEcosystemUpdates extends Command
             Bouncer::allow(RolesEnums::OWNER)->to(AbilityEnum::MANAGE_ROLES->value);
             Bouncer::allow(RolesEnums::ADMIN)->to(AbilityEnum::MANAGE_USERS->value);
             Bouncer::allow(RolesEnums::ADMIN)->to(AbilityEnum::MANAGE_ROLES->value);
-
         }
 
         $this->info('Updated to 1.0-BETA-14 successfully');
