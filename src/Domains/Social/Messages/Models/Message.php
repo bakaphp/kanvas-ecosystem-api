@@ -97,7 +97,8 @@ class Message extends BaseModel
 
     public function topics(): BelongsToMany
     {
-        return $this->belongsToMany(Topic::class, 'entity_topics', 'messages_id', 'entity_id')->where('entity_namespace', self::class);
+        return $this->belongsToMany(Topic::class, 'entity_topics', 'messages_id', 'entity_id')
+                ->where('entity_namespace', self::class);
     }
 
     /**
