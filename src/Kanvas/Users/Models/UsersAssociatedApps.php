@@ -36,6 +36,7 @@ use Kanvas\Users\Enums\StatusEnums;
  * @property int $banned
  * @property int $status
  * @property int $user_recover_code
+ * @property int $is_deleted
  */
 class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppInterface
 {
@@ -78,6 +79,7 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
     protected $casts = [
         'configuration' => 'array',
         'is_active' => 'boolean',
+        'is_deleted' => 'boolean',
     ];
 
     public function role(): BelongsTo
@@ -118,7 +120,7 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
 
     public function isActive(): bool
     {
-        return $this->user_active === StatusEnums::ACTIVE->getValue();
+        return ! $this->is_deleted && $this->is_active === StatusEnums::ACTIVE->getValue();
     }
 
     public function isBanned(): bool
