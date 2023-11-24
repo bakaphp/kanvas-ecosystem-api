@@ -54,8 +54,9 @@ class FilesystemManagementMutation
 
     public function deAttachFiles(mixed $rootValue, array $request): bool
     {
+        $company = auth()->user()->getCurrentCompany();
         $fileEntities = FilesystemEntities::whereIn('uuid', $request['uuids'])
-            ->fromCompany(auth()->user()->getCurrentCompany())
+            ->fromCompany($company)
             ->notDeleted()
             ->get();
 

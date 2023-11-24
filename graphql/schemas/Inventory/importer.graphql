@@ -8,20 +8,20 @@ input ImporterProductInput {
     price: Float!
     discountPrice: Float
     sku: String!
-    variants: [VariantsInput]!
+    variants: [VariantsInput!]!
     quantity: Int!
     short_description: String
     html_description: String
     warranty_terms: String
-    files: [FilesystemInputUrl]
+    files: [FilesystemInputUrl!]
     upc: String
     isPublished: Boolean
-    warehouses: [Int]
+    warehouses: [Int!]
     source: String
     sourceId: Mixed
     productType: ProductTypeInput
-    categories: [CategoryInput]
-    attributes: [AttributeInput]
+    categories: [CategoryInput!]
+    attributes: [AttributeInput!]
 }
 
 extend type Mutation @guard {
