@@ -6,6 +6,8 @@ namespace App\GraphQL\Ecosystem\Mutations\Users;
 
 use Illuminate\Support\Facades\Auth as AuthFacade;
 use Illuminate\Support\Facades\Hash;
+use Kanvas\AccessControlList\Actions\AssignRoleAction;
+use Kanvas\AccessControlList\Enums\AbilityEnum;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
@@ -41,11 +43,23 @@ class UserManagementMutation
     public function updateUser(mixed $rootValue, array $request): Users
     {
         $user = auth()->user();
+        $company = $user->getCurrentCompany();
         $userId = $user->isAppOwner() && (int) $request['id'] > 0 ? $request['id'] : $user->getId();
-        $userToEdit = UsersRepository::getUserOfCompanyById($user->getCurrentCompany(), (int) $userId);
+        $userToEdit = UsersRepository::getUserOfCompanyById($company, (int) $userId);
 
         $userManagement = new UserManagementService($userToEdit);
         $user = $userManagement->update($request['data']);
+
+        //update roles if 
+        if($user->isAdmin() && $user->can(AbilityEnum::MANAGE_ROLES->value)) {
+            $role = RolesRepository::getByMixedParamFromCompany($request['role_id']);
+
+            $assign = new AssignRoleAction(
+                $user,
+                $role
+            );
+            $assign->execute();
+        }
 
         return $user;
     }

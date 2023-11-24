@@ -131,6 +131,7 @@ input UpdateUserInput {
         @rules(apply: ["exists:Kanvas\\Locations\\Models\\Countries,id"])
     custom_fields: [CustomFieldEntityInput!]
     files: [FilesystemInputUrl]
+    role_id: ID
 }
 
 extend type Mutation {
