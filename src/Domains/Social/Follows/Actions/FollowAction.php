@@ -24,7 +24,7 @@ class FollowAction
     public function execute(): UsersFollows
     {
         $company = null;
-        if ($this->entity->company()) {
+        if (!empty($this->entity->companies_id) || !empty($this->entity->company_id)) {
             $company = $this->entity->company()->firstOrFail();
         }
 

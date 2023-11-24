@@ -62,6 +62,22 @@ class AppUserManagementMutation
         return $userAssociate->softDelete();
     }
 
+    public function appDeActivateUser(mixed $root, array $req): bool
+    {
+        $user = Users::find((int)$req['user_id']);
+        $userAssociate = UsersRepository::belongsToThisApp($user, app(Apps::class));
+
+        return $userAssociate->deActive();
+    }
+
+    public function appActivateUser(mixed $root, array $req): bool
+    {
+        $user = Users::find((int)$req['user_id']);
+        $userAssociate = UsersRepository::belongsToThisApp($user, app(Apps::class));
+
+        return $userAssociate->active();
+    }
+
     public function restoreDeletedUser(mixed $root, array $request): bool
     {
         $user = Users::find((int)$request['user_id']);
