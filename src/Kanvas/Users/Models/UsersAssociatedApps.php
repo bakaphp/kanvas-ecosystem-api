@@ -120,7 +120,7 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
 
     public function isActive(): bool
     {
-        return ! $this->is_deleted && $this->is_active === StatusEnums::ACTIVE->getValue();
+        return ! $this->is_deleted && $this->is_active;
     }
 
     public function isBanned(): bool
