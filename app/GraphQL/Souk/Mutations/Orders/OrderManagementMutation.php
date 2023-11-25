@@ -93,7 +93,7 @@ class OrderManagementMutation
                             Variants::class,
                             ! $isSubscription
                                 ? 'User bought a variant of a product'
-                                : 'User subscribed to a product '. $subscriptionId
+                                : 'User subscribed to a product ' . $subscriptionId
                         )
                     ))->execute();
                 }
