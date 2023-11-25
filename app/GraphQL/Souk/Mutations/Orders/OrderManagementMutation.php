@@ -101,7 +101,7 @@ class OrderManagementMutation
                         'message_code' => 'I00001',
                         'response_code' => 'I00001',
                         'transaction_id' => $response->getSubscriptionId(),
-                        'auth_code' => 'I00001'
+                        'auth_code' => 'I00001',
                     ];
                 }
 
