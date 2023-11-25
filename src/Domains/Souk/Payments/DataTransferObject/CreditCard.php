@@ -10,12 +10,12 @@ use Spatie\LaravelData\Data;
 class CreditCard extends Data
 {
     public function __construct(
-        public string $name,
-        public string $number,
-        public int $exp_month,
-        public int $exp_year,
-        public int $cvv,
-        public ?CreditCardBilling $billing = null
+        public readonly string $name,
+        public readonly string $number,
+        public readonly int $exp_month,
+        public readonly int $exp_year,
+        public readonly int $cvv,
+        public readonly ?CreditCardBilling $billing = null
     ) {
     }
 
