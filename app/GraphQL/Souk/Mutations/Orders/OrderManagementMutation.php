@@ -89,7 +89,7 @@ class OrderManagementMutation
                             Variants::class,
                             ! $isSubscription
                                 ? 'User bought a variant of a product'
-                                : 'User subscribed to a product ' . $response->getSubscriptionId()
+                                : 'User subscribed to a product '
                         )
                     ))->execute();
                 }
@@ -100,7 +100,7 @@ class OrderManagementMutation
                         'description' => 'Subscription created successfully',
                         'message_code' => 'I00001',
                         'response_code' => 'I00001',
-                        'transaction_id' => $response->getSubscriptionId(),
+                        'transaction_id' => 'I00001',
                         'auth_code' => 'I00001',
                     ];
                 }
@@ -114,6 +114,7 @@ class OrderManagementMutation
                 ];
             } else {
                 $cart->clear();
+
                 return [
                     'error_code' => $tresponse->getErrors()[0]->getErrorCode(),
                     'error_message' => $tresponse->getErrors()[0]->getErrorText(),
@@ -121,6 +122,7 @@ class OrderManagementMutation
             }
         } else {
             $cart->clear();
+
             return [
                 'error_code' => $response->getMessages()->getMessage()[0]->getCode(),
                 'error_message' => $response->getMessages()->getMessage()[0]->getText(),
