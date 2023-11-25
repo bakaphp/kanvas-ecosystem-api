@@ -80,6 +80,10 @@ class OrderManagementMutation
                     )
                 ))->execute();
 
+                $subscriptionId = $isSubscription && method_exists($response, 'getSubscriptionId')
+                    ? $response->getSubscriptionId()
+                    : null;
+
                 foreach ($cart->getContent() as $item) {
                     (new CreateUserInteractionAction(
                         new UserInteraction(
@@ -89,7 +93,7 @@ class OrderManagementMutation
                             Variants::class,
                             ! $isSubscription
                                 ? 'User bought a variant of a product'
-                                : 'User subscribed to a product ' . $response->getSubscriptionId()
+                                : 'User subscribed to a product ' . $subscriptionId
                         )
                     ))->execute();
                 }
@@ -100,7 +104,7 @@ class OrderManagementMutation
                         'description' => 'Subscription created successfully',
                         'message_code' => 'I00001',
                         'response_code' => 'I00001',
-                        'transaction_id' => $response->getSubscriptionId(),
+                        'transaction_id' => 'I00001',
                         'auth_code' => 'I00001',
                     ];
                 }

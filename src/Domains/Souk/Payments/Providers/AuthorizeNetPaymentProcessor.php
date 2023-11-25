@@ -190,8 +190,13 @@ class AuthorizeNetPaymentProcessor
         $request->setSubscription($subscription);
         $controller = new AnetController\ARBCreateSubscriptionController($request);
 
-        return $controller->executeWithApiResponse(
+        $subscriptionInitialCharge = null;
+        if ($variantAttributes->has('subscription_initial_charge')) {
+            $subscriptionInitialCharge = $this->processCreditCardPayment($orderInput);
+        }
+
+        return $subscriptionInitialCharge === null ? $controller->executeWithApiResponse(
             $this->company->get('MERCHANT_PRODUCTION') ? ANetEnvironment::PRODUCTION : ANetEnvironment::SANDBOX
-        );
+        ) : $subscriptionInitialCharge;
     }
 }
