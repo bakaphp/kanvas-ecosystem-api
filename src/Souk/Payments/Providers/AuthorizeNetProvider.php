@@ -165,7 +165,7 @@ class AuthorizeNetProvider
 
         $subscription->setPaymentSchedule($paymentSchedule);
         $subscription->setAmount($variantAttributes->get('subscription_price'));
-        $subscription->setTrialAmount($orderInput->cart->getTotal());
+        $subscription->setTrialAmount($variantAttributes->get('subscription_trial_price', 0));
 
         $creditCard = $this->setCreditCard($orderInput->creditCard);
 
@@ -190,8 +190,13 @@ class AuthorizeNetProvider
         $request->setSubscription($subscription);
         $controller = new AnetController\ARBCreateSubscriptionController($request);
 
-        return $controller->executeWithApiResponse(
+        $subscriptionInitialCharge = null;
+        if ($variantAttributes->has('subscription_initial_charge')) {
+            $subscriptionInitialCharge = $this->processCreditCardPayment($orderInput);
+        }
+
+        return $subscriptionInitialCharge === null ? $controller->executeWithApiResponse(
             $this->company->get('MERCHANT_PRODUCTION') ? ANetEnvironment::PRODUCTION : ANetEnvironment::SANDBOX
-        );
+        ) : $subscriptionInitialCharge;
     }
 }
