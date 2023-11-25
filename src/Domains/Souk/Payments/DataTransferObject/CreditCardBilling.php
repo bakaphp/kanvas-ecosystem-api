@@ -9,12 +9,12 @@ use Spatie\LaravelData\Data;
 class CreditCardBilling extends Data
 {
     public function __construct(
-        public string $address,
-        public string $city,
-        public string $state,
-        public string $zip,
-        public string $country = 'USA',
-        public ?string $address2 = null
+        public readonly string $address,
+        public readonly string $city,
+        public readonly string $state,
+        public readonly string $zip,
+        public readonly string $country = 'USA',
+        public readonly ?string $address2 = null
     ) {
     }
 }
