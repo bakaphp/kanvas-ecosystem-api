@@ -57,7 +57,6 @@ class OrderManagementMutation
     private function handlePaymentResponse(mixed $response, bool $isSubscription): array
     {
         $cart = app('cart')->session(auth()->user()->getId());
-        $cart->clear();
 
         if (empty($response)) {
             return [
@@ -94,6 +93,7 @@ class OrderManagementMutation
                         )
                     ))->execute();
                 }
+                $cart->clear();
 
                 if (empty($tresponse)) {
                     return [
@@ -101,7 +101,7 @@ class OrderManagementMutation
                         'message_code' => 'I00001',
                         'response_code' => 'I00001',
                         'transaction_id' => $response->getSubscriptionId(),
-                        'auth_code' => 'I00001'
+                        'auth_code' => 'I00001',
                     ];
                 }
 
@@ -113,12 +113,16 @@ class OrderManagementMutation
                     'description' => $tresponse->getMessages()[0]->getDescription(),
                 ];
             } else {
+                $cart->clear();
+
                 return [
                     'error_code' => $tresponse->getErrors()[0]->getErrorCode(),
                     'error_message' => $tresponse->getErrors()[0]->getErrorText(),
                 ];
             }
         } else {
+            $cart->clear();
+
             return [
                 'error_code' => $response->getMessages()->getMessage()[0]->getCode(),
                 'error_message' => $response->getMessages()->getMessage()[0]->getText(),
