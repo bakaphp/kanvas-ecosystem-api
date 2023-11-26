@@ -7,40 +7,29 @@ namespace App\GraphQL\Social\Mutations\Interactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Enums\StateEnums;
 use Kanvas\Social\Interactions\Actions\CreateEntityInteraction;
+use Kanvas\Social\Interactions\Actions\CreateInteraction;
+use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\DataTransferObject\LikeEntityInput;
 use Kanvas\Social\Interactions\Models\EntityInteractions as ModelsEntityInteractions;
+use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Interactions\Repositories\EntityInteractionsRepository;
 
-class EntityInteractions
+class EntityInteractionMutation
 {
     /**
      * Like a entity.
-     *
-     * @param  mixed $root
-     * @param  array $req
-     *
-     * @return bool
      */
     public function likeEntity(mixed $root, array $req): bool
     {
-        $likeEntityInput = LikeEntityInput::from($req['input']);
-        $createEntityInteraction = new CreateEntityInteraction(
-            $likeEntityInput,
-            app(Apps::class)
+        return $this->handleInteractionEntity(
+            $req,
+            (string) StateEnums::LIKE->getValue(),
+            (string) StateEnums::DISLIKE->getValue()
         );
-
-        return $createEntityInteraction->execute(
-            (string) StateEnums::LIKE->getValue()
-        ) instanceof ModelsEntityInteractions;
     }
 
     /**
      * Like a entity.
-     *
-     * @param  mixed $root
-     * @param  array $req
-     *
-     * @return bool
      */
     public function unLikeEntity(mixed $root, array $req): bool
     {
@@ -57,32 +46,51 @@ class EntityInteractions
 
     /**
      * Like a entity.
-     *
-     * @param  mixed $root
-     * @param  array $req
-     *
-     * @return bool
      */
     public function disLikeEntity(mixed $root, array $req): bool
     {
+        return $this->handleInteractionEntity(
+            $req,
+            (string) StateEnums::DISLIKE->getValue(),
+            (string) StateEnums::LIKE->getValue()
+        );
+    }
+
+    protected function handleInteractionEntity(
+        array $req,
+        string $interactionType,
+        string $interactionTypeToDelete
+    ): bool {
         $likeEntityInput = LikeEntityInput::from($req['input']);
         $createEntityInteraction = new CreateEntityInteraction(
             $likeEntityInput,
             app(Apps::class)
         );
 
+        //cant like and dislike at the same time
+        $interactionTypeEntity = (new CreateInteraction(
+            new Interaction(
+                $interactionTypeToDelete,
+                app(Apps::class),
+                ucfirst($interactionTypeToDelete),
+            )
+        ))->execute();
+        $interactionEntityToDelete = EntityInteractionsRepository::getInteraction(
+            $likeEntityInput,
+            $interactionTypeEntity
+        );
+
+        if ($interactionEntityToDelete) {
+            $interactionEntityToDelete->softDelete();
+        }
+
         return $createEntityInteraction->execute(
-            (string)  StateEnums::DISLIKE->getValue()
+            $interactionType
         ) instanceof ModelsEntityInteractions;
     }
 
     /**
      * Given a like entity input get the social interactions for the entity.
-     *
-     * @param mixed $root
-     * @param array $req
-     *
-     * @return array
      */
     public function getInteractionByEntity(mixed $root, array $req): array
     {
