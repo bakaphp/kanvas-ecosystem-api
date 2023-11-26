@@ -115,16 +115,14 @@ class Setup
 
         $createFollow->execute();
 
-        // $source = SourcesRepository::getByTitle('github');
-        // $createUserLinkedSource = new CreateUserLinkedSourcesAction(
-        //     $this->user,
-        //     $source->getId(),
-        //     (string)Str::uuid(),
-        //     (string)Str::uuid(),
-        //     $this->user->displayname,
-        // );
+        $source = SourcesRepository::getByTitle('iosapp');
+        $createUserLinkedSource = new CreateUserLinkedSourcesAction(
+            $this->user,
+            $source,
+            (string)Str::uuid(),
+        );
 
-        // $createUserLinkedSource->execute();
+        $createUserLinkedSource->execute();
 
         $messageTypeInput = MessageTypeInput::from([
             'apps_id' => $this->app->getId(),

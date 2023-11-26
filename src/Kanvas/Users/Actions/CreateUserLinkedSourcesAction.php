@@ -6,6 +6,7 @@ namespace Kanvas\Users\Actions;
 
 use Kanvas\Users\Models\UserLinkedSources;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\Sources;
 
 class CreateUserLinkedSourcesAction
 {
@@ -16,10 +17,8 @@ class CreateUserLinkedSourcesAction
      */
     public function __construct(
         private Users $user,
-        private int $source_id,
-        private string $source_users_id,
+        private Sources $source,
         private string $source_users_id_text,
-        private string $source_username,
     ) {
     }
 
@@ -28,16 +27,14 @@ class CreateUserLinkedSourcesAction
      */
     public function execute(): UserLinkedSources
     {
-        $userLinkedSouce = new UserLinkedSources();
-        $userLinkedSouce->users_id = $this->user->getId();
-        $userLinkedSouce->source_id = $this->source_id;
-        $userLinkedSouce->source_users_id = $this->source_users_id;
-        $userLinkedSouce->source_users_id_text = $this->source_users_id_text;
-        $userLinkedSouce->source_username = $this->source_username;
-        $userLinkedSouce->created_at = date('Y-m-d H:i:s');
-        $userLinkedSouce->is_deleted = 0;
-        $userLinkedSouce->saveOrFail();
-
-        return $userLinkedSouce;
+        return UserLinkedSources::updateOrCreate([
+            'users_id' => $this->user->getId(),
+            'source_id' => $this->source->getId(),
+            'source_users_id_text' => $this->source_users_id_text,
+        ], [
+            'source_users_id' => $this->user->getId(),
+            'source_username' => $this->user->displayname . ' ' . $this->source->title,
+            'is_deleted' => 0,
+        ]);
     }
 }
