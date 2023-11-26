@@ -7,6 +7,8 @@ namespace App\GraphQL\Social\Mutations\Interactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Enums\StateEnums;
 use Kanvas\Social\Interactions\Actions\CreateEntityInteraction;
+use Kanvas\Social\Interactions\Actions\CreateInteraction;
+use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\DataTransferObject\LikeEntityInput;
 use Kanvas\Social\Interactions\Models\EntityInteractions as ModelsEntityInteractions;
 use Kanvas\Social\Interactions\Models\Interactions;
@@ -19,15 +21,11 @@ class EntityInteractionMutation
      */
     public function likeEntity(mixed $root, array $req): bool
     {
-        $likeEntityInput = LikeEntityInput::from($req['input']);
-        $createEntityInteraction = new CreateEntityInteraction(
-            $likeEntityInput,
-            app(Apps::class)
+        return $this->handleInteractionEntity(
+            $req,
+            (string) StateEnums::LIKE->getValue(),
+            (string) StateEnums::DISLIKE->getValue()
         );
-
-        return $createEntityInteraction->execute(
-            (string) StateEnums::LIKE->getValue()
-        ) instanceof ModelsEntityInteractions;
     }
 
     /**
@@ -51,6 +49,18 @@ class EntityInteractionMutation
      */
     public function disLikeEntity(mixed $root, array $req): bool
     {
+        return $this->handleInteractionEntity(
+            $req,
+            (string) StateEnums::DISLIKE->getValue(),
+            (string) StateEnums::LIKE->getValue()
+        );
+    }
+
+    protected function handleInteractionEntity(
+        array $req,
+        string $interactionType,
+        string $interactionTypeToDelete
+    ): bool {
         $likeEntityInput = LikeEntityInput::from($req['input']);
         $createEntityInteraction = new CreateEntityInteraction(
             $likeEntityInput,
@@ -58,18 +68,24 @@ class EntityInteractionMutation
         );
 
         //cant like and dislike at the same time
-        $likeInteraction = Interactions::getByName(StateEnums::LIKE->getValue(), app(Apps::class));
-        $likeEntityInteraction = EntityInteractionsRepository::getInteraction(
+        $interactionTypeEntity = (new CreateInteraction(
+            new Interaction(
+                $interactionTypeToDelete,
+                app(Apps::class),
+                ucfirst($interactionTypeToDelete),
+            )
+        ))->execute();
+        $interactionEntityToDelete = EntityInteractionsRepository::getInteraction(
             $likeEntityInput,
-            $likeInteraction
+            $interactionTypeEntity
         );
 
-        if ($likeEntityInteraction) {
-            $likeEntityInteraction->softDelete();
+        if ($interactionEntityToDelete) {
+            $interactionEntityToDelete->softDelete();
         }
 
         return $createEntityInteraction->execute(
-            (string)  StateEnums::DISLIKE->getValue()
+            $interactionType
         ) instanceof ModelsEntityInteractions;
     }
 
