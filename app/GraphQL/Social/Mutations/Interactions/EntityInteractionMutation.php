@@ -7,6 +7,8 @@ namespace App\GraphQL\Social\Mutations\Interactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Enums\StateEnums;
 use Kanvas\Social\Interactions\Actions\CreateEntityInteraction;
+use Kanvas\Social\Interactions\Actions\CreateInteraction;
+use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\DataTransferObject\LikeEntityInput;
 use Kanvas\Social\Interactions\Models\EntityInteractions as ModelsEntityInteractions;
 use Kanvas\Social\Interactions\Models\Interactions;
@@ -66,14 +68,20 @@ class EntityInteractionMutation
         );
 
         //cant like and dislike at the same time
-        $likeInteraction = Interactions::getByName($interactionTypeToDelete, app(Apps::class));
-        $likeEntityInteraction = EntityInteractionsRepository::getInteraction(
+        $interactionTypeEntity = (new CreateInteraction(
+            new Interaction(
+                $interactionTypeToDelete,
+                app(Apps::class),
+                ucfirst($interactionTypeToDelete),
+            )
+        ))->execute();
+        $interactionEntityToDelete = EntityInteractionsRepository::getInteraction(
             $likeEntityInput,
-            $likeInteraction
+            $interactionTypeEntity
         );
 
-        if ($likeEntityInteraction) {
-            $likeEntityInteraction->softDelete();
+        if ($interactionEntityToDelete) {
+            $interactionEntityToDelete->softDelete();
         }
 
         return $createEntityInteraction->execute(
