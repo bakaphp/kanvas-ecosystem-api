@@ -3,7 +3,7 @@ type Agent {
     name: String!
     member_id: Int!
     user: User! @belongsTo
-    owner: User! @belongsTo
+    owner: User! @method(name: "owner")
     company: Company! @belongsTo
     total_leads: Int!
     status: AgentStatus!

@@ -1,7 +1,7 @@
 type Product {
     id: Int!
     products_types_id: Int
-    uuid: String
+    uuid: String!
     name: String!
     slug: String!
     description: String!
@@ -9,20 +9,20 @@ type Product {
     html_description: String
     warranty_terms: String
     upc: String
-    files: [Filesystem]
+    files: [Filesystem!]!
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
-        ) 
+        )
     is_published: Boolean
     created_at: String
     updated_at: String
-    categories: [Category] @BelongsToMany
-    warehouses: [Warehouse] @BelongsToMany
-    attributes: [ProductAttribute] @BelongsToMany
-    variants: [Variant] @HasMany
+    categories: [Category!]! @BelongsToMany
+    warehouses: [Warehouse!]! @BelongsToMany
+    attributes: [ProductAttribute!]! @BelongsToMany
+    variants: [Variant!]! @HasMany
     productsTypes: ProductType @belongsTo
-    companies: Company @belongsTo
+    companies: Company! @belongsTo
 }
 
 input ProductInput {
@@ -35,13 +35,14 @@ input ProductInput {
     warranty_terms: String
     upc: String
     is_published: Boolean
-    categories: [Int]
-    warehouses: [Int]
+    categories: [Int!]
+    warehouses: [Int!]
     source_id: Mixed
-    variants: [VariantsInput]
-    attributes: [AttributeInput]
-    files: [FilesystemInputUrl]
+    variants: [VariantsInput!]
+    attributes: [AttributeInput!]
+    files: [FilesystemInputUrl!]
     price: Float
+    company_id: ID
 }
 
 input ProductInputUpdate {
@@ -53,7 +54,7 @@ input ProductInputUpdate {
     warranty_terms: String
     upc: String
     is_published: Boolean
-    files: [FilesystemInputUrl]
+    files: [FilesystemInputUrl!]
 }
 
 extend type Mutation @guard {
@@ -99,6 +100,7 @@ extend type Query @guard {
                 columns: [
                     "id"
                     "products_types_id"
+                    "companies_id"
                     "name"
                     "slug"
                     "code"
@@ -106,11 +108,20 @@ extend type Query @guard {
                     "is_published"
                 ]
             )
-        hasCategories: _ @whereHasConditions(relation: "categories", columns: ["id", "name"])
-        hasWarehouses: _ @whereHasConditions(relation: "warehouses", columns: ["id", "name", "uuid"])
-        hasAttributes: _ @whereHasConditions(relation: "attributes", columns: ["id", "name", "uuid"])
+        hasCategories: _
+            @whereHasConditions(relation: "categories", columns: ["id", "name"])
+        hasWarehouses: _
+            @whereHasConditions(
+                relation: "warehouses"
+                columns: ["id", "name", "uuid"]
+            )
+        hasAttributes: _
+            @whereHasConditions(
+                relation: "attributes"
+                columns: ["id", "name", "uuid"]
+            )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
-    ): [Product]
+    ): [Product!]!
         @paginate(
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             builder: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProducts"

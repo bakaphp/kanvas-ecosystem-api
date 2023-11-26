@@ -6,6 +6,7 @@ namespace App\GraphQL\Ecosystem\Mutations\Users;
 
 use Illuminate\Support\Facades\Auth as AuthFacade;
 use Illuminate\Support\Facades\Hash;
+use Kanvas\AccessControlList\Enums\AbilityEnum;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
@@ -30,7 +31,7 @@ class UserManagementMutation
     {
         $user = UsersRepository::getByEmail(AuthFacade::user()->email);
         $user->changePassword((string) $req['current_password'], (string) $req['new_password'], app(Apps::class));
-        $user->notify(new ChangePasswordUserLogged($user));
+        $user->notify(new ChangePasswordUserLogged($user, ['company' => $user->getCurrentCompany()]));
 
         return true;
     }
@@ -41,13 +42,21 @@ class UserManagementMutation
     public function updateUser(mixed $rootValue, array $request): Users
     {
         $user = auth()->user();
-        $userId = $user->isAppOwner() && (int) $request['id'] > 0 ? $request['id'] : $user->getId();
-        $userToEdit = UsersRepository::getUserOfCompanyById($user->getCurrentCompany(), (int) $userId);
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+        $canEditUser = $user->isAdmin() && $user->can(AbilityEnum::MANAGE_USERS->value);
+        $userId = $canEditUser && (int) $request['id'] > 0 ? (int) $request['id'] : $user->getId();
 
-        $userManagement = new UserManagementService($userToEdit);
-        $user = $userManagement->update($request['data']);
+        if ($user->isAppOwner()) {
+            $userToEdit = UsersRepository::getUserOfAppById($userId, $app);
+        } else {
+            $userToEdit = UsersRepository::getUserOfCompanyById($company, (int) $userId);
+        }
 
-        return $user;
+        $userManagement = new UserManagementService($userToEdit, $app, $user);
+        $userToEdit = $userManagement->update($request['data']);
+
+        return $userToEdit;
     }
 
     /**

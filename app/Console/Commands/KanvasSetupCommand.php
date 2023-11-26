@@ -41,6 +41,8 @@ class KanvasSetupCommand extends Command
             'migrate --path database/migrations/Inventory/ --database inventory',
             'migrate --path database/migrations/Social/ --database social',
             'migrate --path database/migrations/Guild/ --database crm',
+            'migrate --path database/migrations/Workflow/ --database workflow',
+            'migrate --path vendor/laravel-workflow/laravel-workflow/src/migrations/ --database workflow',
             'db:seed',
             'db:seed --class=Database\\\Seeders\\\GuildSeeder --database crm',
             'kanvas:create-role Admin',

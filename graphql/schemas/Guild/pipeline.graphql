@@ -22,7 +22,7 @@ input PipelineInput {
     slug: String
     weight: Int!
     is_default: Boolean!
-    stages: [PipelineStageInput!]!
+    stages: [PipelineStageInput!]
 }
 
 input PipelineStageInput {

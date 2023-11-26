@@ -12,7 +12,7 @@ use Kanvas\Social\UsersInteractions\Actions\CreateUserInteractionAction;
 use Kanvas\Social\UsersInteractions\DataTransferObject\UserInteraction;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
-use Kanvas\Souk\Payments\Providers\AuthorizeNetProvider;
+use Kanvas\Souk\Payments\Providers\AuthorizeNetPaymentProcessor;
 
 class OrderManagementMutation
 {
@@ -44,7 +44,7 @@ class OrderManagementMutation
 
     private function processPayment(Order $order, bool $isSubscription): mixed
     {
-        $payment = new AuthorizeNetProvider(
+        $payment = new AuthorizeNetPaymentProcessor(
             app(Apps::class),
             auth()->user()->getCurrentBranch()
         );
@@ -80,6 +80,10 @@ class OrderManagementMutation
                     )
                 ))->execute();
 
+                $subscriptionId = $isSubscription && method_exists($response, 'getSubscriptionId')
+                    ? $response->getSubscriptionId()
+                    : null;
+
                 foreach ($cart->getContent() as $item) {
                     (new CreateUserInteractionAction(
                         new UserInteraction(
@@ -89,7 +93,7 @@ class OrderManagementMutation
                             Variants::class,
                             ! $isSubscription
                                 ? 'User bought a variant of a product'
-                                : 'User subscribed to a product '
+                                : 'User subscribed to a product ' . $subscriptionId
                         )
                     ))->execute();
                 }

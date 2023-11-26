@@ -1,0 +1,60 @@
+input CreateUserInput {
+    firstname: String
+    lastname: String
+    displayname: String
+    email: Email! @rules(apply: ["required"])
+    company_name: String
+    phone_number: String
+    password: String @rules(apply: ["min:8"])
+    cell_phone_number: String
+    roles_id: ID
+    custom_fields: [CustomFieldEntityInput!]
+}
+
+extend type Mutation @guardByAppKey {
+    appCreateUser(data: CreateUserInput!): User!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@createUser"
+        )
+    appDeleteUser(user_id: ID): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@appDeleteUser"
+        )
+    appDeActiveUser(user_id: ID): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@appDeActivateUser"
+        )
+    appActivateUser(user_id: ID): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@appActivateUser"
+        )
+    appRestoreDeletedUser(user_id: ID): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@restoreDeletedUser"
+        )
+}
+
+extend type Query @guardByAppKey {
+    appUsers(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: ["id", "uuid", "displayname", "is_active"]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "firstname"
+                    "lastname"
+                    "displayname"
+                    "email"
+                    "created_at"
+                ]
+            )
+    ): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\AppUserManagementQuery@getAllAppUsers"
+            defaultCount: 25
+        )
+}
