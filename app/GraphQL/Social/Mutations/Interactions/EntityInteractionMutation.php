@@ -19,15 +19,11 @@ class EntityInteractionMutation
      */
     public function likeEntity(mixed $root, array $req): bool
     {
-        $likeEntityInput = LikeEntityInput::from($req['input']);
-        $createEntityInteraction = new CreateEntityInteraction(
-            $likeEntityInput,
-            app(Apps::class)
+        return $this->handleInteractionEntity(
+            $req,
+            (string) StateEnums::LIKE->getValue(),
+            (string) StateEnums::DISLIKE->getValue()
         );
-
-        return $createEntityInteraction->execute(
-            (string) StateEnums::LIKE->getValue()
-        ) instanceof ModelsEntityInteractions;
     }
 
     /**
@@ -51,6 +47,19 @@ class EntityInteractionMutation
      */
     public function disLikeEntity(mixed $root, array $req): bool
     {
+        return $this->handleInteractionEntity(
+            $req,
+            (string) StateEnums::DISLIKE->getValue(),
+            (string) StateEnums::LIKE->getValue()
+        );
+    }
+
+    protected function handleInteractionEntity(
+        array $req,
+        string $interactionType,
+        string $interactionTypeToDelete
+    ): bool
+    {
         $likeEntityInput = LikeEntityInput::from($req['input']);
         $createEntityInteraction = new CreateEntityInteraction(
             $likeEntityInput,
@@ -58,7 +67,7 @@ class EntityInteractionMutation
         );
 
         //cant like and dislike at the same time
-        $likeInteraction = Interactions::getByName(StateEnums::LIKE->getValue(), app(Apps::class));
+        $likeInteraction = Interactions::getByName($interactionTypeToDelete, app(Apps::class));
         $likeEntityInteraction = EntityInteractionsRepository::getInteraction(
             $likeEntityInput,
             $likeInteraction
@@ -69,7 +78,7 @@ class EntityInteractionMutation
         }
 
         return $createEntityInteraction->execute(
-            (string)  StateEnums::DISLIKE->getValue()
+            $interactionType
         ) instanceof ModelsEntityInteractions;
     }
 
