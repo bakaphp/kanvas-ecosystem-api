@@ -58,8 +58,7 @@ class EntityInteractionMutation
         array $req,
         string $interactionType,
         string $interactionTypeToDelete
-    ): bool
-    {
+    ): bool {
         $likeEntityInput = LikeEntityInput::from($req['input']);
         $createEntityInteraction = new CreateEntityInteraction(
             $likeEntityInput,

@@ -35,13 +35,15 @@ class CreateEntityInteraction
         /**
          * @var EntityInteractions
          */
-        return EntityInteractions::updateOrCreate([
+        return EntityInteractions::updateOrCreate(
+            [
                 'entity_id' => $this->entityInteractionData->entity_id,
                 'entity_namespace' => $this->entityInteractionData->entity_namespace,
                 'interactions_id' => $interaction->getId(),
                 'interacted_entity_id' => $this->entityInteractionData->interacted_entity_id,
                 'interacted_entity_namespace' => $this->entityInteractionData->interacted_entity_namespace,
-            ],[
+            ],
+            [
                 'is_deleted' => StateEnums::NO->getValue(),
             ]
         );
