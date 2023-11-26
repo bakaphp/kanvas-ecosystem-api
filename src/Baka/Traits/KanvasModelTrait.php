@@ -46,7 +46,7 @@ trait KanvasModelTrait
         }
     }
 
-    public static function getByUuid(string $uuid, ?AppInterface $app): self
+    public static function getByUuid(string $uuid, ?AppInterface $app = null): self
     {
         try {
             return self::where('uuid', $uuid)
