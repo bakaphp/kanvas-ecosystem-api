@@ -111,7 +111,7 @@ trait KanvasModelTrait
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException("No record found for $uuid from company {$company->getId()}"
+            throw new ExceptionsModelNotFoundException("No record found for $uuid from company {$company->getId()}");
         }
     }
 
@@ -124,7 +124,7 @@ trait KanvasModelTrait
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException("No record found for $uuid from branch {$branch->getId()}"
+            throw new ExceptionsModelNotFoundException("No record found for $uuid from branch {$branch->getId()}");
         }
     }
 
