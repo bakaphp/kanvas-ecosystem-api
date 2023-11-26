@@ -8,18 +8,17 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Str;
+use Kanvas\Notifications\Actions\CreateNotificationTypesMessageLogicAction;
+use Kanvas\Notifications\Repositories\NotificationTypesRepository;
 use Kanvas\Social\Enums\StateEnums;
 use Kanvas\Social\Interactions\Actions\CreateInteraction;
 use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\Models\Interactions;
+use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
+use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\UsersFollows\Actions\CreateFollowAction;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
 use Kanvas\Users\Actions\CreateUserLinkedSourcesAction;
-use Kanvas\Users\Models\Sources;
-use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
-use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
-use Kanvas\Notifications\Actions\CreateNotificationTypesMessageLogicAction;
-use Kanvas\Notifications\Repositories\NotificationTypesRepository;
 use Kanvas\Users\Repositories\SourcesRepository;
 
 class Setup
@@ -116,30 +115,30 @@ class Setup
 
         $createFollow->execute();
 
-        $source = SourcesRepository::getByTitle('github');
-        $createUserLinkedSource = new CreateUserLinkedSourcesAction(
-            $this->user,
-            $source->getId(),
-            (string)Str::uuid(),
-            (string)Str::uuid(),
-            $this->user->displayname,
-        );
+        // $source = SourcesRepository::getByTitle('github');
+        // $createUserLinkedSource = new CreateUserLinkedSourcesAction(
+        //     $this->user,
+        //     $source->getId(),
+        //     (string)Str::uuid(),
+        //     (string)Str::uuid(),
+        //     $this->user->displayname,
+        // );
 
-        $createUserLinkedSource->execute();
+        // $createUserLinkedSource->execute();
 
         $messageTypeInput = MessageTypeInput::from([
             'apps_id' => $this->app->getId(),
             'languages_id' => 1,
-            'name' => "entity",
-            'verb' => "entity",
+            'name' => 'entity',
+            'verb' => 'entity',
             'template' => '',
-            'template_plura' => ''
+            'template_plura' => '',
         ]);
 
         $createMessageType = new CreateMessageTypeAction($messageTypeInput);
         $messageType = $createMessageType->execute();
 
-        $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent(2,$messageType->verb,'creation',$this->app);
+        $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent(2, $messageType->verb, 'creation', $this->app);
         $logic = '{
             "conditions": "message.is_public == 1 and message.is_published == 1"
         }';
@@ -153,7 +152,7 @@ class Setup
 
         $createNotificationTypeMessageLogic->execute();
 
-        
+
 
         return $defaultInteraction instanceof Interactions;
     }
