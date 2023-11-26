@@ -9,17 +9,13 @@ use Kanvas\Social\Enums\StateEnums;
 use Kanvas\Social\Interactions\Actions\CreateEntityInteraction;
 use Kanvas\Social\Interactions\DataTransferObject\LikeEntityInput;
 use Kanvas\Social\Interactions\Models\EntityInteractions as ModelsEntityInteractions;
+use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Interactions\Repositories\EntityInteractionsRepository;
 
-class EntityInteractions
+class EntityInteractionMutation
 {
     /**
      * Like a entity.
-     *
-     * @param  mixed $root
-     * @param  array $req
-     *
-     * @return bool
      */
     public function likeEntity(mixed $root, array $req): bool
     {
@@ -36,11 +32,6 @@ class EntityInteractions
 
     /**
      * Like a entity.
-     *
-     * @param  mixed $root
-     * @param  array $req
-     *
-     * @return bool
      */
     public function unLikeEntity(mixed $root, array $req): bool
     {
@@ -57,11 +48,6 @@ class EntityInteractions
 
     /**
      * Like a entity.
-     *
-     * @param  mixed $root
-     * @param  array $req
-     *
-     * @return bool
      */
     public function disLikeEntity(mixed $root, array $req): bool
     {
@@ -71,6 +57,17 @@ class EntityInteractions
             app(Apps::class)
         );
 
+        //cant like and dislike at the same time
+        $likeInteraction = Interactions::getByName(StateEnums::LIKE->getValue(), app(Apps::class));
+        $likeEntityInteraction = EntityInteractionsRepository::getInteraction(
+            $likeEntityInput,
+            $likeInteraction
+        );
+
+        if ($likeEntityInteraction) {
+            $likeEntityInteraction->softDelete();
+        }
+
         return $createEntityInteraction->execute(
             (string)  StateEnums::DISLIKE->getValue()
         ) instanceof ModelsEntityInteractions;
@@ -78,11 +75,6 @@ class EntityInteractions
 
     /**
      * Given a like entity input get the social interactions for the entity.
-     *
-     * @param mixed $root
-     * @param array $req
-     *
-     * @return array
      */
     public function getInteractionByEntity(mixed $root, array $req): array
     {

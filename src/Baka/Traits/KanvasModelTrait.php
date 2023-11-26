@@ -31,11 +31,14 @@ trait KanvasModelTrait
         return $this->uuid;
     }
 
-    public static function getByName(string $name): self
+    public static function getByName(string $name, ?AppInterface $app = null): self
     {
         try {
             return self::where('name', $name)
                 ->notDeleted()
+                ->when($app, function ($query, $app) {
+                    $query->fromApp($app);
+                })
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
@@ -43,11 +46,14 @@ trait KanvasModelTrait
         }
     }
 
-    public static function getByUuid(string $uuid): self
+    public static function getByUuid(string $uuid, ?AppInterface $app): self
     {
         try {
             return self::where('uuid', $uuid)
                 ->notDeleted()
+                ->when($app, function ($query, $app) {
+                    $query->fromApp($app);
+                })
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
@@ -55,15 +61,14 @@ trait KanvasModelTrait
         }
     }
 
-    public static function getById(mixed $id, ?AppInterface $apps = null): self
+    public static function getById(mixed $id, ?AppInterface $app = null): self
     {
         try {
-            $builder = self::where('id', $id);
-            if ($apps) {
-                $builder->where('apps_id', $apps->getId());
-            }
-
-            return $builder->notDeleted()
+            return self::where('id', $id)
+            ->when($app, function ($query, $app) {
+                $query->fromApp($app);
+            })
+            ->notDeleted()
             ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
