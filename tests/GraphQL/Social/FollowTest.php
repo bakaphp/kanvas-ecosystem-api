@@ -303,7 +303,7 @@ class FollowTest extends TestCase
             }
             ',
             [
-                'user_id' => auth()->user()->id,
+                'user_id' => $user->id,
             ]
         )->assertJson(
             [
@@ -312,7 +312,7 @@ class FollowTest extends TestCase
                     'data' => [
                         [
                             'entity' => [
-                                'email' => $user->email,
+                                'email' => auth()->user()->id,
                             ],
                         ],
                     ],
