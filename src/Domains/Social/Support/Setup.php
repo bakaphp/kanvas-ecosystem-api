@@ -118,8 +118,8 @@ class Setup
 
         // $source = SourcesRepository::getByTitle('apple');
         $source = new Sources();
-        $source->title = "random";
-        $source->url = "random";
+        $source->title = (string)Str::random(6);
+        $source->url = (string)Str::random(6);
         $source->language_id = 1;
         $source->created_at = date('Y-m-d H:i:s');
         $source->is_deleted = 0;
