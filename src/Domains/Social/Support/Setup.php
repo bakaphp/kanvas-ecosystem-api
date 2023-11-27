@@ -115,7 +115,7 @@ class Setup
 
         $createFollow->execute();
 
-        $source = SourcesRepository::getByTitle('iosapp');
+        $source = SourcesRepository::getByTitle('apple');
         $createUserLinkedSource = new CreateUserLinkedSourcesAction(
             $this->user,
             $source,
