@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Notifications;
 
-use Tests\TestCase;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Social\UsersFollows\Actions\CreateFollowAction;
 use Kanvas\Users\Models\Users;
-use Kanvas\Companies\Models\Companies;
+use Tests\TestCase;
 
 class NotificationTest extends TestCase
 {
@@ -63,7 +63,7 @@ class NotificationTest extends TestCase
      * @return void
      */
     public function testMessageNotificationToOneFollower()
-    {        
+    {
         $user = auth()->user();
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation sendNotificationByMessage(
@@ -77,17 +77,17 @@ class NotificationTest extends TestCase
             ', [
                 'message' => [
                     'metadata' => [
-                        "verb" => "entity",
-                        "event" => "creation",
-                        "channels" =>  ["push","email"],
-                        "distribution" => [
-                            "type" =>  "one",
-                            "userId" => $user->getId()
-                        ]
+                        'verb' => 'entity',
+                        'event' => 'creation',
+                        'channels' => ['push','email'],
+                        'distribution' => [
+                            'type' => 'one',
+                            'userId' => $user->getId(),
+                        ],
                     ],
-                    "title" => "Example Title",
-                    "is_public" => 1,
-                    "is_published" => 1,
+                    'title' => 'Example Title',
+                    'is_public' => 1,
+                    'is_published' => 1,
                 ],
             ]);
 
@@ -105,7 +105,7 @@ class NotificationTest extends TestCase
      * @return void
      */
     public function testMessageNotificationToAllFollowers()
-    {   
+    {
         // $user = Users::first();
         // $company = Companies::first();
         // $createFollow = new CreateFollowAction(
@@ -128,16 +128,16 @@ class NotificationTest extends TestCase
             ', [
                 'message' => [
                     'metadata' => [
-                        "verb" => "entity",
-                        "event" => "creation",
-                        "channels" =>  ["push","email"],
-                        "distribution" => [
-                            "type" =>  "all",
-                        ]
+                        'verb' => 'entity',
+                        'event' => 'creation',
+                        'channels' => ['push','email'],
+                        'distribution' => [
+                            'type' => 'all',
+                        ],
                     ],
-                    "title" => "Example Title",
-                    "is_public" => 1,
-                    "is_published" => 1,
+                    'title' => 'Example Title',
+                    'is_public' => 1,
+                    'is_published' => 1,
                 ],
             ]);
 
