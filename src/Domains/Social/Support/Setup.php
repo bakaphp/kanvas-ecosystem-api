@@ -20,6 +20,7 @@ use Kanvas\Social\UsersFollows\Actions\CreateFollowAction;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
 use Kanvas\Users\Actions\CreateUserLinkedSourcesAction;
 use Kanvas\Users\Repositories\SourcesRepository;
+use Kanvas\Users\Models\Sources;
 
 class Setup
 {
@@ -115,7 +116,16 @@ class Setup
 
         $createFollow->execute();
 
-        $source = SourcesRepository::getByTitle('apple');
+        // $source = SourcesRepository::getByTitle('apple');
+        $source = new Sources();
+        $source->title = "random";
+        $source->url = "random";
+        $source->language_id = 1;
+        $source->created_at = date('Y-m-d H:i:s');
+        $source->is_deleted = 0;
+        $source->saveOrFail();
+
+
         $createUserLinkedSource = new CreateUserLinkedSourcesAction(
             $this->user,
             $source,
