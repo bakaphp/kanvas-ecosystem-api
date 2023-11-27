@@ -46,5 +46,43 @@ class NotificationTypesSeeder extends Seeder
             'weight' => 0,
             'created_at' => date('Y-m-d H:i:s'),
         ]);
+        NotificationTypes::create([
+            'apps_id' => 1,
+            'system_modules_id' => $systemModule->id,
+            'parent_id' => 0,
+            'notification_channel_id' => 1,
+            'name' => 'email-notification-default',
+            'verb' => 'entity',
+            'event' => 'creation',
+            'template_id' => 6,
+            'key' => 'email-notification-default',
+            'description' => 'blank',
+            'template' => 'blank',
+            'icon_url' => 'blank',
+            'with_realtime' => 0,
+            'is_published' => 1,
+            'is_deleted' => 0,
+            'weight' => 0,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+        NotificationTypes::create([
+            'apps_id' => 1,
+            'system_modules_id' => $systemModule->id,
+            'parent_id' => 0,
+            'notification_channel_id' => 2,
+            'name' => 'push-notification-default',
+            'verb' => 'entity',
+            'event' => 'creation',
+            'template_id' => 7,
+            'key' => 'push-notification-default',
+            'description' => 'blank',
+            'template' => 'blank',
+            'icon_url' => 'blank',
+            'with_realtime' => 0,
+            'is_published' => 1,
+            'is_deleted' => 0,
+            'weight' => 0,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
     }
 }

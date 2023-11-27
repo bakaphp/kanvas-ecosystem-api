@@ -9,14 +9,9 @@ use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
 
 class EvaluateNotificationsLogicAction
 {
-    /**
-     * __construct.
-     *
-     * @return void
-     */
     public function __construct(
         public NotificationTypesMessageLogic $notificationsLogic,
-        public object $message
+        public array $message
     ) {
     }
 
@@ -27,20 +22,18 @@ class EvaluateNotificationsLogicAction
     {
         $expressionLanguage = new ExpressionLanguage();
 
+        $messageJson = json_decode(json_encode($this->message));
         $logic = json_decode($this->notificationsLogic->logic);
         $conditions = $logic->conditions;
 
-        /**
-         * @todo Figure out how to embed date on the logic record
-         */
+        // TODO Figure out how to embed date on the logic record
         $dateInTenMins = date('Y-m-d H:i:s', strtotime('+10 minutes'));
         $dateNow = date('Y-m-d H:i:s');
 
         return $expressionLanguage->evaluate(
             $conditions,
             [
-                'message' => $this->message,
-                'creationDate' => $dateInTenMins,
+                'message' => $messageJson,
             ]
         );
     }

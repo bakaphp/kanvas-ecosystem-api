@@ -22,8 +22,10 @@ class PushNotificationsHandlerJob implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct(private int $usersFollowId, private array $message)
-    {
+    public function __construct(
+        private int $usersFollowId,
+        private array $message,
+    ) {
         $this->onQueue('notifications');
     }
 
@@ -35,15 +37,19 @@ class PushNotificationsHandlerJob implements ShouldQueue
     public function handle()
     {
         $userOneSignalId = UsersLinkedSourcesRepository::getByUsersId($this->usersFollowId)->source_users_id;
-        OneSignalFacade::sendNotificationToUser(
-            $this->message['metadata']['notification_content']['message'],
-            $userOneSignalId,
-            $url = null,
-            $data = null,
-            $buttons = null,
-            $schedule = null,
-            $this->message['metadata']['notification_content']['subtitle'],
-            $this->message['metadata']['notification_content']['title']
-        );
+
+        if (getenv('APP_ENV') !== 'testing') {
+            OneSignalFacade::sendNotificationToUser(
+                $this->message['message'],
+                $userOneSignalId,
+                $url = null,
+                $data = null,
+                $buttons = null,
+                $schedule = null,
+                $this->message['subtitle'],
+                $this->message['title']
+            );
+        }
+
     }
 }

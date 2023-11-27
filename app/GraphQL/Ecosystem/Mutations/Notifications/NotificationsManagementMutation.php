@@ -48,32 +48,39 @@ class NotificationsManagementMutation
     }
 
     /**
-     * sendNotificationBaseOnTemplate
+     * sendNotificationByMessage
+     * @psalm-suppress MixedArgument
      */
     public function sendNotificationByMessage(mixed $root, array $request): bool
     {
         $app = app(Apps::class);
-
-        /**
-         * @todo Validate incoming $request['message'] data to prevent failures.
-         */
+        $user = auth()->user();
         $message = $request['message'];
-        $messageJson = json_decode(json_encode($request['message']));
 
-        $messageType = MessagesTypesRepository::getByVerb($message['metadata']['verb']);
+        // TODO Maybe get rid of the notification_type_id on notification_types_message_logic table, not doin anything there?
+        $messageType = MessagesTypesRepository::getByVerb($message['metadata']['verb'], $app);
         $noticationTypeMessageLogic = NotificationTypesMessageLogicRepository::getByMessageType($app, $messageType->getId());
-        $evaluateNotificationsLogic = new EvaluateNotificationsLogicAction($noticationTypeMessageLogic, $messageJson);
+        $evaluateNotificationsLogic = new EvaluateNotificationsLogicAction($noticationTypeMessageLogic, $message);
         $results = $evaluateNotificationsLogic->execute();
 
         if ($results) {
             if ($message['metadata']['distribution']['type'] == 'one' && $follower = Users::getById($message['metadata']['distribution']['userId'])) {
-                $sendNotificationsToFollower = new SendMessageNotificationsToOneFollowerAction($follower, $message);
+                $sendNotificationsToFollower = new SendMessageNotificationsToOneFollowerAction(
+                    $user,
+                    $follower,
+                    $app,
+                    $message
+                );
                 $sendNotificationsToFollower->execute();
 
                 return true;
             }
 
-            $sendNotificationsToFollowers = new SendMessageNotificationsToAllFollowersAction($message);
+            $sendNotificationsToFollowers = new SendMessageNotificationsToAllFollowersAction(
+                $user,
+                $app,
+                $message
+            );
             $sendNotificationsToFollowers->execute();
 
             return true;

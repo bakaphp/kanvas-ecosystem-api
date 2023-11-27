@@ -7,20 +7,25 @@ namespace Kanvas\Social\Support;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Support\Str;
+use Kanvas\Notifications\Actions\CreateNotificationTypesMessageLogicAction;
+use Kanvas\Notifications\Repositories\NotificationTypesRepository;
 use Kanvas\Social\Enums\StateEnums;
 use Kanvas\Social\Interactions\Actions\CreateInteraction;
 use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\Models\Interactions;
+use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
+use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\Social\UsersFollows\Actions\CreateFollowAction;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
+use Kanvas\Users\Actions\CreateUserLinkedSourcesAction;
+use Kanvas\Users\Repositories\SourcesRepository;
+use Kanvas\Users\Models\Sources;
 
 class Setup
 {
     /**
      * Constructor.
-     *
-     * @param AppInterface $app
-     * @param UserInterface $user
-     * @param CompanyInterface $company
      */
     public function __construct(
         protected AppInterface $app,
@@ -31,8 +36,6 @@ class Setup
 
     /**
      * Setup all the default inventory data for this current company.
-     *
-     * @return bool
      */
     public function run(): bool
     {
@@ -104,6 +107,60 @@ class Setup
         );
 
         $defaultInteraction = $createInteractions->execute();
+
+        $createFollow = new CreateFollowAction(
+            $this->user,
+            $this->user,
+            $this->company,
+        );
+
+        $createFollow->execute();
+
+        // $source = SourcesRepository::getByTitle('apple');
+        $source = new Sources();
+        $source->title = (string)Str::random(6);
+        $source->url = (string)Str::random(6);
+        $source->language_id = 1;
+        $source->created_at = date('Y-m-d H:i:s');
+        $source->is_deleted = 0;
+        $source->saveOrFail();
+
+
+        $createUserLinkedSource = new CreateUserLinkedSourcesAction(
+            $this->user,
+            $source,
+            (string)Str::uuid(),
+        );
+
+        $createUserLinkedSource->execute();
+
+        $messageTypeInput = MessageTypeInput::from([
+            'apps_id' => $this->app->getId(),
+            'languages_id' => 1,
+            'name' => 'entity',
+            'verb' => 'entity',
+            'template' => '',
+            'template_plura' => '',
+        ]);
+
+        $createMessageType = new CreateMessageTypeAction($messageTypeInput);
+        $messageType = $createMessageType->execute();
+
+        $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent(2, $messageType->verb, 'creation', $this->app);
+        $logic = '{
+            "conditions": "message.is_public == 1 and message.is_published == 1"
+        }';
+
+        $createNotificationTypeMessageLogic = new CreateNotificationTypesMessageLogicAction(
+            $this->app,
+            $messageType,
+            $notificationType,
+            $logic
+        );
+
+        $createNotificationTypeMessageLogic->execute();
+
+
 
         return $defaultInteraction instanceof Interactions;
     }
