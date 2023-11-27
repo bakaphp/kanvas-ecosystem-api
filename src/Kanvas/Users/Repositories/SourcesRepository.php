@@ -25,5 +25,4 @@ class SourcesRepository
             ->where('is_deleted', StateEnums::NO->getValue())
             ->firstOrFail();
     }
-
 }

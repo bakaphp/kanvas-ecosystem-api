@@ -50,6 +50,5 @@ class PushNotificationsHandlerJob implements ShouldQueue
                 $this->message['title']
             );
         }
-
     }
 }
