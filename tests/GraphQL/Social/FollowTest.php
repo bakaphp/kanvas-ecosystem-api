@@ -312,7 +312,7 @@ class FollowTest extends TestCase
                     'data' => [
                         [
                             'entity' => [
-                                'email' => auth()->user()->id,
+                                'email' => auth()->user()->email,
                             ],
                         ],
                     ],
