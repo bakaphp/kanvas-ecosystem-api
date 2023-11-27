@@ -25,13 +25,7 @@ input FilesystemAttachInput {
 extend type Query @guard {
     entityFiles(
         entity: SystemModuleEntityInput!
-        where: _
-            @whereConditions(
-                columns: [
-                    "field_name"
-                    "uuid"
-                ]
-            )
+        where: _ @whereConditions(columns: ["field_name", "uuid"])
     ): [Filesystem!]!
         @paginate(
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFilesFromSystemModuleEntity"
@@ -56,5 +50,9 @@ type Mutation @guard {
     deAttachFile(uuid: String!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@deAttachFile"
+        )
+    deAttachFiles(uuids: [String!]!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@deAttachFiles"
         )
 }

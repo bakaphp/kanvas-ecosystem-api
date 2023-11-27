@@ -161,7 +161,6 @@ class ChannelsTest extends TestCase
             ]
         );
         $user = $response['data']['processInvite']['id'];
-
         $response = $this->graphQL(
             '
             mutation attachUserToSocialChannel(

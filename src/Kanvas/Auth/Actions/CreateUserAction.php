@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
@@ -17,10 +18,9 @@ use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\CompaniesPostData;
 use Kanvas\Enums\AppEnums;
-use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
-use Kanvas\Notifications\Templates\Welcome;
+use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Jobs\OnBoardingJob;
 use Kanvas\Users\Models\Users;
@@ -85,6 +85,8 @@ class CreateUserAction
             $this->assignUserRole($user);
         }
 
+        $this->assignCompany($user);
+
         return $user;
     }
 
@@ -109,6 +111,8 @@ class CreateUserAction
         $user->displayname = $this->data->displayname;
         $user->email = $this->data->email;
         $user->password = $this->data->password;
+        $user->phone_number = $this->data->phone_number;
+        $user->cell_phone_number = $this->data->cell_phone_number;
         $user->sex = AppEnums::DEFAULT_SEX->getValue();
         $user->dob = date('Y-m-d');
         $user->lastvisit = date('Y-m-d H:i:s');
@@ -122,13 +126,14 @@ class CreateUserAction
         $user->default_company = $this->data->default_company ?? StateEnums::NO->getValue();
         $user->session_time = time();
         $user->session_page = StateEnums::NO->getValue();
-        $user->password = $this->data->password;
         $user->language = $user->language ?: AppEnums::DEFAULT_LANGUAGE->getValue();
         $user->user_activation_key = Hash::make(time());
         $user->roles_id = $this->data->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue(); //@todo : remove this , legacy code
 
         //create a new user assign it to the app and create the default company
         $user->saveOrFail();
+
+        $user->setAll($this->data->custom_fields);
 
         return $user;
     }
@@ -150,21 +155,34 @@ class CreateUserAction
         $assignRole->execute();
     }
 
-    protected function sendWelcomeEmail(Users $user, bool $newUser, ?CompanyInterface $company = null): void
+    protected function assignCompany(Users $user): void
+    {
+        if ($this->data->branch === null) {
+            return ;
+        }
+
+        try {
+            $role = RolesRepository::getByMixedParamFromCompany($this->data->roles_id ?? RolesEnums::USER->value);
+        } catch (Throwable $e) {
+            $role = RolesRepository::getByMixedParamFromCompany(RolesEnums::USER->value);
+        }
+
+        (new AssignCompanyAction(
+            $user,
+            $this->data->branch,
+            $role,
+            $this->app
+        ))->execute();
+    }
+
+    protected function onBoarding(Users $user, ?CompanyInterface $company = null): void
     {
         try {
-            if ($this->app->get((string) AppSettingsEnums::SEND_WELCOME_EMAIL->getValue())) {
-                $user->notify(new Welcome($user));
-            }
-
-            //create CRM + Inventory for user company send it to job
-            if ($newUser) {
-                OnBoardingJob::dispatch(
-                    $user,
-                    $company instanceof CompanyInterface ? $company->defaultBranch()->firstOrFail() : $user->getCurrentBranch(),
-                    $this->app
-                );
-            }
+            OnBoardingJob::dispatch(
+                $user,
+                $company instanceof CompanyInterface ? $company->defaultBranch()->firstOrFail() : $user->getCurrentBranch(),
+                $this->app
+            );
         } catch (Throwable $e) {
             //no email sent
         }

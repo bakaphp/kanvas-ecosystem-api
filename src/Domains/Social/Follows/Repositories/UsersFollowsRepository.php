@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Follows\Repositories;
 
+use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Social\Follows\Models\UsersFollows;
 use Kanvas\Users\Models\Users;
 
@@ -36,11 +39,17 @@ class UsersFollowsRepository
      * getFollowersBuilder
      * @psalm-suppress MixedReturnStatement
      */
-    public static function getFollowersBuilder(EloquentModel $entity): Builder
+    public static function getFollowersBuilder(EloquentModel $entity, ?AppInterface $app = null): Builder
     {
         $ecosystemConnection = config('database.connections.ecosystem.database');
+        $socialConnection = config('database.connections.social.database');
+        $app = $app ?? app(Apps::class);
 
-        return UsersFollows::join($ecosystemConnection . '.users', 'users.id', '=', 'users_follows.users_id')
+        return Users::join($socialConnection . '.users_follows', 'users.id', '=', 'users_follows.users_id')
+            ->join($ecosystemConnection . '.users_associated_apps', 'users.id', '=', 'users_associated_apps.users_id')
+            ->where($ecosystemConnection . '.users_associated_apps.apps_id', $app->getId())
+            ->where($ecosystemConnection . '.users_associated_apps.is_deleted', 0)
+            ->where($ecosystemConnection . '.users_associated_apps.companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
             ->where('users_follows.is_deleted', 0)
             ->where('entity_id', $entity->id)
             ->where('entity_namespace', get_class($entity))
@@ -51,10 +60,17 @@ class UsersFollowsRepository
      * getFollowingBuilder
      * @psalm-suppress MixedReturnStatement
      */
-    public static function getFollowingBuilder(Users $user): Builder
+    public static function getFollowingBuilder(Users $user, ?AppInterface $app = null): Builder
     {
-        return UsersFollows::where('users_id', $user->id)
-            ->where('is_deleted', 0);
+        $ecosystemConnection = config('database.connections.ecosystem.database');
+        $app = $app ?? app(Apps::class);
+
+        return UsersFollows::where('users_follows.users_id', $user->id)
+            ->join($ecosystemConnection . '.users_associated_apps', 'users_follows.users_id', '=', 'users_associated_apps.users_id')
+            ->where($ecosystemConnection . '.users_associated_apps.apps_id', $app->getId())
+            ->where($ecosystemConnection . '.users_associated_apps.is_deleted', 0)
+            ->where($ecosystemConnection . '.users_associated_apps.companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+            ->where('users_follows.is_deleted', 0);
     }
 
     /**

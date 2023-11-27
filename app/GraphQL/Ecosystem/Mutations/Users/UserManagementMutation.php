@@ -4,16 +4,13 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Users;
 
-use Baka\Support\Str;
 use Illuminate\Support\Facades\Auth as AuthFacade;
 use Illuminate\Support\Facades\Hash;
+use Kanvas\AccessControlList\Enums\AbilityEnum;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Auth\Actions\CreateUserAction;
-use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Services\UserManagement as UserManagementService;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Notifications\Templates\ChangeEmailUserLogged;
 use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
 use Kanvas\Users\Actions\CreateInviteAction;
@@ -45,13 +42,21 @@ class UserManagementMutation
     public function updateUser(mixed $rootValue, array $request): Users
     {
         $user = auth()->user();
-        $userId = $user->isAppOwner() && (int) $request['id'] > 0 ? $request['id'] : $user->getId();
-        $userToEdit = UsersRepository::getUserOfCompanyById($user->getCurrentCompany(), (int) $userId);
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+        $canEditUser = $user->isAdmin() && $user->can(AbilityEnum::MANAGE_USERS->value);
+        $userId = $canEditUser && (int) $request['id'] > 0 ? (int) $request['id'] : $user->getId();
 
-        $userManagement = new UserManagementService($userToEdit);
-        $user = $userManagement->update($request['data']);
+        if ($user->isAppOwner()) {
+            $userToEdit = UsersRepository::getUserOfAppById($userId, $app);
+        } else {
+            $userToEdit = UsersRepository::getUserOfCompanyById($company, (int) $userId);
+        }
 
-        return $user;
+        $userManagement = new UserManagementService($userToEdit, $app, $user);
+        $userToEdit = $userManagement->update($request['data']);
+
+        return $userToEdit;
     }
 
     /**
@@ -142,18 +147,5 @@ class UserManagementMutation
         UsersRepository::belongsToThisApp($user, app(Apps::class));
 
         return $user->updateDisplayName($request['displayname'], app(Apps::class));
-    }
-
-    public function createUser(mixed $rootValue, array $request): Users
-    {
-        $user = auth()->user();
-
-        UsersRepository::belongsToThisApp($user, app(Apps::class));
-
-        $request['data']['password'] = Str::random(15);
-        $data = RegisterInput::fromArray($request['data']);
-        $user = new CreateUserAction($data);
-
-        return $user->execute();
     }
 }

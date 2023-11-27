@@ -50,6 +50,7 @@ class VariantChannelBuilder
      */
     public function getChannel(mixed $root, array $req): array
     {
+        //@todo doesnt work with search
         return [
             'name' => $root->channel_name,
             'price' => $root->price,

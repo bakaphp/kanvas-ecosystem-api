@@ -66,7 +66,7 @@ extend type Query @guard {
         )
     variantsByStatus(
         warehouse_id: ID!
-        status_id: ID!
+        status_id: [ID]!
         search: String @search
         where: _ @whereConditions(columns: ["quantity", "price", "sku"])
         orderBy: _
