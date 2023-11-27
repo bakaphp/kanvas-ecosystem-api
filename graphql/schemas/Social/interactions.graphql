@@ -32,19 +32,19 @@ type EntityInteractions
 extend type Mutation @guardByAuthOrCompany {
     likeEntity(input: LikeEntityInput!): Boolean!
         @field(
-            resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractions@likeEntity"
+            resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractionMutation@likeEntity"
         )
     unLikeEntity(input: LikeEntityInput!): Boolean!
         @field(
-            resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractions@unLikeEntity"
+            resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractionMutation@unLikeEntity"
         )
     disLikeEntity(input: LikeEntityInput!): Boolean!
         @field(
-            resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractions@disLikeEntity"
+            resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractionMutation@disLikeEntity"
         )
     getInteractionByEntity(input: LikeEntityInput!): Interactions!
         @field(
-            resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractions@getInteractionByEntity"
+            resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractionMutation@getInteractionByEntity"
         )
 }
 

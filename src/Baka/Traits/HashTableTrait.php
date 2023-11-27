@@ -64,8 +64,12 @@ trait HashTableTrait
 
     public function setAll(array $settings): bool
     {
-        foreach ($settings as $value) {
-            $this->set($value['name'], $value['data']);
+        if (empty($settings)) {
+            return false;
+        }
+
+        foreach ($settings as $setting) {
+            $this->set($setting['name'], $setting['data']);
         }
 
         return true;

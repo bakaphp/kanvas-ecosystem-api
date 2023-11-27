@@ -226,7 +226,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
                 ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
                 ->firstOrFail();
         } catch (EloquentModelNotFoundException $e) {
-            throw new ModelNotFoundException('User not found');
+            throw new ModelNotFoundException('User not found - ' . $this->getId());
         }
     }
 
@@ -396,7 +396,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         if (! app()->bound(CompaniesBranches::class)) {
             return (int) $this->get($this->getCurrentCompany()->branchCacheKey());
         } else {
-            return app(CompaniesBranches::class)->company()->first()->getId();
+            return app(CompaniesBranches::class)->getId();
         }
     }
 
@@ -518,7 +518,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         if (app()->bound(AppKey::class) && $this->isAn(RolesEnums::OWNER->value)) {
             return true;
         }
+
         return false;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->isAppOwner() || $this->isAn(RolesEnums::ADMIN->value);
     }
 
     /**
@@ -544,7 +550,21 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         $user = $this->getAppProfile(app(Apps::class));
 
-        return $user->displayname;
+        return $user->displayname ?? $this->displayname;
+    }
+
+    public function getAppEmail(): string
+    {
+        $user = $this->getAppProfile(app(Apps::class));
+
+        return $user->email ?? $this->email;
+    }
+
+    public function getAppIsActive(): bool
+    {
+        $user = $this->getAppProfile(app(Apps::class));
+
+        return $user->is_active;
     }
 
     public function getPhoto(): ?FilesystemEntities

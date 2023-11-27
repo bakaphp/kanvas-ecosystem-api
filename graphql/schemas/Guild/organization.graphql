@@ -14,7 +14,7 @@ input OrganizationInput {
 
 input OrganizationPeopleInput {
     organization_id: ID!
-    peoples_id: [ID!]!
+    peoples_id: [ID!]
 }
 
 extend type Mutation @guard {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Interactions\Repositories;
 
+use Baka\Enums\StateEnums;
 use Kanvas\Social\Interactions\DataTransferObject\LikeEntityInput;
 use Kanvas\Social\Interactions\Models\EntityInteractions;
 use Kanvas\Social\Interactions\Models\Interactions;
@@ -41,6 +42,7 @@ class EntityInteractionsRepository
             )
             ->where(EntityInteractions::getFullTableName() . '.entity_id', $entityInput->entity_id)
             ->where(EntityInteractions::getFullTableName() . '.entity_namespace', $entityInput->entity_namespace)
+            ->where(EntityInteractions::getFullTableName() . '.is_deleted', StateEnums::NO->getValue())
             ->groupBy(Interactions::getFullTableName() . '.name')
             ->get();
 
@@ -49,5 +51,19 @@ class EntityInteractionsRepository
         }
 
         return $interactions;
+    }
+
+    public static function getInteraction(LikeEntityInput $entityInput, Interactions $interactionType): ?EntityInteractions
+    {
+        return EntityInteractions::where('interacted_entity_id', $entityInput->interacted_entity_id)
+            ->where(
+                'interacted_entity_namespace',
+                $entityInput->interacted_entity_namespace
+            )
+            ->where('entity_id', $entityInput->entity_id)
+            ->where('entity_namespace', $entityInput->entity_namespace)
+            ->where('interactions_id', $interactionType->getId())
+            ->notDeleted()
+            ->first();
     }
 }

@@ -1,6 +1,6 @@
 <br />
 <p align="center">
-    <img  src="https://kanvas.dev/img/logo.png" alt="Kanvas Logo"></a>
+    <img  src="https://kanvas.dev/images/kanvasL.svg" alt="Kanvas Logo" width="200" height="24"></a>
     <br />
     <br />
 </p>
@@ -30,8 +30,8 @@ Todo:
 - [x] Inventory (in progress)
 - [x] CRM (in progress)
 - [x] Social (in progress)
-- [ ] Workflow (in progress)
-- [ ] GraphQL Documentation (in progress)
+- [x] Workflow (in progress)
+- [x] GraphQL Documentation (in progress)
 
 ## Prerequisites
 
@@ -108,6 +108,7 @@ Use `--watch` in development allowing you to refresh modified files, this works 
 - [Coding guideline](https://github.com/bakaphp/kanvas-ecosystem-api/wiki/Coding-Guidelines)
 - [Wiki](https://github.com/alexeymezenin/laravel-best-practices#follow-laravel-naming-conventions)
 - [TypeScript SDK](https://github.com/bakaphp/kanvas-core-js)
+- [Documentation](https://github.com/bakaphp/kanvas-doc)
 
 Note: 
 - To install Swoole you can use the command ```pecl install swoole``` 

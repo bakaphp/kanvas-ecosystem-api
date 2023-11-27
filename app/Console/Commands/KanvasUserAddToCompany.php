@@ -6,6 +6,7 @@ use Baka\Traits\KanvasJobsTrait;
 use Bouncer;
 use Illuminate\Console\Command;
 use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -41,7 +42,7 @@ class KanvasUserAddToCompany extends Command
 
         $email = $this->argument('email');
         $branchId = $this->argument('branch_id');
-        $role = $this->argument('role') ?? DefaultRoles::ADMIN;
+        $role = RolesRepository::getByMixedParamFromCompany($this->argument('role') ?? RolesEnums::ADMIN);
 
         $branch = CompaniesBranches::findOrFail($branchId);
         $company = $branch->company()->first();

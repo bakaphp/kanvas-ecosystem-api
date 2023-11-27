@@ -25,7 +25,11 @@ class CartManagementMutation
                 'name' => $variant->name,
                 'price' => $variant->variantWarehouses()->firstOrFail()->price,
                 'quantity' => $item['quantity'],
-                'attributes' => [],
+                'attributes' => $variant->product->attributes ? $variant->product->attributes->map(function ($attribute) {
+                    return [
+                        $attribute->name => $attribute->pivot->value,
+                    ];
+                })->collapse()->all() : [],
                 //'associatedModel' => $Product,
             ]);
         }

@@ -70,7 +70,7 @@ class Apps extends BaseModel implements AppInterface
         });
     }
 
-    public static function getByUuid(string $uuid): self
+    public static function getByUuid(string $uuid, ?AppInterface $app = null): self
     {
         try {
             return self::where('key', $uuid)
@@ -78,7 +78,7 @@ class Apps extends BaseModel implements AppInterface
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException($e->getMessage());
+            throw new ExceptionsModelNotFoundException("No app found with id {$uuid}");
         }
     }
 
