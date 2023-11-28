@@ -48,7 +48,7 @@ class MessageInput extends Data
             $app->getId(),
             $company->getId(),
             $user->getId(),
-            $data['message_types_id'],
+            (int) $data['message_types_id'],
             $data['message'],
             $parent ? $parent->getId() : 0,
             $data['reactions_count'] ?? 0,
