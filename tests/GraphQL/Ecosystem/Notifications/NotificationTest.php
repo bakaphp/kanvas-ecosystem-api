@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Ecosystem\Notifications;
 
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Social\UsersFollows\Actions\CreateFollowAction;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 

@@ -11,16 +11,16 @@ use Illuminate\Support\Str;
 use Kanvas\Notifications\Actions\CreateNotificationTypesMessageLogicAction;
 use Kanvas\Notifications\Repositories\NotificationTypesRepository;
 use Kanvas\Social\Enums\StateEnums;
+use Kanvas\Social\Follows\Actions\FollowAction;
 use Kanvas\Social\Interactions\Actions\CreateInteraction;
 use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
-use Kanvas\Social\UsersFollows\Actions\CreateFollowAction;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
 use Kanvas\Users\Actions\CreateUserLinkedSourcesAction;
-use Kanvas\Users\Repositories\SourcesRepository;
 use Kanvas\Users\Models\Sources;
+use Kanvas\Users\Repositories\SourcesRepository;
 
 class Setup
 {
@@ -108,7 +108,7 @@ class Setup
 
         $defaultInteraction = $createInteractions->execute();
 
-        $createFollow = new CreateFollowAction(
+        $createFollow = new FollowAction(
             $this->user,
             $this->user,
             $this->company,

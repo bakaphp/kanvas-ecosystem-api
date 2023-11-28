@@ -17,6 +17,7 @@ class EvaluateNotificationsLogicAction
 
     /**
      * Evaluate Notifications Logic
+     * @psalm-suppress MixedReturnStatement
      */
     public function execute(): bool
     {
@@ -24,7 +25,7 @@ class EvaluateNotificationsLogicAction
 
         $messageJson = json_decode(json_encode($this->message));
         $logic = json_decode($this->notificationsLogic->logic);
-        $conditions = $logic->conditions;
+        $conditions = (string) $logic->conditions;
 
         // TODO Figure out how to embed date on the logic record
         $dateInTenMins = date('Y-m-d H:i:s', strtotime('+10 minutes'));

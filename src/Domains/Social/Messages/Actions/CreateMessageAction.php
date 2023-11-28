@@ -24,11 +24,10 @@ class CreateMessageAction
 
     /**
      * execute
-     *
-     * @return void
      */
-    public function execute()
+    public function execute(): Message
     {
+        /** @var Message $message */
         $message = Message::create([
             'apps_id' => $this->messageInput->apps_id,
             'parent_id' => $this->messageInput->parent_id,

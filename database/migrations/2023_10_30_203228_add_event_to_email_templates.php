@@ -11,9 +11,9 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('notification_types', function (Blueprint $table) {
-            $table->string('verb', 64)->after('name')->nullable()->default(false);
-            $table->string('event', 64)->after('verb')->nullable()->default(false);
-            $table->integer('template_id')->after('event')->default(0);
+            $table->char('verb', 64)->after('name')->nullable()->index()->default(false);
+            $table->char('event', 64)->after('verb')->nullable()->index()->default(false);
+            $table->integer('template_id')->after('event')->index()->default(0);
         });
     }
 
