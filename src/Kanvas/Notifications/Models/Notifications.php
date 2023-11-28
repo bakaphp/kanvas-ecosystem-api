@@ -99,12 +99,10 @@ class Notifications extends BaseModel
     /**
      * Not deleted scope.
      */
-    public function scopeAllNotifications(Builder $query , array $args): Builder
+    public function scopeAllNotifications(Builder $query, array $args): Builder
     {
         if ($args['whereType']) {
             $notificationTypeFilter = $args['whereType'];
-    
-            // Assuming 'types' is a relationship in Notification model
             $query->whereHas('types', function ($query) use ($notificationTypeFilter) {
                 if ($notificationTypeFilter['verb']) {
                     $query->where('verb', $notificationTypeFilter['verb']);
@@ -115,6 +113,7 @@ class Notifications extends BaseModel
                 }
             });
         }
+
         return $query->where('users_id', auth()->user()->id)
                 ->where('is_deleted', StateEnums::NO->getValue())
                 ->where('apps_id', app(Apps::class)->id);
