@@ -6,7 +6,6 @@ namespace Kanvas\Users\Repositories;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
@@ -25,12 +24,15 @@ class UsersRepository
      * findUsersByIds
      * @psalm-suppress MixedReturnStatement
      */
-    public static function findUsersByIds(array $usersIds): Collection
+    public static function findUsersByIds(array $usersIds, ?CompanyInterface $company = null): Collection
     {
-        return Users::whereHas('apps', function (Builder $query) {
-            $query->where('apps_id', app(Apps::class)->id);
-        })->whereIn('users.id', $usersIds)
-        ->get();
+        return Users::join('users_associated_apps', 'users_associated_apps.users_id', 'users.id')
+            ->where('users_associated_apps.apps_id', app(Apps::class)->id)
+            ->when($company, function ($query, $company) {
+                $query->where('users_associated_apps.companies_id', $company->getKey());
+            })
+            ->whereIn('users.id', $usersIds)
+            ->get();
     }
 
     /**
