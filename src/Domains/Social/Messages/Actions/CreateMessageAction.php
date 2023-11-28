@@ -29,12 +29,12 @@ class CreateMessageAction
     {
         /** @var Message $message */
         $message = Message::create([
-            'apps_id' => $this->messageInput->apps_id,
+            'apps_id' => $this->messageInput->app->getId(),
             'parent_id' => $this->messageInput->parent_id,
             'parent_unique_id' => $this->messageInput->parent_unique_id,
-            'companies_id' => $this->messageInput->companies_id,
-            'users_id' => $this->messageInput->users_id,
-            'message_types_id' => $this->messageInput->message_types_id,
+            'companies_id' => $this->messageInput->company->getId(),
+            'users_id' => $this->messageInput->user->getId(),
+            'message_types_id' => $this->messageInput->type->getId(),
             'message' => $this->messageInput->message,
             'reactions_count' => $this->messageInput->reactions_count,
             'comments_count' => $this->messageInput->comments_count,

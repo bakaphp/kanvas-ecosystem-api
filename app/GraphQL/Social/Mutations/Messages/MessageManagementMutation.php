@@ -42,12 +42,12 @@ class MessageManagementMutation
         /** @var array */
         $messageData = $request['input'];
 
-        MessagesTypesRepository::getById((int)$messageData['message_types_id'], $app);
+        $messageType = MessagesTypesRepository::getById((int)$messageData['message_types_id'], $app);
 
         /** @var SystemModules $systemModule */
         $systemModule = SystemModules::getById((int)$messageData['system_modules_id'], $app);
 
-        $data = MessageInput::fromArray($messageData, $user, $company, $app);
+        $data = MessageInput::fromArray($messageData, $user, $messageType, $company, $app);
         $action = new CreateMessageAction($data, $systemModule, $messageData['entity_id']);
         $message = $action->execute();
 
