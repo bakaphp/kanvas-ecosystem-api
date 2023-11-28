@@ -73,7 +73,7 @@ class MessageManagementMutation
 
     public function update(mixed $root, array $request): Message
     {
-        $message = MessageRepository::getById((int)$request['id']);
+        $message = MessageRepository::getById((int)$request['id'], app(App::class));
         $message->update($request['input']);
 
         return $message;
@@ -81,7 +81,7 @@ class MessageManagementMutation
 
     public function attachTopicToMessage(mixed $root, array $request): Message
     {
-        $message = MessageRepository::getById((int)$request['id']);
+        $message = MessageRepository::getById((int)$request['id'], app(App::class));
         $message->topics()->attach($request['topicId']);
 
         return $message;
@@ -89,7 +89,7 @@ class MessageManagementMutation
 
     public function detachTopicToMessage(mixed $root, array $request): Message
     {
-        $message = MessageRepository::getById((int)$request['id']);
+        $message = MessageRepository::getById((int)$request['id'], app(App::class));
         $message->topics()->detach($request['topicId']);
 
         return $message;
