@@ -11,12 +11,11 @@ use Kanvas\Social\Messages\Repositories\MessageRepository;
 use Kanvas\Social\MessagesComments\Actions\CreateMessageComment;
 use Kanvas\Social\MessagesComments\DataTransferObject\MessageComment as CommentsDto;
 use Kanvas\Social\MessagesComments\Models\MessageComment;
-
 class MessageCommentManagementMutation
 {
     public function addComment(mixed $root, array $request): Message
     {
-        $message = MessageRepository::getById((int)$request['input']['message_id']);
+        $message = MessageRepository::getById((int)$request['input']['message_id'], app(Apps::class));
 
         $parentId = key_exists('parent_id', $request['input']) ? MessageComment::getById($request['input']['parent_id'])->id : 0;
 
@@ -36,7 +35,7 @@ class MessageCommentManagementMutation
 
     public function updateComment(mixed $root, array $request): Message
     {
-        $comment = MessageComment::getById($request['comment_id']);
+        $comment = MessageComment::getById($request['comment_id'], app(Apps::class));
         if ($comment->users_id != auth()->user()->id) {
             throw new Exception('You are not allowed to update this comment');
         }
