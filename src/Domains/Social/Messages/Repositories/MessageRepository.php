@@ -14,7 +14,7 @@ class MessageRepository
      */
     public static function getById(int $id, Apps $apps): Message
     {
-        return Message::where('apps_id', $apps->id)
+        return Message::fromApp($apps)
                      ->findOrFail($id);
     }
 }
