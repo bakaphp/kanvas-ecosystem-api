@@ -20,6 +20,7 @@ use Kanvas\Social\Models\BaseModel;
 use Kanvas\Social\Topics\Models\Topic;
 use Kanvas\Users\Models\Users;
 use Laravel\Scout\Searchable;
+use Kanvas\Companies\Models\Companies;
 
 /**
  *  Class Message
