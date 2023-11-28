@@ -39,6 +39,7 @@ class MessageInput extends Data
         CompanyInterface $company,
         AppInterface $app
     ): self {
+        $parent = null;
         if (key_exists('parent_id', $data)) {
             $parent = Message::getById((int)$data['parent_id'], $app);
         }
