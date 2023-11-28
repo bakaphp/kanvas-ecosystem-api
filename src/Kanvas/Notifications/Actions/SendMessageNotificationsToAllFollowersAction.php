@@ -66,7 +66,7 @@ class SendMessageNotificationsToAllFollowersAction
                     'updated_at' => date('Y-m-d H:i:s'),
                     'is_deleted' => 0,
                 ];
-    
+
                 $dto = NotificationsDto::fromArray($notificationArray);
                 $createNotification = new CreateNotificationAction($dto);
                 $createNotification->execute();
