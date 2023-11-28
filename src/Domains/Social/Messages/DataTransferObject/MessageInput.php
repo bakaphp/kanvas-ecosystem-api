@@ -38,24 +38,23 @@ class MessageInput extends Data
         UserInterface $user,
         CompanyInterface $company,
         AppInterface $app
-    ): self
-    {
-        if (key_exists('parent_id', $data['input'])) {
-            $parent = Message::getById((int)$data['input']['parent_id'], $app);
+    ): self {
+        if (key_exists('parent_id', $data)) {
+            $parent = Message::getById((int)$data['parent_id'], $app);
         }
 
         return new self(
             $app->getId(),
             $company->getId(),
             $user->getId(),
-            $data['input']['message_types_id'],
-            $data['input']['message'],
+            $data['message_types_id'],
+            $data['message'],
             $parent ? $parent->getId() : 0,
-            $data['input']['reactions_count'] ?? 0,
-            $data['input']['comments_count'] ?? 0,
-            $data['input']['total_liked'] ?? 0,
-            $data['input']['total_saved'] ?? 0,
-            $data['input']['total_shared'] ?? 0,
+            $data['reactions_count'] ?? 0,
+            $data['comments_count'] ?? 0,
+            $data['total_liked'] ?? 0,
+            $data['total_saved'] ?? 0,
+            $data['total_shared'] ?? 0,
             $parent ? $parent->uuid : null
         );
     }
