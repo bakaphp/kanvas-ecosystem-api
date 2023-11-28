@@ -18,8 +18,11 @@ class ProductBuilder
         ResolveInfo $resolveInfo
     ): Builder {
         $company = auth()->user()->getCurrentCompany();
+        $user = auth()->user();
 
-        Products::setSearchIndex($company->getId());
+        if (! $user->isAppOwner()) {
+            Products::setSearchIndex($company->getId());
+        }
 
         /**
          * @var Builder

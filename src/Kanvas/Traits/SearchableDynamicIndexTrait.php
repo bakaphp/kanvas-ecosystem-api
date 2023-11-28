@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Traits;
 
+use Baka\Search\IndexInMeiliSearchJob;
 use Kanvas\Apps\Models\Apps;
 use Laravel\Scout\Searchable;
 
@@ -49,5 +50,25 @@ trait SearchableDynamicIndexTrait
     public function searchableDeleteRecord(): bool
     {
         return isset($this->id) && isset($this->is_deleted) && ! isset($this->companies_id);
+    }
+
+    public function appSearchableIndex(): void
+    {
+        $appId = $this->apps_id ?? app(Apps::class)->getId();
+        $indexName = self::$overWriteSearchIndex !== null
+            ? self::$overWriteSearchIndex
+            : self::searchableIndex();
+
+        $indexName = config('scout.prefix') . 'app_' . $appId . '_' . $indexName;
+
+        // Manually index the model in the second index
+        IndexInMeiliSearchJob::dispatch($indexName, $this);
+    }
+
+    protected static function booted()
+    {
+        static::saved(function ($model) {
+            $model->appSearchableIndex();
+        });
     }
 }

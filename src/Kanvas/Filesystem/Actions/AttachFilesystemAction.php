@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Actions;
 
+use Baka\Enums\StateEnums;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
@@ -47,6 +48,7 @@ class AttachFilesystemAction
 
         $fileEntity->filesystem_id = $this->filesystem->getKey();
         $fileEntity->field_name = $fieldName;
+        $fileEntity->is_deleted = StateEnums::NO->getValue();
         $fileEntity->saveOrFail();
 
         return $fileEntity;

@@ -3,10 +3,8 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Actions\RemoveCompanyAction;
 use Kanvas\Users\Repositories\UsersRepository;
 
@@ -38,6 +36,7 @@ class KanvasUserRemoveFromCompany extends Command
         $branch = CompaniesBranches::findOrFail($branchId);
         $company = $branch->company()->first();
 
+        //@todo reset default company settings
         $assignCompanyAction = new RemoveCompanyAction(
             UsersRepository::getByEmail($email),
             $branch,

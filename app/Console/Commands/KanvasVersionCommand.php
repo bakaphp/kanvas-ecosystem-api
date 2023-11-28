@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Guild\Leads\Models\Lead;
 
 class KanvasVersionCommand extends Command
 {

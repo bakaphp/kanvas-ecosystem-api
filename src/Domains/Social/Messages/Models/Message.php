@@ -13,7 +13,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Social\Messages\Factories\MessageFactory;
 use Kanvas\Social\MessagesComments\Models\MessageComment;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -56,8 +55,8 @@ class Message extends BaseModel
     ];
 
     /**
- * Create a new factory instance for the model.
- */
+     * Create a new factory instance for the model.
+     */
     protected static function newFactory(): Factory
     {
         return MessageFactory::new();

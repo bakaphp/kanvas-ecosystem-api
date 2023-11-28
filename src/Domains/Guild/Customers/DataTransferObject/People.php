@@ -36,6 +36,7 @@ class People extends Data
         public readonly ?string $google_contact_id = null,
         public readonly ?string $apple_contact_id = null,
         public readonly ?string $linkedin_contact_id = null,
+        public readonly ?string $middlename = null,
         public readonly array $custom_fields = []
     ) {
     }

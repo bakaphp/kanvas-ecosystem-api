@@ -12,6 +12,7 @@ enum AppSettingsEnums implements EnumsInterface
     case DEFAULT_COUNTRY;
     case DEFAULT_LANGUAGE;
     case SEND_WELCOME_EMAIL;
+    case SEND_CREATE_USER_EMAIL;
     case ONBOARDING_GUILD_SETUP;
     case ONBOARDING_INVENTORY_SETUP;
 
@@ -25,6 +26,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::DEFAULT_COUNTRY => 'default_user_country',
             self::DEFAULT_LANGUAGE => 'language',
             self::SEND_WELCOME_EMAIL => 'send_welcome_email',
+            self::SEND_CREATE_USER_EMAIL => 'send_create_user_email',
             self::ONBOARDING_GUILD_SETUP => 'onboarding_guild_setup',
             self::ONBOARDING_INVENTORY_SETUP => 'onboarding_inventory_setup',
         };

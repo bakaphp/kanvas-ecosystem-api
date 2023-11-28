@@ -8,7 +8,8 @@ type User {
     dob: String
     default_company: Int! @method(name: "defaultCompany")
     default_company_branch: Int!
-    email: Email!
+    email: Email! @method(name: "getAppEmail")
+    is_active: Boolean! @method(name: "getAppIsActive")
     contact: ContactInfo
         @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@contact")
     address: AddressType
@@ -100,7 +101,7 @@ input RegisterInput {
     lastname: String
     displayname: String
     email: Email! @rules(apply: ["required"])
-    password: String! @rules(apply: ["required"])
+    password: String! @rules(apply: ["required", "min:8"])
     password_confirmation: String! @rules(apply: ["required"])
     company_name: String
     roles_id: ID
@@ -128,8 +129,9 @@ input UpdateUserInput {
     state_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Models\\States,id"])
     country_id: Int
         @rules(apply: ["exists:Kanvas\\Locations\\Models\\Countries,id"])
-    custom_fields: [CustomFieldEntityInput!]!
+    custom_fields: [CustomFieldEntityInput!]
     files: [FilesystemInputUrl]
+    role_id: ID
 }
 
 extend type Mutation {

@@ -1,6 +1,6 @@
 <br />
 <p align="center">
-    <img  src="https://kanvas.dev/img/logo.png" alt="Kanvas Logo"></a>
+    <img  src="https://kanvas.dev/images/kanvasL.svg" alt="Kanvas Logo" width="200" height="24"></a>
     <br />
     <br />
 </p>
@@ -30,8 +30,8 @@ Todo:
 - [x] Inventory (in progress)
 - [x] CRM (in progress)
 - [x] Social (in progress)
-- [ ] Workflow (in progress)
-- [ ] GraphQL Documentation (in progress)
+- [x] Workflow (in progress)
+- [x] GraphQL Documentation (in progress)
 
 ## Prerequisites
 

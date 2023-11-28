@@ -19,12 +19,4 @@ class NotificationChannel extends BaseModel
     use Cachable;
 
     public $table = 'notification_channels';
-
-    /**
-     * getByName.
-     */
-    public static function getByName(string $name): self
-    {
-        return self::where('name', $name)->firstOrFail();
-    }
 }

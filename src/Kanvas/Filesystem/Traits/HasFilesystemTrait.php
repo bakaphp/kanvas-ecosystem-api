@@ -23,8 +23,6 @@ trait HasFilesystemTrait
     /**
      * attach a file system or multiple to this entity.
      *
-     * @param Filesystem|array $files
-     *
      * @throws Exception
      */
     public function addFile(Filesystem $files, string $fieldName): bool

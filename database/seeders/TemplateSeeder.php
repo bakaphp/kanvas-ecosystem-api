@@ -121,6 +121,7 @@ class TemplateSeeder extends Seeder
         </html>';
 
         Templates::create([
+            'id' => 1,
             'apps_id' => 0,
             'users_id' => 1,
             'companies_id' => 0,
@@ -131,6 +132,7 @@ class TemplateSeeder extends Seeder
         ]);
         
         Templates::create([
+            'id' => 2,
             'apps_id' => 0,
             'users_id' => 1,
             'companies_id' => 0,
@@ -141,6 +143,7 @@ class TemplateSeeder extends Seeder
         ]);
 
         Templates::create([
+            'id' => 3,
             'apps_id' => 0,
             'users_id' => 1,
             'companies_id' => 0,
@@ -176,6 +179,7 @@ class TemplateSeeder extends Seeder
         ]);
 
         Templates::create([
+            'id' => 4,
             'apps_id' => 0,
             'users_id' => 1,
             'companies_id' => 0,
@@ -196,6 +200,7 @@ class TemplateSeeder extends Seeder
         ]);
 
         Templates::create([
+            'id' => 5,
             'apps_id' => 0,
             'users_id' => 1,
             'companies_id' => 0,
@@ -229,6 +234,7 @@ class TemplateSeeder extends Seeder
         ]);
 
         Templates::create([
+            'id' => 6,
             'apps_id' => 0,
             'users_id' => 1,
             'companies_id' => 0,
@@ -245,6 +251,24 @@ class TemplateSeeder extends Seeder
                 </p>
             </td>
             </tr>',
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+
+        $pushTemplate = '{
+            "title": "Hello {{$toUser->displayname}}",
+            "subtitle": "New entity has been created",
+            "message": "{{$fromUser->displayname}} has created a new entity: {{$entity[\"title\"]}}"
+         }';
+
+        Templates::create([
+            'id' => 7,
+            'apps_id' => 0,
+            'users_id' => 1,
+            'companies_id' => 0,
+            'name' => 'new-push-default',
+            'parent_template_id' => 1,
+            'template' => $pushTemplate,
             'created_at' => date('Y-m-d H:i:s'),
         ]);
     }

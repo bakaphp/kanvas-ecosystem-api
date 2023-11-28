@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Follows\Actions;
 
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Follows\Models\UsersFollows;
@@ -14,7 +15,8 @@ class FollowAction
 {
     public function __construct(
         public Users $user,
-        public EloquentModel $entity
+        public EloquentModel $entity,
+        public ?CompanyInterface $company = null
     ) {
     }
 
@@ -23,8 +25,8 @@ class FollowAction
      */
     public function execute(): UsersFollows
     {
-        $company = null;
-        if ($this->entity->company()) {
+        $company = $this->company;
+        if (! $company instanceof CompanyInterface && ! empty($this->entity->companies_id) || ! empty($this->entity->company_id)) {
             $company = $this->entity->company()->firstOrFail();
         }
 
@@ -36,8 +38,9 @@ class FollowAction
             'entity_namespace' => get_class($this->entity),
         ];
 
-        if (isset($this->entity->companies_id)) {
-            $params['companies_id'] = $this->entity->companies_id;
+        if ($company) {
+            $params['companies_id'] = $company->getId();
+            $params['companies_branches_id'] = $company->defaultBranch()->firstOrFail()->getId();
         }
 
         if (isset($this->entity->companies_branches_id)) {

@@ -10,19 +10,19 @@ use Spatie\LaravelData\Data;
 class CreditCard extends Data
 {
     public function __construct(
-        public string $name,
-        public string $number,
-        public int $exp_month,
-        public int $exp_year,
-        public int $cvv,
-        public ?CreditCardBilling $billing = null
+        public readonly string $name,
+        public readonly string $number,
+        public readonly int $exp_month,
+        public readonly int $exp_year,
+        public readonly int $cvv,
+        public readonly ?CreditCardBilling $billing = null
     ) {
     }
 
     public static function viaRequest(array $orderInput): self
     {
-        $paymentData = Arr::get($orderInput, 'input.payment', []);
-        $billingData = Arr::get($orderInput, 'input.billing', []);
+        $paymentData = Arr::get($orderInput, 'payment', []);
+        $billingData = Arr::get($orderInput, 'billing', []);
 
         $billing = $billingData ? new CreditCardBilling(
             $billingData['address'],

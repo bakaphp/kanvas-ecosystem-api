@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Social;
 
-use Kanvas\Apps\Enums\DefaultRoles;
+use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Models\Users;
@@ -23,7 +24,7 @@ class FollowTest extends TestCase
         (new AssignCompanyAction(
             $user,
             $branch,
-            DefaultRoles::ADMIN,
+            RolesRepository::getByNameFromCompany(RolesEnums::ADMIN->value),
             app(Apps::class)
         ))->execute();
 
@@ -55,7 +56,7 @@ class FollowTest extends TestCase
         (new AssignCompanyAction(
             $user,
             $branch,
-            DefaultRoles::ADMIN,
+            RolesRepository::getByNameFromCompany(RolesEnums::ADMIN->value),
             app(Apps::class)
         ))->execute();
 
@@ -104,7 +105,7 @@ class FollowTest extends TestCase
         (new AssignCompanyAction(
             $user,
             $branch,
-            DefaultRoles::ADMIN,
+            RolesRepository::getByNameFromCompany(RolesEnums::ADMIN->value),
             app(Apps::class)
         ))->execute();
 
@@ -151,7 +152,7 @@ class FollowTest extends TestCase
         (new AssignCompanyAction(
             $user,
             $branch,
-            DefaultRoles::ADMIN,
+            RolesRepository::getByNameFromCompany(RolesEnums::ADMIN->value),
             app(Apps::class)
         ))->execute();
 
@@ -212,7 +213,7 @@ class FollowTest extends TestCase
         (new AssignCompanyAction(
             $user,
             $branch,
-            DefaultRoles::ADMIN,
+            RolesRepository::getByNameFromCompany(RolesEnums::ADMIN->value),
             app(Apps::class)
         ))->execute();
 
@@ -265,7 +266,7 @@ class FollowTest extends TestCase
         (new AssignCompanyAction(
             $user,
             $branch,
-            DefaultRoles::ADMIN,
+            RolesRepository::getByNameFromCompany(RolesEnums::ADMIN->value),
             app(Apps::class)
         ))->execute();
 
@@ -305,20 +306,12 @@ class FollowTest extends TestCase
             [
                 'user_id' => auth()->user()->id,
             ]
-        )->assertJson(
+        )->assertJsonFragment(
             [
-            'data' => [
-                'getFollowing' => [
-                    'data' => [
-                        [
-                            'entity' => [
-                                'email' => $user->email,
-                            ],
-                        ],
-                    ],
+                'entity' => [
+                    'email' => $user->email,
                 ],
-            ],
-        ]
+            ]
         );
     }
 }

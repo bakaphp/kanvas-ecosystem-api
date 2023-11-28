@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Social\MessagesTypes\Models;
 
 use Baka\Traits\UuidTrait;
-use Kanvas\Social\Models\BaseModel;
-use Kanvas\Social\MessagesTypes\Factories\MessageTypeFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Kanvas\Social\MessagesTypes\Factories\MessageTypeFactory;
+use Kanvas\Social\Models\BaseModel;
 
 /**
  *  class MessageType
