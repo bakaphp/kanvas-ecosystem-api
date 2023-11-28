@@ -55,7 +55,7 @@ class NotificationsManagementMutation
     {
         $app = app(Apps::class);
         $user = auth()->user();
-        $message = $request['message'];
+        $message = $request['message']; // TODO Add DTO for incoming message payload
 
         // TODO Maybe get rid of the notification_type_id on notification_types_message_logic table, not doin anything there?
         $messageType = MessagesTypesRepository::getByVerb($message['metadata']['verb'], $app);

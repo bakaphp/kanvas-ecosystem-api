@@ -106,16 +106,6 @@ class NotificationTest extends TestCase
      */
     public function testMessageNotificationToAllFollowers()
     {
-        // $user = Users::first();
-        // $company = Companies::first();
-        // $createFollow = new CreateFollowAction(
-        //     $user,
-        //     $user,
-        //     $company,
-        // );
-
-        // $createFollow->execute();
-
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation sendNotificationByMessage(
                     $message: Mixed!,
