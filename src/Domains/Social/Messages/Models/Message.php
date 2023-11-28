@@ -39,7 +39,7 @@ use Kanvas\Companies\Models\Companies;
  *  @property int $total_saved
  *  @property int $total_shared
  */
-// Company, User and App Relationship is defined in KanvasModelTrait, 
+// Company, User and App Relationship is defined in KanvasModelTrait,
 class Message extends BaseModel
 {
     use UuidTrait;
