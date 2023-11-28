@@ -9,6 +9,7 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
@@ -16,8 +17,10 @@ use Kanvas\Social\Messages\Factories\MessageFactory;
 use Kanvas\Social\MessagesComments\Models\MessageComment;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
+use Kanvas\Social\Topics\Models\Topic;
 use Kanvas\Users\Models\Users;
 use Laravel\Scout\Searchable;
+use Kanvas\Companies\Models\Companies;
 
 /**
  *  Class Message
@@ -74,6 +77,36 @@ class Message extends BaseModel
     public function parent(): BelongsTo
     {
         return $this->belongsTo(Message::class, 'parent_id', 'id');
+    }
+
+    /**
+     * app
+     */
+    public function app(): BelongsTo
+    {
+        return $this->setConnection('ecosystem')->belongsTo(Apps::class, 'apps_id');
+    }
+
+    /**
+     * company
+     */
+    public function company(): BelongsTo
+    {
+        return $this->setConnection('ecosystem')->belongsTo(Companies::class, 'companies_id');
+    }
+
+    public function topics(): BelongsToMany
+    {
+        return $this->belongsToMany(Topic::class, 'entity_topics', 'messages_id', 'entity_id')
+                ->where('entity_namespace', self::class);
+    }
+
+    /**
+     * user
+     */
+    public function user(): BelongsTo
+    {
+        return $this->setConnection('ecosystem')->belongsTo(Users::class, 'users_id');
     }
 
     /**
