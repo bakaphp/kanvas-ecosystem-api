@@ -20,7 +20,6 @@ use Kanvas\Social\Models\BaseModel;
 use Kanvas\Social\Topics\Models\Topic;
 use Kanvas\Users\Models\Users;
 use Laravel\Scout\Searchable;
-use Kanvas\Companies\Models\Companies;
 
 /**
  *  Class Message
@@ -92,6 +91,11 @@ class Message extends BaseModel
     public function messageType(): BelongsTo
     {
         return $this->belongsTo(MessageType::class, 'message_types_id');
+    }
+
+    public function canEdit(Users $user)
+    {
+        return $this->users_id == $user->getId() || $user->isAdmin();
     }
 
     /**

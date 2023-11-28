@@ -30,8 +30,6 @@ class MessageManagementMutation
 
     /**
      * create
-     *
-     * @param array $request
      */
     public function create(mixed $root, array $request): Message
     {
@@ -74,6 +72,9 @@ class MessageManagementMutation
     public function update(mixed $root, array $request): Message
     {
         $message = Message::getById((int)$request['id'], app(App::class));
+        if(! $message->canEdit(auth()->user())) {
+            throw new \Exception('You are not allowed to edit this message');
+        }
         $message->update($request['input']);
 
         return $message;
