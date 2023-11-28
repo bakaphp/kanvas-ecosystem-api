@@ -16,7 +16,7 @@ class MessageCommentManagementMutation
 {
     public function addComment(mixed $root, array $request): Message
     {
-        $message = MessageRepository::getById((int)$request['input']['message_id'], app(Apps::class));
+        $message = Message::getById((int)$request['input']['message_id'], app(Apps::class));
 
         $parentId = key_exists('parent_id', $request['input']) ? MessageComment::getById($request['input']['parent_id'])->id : 0;
 
