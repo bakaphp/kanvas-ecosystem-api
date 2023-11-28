@@ -15,6 +15,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Repositories\MessageRepository;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Users\Models\Users;
 
 class MessageManagementMutation
 {
@@ -30,40 +31,39 @@ class MessageManagementMutation
     /**
      * create
      *
-     * @param  mixed $request
+     * @param array $request
      */
     public function create(mixed $root, array $request): Message
     {
         $app = app(Apps::class);
-        $parent = null;
-        if (key_exists('parent_id', $request['input'])) {
-            $parent = MessageRepository::getById((int)$request['input']['parent_id']);
-        }
+        /** @var Users $user */
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        /** @var array */
+        $messageData = $request['input'];
 
-        $messageType = MessagesTypesRepository::getById((int)$request['input']['message_types_id'], $app);
-        $systemModule = SystemModules::getById((int)$request['input']['system_modules_id']);
+        $messageType = MessagesTypesRepository::getById((int)$messageData['message_types_id'], $app);
 
-        $request['input']['parent_id'] = $parent ? $parent->id : 0;
-        $request['input']['parent_unique_id'] = $parent?->uuid;
-        $request['input']['apps_id'] = $app->getId();
-        $request['input']['companies_id'] = auth()->user()->getCurrentCompany()->getId();
-        $request['input']['users_id'] = auth()->user()->id;
-        $data = MessageInput::from($request['input']);
-        $action = new CreateMessageAction($data, $systemModule, $request['input']['entity_id']);
+        /** @var SystemModules $systemModule */
+        $systemModule = SystemModules::getById((int)$messageData['system_modules_id'], $app);
+
+        $data = MessageInput::fromArray($messageData, $user, $messageType, $company, $app);
+        $action = new CreateMessageAction($data, $systemModule, $messageData['entity_id']);
         $message = $action->execute();
 
-        if (! key_exists('distribution', $request['input'])) {
+        if (! key_exists('distribution', $messageData)) {
             return $message;
         }
-        $distributionType = DistributionTypeEnum::from($request['input']['distribution']['distributionType']);
+
+        $distributionType = DistributionTypeEnum::from($messageData['distribution']['distributionType']);
 
         if ($distributionType->value == DistributionTypeEnum::ALL->value) {
-            $channels = key_exists('channels', $request['input']['distribution']) ? $request['input']['distribution']['channels'] : [];
-            (new DistributeChannelAction($channels, $message, auth()->user()))->execute();
+            $channels = key_exists('channels', $messageData['distribution']) ? $messageData['distribution']['channels'] : [];
+            (new DistributeChannelAction($channels, $message, $user))->execute();
             (new DistributeToUsers($message))->execute();
         } elseif ($distributionType->value == DistributionTypeEnum::Channels->value) {
-            $channels = key_exists('channels', $request['input']['distribution']) ? $request['input']['distribution']['channels'] : [];
-            (new DistributeChannelAction($channels, $message, auth()->user()))->execute();
+            $channels = key_exists('channels', $messageData['distribution']) ? $messageData['distribution']['channels'] : [];
+            (new DistributeChannelAction($channels, $message, $user))->execute();
         } elseif ($distributionType->value == DistributionTypeEnum::Followers->value) {
             (new DistributeToUsers($message))->execute();
         }

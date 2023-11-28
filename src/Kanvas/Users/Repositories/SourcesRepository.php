@@ -9,13 +9,6 @@ use Kanvas\Users\Models\Sources;
 
 class SourcesRepository
 {
-    /**
-     * getByTitle.
-     *
-     * @param  int $id
-     *
-     * @return Sources
-     */
     public static function getByTitle(string $title): Sources
     {
         /**

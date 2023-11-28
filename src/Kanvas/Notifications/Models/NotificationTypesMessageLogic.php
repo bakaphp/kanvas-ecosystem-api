@@ -25,5 +25,13 @@ class NotificationTypesMessageLogic extends BaseModel
 
     public $table = 'notification_types_message_logic';
 
-    public $fillable = [];
+    public $fillable = [
+        'apps_id',
+        'messages_type_id',
+        'notifications_type_id',
+        'logic',
+        'created_at',
+        'updated_at',
+        'is_deleted',
+    ];
 }

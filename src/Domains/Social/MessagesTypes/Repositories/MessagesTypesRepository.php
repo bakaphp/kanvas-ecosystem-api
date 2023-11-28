@@ -31,6 +31,6 @@ class MessagesTypesRepository
     public static function getByVerb(string $verb, AppInterface $app): MessageType
     {
         return MessageType::fromApp($app)->where('verb', $verb)
-            ->first();
+            ->firstOrFail();
     }
 }
