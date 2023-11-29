@@ -93,7 +93,7 @@ class Message extends BaseModel
         return $this->belongsTo(MessageType::class, 'message_types_id');
     }
 
-    public function canEdit(Users $user)
+    public function canEdit(Users $user): bool
     {
         return $this->users_id == $user->getId() || $user->isAdmin();
     }
