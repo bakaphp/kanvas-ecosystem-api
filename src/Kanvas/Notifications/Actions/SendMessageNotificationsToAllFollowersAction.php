@@ -50,7 +50,7 @@ class SendMessageNotificationsToAllFollowersAction
                 );
                 $message = $buildPushTemplateNotification->execute();
 
-                PushNotificationsHandlerJob::dispatch($follower->getId(), $message);
+                PushNotificationsHandlerJob::dispatch($follower->getId(), $message, $this->app);
 
                 $notificationArray = [
                     'users_id' => $toUser->getId(),

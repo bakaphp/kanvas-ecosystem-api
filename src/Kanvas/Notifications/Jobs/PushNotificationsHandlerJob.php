@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Jobs;
 
-use Berkayk\OneSignal\OneSignalFacade;
+use Baka\Contracts\AppInterface;
+use Berkayk\OneSignal\OneSignalClient;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Kanvas\Apps\Repositories\SettingsRepository;
 use Kanvas\Users\Repositories\UsersLinkedSourcesRepository;
+use Kanvas\Enums\AppSettingsEnums;
 
 class PushNotificationsHandlerJob implements ShouldQueue
 {
@@ -25,6 +28,7 @@ class PushNotificationsHandlerJob implements ShouldQueue
     public function __construct(
         private int $usersFollowId,
         private array $message,
+        private AppInterface $app
     ) {
         $this->onQueue('notifications');
     }
@@ -38,8 +42,13 @@ class PushNotificationsHandlerJob implements ShouldQueue
     {
         $userOneSignalId = UsersLinkedSourcesRepository::getByUsersId($this->usersFollowId)->source_users_id;
 
+        $oneSignalAppId = SettingsRepository::getByName(AppSettingsEnums::ONE_SIGNAL_APP_ID->getValue(), $this->app);
+        $oneSignalRestApiKey = SettingsRepository::getByName(AppSettingsEnums::ONE_SIGNAL_REST_API_KEY->getValue(), $this->app);
+
+        $oneSignalClient = new OneSignalClient($oneSignalAppId->value, $oneSignalRestApiKey->value, '');
+
         if (getenv('APP_ENV') !== 'testing') {
-            OneSignalFacade::sendNotificationToUser(
+            $oneSignalClient->sendNotificationToUser(
                 $this->message['message'],
                 $userOneSignalId,
                 $url = null,

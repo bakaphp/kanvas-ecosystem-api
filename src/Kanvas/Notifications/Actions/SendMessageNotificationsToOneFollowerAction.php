@@ -48,7 +48,7 @@ class SendMessageNotificationsToOneFollowerAction
             );
             $message = $buildPushTemplateNotification->execute();
 
-            PushNotificationsHandlerJob::dispatch($follower->entity_id, $message);
+            PushNotificationsHandlerJob::dispatch($follower->entity_id, $message, $this->app);
 
             $notificationArray = [
                 'users_id' => $this->toUser->getId(),
