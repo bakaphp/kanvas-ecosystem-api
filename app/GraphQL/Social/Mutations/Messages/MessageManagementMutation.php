@@ -70,7 +70,7 @@ class MessageManagementMutation
 
     public function update(mixed $root, array $request): Message
     {
-        $message = Message::getById((int)$request['id'], app(App::class));
+        $message = Message::getById((int)$request['id'], app(Apps::class));
         if(! $message->canEdit(auth()->user())) {
             throw new \Exception('You are not allowed to edit this message');
         }
@@ -81,7 +81,7 @@ class MessageManagementMutation
 
     public function attachTopicToMessage(mixed $root, array $request): Message
     {
-        $message = Message::getById((int)$request['id'], app(App::class));
+        $message = Message::getById((int)$request['id'], app(Apps::class));
         $message->topics()->attach($request['topicId']);
 
         return $message;
@@ -89,7 +89,7 @@ class MessageManagementMutation
 
     public function detachTopicToMessage(mixed $root, array $request): Message
     {
-        $message = Message::getById((int)$request['id'], app(App::class));
+        $message = Message::getById((int)$request['id'], app(Apps::class));
         $message->topics()->detach($request['topicId']);
 
         return $message;
