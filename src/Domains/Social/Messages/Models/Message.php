@@ -20,7 +20,6 @@ use Kanvas\Social\Models\BaseModel;
 use Kanvas\Social\Topics\Models\Topic;
 use Kanvas\Users\Models\Users;
 use Laravel\Scout\Searchable;
-use Kanvas\Companies\Models\Companies;
 
 /**
  *  Class Message
@@ -39,6 +38,7 @@ use Kanvas\Companies\Models\Companies;
  *  @property int $total_saved
  *  @property int $total_shared
  */
+// Company, User and App Relationship is defined in KanvasModelTrait,
 class Message extends BaseModel
 {
     use UuidTrait;
@@ -79,34 +79,10 @@ class Message extends BaseModel
         return $this->belongsTo(Message::class, 'parent_id', 'id');
     }
 
-    /**
-     * app
-     */
-    public function app(): BelongsTo
-    {
-        return $this->setConnection('ecosystem')->belongsTo(Apps::class, 'apps_id');
-    }
-
-    /**
-     * company
-     */
-    public function company(): BelongsTo
-    {
-        return $this->setConnection('ecosystem')->belongsTo(Companies::class, 'companies_id');
-    }
-
     public function topics(): BelongsToMany
     {
         return $this->belongsToMany(Topic::class, 'entity_topics', 'messages_id', 'entity_id')
                 ->where('entity_namespace', self::class);
-    }
-
-    /**
-     * user
-     */
-    public function user(): BelongsTo
-    {
-        return $this->setConnection('ecosystem')->belongsTo(Users::class, 'users_id');
     }
 
     /**
@@ -115,6 +91,11 @@ class Message extends BaseModel
     public function messageType(): BelongsTo
     {
         return $this->belongsTo(MessageType::class, 'message_types_id');
+    }
+
+    public function canEdit(Users $user): bool
+    {
+        return $this->users_id == $user->getId() || $user->isAdmin();
     }
 
     /**
