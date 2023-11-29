@@ -101,7 +101,7 @@ class Notifications extends BaseModel
      */
     public function scopeAllNotifications(Builder $query, array $args): Builder
     {
-        if ($args['whereType']) {
+        if (isset($args['whereType'])) {
             $notificationTypeFilter = $args['whereType'];
             $query->whereHas('types', function ($query) use ($notificationTypeFilter) {
                 if ($notificationTypeFilter['verb']) {
