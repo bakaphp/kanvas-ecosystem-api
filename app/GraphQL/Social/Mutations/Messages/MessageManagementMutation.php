@@ -71,7 +71,7 @@ class MessageManagementMutation
     public function update(mixed $root, array $request): Message
     {
         $message = Message::getById((int)$request['id'], app(Apps::class));
-        if(! $message->canEdit(auth()->user())) {
+        if (! $message->canEdit(auth()->user())) {
             throw new \Exception('You are not allowed to edit this message');
         }
         $message->update($request['input']);
