@@ -15,7 +15,9 @@ use Baka\Contracts\AppInterface;
 
 class PushNotificationsEvent
 {
-    use Dispatchable, InteractsWithSockets, SerializesModels;
+    use Dispatchable;
+    use InteractsWithSockets;
+    use SerializesModels;
 
     /**
      * Create a new event instance.
@@ -26,6 +28,6 @@ class PushNotificationsEvent
         public NotificationTypes $notificationType,
         public AppInterface $app,
         public array $message
-    )
-    {}
+    ) {
+    }
 }
