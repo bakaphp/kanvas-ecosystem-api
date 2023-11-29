@@ -2,7 +2,7 @@
 
 namespace Kanvas\Notifications\Listeners;
 
-use App\Events\PushNotificationsEvent;
+use Kanvas\Notifications\Events\PushNotificationsEvent;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 use Kanvas\Notifications\DataTransferObject\Notifications as NotificationsDto;
