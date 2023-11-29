@@ -12,7 +12,6 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Enums\ActivityTypeEnum;
 use Kanvas\Social\Messages\Enums\DistributionTypeEnum;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Messages\Repositories\MessageRepository;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
@@ -21,7 +20,7 @@ class MessageManagementMutation
 {
     public function interaction(mixed $root, array $request): Message
     {
-        $message = MessageRepository::getById((int)$request['id']);
+        $message = Message::getById((int)$request['id']);
         $action = new CreateMessageAction($message, auth()->user(), ActivityTypeEnum::from($request['type']));
         $action->execute();
 
