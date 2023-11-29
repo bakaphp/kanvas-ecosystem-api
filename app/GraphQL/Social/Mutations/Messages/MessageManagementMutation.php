@@ -16,6 +16,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
+use Kanvas\Auth\Exceptions\AuthenticationException;
 
 class MessageManagementMutation
 {
@@ -73,7 +74,7 @@ class MessageManagementMutation
     {
         $message = Message::getById((int)$request['id'], app(Apps::class));
         if (! $message->canEdit(auth()->user())) {
-            throw new LightHouseCustomException('You are not allowed to edit this message');
+            throw new AuthenticationException('You are not allowed to edit this message');
         }
         $message->update($request['input']);
 
