@@ -11,8 +11,7 @@ use Kanvas\Notifications\Repositories\NotificationTypesRepository;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Users\Models\Users;
-use Kanvas\Notifications\DataTransferObject\Notifications as NotificationsDto;
-use Kanvas\Notifications\Actions\CreateNotificationAction;
+use Kanvas\Notifications\Events\PushNotificationsEvent;
 
 class SendMessageNotificationsToAllFollowersAction
 {
@@ -52,24 +51,13 @@ class SendMessageNotificationsToAllFollowersAction
 
                 PushNotificationsHandlerJob::dispatch($follower->getId(), $message, $this->app);
 
-                $notificationArray = [
-                    'users_id' => $toUser->getId(),
-                    'from_users_id' => $this->fromUser->getId(),
-                    'companies_id' => $this->fromUser->defaultCompany(),
-                    'apps_id' => $this->app->getId(),
-                    'system_modules_id' => $notificationType->system_modules_id,
-                    'notification_type_id' => $notificationType->getId(),
-                    'entity_id' => $toUser->getId(),
-                    'content' => implode(',', $message),
-                    'read' => 0,
-                    'created_at' => date('Y-m-d H:i:s'),
-                    'updated_at' => date('Y-m-d H:i:s'),
-                    'is_deleted' => 0,
-                ];
-
-                $dto = NotificationsDto::fromArray($notificationArray);
-                $createNotification = new CreateNotificationAction($dto);
-                $createNotification->execute();
+                PushNotificationsEvent::dispatch(
+                    $this->fromUser,
+                    $toUser,
+                    $notificationType,
+                    $this->app,
+                    $message
+                );
             }
 
             if (in_array('mail', $this->message['metadata']['channels'])) {
