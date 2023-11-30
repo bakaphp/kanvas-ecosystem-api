@@ -26,4 +26,23 @@ class Notifications extends Data
         public ?string $content_group = null,
     ) {
     }
+
+    /**
+     * Generate new instance of DTO from array.
+     */
+    public static function fromArray(array $request): self
+    {
+        return new self(
+            users_id: $request['users_id'],
+            from_users_id: $request['from_users_id'],
+            companies_id: $request['companies_id'],
+            apps_id: $request['apps_id'],
+            system_modules_id: $request['system_modules_id'],
+            notification_type_id: $request['notification_type_id'],
+            entity_id: $request['entity_id'],
+            content: $request['content'],
+            read: $request['read'],
+            content_group: $request['content_group'] ?? null,
+        );
+    }
 }

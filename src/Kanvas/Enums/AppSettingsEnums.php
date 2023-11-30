@@ -15,6 +15,8 @@ enum AppSettingsEnums implements EnumsInterface
     case SEND_CREATE_USER_EMAIL;
     case ONBOARDING_GUILD_SETUP;
     case ONBOARDING_INVENTORY_SETUP;
+    case ONE_SIGNAL_APP_ID;
+    case ONE_SIGNAL_REST_API_KEY;
 
     /**
      * Get value.
@@ -29,6 +31,8 @@ enum AppSettingsEnums implements EnumsInterface
             self::SEND_CREATE_USER_EMAIL => 'send_create_user_email',
             self::ONBOARDING_GUILD_SETUP => 'onboarding_guild_setup',
             self::ONBOARDING_INVENTORY_SETUP => 'onboarding_inventory_setup',
+            self::ONE_SIGNAL_APP_ID => 'one_signal_app_id',
+            self::ONE_SIGNAL_REST_API_KEY => 'one_signal_rest_api_key',
         };
     }
 }
