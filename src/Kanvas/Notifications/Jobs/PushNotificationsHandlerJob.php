@@ -11,7 +11,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Kanvas\Apps\Repositories\SettingsRepository;
 use Kanvas\Users\Repositories\UsersLinkedSourcesRepository;
 use Kanvas\Enums\AppSettingsEnums;
 
@@ -43,9 +42,9 @@ class PushNotificationsHandlerJob implements ShouldQueue
         $userOneSignalId = UsersLinkedSourcesRepository::getByUsersId($this->usersFollowId)->source_users_id;
 
         if (getenv('APP_ENV') !== 'testing') {
-            $oneSignalAppId = SettingsRepository::getByName(AppSettingsEnums::ONE_SIGNAL_APP_ID->getValue(), $this->app);
-            $oneSignalRestApiKey = SettingsRepository::getByName(AppSettingsEnums::ONE_SIGNAL_REST_API_KEY->getValue(), $this->app);
-            $oneSignalClient = new OneSignalClient($oneSignalAppId->value, $oneSignalRestApiKey->value, '');
+            $oneSignalAppId = $this->app->get(AppSettingsEnums::ONE_SIGNAL_APP_ID->getValue());
+            $oneSignalRestApiKey = $this->app->get(AppSettingsEnums::ONE_SIGNAL_REST_API_KEY->getValue());
+            $oneSignalClient = new OneSignalClient($oneSignalAppId, $oneSignalRestApiKey, '');
 
             $oneSignalClient->sendNotificationToUser(
                 $this->message['message'],
