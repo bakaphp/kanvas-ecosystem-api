@@ -11,6 +11,7 @@ use Kanvas\Notifications\Repositories\NotificationTypesRepository;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Users\Models\Users;
+use Kanvas\Notifications\Events\PushNotificationsEvent;
 
 class SendMessageNotificationsToAllFollowersAction
 {
@@ -48,7 +49,15 @@ class SendMessageNotificationsToAllFollowersAction
                 );
                 $message = $buildPushTemplateNotification->execute();
 
-                PushNotificationsHandlerJob::dispatch($follower->getId(), $message);
+                PushNotificationsHandlerJob::dispatch($follower->getId(), $message, $this->app);
+
+                PushNotificationsEvent::dispatch(
+                    $this->fromUser,
+                    $toUser,
+                    $notificationType,
+                    $this->app,
+                    $message
+                );
             }
 
             if (in_array('mail', $this->message['metadata']['channels'])) {

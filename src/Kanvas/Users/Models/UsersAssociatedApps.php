@@ -60,6 +60,9 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
     protected $fillable = [
         'users_id',
         'apps_id',
+        'firstname',
+        'lastname',
+        'email',
         'companies_id',
         'identify_id',
         'password',

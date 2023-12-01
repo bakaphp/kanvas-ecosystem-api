@@ -26,7 +26,8 @@ class UsersRepository
      */
     public static function findUsersByIds(array $usersIds, ?CompanyInterface $company = null): Collection
     {
-        return Users::join('users_associated_apps', 'users_associated_apps.users_id', 'users.id')
+        return Users::select('users.*')
+            ->join('users_associated_apps', 'users_associated_apps.users_id', 'users.id')
             ->where('users_associated_apps.apps_id', app(Apps::class)->id)
             ->when($company, function ($query, $company) {
                 $query->where('users_associated_apps.companies_id', $company->getKey());
@@ -63,7 +64,8 @@ class UsersRepository
     public static function getUserOfCompanyById(CompanyInterface $company, int $id): Users
     {
         try {
-            return Users::join('users_associated_company', 'users_associated_company.users_id', 'users.id')
+            return Users::select('users.*')
+                ->join('users_associated_company', 'users_associated_company.users_id', 'users.id')
                 ->where('users_associated_company.companies_id', $company->getKey())
                 ->where('users.id', $id)
                 ->firstOrFail();
@@ -81,7 +83,9 @@ class UsersRepository
     public static function getUserOfAppById(int $id, ?AppInterface $app = null): Users
     {
         $app = $app ?? app(Apps::class);
-        return Users::join('users_associated_apps', 'users_associated_apps.users_id', 'users.id')
+
+        return Users::select('users.*')
+            ->join('users_associated_apps', 'users_associated_apps.users_id', 'users.id')
             ->where('users_associated_apps.apps_id', $app->getId())
             ->where('users.id', $id)
             ->firstOrFail();
@@ -93,7 +97,8 @@ class UsersRepository
      */
     public static function getAll(int $companiesId): Collection
     {
-        return Users::join('users_associated_company', 'users_associated_company.users_id', 'users.id')
+        return Users::select('users.*')
+            ->join('users_associated_company', 'users_associated_company.users_id', 'users.id')
             ->where('users_associated_company.companies_id', $companiesId)
             ->whereNot('users.id', auth()->user()->id)
             ->get();

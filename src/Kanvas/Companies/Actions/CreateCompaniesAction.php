@@ -21,8 +21,6 @@ class CreateCompaniesAction
      * Invoke function.
      *
      * @param CompaniesPostData $data
-     *
-     * @return Companies
      */
     public function execute(): Companies
     {
@@ -37,6 +35,7 @@ class CreateCompaniesAction
         $companies->phone = $this->data->phone;
         $companies->currency_id = $this->data->currency_id;
         $companies->country_code = $this->data->country_code;
+        $companies->system_modules_id = 1;
         $companies->saveOrFail();
 
         if ($this->data->files) {

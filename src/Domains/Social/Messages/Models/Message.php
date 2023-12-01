@@ -9,6 +9,7 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
@@ -16,6 +17,7 @@ use Kanvas\Social\Messages\Factories\MessageFactory;
 use Kanvas\Social\MessagesComments\Models\MessageComment;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
+use Kanvas\Social\Topics\Models\Topic;
 use Kanvas\Users\Models\Users;
 use Laravel\Scout\Searchable;
 
@@ -36,6 +38,7 @@ use Laravel\Scout\Searchable;
  *  @property int $total_saved
  *  @property int $total_shared
  */
+// Company, User and App Relationship is defined in KanvasModelTrait,
 class Message extends BaseModel
 {
     use UuidTrait;
@@ -76,12 +79,23 @@ class Message extends BaseModel
         return $this->belongsTo(Message::class, 'parent_id', 'id');
     }
 
+    public function topics(): BelongsToMany
+    {
+        return $this->belongsToMany(Topic::class, 'entity_topics', 'messages_id', 'entity_id')
+                ->where('entity_namespace', self::class);
+    }
+
     /**
      * messageType
      */
     public function messageType(): BelongsTo
     {
         return $this->belongsTo(MessageType::class, 'message_types_id');
+    }
+
+    public function canEdit(Users $user): bool
+    {
+        return $this->users_id == $user->getId() || $user->isAdmin();
     }
 
     /**

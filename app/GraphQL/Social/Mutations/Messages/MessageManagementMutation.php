@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Mutations\Messages;
 
+use Baka\Exceptions\LightHouseCustomException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\Actions\DistributeChannelAction;
@@ -12,16 +13,16 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Enums\ActivityTypeEnum;
 use Kanvas\Social\Messages\Enums\DistributionTypeEnum;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Messages\Repositories\MessageRepository;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
+use Kanvas\Auth\Exceptions\AuthenticationException;
 
 class MessageManagementMutation
 {
     public function interaction(mixed $root, array $request): Message
     {
-        $message = MessageRepository::getById((int)$request['id']);
+        $message = Message::getById((int)$request['id']);
         $action = new CreateMessageAction($message, auth()->user(), ActivityTypeEnum::from($request['type']));
         $action->execute();
 
@@ -30,8 +31,6 @@ class MessageManagementMutation
 
     /**
      * create
-     *
-     * @param array $request
      */
     public function create(mixed $root, array $request): Message
     {
@@ -67,6 +66,33 @@ class MessageManagementMutation
         } elseif ($distributionType->value == DistributionTypeEnum::Followers->value) {
             (new DistributeToUsers($message))->execute();
         }
+
+        return $message;
+    }
+
+    public function update(mixed $root, array $request): Message
+    {
+        $message = Message::getById((int)$request['id'], app(Apps::class));
+        if (! $message->canEdit(auth()->user())) {
+            throw new AuthenticationException('You are not allowed to edit this message');
+        }
+        $message->update($request['input']);
+
+        return $message;
+    }
+
+    public function attachTopicToMessage(mixed $root, array $request): Message
+    {
+        $message = Message::getById((int)$request['id'], app(Apps::class));
+        $message->topics()->attach($request['topicId']);
+
+        return $message;
+    }
+
+    public function detachTopicToMessage(mixed $root, array $request): Message
+    {
+        $message = Message::getById((int)$request['id'], app(Apps::class));
+        $message->topics()->detach($request['topicId']);
 
         return $message;
     }
