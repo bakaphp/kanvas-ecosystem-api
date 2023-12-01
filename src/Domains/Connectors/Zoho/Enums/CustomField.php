@@ -1,0 +1,17 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\Zoho\Enums;
+
+enum CustomField: string
+{
+    case CLIENT_ID = 'ZOHO_CLIENT_ID';
+    case CLIENT_SECRET = 'ZOHO_CLIENT_SECRET';
+    case REFRESH_TOKEN = 'ZOHO_REFRESH_TOKEN';
+    case ZOHO_LEAD_ID = 'ZOHO_LEAD_ID';
+    case DEFAULT_OWNER = 'ZOHO_DEFAULT_OWNER';
+    case FIELDS_MAP = 'ZOHO_FIELDS_MAP';
+    case ZOHO_USER_OWNER_ID = 'ZOHO_USER_OWNER_ID';
+    case ZOHO_STATUS_NAME = 'ZOHO_STATUS_NAME';
+}
