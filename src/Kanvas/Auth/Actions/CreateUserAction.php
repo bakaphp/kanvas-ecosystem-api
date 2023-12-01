@@ -91,7 +91,7 @@ class CreateUserAction
         if ($newUser) {
             $this->onBoarding($user, $company);
         }
-        
+
         return $user;
     }
 
