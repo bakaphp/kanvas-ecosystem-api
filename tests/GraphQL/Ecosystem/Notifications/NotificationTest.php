@@ -84,7 +84,6 @@ class NotificationTest extends TestCase
                     ],
                 ],
                 'message' => [
-                    
                     'title' => 'Example Title',
                     'is_public' => 1,
                     'is_published' => 1,
