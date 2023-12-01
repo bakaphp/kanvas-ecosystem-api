@@ -134,6 +134,7 @@ class CreateUserAction
         $user->language = $user->language ?: AppEnums::DEFAULT_LANGUAGE->getValue();
         $user->user_activation_key = Hash::make(time());
         $user->roles_id = $this->data->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue(); //@todo : remove this , legacy code
+        $user->system_modules_id = 2;
 
         //create a new user assign it to the app and create the default company
         $user->saveOrFail();
