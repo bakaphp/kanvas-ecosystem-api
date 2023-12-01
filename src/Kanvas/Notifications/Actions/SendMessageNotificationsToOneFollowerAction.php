@@ -12,7 +12,7 @@ use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Notifications\Events\PushNotificationsEvent;
-use Kanvas\Social\DataTransferObject\MessagesNotificationsPayloadDto;
+use Kanvas\Social\Messages\DataTransferObject\MessagesNotificationsPayloadDto;
 
 class SendMessageNotificationsToOneFollowerAction
 {

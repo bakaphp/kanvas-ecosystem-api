@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\DataTransferObject;
+namespace Kanvas\Social\Messages\DataTransferObject;
 
 use Spatie\LaravelData\Data;
 

@@ -16,7 +16,7 @@ use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
-use Kanvas\Social\DataTransferObject\MessagesNotificationsPayloadDto;
+use Kanvas\Social\Messages\DataTransferObject\MessagesNotificationsPayloadDto;
 
 class NotificationsManagementMutation
 {
