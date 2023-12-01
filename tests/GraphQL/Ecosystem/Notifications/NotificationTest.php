@@ -66,10 +66,11 @@ class NotificationTest extends TestCase
         $user = auth()->user();
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation sendNotificationByMessage(
+                    $metadata: Mixed!,
                     $message: Mixed!,
-                
                 ){
                     sendNotificationByMessage(
+                        metadata: $metadata,
                         message: $message,
                     )
                 }
@@ -107,10 +108,11 @@ class NotificationTest extends TestCase
     {
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation sendNotificationByMessage(
+                    $metadata: Mixed!,
                     $message: Mixed!,
-                
                 ){
                     sendNotificationByMessage(
+                        metadata: $metadata,
                         message: $message,
                     )
                 }
