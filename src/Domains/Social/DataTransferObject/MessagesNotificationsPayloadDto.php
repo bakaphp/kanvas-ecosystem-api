@@ -33,7 +33,7 @@ class MessagesNotificationsPayloadDto extends Data
             event: $request['metadata']['event'],
             channels: $request['metadata']['channels'],
             type: $request['metadata']['distribution']['type'],
-            follower_id: $request['metadata']['distribution']['followerId'],
+            follower_id: $request['metadata']['distribution']['followerId'] ?? null,
             message: $request['message'],
         );
     }
