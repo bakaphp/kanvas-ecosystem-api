@@ -122,6 +122,7 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\NotificationsManagementMutation@sendNotificationBaseOnTemplate"
         )
     sendNotificationByMessage(
+        metadata: Mixed!
         message: Mixed!
     ): Boolean
         @field(
