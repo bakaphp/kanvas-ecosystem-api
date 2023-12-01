@@ -81,7 +81,7 @@ class NotificationTest extends TestCase
                     'channels' => ['push','email'],
                     'distribution' => [
                         'type' => 'one',
-                        'userId' => $user->getId(),
+                        'followerId' => $user->getId(),
                     ],
                 ],
                 'message' => [
