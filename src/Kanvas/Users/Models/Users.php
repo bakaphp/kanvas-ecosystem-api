@@ -557,7 +557,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         $user = $this->getAppProfile(app(Apps::class));
 
-        return $user->email ?? $this->email;
+        return ! empty($user->email) ? $user->email : $this->email;
     }
 
     public function getAppIsActive(): bool

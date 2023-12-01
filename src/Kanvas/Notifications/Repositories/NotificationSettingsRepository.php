@@ -23,8 +23,6 @@ class NotificationSettingsRepository
 
     /**
      * getNotificationSettingsByType.
-     *
-     * @return UsersNotificationsSettings
      */
     public static function getNotificationSettingsByType(
         UserInterface $user,

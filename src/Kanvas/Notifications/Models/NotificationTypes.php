@@ -8,6 +8,7 @@ use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Templates\Models\Templates;
 
 /**
  * NotificationTypes Model.
@@ -26,7 +27,7 @@ use Kanvas\SystemModules\Models\SystemModules;
  */
 class NotificationTypes extends BaseModel
 {
-    use Cachable;
+    // use Cachable;
 
     public $table = 'notification_types';
 
@@ -51,6 +52,11 @@ class NotificationTypes extends BaseModel
     public function channel(): BelongsTo
     {
         return $this->belongsTo(NotificationChannel::class, 'notification_channel_id');
+    }
+
+    public function template(): BelongsTo
+    {
+        return $this->belongsTo(Templates::class, 'template_id', 'id');
     }
 
     /**

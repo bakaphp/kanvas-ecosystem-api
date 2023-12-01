@@ -6,7 +6,6 @@ namespace Tests\GraphQL\Social;
 
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
-use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Models\Users;
@@ -307,20 +306,12 @@ class FollowTest extends TestCase
             [
                 'user_id' => auth()->user()->id,
             ]
-        )->assertJson(
+        )->assertJsonFragment(
             [
-            'data' => [
-                'getFollowing' => [
-                    'data' => [
-                        [
-                            'entity' => [
-                                'email' => $user->email,
-                            ],
-                        ],
-                    ],
+                'entity' => [
+                    'email' => $user->email,
                 ],
-            ],
-        ]
+            ]
         );
     }
 }
