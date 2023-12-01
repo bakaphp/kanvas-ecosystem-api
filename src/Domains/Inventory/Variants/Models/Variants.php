@@ -172,4 +172,21 @@ class Variants extends BaseModel
         $this->status_id = $status->getId();
         $this->saveOrFail();
     }
+
+    public function toSearchableArray(): array
+    {
+        /**
+         * @psalm-suppress InvalidTemplateParam
+         */
+        $attributes = $this->attributes()->get(['name', 'products_variants_attributes.value'])->map(function ($item) {
+            return [
+                'name' => $item['name'],
+                'value' => $item['pivot']['value'],
+            ];
+        })->toArray();
+        
+        $variant = $this->toArray();
+        $variant['attributes'] = $attributes;
+        return $variant;
+    }
 }
