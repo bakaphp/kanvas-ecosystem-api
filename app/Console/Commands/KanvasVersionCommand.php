@@ -6,8 +6,6 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Kanvas\Enums\AppEnums;
-use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Inventory\Variants\Models\Variants;
 
 class KanvasVersionCommand extends Command
 {
@@ -32,7 +30,6 @@ class KanvasVersionCommand extends Command
      */
     public function handle()
     {
-        print_r(Variants::getById(129)->toSearchableArray()); die();
         $this->newLine();
         $this->info('Kanvas Niche is running version : ' . AppEnums::VERSION->getValue());
         $this->newLine();

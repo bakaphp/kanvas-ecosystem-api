@@ -184,9 +184,10 @@ class Variants extends BaseModel
                 'value' => $item['pivot']['value'],
             ];
         })->toArray();
-        
+
         $variant = $this->toArray();
         $variant['attributes'] = $attributes;
+
         return $variant;
     }
 }
