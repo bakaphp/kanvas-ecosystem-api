@@ -115,7 +115,7 @@ class ProductImporterAction
 
             $this->productWarehouse();
 
-            $this->variants();
+            // $this->variants();
 
             if (! empty($this->importedProduct->productType)) {
                 $this->productType();
