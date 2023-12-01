@@ -49,6 +49,7 @@ class CreateUserAction
     {
         $newUser = false;
         $company = null;
+        $newCompany = null;
 
         $this->validateEmail();
 
@@ -86,6 +87,10 @@ class CreateUserAction
         }
 
         $this->assignCompany($user);
+
+        if ($newUser) {
+            $this->onBoarding($user, $company);
+        }
 
         return $user;
     }
