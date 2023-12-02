@@ -165,7 +165,7 @@ class UserManagementTest extends TestCase
         $user = $app->keys()->first()->user()->firstOrFail();
         $user->assign(RolesEnums::OWNER->value);
         $company = $user->getCurrentCompany();
-        
+
         $email = fake()->email();
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation appCreateUser($data: CreateUserInput!) {
@@ -199,7 +199,6 @@ class UserManagementTest extends TestCase
         $user = Users::getByEmail($email);
         $this->assertTrue($user->companies()->count() == 1);
         $this->assertTrue($user->companies()->first()->id !== $company->getId());
-
     }
 
     public function testDeletedUser()
@@ -350,6 +349,5 @@ class UserManagementTest extends TestCase
         $this->assertTrue($user->companies()->first()->id == $company->getId());
 
         $app->del(AppSettingsEnums::ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY->getValue());
-
     }
 }
