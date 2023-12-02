@@ -8,6 +8,7 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\RegisterUsersAppAction;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
@@ -163,7 +164,8 @@ class UserManagementTest extends TestCase
 
         $user = $app->keys()->first()->user()->firstOrFail();
         $user->assign(RolesEnums::OWNER->value);
-
+        $company = $user->getCurrentCompany();
+        
         $email = fake()->email();
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation appCreateUser($data: CreateUserInput!) {
@@ -193,6 +195,11 @@ class UserManagementTest extends TestCase
                 ],
             ],
         ]);
+
+        $user = Users::getByEmail($email);
+        $this->assertTrue($user->companies()->count() == 1);
+        $this->assertTrue($user->companies()->first()->id !== $company->getId());
+
     }
 
     public function testDeletedUser()
@@ -296,5 +303,53 @@ class UserManagementTest extends TestCase
                 'appRestoreDeletedUser' => true,
             ],
         ]);
+    }
+
+    public function testCreateCompanyAssignmentUser()
+    {
+        $app = app(Apps::class);
+
+        $app->set(AppSettingsEnums::ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY->getValue(), 1);
+
+        $user = $app->keys()->first()->user()->firstOrFail();
+        $user->assign(RolesEnums::OWNER->value);
+        $company = $user->getCurrentCompany();
+
+        $email = fake()->email();
+        $response = $this->graphQL(/** @lang GraphQL */ '
+            mutation appCreateUser($data: CreateUserInput!) {
+                appCreateUser(data: $data) {
+                    id
+                    email
+                }
+              }',
+            [
+                'data' => [
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                    'email' => $email,
+                    'custom_fields' => [],
+                ],
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        );
+
+        $response->assertJson([
+            'data' => [
+                'appCreateUser' => [
+                    'email' => $email,
+                ],
+            ],
+        ]);
+
+        $user = Users::getByEmail($email);
+        $this->assertTrue($user->companies()->count() == 1);
+        $this->assertTrue($user->companies()->first()->id == $company->getId());
+
+        $app->del(AppSettingsEnums::ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY->getValue());
+
     }
 }
