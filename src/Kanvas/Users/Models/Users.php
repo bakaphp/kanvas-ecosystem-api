@@ -33,6 +33,7 @@ use Kanvas\Auth\Traits\HasApiTokens;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Exceptions\ModelNotFoundException;
@@ -113,7 +114,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use SearchableDynamicIndexTrait;
 
     protected ?string $defaultCompanyName = null;
+    protected bool $createDefaultCompany = true;
+
     protected $guarded = [];
+
+    protected $casts = [
+        'default_company' => 'integer',
+        'default_company_branch' => 'integer',
+    ];
 
     protected $hidden = [
         'password',
@@ -604,5 +612,15 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             'displayname' => $this->displayname,
             'email' => $this->email,
         ];
+    }
+
+    public function createDefaultCompany(): bool
+    {
+        return $this->createDefaultCompany;
+    }
+
+    public function disableCreateDefaultCompany(): void
+    {
+        $this->createDefaultCompany = false;
     }
 }

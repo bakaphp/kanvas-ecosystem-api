@@ -17,6 +17,7 @@ use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\CompaniesPostData;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
@@ -49,7 +50,6 @@ class CreateUserAction
     {
         $newUser = false;
         $company = null;
-        $newCompany = null;
 
         $this->validateEmail();
 
@@ -77,7 +77,7 @@ class CreateUserAction
                     )
                 );
 
-                $createCompany->execute();
+                $company = $createCompany->execute();
             }
         } catch(ModelNotFoundException $e) {
             $newUser = true;
@@ -135,6 +135,10 @@ class CreateUserAction
         $user->user_activation_key = Hash::make(time());
         $user->roles_id = $this->data->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue(); //@todo : remove this , legacy code
         $user->system_modules_id = 2;
+
+        if ($this->data->branch) {
+            $user->disableCreateDefaultCompany();
+        }
 
         //create a new user assign it to the app and create the default company
         $user->saveOrFail();
