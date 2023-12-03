@@ -198,7 +198,7 @@ class UserManagementTest extends TestCase
 
         $user = Users::getByEmail($email);
         $this->assertTrue($user->companies()->count() == 1);
-        $this->assertTrue($user->companies()->first()->id !== $company->getId());
+        $this->assertTrue($user->companies()->first()->id == $company->getId());
     }
 
     public function testDeletedUser()
@@ -308,7 +308,7 @@ class UserManagementTest extends TestCase
     {
         $app = app(Apps::class);
 
-        $app->set(AppSettingsEnums::ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY->getValue(), 1);
+        $app->del(AppSettingsEnums::ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY->getValue());
 
         $user = $app->keys()->first()->user()->firstOrFail();
         $user->assign(RolesEnums::OWNER->value);
@@ -328,6 +328,7 @@ class UserManagementTest extends TestCase
                     'lastname' => fake()->lastName(),
                     'email' => $email,
                     'custom_fields' => [],
+                    'create_company' => true
                 ],
             ],
             [],
@@ -346,8 +347,7 @@ class UserManagementTest extends TestCase
 
         $user = Users::getByEmail($email);
         $this->assertTrue($user->companies()->count() == 1);
-        $this->assertTrue($user->companies()->first()->id == $company->getId());
+        $this->assertTrue($user->companies()->first()->id != $company->getId());
 
-        $app->del(AppSettingsEnums::ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY->getValue());
     }
 }

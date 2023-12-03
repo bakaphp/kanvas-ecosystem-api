@@ -8,7 +8,6 @@ use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\CreateUserAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
-use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -50,8 +49,8 @@ class AppUserManagementMutation
         }
 
         $adminUserRegistrationAssignCurrentCompany = $app->get(AppSettingsEnums::ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY->getValue());
-        $assignCurrentUserBranch = $adminUserRegistrationAssignCurrentCompany !== null ? $adminUserRegistrationAssignCurrentCompany : ($request['data']['create_company'] ?? true);
-        /** @var CompaniesBranches|null */
+        $createCompany = $request['data']['create_company'] ?? false;
+        $assignCurrentUserBranch = $adminUserRegistrationAssignCurrentCompany ?? ! $createCompany;
         $assignBranch = $assignCurrentUserBranch ? $branch : null;
 
         $data = RegisterInput::fromArray($request['data'], $assignBranch);
