@@ -9,6 +9,7 @@ input CreateUserInput {
     cell_phone_number: String
     roles_id: ID
     custom_fields: [CustomFieldEntityInput!]
+    create_company: Boolean
 }
 
 extend type Mutation @guardByAppKey {

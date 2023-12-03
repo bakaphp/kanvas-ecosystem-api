@@ -33,7 +33,7 @@ class UsersObserver
      */
     public function created(Users $user): void
     {
-        if ($user->isFirstSignup() && $user->createDefaultCompany()) {
+       /*  if ($user->isFirstSignup() && $user->createDefaultCompany()) {
             $createCompany = new CreateCompaniesAction(
                 new CompaniesPostData(
                     $user->defaultCompanyName ?? $user->displayname . 'CP',
@@ -55,7 +55,7 @@ class UsersObserver
 
             $action = new AssignCompanyAction($user, $branch);
             $action->execute();
-        }
+        } */
     }
 
     public function updated(Users $user): void

@@ -17,7 +17,6 @@ use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\CompaniesPostData;
-use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
@@ -43,13 +42,12 @@ class CreateUserAction
 
     /**
      * Invoke function.
-     *
-     * @param RegisterInput $data
+     * @psalm-suppress MixedArgument
      */
     public function execute(): Users
     {
         $newUser = false;
-        $company = null;
+        $company = $this->data->branch ? $this->data->branch->company : null;
 
         $this->validateEmail();
 
@@ -67,28 +65,22 @@ class CreateUserAction
                 throw new AuthenticationException('Email has already been taken.');
             } catch (ModelNotFoundException $e) {
                 $this->registerUserInApp($user);
-
-                //create new company for user on this app
-                $createCompany = new CreateCompaniesAction(
-                    new CompaniesPostData(
-                        $user->defaultCompanyName ?? $user->displayname . 'CP',
-                        $user->id,
-                        $user->email
-                    )
-                );
-
-                $company = $createCompany->execute();
             }
         } catch(ModelNotFoundException $e) {
             $newUser = true;
             $user = $this->createNewUser();
+
             $this->registerUserInApp($user);
             $this->assignUserRole($user);
         }
 
+        if (! $company) {
+            $company = $this->createCompany($user);
+        }
+
         $this->assignCompany($user);
 
-        if ($newUser) {
+        if ($newUser && $company !== null) {
             $this->onBoarding($user, $company);
         }
 
@@ -135,10 +127,6 @@ class CreateUserAction
         $user->user_activation_key = Hash::make(time());
         $user->roles_id = $this->data->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue(); //@todo : remove this , legacy code
         $user->system_modules_id = 2;
-
-        if ($this->data->branch) {
-            $user->disableCreateDefaultCompany();
-        }
 
         //create a new user assign it to the app and create the default company
         $user->saveOrFail();
@@ -196,5 +184,29 @@ class CreateUserAction
         } catch (Throwable $e) {
             //no email sent
         }
+    }
+
+    protected function createCompany(Users $user): CompanyInterface
+    {
+        $createCompany = new CreateCompaniesAction(
+            new CompaniesPostData(
+                $user->defaultCompanyName ?? $user->displayname . 'CP',
+                $user->getId(),
+                $user->email
+            )
+        );
+
+        $company = $createCompany->execute();
+
+        $user->default_company = (int) $company->getId();
+        $user->default_company_branch = (int) $company->defaultBranch()->first()->getId();
+        $user->saveOrFail();
+
+        $branch = $company->branch()->firstOrFail();
+
+        $action = new AssignCompanyAction($user, $branch);
+        $action->execute();
+
+        return $company;
     }
 }

@@ -49,7 +49,7 @@ class AppUserManagementMutation
             $request['data']['password'] = Str::random(15);
         }
 
-        $assignCurrentUserBranch = $app->get(AppSettingsEnums::ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY->getValue());
+        $assignCurrentUserBranch = $app->get(AppSettingsEnums::ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY->getValue()) ?? ($request['data']['create_company'] ?? false);
         /** @var CompaniesBranches|null */
         $assignBranch = $assignCurrentUserBranch ? $branch : null;
 
