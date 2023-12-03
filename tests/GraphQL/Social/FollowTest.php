@@ -21,6 +21,7 @@ class FollowTest extends TestCase
     {
         $user = Users::factory()->create();
         $branch = auth()->user()->getCurrentBranch();
+        (new RegisterUsersAppAction($user, app(Apps::class)))->execute($user->password);
         //add user to current company
         (new AssignCompanyAction(
             $user,
@@ -53,6 +54,7 @@ class FollowTest extends TestCase
     {
         $user = Users::factory()->create();
         $branch = auth()->user()->getCurrentBranch();
+        (new RegisterUsersAppAction($user, app(Apps::class)))->execute($user->password);
         //add user to current company
         (new AssignCompanyAction(
             $user,
@@ -102,6 +104,7 @@ class FollowTest extends TestCase
     {
         $user = Users::factory()->create();
         $branch = auth()->user()->getCurrentBranch();
+        (new RegisterUsersAppAction($user, app(Apps::class)))->execute($user->password);
         //add user to current company
         (new AssignCompanyAction(
             $user,
@@ -149,6 +152,7 @@ class FollowTest extends TestCase
     {
         $user = Users::factory()->create();
         $branch = auth()->user()->getCurrentBranch();
+        (new RegisterUsersAppAction($user, app(Apps::class)))->execute($user->password);
         //add user to current company
         (new AssignCompanyAction(
             $user,
@@ -210,6 +214,7 @@ class FollowTest extends TestCase
     {
         $user = Users::factory()->create();
         $branch = auth()->user()->getCurrentBranch();
+        (new RegisterUsersAppAction($user, app(Apps::class)))->execute($user->password);
         //add user to current company
         (new AssignCompanyAction(
             $user,
