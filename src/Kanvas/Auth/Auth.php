@@ -54,7 +54,11 @@ class Auth
             $authentically = $user->getAppProfile($app);
         } catch(ModelNotFoundException $e) {
             //user doesn't have a profile yet , verify if we need to create it
-            UsersRepository::belongsToThisApp($user, $app);
+            try {
+                UsersRepository::belongsToThisApp($user, $app);
+            } catch(ModelNotFoundException $e) {
+                throw new AuthenticationException('Invalid email or password.');
+            }
             $userRegisterInApp = new RegisterUsersAppAction($user);
             $authentically = $userRegisterInApp->execute($user->password);
         }
