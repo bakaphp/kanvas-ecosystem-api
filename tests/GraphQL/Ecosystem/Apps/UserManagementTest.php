@@ -328,7 +328,7 @@ class UserManagementTest extends TestCase
                     'lastname' => fake()->lastName(),
                     'email' => $email,
                     'custom_fields' => [],
-                    'create_company' => true
+                    'create_company' => true,
                 ],
             ],
             [],
@@ -348,6 +348,5 @@ class UserManagementTest extends TestCase
         $user = Users::getByEmail($email);
         $this->assertTrue($user->companies()->count() == 1);
         $this->assertTrue($user->companies()->first()->id != $company->getId());
-
     }
 }
