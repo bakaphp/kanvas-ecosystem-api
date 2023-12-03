@@ -33,29 +33,29 @@ class UsersObserver
      */
     public function created(Users $user): void
     {
-       /*  if ($user->isFirstSignup() && $user->createDefaultCompany()) {
-            $createCompany = new CreateCompaniesAction(
-                new CompaniesPostData(
-                    $user->defaultCompanyName ?? $user->displayname . 'CP',
-                    $user->id,
-                    $user->email
-                )
-            );
+        /*  if ($user->isFirstSignup() && $user->createDefaultCompany()) {
+             $createCompany = new CreateCompaniesAction(
+                 new CompaniesPostData(
+                     $user->defaultCompanyName ?? $user->displayname . 'CP',
+                     $user->id,
+                     $user->email
+                 )
+             );
 
-            $company = $createCompany->execute();
+             $company = $createCompany->execute();
 
-            $user->default_company = (int) $company->getId();
-            $user->default_company_branch = (int) $company->defaultBranch()->first()->getId();
-            $user->saveOrFail();
-        }
+             $user->default_company = (int) $company->getId();
+             $user->default_company_branch = (int) $company->defaultBranch()->first()->getId();
+             $user->saveOrFail();
+         }
 
-        if ($user->default_company) {
-            $company = CompaniesRepository::getById($user->default_company);
-            $branch = $company->branch()->firstOrFail();
+         if ($user->default_company) {
+             $company = CompaniesRepository::getById($user->default_company);
+             $branch = $company->branch()->firstOrFail();
 
-            $action = new AssignCompanyAction($user, $branch);
-            $action->execute();
-        } */
+             $action = new AssignCompanyAction($user, $branch);
+             $action->execute();
+         } */
     }
 
     public function updated(Users $user): void
