@@ -114,7 +114,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use SearchableDynamicIndexTrait;
 
     protected ?string $defaultCompanyName = null;
-    protected bool $createDefaultCompany = true;
 
     protected $guarded = [];
 
@@ -612,15 +611,5 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             'displayname' => $this->displayname,
             'email' => $this->email,
         ];
-    }
-
-    public function createDefaultCompany(): bool
-    {
-        return $this->createDefaultCompany;
-    }
-
-    public function disableCreateDefaultCompany(): void
-    {
-        $this->createDefaultCompany = false;
     }
 }
