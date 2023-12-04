@@ -7,7 +7,7 @@ input CreateUserInput {
     phone_number: String
     password: String @rules(apply: ["min:8"])
     cell_phone_number: String
-    roles_id: ID
+    role_ids: [ID!]
     custom_fields: [CustomFieldEntityInput!]
     create_company: Boolean
 }

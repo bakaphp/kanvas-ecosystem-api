@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\DataTransferObject;
 
-use Baka\Contracts\CompanyInterface;
 use Baka\Support\Random;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -26,7 +25,7 @@ class RegisterInput extends Data
         public string $email,
         public string $password,
         public ?string $default_company = null,
-        public ?int $roles_id = null,
+        public array $role_ids = [],
         public array $custom_fields = [],
         public ?CompaniesBranches $branch = null,
         public ?string $phone_number = null,
@@ -48,7 +47,7 @@ class RegisterInput extends Data
             email: $request->get('email'),
             password: Hash::make($request->get('password')),
             default_company: $request->get('default_company') ?? null,
-            roles_id: (int) ($request->get('roles_id') ?? null),
+            role_ids: $request->get('role_ids') ?? [],
             custom_fields: $request->get('custom_fields') ?? []
         );
     }
@@ -65,7 +64,7 @@ class RegisterInput extends Data
             email: $request['email'],
             password: Hash::make($request['password']),
             default_company: $request['default_company'] ?? null,
-            roles_id: isset($request['roles_id']) ? (int) $request['roles_id'] : null,
+            role_ids: isset($request['role_ids']) ? $request['roles_id'] : [],
             custom_fields: $request['custom_fields'] ?? [],
             branch: $branch,
             phone_number: $request['phone_number'] ?? null,
