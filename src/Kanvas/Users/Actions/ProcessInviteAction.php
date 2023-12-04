@@ -39,7 +39,7 @@ class ProcessInviteAction
             'password' => $this->userInvite->password,
             'firstname' => $this->userInvite->firstname,
             'lastname' => $this->userInvite->lastname,
-            'roles_id' => $invite->role_id,
+            'role_ids' => [$invite->role_id],
         ], $invite->branch);
 
         DB::beginTransaction();

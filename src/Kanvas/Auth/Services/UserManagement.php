@@ -34,7 +34,7 @@ class UserManagement
             $files = null;
             $customFields = Arr::pull($data, 'custom_fields', []);
             $files = Arr::pull($data, 'files', []);
-            $roleId = Arr::pull($data, 'role_id');
+            $roleIds = Arr::pull($data, 'role_ids', []);
 
             $this->user->update(array_filter($data));
 
@@ -50,23 +50,25 @@ class UserManagement
         }
 
         //update roles if
-        $this->updateRole($roleId);
+        $this->updateRole($roleIds);
 
         return $this->user;
     }
 
-    protected function updateRole(mixed $roleId): void
+    protected function updateRole(array $roleIds): void
     {
-        if ($roleId && $this->userEditing) {
-            $updateRole = $roleId && $this->userEditing->isAdmin() && $this->userEditing->can(AbilityEnum::MANAGE_ROLES->value);
-            if ($updateRole) {
-                $role = RolesRepository::getByMixedParamFromCompany($roleId);
+        if (! empty($roleIds) && $this->userEditing) {
+            $updateRole = $this->userEditing->isAdmin() && $this->userEditing->can(AbilityEnum::MANAGE_ROLES->value);
+            foreach ($roleIds as $roleId) {
+                if ($updateRole) {
+                    $role = RolesRepository::getByMixedParamFromCompany($roleId);
 
-                $assign = new AssignRoleAction(
-                    $this->user,
-                    $role
-                );
-                $assign->execute();
+                    $assign = new AssignRoleAction(
+                        $this->user,
+                        $role
+                    );
+                    $assign->execute();
+                }
             }
         }
     }

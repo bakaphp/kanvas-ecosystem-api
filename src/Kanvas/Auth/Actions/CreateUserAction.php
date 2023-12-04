@@ -11,7 +11,6 @@ use Illuminate\Validation\ValidationException;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
-use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
@@ -144,13 +143,20 @@ class CreateUserAction
 
     protected function assignUserRole(Users $user): void
     {
-        $userRole = RolesRepository::getByMixedParamFromCompany($this->data->roles_id ?? DefaultRoles::ADMIN->getValue());
+        $roles = $this->data->role_ids;
+        if (empty($roles)) {
+            $roles = [RolesEnums::ADMIN->value];
+        }
 
-        $assignRole = new AssignRoleAction(
-            $user,
-            $userRole
-        );
-        $assignRole->execute();
+        foreach ($roles as $role) {
+            $userRole = RolesRepository::getByMixedParamFromCompany($role);
+
+            $assignRole = new AssignRoleAction(
+                $user,
+                $userRole
+            );
+            $assignRole->execute();
+        }
     }
 
     protected function assignCompany(Users $user): void
