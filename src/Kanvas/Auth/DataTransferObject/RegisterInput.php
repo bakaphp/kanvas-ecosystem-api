@@ -64,7 +64,7 @@ class RegisterInput extends Data
             email: $request['email'],
             password: Hash::make($request['password']),
             default_company: $request['default_company'] ?? null,
-            role_ids: isset($request['role_ids']) ? $request['roles_id'] : [],
+            role_ids: $request['roles_id'] ?? [],
             custom_fields: $request['custom_fields'] ?? [],
             branch: $branch,
             phone_number: $request['phone_number'] ?? null,
