@@ -34,7 +34,7 @@ class UserManagement
             $files = null;
             $customFields = Arr::pull($data, 'custom_fields', []);
             $files = Arr::pull($data, 'files', []);
-            $roleIds = Arr::pull($data, 'role_ids');
+            $roleIds = Arr::pull($data, 'role_ids', []);
 
             $this->user->update(array_filter($data));
 
