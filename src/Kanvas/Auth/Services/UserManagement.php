@@ -58,7 +58,7 @@ class UserManagement
     protected function updateRole(array $roleIds): void
     {
         if (! empty($roleIds) && $this->userEditing) {
-            $updateRole = $this->userEditing->isAdmin() && $this->userEditing->can(AbilityEnum::MANAGE_ROLES->value);
+            $updateRole = $this->userEditing->isAdmin() || $this->userEditing->can(AbilityEnum::MANAGE_ROLES->value);
             foreach ($roleIds as $roleId) {
                 if ($updateRole) {
                     $role = RolesRepository::getByMixedParamFromCompany($roleId);
