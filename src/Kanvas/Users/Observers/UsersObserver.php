@@ -33,33 +33,36 @@ class UsersObserver
      */
     public function created(Users $user): void
     {
-        if ($user->isFirstSignup()) {
-            $createCompany = new CreateCompaniesAction(
-                new CompaniesPostData(
-                    $user->defaultCompanyName ?? $user->displayname . 'CP',
-                    $user->id,
-                    $user->email
-                )
-            );
+        /*  if ($user->isFirstSignup() && $user->createDefaultCompany()) {
+             $createCompany = new CreateCompaniesAction(
+                 new CompaniesPostData(
+                     $user->defaultCompanyName ?? $user->displayname . 'CP',
+                     $user->id,
+                     $user->email
+                 )
+             );
 
-            $company = $createCompany->execute();
+             $company = $createCompany->execute();
 
-            $user->default_company = $company->id;
-            $user->default_company_branch = $company->defaultBranch()->first()->id;
-            $user->saveOrFail();
-        }
+             $user->default_company = (int) $company->getId();
+             $user->default_company_branch = (int) $company->defaultBranch()->first()->getId();
+             $user->saveOrFail();
+         }
 
-        $company = CompaniesRepository::getById((int)$user->default_company);
-        $branch = $company->branch()->firstOrFail();
+         if ($user->default_company) {
+             $company = CompaniesRepository::getById($user->default_company);
+             $branch = $company->branch()->firstOrFail();
 
-        $action = new AssignCompanyAction($user, $branch);
-        $action->execute();
+             $action = new AssignCompanyAction($user, $branch);
+             $action->execute();
+         } */
     }
 
     public function updated(Users $user): void
     {
         //@todo for now , we are allowing this , but we have to move to just update appUserProfile
         $app = app(Apps::class);
+
         try {
             $appUser = $user->getAppProfile($app);
         } catch(ModelNotFoundException $e) {

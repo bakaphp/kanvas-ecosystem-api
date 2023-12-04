@@ -42,14 +42,12 @@ class CreateUserAction
 
     /**
      * Invoke function.
-     *
-     * @param RegisterInput $data
+     * @psalm-suppress MixedArgument
      */
     public function execute(): Users
     {
         $newUser = false;
-        $company = null;
-        $newCompany = null;
+        $company = $this->data->branch ? $this->data->branch->company : null;
 
         $this->validateEmail();
 
@@ -67,28 +65,22 @@ class CreateUserAction
                 throw new AuthenticationException('Email has already been taken.');
             } catch (ModelNotFoundException $e) {
                 $this->registerUserInApp($user);
-
-                //create new company for user on this app
-                $createCompany = new CreateCompaniesAction(
-                    new CompaniesPostData(
-                        $user->defaultCompanyName ?? $user->displayname . 'CP',
-                        $user->id,
-                        $user->email
-                    )
-                );
-
-                $createCompany->execute();
             }
         } catch(ModelNotFoundException $e) {
             $newUser = true;
             $user = $this->createNewUser();
+
             $this->registerUserInApp($user);
             $this->assignUserRole($user);
         }
 
+        if (! $company) {
+            $company = $this->createCompany($user);
+        }
+
         $this->assignCompany($user);
 
-        if ($newUser) {
+        if ($newUser && $company !== null) {
             $this->onBoarding($user, $company);
         }
 
@@ -192,5 +184,29 @@ class CreateUserAction
         } catch (Throwable $e) {
             //no email sent
         }
+    }
+
+    protected function createCompany(Users $user): CompanyInterface
+    {
+        $createCompany = new CreateCompaniesAction(
+            new CompaniesPostData(
+                $user->defaultCompanyName ?? $user->displayname . 'CP',
+                $user->getId(),
+                $user->email
+            )
+        );
+
+        $company = $createCompany->execute();
+
+        $user->default_company = (int) $company->getId();
+        $user->default_company_branch = (int) $company->defaultBranch()->first()->getId();
+        $user->saveOrFail();
+
+        $branch = $company->branch()->firstOrFail();
+
+        $action = new AssignCompanyAction($user, $branch);
+        $action->execute();
+
+        return $company;
     }
 }

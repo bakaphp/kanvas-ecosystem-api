@@ -32,7 +32,7 @@ class AssignCompanyAction
         $this->user = $user;
         $this->company = $branch->company()->firstOrFail();
         $this->branch = $branch;
-        $this->role = $role ?? RolesRepository::getByNameFromCompany(RolesEnums::ADMIN->value);
+        $this->role = $role ?? RolesRepository::getByNameFromCompany(RolesEnums::ADMIN->value, $this->company);
         $this->app = $app ?? app(Apps::class);
     }
 
