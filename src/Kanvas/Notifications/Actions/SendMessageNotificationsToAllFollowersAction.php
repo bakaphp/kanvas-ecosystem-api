@@ -12,13 +12,14 @@ use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Notifications\Events\PushNotificationsEvent;
+use Kanvas\Social\Messages\DataTransferObject\MessagesNotificationsPayloadDto;
 
 class SendMessageNotificationsToAllFollowersAction
 {
     public function __construct(
         protected Users $fromUser,
         protected AppInterface $app,
-        protected array $message
+        private MessagesNotificationsPayloadDto $messagePayload,
     ) {
     }
 
@@ -32,12 +33,12 @@ class SendMessageNotificationsToAllFollowersAction
         foreach ($followers as $follower) {
             $toUser = Users::getById($follower->getOriginal()['id']);
 
-            if (in_array('push', $this->message['metadata']['channels'])) {
+            if (in_array('push', $this->messagePayload->channels)) {
                 $notificationChannel = NotificationChannelsRepository::getBySlug('push');
                 $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent(
                     $notificationChannel->id,
-                    $this->message['metadata']['verb'],
-                    $this->message['metadata']['event'],
+                    $this->messagePayload->verb,
+                    $this->messagePayload->event,
                     $this->app
                 );
 
@@ -45,7 +46,7 @@ class SendMessageNotificationsToAllFollowersAction
                     $notificationType->template()->firstOrFail()->template,
                     $this->fromUser,
                     $toUser,
-                    $this->message
+                    $this->messagePayload->message
                 );
                 $message = $buildPushTemplateNotification->execute();
 
@@ -60,18 +61,18 @@ class SendMessageNotificationsToAllFollowersAction
                 );
             }
 
-            if (in_array('mail', $this->message['metadata']['channels'])) {
+            if (in_array('email', $this->messagePayload->channels)) {
                 $notificationChannel = NotificationChannelsRepository::getBySlug('email');
                 $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent(
                     $notificationChannel->id,
-                    $this->message['metadata']['verb'],
-                    $this->message['metadata']['event'],
+                    $this->messagePayload->verb,
+                    $this->messagePayload->event,
                     $this->app
                 );
 
                 $data = [
                     'fromUser' => $this->fromUser,
-                    'message' => $this->message,
+                    'message' => $this->messagePayload->message,
                     'app' => $this->app,
                 ];
 
