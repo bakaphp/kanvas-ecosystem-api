@@ -11,6 +11,7 @@ use Kanvas\AccessControlList\Actions\CreateRoleAction;
 use Kanvas\AccessControlList\Actions\UpdateRoleAction;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Users\Repositories\UsersRepository;
+use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Silber\Bouncer\Database\Role as SilberRole;
 
 class RolesManagementMutation
@@ -20,13 +21,21 @@ class RolesManagementMutation
      */
     public function assignRoleToUser(mixed $rootValue, array $request): bool
     {
+        $auth = auth()->user();
+        $company = $auth->getCurrentCompany();
+        $userId = (int) $request['userId'];
+        $app = app(Apps::class);
+
         $role = RolesRepository::getByMixedParamFromCompany($request['role']);
 
+        if ($auth->isAppOwner()) {
+            $user = UsersRepository::getUserOfAppById($userId, $app);
+        } else {
+            $user = UsersRepository::getUserOfCompanyById($company, $userId);
+        }
+
         $assign = new AssignRoleAction(
-            $user = UsersRepository::getUserOfCompanyById(
-                auth()->user()->getCurrentCompany(),
-                (int) $request['userId']
-            ),
+            $user,
             $role
         );
         $assign->execute();
@@ -39,12 +48,19 @@ class RolesManagementMutation
      */
     public function removeRoleFromUser(mixed $rootValue, array $request): bool
     {
+        $auth = auth()->user();
+        $company = $auth->getCurrentCompany();
+        $userId = (int) $request['userId'];
+        $app = app(Apps::class);
+
         $role = RolesRepository::getByMixedParamFromCompany($request['role']);
 
-        $user = UsersRepository::getUserOfCompanyById(
-            auth()->user()->getCurrentCompany(),
-            (int) $request['userId']
-        );
+        if ($auth->isAppOwner()) {
+            $user = UsersRepository::getUserOfAppById($userId, $app);
+        } else {
+            $user = UsersRepository::getUserOfCompanyById($company, $userId);
+        }
+
         $user->retract($role->name);
 
         return true;
@@ -55,10 +71,17 @@ class RolesManagementMutation
      */
     public function givePermissionToUser(mixed $rootValue, array $request): bool
     {
-        $user = UsersRepository::getUserOfCompanyById(
-            auth()->user()->getCurrentCompany(),
-            (int) $request['userId']
-        );
+        $auth = auth()->user();
+        $company = $auth->getCurrentCompany();
+        $userId = (int) $request['userId'];
+        $app = app(Apps::class);
+
+        if ($auth->isAppOwner()) {
+            $user = UsersRepository::getUserOfAppById($userId, $app);
+        } else {
+            $user = UsersRepository::getUserOfCompanyById($company, $userId);
+        }
+
         Bouncer::allow($user)->to(Str::slug($request['permission']));
 
         return true;
@@ -69,10 +92,17 @@ class RolesManagementMutation
      */
     public function removePermissionToUser(mixed $rootValue, array $request): bool
     {
-        $user = UsersRepository::getUserOfCompanyById(
-            auth()->user()->getCurrentCompany(),
-            (int) $request['userId']
-        );
+        $auth = auth()->user();
+        $company = $auth->getCurrentCompany();
+        $userId = (int) $request['userId'];
+        $app = app(Apps::class);
+
+        if ($auth->isAppOwner()) {
+            $user = UsersRepository::getUserOfAppById($userId, $app);
+        } else {
+            $user = UsersRepository::getUserOfCompanyById($company, $userId);
+        }
+
         Bouncer::disallow($user)->to($request['permission']);
 
         return true;
@@ -83,6 +113,12 @@ class RolesManagementMutation
      */
     public function createRole(mixed $rootValue, array $request): SilberRole
     {
+        $user = auth()->user();
+
+        if (! $user->isAdmin()) {
+            throw new AuthorizationException('You are not allowed to perform this action');
+        }
+
         $role = new CreateRoleAction(
             $request['name'],
             $request['title']
@@ -96,6 +132,12 @@ class RolesManagementMutation
      */
     public function updateRole(mixed $rootValue, array $request): SilberRole
     {
+        $user = auth()->user();
+
+        if (! $user->isAdmin()) {
+            throw new AuthorizationException('You are not allowed to perform this action');
+        }
+
         $role = new UpdateRoleAction(
             (int) $request['id'],
             $request['name'],
