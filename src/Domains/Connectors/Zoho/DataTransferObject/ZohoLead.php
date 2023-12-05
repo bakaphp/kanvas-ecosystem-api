@@ -49,8 +49,8 @@ class ZohoLead extends Data
         );
     }
 
-     /**
-     * Map to zoho fields.
+    /**
+     * Map properties from one array to another.
      */
     protected static function mapProperties(array $map, array &$data, array $entity): void
     {
