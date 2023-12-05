@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Zoho;
+namespace Tests\Connectors\Integration\Zoho;
 
 use Kanvas\Connectors\Zoho\DataTransferObject\ZohoLead;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -17,7 +17,6 @@ final class ConversionTest extends TestCase
 
         $zohoLead = ZohoLead::fromLead($lead);
 
-        print_r($zohoLead);
-        die();
+        $this->assertInstanceOf(ZohoLead::class, $zohoLead);
     }
 }

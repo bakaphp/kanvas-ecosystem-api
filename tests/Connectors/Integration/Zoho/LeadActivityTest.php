@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Zoho;
+namespace Tests\Connectors\Integration\Zoho;
 
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Connectors\Zoho\Workflows\ZohoLeadActivity;
