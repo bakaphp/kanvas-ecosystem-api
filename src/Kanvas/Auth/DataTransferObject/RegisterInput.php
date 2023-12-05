@@ -59,7 +59,7 @@ class RegisterInput extends Data
      */
     public static function fromArray(array $request, ?CompaniesBranches $branch = null): self
     {
-        $roles = isset($request['role_id']) ? [$request['role_id']] : ($request['roles_id'] ?? []);
+        $roles = isset($request['role_id']) ? [$request['role_id']] : ($request['role_ids'] ?? []);
         return new self(
             firstname: $request['firstname'] ?? '',
             lastname: $request['lastname'] ?? '',
