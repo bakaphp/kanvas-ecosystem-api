@@ -7,6 +7,7 @@ namespace Kanvas\Social\Support;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
+use Exception;
 use Illuminate\Support\Str;
 use Kanvas\Notifications\Actions\CreateNotificationTypesMessageLogicAction;
 use Kanvas\Notifications\Repositories\NotificationTypesRepository;
@@ -146,19 +147,22 @@ class Setup
         $createMessageType = new CreateMessageTypeAction($messageTypeInput);
         $messageType = $createMessageType->execute();
 
-        $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent(2, $messageType->verb, 'creation', $this->app);
-        $logic = '{
+        try {
+            $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent(2, $messageType->verb, 'creation', $this->app);
+            $logic = '{
             "conditions": "message.is_public == 1 and message.is_published == 1"
         }';
 
-        $createNotificationTypeMessageLogic = new CreateNotificationTypesMessageLogicAction(
-            $this->app,
-            $messageType,
-            $notificationType,
-            $logic
-        );
+            $createNotificationTypeMessageLogic = new CreateNotificationTypesMessageLogicAction(
+                $this->app,
+                $messageType,
+                $notificationType,
+                $logic
+            );
 
-        $createNotificationTypeMessageLogic->execute();
+            $createNotificationTypeMessageLogic->execute();
+        } catch(Exception $e) {
+        }
 
 
 

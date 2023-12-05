@@ -66,24 +66,25 @@ class NotificationTest extends TestCase
         $user = auth()->user();
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation sendNotificationByMessage(
+                    $metadata: Mixed!,
                     $message: Mixed!,
-                
                 ){
                     sendNotificationByMessage(
+                        metadata: $metadata,
                         message: $message,
                     )
                 }
             ', [
-                'message' => [
-                    'metadata' => [
-                        'verb' => 'entity',
-                        'event' => 'creation',
-                        'channels' => ['push','email'],
-                        'distribution' => [
-                            'type' => 'one',
-                            'userId' => $user->getId(),
-                        ],
+                'metadata' => [
+                    'verb' => 'entity',
+                    'event' => 'creation',
+                    'channels' => ['push','email'],
+                    'distribution' => [
+                        'type' => 'one',
+                        'followerId' => $user->getId(),
                     ],
+                ],
+                'message' => [
                     'title' => 'Example Title',
                     'is_public' => 1,
                     'is_published' => 1,
@@ -107,23 +108,24 @@ class NotificationTest extends TestCase
     {
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation sendNotificationByMessage(
+                    $metadata: Mixed!,
                     $message: Mixed!,
-                
                 ){
                     sendNotificationByMessage(
+                        metadata: $metadata,
                         message: $message,
                     )
                 }
             ', [
-                'message' => [
-                    'metadata' => [
-                        'verb' => 'entity',
-                        'event' => 'creation',
-                        'channels' => ['push','email'],
-                        'distribution' => [
-                            'type' => 'all',
-                        ],
+                'metadata' => [
+                    'verb' => 'entity',
+                    'event' => 'creation',
+                    'channels' => ['push','email'],
+                    'distribution' => [
+                        'type' => 'all',
                     ],
+                ],
+                'message' => [
                     'title' => 'Example Title',
                     'is_public' => 1,
                     'is_published' => 1,

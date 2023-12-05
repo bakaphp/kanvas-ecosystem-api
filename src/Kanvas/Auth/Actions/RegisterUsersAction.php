@@ -6,8 +6,6 @@ namespace Kanvas\Auth\Actions;
 
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
-use Kanvas\Companies\Actions\CreateCompaniesAction;
-use Kanvas\Companies\DataTransferObject\CompaniesPostData;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
@@ -42,21 +40,12 @@ class RegisterUsersAction extends CreateUserAction
                 throw new AuthenticationException('Email has already been taken.');
             } catch (ModelNotFoundException $e) {
                 $this->registerUserInApp($user);
-
-                //create new company for user on this app
-                $createCompany = new CreateCompaniesAction(
-                    new CompaniesPostData(
-                        $user->defaultCompanyName ?? $user->displayname . 'CP',
-                        $user->id,
-                        $user->email
-                    )
-                );
-
-                $company = $createCompany->execute();
+                $company = $this->createCompany($user);
             }
         } catch(ModelNotFoundException $e) {
             $newUser = true;
             $user = $this->createNewUser();
+            $company = $this->createCompany($user);
             $this->registerUserInApp($user);
             $this->assignUserRole($user);
         }

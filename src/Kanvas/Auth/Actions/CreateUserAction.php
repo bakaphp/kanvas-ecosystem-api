@@ -11,7 +11,6 @@ use Illuminate\Validation\ValidationException;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
-use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
@@ -42,13 +41,12 @@ class CreateUserAction
 
     /**
      * Invoke function.
-     *
-     * @param RegisterInput $data
+     * @psalm-suppress MixedArgument
      */
     public function execute(): Users
     {
         $newUser = false;
-        $company = null;
+        $company = $this->data->branch ? $this->data->branch->company : null;
 
         $this->validateEmail();
 
@@ -66,26 +64,24 @@ class CreateUserAction
                 throw new AuthenticationException('Email has already been taken.');
             } catch (ModelNotFoundException $e) {
                 $this->registerUserInApp($user);
-
-                //create new company for user on this app
-                $createCompany = new CreateCompaniesAction(
-                    new CompaniesPostData(
-                        $user->defaultCompanyName ?? $user->displayname . 'CP',
-                        $user->id,
-                        $user->email
-                    )
-                );
-
-                $createCompany->execute();
             }
         } catch(ModelNotFoundException $e) {
             $newUser = true;
             $user = $this->createNewUser();
+
             $this->registerUserInApp($user);
             $this->assignUserRole($user);
         }
 
+        if (! $company) {
+            $company = $this->createCompany($user);
+        }
+
         $this->assignCompany($user);
+
+        if ($newUser && $company !== null) {
+            $this->onBoarding($user, $company);
+        }
 
         return $user;
     }
@@ -129,6 +125,7 @@ class CreateUserAction
         $user->language = $user->language ?: AppEnums::DEFAULT_LANGUAGE->getValue();
         $user->user_activation_key = Hash::make(time());
         $user->roles_id = $this->data->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue(); //@todo : remove this , legacy code
+        $user->system_modules_id = 2;
 
         //create a new user assign it to the app and create the default company
         $user->saveOrFail();
@@ -146,13 +143,20 @@ class CreateUserAction
 
     protected function assignUserRole(Users $user): void
     {
-        $userRole = RolesRepository::getByMixedParamFromCompany($this->data->roles_id ?? DefaultRoles::ADMIN->getValue());
+        $roles = $this->data->role_ids;
+        if (empty($roles)) {
+            $roles = [RolesEnums::ADMIN->value];
+        }
 
-        $assignRole = new AssignRoleAction(
-            $user,
-            $userRole
-        );
-        $assignRole->execute();
+        foreach ($roles as $role) {
+            $userRole = RolesRepository::getByMixedParamFromCompany($role);
+
+            $assignRole = new AssignRoleAction(
+                $user,
+                $userRole
+            );
+            $assignRole->execute();
+        }
     }
 
     protected function assignCompany(Users $user): void
@@ -186,5 +190,29 @@ class CreateUserAction
         } catch (Throwable $e) {
             //no email sent
         }
+    }
+
+    protected function createCompany(Users $user): CompanyInterface
+    {
+        $createCompany = new CreateCompaniesAction(
+            new CompaniesPostData(
+                $user->defaultCompanyName ?? $user->displayname . 'CP',
+                $user->getId(),
+                $user->email
+            )
+        );
+
+        $company = $createCompany->execute();
+
+        $user->default_company = (int) $company->getId();
+        $user->default_company_branch = (int) $company->defaultBranch()->first()->getId();
+        $user->saveOrFail();
+
+        $branch = $company->branch()->firstOrFail();
+
+        $action = new AssignCompanyAction($user, $branch);
+        $action->execute();
+
+        return $company;
     }
 }
