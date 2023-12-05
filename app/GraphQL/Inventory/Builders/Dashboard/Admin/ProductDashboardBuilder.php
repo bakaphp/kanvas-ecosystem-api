@@ -34,6 +34,7 @@ class ProductDashboardBuilder
                 $join->on('products_variants_warehouses.warehouses_id', '=', 'warehouses.id');
             })
             ->where('products_variants_warehouses.is_deleted', 0)
+            ->where('status.apps_id', $app->getId())
             ->where('status.is_deleted', 0)
             ->groupBy('status.id')
         ->get();
