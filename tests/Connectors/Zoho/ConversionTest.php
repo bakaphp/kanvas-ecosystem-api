@@ -17,6 +17,7 @@ final class ConversionTest extends TestCase
 
         $zohoLead = ZohoLead::fromLead($lead);
 
-        print_r($zohoLead); die();
+        print_r($zohoLead);
+        die();
     }
 }
