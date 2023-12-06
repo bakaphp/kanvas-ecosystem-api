@@ -32,15 +32,15 @@ class AssignRoleAction
     public function execute(): void
     {
         // we will only allow one role per user per app
-        $userRole = Models::query('assigned_roles')
-                    ->where('entity_id', $this->entity->getId())
-                    ->where('entity_type', Users::class)
-                    ->where('scope', RolesEnums::getScope($this->app))
-                    ->whereNot('role_id', $this->role->id);
+        /*         $userRole = Models::query('assigned_roles')
+                            ->where('entity_id', $this->entity->getId())
+                            ->where('entity_type', Users::class)
+                            ->where('scope', RolesEnums::getScope($this->app))
+                            ->whereNot('role_id', $this->role->id);
 
-        if ($userRole->count()) {
-            $userRole->delete();
-        }
+                if ($userRole->count()) {
+                    $userRole->delete();
+                } */
 
         Bouncer::assign($this->role->name)->to($this->entity);
 
