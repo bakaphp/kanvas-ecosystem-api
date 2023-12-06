@@ -45,7 +45,7 @@ class KanvasAppKey
 
             try {
                 $kanvasAppKey = AppKey::where('client_secret_id', $appKey)->firstOrFail();
-                $kanvasApp = Apps::getById($kanvasAppKey->apps_id);
+                $kanvasApp = $kanvasAppKey->app()->first();
 
                 if ($kanvasAppKey->hasExpired()) {
                     return response()->json(['message' => 'App Key has expired'], 500);
