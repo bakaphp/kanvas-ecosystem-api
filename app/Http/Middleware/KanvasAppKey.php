@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\AppKey;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Symfony\Component\HttpFoundation\Response;
@@ -44,6 +45,7 @@ class KanvasAppKey
 
             try {
                 $kanvasAppKey = AppKey::where('client_secret_id', $appKey)->firstOrFail();
+                $kanvasApp = Apps::getById($kanvasAppKey->apps_id);
 
                 if ($kanvasAppKey->hasExpired()) {
                     return response()->json(['message' => 'App Key has expired'], 500);
@@ -51,6 +53,10 @@ class KanvasAppKey
 
                 app()->scoped(AppKey::class, function () use ($kanvasAppKey) {
                     return $kanvasAppKey;
+                });
+
+                app()->scoped(Apps::class, function () use ($kanvasApp) {
+                    return $kanvasApp;
                 });
 
                 if (empty($request->bearerToken())) {
