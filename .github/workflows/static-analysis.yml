@@ -7,7 +7,7 @@ jobs:
     name: PHP ${{ matrix.php-versions }}
     runs-on: ubuntu-latest
     env:
-      extensions: mbstring, intl, json, redis, swoole
+      extensions: mbstring, intl, json, redis, swoole, igbinary
       APP_ENV: testing
       DB_HOST: 127.0.0.1
       REDIS_URL: tcp://127.0.0.1:6379?database=0
