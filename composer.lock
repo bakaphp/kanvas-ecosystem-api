@@ -4629,16 +4629,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.25.0",
+            "version": "v6.26.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "6b0fddebcdb575ce08c5dd5ac884afa835b9a29d"
+                "reference": "7996dfa9c654f7dcd4ebc3bfbc756eae1445cf46"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/6b0fddebcdb575ce08c5dd5ac884afa835b9a29d",
-                "reference": "6b0fddebcdb575ce08c5dd5ac884afa835b9a29d",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/7996dfa9c654f7dcd4ebc3bfbc756eae1445cf46",
+                "reference": "7996dfa9c654f7dcd4ebc3bfbc756eae1445cf46",
                 "shasum": ""
             },
             "require": {
@@ -4664,6 +4664,7 @@
                 "dms/phpunit-arraysubset-asserts": "^0.4 || ^0.5",
                 "ergebnis/composer-normalize": "^2.2.2",
                 "fakerphp/faker": "^1.21",
+                "google/protobuf": "^3.21",
                 "laravel/framework": "^9 || ^10",
                 "laravel/legacy-factories": "^1.1.1",
                 "laravel/lumen-framework": "^9 || ^10 || dev-master",
@@ -4689,6 +4690,8 @@
             },
             "suggest": {
                 "bensampo/laravel-enum": "Convenient enum definitions that can easily be registered in your Schema",
+                "ext-protobuf": "Improve protobuf serialization performance (used for tracing)",
+                "google/protobuf": "Required when using the tracing driver federated-tracing",
                 "laravel/pennant": "Required for the @feature directive",
                 "laravel/scout": "Required for the @search directive",
                 "mll-lab/graphql-php-scalars": "Useful scalar types, required for @whereConditions",
@@ -4757,7 +4760,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2023-12-06T09:50:39+00:00"
+            "time": "2023-12-07T08:08:12+00:00"
         },
         {
             "name": "nyholm/psr7",
