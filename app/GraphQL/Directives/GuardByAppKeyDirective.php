@@ -45,10 +45,6 @@ GRAPHQL;
                 $with = (array) $this->directiveArgValue('with', current(AuthServiceProvider::guards()));
                 $user = $this->authenticate($with);
 
-                if (! $user->isAn(RolesEnums::OWNER->value)) {
-                    throw new AuthorizationException('You are not authorized to perform this action please contact your app owner');
-                }
-
                 return $previousResolver($root, $args, $context, $resolveInfo);
             }
         );
