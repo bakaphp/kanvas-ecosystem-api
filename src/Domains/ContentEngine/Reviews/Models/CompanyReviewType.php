@@ -7,6 +7,7 @@ namespace Kanvas\ContentEngine\Reviews\Models;
 use Baka\Casts\Json;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\ContentEngine\Models\BaseModel;
 
 /**
