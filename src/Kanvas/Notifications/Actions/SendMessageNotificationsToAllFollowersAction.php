@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Notifications\Actions;
 
 use Baka\Contracts\AppInterface;
+use Kanvas\Notifications\Events\PushNotificationsEvent;
 use Kanvas\Notifications\Jobs\PushNotificationsHandlerJob;
 use Kanvas\Notifications\Repositories\NotificationChannelsRepository;
 use Kanvas\Notifications\Repositories\NotificationTypesRepository;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
-use Kanvas\Users\Models\Users;
-use Kanvas\Notifications\Events\PushNotificationsEvent;
 use Kanvas\Social\Messages\DataTransferObject\MessagesNotificationsPayloadDto;
+use Kanvas\Users\Models\Users;
 
 class SendMessageNotificationsToAllFollowersAction
 {
@@ -28,7 +28,7 @@ class SendMessageNotificationsToAllFollowersAction
      */
     public function execute(): void
     {
-        $followers = UsersFollowsRepository::getFollowersBuilder($this->fromUser)->get();
+        $followers = UsersFollowsRepository::getFollowersBuilder($this->fromUser, $this->app)->get();
 
         foreach ($followers as $follower) {
             $toUser = Users::getById($follower->getOriginal()['id']);
