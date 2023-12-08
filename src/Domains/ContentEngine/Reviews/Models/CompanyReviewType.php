@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\ContentEngine\Reviews\Models;
 
 use Baka\Casts\Json;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\ContentEngine\Models\BaseModel;
-use Illuminate\Database\Eloquent\Builder;
 
 /**
  * @property int $id
@@ -31,7 +31,7 @@ class CompanyReviewType extends BaseModel
         return $this->belongsTo(ReviewType::class, 'review_types_id', 'id');
     }
 
-       /**
+    /**
      * scopeCompany.
      *
      * @param mixed $company
