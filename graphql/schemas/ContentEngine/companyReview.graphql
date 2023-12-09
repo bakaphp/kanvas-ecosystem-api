@@ -20,6 +20,8 @@ extend type Query @guard {
                 columns: [
                     "id"
                     "review_types_id"
+                    "companies_id"
+                    "company_branches_id"
                 ]
             )
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
