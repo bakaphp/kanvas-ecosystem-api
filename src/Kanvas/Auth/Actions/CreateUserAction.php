@@ -164,11 +164,14 @@ class CreateUserAction
         if ($this->data->branch === null) {
             return ;
         }
+        $defaultRole = RolesEnums::USER->value;
 
         try {
-            $role = RolesRepository::getByMixedParamFromCompany($this->data->roles_id ?? RolesEnums::USER->value);
+            $selectedRoleId = ! empty($this->data->role_ids) ? $this->data->role_ids[0] : $defaultRole;
+
+            $role = RolesRepository::getByMixedParamFromCompany($selectedRoleId);
         } catch (Throwable $e) {
-            $role = RolesRepository::getByMixedParamFromCompany(RolesEnums::USER->value);
+            $role = RolesRepository::getByMixedParamFromCompany($defaultRole);
         }
 
         (new AssignCompanyAction(
