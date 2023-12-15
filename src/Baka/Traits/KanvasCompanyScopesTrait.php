@@ -7,6 +7,7 @@ namespace Baka\Traits;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
 
 trait KanvasCompanyScopesTrait
 {
@@ -19,7 +20,7 @@ trait KanvasCompanyScopesTrait
     {
         $company = $company instanceof Companies ? $company : auth()->user()->getCurrentCompany();
 
-        if (app()->bound(AppKey::class)) {
+        if (app()->bound(AppKey::class) && ! app()->bound(CompaniesBranches::class)) {
             return $query->where('companies_id', '>', 0);
         }
 

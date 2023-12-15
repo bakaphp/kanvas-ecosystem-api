@@ -11,8 +11,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Kanvas\Users\Repositories\UsersLinkedSourcesRepository;
 use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Users\Repositories\UsersLinkedSourcesRepository;
 
 class PushNotificationsHandlerJob implements ShouldQueue
 {
@@ -29,7 +29,7 @@ class PushNotificationsHandlerJob implements ShouldQueue
         private array $message,
         private AppInterface $app
     ) {
-        $this->onQueue('notifications');
+        // $this->onQueue('notifications');
     }
 
     /**

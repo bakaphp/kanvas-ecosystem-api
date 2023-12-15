@@ -124,7 +124,7 @@ class CreateUserAction
         $user->session_page = StateEnums::NO->getValue();
         $user->language = $user->language ?: AppEnums::DEFAULT_LANGUAGE->getValue();
         $user->user_activation_key = Hash::make(time());
-        $user->roles_id = $this->data->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue(); //@todo : remove this , legacy code
+        $user->roles_id = AppEnums::DEFAULT_ROLE_ID->getValue(); //@todo : remove this , legacy code
         $user->system_modules_id = 2;
 
         //create a new user assign it to the app and create the default company
@@ -164,11 +164,14 @@ class CreateUserAction
         if ($this->data->branch === null) {
             return ;
         }
+        $defaultRole = RolesEnums::USER->value;
 
         try {
-            $role = RolesRepository::getByMixedParamFromCompany($this->data->roles_id ?? RolesEnums::USER->value);
+            $selectedRoleId = ! empty($this->data->role_ids) ? $this->data->role_ids[0] : $defaultRole;
+
+            $role = RolesRepository::getByMixedParamFromCompany($selectedRoleId);
         } catch (Throwable $e) {
-            $role = RolesRepository::getByMixedParamFromCompany(RolesEnums::USER->value);
+            $role = RolesRepository::getByMixedParamFromCompany($defaultRole);
         }
 
         (new AssignCompanyAction(

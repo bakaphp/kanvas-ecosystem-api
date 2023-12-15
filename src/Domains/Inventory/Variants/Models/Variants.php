@@ -187,9 +187,9 @@ class Variants extends BaseModel
 
         $variant = $this->toArray();
         $variant['user'] = [
-            'id' => $this->product->users_id,
-            'firstname' => $this->product->user->firstname,
-            'lastname' => $this->product->user->lastname,
+            'id' => $this->product->company->users_id,
+            'firstname' => $this->product->company->user->firstname,
+            'lastname' => $this->product->company->user->lastname,
         ];
         $variant['company'] = [
             'id' => $this->product->companies_id,

@@ -22,7 +22,14 @@ class ProductDashboardBuilder
         $app = app(Apps::class);
 
         $result = VariantsWarehouses::query()
-            ->select('status.id as status_id', 'status.name as status_name', DB::raw('COUNT(*) as total_amount'), 'warehouses.name as warehouses_name', 'warehouses.id as warehouses_id')
+            ->select(
+                'status.id as status_id',
+                'status.name as status_name',
+                'status.slug as status_slug',
+                DB::raw('COUNT(*) as total_amount'),
+                'warehouses.name as warehouses_name',
+                'warehouses.id as warehouses_id'
+            )
             ->join('status', function ($join) {
                 $join->on('products_variants_warehouses.status_id', '=', 'status.id');
             })
@@ -36,8 +43,8 @@ class ProductDashboardBuilder
         ->get();
 
         return [
-            'total_products' => Products::fromApp($app)->fromCompany($company)->notDeleted()->where('is_published', 1)->count(),
-            'total_variants' => Variants::fromApp($app)->fromCompany($company)->notDeleted()->count(),
+            'total_products' => Products::fromCompany($company)->notDeleted()->where('is_published', 1)->count(),
+            'total_variants' => Variants::fromCompany($company)->notDeleted()->count(),
             'product_status' => $result->toArray() ?? [],
         ];
     }
