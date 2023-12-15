@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Zoho\DataTransferObject;
 
 use Baka\Validations\Date;
-use Kanvas\Connectors\Zoho\Enums\CustomField;
+use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Spatie\LaravelData\Data;
 
@@ -26,7 +26,7 @@ class ZohoLead extends Data
     public static function fromLead(Lead $lead): self
     {
         $customFields = $lead->getAll();
-        $companyZohoMapFields = $lead->company()->first()->get(CustomField::FIELDS_MAP->value);
+        $companyZohoMapFields = $lead->company()->first()->get(CustomFieldEnum::FIELDS_MAP->value);
 
         $additionalFields = [];
         if ($companyZohoMapFields && is_array($companyZohoMapFields)) {
@@ -45,8 +45,8 @@ class ZohoLead extends Data
             $people->getEmails()->first()?->value,
             $people->getPhones()->first()?->value,
             $lead->description,
-            (string) ($lead->owner()->first()->get(CustomField::ZOHO_USER_OWNER_ID->value) ?? $lead->company()->first()->get(CustomField::DEFAULT_OWNER->value)),
-            (string) ($lead->status()->first()->get(CustomField::ZOHO_STATUS_NAME->value) ?? 'New Lead'),
+            (string) ($lead->owner()->first()->get(CustomFieldEnum::ZOHO_USER_OWNER_ID->value) ?? $lead->company()->first()->get(CustomFieldEnum::DEFAULT_OWNER->value)),
+            (string) ($lead->status()->first()->get(CustomFieldEnum::ZOHO_STATUS_NAME->value) ?? 'New Lead'),
             $additionalFields
         );
     }
