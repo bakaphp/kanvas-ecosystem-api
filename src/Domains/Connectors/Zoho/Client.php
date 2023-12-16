@@ -7,9 +7,8 @@ namespace Kanvas\Connectors\Zoho;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
-use Kanvas\Domains\FeatureFlag\Company;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Enums\FlagEnum;
-use Redis;
 use Symfony\Component\Cache\Adapter\RedisAdapter;
 use Weble\ZohoClient\Enums\Region;
 use Weble\ZohoClient\OAuthClient;
@@ -51,6 +50,10 @@ class Client
         );
 
         list($clientId, $clientSecret, $refreshToken) = self::getKeys($company, $app);
+
+        if (empty($clientId) || empty($clientSecret) || empty($refreshToken)) {
+            throw new ValidationException('Zoho keys are not set for company ' . $company->getId() . ' or app ' . $app->getId());
+        }
 
         $oAuthClient = new OAuthClient(
             $clientId,

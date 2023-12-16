@@ -32,7 +32,7 @@ class ProcessWorkflowEventAction
         if ($rules->count() > 0) {
             foreach ($rules as $rule) {
                 $workflow = WorkflowStub::make(DynamicRuleWorkflow::class);
-                $workflow->start($rule, $this->entity, $params);
+                $workflow->start($this->app, $rule, $this->entity, $params);
             }
         }
     }

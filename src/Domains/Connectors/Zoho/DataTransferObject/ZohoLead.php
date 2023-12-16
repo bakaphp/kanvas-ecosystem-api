@@ -42,13 +42,22 @@ class ZohoLead extends Data
         return new self(
             $people->firstname,
             $people->lastname,
-            $people->getEmails()->first()?->value,
             $people->getPhones()->first()?->value,
-            $lead->description,
+            $people->getEmails()->first()?->value,
             (string) ($lead->owner()->first()->get(CustomFieldEnum::ZOHO_USER_OWNER_ID->value) ?? $lead->company()->first()->get(CustomFieldEnum::DEFAULT_OWNER->value)),
+            $lead->description,
             (string) ($lead->status()->first()->get(CustomFieldEnum::ZOHO_STATUS_NAME->value) ?? 'New Lead'),
             $additionalFields
         );
+    }
+
+    public function toArray(): array
+    {
+        $data = parent::toArray();
+        
+        unset($data['additionalFields']);
+
+        return $data;
     }
 
     /**
