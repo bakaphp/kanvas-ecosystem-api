@@ -25,9 +25,9 @@ final class LeadActivityTest extends TestCase
         $app = app(Apps::class);
 
         $company->set(FlagEnum::APP_GLOBAL_ZOHO->value, 1);
-        $app->set(CustomFieldEnum::CLIENT_ID->value, env('TEST_ZOHO_CLIENT_ID'));
-        $app->set(CustomFieldEnum::CLIENT_SECRET->value, env('TEST_ZOHO_CLIENT_SECRET'));
-        $app->set(CustomFieldEnum::REFRESH_TOKEN->value, env('TEST_ZOHO_CLIENT_REFRESH_TOKEN'));
+        $app->set(CustomFieldEnum::CLIENT_ID->value, getenv('TEST_ZOHO_CLIENT_ID'));
+        $app->set(CustomFieldEnum::CLIENT_SECRET->value, getenv('TEST_ZOHO_CLIENT_SECRET'));
+        $app->set(CustomFieldEnum::REFRESH_TOKEN->value, getenv('TEST_ZOHO_CLIENT_REFRESH_TOKEN'));
 
         $activity = new ZohoLeadActivity(
             0,

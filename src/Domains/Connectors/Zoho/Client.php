@@ -52,7 +52,10 @@ class Client
         list($clientId, $clientSecret, $refreshToken) = self::getKeys($company, $app);
 
         if (empty($clientId) || empty($clientSecret) || empty($refreshToken)) {
-            throw new ValidationException('Zoho keys are not set for company ' . $company->getId() . ' or app ' . $app->getId());
+            $configZohoKey = $company->get(FlagEnum::APP_GLOBAL_ZOHO->value) ? 'app' : 'company';
+            $configZohoKeyId = $company->get(FlagEnum::APP_GLOBAL_ZOHO->value) ? $app->name : $company->name;
+
+            throw new ValidationException('Zoho keys are not set for ' . $configZohoKey . ' ' . $configZohoKeyId);
         }
 
         $oAuthClient = new OAuthClient(
