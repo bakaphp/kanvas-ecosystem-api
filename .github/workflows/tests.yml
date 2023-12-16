@@ -50,11 +50,11 @@ jobs:
       MEILISEARCH_HOST: http://localhost:7700
       MEILISEARCH_KEY: masterKey
       SCOUT_QUEUE: false
-      #APP_DEBUG: true
-      #thirparty integration
       TEST_ZOHO_CLIENT_ID: ${{ secrets.TEST_ZOHO_CLIENT_ID }}
       TEST_ZOHO_CLIENT_SECRET: ${{ secrets.TEST_ZOHO_CLIENT_SECRET }}
       TEST_ZOHO_CLIENT_REFRESH_TOKEN: ${{ secrets.TEST_ZOHO_CLIENT_REFRESH_TOKEN }}
+      #APP_DEBUG: true
+      #thirparty integration
     strategy:
       fail-fast: false
       matrix:
