@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Auth;
+namespace Kanvas\Auth\Services;
 
+use Baka\Contracts\AppInterface;
 use Baka\Support\Password;
 use Baka\Users\Contracts\UserAppInterface;
 use Baka\Users\Contracts\UserInterface;
@@ -22,15 +23,20 @@ use Kanvas\Users\Repositories\UsersRepository;
 use Lcobucci\JWT\Token;
 use stdClass;
 
-class Auth
+class AuthenticationService
 {
+    public function __construct(
+        protected AppInterface $app
+    ) {
+    }
+
     /**
      * User login.
      */
-    public static function login(
+    public function login(
         LoginInput $loginInput
     ): UserInterface {
-        $app = app(Apps::class);
+        $app = $this->app;
 
         /**
          * @todo use email per app
@@ -59,12 +65,12 @@ class Auth
             $authentically = $userRegisterInApp->execute($user->password);
         }
 
-        self::loginAttemptsValidation($authentically);
+        $this->loginAttemptsValidation($authentically);
 
         //password verification
         if (Hash::check($loginInput->getPassword(), $authentically->password) && $authentically->isActive()) {
             Password::rehash($loginInput->getPassword(), $authentically);
-            self::resetLoginTries($authentically);
+            $this->resetLoginTries($authentically);
 
             return $user;
         } elseif (! $authentically->isActive()) {
@@ -72,6 +78,8 @@ class Auth
         } elseif ($authentically->isBanned()) {
             throw new AuthenticationException('User has been banned, please contact support.');
         } else {
+            $this->updateLoginTries($authentically);
+
             throw new AuthenticationException('Invalid email or password.');
         }
     }
@@ -81,12 +89,12 @@ class Auth
      *
      * @throws Exception
      */
-    protected static function loginAttemptsValidation(UserAppInterface $user): bool
+    protected function loginAttemptsValidation(UserAppInterface $user): bool
     {
         //load config
         $config = new stdClass();
-        $config->login_reset_time = config('auth.max_autologin_time');
-        $config->max_login_attempts = config('max_autologin_attempts');
+        $config->login_reset_time = $this->app->get('max_autologin_time') ?? config('auth.max_autologin_time');
+        $config->max_login_attempts = $this->app->get('max_autologin_time') ?? config('auth.max_autologin_attempts');
         //$config->max_login_attempts = env('AUTH_MAX_AUTOLOGIN_ATTEMPTS');
 
         // If the last login is more than x minutes ago, then reset the login tries/time
@@ -107,7 +115,7 @@ class Auth
             && $user->user_login_tries >= $config->max_login_attempts
         ) {
             throw new AuthenticationException(
-                sprintf(_('You have exhausted all login attempts.'), $config->max_login_attempts)
+                sprintf('Your account has been locked because of %d failed login attempt, please wait %d minutes to try again', $config->max_login_attempts, $config->login_reset_time)
             );
         }
 
@@ -117,7 +125,7 @@ class Auth
     /**
      * Reset login tries.
      */
-    protected static function resetLoginTries(UserAppInterface $user): bool
+    protected function resetLoginTries(UserAppInterface $user): bool
     {
         $user->lastvisit = date('Y-m-d H:i:s');
         $user->user_login_tries = 0;
@@ -129,7 +137,7 @@ class Auth
     /**
      * Update login tries for the given user.
      */
-    protected static function updateLoginTries(UserAppInterface $user): bool
+    protected function updateLoginTries(UserAppInterface $user): bool
     {
         if ($user->users_id !== StatusEnums::ANONYMOUS->getValue()) {
             $user->user_login_tries += 1;
@@ -144,7 +152,7 @@ class Auth
     /**
      * clean user session
      */
-    public static function logout(UserInterface $user, Token $token): bool
+    public function logout(UserInterface $user, Token $token): bool
     {
         $sessionId = $token->claims()->get('sessionId') ?? null;
 

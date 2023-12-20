@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\DataTransferObject;
 
-use Baka\Contracts\CompanyInterface;
 use Baka\Support\Random;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Spatie\LaravelData\Data;
 
@@ -58,6 +59,9 @@ class RegisterInput extends Data
      */
     public static function fromArray(array $request, ?CompaniesBranches $branch = null): self
     {
+        //validate
+        $request = self::validateArray($request);
+
         return new self(
             firstname: $request['firstname'] ?? '',
             lastname: $request['lastname'] ?? '',
@@ -71,5 +75,43 @@ class RegisterInput extends Data
             phone_number: $request['phone_number'] ?? null,
             cell_phone_number: $request['cell_phone_number'] ?? null
         );
+    }
+
+      /**
+     * Validate the array data.
+     *
+     * @return array The validated data
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    protected static function validateArray(array $data): array
+    {
+        $rules = [
+            'password' => ['required', self::passwordRules($data['account_type'] ?? null)],
+        ];
+
+        $validator = Validator::make($data, $rules);
+
+        return $validator->validate();
+    }
+
+    /**
+     * Define the password validation rules based on account type.
+     */
+    protected static function passwordRules(?string $accountType): PasswordRule
+    {
+        $baseRule = PasswordRule::min(8)->uncompromised();
+
+        switch ($accountType) {
+            case 'standard':
+                return $baseRule->min(9)->mixedCase()->numbers()->symbols();
+            case 'admin':
+                return $baseRule->min(12)->mixedCase()->numbers()->symbols();
+            case 'service':
+                return $baseRule->min(15)->mixedCase()->numbers()->symbols();
+            case 'robot':
+                return $baseRule->min(15)->mixedCase()->numbers()->symbols();
+            default:
+            return $baseRule->min(15)->mixedCase()->numbers()->symbols();
+        }
     }
 }

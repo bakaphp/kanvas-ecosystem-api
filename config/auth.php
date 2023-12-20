@@ -112,9 +112,9 @@ return [
 
     'password_timeout' => 10800,
     // Kanvas keys
-    'max_autologin_time' => env('AUTH_MAX_AUTOLOGIN_TIME'),
-    'max_autologin_attempts' => env('AUTH_MAX_AUTOLOGIN_ATTEMPS'),
+    'max_autologin_time' => env('AUTH_MAX_AUTOLOGIN_TIME', 5),
+    'max_autologin_attempts' => env('AUTH_MAX_AUTOLOGIN_ATTEMPS', 10),
     'token_audience' => env('TOKEN_AUDIENCE', ''),
     'token_not_before' => env('TOKEN_NOT_BEFORE', 10),
-    'token_expiration' => env('TOKEN_EXPIRATION', 86400)
+    'token_expiration' => env('TOKEN_EXPIRATION', 86400),
 ];
