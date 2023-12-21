@@ -59,7 +59,7 @@ class RegisterInput extends Data
     public static function fromArray(array $request, ?CompaniesBranches $branch = null): self
     {
         //validate
-        $request = PasswordValidation::validateArray($request);
+        PasswordValidation::validateArray($request);
 
         return new self(
             firstname: $request['firstname'] ?? '',
