@@ -115,7 +115,7 @@ class AuthenticationService
             && $user->user_login_tries >= $config->max_login_attempts
         ) {
             throw new AuthenticationException(
-                sprintf('Your account has been locked because of %d failed login attempt, please wait %d minutes to try again', $config->max_login_attempts, $config->login_reset_time)
+                sprintf('Your account has been locked because of %d failed login attempts, please wait %d minutes to try again', $config->max_login_attempts, $config->login_reset_time)
             );
         }
 
