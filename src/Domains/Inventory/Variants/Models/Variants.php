@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Models;
 
+use Baka\Enums\StateEnums;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
@@ -15,6 +16,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
 use Kanvas\Inventory\Attributes\Models\Attributes;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
@@ -136,6 +138,33 @@ class Variants extends BaseModel
             'attributes_id'
         )
             ->withPivot('value');
+    }
+
+    public function channels(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Channels::class,
+            VariantsChannels::class,
+            'products_variants_id',
+            'channels_id'
+        )
+            ->withPivot('price', 'discounted_price', 'is_published');
+    }
+
+    /**
+     * @psalm-suppress MixedInferredReturnType
+     */
+    public function getPriceInfoFromDefaultChannel(): Channels
+    {
+        //@todo add is_default to channels
+        $channel = Channels::where('slug', 'default')
+            ->where('apps_id', $this->apps_id)
+            ->notDeleted()
+            ->where('is_published', StateEnums::ON->getValue())
+            ->where('companies_id', $this->companies_id)
+            ->firstOrFail();
+
+        return $this->channels()->where('channels_id', $channel->getId())->firstOrFail();
     }
 
     /**
