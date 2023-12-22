@@ -156,7 +156,7 @@ class ChannelsTest extends TestCase
                     'invite_hash' => $inviteHash,
                     'lastname' => fake()->name(),
                     'firstname' => fake()->name(),
-                    'password' => 'password',
+                    'password' => fake()->password(8),
                 ],
             ]
         );
