@@ -9,5 +9,8 @@ use Illuminate\Database\Eloquent\Model;
 
 interface WorkflowActivityInterface
 {
+    /**
+     *  @no-named-arguments
+     */
     public function execute(Model $entity, AppInterface $app, array $params): array;
 }

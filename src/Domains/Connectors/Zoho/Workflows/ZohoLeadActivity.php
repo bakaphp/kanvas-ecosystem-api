@@ -15,6 +15,9 @@ use Workflow\Activity;
 
 class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
 {
+    /**
+     * @param Lead $lead
+     */
     public function execute(Model $lead, AppInterface $app, array $params): array
     {
         $zohoLead = ZohoLead::fromLead($lead);
