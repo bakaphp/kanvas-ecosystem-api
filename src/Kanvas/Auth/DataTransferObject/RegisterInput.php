@@ -61,8 +61,6 @@ class RegisterInput extends Data
     public static function fromArray(array $request, ?CompaniesBranches $branch = null): self
     {
         $roles = isset($request['role_id']) ? [$request['role_id']] : ($request['role_ids'] ?? []);
-        //validate
-        PasswordValidation::validateArray($request);
 
         return new self(
             firstname: $request['firstname'] ?? '',
