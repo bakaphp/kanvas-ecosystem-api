@@ -14,6 +14,7 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class UsersObserver
 {
@@ -33,6 +34,7 @@ class UsersObserver
      */
     public function created(Users $user): void
     {
+        $user->fireWorkflow(WorkflowEnum::CREATED->value);
         /*  if ($user->isFirstSignup() && $user->createDefaultCompany()) {
              $createCompany = new CreateCompaniesAction(
                  new CompaniesPostData(
@@ -75,5 +77,7 @@ class UsersObserver
             'displayname' => $user->displayname,
             'email' => $user->email,
         ]);
+
+        $user->fireWorkflow(WorkflowEnum::UPDATED->value);
     }
 }
