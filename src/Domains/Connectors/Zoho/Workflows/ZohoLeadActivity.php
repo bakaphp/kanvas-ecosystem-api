@@ -5,15 +5,17 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Zoho\Workflows;
 
 use Baka\Contracts\AppInterface;
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Connectors\Zoho\DataTransferObject\ZohoLead;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Workflow\Activity;
 
-class ZohoLeadActivity extends Activity
+class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
 {
-    public function execute(AppInterface $app, Lead $lead): array
+    public function execute(Model $lead, AppInterface $app, array $params): array
     {
         $zohoLead = ZohoLead::fromLead($lead);
         $zohoData = $zohoLead->toArray();

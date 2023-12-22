@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\Rule;
@@ -51,6 +52,13 @@ class CreateEntityWorkflowCommand extends Command
      */
     public function handle(): void
     {
+        $leadTest = Lead::first();
+
+        $leadTest->fireWorkflow('updated');
+        print_r($leadTest->toArray());
+
+
+        die();
         $app = Apps::getById($this->argument('app_id'));
 
         $ruleName = text('What is the name for the workflow?');
