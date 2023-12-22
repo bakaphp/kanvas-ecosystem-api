@@ -36,7 +36,7 @@ final class LeadActivityTest extends TestCase
             []
         );
 
-        $result = $activity->execute($app, $lead);
+        $result = $activity->execute($lead, $app, []);
         $this->assertArrayHasKey('zohoLeadId', $result);
         $this->assertArrayHasKey('zohoRequest', $result);
         $this->assertArrayHasKey('leadId', $result);
