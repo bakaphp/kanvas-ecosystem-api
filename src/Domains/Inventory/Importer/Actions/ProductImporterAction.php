@@ -35,6 +35,7 @@ use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
 use Kanvas\Inventory\Variants\Models\Variants as VariantsModel;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehouses;
+use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses;
 use Throwable;
@@ -371,7 +372,7 @@ class ProductImporterAction
 
             if (! empty($matchingVariantInfo)) {
                 // Since array_filter preserves keys, use array_values to reset them
-                $variantData = $matchingVariantInfo[0];
+                $variantData = current($matchingVariantInfo);
 
                 if (! empty($variantData['warehouse'])) {
                     $variantData = [
@@ -394,19 +395,27 @@ class ProductImporterAction
                 'is_published' => $this->importedProduct->isPublished,
             ]);
 
-            (new AddToWarehouseAction(
-                $variantModel,
-                $warehouse,
-                VariantsWarehouses::from([
+            $variantWarehouses = ModelsVariantsWarehouses::where('products_variants_id', $variantModel->getId())
+            ->where('warehouses_id', $warehouse->getId())
+            ->first();
+
+            if (! $variantWarehouses) {
+                $variantWarehouses = (new AddToWarehouseAction(
+                    $variantModel,
+                    $warehouse,
+                    VariantsWarehouses::from([
+                        'quantity' => $variantData['quantity'] ?? 1,
+                        'price' => $variantData['price'],
+                        'sku' => $variantModel->sku,
+                    ]),
+                ))->execute();
+            } else {
+                VariantService::updateWarehouseVariant($variantModel, $warehouse, [
                     'quantity' => $variantData['quantity'] ?? 1,
                     'price' => $variantData['price'],
                     'sku' => $variantModel->sku,
-                ]),
-            ))->execute();
-
-            $variantWarehouses = ModelsVariantsWarehouses::where('products_variants_id', $variantModel->getId())
-            ->where('warehouses_id', $warehouse->getId())
-            ->firstOrFail();
+                ]);
+            }
 
             (new AddVariantToChannelAction(
                 $variantWarehouses,
