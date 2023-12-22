@@ -371,8 +371,9 @@ class ProductImporterAction
             });
 
             if (! empty($matchingVariantInfo)) {
+                
                 // Since array_filter preserves keys, use array_values to reset them
-                $variantData = $matchingVariantInfo[0];
+                $variantData = current($matchingVariantInfo);
 
                 if (! empty($variantData['warehouse'])) {
                     $variantData = [
