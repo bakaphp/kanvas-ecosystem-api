@@ -79,7 +79,7 @@ class UserInviteTest extends TestCase
                 'data' => [
                     'firstname' => fake()->firstName(),
                     'lastname' => fake()->lastName(),
-                    'password' => '123456789',
+                    'password' => fake()->password(8),
                     'invite_hash' => $invite['invite_hash'],
                 ],
             ]

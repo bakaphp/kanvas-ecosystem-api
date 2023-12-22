@@ -29,7 +29,7 @@ class AddToWarehouseAction
      * execute.
      * @psalm-suppress ArgumentTypeCoercion
      */
-    public function execute(): Variants
+    public function execute(): VariantsWarehouses
     {
         $search = [
             'products_variants_id' => $this->variants->getId(),
@@ -63,6 +63,6 @@ class AddToWarehouseAction
             ))->execute();
         }
 
-        return $this->variants;
+        return $variantsWarehouses;
     }
 }
