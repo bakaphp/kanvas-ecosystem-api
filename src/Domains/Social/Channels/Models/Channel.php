@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace  Kanvas\Social\Channels\Models;
+namespace Kanvas\Social\Channels\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
