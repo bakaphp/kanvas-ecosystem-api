@@ -69,6 +69,7 @@ trait SearchableDynamicIndexTrait
     {
         static::saved(function ($model) {
             $model->appSearchableIndex();
+            $model->searchableAs();
         });
     }
 }
