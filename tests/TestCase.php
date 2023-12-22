@@ -22,7 +22,7 @@ class TestCase extends BaseTestCase
     {
         $dto = RegisterPostDataDto::from([
             'email' => fake()->email,
-            'password' => fake()->password,
+            'password' => fake()->password(8),
             'firstname' => fake()->firstName,
             'lastname' => fake()->lastName,
         ]);

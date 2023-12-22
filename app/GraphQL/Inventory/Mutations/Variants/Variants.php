@@ -120,7 +120,9 @@ class Variants
         }
         $variantWarehouses = VariantsWarehouses::viaRequest($req['input']);
 
-        return (new AddToWarehouse($variant, $warehouse, $variantWarehouses))->execute();
+        (new AddToWarehouse($variant, $warehouse, $variantWarehouses))->execute();
+
+        return $variant;
     }
 
     /**

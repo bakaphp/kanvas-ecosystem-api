@@ -20,29 +20,31 @@ class AddVariantToChannelAction
 
     public function execute(): Variants
     {
-        if ($this->variantsWarehouses->channels()->find($this->channel->getId())) {
-            $this->variantsWarehouses->channels()->syncWithoutDetaching([
-                $this->channel->getId() => [
-                    'price' => $this->variantChannel->price,
-                    'discounted_price' => $this->variantChannel->discounted_price,
-                    'is_published' => $this->variantChannel->is_published,
-                    'products_variants_id' => $this->variantsWarehouses->products_variants_id,
-                    'product_variants_warehouse_id' => $this->variantsWarehouses->getId(),
-                    'warehouses_id' => $this->variantsWarehouses->warehouses_id,
-                ]
+        $channelId = $this->channel->getId();
+        $relationship = $this->variantsWarehouses->channels()->find($channelId);
+
+        if ($relationship) {
+            // Update existing pivot table values
+            $this->variantsWarehouses->channels()->updateExistingPivot($channelId, [
+                'price' => $this->variantChannel->price,
+                'discounted_price' => $this->variantChannel->discounted_price,
+                'is_published' => $this->variantChannel->is_published,
+                'products_variants_id' => $this->variantsWarehouses->products_variants_id,
+                'product_variants_warehouse_id' => $this->variantsWarehouses->getId(),
+                'warehouses_id' => $this->variantsWarehouses->warehouses_id,
             ]);
         } else {
-            $this->variantsWarehouses->channels()->attach([
-                $this->channel->getId() => [
-                    'price' => $this->variantChannel->price,
-                    'discounted_price' => $this->variantChannel->discounted_price,
-                    'is_published' => $this->variantChannel->is_published,
-                    'products_variants_id' => $this->variantsWarehouses->products_variants_id,
-                    'product_variants_warehouse_id' => $this->variantsWarehouses->getId(),
-                    'warehouses_id' => $this->variantsWarehouses->warehouses_id,
-                ]
+            // Create new relationship if it doesn't exist
+            $this->variantsWarehouses->channels()->attach($channelId, [
+                'price' => $this->variantChannel->price,
+                'discounted_price' => $this->variantChannel->discounted_price,
+                'is_published' => $this->variantChannel->is_published,
+                'products_variants_id' => $this->variantsWarehouses->products_variants_id,
+                'product_variants_warehouse_id' => $this->variantsWarehouses->getId(),
+                'warehouses_id' => $this->variantsWarehouses->warehouses_id,
             ]);
         }
+
         return $this->variantsWarehouses->variant;
     }
 }
