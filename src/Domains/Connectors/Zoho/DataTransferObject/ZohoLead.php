@@ -1,0 +1,87 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\Zoho\DataTransferObject;
+
+use Baka\Validations\Date;
+use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
+use Kanvas\Guild\Leads\Models\Lead;
+use Spatie\LaravelData\Data;
+
+class ZohoLead extends Data
+{
+    public function __construct(
+        public string $First_Name,
+        public string $Last_Name,
+        public ?string $Phone = null,
+        public ?string $Email = null,
+        public ?string $Owner = null,
+        public ?string $Description = null,
+        public ?string $Lead_Status = null,
+        public ?array $additionalFields = []
+    ) {
+    }
+
+    public static function fromLead(Lead $lead): self
+    {
+        $customFields = $lead->getAll();
+        $companyZohoMapFields = $lead->company()->first()->get(CustomFieldEnum::FIELDS_MAP->value);
+
+        $additionalFields = [];
+        if ($companyZohoMapFields && is_array($companyZohoMapFields)) {
+            self::mapProperties(
+                $companyZohoMapFields,
+                $additionalFields,
+                $customFields
+            );
+        }
+
+        $people = $lead->people()->first();
+
+        return new self(
+            $people->firstname,
+            $people->lastname,
+            $people->getPhones()->first()?->value,
+            $people->getEmails()->first()?->value,
+            (string) ($lead->owner()->first()->get(CustomFieldEnum::ZOHO_USER_OWNER_ID->value) ?? $lead->company()->first()->get(CustomFieldEnum::DEFAULT_OWNER->value)),
+            $lead->description,
+            (string) ($lead->status()->first()->get(CustomFieldEnum::ZOHO_STATUS_NAME->value) ?? 'New Lead'),
+            $additionalFields
+        );
+    }
+
+    public function toArray(): array
+    {
+        $data = parent::toArray();
+
+        unset($data['additionalFields']);
+
+        return $data;
+    }
+
+    /**
+     * Map properties from one array to another.
+     */
+    protected static function mapProperties(array $map, array &$data, array $entity): void
+    {
+        /**
+         * map = [
+         * 'Affiliate_sOMETHING' => 'ZohoKey'
+         * ].
+         */
+        foreach ($map as $key => $name) {
+            $value = $entity[$key] ?? null;
+            if (is_array($name)) {
+                if ($name['type'] !== 'date') {
+                    settype($value, $name['type']);
+                } else {
+                    $value = Date::isValid($value, 'm/d/Y') || Date::isValid($value, 'Y-m-d') || Date::isValid($value, 'd-m-Y') ? date('Y-m-d', strtotime($value)) : null;
+                }
+                $name = $name['name'];
+            }
+
+            $data[$name] = $value;
+        }
+    }
+}

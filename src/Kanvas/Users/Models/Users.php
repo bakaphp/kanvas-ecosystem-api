@@ -33,7 +33,6 @@ use Kanvas\Auth\Traits\HasApiTokens;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
-use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Exceptions\ModelNotFoundException;
@@ -49,6 +48,7 @@ use Kanvas\Roles\Models\Roles;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Traits\SearchableDynamicIndexTrait;
 use Kanvas\Users\Factories\UsersFactory;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 
 /**
@@ -112,6 +112,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use KanvasModelTrait;
     use HasNotificationSettings;
     use SearchableDynamicIndexTrait;
+    use CanUseWorkflow;
 
     protected ?string $defaultCompanyName = null;
 
