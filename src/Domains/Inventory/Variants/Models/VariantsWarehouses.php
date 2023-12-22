@@ -42,7 +42,7 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 class VariantsWarehouses extends BaseModel
 {
     use NoAppRelationshipTrait;
-    use NoCompanyRelationshipTrait;
+    //use NoCompanyRelationshipTrait;
 
     protected $table = 'products_variants_warehouses';
     protected $guarded = [];
