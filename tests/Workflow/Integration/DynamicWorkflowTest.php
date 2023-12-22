@@ -7,7 +7,7 @@ namespace Tests\Workflow\Integration;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Actions\ProcessWorkflowEventAction;
-use Kanvas\Workflow\Enums\RuleTypeEnum;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Kanvas\Workflow\Rules\Models\RuleAction;
@@ -35,7 +35,7 @@ final class DynamicWorkflowTest extends TestCase
         ]);
 
         $processWorkflow = new ProcessWorkflowEventAction($app, $lead);
-        $processWorkflow->execute(RuleTypeEnum::CREATED->value, $params);
+        $processWorkflow->execute(WorkflowEnum::CREATED->value, $params);
 
         $this->assertEquals($totalWorkflows + Rule::count(), StoredWorkflow::count());
     }
