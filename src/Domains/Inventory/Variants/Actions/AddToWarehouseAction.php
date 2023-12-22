@@ -36,7 +36,7 @@ class AddToWarehouseAction
             'warehouses_id' => $this->warehouses->getId(),
         ];
 
-        $variantsWarehouses = VariantsWarehouses::firstOrCreate(
+        $variantsWarehouses = VariantsWarehouses::updateOrCreate(
             $search,
             [
                 'quantity' => $this->variantsWarehousesDto->quantity ?? 0,

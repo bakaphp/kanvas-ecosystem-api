@@ -27,7 +27,7 @@ use Laravel\Scout\Searchable;
 class Status extends BaseModel
 {
     use SlugTrait;
-    use Searchable;
+    //use Searchable;
     use DefaultTrait;
 
     protected $table = 'status';
