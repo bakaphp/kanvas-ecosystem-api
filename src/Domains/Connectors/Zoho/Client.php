@@ -80,10 +80,10 @@ class Client
      */
     public static function getKeys(CompanyInterface $company, AppInterface $app): array
     {
-        $config = $company;
+        $config = $app;
 
-        if ($company->get(FlagEnum::APP_GLOBAL_ZOHO->value)) {
-            $config = $app;
+        if (! $app->get(FlagEnum::APP_GLOBAL_ZOHO->value)) {
+            $config = $company;
         }
 
         return [

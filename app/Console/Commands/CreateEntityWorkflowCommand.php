@@ -52,13 +52,6 @@ class CreateEntityWorkflowCommand extends Command
      */
     public function handle(): void
     {
-        $leadTest = Lead::first();
-
-        $leadTest->fireWorkflow('updated');
-        print_r($leadTest->toArray());
-
-
-        die();
         $app = Apps::getById($this->argument('app_id'));
 
         $ruleName = text('What is the name for the workflow?');
