@@ -29,14 +29,14 @@ class AddToWarehouseAction
      * execute.
      * @psalm-suppress ArgumentTypeCoercion
      */
-    public function execute(): Variants
+    public function execute(): VariantsWarehouses
     {
         $search = [
             'products_variants_id' => $this->variants->getId(),
             'warehouses_id' => $this->warehouses->getId(),
         ];
 
-        $variantsWarehouses = VariantsWarehouses::updateOrCreate(
+        $variantsWarehouses = VariantsWarehouses::firstOrCreate(
             $search,
             [
                 'quantity' => $this->variantsWarehousesDto->quantity ?? 0,
@@ -63,6 +63,6 @@ class AddToWarehouseAction
             ))->execute();
         }
 
-        return $this->variants;
+        return $variantsWarehouses;
     }
 }
