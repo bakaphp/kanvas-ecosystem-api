@@ -377,7 +377,7 @@ class ProductImporterAction
                     $variantData = [
                         'quantity' => $variantData['warehouse']['quantity'] ?? ($variantData['quantity'] ?? 1),
                         'price' => $variantData['warehouse']['price'] ?? $variantData['price'],
-                        'discountPrice' => $variantData['warehouse']['discountPrice'] ?? $variantData['discountPrice'],
+                        'discountPrice' => $variantData['warehouse']['discountPrice'] ?? ($variantData['discountPrice'] ?? 0),
                     ];
                 }
             } else {
