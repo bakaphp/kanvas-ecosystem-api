@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Mutations\Apps;
 
 use Baka\Support\Str;
+use Baka\Validations\PasswordValidation;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\CreateUserAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
@@ -52,6 +53,9 @@ class AppUserManagementMutation
         $createCompany = $request['data']['create_company'] ?? false;
         $assignCurrentUserBranch = $adminUserRegistrationAssignCurrentCompany ?? ! $createCompany;
         $assignBranch = $assignCurrentUserBranch ? $branch : null;
+
+        //validate
+        PasswordValidation::validateArray($request['data'], $app);
 
         $data = RegisterInput::fromArray($request['data'], $assignBranch);
         $user = (new CreateUserAction($data))->execute();

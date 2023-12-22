@@ -4,13 +4,19 @@ declare(strict_types=1);
 
 namespace Baka\Validations;
 
+use Baka\Contracts\AppInterface;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password as PasswordRule;
+use Kanvas\Enums\AppSettingsEnums;
 
 class PasswordValidation
 {
-    public static function validateArray(array $data): array
+    public static function validateArray(array $data, AppInterface $app): array
     {
+        if ($app->get(AppSettingsEnums::PASSWORD_STRENGTH->getValue())) {
+            return [];
+        }
+
         $rules = [
             'password' => ['required', self::passwordRules($data['account_type'] ?? null)],
         ];
