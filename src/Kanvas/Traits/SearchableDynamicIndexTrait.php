@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Traits;
 
+use Baka\Search\DeleteInMeiliSearchJob;
 use Baka\Search\IndexInMeiliSearchJob;
 use Kanvas\Apps\Models\Apps;
 use Laravel\Scout\Searchable;
@@ -71,5 +72,15 @@ trait SearchableDynamicIndexTrait
             $model->appSearchableIndex();
             $model->searchableAs();
         });
+    }
+
+    /**
+     * Current soft delete.
+     *
+     * @todo change to laravel default behavior
+     */
+    public function searchableSoftDelete(): void
+    {
+        DeleteInMeiliSearchJob::dispatchSync($this->searchableAs(), $this);
     }
 }

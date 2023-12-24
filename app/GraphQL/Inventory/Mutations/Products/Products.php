@@ -51,7 +51,7 @@ class Products
     {
         $product = ProductsRepository::getById($req['id'], auth()->user()->getCurrentCompany());
 
-        return $product->softDelete();
+        return $product->delete();
     }
 
     /**

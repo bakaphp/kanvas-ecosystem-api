@@ -46,6 +46,10 @@ trait SoftDeletesTrait
 
         $this->syncOriginalAttributes(array_keys($columns));
 
+        if (method_exists($this, 'searchableSoftDelete')) {
+            $this->searchableSoftDelete();
+        }
+
         $this->fireModelEvent('trashed', false);
     }
 
