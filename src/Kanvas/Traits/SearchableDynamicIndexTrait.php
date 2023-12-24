@@ -30,6 +30,7 @@ trait SearchableDynamicIndexTrait
 
         if ($this->searchableDeleteRecord()) {
             $record = $this->find($this->id);
+            $appId = $record instanceof self ? $record->apps_id : $appId;
             $companyId = $record instanceof self ? $record->companies_id : $this->companies_id;
         }
 
@@ -81,6 +82,6 @@ trait SearchableDynamicIndexTrait
      */
     public function searchableSoftDelete(): void
     {
-        DeleteInMeiliSearchJob::dispatchSync($this->searchableAs(), $this);
+        DeleteInMeiliSearchJob::dispatch($this->searchableAs(), $this);
     }
 }
