@@ -37,5 +37,11 @@ class DeleteInMeiliSearchJob implements ShouldQueue
     {
         $meiliSearchService = new SearchMeiliSearchService();
         $meiliSearchService->deleteRecord($this->indexName, $this->model);
+        $meiliSearchService->deleteRecord($this->removeCompanyId($this->indexName), $this->model);
+    }
+
+    protected function removeCompanyId(string $str): string
+    {
+        return preg_replace('/_[^_]*$/', '', $str);
     }
 }
