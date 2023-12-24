@@ -44,6 +44,6 @@ class DeleteInMeiliSearchJob implements ShouldQueue
 
     protected function removeCompanyId(string $str): string
     {
-        return preg_replace('/_[^_]*$/', '', $str);
+        return preg_replace('/\d+$/', '', $str);
     }
 }
