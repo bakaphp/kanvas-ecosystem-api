@@ -2,16 +2,12 @@
 
 namespace Kanvas\Notifications\Events;
 
-use Illuminate\Broadcasting\Channel;
+use Baka\Contracts\AppInterface;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
-use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Users\Models\Users;
-use Baka\Contracts\AppInterface;
 
 class PushNotificationsEvent
 {
