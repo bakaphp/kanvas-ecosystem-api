@@ -57,7 +57,7 @@ trait SearchableDynamicIndexTrait
     public function appSearchableIndex(): void
     {
         $appId = $this->apps_id ?? app(Apps::class)->getId();
-        
+
         if ($this->searchableDeleteRecord()) {
             $record = $this->find($this->id);
             $appId = $record instanceof self ? $record->apps_id : $appId;

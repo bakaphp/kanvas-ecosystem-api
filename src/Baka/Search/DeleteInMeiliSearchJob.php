@@ -37,6 +37,8 @@ class DeleteInMeiliSearchJob implements ShouldQueue
     {
         $meiliSearchService = new SearchMeiliSearchService();
         $meiliSearchService->deleteRecord($this->indexName, $this->model);
+
+        //we did this because for some reason the index name with searchable queue takes the app id from local kanvas
         $meiliSearchService->deleteRecord($this->removeCompanyId($this->indexName), $this->model);
     }
 
