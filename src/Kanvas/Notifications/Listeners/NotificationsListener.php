@@ -13,7 +13,6 @@ class NotificationsListener
      */
     public function __construct()
     {
-
     }
 
     /**
