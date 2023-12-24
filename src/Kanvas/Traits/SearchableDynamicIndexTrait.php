@@ -56,7 +56,7 @@ trait SearchableDynamicIndexTrait
     {
         $record = $this->find($this->id);
         $appId = $this->apps_id == null && isset($record->apps_id) ? $record->apps_id : app(Apps::class)->getId();
-        
+
         $indexName = self::$overWriteSearchIndex !== null
             ? self::$overWriteSearchIndex
             : self::searchableIndex();
