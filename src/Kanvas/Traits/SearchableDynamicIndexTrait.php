@@ -24,11 +24,13 @@ trait SearchableDynamicIndexTrait
      */
     public function searchableAs(): string
     {
-        $record = $this->find($this->id);
-        $appId = $this->apps_id == null && isset($record->apps_id) ? $record->apps_id : app(Apps::class)->getId();
+        $appId = $this->apps_id ?? app(Apps::class)->getId();
+        $record = null;
         $companyId = $this->companies_id ?? null;
 
         if ($this->searchableDeleteRecord()) {
+            $record = $this->find($this->id);
+            $appId = $record instanceof self ? $record->apps_id : $appId;
             $companyId = $record instanceof self ? $record->companies_id : $this->companies_id;
         }
 
@@ -54,8 +56,12 @@ trait SearchableDynamicIndexTrait
 
     public function appSearchableIndex(): void
     {
-        $record = $this->find($this->id);
-        $appId = $this->apps_id == null && isset($record->apps_id) ? $record->apps_id : app(Apps::class)->getId();
+        $appId = $this->apps_id ?? app(Apps::class)->getId();
+
+        if ($this->searchableDeleteRecord()) {
+            $record = $this->find($this->id);
+            $appId = $record instanceof self ? $record->apps_id : $appId;
+        }
 
         $indexName = self::$overWriteSearchIndex !== null
             ? self::$overWriteSearchIndex
