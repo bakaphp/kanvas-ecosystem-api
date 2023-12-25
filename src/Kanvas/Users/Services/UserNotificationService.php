@@ -26,6 +26,7 @@ class UserNotificationService
                 $user,
                 [
                     'company' => $branch->company,
+                    'subject' => 'Welcome to ' . $app->name,
                 ]
             );
 
