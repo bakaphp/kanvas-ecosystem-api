@@ -44,7 +44,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
     public function __construct(Model $entity, array $options = [])
     {
-        // $this->onQueue('notifications');
+        //$this->onQueue('notifications');
         $this->entity = $entity;
         $this->app = app(Apps::class);
         $this->data = [
