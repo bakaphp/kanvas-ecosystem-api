@@ -45,7 +45,7 @@ class KanvasInventoryDefaultUpdate extends Command
 
         foreach ($associatedApps as $company) {
             $companyData = $company->company;
-            if (!$companyData) {
+            if (! $companyData) {
                 continue;
             }
             $defaultWarehouses = Warehouses::getDefault($companyData);
@@ -55,7 +55,7 @@ class KanvasInventoryDefaultUpdate extends Command
             $this->info("Checking company {$companyData->getId()} \n");
             $this->info("Checking company {$companyData->getId()} default status \n");
 
-            if (!$defaultRegion) {
+            if (! $defaultRegion) {
                 $this->info("Working company {$companyData->getId()} default region \n");
                 try {
                     $defaultRegion = Regions::firstOrCreate([
@@ -74,7 +74,7 @@ class KanvasInventoryDefaultUpdate extends Command
                 }
             }
 
-            if (!$defaultWarehouses) {
+            if (! $defaultWarehouses) {
                 $this->info("Working company {$companyData->getId()} default warehouse \n");
                 try {
                     $defaultWarehouses = Warehouses::firstOrCreate([
@@ -93,7 +93,7 @@ class KanvasInventoryDefaultUpdate extends Command
                 }
             }
 
-            if (!$defaultStatus) {
+            if (! $defaultStatus) {
                 $this->info("Working company {$companyData->getId()} default status \n");
                 try {
                     $defaultStatus = Status::firstOrCreate([
