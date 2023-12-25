@@ -19,7 +19,7 @@ class StatusObserver
             $defaultStatus->saveQuietly();
         }
 
-        if (!$status->is_default && !$defaultStatus) {
+        if (! $status->is_default && ! $defaultStatus) {
             throw new ValidationException('Can\'t Save, you have to have at least one default Status');
         }
     }
@@ -36,7 +36,7 @@ class StatusObserver
             $defaultStatus->is_default = false;
             $defaultStatus->saveQuietly();
         } elseif ($defaultStatus &&
-            !$status->is_default &&
+            ! $status->is_default &&
             $status->getId() == $defaultStatus->getId()
         ) {
             throw new ValidationException('Can\'t Save, you have to have at least one default Status');
