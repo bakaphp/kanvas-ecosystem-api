@@ -125,7 +125,7 @@ class Setup
 
         $defaultWarehouse = $createWarehouse->execute();
 
-        $createDefaultProductType= new CreateProductTypeAction(
+        $createDefaultProductType = new CreateProductTypeAction(
             new ProductsTypes(
                 $this->company,
                 $this->user,
