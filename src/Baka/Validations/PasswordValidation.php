@@ -13,7 +13,7 @@ class PasswordValidation
 {
     public static function validateArray(array $data, AppInterface $app): array
     {
-        if ($app->get(AppSettingsEnums::PASSWORD_STRENGTH->getValue())) {
+        if (! $app->get(AppSettingsEnums::PASSWORD_STRENGTH->getValue())) {
             return [];
         }
 
