@@ -402,10 +402,12 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function currentBranchId(): int
     {
         if (! app()->bound(CompaniesBranches::class)) {
-            return (int) $this->get($this->getCurrentCompany()->branchCacheKey());
+            $currentBranchId = (int) $this->get($this->getCurrentCompany()->branchCacheKey());
         } else {
-            return app(CompaniesBranches::class)->getId();
+            $currentBranchId = app(CompaniesBranches::class)->getId();
         }
+
+        return $currentBranchId ? (int) $currentBranchId : $this->default_company_branch;
     }
 
     /**
