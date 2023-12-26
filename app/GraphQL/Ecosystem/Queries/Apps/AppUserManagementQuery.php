@@ -7,6 +7,7 @@ namespace App\GraphQL\Ecosystem\Queries\Apps;
 use Baka\Enums\StateEnums;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Users\Models\Users;
@@ -32,10 +33,16 @@ class AppUserManagementQuery
         //  ->where('users_associated_apps.apps_id', app(Apps::class)->getId())
         //  ->where('users_associated_apps.is_deleted', StateEnums::NO->getValue())
         //  ;
-        return  Users::select('users.*')
-                ->join('users_associated_apps', 'users_associated_apps.users_id', 'users.id')
-                ->where('users_associated_apps.apps_id', app(Apps::class)->getId())
-                ->where('users_associated_apps.companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
-                ->where('users_associated_apps.is_deleted', StateEnums::NO->getValue());
+        return Users::select('users.*')
+            ->join('users_associated_apps', 'users_associated_apps.users_id', '=', 'users.id')
+            ->where('users_associated_apps.apps_id', app(Apps::class)->getId())
+            ->where('users_associated_apps.companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+            ->where('users_associated_apps.is_deleted', StateEnums::NO->getValue())
+            ->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('users_associated_company')
+                    ->whereRaw('users_associated_company.users_id = users.id')
+                    ->where('users_associated_company.companies_id', '>', 0);
+            });
     }
 }
