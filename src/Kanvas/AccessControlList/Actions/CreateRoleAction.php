@@ -51,6 +51,7 @@ class CreateRoleAction
         $role = Bouncer::role()->firstOrCreate([
             'name' => $this->name,
             'title' => $this->title,
+            'scope' => RolesEnums::getScope($this->app),
         ]);
 
         return $role;
