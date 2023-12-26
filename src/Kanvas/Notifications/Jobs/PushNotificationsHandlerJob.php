@@ -29,7 +29,7 @@ class PushNotificationsHandlerJob implements ShouldQueue
         private array $message,
         private AppInterface $app
     ) {
-        // $this->onQueue('notifications');
+        $this->onQueue('notifications');
     }
 
     /**
