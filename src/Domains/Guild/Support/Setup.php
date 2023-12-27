@@ -17,6 +17,7 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 class Setup
 {
@@ -68,7 +69,7 @@ class Setup
     public function run(): bool
     {
         // $createSystemModule = new CreateInCurrentAppAction($this->app);
-        // $leadSystemModule = $createSystemModule->execute(Lead::class);
+        $leadSystemModule = SystemModulesRepository::getByModelName(Lead::class);
         // $createSystemModule->execute(People::class);
         // $createSystemModule->execute(Organization::class);
         // $createSystemModule->execute(Pipeline::class);
