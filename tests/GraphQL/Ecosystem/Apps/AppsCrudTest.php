@@ -112,7 +112,7 @@ class AppsCrudTest extends TestCase
             'is_public' => true,
             'domain_based' => false,
         ];
-        
+
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation(
                 $input: AppInput!
