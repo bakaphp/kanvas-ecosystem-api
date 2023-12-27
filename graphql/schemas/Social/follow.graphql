@@ -1,6 +1,6 @@
 type Following {
     id: Int!
-    user_id: Int!
+    users_id: Int!
     entity_namespace: String!
     entity_id: Int!
     entity: User
@@ -23,7 +23,7 @@ extend type Query @guard {
         )
     getFollowing(user_id: Int!): [Following!]!
         @paginate(
-            builder: "App\\GraphQL\\Social\\Builders\\Follows\\GetFollowingBuilder"
+        builder: "App\\GraphQL\\Social\\Builders\\Follows\\GetFollowingBuilder"
             defaultCount: 25
         )
     getTotalFollowers(user_id: Int!): Int!

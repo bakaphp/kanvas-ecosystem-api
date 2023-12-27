@@ -80,7 +80,8 @@ class FilesystemQuery
             'filesystem.url',
             'filesystem.size',
             'filesystem.file_type',
-            'size'
+            'size',
+            'filesystem.id'
         )
             ->join('filesystem_entities', 'filesystem_entities.filesystem_id', '=', 'filesystem.id')
             ->where('filesystem_entities.entity_id', '=', $entity->getKey())

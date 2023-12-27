@@ -41,7 +41,8 @@ class Setup
     public function run(): bool
     {
         $createSystemModule = new CreateInCurrentAppAction($this->app);
-        $createSystemModule->execute(Interactions::class);
+        // $createSystemModule->execute(Interactions::class);
+        (new CreateSystemModule($this->app))->run();
 
         $createInteractions = new CreateInteraction(
             new Interaction(
