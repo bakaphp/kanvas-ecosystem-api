@@ -40,6 +40,5 @@ class CreateSystemModule
         $createSystemModule->execute(EntityTopics::class);
         $createSystemModule->execute(UserInteraction::class);
         $createSystemModule->execute(UserList::class);
-
     }
 }
