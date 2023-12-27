@@ -6,6 +6,7 @@ namespace Kanvas\Apps\Jobs;
 
 use Baka\Contracts\AppInterface;
 use Baka\Traits\KanvasJobsTrait;
+use Exception;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -38,7 +39,7 @@ class CreateSystemModuleJob implements ShouldQueue
             (new GuildCreateSystemModule($this->app))->run();
             (new InventoryCreateSystemModule($this->app))->run();
         } catch (\Throwable $e) {
-            var_dump($e->getMessage());
+            throw new Exception($e->getMessage());
         }
     }
 }
