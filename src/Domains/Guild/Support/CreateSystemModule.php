@@ -33,6 +33,5 @@ class CreateSystemModule
         $createSystemModule->execute(People::class);
         $createSystemModule->execute(Agent::class);
         $createSystemModule->execute(Contact::class);
-
     }
 }
