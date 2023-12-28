@@ -5,12 +5,12 @@ type App {
     url: String
     domain: String
     default_apps_plan_id: Int
-    is_actived: Int
+    is_actived: Boolean!
     key: ID!
-    payments_active: Int
-    ecosystem_auth: Int
-    is_public: Int
-    domain_based: Int
+    payments_active: Boolean
+    ecosystem_auth: Boolean
+    is_public: Boolean!
+    domain_based: Boolean
     created_at: String!
     updated_at: String!
 }
