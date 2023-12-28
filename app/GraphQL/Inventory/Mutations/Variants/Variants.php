@@ -139,6 +139,7 @@ class Variants
     }
 
     /**
+     * @todo Remove and use softdelete.
      * removeToWarehouse.
      */
     public function removeToWarehouse(mixed $root, array $req): VariantModel
@@ -167,6 +168,7 @@ class Variants
     }
 
     /**
+     * @todo Remove and use softdelete.
      * removeAttribute.
      */
     public function removeAttribute(mixed $root, array $req): VariantModel
@@ -198,6 +200,7 @@ class Variants
     }
 
     /**
+     * @todo Remove and use softdelete.
      * removeChannel.
      */
     public function removeChannel(mixed $root, array $req): VariantModel
