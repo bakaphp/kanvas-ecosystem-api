@@ -116,7 +116,7 @@ class Variants extends BaseModel
     public function variantAttributes(): HasMany
     {
         return $this->hasMany(VariantsAttributes::class, 'products_variants_id');
-    } 
+    }
 
     public function status(): BelongsTo
     {
