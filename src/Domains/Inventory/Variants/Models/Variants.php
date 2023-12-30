@@ -53,7 +53,7 @@ class Variants extends BaseModel
     use CascadeSoftDeletes;
 
     protected $is_deleted;
-    protected $cascadeDeletes = ['variantWarehouses'];
+    protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];
 
     protected $table = 'products_variants';
     protected $fillable = [
@@ -106,6 +106,16 @@ class Variants extends BaseModel
     public function variantWarehouses(): HasMany
     {
         return $this->hasMany(VariantsWarehouses::class, 'products_variants_id');
+    }
+
+    public function variantChannels(): HasMany
+    {
+        return $this->hasMany(VariantsChannels::class, 'products_variants_id');
+    }
+
+    public function variantAttributes(): HasMany
+    {
+        return $this->hasMany(VariantsAttributes::class, 'products_variants_id');
     }
 
     public function status(): BelongsTo
