@@ -117,4 +117,12 @@ class NotificationTypes extends BaseModel
             'mail',
         ];
     }
+
+    public function assignChannel(NotificationChannel $channel, Templates $template)
+    {
+        $this->channels()->create([
+            'notification_channel_id' => $channel->getId(),
+            'template_id' => $template->getId(),
+        ]);
+    }
 }

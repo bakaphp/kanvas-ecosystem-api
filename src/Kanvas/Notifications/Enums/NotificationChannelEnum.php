@@ -12,9 +12,9 @@ enum NotificationChannelEnum: int
 {
     case MAIL = 1;
     case PUSH = 2;
-    case REALTIME = 3;
-    case SMS = 4;
-    case DATABASE = 5;
+    case DATABASE = 3;
+    case REALTIME = 4;
+    case SMS = 5;
 
     public static function getIdFromString(string $channel): ?int
     {
