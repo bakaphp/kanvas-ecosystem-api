@@ -6,8 +6,10 @@ namespace Kanvas\Notifications\Models;
 
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Models\BaseModel;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Templates\Models\Templates;
 
@@ -58,6 +60,34 @@ class NotificationTypes extends BaseModel
     public function template(): BelongsTo
     {
         return $this->belongsTo(Templates::class, 'template_id', 'id');
+    }
+
+    public function channels(): HasMany
+    {
+        return $this->hasMany(NotificationTypeChannel::class, 'notification_type_id');
+    }
+
+    public function getChannelsInNotificationFormat(): array
+    {
+        $channels = [];
+
+        foreach ($this->channels as $channel) {
+            $channels[] = NotificationChannelEnum::getNotificationChannelBySlug($channel->channel->slug);
+        }
+
+        return $channels;
+    }
+
+    public function getPushTemplateName(): string
+    {
+        $pushNotificationTemplate = $this->channels()->where('notification_channel_id', NotificationChannelEnum::PUSH->value)->first();
+        $templateName = $pushNotificationTemplate->template()->exists() ? $pushNotificationTemplate->template()->first()->name : null;
+
+        if (empty($templateName)) {
+            throw new ModelNotFoundException('This notification type does not have an email template');
+        }
+
+        return $templateName;
     }
 
     /**

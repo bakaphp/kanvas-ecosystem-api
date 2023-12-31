@@ -27,6 +27,23 @@ trait NotificationRenderTrait
         return '';
     }
 
+    public function getEmailContent(): string
+    {
+        return $this->message();
+    }
+
+    protected function getPushTemplate(): string
+    {
+        $templateName = $this->getType()->getPushTemplateName();
+
+        $renderTemplate = new RenderTemplateAction($this->app, $this->company);
+
+        return $renderTemplate->execute(
+            $templateName,
+            $this->getData()
+        );
+    }
+
     /**
      * Given the HTML for the current email notification
      */

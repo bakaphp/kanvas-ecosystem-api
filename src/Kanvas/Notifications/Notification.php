@@ -19,6 +19,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Notifications\Channels\KanvasDatabase as KanvasDatabaseChannel;
 use Kanvas\Notifications\Interfaces\EmailInterfaces;
 use Kanvas\Notifications\Models\NotificationTypes;
+use Kanvas\Notifications\Traits\NotificationOneSignalTrait;
 use Kanvas\Notifications\Traits\NotificationRenderTrait;
 use Kanvas\Notifications\Traits\NotificationStorageTrait;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
@@ -29,6 +30,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     use Queueable;
     use NotificationStorageTrait;
     use NotificationRenderTrait;
+    use NotificationOneSignalTrait;
 
     protected Model $entity;
     protected AppInterface $app;
@@ -94,14 +96,15 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      */
     public function via(object $notifiable): array
     {
-        $channels = $this->channels();
+        $notificationTypeChannels = $this->type->getChannelsInNotificationFormat();
+        $channels = $notificationTypeChannels ?? $this->channels();
 
         if (! empty($channels) && $this->type instanceof NotificationTypes) {
             /**
              * @psalm-suppress MissingClosureReturnType
              */
             $enabledChannels = array_filter($channels, function ($channel) use ($notifiable) {
-                return $notifiable->isNotificationSettingEnable($this->type, $channel);
+                return $notifiable->isNotificationSettingEnable($this->type, $channel); //todo update this logic to the new channel structure
             });
             $channels = array_values($enabledChannels);
         }
@@ -137,7 +140,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
                 ->mailer($mailer)
                 ->from($fromEmail, $fromName)
                 //->subject($this->app->get('name') . ' - ' . $this->getTitle()
-                ->view('emails.layout', ['html' => $this->message()]);
+                ->view('emails.layout', ['html' => $this->getEmailContent()]);
 
         if ($this->subject) {
             $mailMessage->subject($this->subject);
