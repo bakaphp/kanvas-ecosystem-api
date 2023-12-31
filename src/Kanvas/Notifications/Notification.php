@@ -109,7 +109,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
                     $this->type,
                     $this->app,
                     NotificationChannelEnum::getChannelIdByClassReference($channel)
-                ); 
+                );
             });
             $channels = array_values($enabledChannels);
         }
