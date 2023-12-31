@@ -42,5 +42,4 @@ class Sources extends BaseModel
             throw new ExceptionsModelNotFoundException("No record found for $name");
         }
     }
-
 }
