@@ -13,7 +13,6 @@ use Kanvas\Notifications\Models\NotificationChannel;
 use Kanvas\Notifications\Templates\DynamicKanvasNotification;
 use Kanvas\Templates\Actions\CreateTemplateAction;
 use Kanvas\Templates\DataTransferObject\TemplateInput;
-use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 final class DynamicNotificationTest extends TestCase
@@ -61,7 +60,7 @@ final class DynamicNotificationTest extends TestCase
 
         $dynamicNotification = new DynamicKanvasNotification(
             $notificationType,
-            ['dynamic' => 'dynamic '.time()]
+            ['dynamic' => 'dynamic ' . time()]
         );
 
         Notification::fake();
@@ -69,7 +68,7 @@ final class DynamicNotificationTest extends TestCase
         $user->notify($dynamicNotification);
 
         Notification::assertSentTo(
-            $user, 
+            $user,
             DynamicKanvasNotification::class
         );
     }

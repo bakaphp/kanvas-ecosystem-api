@@ -31,6 +31,7 @@ enum NotificationChannelEnum: int
     public static function getNotificationChannelBySlug(string $slug): ?string
     {
         return match (strtoupper($slug)) {
+            'EMAIL' => 'mail',
             'MAIL' => 'mail',
             'PUSH' => OneSignalNotificationChannel::class,
             'DATABASE' => KanvasDatabase::class,
