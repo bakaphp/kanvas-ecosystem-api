@@ -96,8 +96,8 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      */
     public function via(object $notifiable): array
     {
-        $notificationTypeChannels = $this->type->getChannelsInNotificationFormat();
-        $channels = $notificationTypeChannels ?? $this->channels();
+        $notificationTypeChannels = $this->type instanceof NotificationTypes ? $this->type->getChannelsInNotificationFormat() : [];
+        $channels = ! empty($notificationTypeChannels) ? $notificationTypeChannels : $this->channels();
 
         if (! empty($channels) && $this->type instanceof NotificationTypes) {
             /**

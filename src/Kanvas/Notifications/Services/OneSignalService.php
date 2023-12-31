@@ -52,6 +52,7 @@ class OneSignalService
         ?array $data = null,
         ?array $buttons = null,
         ?string $schedule = null,
+        ?string $headings = null,
         ?string $subtitle = null
     ): void {
         $contents = [
