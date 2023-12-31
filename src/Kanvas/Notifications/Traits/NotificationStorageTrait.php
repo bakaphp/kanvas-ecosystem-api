@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Traits;
 
+use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Notifications\AnonymousNotifiable;
@@ -28,7 +29,7 @@ trait NotificationStorageTrait
         }
 
         if ($notifiable instanceof UserInterface) {
-            $companiesId = $notifiable->getCurrentCompany()->getId();
+            $companiesId = $this->company instanceof CompanyInterface ? $this->company->getId() : $notifiable->getCurrentCompany()->getId();
             $userId = $notifiable->getId();
         }
 

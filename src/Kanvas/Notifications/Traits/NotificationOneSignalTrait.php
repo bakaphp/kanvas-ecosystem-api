@@ -6,10 +6,8 @@ namespace Kanvas\Notifications\Traits;
 
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
-use Exception;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Users\Repositories\UsersLinkedSourcesRepository;
 
 trait NotificationOneSignalTrait
 {

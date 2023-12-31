@@ -29,7 +29,11 @@ trait NotificationRenderTrait
 
     public function getEmailContent(): string
     {
-        return $this->message();
+        if ($this->getType()->hasEmailTemplate()) {
+            return $this->getEmailTemplate();
+        }
+
+        return '';
     }
 
     protected function getPushTemplate(): string

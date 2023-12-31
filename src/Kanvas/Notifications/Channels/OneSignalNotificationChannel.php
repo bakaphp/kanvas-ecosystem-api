@@ -4,14 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Channels;
 
-use Berkayk\OneSignal\OneSignalClient;
 use Illuminate\Notifications\Notification;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Enums\AppSettingsEnums;
-use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Services\OneSignalService;
 use Kanvas\Users\Models\Users;
-use Kanvas\Users\Repositories\UsersLinkedSourcesRepository;
 
 class OneSignalNotificationChannel
 {

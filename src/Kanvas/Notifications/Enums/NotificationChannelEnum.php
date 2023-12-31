@@ -37,4 +37,14 @@ enum NotificationChannelEnum: int
             default => throw new ValidationException('Invalid channel ' . $slug),
         };
     }
+
+    public static function getChannelIdByClassReference(string $class): ?int
+    {
+        return match ($class) {
+            'mail' => self::MAIL->value,
+            OneSignalNotificationChannel::class => self::PUSH->value,
+            KanvasDatabase::class => self::DATABASE->value,
+            default => throw new ValidationException('Invalid channel ' . $class),
+        };
+    }
 }

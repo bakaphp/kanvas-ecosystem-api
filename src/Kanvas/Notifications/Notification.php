@@ -17,6 +17,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Notifications\Channels\KanvasDatabase as KanvasDatabaseChannel;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Interfaces\EmailInterfaces;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Notifications\Traits\NotificationOneSignalTrait;
@@ -104,7 +105,11 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
              * @psalm-suppress MissingClosureReturnType
              */
             $enabledChannels = array_filter($channels, function ($channel) use ($notifiable) {
-                return $notifiable->isNotificationSettingEnable($this->type, $channel); //todo update this logic to the new channel structure
+                return $notifiable->isNotificationSettingEnable(
+                    $this->type,
+                    $this->app,
+                    NotificationChannelEnum::getChannelIdByClassReference($channel)
+                ); 
             });
             $channels = array_values($enabledChannels);
         }

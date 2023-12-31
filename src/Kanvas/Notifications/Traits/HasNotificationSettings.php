@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Traits;
 
+use Baka\Contracts\AppInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Models\NotificationTypes;
@@ -18,11 +19,12 @@ trait HasNotificationSettings
      */
     public function isNotificationSettingEnable(
         NotificationTypes $type,
-        string $channel = NotificationChannelEnum::MAIL
+        AppInterface $app,
+        int $channel = NotificationChannelEnum::MAIL->value
     ): bool {
         $userNotificationSetting = NotificationSettingsRepository::getNotificationSettingsByType(
             $this,
-            app(Apps::class),
+            $app,
             $type,
         );
 
