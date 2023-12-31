@@ -42,7 +42,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         'mail',
     ];
 
-    public function __construct(Model $entity, array $options = [])
+    public function __construct(Model|NotificationTypes $entity, array $options = [])
     {
         $this->onQueue('notifications');
         $this->entity = $entity;
@@ -112,10 +112,11 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
             $this->toUser = $notifiable; //we do this validation because user invite temp user deserialize the user
         }
 
-        return [
+        /* return [
              KanvasDatabaseChannel::class,
              ...$channels,
-        ];
+        ]; */
+        return $channels;
     }
 
     /**

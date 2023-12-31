@@ -6,6 +6,7 @@ namespace Kanvas\Notifications\Models;
 
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Templates\Models\Templates;
@@ -64,6 +65,26 @@ class NotificationTypes extends BaseModel
      */
     public function hasEmailTemplate(): bool
     {
-        return ! empty($this->template);
+        $templateName = $this->template()->exists() ? $this->template()->get()->name : $this->template;
+
+        return ! empty($templateName);
+    }
+
+    public function getTemplateName(): string
+    {
+        $templateName = $this->template()->exists() ? $this->template()->get()->name : $this->template;
+
+        if (empty($templateName)) {
+            throw new ModelNotFoundException('This notification type does not have an email template');
+        }
+
+        return $templateName;
+    }
+
+    public function getNotificationChannels(): array
+    {
+        return [
+            'mail',
+        ];
     }
 }

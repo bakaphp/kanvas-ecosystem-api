@@ -77,8 +77,8 @@ trait NotificationRenderTrait
     /*
     * Get notification template Name
     */
-    public function getTemplateName(): ?string
+    public function getTemplateName(): string
     {
-        return $this->templateName === null ? $this->getType()->template : $this->templateName;
+        return $this->templateName === null ? $this->getType()->getTemplateName() : $this->templateName;
     }
 }
