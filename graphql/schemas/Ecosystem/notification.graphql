@@ -38,7 +38,7 @@ type NotificationChannel {
 }
 
 type NotificationMessageResponse {
-    success: Boolean!
+    sent: Boolean!
     message: String!
 }
 

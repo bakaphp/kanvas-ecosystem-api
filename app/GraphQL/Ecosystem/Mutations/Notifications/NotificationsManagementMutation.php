@@ -9,8 +9,8 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Actions\EvaluateNotificationsLogicAction;
-use Kanvas\Notifications\Actions\SendMessageNotificationsToAllFollowersAction;
-use Kanvas\Notifications\Actions\SendMessageNotificationsToOneFollowerAction;
+use Kanvas\Notifications\Jobs\SendMessageNotificationsToAllFollowersJob;
+use Kanvas\Notifications\Jobs\SendMessageNotificationsToOneFollowerJob;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Notifications\Repositories\NotificationTypesMessageLogicRepository;
 use Kanvas\Notifications\Repositories\NotificationTypesRepository;
@@ -67,7 +67,7 @@ class NotificationsManagementMutation
 
         if (! $notificationType) {
             return [
-                'success' => false,
+                'sent' => false,
                 'message' => 'Notification type not found',
             ];
         }
@@ -81,44 +81,43 @@ class NotificationsManagementMutation
 
         if (! $canSendNotification) {
             return [
-                'success' => false,
+                'sent' => false,
                 'message' => 'Notification logic not met',
             ];
         }
 
         $sendToOneFollower = $notificationMessagePayload->distributeToOneFollower() && $follower = Users::getById($notificationMessagePayload->followerId);
         if ($sendToOneFollower) {
-            $sendNotificationsToFollower = new SendMessageNotificationsToOneFollowerAction(
+            SendMessageNotificationsToOneFollowerJob::dispatch(
                 $user,
                 $follower,
                 $app,
                 $notificationType,
                 $notificationMessagePayload
             );
-            $sendNotificationsToFollower->execute();
+
             return [
-                'success' => true,
+                'sent' => true,
                 'message' => 'Notification sent to one follower ' . $follower->getId(),
             ];
         }
 
         if (! $notificationMessagePayload->distributeToFollowers()) {
             return [
-                'success' => false,
+                'sent' => false,
                 'message' => 'Notification distribution type not found in request payload',
             ];
         }
 
-        $sendNotificationsToFollowers = new SendMessageNotificationsToAllFollowersAction(
+        SendMessageNotificationsToAllFollowersJob::dispatch(
             $user,
             $app,
             $notificationType,
             $notificationMessagePayload
         );
-        $sendNotificationsToFollowers->execute();
 
         return [
-            'success' => true,
+            'sent' => true,
             'message' => 'Notification sent to all followers',
         ];
     }
