@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Notifications;
 
+use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Notifications\Actions\CreateNotificationTypeAction;
@@ -96,6 +97,8 @@ class NotificationTest extends TestCase
             $template
         );
 
+        Notification::fake();
+
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation sendNotificationByMessage(
                     $metadata: NotificationMessageMetaDataInput!,
@@ -169,6 +172,8 @@ class NotificationTest extends TestCase
             NotificationChannel::getById(NotificationChannelEnum::MAIL->value),
             $template
         );
+
+        Notification::fake();
 
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation sendNotificationByMessage(
