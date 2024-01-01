@@ -70,6 +70,8 @@ class NotificationTest extends TestCase
     public function testMessageNotificationToOneFollower()
     {
         $user = auth()->user();
+        $app = app(Apps::class);
+
         $createParentTemplate = new CreateTemplateAction(
             TemplateInput::from([
                 'app' => app(Apps::class),
