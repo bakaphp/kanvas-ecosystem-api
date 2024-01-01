@@ -135,6 +135,9 @@ jobs:
       - name: Setup Kanvas Ecosystem
         run: php artisan kanvas:setup-ecosystem
 
+      - name: create .env file
+        run: echo '' > .env
+
       - name: Run Tests
         if: success()
         run: php artisan test

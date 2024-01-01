@@ -9,7 +9,11 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Support\Str;
+use Kanvas\Notifications\Actions\CreateNotificationTypeAction;
 use Kanvas\Notifications\Actions\CreateNotificationTypesMessageLogicAction;
+use Kanvas\Notifications\DataTransferObject\NotificationType;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
+use Kanvas\Notifications\Models\NotificationChannel;
 use Kanvas\Notifications\Repositories\NotificationTypesRepository;
 use Kanvas\Social\Enums\StateEnums;
 use Kanvas\Social\Follows\Actions\FollowAction;
@@ -19,6 +23,8 @@ use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
+use Kanvas\Templates\Actions\CreateTemplateAction;
+use Kanvas\Templates\DataTransferObject\TemplateInput;
 use Kanvas\Users\Actions\CreateUserLinkedSourcesAction;
 use Kanvas\Users\Models\Sources;
 use Kanvas\Users\Repositories\SourcesRepository;
@@ -149,14 +155,11 @@ class Setup
         $messageType = $createMessageType->execute();
 
         try {
-            $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent(2, $messageType->verb, 'creation', $this->app);
-            $logic = '{
-            "conditions": "message.is_public == 1 and message.is_published == 1"
-        }';
+            $notificationType = $this->createTestNotificationTypeForMessages();
+            $logic = '{"conditions": "message.is_public == 1 and message.is_published == 1"}';
 
             $createNotificationTypeMessageLogic = new CreateNotificationTypesMessageLogicAction(
                 $this->app,
-                $messageType,
                 $notificationType,
                 $logic
             );
@@ -165,8 +168,49 @@ class Setup
         } catch(Exception $e) {
         }
 
-
-
         return $defaultInteraction instanceof Interactions;
+    }
+
+    public function createTestNotificationTypeForMessages()
+    {
+        $createParentTemplate = new CreateTemplateAction(
+            TemplateInput::from([
+                'app' => $this->app,
+                'name' => 'test-social-notification',
+                'template' => '<html><body>Hello this is a test notification with {{ isset($dynamic) ? $dynamic : \'default value\' }} values</body></html>',
+                ])
+        );
+        $template = $createParentTemplate->execute();
+
+        $createPushTemplate = new CreateTemplateAction(
+            TemplateInput::from([
+                'app' => $this->app,
+                'name' => 'test-social-notification-push',
+                'template' => '{"message" : "Hello this is a test notification with {{ isset($dynamic) ? $dynamic : \'default value\' }} values"}',
+                ])
+        );
+        $pushTemplate = $createPushTemplate->execute();
+
+        $notificationType = (new CreateNotificationTypeAction(
+            new NotificationType(
+                $this->app,
+                $this->user,
+                'test-social-notification-message',
+                'test-social-notification-message',
+                $template
+            )
+        ))->execute();
+
+        $notificationType->assignChannel(
+            NotificationChannel::getById(NotificationChannelEnum::MAIL->value),
+            $template
+        );
+
+        $notificationType->assignChannel(
+            NotificationChannel::getById(NotificationChannelEnum::PUSH->value),
+            $pushTemplate
+        );
+
+        return $notificationType;
     }
 }
