@@ -37,6 +37,11 @@ type NotificationChannel {
     slug: String!
 }
 
+type NotificationMessageResponse {
+    success: Boolean!
+    message: String!
+}
+
 enum NotificationChannels {
   MAIL @enum(value: 1)
   PUSH @enum(value: 2)
@@ -124,7 +129,7 @@ extend type Mutation @guard {
     sendNotificationByMessage(
         metadata: Mixed!
         message: Mixed!
-    ): Boolean
+    ): NotificationMessageResponse!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\NotificationsManagementMutation@sendNotificationByMessage"
         )

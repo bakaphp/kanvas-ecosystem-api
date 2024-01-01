@@ -34,6 +34,7 @@ trait NotificationStorageTrait
         }
 
         //@todo if content is empty, we should return empty array
+        //@todo change to the new notification logic
         return [
             'users_id' => $userId,
             'from_users_id' => $fromUserId,

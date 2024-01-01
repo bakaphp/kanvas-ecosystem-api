@@ -5,14 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Notifications\Actions;
 
 use Baka\Contracts\AppInterface;
-use Kanvas\Notifications\Jobs\PushNotificationsHandlerJob;
-use Kanvas\Notifications\Repositories\NotificationChannelsRepository;
-use Kanvas\Notifications\Repositories\NotificationTypesRepository;
-use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Notifications\Models\NotificationTypes;
+use Kanvas\Notifications\Templates\DynamicKanvasNotification;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
+use Kanvas\Social\Messages\DataTransferObject\MessagesNotificationMetadata;
 use Kanvas\Users\Models\Users;
-use Kanvas\Notifications\Events\PushNotificationsEvent;
-use Kanvas\Social\Messages\DataTransferObject\MessagesNotificationsPayloadDto;
 
 class SendMessageNotificationsToOneFollowerAction
 {
@@ -20,7 +17,8 @@ class SendMessageNotificationsToOneFollowerAction
         private Users $fromUser,
         private Users $toUser,
         private AppInterface $app,
-        private MessagesNotificationsPayloadDto $messagePayload,
+        private NotificationTypes $notificationType,
+        private MessagesNotificationMetadata $messagePayload
     ) {
     }
 
@@ -31,56 +29,16 @@ class SendMessageNotificationsToOneFollowerAction
     {
         $follower = UsersFollowsRepository::getByUserAndEntity($this->toUser, $this->fromUser);
 
-        if (in_array('push', $this->messagePayload->channels)) {
-            $notificationChannel = NotificationChannelsRepository::getBySlug('push');
-            $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent(
-                $notificationChannel->id,
-                $this->messagePayload->verb,
-                $this->messagePayload->event,
-                $this->app
-            );
-
-            $buildPushTemplateNotification = new BuildPushTemplateNotificationAction(
-                $notificationType->template()->firstOrFail()->template,
-                $this->fromUser,
-                $this->toUser,
-                $this->messagePayload->message
-            );
-            $message = $buildPushTemplateNotification->execute();
-
-            PushNotificationsHandlerJob::dispatch($follower->entity_id, $message, $this->app);
-
-            PushNotificationsEvent::dispatch(
-                $this->fromUser,
-                $this->toUser,
-                $notificationType,
-                $this->app,
-                $message
-            );
+        if (! $follower) {
+            return;
         }
 
-        if (in_array('email', $this->messagePayload->channels)) {
-            $notificationChannel = NotificationChannelsRepository::getBySlug('email');
-            $notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent(
-                $notificationChannel->id,
-                $this->messagePayload->verb,
-                $this->messagePayload->event,
-                $this->app
-            );
+        $dynamicNotification = new DynamicKanvasNotification(
+            $this->notificationType,
+            $this->messagePayload->message
+        );
 
-            $data = [
-                'fromUser' => $this->fromUser,
-                'message' => $this->messagePayload->message,
-                'app' => $this->app,
-            ];
-
-            // $notification->setFromUser(auth()->user());
-            $this->toUser->notify(new Blank(
-                $notificationType->template()->firstOrFail()->name,
-                $data,
-                ['mail'],
-                $this->toUser
-            ));
-        }
+        $dynamicNotification->setFromUser($this->fromUser);
+        $this->toUser->notify($dynamicNotification);
     }
 }

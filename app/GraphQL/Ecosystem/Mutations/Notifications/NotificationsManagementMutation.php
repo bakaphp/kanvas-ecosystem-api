@@ -11,12 +11,13 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Actions\EvaluateNotificationsLogicAction;
 use Kanvas\Notifications\Actions\SendMessageNotificationsToAllFollowersAction;
 use Kanvas\Notifications\Actions\SendMessageNotificationsToOneFollowerAction;
+use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Notifications\Repositories\NotificationTypesMessageLogicRepository;
+use Kanvas\Notifications\Repositories\NotificationTypesRepository;
 use Kanvas\Notifications\Templates\Blank;
-use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
+use Kanvas\Social\Messages\DataTransferObject\MessagesNotificationMetadata;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
-use Kanvas\Social\Messages\DataTransferObject\MessagesNotificationsPayloadDto;
 
 class NotificationsManagementMutation
 {
@@ -52,42 +53,73 @@ class NotificationsManagementMutation
      * sendNotificationByMessage
      * @psalm-suppress MixedArgument
      */
-    public function sendNotificationByMessage(mixed $root, array $request): bool
+    public function sendNotificationByMessage(mixed $root, array $request): array
     {
         $app = app(Apps::class);
         $user = auth()->user();
 
-        $notificationMessagePayload = MessagesNotificationsPayloadDto::fromArray($request);
+        $notificationMessagePayload = MessagesNotificationMetadata::fromArray($request);
 
         // TODO Maybe get rid of the notification_type_id on notification_types_message_logic table, not doing anything there?
-        $messageType = MessagesTypesRepository::getByVerb($notificationMessagePayload->verb, $app);
-        $notificationTypeMessageLogic = NotificationTypesMessageLogicRepository::getByMessageType($app, $messageType->getId());
-        $evaluateNotificationsLogic = new EvaluateNotificationsLogicAction($notificationTypeMessageLogic, $notificationMessagePayload->message);
-        $results = $evaluateNotificationsLogic->execute();
+        $notificationType = NotificationTypes::getById($notificationMessagePayload->notificationTypeId, $app);
+        $notificationTypeMessageLogic = NotificationTypesMessageLogicRepository::getByNotificationType($app, $notificationType);
+        //$notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent($app, $notificationMessagePayload->verb, $notificationMessagePayload->event);
 
-        if ($results) {
-            if ($notificationMessagePayload->type == 'one' && $follower = Users::getById($notificationMessagePayload->follower_id)) {
-                $sendNotificationsToFollower = new SendMessageNotificationsToOneFollowerAction(
-                    $user,
-                    $follower,
-                    $app,
-                    $notificationMessagePayload
-                );
-                $sendNotificationsToFollower->execute();
-
-                return true;
-            }
-
-            $sendNotificationsToFollowers = new SendMessageNotificationsToAllFollowersAction(
-                $user,
-                $app,
-                $notificationMessagePayload
-            );
-            $sendNotificationsToFollowers->execute();
-
-            return true;
+        if (! $notificationType) {
+            return [
+                'success' => false,
+                'message' => 'Notification type not found',
+            ];
         }
 
-        return false;
+        $canSendNotification = true;
+
+        if ($notificationTypeMessageLogic) {
+            $evaluateNotificationsLogic = new EvaluateNotificationsLogicAction($notificationTypeMessageLogic, $notificationMessagePayload->message);
+            $canSendNotification = $evaluateNotificationsLogic->execute();
+        }
+
+        if (! $canSendNotification) {
+            return [
+                'success' => false,
+                'message' => 'Notification logic not met',
+            ];
+        }
+
+        $sendToOneFollower = $notificationMessagePayload->distributeToOneFollower() && $follower = Users::getById($notificationMessagePayload->followerId);
+        if ($sendToOneFollower) {
+            $sendNotificationsToFollower = new SendMessageNotificationsToOneFollowerAction(
+                $user,
+                $follower,
+                $app,
+                $notificationType,
+                $notificationMessagePayload
+            );
+            $sendNotificationsToFollower->execute();
+            return [
+                'success' => true,
+                'message' => 'Notification sent to one follower ' . $follower->getId(),
+            ];
+        }
+
+        if (! $notificationMessagePayload->distributeToFollowers()) {
+            return [
+                'success' => false,
+                'message' => 'Notification distribution type not found in request payload',
+            ];
+        }
+
+        $sendNotificationsToFollowers = new SendMessageNotificationsToAllFollowersAction(
+            $user,
+            $app,
+            $notificationType,
+            $notificationMessagePayload
+        );
+        $sendNotificationsToFollowers->execute();
+
+        return [
+            'success' => true,
+            'message' => 'Notification sent to all followers',
+        ];
     }
 }

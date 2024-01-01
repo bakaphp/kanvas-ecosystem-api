@@ -16,22 +16,19 @@ class NotificationTypesRepository
      * @psalm-suppress MixedReturnStatement
      */
     public static function getTemplateByVerbAndEvent(
-        int $notificationChannelId,
+        AppInterface $app,
         string $verb,
         string $event,
-        AppInterface $app
     ): NotificationTypes {
         /**
          * whereIn not working properly. giving error.
          */
         try {
-            $query = NotificationTypes::notDeleted()
-                ->where('apps_id', $app->getId())
-                ->where('notification_channel_id', $notificationChannelId)
+            return NotificationTypes::notDeleted()
+                ->fromApp($app)
                 ->where('verb', $verb)
-                ->where('event', $event);
-
-            return $query->firstOrFail();
+                ->where('event', $event)
+                ->firstOrFail();
         } catch (EloquentModelNotFoundException $e) {
             throw new ModelNotFoundException('Template not found for verb ' . $verb . ' and event ' . $event);
         }
