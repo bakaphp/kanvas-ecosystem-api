@@ -135,6 +135,9 @@ jobs:
       - name: Setup Kanvas Ecosystem
         run: php artisan kanvas:setup-ecosystem
 
+      - name: Folder Storage Permissions
+        run: chmod -R 777 storage
+
       - name: Run Tests
         if: success()
         run: php artisan test
