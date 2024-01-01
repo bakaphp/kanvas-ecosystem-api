@@ -135,12 +135,12 @@ jobs:
       - name: Setup Kanvas Ecosystem
         run: php artisan kanvas:setup-ecosystem
 
-      - name: Folder Storage Permissions
-        run: chmod -R 777 storage
+      - name: create .env file
+        run: echo '' > .env
 
       - name: Run Tests
         if: success()
-        run: php artisan test --display-warnings
+        run: php artisan test
       
       - name: Upload artifacts
         uses: actions/upload-artifact@master
