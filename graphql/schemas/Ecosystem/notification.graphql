@@ -49,6 +49,11 @@ enum NotificationChannels {
   SMS @enum(value: 4)
 }
 
+enum NotificationDistributionTypes {
+  FOLLOWERS @enum(value: "followers")
+  USERS @enum(value: "users")
+}
+
 input NotificationEntityFilterInput {
     nested_key: String!
     value: Int!
@@ -57,6 +62,16 @@ input NotificationEntityFilterInput {
 input NotificationTypeFilterInput {
     verb: String
     event: String
+}
+
+input NotificationMessageMetaDataInput {
+    notification_type_id: ID!
+    distribution: NotificationMessageMetaDataDistributionInput!
+}
+
+input NotificationMessageMetaDataDistributionInput {
+    type: NotificationDistributionTypes!
+    users_id: [Int!]
 }
 
 extend type Query @guard {
@@ -127,7 +142,7 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\NotificationsManagementMutation@sendNotificationBaseOnTemplate"
         )
     sendNotificationByMessage(
-        metadata: Mixed!
+        metadata: NotificationMessageMetaDataInput!
         message: Mixed!
     ): NotificationMessageResponse!
         @field(

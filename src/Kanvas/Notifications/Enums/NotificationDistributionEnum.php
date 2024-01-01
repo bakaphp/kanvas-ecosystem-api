@@ -6,7 +6,7 @@ namespace Kanvas\Notifications\Enums;
 
 enum NotificationDistributionEnum: string
 {
-    case ONE = 'one';
+    case USERS = 'users';
     case FOLLOWERS = 'followers';
     case APP = 'app';
 }

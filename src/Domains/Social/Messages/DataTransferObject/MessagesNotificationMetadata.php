@@ -17,8 +17,8 @@ class MessagesNotificationMetadata extends Data
     public function __construct(
         public int $notificationTypeId,
         public string $distributionType,
-        public ?int $followerId,
         public array $message,
+        public array $usersId = []
     ) {
     }
 
@@ -28,16 +28,16 @@ class MessagesNotificationMetadata extends Data
     public static function fromArray(array $request): self
     {
         return new self(
-            notificationTypeId: $request['metadata']['notification_type_id'],
+            notificationTypeId: (int) $request['metadata']['notification_type_id'],
             distributionType: $request['metadata']['distribution']['type'],
-            followerId: $request['metadata']['distribution']['follower_id'] ?? null,
             message: $request['message'],
+            usersId: $request['metadata']['distribution']['users_id'] ?? [],
         );
     }
 
-    public function distributeToOneFollower(): bool
+    public function distributeToSpecificUsers(): bool
     {
-        return $this->distributionType === NotificationDistributionEnum::ONE->value && $this->followerId > 0;
+        return $this->distributionType === NotificationDistributionEnum::USERS->value && $this->usersId > 0;
     }
 
     public function distributeToFollowers(): bool

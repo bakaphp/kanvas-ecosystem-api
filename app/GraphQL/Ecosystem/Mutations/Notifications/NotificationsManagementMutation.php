@@ -16,13 +16,13 @@ use Kanvas\Notifications\Repositories\NotificationTypesMessageLogicRepository;
 use Kanvas\Notifications\Repositories\NotificationTypesRepository;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\DataTransferObject\MessagesNotificationMetadata;
-use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 
 class NotificationsManagementMutation
 {
     /**
      * sendNotificationBaseOnTemplate
+     * @deprecated use sendNotificationByMessage
      * @psalm-suppress MixedArgument
      */
     public function sendNotificationBaseOnTemplate(mixed $root, array $request): bool
@@ -86,11 +86,9 @@ class NotificationsManagementMutation
             ];
         }
 
-        $sendToOneFollower = $notificationMessagePayload->distributeToOneFollower() && $follower = Users::getById($notificationMessagePayload->followerId);
-        if ($sendToOneFollower) {
+        if ($notificationMessagePayload->distributeToSpecificUsers() && count($notificationMessagePayload->usersId) > 0) {
             SendMessageNotificationsToOneFollowerJob::dispatch(
                 $user,
-                $follower,
                 $app,
                 $notificationType,
                 $notificationMessagePayload
@@ -98,7 +96,7 @@ class NotificationsManagementMutation
 
             return [
                 'sent' => true,
-                'message' => 'Notification sent to one follower ' . $follower->getId(),
+                'message' => 'Notification sent to users ' . implode(',', $notificationMessagePayload->usersId),
             ];
         }
 

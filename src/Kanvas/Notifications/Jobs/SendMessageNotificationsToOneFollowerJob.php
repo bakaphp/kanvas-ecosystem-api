@@ -25,7 +25,6 @@ class SendMessageNotificationsToOneFollowerJob implements ShouldQueue
 
     public function __construct(
         protected Users $fromUser,
-        protected Users $toUser,
         protected AppInterface $app,
         protected NotificationTypes $notificationType,
         protected MessagesNotificationMetadata $messagePayload
@@ -37,15 +36,18 @@ class SendMessageNotificationsToOneFollowerJob implements ShouldQueue
      */
     public function handle(): void
     {
-        //user is from this app
-        UsersRepository::belongsToThisApp($this->toUser, $this->app);
-
         $dynamicNotification = new DynamicKanvasNotification(
             $this->notificationType,
             $this->messagePayload->message
         );
 
         $dynamicNotification->setFromUser($this->fromUser);
-        $this->toUser->notify($dynamicNotification);
+
+        foreach ($this->messagePayload->usersId as $userId) {
+            $toUser = Users::getById($userId);
+            UsersRepository::belongsToThisApp($toUser, $this->app);
+
+            $toUser->notify($dynamicNotification);
+        }
     }
 }
