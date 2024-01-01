@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Actions;
 
+use Baka\Contracts\AppInterface;
+use Baka\Users\Contracts\UserInterface;
 use Kanvas\Notifications\Models\NotificationTypesMessageLogic;
 use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
 
 class EvaluateNotificationsLogicAction
 {
     public function __construct(
-        public NotificationTypesMessageLogic $notificationsLogic,
-        public array $message
+        protected AppInterface $app,
+        protected UserInterface $user,
+        protected NotificationTypesMessageLogic $notificationsLogic,
+        protected array $message
     ) {
     }
 
@@ -34,6 +38,8 @@ class EvaluateNotificationsLogicAction
         return $expressionLanguage->evaluate(
             $conditions,
             [
+                'user' => $this->user,
+                'app' => $this->app,
                 'message' => $messageJson,
             ]
         );

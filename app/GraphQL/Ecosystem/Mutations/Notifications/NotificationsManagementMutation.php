@@ -13,7 +13,6 @@ use Kanvas\Notifications\Jobs\SendMessageNotificationsToAllFollowersJob;
 use Kanvas\Notifications\Jobs\SendMessageNotificationsToUsersJob;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Notifications\Repositories\NotificationTypesMessageLogicRepository;
-use Kanvas\Notifications\Repositories\NotificationTypesRepository;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\DataTransferObject\MessagesNotificationMetadata;
 use Kanvas\Users\Repositories\UsersRepository;
@@ -59,11 +58,8 @@ class NotificationsManagementMutation
         $user = auth()->user();
 
         $notificationMessagePayload = MessagesNotificationMetadata::fromArray($request);
-
-        // TODO Maybe get rid of the notification_type_id on notification_types_message_logic table, not doing anything there?
         $notificationType = NotificationTypes::getById($notificationMessagePayload->notificationTypeId, $app);
         $notificationTypeMessageLogic = NotificationTypesMessageLogicRepository::getByNotificationType($app, $notificationType);
-        //$notificationType = NotificationTypesRepository::getTemplateByVerbAndEvent($app, $notificationMessagePayload->verb, $notificationMessagePayload->event);
 
         if (! $notificationType) {
             return [
@@ -75,8 +71,12 @@ class NotificationsManagementMutation
         $canSendNotification = true;
 
         if ($notificationTypeMessageLogic) {
-            $evaluateNotificationsLogic = new EvaluateNotificationsLogicAction($notificationTypeMessageLogic, $notificationMessagePayload->message);
-            $canSendNotification = $evaluateNotificationsLogic->execute();
+            $canSendNotification = (new EvaluateNotificationsLogicAction(
+                $app,
+                $user,
+                $notificationTypeMessageLogic,
+                $notificationMessagePayload->message
+            ))->execute();
         }
 
         if (! $canSendNotification) {
