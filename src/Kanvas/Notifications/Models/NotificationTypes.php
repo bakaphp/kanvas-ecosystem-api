@@ -120,7 +120,7 @@ class NotificationTypes extends BaseModel
 
     public function assignChannel(NotificationChannel $channel, Templates $template)
     {
-        $this->channels()->create([
+        $this->channels()->firstOrCreate([
             'notification_channel_id' => $channel->getId(),
             'template_id' => $template->getId(),
         ]);

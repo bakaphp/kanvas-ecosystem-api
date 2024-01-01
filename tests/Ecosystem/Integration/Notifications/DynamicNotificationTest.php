@@ -24,7 +24,7 @@ final class DynamicNotificationTest extends TestCase
             TemplateInput::from([
                 'app' => app(Apps::class),
                 'name' => 'test-notification',
-                'template' => '<html><body>Hello this is a test notification with {$dynamic} values</body></html>',
+                'template' => '<html><body>Hello this is a test notification with {{ isset($dynamic) ? $dynamic : \'default value\' }} values</body></html>',
                 ])
         );
         $template = $createParentTemplate->execute();
@@ -33,7 +33,7 @@ final class DynamicNotificationTest extends TestCase
             TemplateInput::from([
                 'app' => app(Apps::class),
                 'name' => 'test-notification-push',
-                'template' => 'Hello this is a test notification with {$dynamic} values',
+                'template' => 'Hello this is a test notification with {{ isset($dynamic) ? $dynamic : \'default value\' }} values',
                 ])
         );
         $pushTemplate = $createPushTemplate->execute();
