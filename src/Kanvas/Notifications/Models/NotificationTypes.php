@@ -84,7 +84,7 @@ class NotificationTypes extends BaseModel
         $templateName = $pushNotificationTemplate->template()->exists() ? $pushNotificationTemplate->template()->first()->name : null;
 
         if (empty($templateName)) {
-            throw new ModelNotFoundException('This notification type does not have an email template');
+            throw new ModelNotFoundException('This notification type does not have an push template');
         }
 
         return $templateName;
