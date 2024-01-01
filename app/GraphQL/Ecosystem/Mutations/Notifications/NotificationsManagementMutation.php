@@ -10,7 +10,7 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Actions\EvaluateNotificationsLogicAction;
 use Kanvas\Notifications\Jobs\SendMessageNotificationsToAllFollowersJob;
-use Kanvas\Notifications\Jobs\SendMessageNotificationsToOneFollowerJob;
+use Kanvas\Notifications\Jobs\SendMessageNotificationsToUsersJob;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Notifications\Repositories\NotificationTypesMessageLogicRepository;
 use Kanvas\Notifications\Repositories\NotificationTypesRepository;
@@ -86,8 +86,8 @@ class NotificationsManagementMutation
             ];
         }
 
-        if ($notificationMessagePayload->distributeToSpecificUsers() && count($notificationMessagePayload->usersId) > 0) {
-            SendMessageNotificationsToOneFollowerJob::dispatch(
+        if ($notificationMessagePayload->distributeToSpecificUsers()) {
+            SendMessageNotificationsToUsersJob::dispatch(
                 $user,
                 $app,
                 $notificationType,

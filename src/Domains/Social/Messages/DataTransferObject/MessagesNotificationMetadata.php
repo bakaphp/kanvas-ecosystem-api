@@ -37,7 +37,7 @@ class MessagesNotificationMetadata extends Data
 
     public function distributeToSpecificUsers(): bool
     {
-        return $this->distributionType === NotificationDistributionEnum::USERS->value && $this->usersId > 0;
+        return $this->distributionType === NotificationDistributionEnum::USERS->value && count($this->usersId) > 0;
     }
 
     public function distributeToFollowers(): bool

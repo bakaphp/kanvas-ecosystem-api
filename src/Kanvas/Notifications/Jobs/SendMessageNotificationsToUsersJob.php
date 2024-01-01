@@ -16,7 +16,7 @@ use Kanvas\Social\Messages\DataTransferObject\MessagesNotificationMetadata;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 
-class SendMessageNotificationsToOneFollowerJob implements ShouldQueue
+class SendMessageNotificationsToUsersJob implements ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
