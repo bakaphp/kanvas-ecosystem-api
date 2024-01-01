@@ -122,6 +122,7 @@ class NotificationTypes extends BaseModel
     {
         $this->channels()->firstOrCreate([
             'notification_channel_id' => $channel->getId(),
+        ], [
             'template_id' => $template->getId(),
         ]);
     }
