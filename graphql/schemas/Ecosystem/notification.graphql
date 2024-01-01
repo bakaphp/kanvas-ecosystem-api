@@ -43,15 +43,15 @@ type NotificationMessageResponse {
 }
 
 enum NotificationChannels {
-  MAIL @enum(value: 1)
-  PUSH @enum(value: 2)
-  REALTIME @enum(value: 3)
-  SMS @enum(value: 4)
+    MAIL @enum(value: 1)
+    PUSH @enum(value: 2)
+    REALTIME @enum(value: 3)
+    SMS @enum(value: 4)
 }
 
 enum NotificationDistributionTypes {
-  FOLLOWERS @enum(value: "followers")
-  USERS @enum(value: "users")
+    FOLLOWERS @enum(value: "followers")
+    USERS @enum(value: "users")
 }
 
 input NotificationEntityFilterInput {
@@ -132,6 +132,9 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\ReadAllNotificationMutation"
         )
+}
+
+extend type Mutation @guardByAppKey {
     sendNotificationBaseOnTemplate(
         template_name: String!
         data: Mixed!

@@ -5,14 +5,13 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Ecosystem\Notifications;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Notifications\Actions\CreateNotificationTypeAction;
 use Kanvas\Notifications\DataTransferObject\NotificationType;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Models\NotificationChannel;
 use Kanvas\Templates\Actions\CreateTemplateAction;
 use Kanvas\Templates\DataTransferObject\TemplateInput;
-use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 class NotificationTest extends TestCase
@@ -121,6 +120,10 @@ class NotificationTest extends TestCase
                     'is_public' => 1,
                     'is_published' => 1,
                 ],
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
             ]);
 
         $this->assertArrayHasKey('data', $response);
@@ -137,6 +140,8 @@ class NotificationTest extends TestCase
     public function testMessageNotificationToAllFollowers()
     {
         $user = auth()->user();
+        $app = app(Apps::class);
+
         $createParentTemplate = new CreateTemplateAction(
             TemplateInput::from([
                 'app' => app(Apps::class),
@@ -174,7 +179,8 @@ class NotificationTest extends TestCase
                         message
                     }
                 }
-            ', [
+            ',
+            [
                 'metadata' => [
                     'notification_type_id' => $notificationType->getId(),
                     'distribution' => [
@@ -187,7 +193,12 @@ class NotificationTest extends TestCase
                     'is_public' => 1,
                     'is_published' => 1,
                 ],
-            ]);
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        );
 
         $this->assertArrayHasKey('data', $response);
         $response->assertSee('sent');
