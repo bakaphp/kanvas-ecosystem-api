@@ -27,7 +27,6 @@ class EvaluateNotificationsLogicAction
     {
         $expressionLanguage = new ExpressionLanguage();
 
-        $messageJson = json_decode(json_encode($this->message));
         $logic = json_decode($this->notificationsLogic->logic);
         $conditions = (string) $logic->conditions;
 
@@ -40,7 +39,7 @@ class EvaluateNotificationsLogicAction
             [
                 'user' => $this->user,
                 'app' => $this->app,
-                'message' => $messageJson,
+                'message' => (object) $this->message,
             ]
         );
     }
