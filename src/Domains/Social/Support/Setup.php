@@ -168,8 +168,6 @@ class Setup
         } catch(Exception $e) {
         }
 
-
-
         return $defaultInteraction instanceof Interactions;
     }
 
@@ -178,7 +176,7 @@ class Setup
         $createParentTemplate = new CreateTemplateAction(
             TemplateInput::from([
                 'app' => $this->app,
-                'name' => 'test-notification',
+                'name' => 'test-social-notification',
                 'template' => '<html><body>Hello this is a test notification with {{ isset($dynamic) ? $dynamic : \'default value\' }} values</body></html>',
                 ])
         );
@@ -187,7 +185,7 @@ class Setup
         $createPushTemplate = new CreateTemplateAction(
             TemplateInput::from([
                 'app' => $this->app,
-                'name' => 'test-notification-push',
+                'name' => 'test-social-notification-push',
                 'template' => '{"message" : "Hello this is a test notification with {{ isset($dynamic) ? $dynamic : \'default value\' }} values"}',
                 ])
         );
@@ -197,8 +195,8 @@ class Setup
             new NotificationType(
                 $this->app,
                 $this->user,
-                'test-notification-message',
-                'test-notification-message',
+                'test-social-notification-message',
+                'test-social-notification-message',
                 $template
             )
         ))->execute();
