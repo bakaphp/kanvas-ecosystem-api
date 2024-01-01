@@ -107,7 +107,8 @@ class NotificationTest extends TestCase
                         message
                     }
                 }
-            ', [
+            ',
+            [
                 'metadata' => [
                     'notification_type_id' => $notificationType->getId(),
                     'distribution' => [
@@ -124,7 +125,8 @@ class NotificationTest extends TestCase
             [],
             [
                 AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
-            ]);
+            ]
+        );
 
         $this->assertArrayHasKey('data', $response);
         $response->assertSee('sent');
