@@ -1,0 +1,40 @@
+enum ModulesConfig {
+    APPS @enum(value: "APPS")
+    COMPANIES @enum(value: "COMPANIES")
+    USERS @enum(value: "USERS")
+}
+
+input ModuleConfigInput {
+    module: ModulesConfig!
+    key: String!
+    value: String!
+    entity_uuid: String!
+}
+type ModuleConfig {
+    module: ModulesConfig!
+    key: String!
+    value: String!
+    entity_uuid: String!
+}
+
+extend type Mutation @guardByAdmin {
+    setConfig(input: ModuleConfigInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Config\\ConfigManagement@setConfig"
+        )
+    deleteConfig(input: ModuleConfigInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Config\\ConfigManagement@deleteConfig"
+        )
+}
+
+extend type Query @guardByAdmin {
+    getConfig(
+        module: ModulesConfig!
+        key: String!
+        entity_uuid: String!
+    ): [ModuleConfig]!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Config\\ConfigManagement@getConfig"
+        )
+}
