@@ -23,6 +23,8 @@ use Kanvas\Social\UsersLists\Models\UserList;
 use Kanvas\Social\UsersLists\Observers\UsersListsObserver;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Observers\UsersObserver;
+use Kanvas\Notifications\Events\PushNotificationsEvent;
+use Kanvas\Notifications\Listeners\NotificationsListener;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -32,6 +34,9 @@ class EventServiceProvider extends ServiceProvider
      * @var array<class-string, array<int, class-string>>
      */
     protected $listen = [
+        PushNotificationsEvent::class => [
+            NotificationsListener::class,
+        ],
     ];
 
     /**

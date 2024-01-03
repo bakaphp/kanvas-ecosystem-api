@@ -4,7 +4,7 @@ type Notification {
     fromUsers: User!
     companies: Company!
     systemModule: SystemModule!
-    types: NotificationType!
+    types(filter: NotificationTypeFilterInput): NotificationType!
     entity_id: String!
     entity(fields: JSON): Mixed @method(name: "getEntityData")
     content: String
@@ -21,6 +21,8 @@ type NotificationType {
     channel: NotificationChannel
     name: String!
     key: String!
+    verb: String
+    event: String
     description: String
     template: String
     weight: Int!
@@ -35,16 +37,41 @@ type NotificationChannel {
     slug: String!
 }
 
+type NotificationMessageResponse {
+    sent: Boolean!
+    message: String!
+}
+
 enum NotificationChannels {
-  MAIL @enum(value: 1)
-  PUSH @enum(value: 2)
-  REALTIME @enum(value: 3)
-  SMS @enum(value: 4)
+    MAIL @enum(value: 1)
+    PUSH @enum(value: 2)
+    REALTIME @enum(value: 3)
+    SMS @enum(value: 4)
+}
+
+enum NotificationDistributionTypes {
+    FOLLOWERS @enum(value: "followers")
+    USERS @enum(value: "users")
 }
 
 input NotificationEntityFilterInput {
     nested_key: String!
     value: Int!
+}
+
+input NotificationTypeFilterInput {
+    verb: String
+    event: String
+}
+
+input NotificationMessageMetaDataInput {
+    notification_type_id: ID!
+    distribution: NotificationMessageMetaDataDistributionInput!
+}
+
+input NotificationMessageMetaDataDistributionInput {
+    type: NotificationDistributionTypes!
+    users_id: [Int!]
 }
 
 extend type Query @guard {
@@ -56,14 +83,15 @@ extend type Query @guard {
                     "from_users_id"
                     "companies_id"
                     "system_modules_id"
-                    "notification_types_id"
                     "entity_id"
                     "read"
                     "content_group"
+                    "types"
                 ]
             )
         whereEntity: NotificationEntityFilterInput
             @whereJsonNestedKey(key: "entity_content", nestedKey: "nested_key")
+        whereType: NotificationTypeFilterInput
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
     ): [Notification!]!
         @paginate(
@@ -104,6 +132,9 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\ReadAllNotificationMutation"
         )
+}
+
+extend type Mutation @guardByAppKey {
     sendNotificationBaseOnTemplate(
         template_name: String!
         data: Mixed!
@@ -112,5 +143,12 @@ extend type Mutation @guard {
     ): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\NotificationsManagementMutation@sendNotificationBaseOnTemplate"
+        )
+    sendNotificationByMessage(
+        metadata: NotificationMessageMetaDataInput!
+        message: Mixed!
+    ): NotificationMessageResponse!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\NotificationsManagementMutation@sendNotificationByMessage"
         )
 }

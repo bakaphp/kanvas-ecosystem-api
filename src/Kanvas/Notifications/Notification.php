@@ -17,8 +17,10 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Notifications\Channels\KanvasDatabase as KanvasDatabaseChannel;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Interfaces\EmailInterfaces;
 use Kanvas\Notifications\Models\NotificationTypes;
+use Kanvas\Notifications\Traits\NotificationOneSignalTrait;
 use Kanvas\Notifications\Traits\NotificationRenderTrait;
 use Kanvas\Notifications\Traits\NotificationStorageTrait;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
@@ -29,6 +31,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     use Queueable;
     use NotificationStorageTrait;
     use NotificationRenderTrait;
+    use NotificationOneSignalTrait;
 
     protected Model $entity;
     protected AppInterface $app;
@@ -42,8 +45,9 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         'mail',
     ];
 
-    public function __construct(Model $entity, array $options = [])
+    public function __construct(Model|NotificationTypes $entity, array $options = [])
     {
+        $this->onQueue('notifications');
         $this->entity = $entity;
         $this->app = app(Apps::class);
         $this->data = [
@@ -93,14 +97,19 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      */
     public function via(object $notifiable): array
     {
-        $channels = $this->channels();
+        $notificationTypeChannels = $this->type instanceof NotificationTypes ? $this->type->getChannelsInNotificationFormat() : [];
+        $channels = ! empty($notificationTypeChannels) ? $notificationTypeChannels : $this->channels();
 
         if (! empty($channels) && $this->type instanceof NotificationTypes) {
             /**
              * @psalm-suppress MissingClosureReturnType
              */
             $enabledChannels = array_filter($channels, function ($channel) use ($notifiable) {
-                return $notifiable->isNotificationSettingEnable($this->type, $channel);
+                return $notifiable->isNotificationSettingEnable(
+                    $this->type,
+                    $this->app,
+                    NotificationChannelEnum::getChannelIdByClassReference($channel)
+                );
             });
             $channels = array_values($enabledChannels);
         }
@@ -111,10 +120,11 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
             $this->toUser = $notifiable; //we do this validation because user invite temp user deserialize the user
         }
 
-        return [
+        /* return [
              KanvasDatabaseChannel::class,
              ...$channels,
-        ];
+        ]; */
+        return $channels;
     }
 
     /**
@@ -135,7 +145,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
                 ->mailer($mailer)
                 ->from($fromEmail, $fromName)
                 //->subject($this->app->get('name') . ' - ' . $this->getTitle()
-                ->view('emails.layout', ['html' => $this->message()]);
+                ->view('emails.layout', ['html' => $this->getEmailContent()]);
 
         if ($this->subject) {
             $mailMessage->subject($this->subject);

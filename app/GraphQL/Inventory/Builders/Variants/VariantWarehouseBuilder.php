@@ -81,7 +81,7 @@ class VariantWarehouseBuilder
         ->where($variants->getTable() . '.is_deleted', 0)
         ->select($variants->getTable() . '.*');
 
-        if (!auth()->user()->isAppOwner()) {
+        if (! auth()->user()->isAppOwner()) {
             $builder->where($variantWarehouse->getTable() . '.warehouses_id', '=', $warehouse->getId());
         }
         /**

@@ -6,7 +6,6 @@ namespace Kanvas\Users\Actions;
 
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Roles\Repositories\RolesRepository;
 use Kanvas\Users\Models\UserRoles;
@@ -26,8 +25,6 @@ class AssignRoleAction
 
     /**
      * Invoke function.
-     *
-     * @param RegisterInput $data
      */
     public function execute(string $roleName): UserRoles
     {

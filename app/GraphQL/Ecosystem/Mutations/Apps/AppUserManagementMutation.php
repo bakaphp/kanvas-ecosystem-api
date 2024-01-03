@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Mutations\Apps;
 
 use Baka\Support\Str;
+use Baka\Validations\PasswordValidation;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\CreateUserAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Repositories\UsersRepository;
@@ -46,7 +48,16 @@ class AppUserManagementMutation
         if (! isset($request['data']['password'])) {
             $request['data']['password'] = Str::random(15);
         }
-        $data = RegisterInput::fromArray($request['data'], $branch);
+
+        $adminUserRegistrationAssignCurrentCompany = $app->get(AppSettingsEnums::ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY->getValue());
+        $createCompany = $request['data']['create_company'] ?? false;
+        $assignCurrentUserBranch = $adminUserRegistrationAssignCurrentCompany ?? ! $createCompany;
+        $assignBranch = $assignCurrentUserBranch ? $branch : null;
+
+        //validate
+        PasswordValidation::validateArray($request['data'], $app);
+
+        $data = RegisterInput::fromArray($request['data'], $assignBranch);
         $user = (new CreateUserAction($data))->execute();
 
         UserNotificationService::sendCreateUserEmail($app, $branch, $user, $request);

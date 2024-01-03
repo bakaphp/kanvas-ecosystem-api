@@ -9,7 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
-use Kanvas\Workflow\Enums\RuleTypeEnum;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Kanvas\Workflow\Rules\Models\RuleType;
 use Throwable;
@@ -23,7 +23,7 @@ class RuleFactory extends Factory
         $app = app(Apps::class);
 
         try {
-            $ruleType = RuleType::getByName(RuleTypeEnum::CREATED->value);
+            $ruleType = RuleType::getByName(WorkflowEnum::CREATED->value);
         } catch(Throwable $e) {
             $ruleType = RuleType::factory()->create();
         }

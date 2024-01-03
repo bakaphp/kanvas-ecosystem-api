@@ -15,6 +15,8 @@ class PeopleFactory extends Factory
     public function definition()
     {
         return [
+            'firstname' => fake()->firstName,
+            'lastname' => fake()->lastName,
             'name' => fake()->name,
             'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
             'users_id' => 1,

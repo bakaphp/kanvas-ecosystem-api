@@ -6,6 +6,7 @@ namespace Kanvas\Users\Actions;
 
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Actions\CreateUserAction;
 use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput as RegisterPostDataDto;
 use Kanvas\Enums\StateEnums;
@@ -33,19 +34,18 @@ class ProcessInviteAction
     {
         $invite = UsersInviteRepository::getByHash($this->userInvite->getInviteHash());
 
-        $dto = RegisterPostDataDto::from([
+        $dto = RegisterPostDataDto::fromArray([
             'email' => $invite->email,
             'password' => $this->userInvite->password,
             'firstname' => $this->userInvite->firstname,
             'lastname' => $this->userInvite->lastname,
-            'default_company' => (string)$invite->companies_id,
-            'roles_id' => $invite->role_id,
-        ]);
+            'role_ids' => [$invite->role_id],
+        ], $invite->branch);
 
         DB::beginTransaction();
 
         try {
-            $user = (new RegisterUsersAction($dto))->execute();
+            $user = (new CreateUserAction($dto))->execute();
 
             $company = $invite->company()->get()->first();
             $branch = $invite->branch()->get()->first();

@@ -172,7 +172,12 @@ trait KanvasModelTrait
     {
         $this->is_deleted = StateEnums::YES->getValue();
 
-        return $this->saveOrFail();
+        $delete = $this->saveOrFail();
+        if (method_exists($this, 'searchableSoftDelete')) {
+            $this->searchableSoftDelete();
+        }
+
+        return $delete;
     }
 
     /**

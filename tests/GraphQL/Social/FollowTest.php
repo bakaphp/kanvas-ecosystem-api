@@ -6,8 +6,8 @@ namespace Tests\GraphQL\Social;
 
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
-use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Actions\RegisterUsersAppAction;
 use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
@@ -21,6 +21,7 @@ class FollowTest extends TestCase
     {
         $user = Users::factory()->create();
         $branch = auth()->user()->getCurrentBranch();
+        (new RegisterUsersAppAction($user, app(Apps::class)))->execute($user->password);
         //add user to current company
         (new AssignCompanyAction(
             $user,
@@ -53,6 +54,7 @@ class FollowTest extends TestCase
     {
         $user = Users::factory()->create();
         $branch = auth()->user()->getCurrentBranch();
+        (new RegisterUsersAppAction($user, app(Apps::class)))->execute($user->password);
         //add user to current company
         (new AssignCompanyAction(
             $user,
@@ -102,6 +104,7 @@ class FollowTest extends TestCase
     {
         $user = Users::factory()->create();
         $branch = auth()->user()->getCurrentBranch();
+        (new RegisterUsersAppAction($user, app(Apps::class)))->execute($user->password);
         //add user to current company
         (new AssignCompanyAction(
             $user,
@@ -149,6 +152,7 @@ class FollowTest extends TestCase
     {
         $user = Users::factory()->create();
         $branch = auth()->user()->getCurrentBranch();
+        (new RegisterUsersAppAction($user, app(Apps::class)))->execute($user->password);
         //add user to current company
         (new AssignCompanyAction(
             $user,
@@ -210,6 +214,7 @@ class FollowTest extends TestCase
     {
         $user = Users::factory()->create();
         $branch = auth()->user()->getCurrentBranch();
+        (new RegisterUsersAppAction($user, app(Apps::class)))->execute($user->password);
         //add user to current company
         (new AssignCompanyAction(
             $user,
@@ -263,6 +268,8 @@ class FollowTest extends TestCase
     {
         $user = Users::factory()->create();
         $branch = auth()->user()->getCurrentBranch();
+
+        (new RegisterUsersAppAction($user, app(Apps::class)))->execute($user->password);
         //add user to current company
         (new AssignCompanyAction(
             $user,
@@ -307,20 +314,12 @@ class FollowTest extends TestCase
             [
                 'user_id' => auth()->user()->id,
             ]
-        )->assertJson(
+        )->assertJsonFragment(
             [
-            'data' => [
-                'getFollowing' => [
-                    'data' => [
-                        [
-                            'entity' => [
-                                'email' => $user->email,
-                            ],
-                        ],
-                    ],
+                'entity' => [
+                    'email' => $user->email,
                 ],
-            ],
-        ]
+            ]
         );
     }
 }

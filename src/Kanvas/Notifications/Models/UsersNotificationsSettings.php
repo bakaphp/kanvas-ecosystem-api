@@ -97,10 +97,14 @@ class UsersNotificationsSettings extends BaseModel
         return (bool) $this->is_enabled;
     }
 
-    public function hasChannel(string $channel): bool
+    /**
+     * hasChannel.
+     * the channelId is the value of the NotificationChannelEnum
+     */
+    public function hasChannel(int $channelId): bool
     {
         return in_array(
-            NotificationChannelEnum::getIdFromString($channel),
+            $channelId,
             (array) $this->channels
         );
     }

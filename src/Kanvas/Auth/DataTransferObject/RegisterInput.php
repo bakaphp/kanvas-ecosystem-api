@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\DataTransferObject;
 
-use Baka\Contracts\CompanyInterface;
 use Baka\Support\Random;
+use Baka\Validations\PasswordValidation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -26,7 +26,7 @@ class RegisterInput extends Data
         public string $email,
         public string $password,
         public ?string $default_company = null,
-        public ?int $roles_id = null,
+        public array $role_ids = [],
         public array $custom_fields = [],
         public ?CompaniesBranches $branch = null,
         public ?string $phone_number = null,
@@ -41,6 +41,8 @@ class RegisterInput extends Data
      */
     public static function viaRequest(Request $request): self
     {
+        $roles = isset($request['role_id']) ? [$request['role_id']] : ($request['roles_id'] ?? []);
+
         return new self(
             firstname: $request->get('firstname') ?? '',
             lastname: $request->get('lastname') ?? '',
@@ -48,7 +50,7 @@ class RegisterInput extends Data
             email: $request->get('email'),
             password: Hash::make($request->get('password')),
             default_company: $request->get('default_company') ?? null,
-            roles_id: (int) ($request->get('roles_id') ?? null),
+            role_ids: $roles,
             custom_fields: $request->get('custom_fields') ?? []
         );
     }
@@ -58,6 +60,8 @@ class RegisterInput extends Data
      */
     public static function fromArray(array $request, ?CompaniesBranches $branch = null): self
     {
+        $roles = isset($request['role_id']) ? [$request['role_id']] : ($request['role_ids'] ?? []);
+
         return new self(
             firstname: $request['firstname'] ?? '',
             lastname: $request['lastname'] ?? '',
@@ -65,7 +69,7 @@ class RegisterInput extends Data
             email: $request['email'],
             password: Hash::make($request['password']),
             default_company: $request['default_company'] ?? null,
-            roles_id: isset($request['roles_id']) ? (int) $request['roles_id'] : null,
+            role_ids: $roles,
             custom_fields: $request['custom_fields'] ?? [],
             branch: $branch,
             phone_number: $request['phone_number'] ?? null,

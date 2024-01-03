@@ -7,8 +7,9 @@ input CreateUserInput {
     phone_number: String
     password: String @rules(apply: ["min:8"])
     cell_phone_number: String
-    roles_id: ID
+    role_ids: [ID!]
     custom_fields: [CustomFieldEntityInput!]
+    create_company: Boolean
 }
 
 extend type Mutation @guardByAppKey {
@@ -34,13 +35,18 @@ extend type Mutation @guardByAppKey {
         )
 }
 
+enum UserAppEnumColumn {
+    ID @enum(value: "users.id")
+    UUID @enum(value: "users.uuid")
+    DISPLAYNAME @enum(value: "users_associated_apps.displayname")
+    EMAIL @enum(value: "users_associated_apps.email")
+    IS_ACTIVE @enum(value: "users_associated_apps.is_active")
+}
+
 extend type Query @guardByAppKey {
     appUsers(
         search: String @search
-        where: _
-            @whereConditions(
-                columns: ["id", "uuid", "displayname", "is_active"]
-            )
+        where: _ @whereConditions(columnsEnum: UserAppEnumColumn)
         orderBy: _
             @orderBy(
                 columns: [

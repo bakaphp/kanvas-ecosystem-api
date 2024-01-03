@@ -48,6 +48,7 @@ use Kanvas\Roles\Models\Roles;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Traits\SearchableDynamicIndexTrait;
 use Kanvas\Users\Factories\UsersFactory;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 
 /**
@@ -111,9 +112,16 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use KanvasModelTrait;
     use HasNotificationSettings;
     use SearchableDynamicIndexTrait;
+    use CanUseWorkflow;
 
     protected ?string $defaultCompanyName = null;
+
     protected $guarded = [];
+
+    protected $casts = [
+        'default_company' => 'integer',
+        'default_company_branch' => 'integer',
+    ];
 
     protected $hidden = [
         'password',
@@ -394,10 +402,12 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function currentBranchId(): int
     {
         if (! app()->bound(CompaniesBranches::class)) {
-            return (int) $this->get($this->getCurrentCompany()->branchCacheKey());
+            $currentBranchId = (int) $this->get($this->getCurrentCompany()->branchCacheKey());
         } else {
-            return app(CompaniesBranches::class)->getId();
+            $currentBranchId = app(CompaniesBranches::class)->getId();
         }
+
+        return $currentBranchId ? (int) $currentBranchId : $this->default_company_branch;
     }
 
     /**
@@ -557,7 +567,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         $user = $this->getAppProfile(app(Apps::class));
 
-        return $user->email ?? $this->email;
+        return ! empty($user->email) ? $user->email : $this->email;
     }
 
     public function getAppIsActive(): bool

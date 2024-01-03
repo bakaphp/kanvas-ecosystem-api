@@ -6,6 +6,7 @@ namespace Kanvas\Inventory\Products\Models;
 
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -45,9 +46,11 @@ class Products extends BaseModel
     use SlugTrait;
     use LikableTrait;
     use SearchableDynamicIndexTrait;
+    use CascadeSoftDeletes;
 
     protected $table = 'products';
     protected $guarded = [];
+    protected $cascadeDeletes = ['variants'];
 
     protected $casts = [
         'is_published' => 'boolean',

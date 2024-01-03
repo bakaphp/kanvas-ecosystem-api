@@ -51,6 +51,10 @@ jobs:
       MEILISEARCH_KEY: masterKey
       SCOUT_QUEUE: false
       #APP_DEBUG: true
+      #thirparty integration
+      TEST_ZOHO_CLIENT_ID: ${{ secrets.TEST_ZOHO_CLIENT_ID }}
+      TEST_ZOHO_CLIENT_SECRET: ${{ secrets.TEST_ZOHO_CLIENT_SECRET }}
+      TEST_ZOHO_CLIENT_REFRESH_TOKEN: ${{ secrets.TEST_ZOHO_CLIENT_REFRESH_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -130,6 +134,9 @@ jobs:
 
       - name: Setup Kanvas Ecosystem
         run: php artisan kanvas:setup-ecosystem
+
+      - name: create .env file
+        run: echo '' > .env
 
       - name: Run Tests
         if: success()

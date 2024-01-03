@@ -104,7 +104,6 @@ input RegisterInput {
     password: String! @rules(apply: ["required", "min:8"])
     password_confirmation: String! @rules(apply: ["required"])
     company_name: String
-    roles_id: ID
 }
 
 input DeviceInput {
@@ -130,8 +129,8 @@ input UpdateUserInput {
     country_id: Int
         @rules(apply: ["exists:Kanvas\\Locations\\Models\\Countries,id"])
     custom_fields: [CustomFieldEntityInput!]
-    files: [FilesystemInputUrl]
-    role_id: ID
+    files: [FilesystemInputUrl!]
+    role_ids: [ID!]
 }
 
 extend type Mutation {

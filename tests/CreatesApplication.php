@@ -62,7 +62,7 @@ trait CreatesApplication
             $user,
             $company
         );
-        //$setupSocial->run();
+        $setupSocial->run();
 
         return $app;
     }

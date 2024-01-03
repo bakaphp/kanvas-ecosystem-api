@@ -6,6 +6,8 @@ namespace App\GraphQL\Social\Mutations\Topics;
 
 use Exception;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Social\Follows\Actions\FollowAction;
+use Kanvas\Social\Follows\Actions\UnFollowAction;
 use Kanvas\Social\Topics\Actions\AttachEntityToTopic;
 use Kanvas\Social\Topics\Actions\CreateTopicAction;
 use Kanvas\Social\Topics\Actions\DetachEntityFromTopic;
@@ -64,5 +66,28 @@ class TopicsManagementMutation
         );
 
         return  $detachEntityFromTopic->execute();
+    }
+
+    public function followTopic(mixed $rootValue, array $req): Topic
+    {
+        $topic = Topic::getById($req['id']);
+        $followAction = new FollowAction(
+            auth()->user(),
+            $topic
+        );
+
+        return $followAction->execute();
+    }
+
+    public function unFollowTopic(mixed $rootValue, array $req): bool
+    {
+        $topic = Topic::getById($req['id']);
+        $followAction = new UnFollowAction(
+            auth()->user(),
+            $topic
+        );
+        $followAction->execute();
+
+        return true;
     }
 }
