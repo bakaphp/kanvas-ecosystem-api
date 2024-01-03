@@ -36,7 +36,6 @@ class ConfigTest extends TestCase
 
     public function testConfig(): void
     {
-
         $company = Companies::inRandomOrder()->first();
         $this->graphQL( /** @lang GraphQL */
             '
@@ -85,6 +84,5 @@ class ConfigTest extends TestCase
                 ],
             ],
         ]);
-
     }
 }
