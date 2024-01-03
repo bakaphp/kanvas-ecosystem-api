@@ -7,7 +7,7 @@ type User {
     description: String
     dob: String
     default_company: Int! @method(name: "defaultCompany")
-    default_company_branch: Int!
+    default_company_branch: Int! @method(name: "defaultCompanyBranch")
     email: Email! @method(name: "getAppEmail")
     is_active: Boolean! @method(name: "getAppIsActive")
     contact: ContactInfo

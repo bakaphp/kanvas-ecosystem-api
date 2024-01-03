@@ -10,7 +10,6 @@ use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\KanvasModelTrait;
 use Baka\Users\Contracts\UserInterface;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFoundException;
@@ -366,16 +365,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return empty($this->default_company);
     }
 
-    public function defaultCompany()
+    public function defaultCompany(): int
     {
         return $this->currentCompanyId();
     }
 
-    public function defaultCompanyBranch(): Attribute
+    public function defaultCompanyBranch(): int
     {
-        return Attribute::make(
-            get: fn () => $this->currentBranchId(),
-        );
+        return $this->currentBranchId();
     }
 
     /**
