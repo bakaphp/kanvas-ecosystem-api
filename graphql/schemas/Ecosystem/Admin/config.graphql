@@ -29,11 +29,7 @@ extend type Mutation @guardByAdmin {
 }
 
 extend type Query @guardByAdmin {
-    getConfig(
-        module: ModulesConfig!
-        key: String!
-        entity_uuid: String!
-    ): [ModuleConfig]!
+    config(module: ModulesConfig!, entity_uuid: String!): [ModuleConfig]!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Config\\ConfigManagement@getConfig"
         )
