@@ -1,9 +1,3 @@
-enum ModulesConfig {
-    APPS @enum(value: "APPS")
-    COMPANIES @enum(value: "COMPANIES")
-    USERS @enum(value: "USERS")
-}
-
 input ModuleConfigInput {
     key: String!
     value: String!
@@ -12,22 +6,4 @@ input ModuleConfigInput {
 type ModuleConfig {
     key: String!
     value: String!
-}
-
-extend type Mutation @guardByAdmin {
-    setConfig(input: ModuleConfigInput!): Boolean!
-        @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Config\\ConfigManagement@setConfig"
-        )
-    deleteConfig(input: ModuleConfigInput!): Boolean!
-        @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Config\\ConfigManagement@deleteConfig"
-        )
-}
-
-extend type Query @guardByAdmin {
-    config(module: ModulesConfig!, entity_uuid: String!): [ModuleConfig]!
-        @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Config\\ConfigManagement@getConfig"
-        )
 }
