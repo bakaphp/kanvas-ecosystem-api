@@ -16,7 +16,6 @@ class ConfigManagement
         $app->set($request['input']['key'], $request['input']['value']);
 
         return true;
-
     }
 
     public function deleteAppSetting(mixed $root, array $request): bool
