@@ -23,7 +23,7 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
  * @property string $created_at
  * @property string $updated_at
  * @property bool $is_deleted
- * 
+ *
  * @todo Add relationships and cascade softdelete
  */
 class VariantsChannels extends BaseModel
