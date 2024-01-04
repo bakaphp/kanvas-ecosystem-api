@@ -47,14 +47,17 @@ class ConfigManagement
     public function setUserSetting(mixed $root, array $request): bool
     {
         $user = Users::getByUuid($request['input']['entity_uuid'], app(Apps::class));
+        $user->set($request['input']['key'], $request['input']['value']);
 
-        return $this->setConfig(Users::class, $request['input']['key']);
+        return true;
     }
 
     public function deleteUserSetting(mixed $root, array $request): bool
     {
         $user = Users::getByUuid($request['input']['entity_uuid'], app(Apps::class));
 
-        return $this->deleteConfig(Users::class, $request['input']['key']);
+        $user->delete($request['input']['key']);
+
+        return true;
     }
 }
