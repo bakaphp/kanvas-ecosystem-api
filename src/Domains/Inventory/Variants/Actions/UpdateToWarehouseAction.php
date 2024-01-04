@@ -9,6 +9,7 @@ use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses as VariantsWarehousesDto;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
+use Kanvas\Inventory\Warehouses\Actions\CreatePriceHistoryAction;
 
 class UpdateToWarehouseAction
 {
@@ -30,6 +31,7 @@ class UpdateToWarehouseAction
     public function execute(): Variants
     {
         $oldStatusId = $this->variantsWarehouses->status_id;
+        $oldPrice = $this->variantsWarehouses->price;
 
         $this->variantsWarehouses->update(
             [
@@ -57,6 +59,13 @@ class UpdateToWarehouseAction
                     $this->variantsWarehouses->variant->product->company
                 ),
                 $this->variantsWarehouses
+            ))->execute();
+        }
+
+        if ($this->variantsWarehousesDto->price && $oldPrice !== $this->variantsWarehouses->price) {
+            (new CreatePriceHistoryAction(
+                $this->variantsWarehouses,
+                $this->variantsWarehousesDto->price
             ))->execute();
         }
 
