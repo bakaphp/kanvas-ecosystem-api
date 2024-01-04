@@ -18,9 +18,9 @@ return new class () extends Migration {
             $table->dateTime('from_date');
             $table->timestamp('created_at')->useCurrent();
             $table->boolean('is_deleted')->default(0);
-            $table->foreign('products_variants_id', 'variants_ref')->references('id')->on('products_variants');
-            $table->foreign('channels_id', 'channels_ref')->references('id')->on('channels');
-            $table->foreign('product_variants_warehouse_id', 'variant_warehouse_ref')->references('id')->on('products_variants_warehouses');
+            $table->foreign('products_variants_id', 'variants_price_ref')->references('id')->on('products_variants');
+            $table->foreign('channels_id', 'channels_price_ref')->references('id')->on('channels');
+            $table->foreign('product_variants_warehouse_id', 'variant_warehouse_channel_price_ref')->references('id')->on('products_variants_warehouses');
         });
 
         Schema::dropIfExists('products_variants_warehouse_price_history');
@@ -31,7 +31,7 @@ return new class () extends Migration {
             $table->dateTime('from_date');
             $table->timestamp('created_at')->useCurrent();
             $table->boolean('is_deleted')->default(0);
-            $table->foreign('product_variants_warehouse_id', 'variant_warehouse_ref')->references('id')->on('products_variants_warehouses');
+            $table->foreign('product_variants_warehouse_id', 'variant_warehouse_price_ref')->references('id')->on('products_variants_warehouses');
         });
     }
 
