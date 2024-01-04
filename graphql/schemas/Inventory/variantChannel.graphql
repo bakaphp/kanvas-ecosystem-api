@@ -42,7 +42,7 @@ input VariantChannelInput {
 
 extend type Mutation @guard {
     addVariantToChannel(
-        id: ID!
+        variants_id: ID!
         channels_id: ID!
         warehouses_id: ID!
         input: VariantChannelInput!
@@ -51,7 +51,7 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addToChannel"
         )
     removeVariantChannel(
-        id: ID!
+        variants_id: ID!
         channels_id: ID!
         warehouses_id: ID!
     ): Variant
