@@ -4,22 +4,31 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Queries\Config;
 
-use Kanvas\Config\Enums\ConfigEnums;
-
 class ConfigManagement
 {
-    public function getConfig(mixed $root, array $request): array
+    public function getAppSetting(mixed $root, array $request): array
     {
-        $enum = $request['module'];
-        $class = ConfigEnums::fromName($enum);
-        $entity = $class::getByUuid($request['entity_uuid']);
+        return $this->getConfig(ConfigEnums::fromName('APPS'), $request);
+    }
+
+    public function getCompanySetting(mixed $root, array $request): array
+    {
+        return $this->getConfig(ConfigEnums::fromName('COMPANIES'), $request);
+    }
+
+    public function getUserSetting(mixed $root, array $request): array
+    {
+        return $this->getConfig(ConfigEnums::fromName('USERS'), $request);
+    }
+
+    public function getConfig(string $module, array $request): array
+    {
+        $entity = $module::getByUuid($request['entity_uuid']);
         $config = [];
         foreach ($entity->getAll() as $key => $value) {
             $config[] = [
                 'key' => $key,
                 'value' => $value,
-                'module' => $enum,
-                'entity_uuid' => $request['entity_uuid'],
             ];
         }
 

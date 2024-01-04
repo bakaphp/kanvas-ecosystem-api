@@ -5,16 +5,13 @@ enum ModulesConfig {
 }
 
 input ModuleConfigInput {
-    module: ModulesConfig!
     key: String!
     value: String!
     entity_uuid: String!
 }
 type ModuleConfig {
-    module: ModulesConfig!
     key: String!
     value: String!
-    entity_uuid: String!
 }
 
 extend type Mutation @guardByAdmin {
