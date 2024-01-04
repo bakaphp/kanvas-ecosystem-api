@@ -64,13 +64,6 @@ class AddToWarehouseAction
             ))->execute();
         }
 
-        if ($this->variantsWarehousesDto->price) {
-            (new CreatePriceHistoryAction(
-                $variantsWarehouses,
-                $this->variantsWarehousesDto->price
-            ))->execute();
-        }
-
         return $variantsWarehouses;
     }
 }
