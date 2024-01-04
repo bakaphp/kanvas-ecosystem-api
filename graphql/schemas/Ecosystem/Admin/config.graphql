@@ -1,7 +1,7 @@
 input ModuleConfigInput {
     key: String!
     value: String!
-    entity_uuid: String!
+    entity_uuid: String
 }
 type ModuleConfig {
     key: String!

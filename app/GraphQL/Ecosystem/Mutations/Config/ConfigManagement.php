@@ -4,53 +4,57 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Config;
 
-use Kanvas\Config\Enums\ConfigEnums;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Users\Models\Users;
 
 class ConfigManagement
 {
     public function setAppSetting(mixed $root, array $request): bool
     {
-        return $this->setConfig(ConfigEnums::fromName('APPS'), $request['input']);
+        $app = app(Apps::class);
+        $app->set($request['input']['key'], $request['input']['value']);
+
+        return true;
+
     }
 
     public function deleteAppSetting(mixed $root, array $request): bool
     {
-        return $this->deleteConfig(ConfigEnums::fromName('APPS'), $request['input']);
+        $app = app(Apps::class);
+        $app->set($request['input']['key'], $request['input']['value']);
+        $app->delete($request['input']['key']);
+
+        return true;
     }
 
     public function setCompanySetting(mixed $root, array $request): bool
     {
-        return $this->setConfig(ConfigEnums::fromName('COMPANIES'), $request['input']);
+        $companies = Companies::getByUuid($request['input']['entity_uuid'], app(Apps::class));
+        $companies->set($request['input']['key'], $request['input']['value']);
+
+        return true;
     }
 
     public function deleteCompanySetting(mixed $root, array $request): bool
     {
-        return $this->deleteConfig(ConfigEnums::fromName('COMPANIES'), $request['input']);
+        $companies = Companies::getByUuid($request['input']['entity_uuid'], app(Apps::class));
+        $companies->delete($request['input']['key']);
+
+        return true;
     }
 
     public function setUserSetting(mixed $root, array $request): bool
     {
-        return $this->setConfig(ConfigEnums::fromName('USERS'), $request['input']);
+        $user = Users::getByUuid($request['input']['entity_uuid'], app(Apps::class));
+
+        return $this->setConfig(Users::class, $request['input']['key']);
     }
 
     public function deleteUserSetting(mixed $root, array $request): bool
     {
-        return $this->deleteConfig(ConfigEnums::fromName('USERS'), $request['input']);
-    }
+        $user = Users::getByUuid($request['input']['entity_uuid'], app(Apps::class));
 
-    public function setConfig(string $module, array $config): bool
-    {
-        $entity = $module::getByUuid($request['input']['entity_uuid']);
-        $entity->set($config['key'], $config['value']);
-
-        return true;
-    }
-
-    public function deleteConfig(string $module, array $request): bool
-    {
-        $entity = $module::getByUuid($request['input']['entity_uuid']);
-        $entity->delete($config['key']);
-
-        return true;
+        return $this->deleteConfig(Users::class, $request['input']['key']);
     }
 }

@@ -4,34 +4,24 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Queries\Config;
 
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Users\Models\Users;
+
 class ConfigManagement
 {
     public function getAppSetting(mixed $root, array $request): array
     {
-        return $this->getConfig(ConfigEnums::fromName('APPS'), $request);
+        return Apps::getByUuid($request['entity_uuid'], app(Apps::class))->getAll();
     }
 
     public function getCompanySetting(mixed $root, array $request): array
     {
-        return $this->getConfig(ConfigEnums::fromName('COMPANIES'), $request);
+        return Companies::getByUuid($request['entity_uuid'], app(Apps::class))->getAll();
     }
 
     public function getUserSetting(mixed $root, array $request): array
     {
-        return $this->getConfig(ConfigEnums::fromName('USERS'), $request);
-    }
-
-    public function getConfig(string $module, array $request): array
-    {
-        $entity = $module::getByUuid($request['entity_uuid']);
-        $config = [];
-        foreach ($entity->getAll() as $key => $value) {
-            $config[] = [
-                'key' => $key,
-                'value' => $value,
-            ];
-        }
-
-        return $config;
+        return Users::getByUuid($request['entity_uuid'], app(Apps::class))->getAll();
     }
 }
