@@ -62,13 +62,6 @@ class UpdateToWarehouseAction
             ))->execute();
         }
 
-        if ($this->variantsWarehousesDto->price && $oldPrice !== $this->variantsWarehouses->price) {
-            (new CreatePriceHistoryAction(
-                $this->variantsWarehouses,
-                $this->variantsWarehousesDto->price
-            ))->execute();
-        }
-
         return $this->variantsWarehouses->variant;
     }
 }
