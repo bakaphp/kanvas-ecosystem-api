@@ -206,7 +206,7 @@ class Variants
      */
     public function removeChannel(mixed $root, array $req): VariantModel
     {
-        $variant = VariantsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
+        $variant = VariantsRepository::getById((int) $req['variants_id'], auth()->user()->getCurrentCompany());
         $warehouse = WarehouseRepository::getById((int) $req['warehouses_id']);
         $variantWarehouses = ModelsVariantsWarehouses::where('products_variants_id', $variant->getId())
             ->where('warehouses_id', $warehouse->getId())
