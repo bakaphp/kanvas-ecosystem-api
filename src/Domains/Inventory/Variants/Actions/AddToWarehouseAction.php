@@ -9,6 +9,7 @@ use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses as VariantsWarehousesDto;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
+use Kanvas\Inventory\Warehouses\Actions\CreatePriceHistoryAction;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 class AddToWarehouseAction
@@ -60,6 +61,13 @@ class AddToWarehouseAction
             (new CreateStatusHistoryAction(
                 StatusRepository::getById($this->variantsWarehousesDto->status_id),
                 $variantsWarehouses
+            ))->execute();
+        }
+
+        if ($this->variantsWarehousesDto->price) {
+            (new CreatePriceHistoryAction(
+                $variantsWarehouses,
+                $this->variantsWarehousesDto->price
             ))->execute();
         }
 
