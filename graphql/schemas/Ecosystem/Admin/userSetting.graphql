@@ -3,7 +3,7 @@ extend type Mutation @guardByAppKey {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Config\\ConfigManagement@setUserSetting"
         )
-    deleteAppSetting(input: ModuleConfigInput!): Boolean!
+    deleteUserSetting(input: ModuleConfigInput!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Config\\ConfigManagement@deleteUserSetting"
         )
