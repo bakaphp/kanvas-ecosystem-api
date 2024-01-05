@@ -26,6 +26,7 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Traits\SearchableDynamicIndexTrait;
 use Awobaz\Compoships\Compoships;
+
 /**
  * Class Attributes.
  *
