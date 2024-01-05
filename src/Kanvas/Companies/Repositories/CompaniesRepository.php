@@ -31,7 +31,7 @@ class CompaniesRepository
     }
 
     /**
-     * Get by uuid.
+     * Get by uuid and app.
      * @psalm-suppress MixedReturnStatement
      */
     public static function getByUuid(string $uuid, ?Apps $app = null): Companies
