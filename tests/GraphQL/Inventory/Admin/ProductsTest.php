@@ -48,9 +48,12 @@ class ProductsTest extends TestCase
                 [],
                 [],
                 [
-                    AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+                    AppEnums::KANVAS_APP_KEY_HEADER->getValue() => trim($app->keys()->first()->client_secret_id),
                 ]
             )->json();
+
+            print_R($app->toArray()); 
+            print_R($app->keys()->get()->toArray());
             print_r($response);
         } catch (\Exception $e) {
             print_R($e);
