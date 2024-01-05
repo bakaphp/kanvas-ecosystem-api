@@ -140,7 +140,7 @@ jobs:
 
       - name: Run Tests
         if: success()
-        run: php artisan test --display-warnings
+        run: php artisan test
       
       - name: Upload artifacts
         uses: actions/upload-artifact@master
