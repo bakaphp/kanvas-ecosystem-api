@@ -7,6 +7,8 @@ namespace App\GraphQL\Ecosystem\Mutations\Config;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Companies\Repositories\CompaniesRepository;
 
 class ConfigManagement
 {
@@ -30,7 +32,7 @@ class ConfigManagement
 
     public function setCompanySetting(mixed $root, array $request): bool
     {
-        $companies = Companies::getByUuid($request['input']['entity_uuid'], app(Apps::class));
+        $companies = CompaniesRepository::getByUuid($request['input']['entity_uuid'], app(Apps::class));
         $companies->set($request['input']['key'], $request['input']['value']);
 
         return true;
@@ -38,7 +40,7 @@ class ConfigManagement
 
     public function deleteCompanySetting(mixed $root, array $request): bool
     {
-        $companies = Companies::getByUuid($request['input']['entity_uuid'], app(Apps::class));
+        $companies = CompaniesRepository::getByUuid($request['input']['entity_uuid'], app(Apps::class));
         $companies->delete($request['input']['key']);
 
         return true;
@@ -46,7 +48,10 @@ class ConfigManagement
 
     public function setUserSetting(mixed $root, array $request): bool
     {
-        $user = Users::getByUuid($request['input']['entity_uuid'], app(Apps::class));
+        $user = Users::getByUuid($request['input']['entity_uuid']);
+
+        UsersRepository::belongsToThisApp($user, app(Apps::class));
+
         $user->set($request['input']['key'], $request['input']['value']);
 
         return true;
@@ -54,8 +59,10 @@ class ConfigManagement
 
     public function deleteUserSetting(mixed $root, array $request): bool
     {
-        $user = Users::getByUuid($request['input']['entity_uuid'], app(Apps::class));
+        $user = Users::getByUuid($request['input']['entity_uuid']);
 
+        UsersRepository::belongsToThisApp($user, app(Apps::class));
+        $user->set($request['input']['key'], $request['input']['value']);
         $user->delete($request['input']['key']);
 
         return true;

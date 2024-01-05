@@ -34,11 +34,20 @@ class CompaniesRepository
      * Get by uuid.
      * @psalm-suppress MixedReturnStatement
      */
-    public static function getByUuid(string $uuid): Companies
+    public static function getByUuid(string $uuid, ?Apps $app = null): Companies
     {
-        return Companies::where('uuid', $uuid)
-                ->where('is_deleted', StateEnums::NO->getValue())
-                ->firstOrFail();
+        Companies::where('uuid', $uuid)
+               ->where('is_deleted', StateEnums::NO->getValue())
+               ->when($app, function ($query, $app) {
+                   $query->join(
+                       'users_associated_company',
+                       'users_associated_company.companies_id',
+                       '=',
+                       'companies.id'
+                   );
+                   $query->where('users_associated_company.apps_id', $app->getId());
+               })
+               ->firstOrFail();
     }
 
     /**
