@@ -11,6 +11,7 @@ use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Users\Models\Users;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
@@ -68,6 +69,7 @@ class KanvasAppKey
                 $kanvasAppKey->last_used_date = date('Y-m-d H:i:s');
                 $kanvasAppKey->saveOrFail();
             } catch (Throwable $e) {
+                print_r(Users::all()->toArray()); 
                 print_r($e->getMessage());
                 $msg = 'No App Key configure with this key: ' . $appKey;
 
