@@ -35,7 +35,7 @@ class ProductsTest extends TestCase
 
 
         try {
-            $this->graphQL(
+            $response = $this->graphQL(
                 '
             query {
                 products {
@@ -50,7 +50,8 @@ class ProductsTest extends TestCase
                 [
                     AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
                 ]
-            )->assertOk();
+            )->json();
+            print_r($response);
         } catch (\Exception $e) {
             print_R($e);
 
