@@ -21,10 +21,10 @@ class ProductsTest extends TestCase
 
         //cant figure out why the user doesn\'t exist for the key
         try {
-            $app->keys()->user()->firstOrFail();
+            $app->keys()->firstOrFail()->user()->firstOrFail();
         } catch(ModelNotFoundException $e) {
             $user = auth()->user();
-            $app->keys()->first()->updateOrFail([
+            $app->keys()->firstOrFail()->updateOrFail([
                 'user_id' => $user->getId(),
             ]);
             $app->keys()->first()->user()->firstOrFail()->assign(RolesEnums::OWNER->value);
