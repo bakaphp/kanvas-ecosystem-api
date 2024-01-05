@@ -33,8 +33,10 @@ class ProductsTest extends TestCase
             'data' => ['createProduct' => $data],
         ])->assertOk();
 
-        $this->graphQL(
-            '
+
+        try {
+            $this->graphQL(
+                '
             query {
                 products {
                     data {
@@ -43,11 +45,16 @@ class ProductsTest extends TestCase
                     }
                 }
             }',
-            [],
-            [],
-            [
-                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
-            ]
-        )->assertOk();
+                [],
+                [],
+                [
+                    AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+                ]
+            )->assertOk();
+        } catch (\Exception $e) {
+            echo $e->getResponse()->getContent();
+
+            throw $e;
+        }
     }
 }
