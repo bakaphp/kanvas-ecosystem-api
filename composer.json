@@ -11,6 +11,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "awobaz/compoships": "^2.2",
         "berkayk/onesignal-laravel": "^2.0",
         "darryldecode/cart": "^4.2",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",

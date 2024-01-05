@@ -25,7 +25,7 @@ use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Traits\SearchableDynamicIndexTrait;
-
+use Awobaz\Compoships\Compoships;
 /**
  * Class Attributes.
  *
@@ -51,6 +51,7 @@ class Variants extends BaseModel
     use SocialInteractionsTrait;
     use SearchableDynamicIndexTrait;
     use CascadeSoftDeletes;
+    use Compoships;
 
     protected $is_deleted;
     protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];
@@ -148,6 +149,17 @@ class Variants extends BaseModel
             'attributes_id'
         )
             ->withPivot('value');
+    }
+
+    /**
+     * attributes values.
+     */
+    public function attributeValues(): HasMany
+    {
+        return $this->hasMany(
+            VariantsAttributes::class,
+            'products_variants_id',
+        );
     }
 
     public function channels(): BelongsToMany
