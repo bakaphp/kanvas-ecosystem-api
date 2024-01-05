@@ -52,7 +52,7 @@ class ProductsTest extends TestCase
                 ]
             )->assertOk();
         } catch (\Exception $e) {
-            echo $e->getResponse()->getContent();
+            print_R($e);
 
             throw $e;
         }
