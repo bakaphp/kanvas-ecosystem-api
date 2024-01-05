@@ -25,7 +25,7 @@ class ProductsTest extends TestCase
         } catch(ModelNotFoundException $e) {
             $user = auth()->user();
             $app->keys()->firstOrFail()->updateOrFail([
-                'user_id' => $user->getId(),
+                'users_id' => $user->getId(),
             ]);
             $app->keys()->first()->user()->firstOrFail()->assign(RolesEnums::OWNER->value);
         }
