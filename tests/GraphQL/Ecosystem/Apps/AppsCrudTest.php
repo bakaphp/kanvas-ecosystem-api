@@ -177,4 +177,34 @@ class AppsCrudTest extends TestCase
             ],
         ]);
     }
+
+    public function testDeleteUserSetting()
+    {
+        $app = app(Apps::class);
+        $input = [
+            'key' => 'test',
+            'value' => 'test',
+            'entity_uuid' => $app->uuid,
+        ];
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation(
+                $input: ModuleConfigInput!
+            ){
+                setAppSetting(
+                    input: $input
+                ) 
+            }',
+            [
+                'input' => $input,
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        )->assertJson([
+            'data' => [
+                'setAppSetting' => true,
+            ],
+        ]);
+    }
 }

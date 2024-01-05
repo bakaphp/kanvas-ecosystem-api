@@ -36,16 +36,16 @@ class CompaniesRepository
      */
     public static function getByUuid(string $uuid, ?Apps $app = null): Companies
     {
-        Companies::where('uuid', $uuid)
-               ->where('is_deleted', StateEnums::NO->getValue())
+        return Companies::where('uuid', $uuid)
+               ->where('companies.is_deleted', StateEnums::NO->getValue())
                ->when($app, function ($query, $app) {
                    $query->join(
-                       'users_associated_company',
-                       'users_associated_company.companies_id',
+                       'user_company_apps',
+                       'user_company_apps.companies_id',
                        '=',
                        'companies.id'
                    );
-                   $query->where('users_associated_company.apps_id', $app->getId());
+                   $query->where('user_company_apps.apps_id', $app->getId());
                })
                ->firstOrFail();
     }

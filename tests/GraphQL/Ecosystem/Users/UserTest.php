@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
+use Kanvas\Enums\AppEnums;
 
 class UserTest extends TestCase
 {
@@ -219,6 +220,64 @@ class UserTest extends TestCase
         ])->assertJson([
             'data' => [
                 'updateDisplayname' => true,
+            ],
+        ]);
+    }
+
+    public function testSetUserSetting()
+    {
+        $app = app(Apps::class);
+
+        $input = [
+            'key' => 'test',
+            'value' => 'test',
+            'entity_uuid' => Users::getById(1)->uuid,
+        ];
+        $this->graphQL(/** @lang GraphQL */
+            '
+            mutation setUserSetting($input: ModuleConfigInput!){
+                setUserSetting(input: $input)
+            }
+        ',
+            [
+            'input' => $input,
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        )->assertJson([
+            'data' => [
+                'setUserSetting' => true,
+            ],
+        ]);
+    }
+
+    public function testDeleteUserSetting()
+    {
+        $app = app(Apps::class);
+
+        $input = [
+            'key' => 'test',
+            'value' => 'test',
+            'entity_uuid' => Users::getById(1)->uuid,
+        ];
+        $this->graphQL(/** @lang GraphQL */
+            '
+            mutation deleteUserSetting($input: ModuleConfigInput!){
+                deleteUserSetting(input: $input)
+            }
+        ',
+            [
+            'input' => $input,
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        )->assertJson([
+            'data' => [
+                'deleteUserSetting' => true,
             ],
         ]);
     }
