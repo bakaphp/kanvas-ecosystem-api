@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Variants\Models;
 
 use Baka\Traits\HasCompositePrimaryKeyTrait;
+use Baka\Traits\NoAppRelationshipTrait;
+use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Models\BaseModel;
@@ -21,18 +23,17 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
  * @property string $created_at
  * @property string $updated_at
  * @property bool $is_deleted
+ *
+ * @todo Add relationships and cascade softdelete
  */
 class VariantsChannels extends BaseModel
 {
     use HasCompositePrimaryKeyTrait;
+    use NoAppRelationshipTrait;
+    use NoCompanyRelationshipTrait;
 
     protected $table = 'products_variants_channels';
-    protected $guarded = [
-        'product_variants_warehouse_id',
-        'channels_id',
-        'price',
-        'discount_price'
-    ];
+    protected $guarded = [];
 
     protected $primaryKey = ['product_variants_warehouse_id', 'channels_id'];
 

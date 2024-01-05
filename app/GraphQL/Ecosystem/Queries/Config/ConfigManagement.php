@@ -18,7 +18,6 @@ class ConfigManagement
 
     public function getCompanySetting(mixed $root, array $request): array
     {
-
         return CompaniesRepository::getByUuid($request['entity_uuid'], app(Apps::class))->getAll();
     }
 

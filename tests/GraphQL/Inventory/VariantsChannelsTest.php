@@ -119,14 +119,14 @@ class VariantsChannelsTest extends TestCase
         $channelId = $response->json()['data']['createChannel']['id'];
         $response = $this->graphQL(
             '
-        mutation addVariantToChannel($id: ID! $channels_id: ID! $warehouses_id: ID! $input: VariantChannelInput!){
-            addVariantToChannel(id: $id channels_id:$channels_id warehouses_id:$warehouses_id input:$input){
+        mutation addVariantToChannel($variants_id: ID! $channels_id: ID! $warehouses_id: ID! $input: VariantChannelInput!){
+            addVariantToChannel(variants_id: $variants_id channels_id:$channels_id warehouses_id:$warehouses_id input:$input){
                 id
             } 
         }
         ',
             [
-                'id' => $variantId,
+                'variants_id' => $variantId,
                 'channels_id' => $channelId,
                 'warehouses_id' => $warehouseData['id'],
                 'input' => [
@@ -142,14 +142,14 @@ class VariantsChannelsTest extends TestCase
         ]);
 
         $response = $this->graphQL(
-            'mutation ($id: ID! $channels_id: ID! $warehouses_id: ID!) {
-                removeVariantChannel(id: $id channels_id: $channels_id warehouses_id: $warehouses_id)
+            'mutation ($variants_id: ID! $channels_id: ID! $warehouses_id: ID!) {
+                removeVariantChannel(variants_id: $variants_id channels_id: $channels_id warehouses_id: $warehouses_id)
                 {
                     id
                 }
             }',
             [
-                'id' => $variantId,
+                'variants_id' => $variantId,
                 'channels_id' => $channelId,
                 'warehouses_id' => $warehouseData['id'],
             ]
