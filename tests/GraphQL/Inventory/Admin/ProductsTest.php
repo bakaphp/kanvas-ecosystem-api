@@ -31,7 +31,7 @@ class ProductsTest extends TestCase
                 }
             }', ['data' => $data])->assertJson([
             'data' => ['createProduct' => $data],
-        ]);
+        ])->assertOk();
 
         $this->graphQL(
             '
