@@ -105,7 +105,7 @@ class Products extends BaseModel
     public function attributeValues(): HasMany
     {
         return $this->hasMany(
-            VariantsAttributes::class,
+            ProductsAttributes::class,
             'products_id',
         );
     }
