@@ -1,0 +1,9 @@
+input ModuleConfigInput {
+    key: String!
+    value: String!
+    entity_uuid: String
+}
+type ModuleConfig {
+    key: String!
+    value: String!
+}
