@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Inventory\Admin;
 
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Tests\TestCase;
@@ -16,6 +18,17 @@ class ProductsTest extends TestCase
     public function testGetProduct(): void
     {
         $app = app(Apps::class);
+
+        //cant figure out why the user doesn\'t exist for the key
+        try {
+            $app->keys()->user()->firstOrFail();
+        } catch(ModelNotFoundException $e) {
+            $user = auth()->user();
+            $app->keys()->first()->updateOrFail([
+                'user_id' => $user->getId(),
+            ]);
+            $app->keys()->first()->user()->firstOrFail()->assign(RolesEnums::OWNER->value);
+        }
 
         $data = [
             'name' => fake()->name,
@@ -48,13 +61,13 @@ class ProductsTest extends TestCase
                 [],
                 [],
                 [
-                    AppEnums::KANVAS_APP_KEY_HEADER->getValue() => trim($app->keys()->first()->client_secret_id),
+                    AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
                 ]
             )->json();
 
-            print_R($app->toArray()); 
+            print_R($app->toArray());
             print_R($app->keys()->get()->toArray());
-            
+
             print_r($response);
         } catch (\Exception $e) {
             print_R($e);
