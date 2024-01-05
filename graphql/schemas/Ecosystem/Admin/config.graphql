@@ -1,9 +1,9 @@
 input ModuleConfigInput {
-    key: String
-    value: String
+    key: String!
+    value: Mixed!
     entity_uuid: String
 }
 type ModuleConfig {
-    key: String!
-    value: String!
+    key: String
+    value: Mixed
 }
