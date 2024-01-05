@@ -68,6 +68,7 @@ class KanvasAppKey
                 $kanvasAppKey->last_used_date = date('Y-m-d H:i:s');
                 $kanvasAppKey->saveOrFail();
             } catch (Throwable $e) {
+                print_r($e->getMessage());
                 $msg = 'No App Key configure with this key: ' . $appKey;
 
                 return response()->json(['message' => $msg], 500);
