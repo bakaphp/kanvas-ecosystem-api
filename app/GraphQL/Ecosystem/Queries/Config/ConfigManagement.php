@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Queries\Config;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
-use Kanvas\Companies\Repositories\CompaniesRepository;
+
 class ConfigManagement
 {
     public function getAppSetting(mixed $root, array $request): array
@@ -24,9 +24,9 @@ class ConfigManagement
 
     public function getUserSetting(mixed $root, array $request): array
     {
-
         $user = Users::getByUuid($request['entity_uuid']);
+        UsersRepository::belongsToThisApp($user, app(Apps::class));
 
-        return UsersRepository::belongsToThisApp($user, app(Apps::class))->getAll();
+        return $user->getAll();
     }
 }
