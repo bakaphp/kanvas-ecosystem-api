@@ -13,12 +13,12 @@ class ConfigManagement
 {
     public function getAppSetting(mixed $root, array $request): array
     {
-        return Apps::getByUuid($request['entity_uuid'], app(Apps::class))->getAll();
+        return $this->parseSettings(app(Apps::class)->getAll());
     }
 
     public function getCompanySetting(mixed $root, array $request): array
     {
-        return CompaniesRepository::getByUuid($request['entity_uuid'], app(Apps::class))->getAll();
+        return $this->parseSettings(CompaniesRepository::getByUuid($request['entity_uuid'], app(Apps::class))->getAll());
     }
 
     public function getUserSetting(mixed $root, array $request): array
@@ -26,6 +26,19 @@ class ConfigManagement
         $user = Users::getByUuid($request['entity_uuid']);
         UsersRepository::belongsToThisApp($user, app(Apps::class));
 
-        return $user->getAll();
+        return $this->parseSettings($user->getAll());
+    }
+
+    public function parseSettings(array $data): array
+    {
+        $settings = [];
+        foreach ($data as $key => $value) {
+            $settings[] = [
+                'key' => $key,
+                'value' => gettype($value) != 'array' ? (string)$value : $value,
+            ];
+        }
+
+        return $settings;
     }
 }
