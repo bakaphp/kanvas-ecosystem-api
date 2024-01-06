@@ -114,6 +114,11 @@ extend type Query @guard {
                     "is_published"
                 ]
             )
+        hasAttributesValues: _
+            @whereHasConditions(
+                relation: "attributeValues"
+                columns: ["products_variants_id", "value", "attributes_id"]
+            )
         orderBy: _
             @orderBy(
                 columns: [
