@@ -27,8 +27,12 @@ class TemplatesRepository
                 ->whereIn('apps_id', [AppEnums::LEGACY_APP_ID->getValue(), $app->getId()])
                 ->where('name', $name)
                 ->whereIn('companies_id', [$companyId, AppEnums::GLOBAL_COMPANY_ID->getValue()])
-                ->orderByRaw('FIELD(companies_id, ?, ?) DESC', [$companyId, AppEnums::GLOBAL_COMPANY_ID->getValue()])
-                ->orderBy('apps_id', 'desc')
+                ->orderByRaw('
+                    CASE 
+                        WHEN companies_id = ? AND apps_id = ? THEN 1
+                        WHEN apps_id = ? THEN 2
+                        ELSE 3
+                    END', [$companyId, $app->getId(), $app->getId()])
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             throw new ExceptionsModelNotFoundException('Template not found - ' . $name);
