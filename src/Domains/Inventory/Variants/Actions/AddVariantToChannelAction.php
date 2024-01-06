@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Actions;
 
+use Kanvas\Inventory\Channels\Actions\CreatePriceHistoryAction;
 use Kanvas\Inventory\Channels\Models\Channels;
-use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
-use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel as VariantChannelDto;
+use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 
 class AddVariantToChannelAction
@@ -14,37 +15,36 @@ class AddVariantToChannelAction
     public function __construct(
         protected VariantsWarehouses $variantsWarehouses,
         protected Channels $channel,
-        protected VariantChannel $variantChannel
+        protected VariantChannelDto $variantChannelDto
     ) {
     }
 
-    public function execute(): Variants
+    public function execute(): VariantsChannels
     {
-        $channelId = $this->channel->getId();
-        $relationship = $this->variantsWarehouses->channels()->find($channelId);
+        $search = [
+            'product_variants_warehouse_id' => $this->variantsWarehouses->getId(),
+            'channels_id' => $this->channel->getId(),
+        ];
 
-        if ($relationship) {
-            // Update existing pivot table values
-            $this->variantsWarehouses->channels()->updateExistingPivot($channelId, [
-                'price' => $this->variantChannel->price,
-                'discounted_price' => $this->variantChannel->discounted_price,
-                'is_published' => $this->variantChannel->is_published,
+        $variantChannel = VariantsChannels::firstOrCreate(
+            $search,
+            [
+                'price' => $this->variantChannelDto->price ?? 0.00,
+                'discounted_price' => $this->variantChannelDto->discounted_price ?? 0.00,
+                'is_published' => $this->variantChannelDto->is_published,
                 'products_variants_id' => $this->variantsWarehouses->products_variants_id,
-                'product_variants_warehouse_id' => $this->variantsWarehouses->getId(),
-                'warehouses_id' => $this->variantsWarehouses->warehouses_id,
-            ]);
-        } else {
-            // Create new relationship if it doesn't exist
-            $this->variantsWarehouses->channels()->attach($channelId, [
-                'price' => $this->variantChannel->price,
-                'discounted_price' => $this->variantChannel->discounted_price,
-                'is_published' => $this->variantChannel->is_published,
-                'products_variants_id' => $this->variantsWarehouses->products_variants_id,
-                'product_variants_warehouse_id' => $this->variantsWarehouses->getId(),
-                'warehouses_id' => $this->variantsWarehouses->warehouses_id,
-            ]);
+                'warehouses_id' => $this->variantsWarehouses->warehouses_id
+            ]
+        );
+
+        if ($this->variantChannelDto->price) {
+            (new CreatePriceHistoryAction(
+                $this->variantsWarehouses,
+                $this->channel,
+                $variantChannel->price
+            ))->execute();
         }
 
-        return $this->variantsWarehouses->variant;
+        return $variantChannel;
     }
 }
