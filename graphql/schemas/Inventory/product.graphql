@@ -120,6 +120,12 @@ extend type Query @guard {
                 relation: "attributes"
                 columns: ["id", "name", "uuid"]
             )
+        hasAttributesValues: _
+            @whereHasConditions(
+                relation: "attributeValues"
+                columns: ["products_id", "value", "attributes_id"]
+            )
+
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [Product!]!
         @paginate(
