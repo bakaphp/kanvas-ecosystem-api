@@ -39,7 +39,7 @@ enum RolesEnums: string
             'manager' => self::MANAGER,
             default => self::ADMIN
         };
-    
+
         return $role->value;
     }
 }
