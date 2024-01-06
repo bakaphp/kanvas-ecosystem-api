@@ -36,7 +36,11 @@ class UserManagement
             $files = Arr::pull($data, 'files', []);
             $roleIds = Arr::pull($data, 'role_ids', []);
 
+            $userAppProfile = $this->user->getAppProfile($this->app);
+
+            //@todo when we update the login to use userAssociatedApps we need to remove this
             $this->user->update($data);
+            $userAppProfile->update($data);
 
             if ($customFields) {
                 $this->user->setAll($customFields);
