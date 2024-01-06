@@ -39,7 +39,7 @@ class AuthenticationService
         $app = $this->app;
 
         /**
-         * @todo use email per app
+         * @todo use email per app from userAssociatedApp
          */
         $user = Users::notDeleted()
         ->where('email', $loginInput->getEmail())

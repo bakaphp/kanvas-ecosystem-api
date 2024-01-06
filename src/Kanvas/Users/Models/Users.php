@@ -22,6 +22,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Enums\DefaultRoles;
@@ -500,10 +501,9 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return $user->updateOrFail();
     }
 
-    public function updateEmail(string $email): bool
+    public function updateEmail(string $email, AppInterface $app): bool
     {
-        $this->email = $email;
-
+        //@todo in the future we should remove this validation and use only the one in the app
         $validator = Validator::make(
             ['email' => $email],
             ['email' => 'required|email|unique:users,email,' . $this->id]
@@ -512,6 +512,30 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         if ($validator->fails()) {
             throw new ValidationException($validator);
         }
+
+        $user = $this->getAppProfile($app);
+
+        $validator = Validator::make(
+            ['email' => $email],
+            [
+                'email' => [
+                    'required',
+                    Rule::unique('users_associated_apps')->ignore($this->id, 'users_id')
+                        ->where(function ($query) use ($app) {
+                            return $query->where('apps_id', $app->getId());
+                        }),
+                ],
+            ]
+        );
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
+
+        $this->email = $email;
+        $user->email = $email;
+
+        $user->updateOrFail();
 
         return $this->saveOrFail();
     }
