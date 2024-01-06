@@ -38,15 +38,17 @@ class ZohoLead extends Data
         }
 
         $people = $lead->people()->first();
+        $owner = (string) ($lead->owner()->first() ? $lead->company()->first()->get(CustomFieldEnum::DEFAULT_OWNER->value) : null);
+        $status = (string) ($lead->status()->first() ? $lead->status()->first()->get(CustomFieldEnum::ZOHO_STATUS_NAME->value) : 'New Lead');
 
         return new self(
             $people->firstname,
             $people->lastname,
             $people->getPhones()->first()?->value,
             $people->getEmails()->first()?->value,
-            (string) ($lead->owner()->first()->get(CustomFieldEnum::ZOHO_USER_OWNER_ID->value) ?? $lead->company()->first()->get(CustomFieldEnum::DEFAULT_OWNER->value)),
+            $owner,
             $lead->description,
-            (string) ($lead->status()->first()->get(CustomFieldEnum::ZOHO_STATUS_NAME->value) ?? 'New Lead'),
+            $status,
             $additionalFields
         );
     }

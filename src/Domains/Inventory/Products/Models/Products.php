@@ -20,6 +20,7 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Traits\SearchableDynamicIndexTrait;
+use Awobaz\Compoships\Compoships;
 
 /**
  * Class Products.
@@ -47,6 +48,7 @@ class Products extends BaseModel
     use LikableTrait;
     use SearchableDynamicIndexTrait;
     use CascadeSoftDeletes;
+    use Compoships;
 
     protected $table = 'products';
     protected $guarded = [];
@@ -95,6 +97,17 @@ class Products extends BaseModel
             'products_id',
             'attributes_id'
         )->withPivot('value');
+    }
+
+    /**
+     * attributes values.
+     */
+    public function attributeValues(): HasMany
+    {
+        return $this->hasMany(
+            ProductsAttributes::class,
+            'products_id',
+        );
     }
 
     /**

@@ -17,6 +17,7 @@ use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\CompaniesPostData;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Users\Actions\AssignCompanyAction;
@@ -145,7 +146,8 @@ class CreateUserAction
     {
         $roles = $this->data->role_ids;
         if (empty($roles)) {
-            $roles = [RolesEnums::ADMIN->value];
+            $defaultAppSettingsRole = $this->app->get(AppSettingsEnums::DEFAULT_SIGNUP_ROLE->getValue());
+            $roles = [RolesEnums::getRoleBySlug($defaultAppSettingsRole ?? RolesEnums::ADMIN->value)];
         }
 
         foreach ($roles as $role) {
