@@ -69,7 +69,7 @@ class Agent extends BaseModel
         return (int) ($user->get($memberId) ? $user->get($memberId) : $user->getId());
     }
 
-    public function getNextAgentNumber(CompanyInterface $company): int
+    public static function getNextAgentNumber(CompanyInterface $company): int
     {
         $maxMemberId = Agent::where('companies_id', $company->getId())
                             ->max('member_id');

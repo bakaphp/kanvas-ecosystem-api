@@ -6,13 +6,15 @@ namespace Tests\Connectors\Integration\Zoho;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Zoho\Workflows\ZohoAgentActivity;
 use Kanvas\Connectors\Zoho\Workflows\ZohoLeadActivity;
+use Kanvas\CustomFields\Models\CustomFields;
 use Kanvas\Guild\Enums\FlagEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\TestCase;
 
-final class LeadActivityTest extends TestCase
+final class AgentActivityTest extends TestCase
 {
     public function testLeadCreationWorkflow(): void
     {
@@ -29,17 +31,17 @@ final class LeadActivityTest extends TestCase
         $app->set(CustomFieldEnum::CLIENT_ID->value, getenv('TEST_ZOHO_CLIENT_ID'));
         $app->set(CustomFieldEnum::CLIENT_SECRET->value, getenv('TEST_ZOHO_CLIENT_SECRET'));
         $app->set(CustomFieldEnum::REFRESH_TOKEN->value, getenv('TEST_ZOHO_CLIENT_REFRESH_TOKEN'));
+        $company->set(CustomFieldEnum::ZOHO_HAS_AGENTS_MODULE->value, 1);
 
-        $activity = new ZohoLeadActivity(
+        $activity = new ZohoAgentActivity(
             0,
             now()->toDateTimeString(),
             StoredWorkflow::make(),
             []
         );
 
-        $result = $activity->execute($lead, $app, []);
-        $this->assertArrayHasKey('zohoLeadId', $result);
-        $this->assertArrayHasKey('zohoRequest', $result);
-        $this->assertArrayHasKey('leadId', $result);
+        $result = $activity->execute($lead->user()->firstOrFail(), $app, ['company' => $company]);
+       print_r($result); die();
+        $this->assertIsArray($result);
     }
 }

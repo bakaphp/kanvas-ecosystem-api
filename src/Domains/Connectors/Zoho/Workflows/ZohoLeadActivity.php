@@ -11,6 +11,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Connectors\Zoho\DataTransferObject\ZohoLead;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -31,7 +32,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
         $zohoCrm = Client::getInstance($app, $company);
 
         if ($usesAgentsModule) {
-            $this->assignAgent($zohoLead, $lead, $company, $zohoCrm, $zohoData);
+            $this->assignAgent($app, $zohoLead, $lead, $company, $zohoCrm, $zohoData);
         }
 
         if (! $zohoLeadId = $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value)) {
@@ -57,19 +58,20 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
     }
 
     protected function assignAgent(
+        AppInterface $app,
         ZohoLead $zohoLead,
         Lead $lead,
         Companies $company,
         Client $zohoCrm,
         array &$zohoData
     ): void {
-        $zohoAgentModule = $company->get(CustomFieldEnum::ZOHO_AGENT_MODULE->value) ?? 'agents';
         $memberNumber = $zohoLead->getMemberNumber();
+        $zohoService = new ZohoService($app, $company);
 
-        if ($zohoAgentModule == 'agents') {
-            $agent = $zohoCrm->agents->searchRaw('(Member_Number:equals:' . $memberNumber . ')');
-        } else {
-            $agent = $zohoCrm->vendors->searchRaw('(Member_Number:equals:' . $memberNumber . ')');
+        try {
+            $agent = $zohoService->getAgentByMemberNumber($memberNumber);
+        } catch(ModelNotFoundException $e) {
+            $agent = null;
         }
 
         try {
