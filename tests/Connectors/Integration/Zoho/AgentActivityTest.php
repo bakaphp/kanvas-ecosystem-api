@@ -16,7 +16,7 @@ final class AgentActivityTest extends TestCase
 {
     public function testLeadCreationWorkflow(): void
     {
-        $lead = Lead::factory()->create();
+        $lead = Lead::first();
         $lead->description = 'this is a test lead from github actions';
         $lead->saveOrFail();
 
