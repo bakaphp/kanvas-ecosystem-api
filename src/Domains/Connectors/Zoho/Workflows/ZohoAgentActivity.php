@@ -39,7 +39,7 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
         try {
             $record = $zohoService->getAgentByEmail($user->email);
         } catch(Exception $e) {
-            $record = $this->createAgent($zohoService, $user, $company);
+            $record = $this->createAgent($app, $zohoService, $user, $company);
         }
 
         $owner = $record->Owner;
@@ -55,16 +55,21 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
         }
         $ownerId = $ownerAgent ? $ownerAgent->member_id : 1001;
 
-        Agent::updateOrCreate([
-            'users_id' => $user->getId(),
-            'companies_id' => $company->getId(),
-        ], [
+        $agentUpdateData = [
             'name' => $name,
             'users_linked_source_id' => $zohoId,
             'member_id' => $memberNumber,
             'owner_id' => $ownerId ?? 1001,
-            'owner_linked_source_id' => $owner['id'],
-        ]);
+        ];
+
+        if ($owner) {
+            $agentUpdateData['owner_linked_source_id'] = $owner['id'];
+        }
+
+        Agent::updateOrCreate([
+            'users_id' => $user->getId(),
+            'companies_id' => $company->getId(),
+        ], $agentUpdateData);
         $user->set('member_number_' . $company->getId(), $memberNumber);
 
         return [
@@ -75,10 +80,10 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
         ];
     }
 
-    protected function createAgent(ZohoService $zohoService, UserInterface $user, Companies $company): object
+    protected function createAgent(AppInterface $app, ZohoService $zohoService, UserInterface $user, Companies $company): object
     {
         try {
-            $userInvite = UsersInvite::fromCompany($company)->where('email', $user->email)->firstOrFail();
+            $userInvite = UsersInvite::fromCompany($company)->fromApp($app)->where('email', $user->email)->firstOrFail();
             $agentOwner = Agent::fromCompany($company)->where('users_id', $userInvite->users_id)->firstOrFail();
             $ownerInfo = $zohoService->getAgentByMemberNumber($agentOwner->member_id);
 
@@ -90,12 +95,13 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
         }
 
         $companyDefaultOwnerSourceId = $company->get(CustomFieldEnum::ZOHO_USER_OWNER_ID->value);
+        $companyDefaultOwnerMemberId = $company->get(CustomFieldEnum::ZOHO_USER_OWNER_MEMBER_NUMBER->value) ?? 1001;
         $agent = new Agent();
         $agent->users_id = $user->getId();
         $agent->companies_id = $company->getId();
         $agent->name = $user->firstname . ' ' . $user->lastname;
         $agent->member_id = Agent::getNextAgentNumber($company);
-        $agent->owner_id = $ownerMemberNumber ?? 1001;
+        $agent->owner_id = $ownerMemberNumber ?? $companyDefaultOwnerMemberId;
         $agent->owner_linked_source_id = $ownerId ?? $companyDefaultOwnerSourceId;
         $agent->saveOrFail();
 

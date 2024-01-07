@@ -62,13 +62,12 @@ class ZohoService
         $zohoAgentModule = $this->company->get(CustomFieldEnum::ZOHO_AGENT_MODULE->value) ?? 'agents';
 
         if ($zohoAgentModule == 'agents') {
-            //trey
             $zohoAgent = $this->zohoCrm->agents->create([
                 'Email' => $user->email,
                 'Lead_Routing' => $zohoOwnerAgent ? $zohoOwnerAgent->Lead_Routing : (string) $this->company->get('default_lead_routing'),
-                'Member_Number' => (string) $agentInfo->member_id,
+                'Member_Number' =>  $agentInfo->getMemberNumber(),
                 'Sponsor' => ! empty($agentInfo->owner_id) ? (string) $agentInfo->owner_id : '1001',
-                'Owner' => ! empty($agentInfo->owner_linked_source_id) ? (int) $agentInfo->owner_linked_source_id : $this->company->get('default_owner'),
+                'Owner' => '95641000000215023',//! empty($agentInfo->owner_linked_source_id) ? (int) $agentInfo->owner_linked_source_id : $this->company->get('default_owner'),
                 'Account_Type' => 'Standard',
                 'Name' => $user->firstname . ' ' . $user->lastname,
                 'Office_Phone' => '',
@@ -76,7 +75,7 @@ class ZohoService
         } else {
             $zohoAgent = $this->zohoCrm->vendors->create([
                 'Email' => $user->email,
-                'Member_Number' => (string) $agentInfo->member_id,
+                'Member_Number' => $agentInfo->getMemberNumber(),
                 'Sponsor' => (string) $agentInfo->owner_id,
                 'Owner' => ! empty($agentInfo->owner_linked_source_id) ? (int) $agentInfo->owner_linked_source_id : 2896936000004020001,
                 'Account_Type' => 'Standard',

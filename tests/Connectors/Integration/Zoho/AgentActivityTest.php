@@ -16,8 +16,7 @@ final class AgentActivityTest extends TestCase
 {
     public function testLeadCreationWorkflow(): void
     {
-        //use factory
-        $lead = Lead::first();
+        $lead = Lead::factory()->create();
         $lead->description = 'this is a test lead from github actions';
         $lead->saveOrFail();
 
@@ -39,7 +38,10 @@ final class AgentActivityTest extends TestCase
         );
 
         $result = $activity->execute($lead->user()->firstOrFail(), $app, ['company' => $company]);
-
         $this->assertIsArray($result);
+        $this->assertNotEmpty($result['zohoId']);
+        $this->assertNotEmpty($result['member_id']);
+        $this->assertNotEmpty($result['users_id']);
+        $this->assertNotEmpty($result['companies_id']);
     }
 }
