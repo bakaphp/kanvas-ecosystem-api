@@ -55,6 +55,13 @@ class Agent extends BaseModel
         );
     }
 
+    public static function getByMemberNumber(string $memberNumber, CompanyInterface $company): self
+    {
+        return self::where('member_id', $memberNumber)
+            ->fromCompany($company)
+            ->firstOrFail();
+    }
+
     public static function getMemberNumber(UserInterface $user, CompanyInterface $company): int
     {
         $memberId = AgentFilterEnum::MEMBER_NUMBER . $company->getId();
