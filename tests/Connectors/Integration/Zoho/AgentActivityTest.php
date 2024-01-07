@@ -7,8 +7,6 @@ namespace Tests\Connectors\Integration\Zoho;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\Workflows\ZohoAgentActivity;
-use Kanvas\Connectors\Zoho\Workflows\ZohoLeadActivity;
-use Kanvas\CustomFields\Models\CustomFields;
 use Kanvas\Guild\Enums\FlagEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Models\StoredWorkflow;
@@ -41,7 +39,7 @@ final class AgentActivityTest extends TestCase
         );
 
         $result = $activity->execute($lead->user()->firstOrFail(), $app, ['company' => $company]);
-       print_r($result); die();
+
         $this->assertIsArray($result);
     }
 }
