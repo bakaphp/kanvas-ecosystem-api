@@ -39,12 +39,14 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
         try {
             $record = $zohoService->getAgentByEmail($user->email);
         } catch(Exception $e) {
-            $record = $this->createAgent($app, $zohoService, $user, $company);
+            $newAgentRecord = $this->createAgent($app, $zohoService, $user, $company);
+            $record = $newAgentRecord['zohoAgent'];
+            $newAgent = $newAgentRecord['agent'];
         }
 
         $owner = $record->Owner;
-        $name = $record->Name ?? $user->firstname . ' ' . $user->lastname;
-        $memberNumber = $record->Member_Number;
+        $name = $record->Name ?? $newAgent->name;
+        $memberNumber = $record->Member_Number ?? $newAgent->member_id;
         $zohoId = $record->id;
         $ownerAgent = null;
 
@@ -80,7 +82,7 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
         ];
     }
 
-    protected function createAgent(AppInterface $app, ZohoService $zohoService, UserInterface $user, Companies $company): object
+    protected function createAgent(AppInterface $app, ZohoService $zohoService, UserInterface $user, Companies $company): array
     {
         try {
             $userInvite = UsersInvite::fromCompany($company)->fromApp($app)->where('email', $user->email)->firstOrFail();
@@ -111,6 +113,9 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
         $agent->users_linked_source_id = $zohoAgent->id;
         $agent->saveOrFail();
 
-        return $zohoAgent;
+        return [
+            'agent' => $agent,
+            'zohoAgent' => $zohoAgent,
+        ];
     }
 }
