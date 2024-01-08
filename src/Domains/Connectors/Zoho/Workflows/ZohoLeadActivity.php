@@ -32,7 +32,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
         $zohoCrm = Client::getInstance($app, $company);
 
         if ($usesAgentsModule) {
-            $this->assignAgent($app, $zohoLead, $lead, $company, $zohoCrm, $zohoData);
+            $this->assignAgent($app, $zohoLead, $lead, $company, $zohoData);
         }
 
         if (! $zohoLeadId = $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value)) {
@@ -62,7 +62,6 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
         ZohoLead $zohoLead,
         Lead $lead,
         Companies $company,
-        Client $zohoCrm,
         array &$zohoData
     ): void {
         $memberNumber = $zohoLead->getMemberNumber();

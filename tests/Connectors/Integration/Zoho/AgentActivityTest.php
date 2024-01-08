@@ -37,7 +37,14 @@ final class AgentActivityTest extends TestCase
             []
         );
 
-        $result = $activity->execute($lead->user()->firstOrFail(), $app, ['company' => $company]);
+        $faker = \Faker\Factory::create();
+
+        $user = $lead->user()->firstOrFail();
+        $user->first_name = $faker->firstName();
+        $user->last_name = $faker->lastName();
+        $user->saveOrFail();
+
+        $result = $activity->execute($user, $app, ['company' => $company]);
         $this->assertIsArray($result);
         $this->assertNotEmpty($result['zohoId']);
         $this->assertNotEmpty($result['member_id']);
