@@ -32,8 +32,6 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
             return ['No Agent Module'];
         }
 
-        $zohoAgentModule = $company->get(CustomFieldEnum::ZOHO_AGENT_MODULE->value) ?? 'agents';
-        $zohoCrm = Client::getInstance($app, $company);
         $zohoService = new ZohoService($app, $company);
 
         try {
