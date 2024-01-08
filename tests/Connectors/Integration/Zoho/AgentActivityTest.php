@@ -40,8 +40,8 @@ final class AgentActivityTest extends TestCase
         $faker = \Faker\Factory::create();
 
         $user = $lead->user()->firstOrFail();
-        $user->first_name = $faker->firstName();
-        $user->last_name = $faker->lastName();
+        $user->firstname = $faker->firstName();
+        $user->lastname = $faker->lastName();
         $user->saveOrFail();
 
         $result = $activity->execute($user, $app, ['company' => $company]);

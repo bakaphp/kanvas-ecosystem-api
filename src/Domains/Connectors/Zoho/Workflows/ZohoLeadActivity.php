@@ -15,6 +15,7 @@ use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Throwable;
 use Workflow\Activity;
 
 class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
@@ -69,13 +70,13 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
 
         try {
             $agent = $zohoService->getAgentByMemberNumber($memberNumber);
-        } catch(ModelNotFoundException $e) {
+        } catch(Throwable $e) {
             $agent = null;
         }
 
         try {
             $agentInfo = Agent::getByMemberNumber($memberNumber, $company);
-        } catch(ModelNotFoundException $e) {
+        } catch(Throwable $e) {
             $agentInfo = null;
         }
 
