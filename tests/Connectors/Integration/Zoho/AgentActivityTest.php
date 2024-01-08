@@ -45,6 +45,7 @@ final class AgentActivityTest extends TestCase
         $user->saveOrFail();
 
         $result = $activity->execute($user, $app, ['company' => $company]);
+        print_r($result);
         $this->assertIsArray($result);
         $this->assertNotEmpty($result['zohoId']);
         $this->assertNotEmpty($result['member_id']);
