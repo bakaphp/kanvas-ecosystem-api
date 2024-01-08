@@ -78,6 +78,6 @@ class UsersObserver
             'email' => $user->email,
         ]);
 
-        $user->fireWorkflow(WorkflowEnum::UPDATED->value);
+        $user->fireWorkflow(WorkflowEnum::UPDATED->value, true, ['company' => $user->getCurrentCompany()]);
     }
 }
