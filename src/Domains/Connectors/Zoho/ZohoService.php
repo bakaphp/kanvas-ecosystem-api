@@ -15,43 +15,37 @@ use Webleit\ZohoCrmApi\ZohoCrm;
 class ZohoService
 {
     protected ZohoCrm $zohoCrm;
+    protected string $zohoAgentModule;
+    private const DEFAULT_AGENT_MODULE = 'agents';
 
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company
     ) {
         $this->zohoCrm = Client::getInstance($app, $company);
+        $this->zohoAgentModule = $this->company->get(CustomFieldEnum::ZOHO_AGENT_MODULE->value) ?? self::DEFAULT_AGENT_MODULE;
     }
 
     public function getAgentByEmail(string $email): object
     {
-        $zohoAgentModule = $this->company->get(CustomFieldEnum::ZOHO_AGENT_MODULE->value) ?? 'agents';
-
-        if ($zohoAgentModule == 'agents') {
-            $response = $this->zohoCrm->agents->searchRaw('(Email:equals:' . $email . ')');
-        } else {
-            $response = $this->zohoCrm->vendors->searchRaw('(Email:equals:' . $email . ')');
-        }
-
-        if (! $response->count()) {
-            throw new Exception('No Agent Found for ' . $email);
-        }
-
-        return $response->first();
+        return $this->searchAgent('Email', $email);
     }
 
     public function getAgentByMemberNumber(string $memberNumber): object
     {
-        $zohoAgentModule = $this->company->get(CustomFieldEnum::ZOHO_AGENT_MODULE->value) ?? 'agents';
+        return $this->searchAgent('Member_Number', $memberNumber);
+    }
 
-        if ($zohoAgentModule == 'agents') {
-            $response = $this->zohoCrm->agents->searchRaw('(Member_Number:equals:' . $memberNumber . ')');
+    public function searchAgent(string $field, string $value): object
+    {
+        if ($this->zohoAgentModule == self::DEFAULT_AGENT_MODULE) {
+            $response = $this->zohoCrm->agents->searchRaw('(' . $field . ':equals:' . $value . ')');
         } else {
-            $response = $this->zohoCrm->vendors->searchRaw('(Member_Number:equals:' . $memberNumber . ')');
+            $response = $this->zohoCrm->vendors->searchRaw('(' . $field . ':equals:' . $value . ')');
         }
 
         if (! $response->count()) {
-            throw new Exception('No Agent Found for ' . $memberNumber);
+            throw new Exception('No Agent Found for ' . $value);
         }
 
         return $response->first();
@@ -59,30 +53,27 @@ class ZohoService
 
     public function createAgent(UserInterface $user, Agent $agentInfo, ?object $zohoOwnerAgent = null): object
     {
-        $zohoAgentModule = $this->company->get(CustomFieldEnum::ZOHO_AGENT_MODULE->value) ?? 'agents';
+        $zohoAgentModule = $this->company->get(CustomFieldEnum::ZOHO_AGENT_MODULE->value) ?? self::DEFAULT_AGENT_MODULE;
 
-        if ($zohoAgentModule == 'agents') {
-            $zohoAgent = $this->zohoCrm->agents->create([
-                'Email' => $user->email,
-                'Lead_Routing' => $zohoOwnerAgent ? $zohoOwnerAgent->Lead_Routing : (string) $this->company->get('default_lead_routing'),
-                'Member_Number' =>  $agentInfo->getMemberNumber(),
-                'Sponsor' => ! empty($agentInfo->owner_id) ? (string) $agentInfo->owner_id : '1001',
-                'Owner' => '95641000000215023',//! empty($agentInfo->owner_linked_source_id) ? (int) $agentInfo->owner_linked_source_id : $this->company->get('default_owner'),
-                'Account_Type' => 'Standard',
-                'Name' => $agentInfo->name,
-                'Office_Phone' => '',
-            ]);
+        $data = [
+            'Email' => $user->email,
+            'Member_Number' => $agentInfo->getMemberNumber(),
+            'Sponsor' => ! empty($agentInfo->owner_id) ? (string) $agentInfo->owner_id : '1001',
+            'Owner' => ! empty($agentInfo->owner_linked_source_id) ? (int) $agentInfo->owner_linked_source_id : $this->company->get('default_owner'),
+            'Account_Type' => 'Standard',
+            'Name' => $agentInfo->name,
+            'Office_Phone' => '',
+        ];
+
+        if ($zohoAgentModule == self::DEFAULT_AGENT_MODULE) {
+            $data['Lead_Routing'] = $zohoOwnerAgent ? $zohoOwnerAgent->Lead_Routing : (string) $this->company->get('default_lead_routing');
+
+            $zohoAgent = $this->zohoCrm->agents->create($data);
         } else {
-            $zohoAgent = $this->zohoCrm->vendors->create([
-                'Email' => $user->email,
-                'Member_Number' => $agentInfo->getMemberNumber(),
-                'Sponsor' => (string) $agentInfo->owner_id,
-                'Owner' => ! empty($agentInfo->owner_linked_source_id) ? (int) $agentInfo->owner_linked_source_id : 2896936000004020001,
-                'Account_Type' => 'Standard',
-                'Name' => $agentInfo->name,
-                'Phone' => '',
-                'Vendor_Name' => $agentInfo->name,
-            ]);
+            $data['Vendor_Name'] = $agentInfo->name;
+            $data['Phone'] = '';
+
+            $zohoAgent = $this->zohoCrm->vendors->create($data);
         }
 
         return $zohoAgent;
