@@ -19,7 +19,7 @@ use Kanvas\Models\BaseModel;
  * @property int $companies_branches_id;
  * @property int $role_id
  * @property int $apps_id
- * @property int $email
+ * @property string $email
  * @property ?string $firstname
  * @property ?string $lastname
  * @property ?string $description

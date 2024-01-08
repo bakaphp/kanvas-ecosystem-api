@@ -82,8 +82,28 @@ class ZohoLead extends Data
                 }
                 $name = $name['name'];
             }
+            if (strtolower($key) == 'credit_score' && $value != null && (int) $value > 0) {
+                $creditScore = [
+                    1 => '720-950',
+                    2 => '680-719',
+                    3 => '640-679',
+                    4 => '639 or less',
+                ];
+
+                $value = $creditScore[(int) $value] ?? $value;
+            }
 
             $data[$name] = $value;
         }
+    }
+
+    public function hasMemberNumber(): bool
+    {
+        return $this->additionalFields['Member_ID'] ?? ($this->additionalFields['Member'] ?? false);
+    }
+
+    public function getMemberNumber(): ?string
+    {
+        return $this->additionalFields['Member_ID'] ?? ($this->additionalFields['Member'] ?? null);
     }
 }
