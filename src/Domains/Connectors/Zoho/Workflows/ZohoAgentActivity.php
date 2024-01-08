@@ -43,7 +43,7 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
         }
 
         $owner = $record->Owner;
-        $name = $record->Name;
+        $name = $record->Name ?? $user->firstname . ' ' . $user->lastname;
         $memberNumber = $record->Member_Number;
         $zohoId = $record->id;
         $ownerAgent = null;

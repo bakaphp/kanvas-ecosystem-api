@@ -69,7 +69,7 @@ class ZohoService
                 'Sponsor' => ! empty($agentInfo->owner_id) ? (string) $agentInfo->owner_id : '1001',
                 'Owner' => '95641000000215023',//! empty($agentInfo->owner_linked_source_id) ? (int) $agentInfo->owner_linked_source_id : $this->company->get('default_owner'),
                 'Account_Type' => 'Standard',
-                'Name' => $user->firstname . ' ' . $user->lastname,
+                'Name' => $agentInfo->name,
                 'Office_Phone' => '',
             ]);
         } else {
@@ -79,9 +79,9 @@ class ZohoService
                 'Sponsor' => (string) $agentInfo->owner_id,
                 'Owner' => ! empty($agentInfo->owner_linked_source_id) ? (int) $agentInfo->owner_linked_source_id : 2896936000004020001,
                 'Account_Type' => 'Standard',
-                'Name' => $user->firstname . ' ' . $user->lastname,
+                'Name' => $agentInfo->name,
                 'Phone' => '',
-                'Vendor_Name' => $user->firstname . ' ' . $user->lastname,
+                'Vendor_Name' => $agentInfo->name,
             ]);
         }
 
