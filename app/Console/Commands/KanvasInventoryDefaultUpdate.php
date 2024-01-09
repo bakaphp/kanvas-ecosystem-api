@@ -114,7 +114,6 @@ class KanvasInventoryDefaultUpdate extends Command
                 $this->info("Working company {$companyData->getId()} default channel \n");
                 try {
                     $defaultChannel = Channels::firstOrCreate([
-                        'apps_id' => $app->getId(),
                         'companies_id' => $companyData->getId(),
                         'apps_id' => $app->getId(),
                         'slug' => Str::slug("Default"),
