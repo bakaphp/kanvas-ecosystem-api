@@ -74,4 +74,15 @@ class VariantChannelBuilder
             'is_published' => $root->is_published,
         ];
     }
+
+    /**
+     * Get channel prices history
+     */
+    public function getChannelHistory(mixed $root): array
+    {
+        return $root->pricesHistory(
+            'product_variants_warehouse_id', 
+            $root->pivot->product_variants_warehouse_id
+        )->get()->toArray();
+    }
 }
