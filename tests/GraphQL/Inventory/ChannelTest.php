@@ -17,7 +17,7 @@ class ChannelTest extends TestCase
     {
         $data = [
             'name' => fake()->name,
-            'is_default' => 1,
+            'is_default' => true,
         ];
         $this->graphQL('
             mutation($data: CreateChannelInput!) {
@@ -40,7 +40,7 @@ class ChannelTest extends TestCase
     {
         $data = [
             'name' => fake()->name,
-            'is_default' => 1,
+            'is_default' => true,
         ];
         $this->graphQL('
             mutation($data: CreateChannelInput!) {
@@ -74,7 +74,7 @@ class ChannelTest extends TestCase
     {
         $data = [
             'name' => fake()->name,
-            'is_default' => 1,
+            'is_default' => true,
         ];
         $this->graphQL('
             mutation($data: CreateChannelInput!) {
@@ -121,7 +121,7 @@ class ChannelTest extends TestCase
     {
         $data = [
             'name' => fake()->name,
-            'is_default' => 1,
+            'is_default' => true,
         ];
         $this->graphQL('
             mutation($data: CreateChannelInput!) {
@@ -162,7 +162,7 @@ class ChannelTest extends TestCase
     {
         $data = [
             'name' => fake()->name,
-            'is_default' => 1,
+            'is_default' => true,
         ];
         $this->graphQL('
             mutation($data: CreateChannelInput!) {
