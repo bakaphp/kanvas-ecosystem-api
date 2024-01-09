@@ -86,6 +86,7 @@ class Setup
                 $this->user,
                 StateEnums::DEFAULT_NAME->getValue(),
                 StateEnums::DEFAULT_NAME->getValue(),
+                StateEnums::YES->getValue(),
                 StateEnums::YES->getValue()
             ),
             $this->user
