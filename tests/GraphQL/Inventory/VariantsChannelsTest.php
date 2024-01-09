@@ -100,6 +100,7 @@ class VariantsChannelsTest extends TestCase
         $dataChannel = [
             'name' => fake()->name,
             'description' => fake()->text,
+            'is_default' => true,
         ];
 
         $response = $this->graphQL('
