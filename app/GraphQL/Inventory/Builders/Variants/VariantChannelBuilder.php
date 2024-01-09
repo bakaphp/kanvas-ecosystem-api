@@ -81,7 +81,7 @@ class VariantChannelBuilder
     public function getChannelHistory(mixed $root): array
     {
         return $root->pricesHistory(
-            'product_variants_warehouse_id', 
+            'product_variants_warehouse_id',
             $root->pivot->product_variants_warehouse_id
         )->get()->toArray();
     }
