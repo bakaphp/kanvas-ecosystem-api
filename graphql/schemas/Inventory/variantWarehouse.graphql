@@ -1,3 +1,7 @@
+type WarehousesPricesHistoryRelationship {
+    price: Float!
+    from_date: String!
+}
 type WarehouseVariantRelationship {
     warehouses_id: ID!
     warehouseinfo: Warehouse @belongsToMany(relation: "warehouse")
@@ -19,6 +23,8 @@ type WarehouseVariantRelationship {
     is_published: Boolean
     status_history: [StatusHistoryRelationship]
         @method(name: "getStatusHistory")
+    prices_history: [WarehousesPricesHistoryRelationship]
+        @hasMany(relation: "pricesHistory")
 }
 
 input VariantsWarehousesInput {
