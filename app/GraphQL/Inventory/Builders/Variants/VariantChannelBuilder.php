@@ -69,7 +69,6 @@ class VariantChannelBuilder
         return [
             'name' => $root->channel_name,
             'price' => $root->price,
-            'warehouses_id' => 0, //remove -_-
             'discounted_price' => $root->discounted_price,
             'is_published' => $root->is_published,
         ];
