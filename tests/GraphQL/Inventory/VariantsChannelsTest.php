@@ -109,7 +109,8 @@ class VariantsChannelsTest extends TestCase
             {
                 id
                 name
-                description
+                description,
+                is_default
             }
         }', ['data' => $dataChannel]);
 

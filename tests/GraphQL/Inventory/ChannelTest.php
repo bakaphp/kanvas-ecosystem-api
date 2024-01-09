@@ -24,7 +24,8 @@ class ChannelTest extends TestCase
                 createChannel(input: $data)
                 {
                     id
-                    name
+                    name,
+                    is_default
                 }
             }', ['data' => $data])->assertJson([
             'data' => ['createChannel' => $data]
@@ -57,7 +58,8 @@ class ChannelTest extends TestCase
                 channels {
                     data {
                         id,
-                        name
+                        name,
+                        is_default
                     }
                 }
             }')->assertJson([
@@ -91,7 +93,8 @@ class ChannelTest extends TestCase
             channels {
                 data {
                     id,
-                    name
+                    name,
+                    is_default
                 }
             }
         }')->assertJson([
@@ -138,7 +141,8 @@ class ChannelTest extends TestCase
             channels {
                 data {
                     id,
-                    name
+                    name,
+                    is_default
                 }
             }
         }')->assertJson([
@@ -179,7 +183,8 @@ class ChannelTest extends TestCase
             channels {
                 data {
                     id,
-                    name
+                    name,
+                    is_default
                 }
             }
         }')->assertJson([
