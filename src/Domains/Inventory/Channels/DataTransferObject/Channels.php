@@ -25,7 +25,8 @@ class Channels extends Data
         public UserInterface $user,
         public string $name,
         public ?string $description = null,
-        public int $is_published = 1,
+        public bool $is_default = false,
+        public bool $is_published = true,
     ) {
     }
 
@@ -37,7 +38,8 @@ class Channels extends Data
             auth()->user(),
             $request['name'],
             $request['description'] ?? null,
-            $request['is_published'] ?? StateEnums::YES->getValue(),
+            $request['is_default'] ?? (bool) StateEnums::NO->getValue(),
+            $request['is_published'] ?? (bool) StateEnums::YES->getValue(),
         );
     }
 }
