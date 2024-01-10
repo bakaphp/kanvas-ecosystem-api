@@ -141,4 +141,12 @@ class Channels extends BaseModel
     {
         return $this->availableProducts()->update(['is_published' => 0]) > 0;
     }
+
+    public function pricesHistory(): HasMany
+    {
+        return $this->hasMany(
+            VariantChannelPriceHistory::class,
+            'channels_id'
+        );
+    }
 }
