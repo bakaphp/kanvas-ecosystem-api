@@ -78,7 +78,7 @@ class VariantChannelBuilder
 
     /**
      * Get filter variant by channel
-     * 
+     *
      * @param mixed $root
      * @param array $req
      * @return Collection
