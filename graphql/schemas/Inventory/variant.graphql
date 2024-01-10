@@ -24,6 +24,7 @@ type Variant {
         @hasMany(relation: "variantWarehouses")
     attributes: [VariantsAttributes!]!
     companies: Company
+    channels: [VariantChannelRelationship]
 }
 
 input VariantsAttributesInput {
@@ -118,6 +119,12 @@ extend type Query @guard {
             @whereHasConditions(
                 relation: "attributeValues"
                 columns: ["products_variants_id", "value", "attributes_id"]
+            )
+        hasChannel: _
+            @whereHasConditions(
+                relation: "channels"
+                columns: ["uuid"]
+                handler: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantChannelBuilder@getHasChannel"
             )
         orderBy: _
             @orderBy(

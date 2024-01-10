@@ -6,6 +6,7 @@ namespace App\GraphQL\Inventory\Builders\Variants;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -73,5 +74,24 @@ class VariantChannelBuilder
             'discounted_price' => $root->discounted_price,
             'is_published' => $root->is_published,
         ];
+    }
+
+    /**
+     * Get filter variant by channel
+     * @todo Improve this to only get the UUID's one channel
+     * @param mixed $root
+     * @param array $req
+     * @return Collection
+     */
+    public function getHasChannel(mixed $root, array $req): Collection
+    {
+        $channelUuid = $req['HAS']['condition']['value'];
+        $collection = $root->get();
+
+        foreach($collection as $data)
+        {
+            $data->channels = $data->channels->where('uuid', $channelUuid);
+        }
+        return $collection;
     }
 }
