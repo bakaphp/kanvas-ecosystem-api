@@ -24,7 +24,7 @@ type Variant {
         @hasMany(relation: "variantWarehouses")
     attributes: [VariantsAttributes!]!
     companies: Company
-    channels: [VariantChannelRelationship]
+    channels: [VariantChannelRelationship!]!
 }
 
 input VariantsAttributesInput {
