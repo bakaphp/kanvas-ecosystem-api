@@ -86,7 +86,8 @@ class Setup
                 $this->user,
                 StateEnums::DEFAULT_NAME->getValue(),
                 StateEnums::DEFAULT_NAME->getValue(),
-                StateEnums::YES->getValue()
+                (bool) StateEnums::YES->getValue(),
+                (bool) StateEnums::YES->getValue()
             ),
             $this->user
         );

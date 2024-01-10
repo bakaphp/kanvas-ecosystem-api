@@ -70,7 +70,6 @@ class VariantChannelBuilder
         return [
             'name' => $root->channel_name,
             'price' => $root->price,
-            'warehouses_id' => 0, //remove -_-
             'discounted_price' => $root->discounted_price,
             'is_published' => $root->is_published,
         ];
@@ -93,5 +92,19 @@ class VariantChannelBuilder
         return $root->with(['channels' => function ($query) use ($channelUuid) {
             $query->where('uuid', $channelUuid);
         }])->get();
+    }
+
+    /**
+     * Get channel price history
+     *
+     * @param mixed $root
+     * @return array
+     */
+    public function getChannelHistory(mixed $root): array
+    {
+        return $root->pricesHistory(
+            'product_variants_warehouse_id',
+            $root->pivot->product_variants_warehouse_id
+        )->get()->toArray();
     }
 }
