@@ -35,7 +35,7 @@ type VariantChannelRelationship {
     warehouses_id: Int
     discounted_price: Float
     is_published: Boolean
-    prices_history: [ChannelsPricesHistoryRelationship]
+    prices_history: [ChannelsPricesHistoryRelationship!]!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantChannelBuilder@getChannelHistory"
         )
