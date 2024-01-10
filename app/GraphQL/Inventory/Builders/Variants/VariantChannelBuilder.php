@@ -78,20 +78,20 @@ class VariantChannelBuilder
 
     /**
      * Get filter variant by channel
-     * @todo Improve this to only get the UUID's one channel
+     * 
      * @param mixed $root
      * @param array $req
      * @return Collection
      */
     public function getHasChannel(mixed $root, array $req): Collection
     {
-        $channelUuid = $req['HAS']['condition']['value'];
-        $collection = $root->get();
-
-        foreach($collection as $data)
-        {
-            $data->channels = $data->channels->where('uuid', $channelUuid);
+        if (empty($req['HAS']['condition']['value'])) {
+            return collect();
         }
-        return $collection;
+        $channelUuid = $req['HAS']['condition']['value'];
+
+        return $root->with(['channels' => function ($query) use ($channelUuid) {
+            $query->where('uuid', $channelUuid);
+        }])->get();
     }
 }
