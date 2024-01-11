@@ -207,8 +207,8 @@ class Variants
     public function updateVariantInChannel(mixed $root, array $req)
     {
         $variant = VariantsRepository::getById((int) $req['variants_id'], auth()->user()->getCurrentCompany());
-        $warehouse = WarehouseRepository::getById((int) $req['warehouses_id']);
-        $channel = ChannelRepository::getById((int) $req['channels_id']);
+        $warehouse = WarehouseRepository::getById((int) $req['warehouses_id'], auth()->user()->getCurrentCompany());
+        $channel = ChannelRepository::getById((int) $req['channels_id'], auth()->user()->getCurrentCompany());
 
         $variantChannel = VariantsChannels::where('products_variants_id', $variant->getId())
             ->where('warehouses_id', $warehouse->getId())
