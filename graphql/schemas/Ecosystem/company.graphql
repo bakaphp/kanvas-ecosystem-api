@@ -125,6 +125,7 @@ extend type Query @guard {
         orderBy: _ @orderBy(columns: ["id"])
     ): [Company!]!
         @paginate(
+            defaultCount: 25
             model: "Kanvas\\Companies\\Models\\Companies"
             scopes: ["userAssociated"]
         )
@@ -145,6 +146,7 @@ extend type Query @guard {
         orderBy: _ @orderBy(columns: ["id"])
     ): [CompanyBranch!]!
         @paginate(
+            defaultCount: 25
             model: "Kanvas\\Companies\\Models\\CompaniesBranches"
             scopes: ["userAssociated"]
         )
