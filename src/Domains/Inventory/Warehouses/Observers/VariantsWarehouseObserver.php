@@ -11,7 +11,7 @@ class VariantsWarehouseObserver
 {
     public function saved(VariantsWarehouses $variantWarehouse): void
     {
-        if ($variantWarehouse->price) {
+        if ($variantWarehouse->wasChanged('price')) {
             (new CreatePriceHistoryAction(
                 $variantWarehouse,
                 $variantWarehouse->price

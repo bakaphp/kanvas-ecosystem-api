@@ -57,6 +57,15 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addToChannel"
         )
+    updateVariantInChannel(
+        variants_id: ID!
+        channels_id: ID!
+        warehouses_id: ID!
+        input: VariantChannelInput!
+    ): Variant
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@updateVariantInChannel"
+        )
     removeVariantChannel(
         variants_id: ID!
         channels_id: ID!
