@@ -315,7 +315,6 @@ class VariantsChannelsTest extends TestCase
             'data' => ['updateVariantInChannel' => ['id' => $variantId]]
         ]);
 
-
         $response = $this->graphQL(
             'mutation ($variants_id: ID! $channels_id: ID! $warehouses_id: ID!) {
                 removeVariantChannel(variants_id: $variants_id channels_id: $channels_id warehouses_id: $warehouses_id)
