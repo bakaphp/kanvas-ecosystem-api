@@ -332,5 +332,4 @@ class VariantsChannelsTest extends TestCase
             'data' => ['removeVariantChannel' => ['id' => $variantId]]
         ]);
     }
-
 }
