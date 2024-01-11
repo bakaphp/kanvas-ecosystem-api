@@ -15,7 +15,7 @@ class WarehouseObserver
      */
     public function creating(Warehouses $warehouse): void
     {
-        $defaultWarehouse = $warehouse::getDefault($warehouse->companies);
+        $defaultWarehouse = $warehouse::getDefault($warehouse->company);
 
         // if default already exist remove its default
         if ($warehouse->is_default && $defaultWarehouse) {
@@ -30,7 +30,7 @@ class WarehouseObserver
 
     public function updating(Warehouses $warehouse): void
     {
-        $defaultWarehouse = Warehouses::getDefault($warehouse->companies);
+        $defaultWarehouse = Warehouses::getDefault($warehouse->company);
 
         // if default already exist remove its default
         if ($defaultWarehouse &&
