@@ -13,8 +13,10 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Observers\LeadObserver;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Observers\ChannelObserver;
+use Kanvas\Inventory\Channels\Observers\VariantsChannelObserver;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Status\Observers\StatusObserver;
+use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Warehouses\Observers\VariantsWarehouseObserver;
@@ -61,6 +63,7 @@ class EventServiceProvider extends ServiceProvider
         Status::observe(StatusObserver::class);
         VariantsWarehouses::observe(VariantsWarehouseObserver::class);
         Channels::observe(ChannelObserver::class);
+        VariantsChannels::observe(VariantsChannelObserver::class);
     }
 
     /**
