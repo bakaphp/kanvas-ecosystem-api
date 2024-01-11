@@ -74,8 +74,6 @@ class ChannelMutation
         $id = $request['id'];
         $channel = ChannelRepository::getById($id, auth()->user()->getCurrentCompany());
 
-        //print_r($channel->availableProducts()->get()->toArray()); die();
-
         return $channel->unPublishAllVariants();
     }
 }

@@ -25,6 +25,7 @@ use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Jobs\OnBoardingJob;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
 class CreateUserAction
@@ -83,6 +84,8 @@ class CreateUserAction
         if ($newUser && $company !== null) {
             $this->onBoarding($user, $company);
         }
+
+        $user->fireWorkflow(WorkflowEnum::REGISTERED->value, true, ['company' => $company]);
 
         return $user;
     }

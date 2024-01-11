@@ -100,6 +100,7 @@ class VariantsChannelsTest extends TestCase
         $dataChannel = [
             'name' => fake()->name,
             'description' => fake()->text,
+            'is_default' => true,
         ];
 
         $response = $this->graphQL('
@@ -108,7 +109,8 @@ class VariantsChannelsTest extends TestCase
             {
                 id
                 name
-                description
+                description,
+                is_default
             }
         }', ['data' => $dataChannel]);
 
