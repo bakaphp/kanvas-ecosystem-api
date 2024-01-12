@@ -56,8 +56,7 @@ extend type Query {
                 columns: ["id", "name", "apps_id", "companies_id", "icon"]
             )
         orderBy: _ @orderBy(columns: ["id"])
-
-    ): [Reaction]!
+    ): [Reaction!]!
         @paginate(
             model: "Kanvas\\Social\\Reactions\\Models\\Reaction"
             defaultCount: 25
@@ -76,7 +75,7 @@ extend type Query {
                     "entity_namespace"
                 ]
             )
-    ): [UserReaction!]
+    ): [UserReaction!]!
         @paginate(
             model: "Kanvas\\Social\\Reactions\\Models\\UserReaction"
             defaultCount: 25
@@ -94,11 +93,10 @@ extend type Query {
             )
     ): Int @count(model: "Kanvas\\Social\\Reactions\\Models\\UserReaction")
     getUserReactionGroupByReaction(
-        system_module_uuid: ID,
+        system_module_uuid: ID
         entity_id: ID
-    ): [ReactionsGroupBy!]
+    ): [ReactionsGroupBy!]!
         @field(
             resolver: "App\\GraphQL\\Social\\Queries\\Reactions\\UserReactionQueries@getUserReactionGroupByReaction"
         )
 }
-
