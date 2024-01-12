@@ -19,6 +19,7 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserCompanyApps;
@@ -129,6 +130,11 @@ class Companies extends BaseModel implements CompanyInterface
         return $this->belongsTo(Currencies::class, 'currency_id');
     }
 
+    public function agents(): HasMany
+    {
+        return $this->hasMany(Agent::class, 'companies_id');
+    }
+
     /**
      * Get the default company key for the current app
      * this is use to store in redis the default company id for the current
@@ -147,6 +153,11 @@ class Companies extends BaseModel implements CompanyInterface
     public function branchCacheKey(): string
     {
         return Defaults::DEFAULT_COMPANY_BRANCH_APP->getValue() . app(Apps::class)->id . '_' . $this->getKey();
+    }
+
+    public function getCountAgentsAttribute(): int
+    {
+        return $this->agents()->count();
     }
 
     /**
