@@ -44,6 +44,7 @@ use Kanvas\Users\Models\UsersAssociatedCompanies;
  * @property string $phone
  * @property int $has_activities
  * @property string $country_code
+ * @property bool $is_active
  */
 class Companies extends BaseModel implements CompanyInterface
 {

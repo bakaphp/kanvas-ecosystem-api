@@ -13,6 +13,7 @@ type Company {
     groups: [CompanyGroup!]! @hasMany(relation: "groups")
     branches: [CompanyBranch!]! @hasMany(relation: "branches") #need to filter by the branches the user has access to
     photo: Filesystem @method(name: "getPhoto")
+    is_active: Boolean!
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25
@@ -82,6 +83,7 @@ input CompanyInput {
     phone: String
     country_code: String
     files: [FilesystemInputUrl]
+    is_active: Boolean
 }
 
 input CompanyBranchInput {

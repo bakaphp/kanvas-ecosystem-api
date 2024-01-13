@@ -36,6 +36,7 @@ class CreateCompaniesAction
         $companies->currency_id = $this->data->currency_id;
         $companies->country_code = $this->data->country_code;
         $companies->system_modules_id = 1;
+        $companies->is_active = $this->data->is_active;
         $companies->saveOrFail();
 
         if ($this->data->files) {

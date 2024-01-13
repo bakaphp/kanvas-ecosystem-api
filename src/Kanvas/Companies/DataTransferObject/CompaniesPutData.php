@@ -38,7 +38,8 @@ class CompaniesPutData extends Data
         public ?string $phone,
         public ?string $country_code,
         public ?int $currency_id = null,
-        public ?array $files = null
+        public ?array $files = null,
+        public bool $is_active = true
     ) {
     }
 
@@ -60,7 +61,8 @@ class CompaniesPutData extends Data
             timezone: $request->get('timezone'),
             phone: $request->get('phone'),
             country_code: $request->get('country_code'),
-            files: $request->get('files') ?? null
+            files: $request->get('files') ?? null,
+            is_active: $request->get('is_active') ?? true
         );
     }
 
@@ -83,6 +85,7 @@ class CompaniesPutData extends Data
             phone:$data['phone'] ?? null,
             country_code: $data['country_code'] ?? null,
             files: $data['files'] ?? null,
+            is_active: $data['is_active'] ?? true
         );
     }
 }
