@@ -21,6 +21,7 @@ use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Traits\SearchableDynamicIndexTrait;
 use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -49,6 +50,7 @@ class Companies extends BaseModel implements CompanyInterface
 {
     use HashTableTrait;
     use HasFilesystemTrait;
+    use SearchableDynamicIndexTrait;
 
     protected $table = 'companies';
 
@@ -137,6 +139,16 @@ class Companies extends BaseModel implements CompanyInterface
     public static function cacheKey(): string
     {
         return Defaults::DEFAULT_COMPANY_APP->getValue() . app(Apps::class)->id;
+    }
+
+    public static function searchableIndex(): string
+    {
+        return Defaults::SEARCHABLE_INDEX->getValue();
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return $this->isPublished();
     }
 
     /**

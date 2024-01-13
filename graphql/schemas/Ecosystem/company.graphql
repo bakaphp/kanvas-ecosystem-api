@@ -106,6 +106,7 @@ type CompanySettings {
 
 extend type Query @guard {
     companies(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [
