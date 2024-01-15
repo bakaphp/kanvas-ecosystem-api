@@ -11,7 +11,6 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('companies', function (Blueprint $table) {
-
             $table->boolean('is_active')->default(false)->after('country_code');
         });
     }
@@ -22,7 +21,6 @@ return new class () extends Migration {
     public function down(): void
     {
         Schema::table('companies', function (Blueprint $table) {
-
             $table->dropColumn('is_active')->after('country_code');
         });
     }
