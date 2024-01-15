@@ -148,7 +148,7 @@ class Companies extends BaseModel implements CompanyInterface
 
     public function shouldBeSearchable(): bool
     {
-        return $this->isPublished();
+        return $this->is_deleted === StateEnums::NO->getValue();
     }
 
     /**
