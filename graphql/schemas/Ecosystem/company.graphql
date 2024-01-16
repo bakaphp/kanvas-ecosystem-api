@@ -121,7 +121,8 @@ extend type Query @guard {
                     "language"
                     "timezone"
                     "phone"
-                    "country_code"
+                    "country_code",
+                    "is_active"
                 ]
             )
         orderBy: _ @orderBy(columns: ["id"])
