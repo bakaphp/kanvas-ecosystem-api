@@ -11,7 +11,6 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('companies', function (Blueprint $table) {
-
             $table->boolean('is_active')->default(true)->after('country_code');
         });
     }

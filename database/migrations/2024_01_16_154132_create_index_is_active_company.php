@@ -11,7 +11,6 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('companies', function (Blueprint $table) {
-
             $table->index('is_active');
         });
     }
@@ -22,7 +21,6 @@ return new class () extends Migration {
     public function down(): void
     {
         Schema::table('companies', function (Blueprint $table) {
-
             $table->dropIndex(['is_active']);
         });
     }
