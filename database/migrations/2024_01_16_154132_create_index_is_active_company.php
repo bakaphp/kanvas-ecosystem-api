@@ -12,7 +12,7 @@ return new class () extends Migration {
     {
         Schema::table('companies', function (Blueprint $table) {
 
-            $table->boolean('is_active')->default(true)->after('country_code');
+            $table->index('is_active');
         });
     }
 
@@ -23,7 +23,7 @@ return new class () extends Migration {
     {
         Schema::table('companies', function (Blueprint $table) {
 
-            $table->dropColumn('is_active')->after('country_code');
+            $table->dropIndex(['is_active']);
         });
     }
 };
