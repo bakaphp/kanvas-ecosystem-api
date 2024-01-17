@@ -99,7 +99,7 @@ class CompaniesRepository
                                 ->where('companies_id', $company->getKey())
                                 ->where('users_associated_company.is_deleted', StateEnums::NO->getValue())
                                 ->where('users.is_deleted', StateEnums::NO->getValue())
-                                ->groupBy('users.id')
+                                ->groupBy('users.id', 'users.uuid')
                                 ->select('users.*')
                                 ->get();
     }
