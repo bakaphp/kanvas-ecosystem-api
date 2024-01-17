@@ -20,7 +20,6 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
-use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserCompanyApps;
@@ -129,11 +128,6 @@ class Companies extends BaseModel implements CompanyInterface
     public function currency(): BelongsTo
     {
         return $this->belongsTo(Currencies::class, 'currency_id');
-    }
-
-    public function agents(): HasMany
-    {
-        return $this->hasMany(Agent::class, 'companies_id');
     }
 
     /**
