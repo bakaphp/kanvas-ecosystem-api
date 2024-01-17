@@ -16,8 +16,11 @@ class SetUsersCountAction
 
     public function execute(): int
     {
-        $count = CompaniesRepository::getAllCompanyUsers($this->company)->count();
+        // Modify CI
+        $users = CompaniesRepository::getAllCompanyUsers($this->company);
+        $count = count($users->toArray());
         $this->company->set('total_users', $count);
+
         return $count;
     }
 }
