@@ -81,7 +81,24 @@ extend type Query {
         id: String!
         search: String @search
         visitor: VisitorEntityInput
-        where: _ @whereConditions(columns: ["slug", "uuid", "name"])
+        where: _ @whereConditions(columns: ["slug", "uuid", "name", "sku"])
+        hasAttributesValues: _
+            @whereHasConditions(
+                relation: "attributeValues"
+                columns: ["products_variants_id", "value", "attributes_id"]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "products_id"
+                    "status_id"
+                    "is_published"
+                ]
+            )
     ): [VariantChannel!]!
         @paginate(
             defaultCount: 25

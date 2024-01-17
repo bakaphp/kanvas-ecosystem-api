@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Actions\SetUsersCountAction as CompaniesSetUsersCountAction;
 use Kanvas\Companies\Enums\Defaults;
 use Kanvas\Companies\Factories\CompaniesFactory;
 use Kanvas\Currencies\Models\Currencies;
@@ -21,6 +22,7 @@ use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Traits\SearchableDynamicIndexTrait;
 use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -44,11 +46,13 @@ use Kanvas\Users\Models\UsersAssociatedCompanies;
  * @property string $phone
  * @property int $has_activities
  * @property string $country_code
+ * @property bool $is_active
  */
 class Companies extends BaseModel implements CompanyInterface
 {
     use HashTableTrait;
     use HasFilesystemTrait;
+    use SearchableDynamicIndexTrait;
 
     protected $table = 'companies';
 
@@ -139,6 +143,16 @@ class Companies extends BaseModel implements CompanyInterface
         return Defaults::DEFAULT_COMPANY_APP->getValue() . app(Apps::class)->id;
     }
 
+    public static function searchableIndex(): string
+    {
+        return Defaults::SEARCHABLE_INDEX->getValue();
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return $this->is_deleted === StateEnums::NO->getValue();
+    }
+
     /**
      * Get the default company key for the current app
      * this is use to store in redis the default company id for the current
@@ -147,6 +161,12 @@ class Companies extends BaseModel implements CompanyInterface
     public function branchCacheKey(): string
     {
         return Defaults::DEFAULT_COMPANY_BRANCH_APP->getValue() . app(Apps::class)->id . '_' . $this->getKey();
+    }
+
+    public function getTotalUsersAttribute(): int
+    {
+        (new CompaniesSetUsersCountAction($this))->execute();
+        return $this->get('total_users') ?? (new CompaniesSetUsersCountAction($this))->execute();
     }
 
     /**

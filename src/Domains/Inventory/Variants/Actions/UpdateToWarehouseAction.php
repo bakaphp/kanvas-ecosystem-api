@@ -4,12 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Actions;
 
-use Kanvas\Inventory\Status\Actions\CreateStatusHistoryAction;
-use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses as VariantsWarehousesDto;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
-use Kanvas\Inventory\Warehouses\Actions\CreatePriceHistoryAction;
 
 class UpdateToWarehouseAction
 {
@@ -51,16 +48,6 @@ class UpdateToWarehouseAction
                 'is_new' => $this->variantsWarehousesDto->is_new ?? $this->variantsWarehouses->is_new,
             ]
         );
-
-        if ($this->variantsWarehousesDto->status_id && $oldStatusId !== $this->variantsWarehouses->status_id) {
-            (new CreateStatusHistoryAction(
-                StatusRepository::getById(
-                    $this->variantsWarehousesDto->status_id,
-                    $this->variantsWarehouses->variant->product->company
-                ),
-                $this->variantsWarehouses
-            ))->execute();
-        }
 
         return $this->variantsWarehouses->variant;
     }

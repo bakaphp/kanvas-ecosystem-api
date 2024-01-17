@@ -6,6 +6,7 @@ namespace Kanvas\Companies\Observers;
 
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Actions\SetUsersCountAction as CompaniesSetUsersCountAction;
 use Kanvas\Companies\Branches\Actions\CreateCompanyBranchActions;
 use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPostData;
 use Kanvas\Companies\Groups\Actions\CreateCompanyGroupActions;
@@ -82,5 +83,10 @@ class CompaniesObserver
         if (! $user->get($company->branchCacheKey())) {
             $user->set($company->branchCacheKey(), $branch->id);
         }
+    }
+
+    public function updated(Companies $company): void
+    {
+        (new CompaniesSetUsersCountAction($company))->execute();
     }
 }

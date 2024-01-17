@@ -15,7 +15,7 @@ type Attributes {
     created_at: String
     updated_at: String
     companies: [Company]
-    values: [AttributesValue] @hasMany(relation: "defaultValues")
+    values: [AttributesValue!] @hasMany(relation: "defaultValues")
 }
 
 type AttributesValue {
@@ -24,11 +24,13 @@ type AttributesValue {
 }
 
 type ProductAttribute {
+    id: ID!
     name: String!
     value: Mixed
 }
 
 type VariantsAttributes {
+    id: ID!
     name: String!
     value: Mixed
 }
