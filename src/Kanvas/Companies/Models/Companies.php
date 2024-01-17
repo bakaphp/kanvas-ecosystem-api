@@ -156,9 +156,9 @@ class Companies extends BaseModel implements CompanyInterface
         return Defaults::DEFAULT_COMPANY_BRANCH_APP->getValue() . app(Apps::class)->id . '_' . $this->getKey();
     }
 
-    public function getUsersCountAttribute(): int
+    public function getTotalUsersAttribute(): int
     {
-        return $this->get('users_count') ?? (new CompaniesSetUsersCountAction($this))->execute();
+        return $this->get('total_users') ?? (new CompaniesSetUsersCountAction($this))->execute();
     }
 
     /**

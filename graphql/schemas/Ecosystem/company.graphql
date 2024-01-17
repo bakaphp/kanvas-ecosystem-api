@@ -21,7 +21,7 @@ type Company {
     country_code: String
     created_at: DateTime
     updated_at: DateTime
-    users_count: Int!
+    total_users: Int!
 }
 
 type CompanyGroup {

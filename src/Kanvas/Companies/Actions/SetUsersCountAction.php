@@ -17,7 +17,7 @@ class SetUsersCountAction
     public function execute(): int
     {
         $count = CompaniesRepository::getAllCompanyUsers($this->company)->count();
-        $this->company->set('users_count', $count);
+        $this->company->set('total_users', $count);
         return $count;
     }
 }
