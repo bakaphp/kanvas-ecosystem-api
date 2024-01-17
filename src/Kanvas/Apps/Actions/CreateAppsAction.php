@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\DataTransferObject\AppInput;
+use Kanvas\Apps\DataTransferObject\AppKeyInput;
 use Kanvas\Apps\Jobs\CreateSystemModuleJob;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -56,6 +57,11 @@ class CreateAppsAction
             $this->systemModules($app);
             $this->acl($app);
             CreateSystemModuleJob::dispatch($app);
+            (new CreateAppKeyAction(new AppKeyInput(
+                'Default',
+                $app,
+                $this->user
+            )))->execute();
             //@todo
             // $this->createEmailTemplate($app);
         });
