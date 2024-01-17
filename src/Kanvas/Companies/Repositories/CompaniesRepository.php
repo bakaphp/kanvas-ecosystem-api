@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Repositories;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -88,6 +89,19 @@ class CompaniesRepository
         } catch (ModelNotFoundException) {
             throw new ExceptionsModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
         }
+    }
+
+    public static function getAllCompanyUsers(Companies $company): Collection
+    {
+        $ecosystemConnection = config('database.connections.ecosystem');
+
+        return UsersAssociatedCompanies::join($ecosystemConnection['database'] . '.users', 'users.id', '=', 'users_associated_company.users_id')
+                                ->where('companies_id', $company->getKey())
+                                ->where('users_associated_company.is_deleted', StateEnums::NO->getValue())
+                                ->where('users.is_deleted', StateEnums::NO->getValue())
+                                ->groupBy('users.id')
+                                ->select('users.*')
+                                ->get();
     }
 
     /**

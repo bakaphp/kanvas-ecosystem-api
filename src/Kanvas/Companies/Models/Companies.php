@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\Defaults;
 use Kanvas\Companies\Factories\CompaniesFactory;
+use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Models\FilesystemEntities;
@@ -155,9 +156,9 @@ class Companies extends BaseModel implements CompanyInterface
         return Defaults::DEFAULT_COMPANY_BRANCH_APP->getValue() . app(Apps::class)->id . '_' . $this->getKey();
     }
 
-    public function getCountAgentsAttribute(): int
+    public function getUsersCountAttribute(): int
     {
-        return $this->agents()->count();
+        return CompaniesRepository::getAllCompanyUsers($this)->count();
     }
 
     /**
