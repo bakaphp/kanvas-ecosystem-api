@@ -5,7 +5,7 @@ input UserListInput {
     is_default: Boolean
 }
 
-type UserList @model(class: "\\Kanvas\\Social\\UsersLists\\Models\\UserList"){
+type UserList @model(class: "\\Kanvas\\Social\\UsersLists\\Models\\UserList") {
     id: ID!
     slug: String!
     name: String!
@@ -19,60 +19,52 @@ type UserList @model(class: "\\Kanvas\\Social\\UsersLists\\Models\\UserList"){
 }
 
 extend type Mutation @guard {
-    createUserList(input: UserListInput!): UserList 
-    @field (
-        resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@create"
-    )
-    updateUserList(id: ID!, input: UserListInput!): UserList 
-    @field (
-        resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@update"
-    )
-    deleteUserList(id: ID!): Boolean 
-    @field (
-        resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@delete"
-    )
-    addToUserList(
-        users_lists_id: ID!,
-        messages_id: ID!
-    ): Boolean 
-    @field (
-        resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@addToList"
-    )
-    removeFromUserList(
-        users_lists_id: ID!,
-        messages_id: ID!
-    ): Boolean
-    @field (
-        resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@removeFromList"
-    )
+    createUserList(input: UserListInput!): UserList
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@create"
+        )
+    updateUserList(id: ID!, input: UserListInput!): UserList
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@update"
+        )
+    deleteUserList(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@delete"
+        )
+    addToUserList(users_lists_id: ID!, messages_id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@addToList"
+        )
+    removeFromUserList(users_lists_id: ID!, messages_id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\UsersLists\\UsersListsManagement@removeFromList"
+        )
 }
 
 extend type Query @guard {
     getUsersLists(
-        where: _@whereConditions(
-            columns: [
-                "id"
-                "company_id",
-                "name",
-                "description"
-            ]
-        )
+        where: _
+            @whereConditions(
+                columns: ["id", "company_id", "name", "description"]
+            )
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
-    ): [UserList!]! @paginate(
-        model: "Kanvas\\Social\\UsersLists\\Models\\UserList" 
-        scopes: ["fromApp", "fromUser"]
-        defaultCount: 25
-    )
+    ): [UserList!]!
+        @paginate(
+            model: "Kanvas\\Social\\UsersLists\\Models\\UserList"
+            scopes: ["fromApp", "fromUser"]
+            defaultCount: 25
+        )
 }
 
 extend type Query {
     searchUsersLists(
         search: String
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
-    ): [UserList!]! @paginate(
-        # model: "Kanvas\\Social\\UsersLists\\Models\\UserList" 
-        scopes: ["fromApp", "isPublic"]
-        defaultCount: 25
-        builder: "App\\GraphQL\\Social\\Builders\\UsersLists\\SearchBuilder@search"
-    )
+    ): [UserList!]!
+        @paginate(
+            # model: "Kanvas\\Social\\UsersLists\\Models\\UserList"
+            scopes: ["fromApp", "isPublic"]
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Builders\\UsersLists\\SearchBuilder@search"
+        )
 }

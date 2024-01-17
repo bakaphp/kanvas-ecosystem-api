@@ -17,16 +17,13 @@ type InteractionType {
     description: String
 }
 
-type EntityInteractions
-{
+type EntityInteractions {
     entity_id: Mixed!
     entity_namespace: String!
     interacted_entity_id: Mixed!
     interacted_entity_namespace: String!
-    interactions: Interactions
-        @method(name: "getGroupInteractions")
-    entity: Mixed
-        @method(name: "interactedEntityData")
+    interactions: Interactions @method(name: "getGroupInteractions")
+    entity: Mixed @method(name: "interactedEntityData")
 }
 
 extend type Mutation @guardByAuthOrCompany {
@@ -60,7 +57,7 @@ extend type Query @guard {
                     "interacted_entity_namespace"
                 ]
             )
-    ): [EntityInteractions]
+    ): [EntityInteractions!]!
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Interactions\\EntityInteractionsQueries@getAll"
