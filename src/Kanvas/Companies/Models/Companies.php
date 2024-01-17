@@ -13,9 +13,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Actions\SetUsersCountAction as CompaniesSetUsersCountAction;
 use Kanvas\Companies\Enums\Defaults;
 use Kanvas\Companies\Factories\CompaniesFactory;
-use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Models\FilesystemEntities;
@@ -158,7 +158,7 @@ class Companies extends BaseModel implements CompanyInterface
 
     public function getUsersCountAttribute(): int
     {
-        return CompaniesRepository::getAllCompanyUsers($this)->count();
+        return $this->get('users_count') ?? (new CompaniesSetUsersCountAction($this))->execute();
     }
 
     /**
