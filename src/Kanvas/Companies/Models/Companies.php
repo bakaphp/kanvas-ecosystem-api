@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Actions\SetUsersCountAction as CompaniesSetUsersCountAction;
 use Kanvas\Companies\Enums\Defaults;
 use Kanvas\Companies\Factories\CompaniesFactory;
 use Kanvas\Currencies\Models\Currencies;
@@ -160,6 +161,12 @@ class Companies extends BaseModel implements CompanyInterface
     public function branchCacheKey(): string
     {
         return Defaults::DEFAULT_COMPANY_BRANCH_APP->getValue() . app(Apps::class)->id . '_' . $this->getKey();
+    }
+
+    public function getTotalUsersAttribute(): int
+    {
+        (new CompaniesSetUsersCountAction($this))->execute();
+        return $this->get('total_users') ?? (new CompaniesSetUsersCountAction($this))->execute();
     }
 
     /**

@@ -8,8 +8,8 @@ use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Models\Role;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
-use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Actions\SetUsersCountAction as CompaniesSetUsersCountAction;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
@@ -74,5 +74,6 @@ class AssignCompanyAction
 
         $assignRoleLegacy = new ActionsAssignRoleAction($this->user, $this->company, $app);
         $assignRoleLegacy->execute($roleLegacy);
+        (new CompaniesSetUsersCountAction($this->company))->execute();
     }
 }
