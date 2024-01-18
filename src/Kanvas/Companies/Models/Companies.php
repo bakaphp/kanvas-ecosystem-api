@@ -225,7 +225,8 @@ class Companies extends BaseModel implements CompanyInterface
     {
         $user = Auth::user();
 
-        return $query->join(
+        return $query->select('companies.*', 'users_associated_company.companies_id')
+            ->join(
             'users_associated_company',
             'users_associated_company.companies_id',
             '=',
@@ -233,7 +234,9 @@ class Companies extends BaseModel implements CompanyInterface
         )
         ->where('users_associated_company.users_id', '=', $user->getKey())
         ->where('users_associated_company.is_deleted', '=', StateEnums::NO->getValue())
-        ->where('companies.is_deleted', '=', StateEnums::NO->getValue());
+        ->where('companies.is_deleted', '=', StateEnums::NO->getValue())
+
+        ->groupBy('users_associated_company.companies_id');
     }
 
     public function getPhoto(): ?FilesystemEntities
