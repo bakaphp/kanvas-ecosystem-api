@@ -31,8 +31,7 @@ class CompaniesManagementMutation
      */
     public function createCompany(mixed $root, array $request): Companies
     {
-
-        if(auth()->user()->isAn((string) DefaultRoles::ADMIN->getValue()) && key_exists('users_id', $request['input'])) {
+        if (auth()->user()->isAn((string) DefaultRoles::ADMIN->getValue()) && key_exists('users_id', $request['input'])) {
             $request['input']['users_id'] = $request['input']['users_id'] && UsersRepository::isUserInApp($request['input']['users_id']) ? $request['input']['users_id'] : Auth::user()->getKey();
         } else {
             $request['input']['users_id'] = Auth::user()->getKey();
@@ -48,7 +47,7 @@ class CompaniesManagementMutation
      */
     public function updateCompany(mixed $root, array $request): Companies
     {
-        if(auth()->user()->isAn((string) DefaultRoles::ADMIN->getValue()) && key_exists('users_id', $request['input'])) {
+        if (auth()->user()->isAn((string) DefaultRoles::ADMIN->getValue()) && key_exists('users_id', $request['input'])) {
             $request['input']['users_id'] = $request['input']['users_id'] && UsersRepository::isUserInApp($request['input']['users_id']) ? $request['input']['users_id'] : Auth::user()->getKey();
         } else {
             $request['input']['users_id'] = Auth::user()->getKey();
