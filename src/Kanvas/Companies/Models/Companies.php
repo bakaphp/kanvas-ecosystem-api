@@ -227,25 +227,25 @@ class Companies extends BaseModel implements CompanyInterface
         $app = app(Apps::class);
 
         return $query->select('companies.*')
-        ->join(
-            'users_associated_company',
-            'users_associated_company.companies_id',
-            '=',
-            'companies.id'
-        )
-        ->join(
-            'users_associated_apps',
-            'users_associated_apps.companies_id',
-            '=',
-            'companies.id'
-        )
-        ->where('users_associated_company.users_id', '=', $user->getKey())
-        ->where('users_associated_company.is_deleted', '=', StateEnums::NO->getValue())
-        ->where('users_associated_apps.users_id', '=', $user->getKey()) // Assuming you want to filter by the same user
-        ->where('users_associated_apps.is_deleted', '=', StateEnums::NO->getValue())
-        ->where('users_associated_apps.apps_id', '=', $app->getKey())
-        ->where('companies.is_deleted', '=', StateEnums::NO->getValue())
-        ->groupBy('companies.id');
+            ->join(
+                'users_associated_company',
+                'users_associated_company.companies_id',
+                '=',
+                'companies.id'
+            )
+            ->join(
+                'users_associated_apps',
+                'users_associated_apps.companies_id',
+                '=',
+                'companies.id'
+            )
+            ->where('users_associated_company.users_id', '=', $user->getKey())
+            ->where('users_associated_company.is_deleted', '=', StateEnums::NO->getValue())
+            ->where('users_associated_apps.users_id', '=', $user->getKey()) // Assuming you want to filter by the same user
+            ->where('users_associated_apps.is_deleted', '=', StateEnums::NO->getValue())
+            ->where('users_associated_apps.apps_id', '=', $app->getKey())
+            ->where('companies.is_deleted', '=', StateEnums::NO->getValue())
+            ->groupBy('companies.id');
     }
 
     public function getPhoto(): ?FilesystemEntities
