@@ -91,14 +91,6 @@ class UsersRepository
             ->firstOrFail();
     }
 
-    public static function isUserInApp(int $id): bool
-    {
-        return Users::join('users_associated_apps', 'users_associated_apps.users_id', 'users.id')
-            ->where('users_associated_apps.apps_id', app(Apps::class)->id)
-            ->where('users.id', $id)
-            ->exists();
-    }
-
     /**
      * getAll.
      * @psalm-suppress MixedReturnStatement
