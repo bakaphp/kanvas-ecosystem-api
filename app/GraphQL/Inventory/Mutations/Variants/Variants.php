@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Inventory\Mutations\Variants;
 
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Repositories\ChannelRepository;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
@@ -16,6 +17,7 @@ use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantDto;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
 use Kanvas\Inventory\Variants\Models\Variants as VariantModel;
+use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehouses;
 use Kanvas\Inventory\Variants\Repositories\VariantsRepository;
 use Kanvas\Inventory\Variants\Services\VariantService;
@@ -186,7 +188,7 @@ class Variants
      */
     public function addToChannel(mixed $root, array $req): VariantModel
     {
-        $variant = VariantsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
+        $variant = VariantsRepository::getById((int) $req['variants_id'], auth()->user()->getCurrentCompany());
         $warehouse = WarehouseRepository::getById((int) $req['warehouses_id']);
         $variantWarehouses = ModelsVariantsWarehouses::where('products_variants_id', $variant->getId())
             ->where('warehouses_id', $warehouse->getId())
@@ -200,12 +202,35 @@ class Variants
     }
 
     /**
+     * update variant In channels.
+     */
+    public function updateVariantInChannel(mixed $root, array $req)
+    {
+        $variant = VariantsRepository::getById((int) $req['variants_id'], auth()->user()->getCurrentCompany());
+        $warehouse = WarehouseRepository::getById((int) $req['warehouses_id'], auth()->user()->getCurrentCompany());
+        $channel = ChannelRepository::getById((int) $req['channels_id'], auth()->user()->getCurrentCompany());
+
+        $variantChannel = VariantsChannels::where('products_variants_id', $variant->getId())
+            ->where('warehouses_id', $warehouse->getId())
+            ->where('channels_id', $channel->getId())
+            ->firstOrFail();
+
+        VariantService::updateVariantChannel(
+            $variantChannel,
+            $req['input']
+        );
+
+        return $variant;
+    }
+
+    /**
      * @todo Remove and use softdelete.
      * removeChannel.
+     * @todo Use softdelete and cascade softdelete and remove detach
      */
     public function removeChannel(mixed $root, array $req): VariantModel
     {
-        $variant = VariantsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
+        $variant = VariantsRepository::getById((int) $req['variants_id'], auth()->user()->getCurrentCompany());
         $warehouse = WarehouseRepository::getById((int) $req['warehouses_id']);
         $variantWarehouses = ModelsVariantsWarehouses::where('products_variants_id', $variant->getId())
             ->where('warehouses_id', $warehouse->getId())

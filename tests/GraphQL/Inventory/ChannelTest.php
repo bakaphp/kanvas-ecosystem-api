@@ -17,13 +17,15 @@ class ChannelTest extends TestCase
     {
         $data = [
             'name' => fake()->name,
+            'is_default' => true,
         ];
         $this->graphQL('
             mutation($data: CreateChannelInput!) {
                 createChannel(input: $data)
                 {
                     id
-                    name
+                    name,
+                    is_default
                 }
             }', ['data' => $data])->assertJson([
             'data' => ['createChannel' => $data]
@@ -39,13 +41,15 @@ class ChannelTest extends TestCase
     {
         $data = [
             'name' => fake()->name,
+            'is_default' => true,
         ];
         $this->graphQL('
             mutation($data: CreateChannelInput!) {
                 createChannel(input: $data)
                 {
                     id
-                    name
+                    name,
+                    is_default
                 }
             }', ['data' => $data])->assertJson([
             'data' => ['createChannel' => $data]
@@ -55,7 +59,8 @@ class ChannelTest extends TestCase
                 channels {
                     data {
                         id,
-                        name
+                        name,
+                        is_default
                     }
                 }
             }')->assertJson([
@@ -72,13 +77,15 @@ class ChannelTest extends TestCase
     {
         $data = [
             'name' => fake()->name,
+            'is_default' => true,
         ];
         $this->graphQL('
             mutation($data: CreateChannelInput!) {
                 createChannel(input: $data)
                 {
                     id
-                    name
+                    name,
+                    is_default
                 }
             }', ['data' => $data])->assertJson([
             'data' => ['createChannel' => $data]
@@ -88,7 +95,8 @@ class ChannelTest extends TestCase
             channels {
                 data {
                     id,
-                    name
+                    name,
+                    is_default
                 }
             }
         }')->assertJson([
@@ -118,13 +126,15 @@ class ChannelTest extends TestCase
     {
         $data = [
             'name' => fake()->name,
+            'is_default' => true,
         ];
         $this->graphQL('
             mutation($data: CreateChannelInput!) {
                 createChannel(input: $data)
                 {
                     id
-                    name
+                    name,
+                    is_default
                 }
             }', ['data' => $data])->assertJson([
             'data' => ['createChannel' => $data]
@@ -134,7 +144,8 @@ class ChannelTest extends TestCase
             channels {
                 data {
                     id,
-                    name
+                    name,
+                    is_default
                 }
             }
         }')->assertJson([
@@ -158,13 +169,15 @@ class ChannelTest extends TestCase
     {
         $data = [
             'name' => fake()->name,
+            'is_default' => true,
         ];
         $this->graphQL('
             mutation($data: CreateChannelInput!) {
                 createChannel(input: $data)
                 {
                     id
-                    name
+                    name,
+                    is_default
                 }
             }', ['data' => $data])->assertJson([
             'data' => ['createChannel' => $data]
@@ -174,7 +187,8 @@ class ChannelTest extends TestCase
             channels {
                 data {
                     id,
-                    name
+                    name,
+                    is_default
                 }
             }
         }')->assertJson([

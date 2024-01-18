@@ -14,6 +14,7 @@ enum Defaults implements EnumsInterface
     case PAYMENT_GATEWAY_CUSTOMER_KEY;
     case DEFAULT_COMPANY_BRANCH_APP;
     case GLOBAL_COMPANIES_ID;
+    case SEARCHABLE_INDEX;
 
     public function getValue(): mixed
     {
@@ -25,6 +26,7 @@ enum Defaults implements EnumsInterface
             self::PAYMENT_GATEWAY_CUSTOMER_KEY => 'payment_gateway_customer_id',
             self::DEFAULT_COMPANY_BRANCH_APP => 'DefaultCompanyBranchApp_',
             self::GLOBAL_COMPANIES_ID => $appDefaults->getValue(),
+            self::SEARCHABLE_INDEX => 'companies',
         };
     }
 }

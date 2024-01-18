@@ -30,7 +30,8 @@ class CompaniesPostData extends Data
         public ?string $language = null,
         public ?string $timezone = null,
         public ?string $country_code = null,
-        public ?array $files = null
+        public ?array $files = null,
+        public ?bool $is_active = true
     ) {
     }
 

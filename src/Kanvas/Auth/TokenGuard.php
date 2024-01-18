@@ -69,10 +69,13 @@ class TokenGuard extends AuthTokenGuard
     {
         $session = new Sessions();
         $userData = new Users();
+        $app = app(Apps::class);
 
         if (! empty($token->claims()->get('sessionId'))) {
-            if (! $user = $userData->getByEmail($token->claims()->get('email'))) {
-                throw new AuthorizationException('User not found');
+            $userSession = $session->getById($token->claims()->get('sessionId'), $app);
+
+            if (! $user = $userSession->user()->first()) {
+                throw new AuthorizationException('Session User not found');
             }
 
             return $session->check(
@@ -83,7 +86,7 @@ class TokenGuard extends AuthTokenGuard
                 1
             );
         } else {
-            throw new AuthorizationException('User not found');
+            throw new AuthorizationException('Session User not found');
         }
     }
 

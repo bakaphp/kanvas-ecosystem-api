@@ -8,6 +8,7 @@ use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Models\BaseModel;
@@ -89,6 +90,14 @@ class VariantsWarehouses extends BaseModel
             'status_id'
         )
             ->withPivot('from_date');
+    }
+
+    public function pricesHistory(): HasMany
+    {
+        return $this->hasMany(
+            VariantsWarehousesPriceHistory::class,
+            'product_variants_warehouse_id'
+        );
     }
 
     /**

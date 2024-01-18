@@ -25,13 +25,20 @@ type VariantChannel {
         @hasMany(relation: "variantWarehouses")
     attributes: [VariantsAttributes!]!
 }
-
+type ChannelsPricesHistoryRelationship {
+    price: Float!
+    from_date: String!
+}
 type VariantChannelRelationship {
     name: String
     price: Float
     warehouses_id: Int
     discounted_price: Float
     is_published: Boolean
+    prices_history: [ChannelsPricesHistoryRelationship!]!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantChannelBuilder@getChannelHistory"
+        )
 }
 
 input VariantChannelInput {
@@ -42,7 +49,7 @@ input VariantChannelInput {
 
 extend type Mutation @guard {
     addVariantToChannel(
-        id: ID!
+        variants_id: ID!
         channels_id: ID!
         warehouses_id: ID!
         input: VariantChannelInput!
@@ -50,8 +57,17 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addToChannel"
         )
+    updateVariantInChannel(
+        variants_id: ID!
+        channels_id: ID!
+        warehouses_id: ID!
+        input: VariantChannelInput!
+    ): Variant
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@updateVariantInChannel"
+        )
     removeVariantChannel(
-        id: ID!
+        variants_id: ID!
         channels_id: ID!
         warehouses_id: ID!
     ): Variant
@@ -65,7 +81,24 @@ extend type Query {
         id: String!
         search: String @search
         visitor: VisitorEntityInput
-        where: _ @whereConditions(columns: ["slug", "uuid", "name"])
+        where: _ @whereConditions(columns: ["slug", "uuid", "name", "sku"])
+        hasAttributesValues: _
+            @whereHasConditions(
+                relation: "attributeValues"
+                columns: ["products_variants_id", "value", "attributes_id"]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "products_id"
+                    "status_id"
+                    "is_published"
+                ]
+            )
     ): [VariantChannel!]!
         @paginate(
             defaultCount: 25

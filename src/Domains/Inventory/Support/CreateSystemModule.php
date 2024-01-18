@@ -14,7 +14,7 @@ use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
-use Kanvas\Inventory\Variants\Models\VariantsWarehousePriceHistory;
+use Kanvas\Inventory\Variants\Models\VariantsWarehousesPriceHistory;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
@@ -40,7 +40,7 @@ class CreateSystemModule
         $createSystemModule->execute(VariantsAttributes::class);
         $createSystemModule->execute(VariantsChannels::class);
         $createSystemModule->execute(VariantsWarehouses::class);
-        $createSystemModule->execute(VariantsWarehousePriceHistory::class);
+        $createSystemModule->execute(VariantsWarehousesPriceHistory::class);
         $createSystemModule->execute(Warehouses::class);
     }
 }

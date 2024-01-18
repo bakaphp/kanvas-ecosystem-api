@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Repositories;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Schema;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -31,14 +33,23 @@ class CompaniesRepository
     }
 
     /**
-     * Get by uuid.
+     * Get by uuid and app.
      * @psalm-suppress MixedReturnStatement
      */
-    public static function getByUuid(string $uuid): Companies
+    public static function getByUuid(string $uuid, ?Apps $app = null): Companies
     {
         return Companies::where('uuid', $uuid)
-                ->where('is_deleted', StateEnums::NO->getValue())
-                ->firstOrFail();
+               ->where('companies.is_deleted', StateEnums::NO->getValue())
+               ->when($app, function ($query, $app) {
+                   $query->join(
+                       'user_company_apps',
+                       'user_company_apps.companies_id',
+                       '=',
+                       'companies.id'
+                   );
+                   $query->where('user_company_apps.apps_id', $app->getId());
+               })
+               ->firstOrFail();
     }
 
     /**
@@ -79,6 +90,20 @@ class CompaniesRepository
         } catch (ModelNotFoundException) {
             throw new ExceptionsModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
         }
+    }
+
+    public static function getAllCompanyUsers(Companies $company): Collection
+    {
+        $ecosystemConnection = config('database.connections.ecosystem');
+        $columns = Schema::Connection('ecosystem')->getColumnListing('users');
+
+        return UsersAssociatedCompanies::join($ecosystemConnection['database'] . '.users', 'users.id', '=', 'users_associated_company.users_id')
+                                ->where('companies_id', $company->getKey())
+                                ->where('users_associated_company.is_deleted', StateEnums::NO->getValue())
+                                ->where('users.is_deleted', StateEnums::NO->getValue())
+                                ->groupBy($columns)
+                                ->select('users.*')
+                                ->get();
     }
 
     /**
