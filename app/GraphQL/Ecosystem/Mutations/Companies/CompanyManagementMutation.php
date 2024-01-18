@@ -26,7 +26,7 @@ class CompanyManagementMutation
      */
     public function createCompany(mixed $root, array $request): Companies
     {
-        if(auth()->user()->isAdmin() && key_exists('users_id', $request['input'])) {
+        if (auth()->user()->isAdmin() && key_exists('users_id', $request['input'])) {
             $user = Users::getById($request['input']['users_id']);
             UsersRepository::belongsToThisApp($user, app(Apps::class)) ;
             $request['input']['users_id'] = $user->getKey();
@@ -45,7 +45,7 @@ class CompanyManagementMutation
      */
     public function updateCompany(mixed $root, array $request): Companies
     {
-        if(auth()->user()->isAdmin() && key_exists('users_id', $request['input'])) {
+        if (auth()->user()->isAdmin() && key_exists('users_id', $request['input'])) {
             $user = Users::getById($request['input']['users_id']);
             UsersRepository::belongsToThisApp($user, app(Apps::class)) ;
             $request['input']['users_id'] = $user->getKey();
