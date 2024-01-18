@@ -63,6 +63,10 @@ trait HashTableTrait
         return true;
     }
 
+    /**
+     * @param array<array-key, array{name: string, data: mixed}> $settings
+     * @throws ConfigurationException
+     */
     public function setAll(array $settings): bool
     {
         if (empty($settings)) {
