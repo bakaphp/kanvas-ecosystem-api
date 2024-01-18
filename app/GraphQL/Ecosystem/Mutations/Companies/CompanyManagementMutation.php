@@ -30,8 +30,6 @@ class CompanyManagementMutation
             $user = Users::getById($request['input']['users_id']);
             UsersRepository::belongsToThisApp($user, app(Apps::class)) ;
             $request['input']['users_id'] = $user->getKey();
-        if (auth()->user()->isAn((string) DefaultRoles::ADMIN->getValue()) && key_exists('users_id', $request['input'])) {
-            $request['input']['users_id'] = $request['input']['users_id'] && UsersRepository::isUserInApp($request['input']['users_id']) ? $request['input']['users_id'] : Auth::user()->getKey();
         } else {
             $request['input']['users_id'] = Auth::user()->getKey();
         }
