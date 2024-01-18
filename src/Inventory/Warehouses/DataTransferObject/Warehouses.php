@@ -45,7 +45,7 @@ class Warehouses extends Data
     {
         $company = auth()->user()->getCurrentCompany();
 
-        if (!isset($request['regions_id'])) {
+        if (! isset($request['regions_id'])) {
             throw new ValidationException('Region is required');
         }
 
