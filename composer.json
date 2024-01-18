@@ -11,10 +11,14 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "berkayk/onesignal-laravel": "^2.0",
+        "darryldecode/cart": "^4.2",
+        "dyrynda/laravel-cascade-soft-deletes": "^4.3",
         "genealabs/laravel-model-caching": "^0.13",
         "goldspecdigital/laravel-eloquent-uuid": "^10.0",
         "guzzlehttp/guzzle": "^7.6",
         "http-interop/http-factory-guzzle": "^1.0",
+        "laravel-workflow/laravel-workflow": "^1.0",
         "laravel/framework": "^10.0",
         "laravel/octane": "^2.0",
         "laravel/sanctum": "^3.2",
@@ -23,11 +27,12 @@
         "laravel/tinker": "^2.7",
         "lcobucci/jwt": "^4.3",
         "league/flysystem-aws-s3-v3": "^3.12",
-        "meilisearch/meilisearch-php": "^1.1",
+        "meilisearch/meilisearch-php": "^1.4",
         "mll-lab/graphql-php-scalars": "^6.0",
         "mll-lab/laravel-graphiql": "^3.1.0",
         "nuwave/lighthouse": "^6.0",
         "phpclassic/php-shopify": "^1.2",
+        "powersync/authorizenet-sdk-php": "^2.0",
         "sentry/sentry-laravel": "^3.2",
         "shopify/shopify-api": "^4.1",
         "silber/bouncer": "^1.0",
@@ -37,10 +42,12 @@
         "spatie/laravel-health": "^1.22",
         "spatie/laravel-queueable-action": "^2.14",
         "spatie/laravel-webhook-server": "^3.4",
+        "symfony/expression-language": "^6.3",
         "symfony/http-client": "^6.2",
         "symfony/mailgun-mailer": "^6.2",
         "vladimir-yuldashev/laravel-queue-rabbitmq": "^13.3",
-        "vlucas/phpdotenv": "^5.5"
+        "vlucas/phpdotenv": "^5.5",
+        "webleit/zohocrmapi": "^5.3"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",
@@ -57,10 +64,13 @@
             "App\\": "app/",
             "Kanvas\\": "src/Kanvas",
             "Baka\\": "src/Baka",
-            "Domains\\": "src/Domains",
-            "Kanvas\\Inventory\\": "src/Inventory",
-            "Kanvas\\Social\\": "src/Social",
-            "Kanvas\\Guild\\": "src/Guild",
+            "Kanvas\\Inventory\\": "src/Domains/Inventory",
+            "Kanvas\\Social\\": "src/Domains/Social",
+            "Kanvas\\Guild\\": "src/Domains/Guild",
+            "Kanvas\\ContentEngine\\": "src/Domains/ContentEngine",
+            "Kanvas\\Souk\\": "src/Domains/Souk",
+            "Kanvas\\Workflow\\": "src/Domains/Workflow",
+            "Kanvas\\Connectors\\": "src/Domains/Connectors",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }
@@ -96,6 +106,12 @@
         ],
         "migrate-crm": [
             "php artisan migrate --path database/migrations/Guild/ --database crm"
+        ],
+        "migrate-workflow": [
+            "php artisan migrate --path database/migrations/Workflow/ --database workflow"
+        ],
+        "migrate-laravel-workflow": [
+            "php artisan migrate --path vendor/laravel-workflow/laravel-workflow/src/migrations/ --database workflow"
         ]
     },
     "extra": {

@@ -10,10 +10,6 @@ class Str extends IlluminateStr
 {
     /**
      * Given a string remove all any special characters.
-     *
-     * @param string $string
-     *
-     * @return string
      */
     public static function cleanup(string $string): string
     {
@@ -24,8 +20,6 @@ class Str extends IlluminateStr
      * Given a json string decode it into array.
      *
      * @param mixed $string
-     *
-     * @return mixed
      */
     public static function jsonToArray($string): mixed
     {
@@ -34,13 +28,14 @@ class Str extends IlluminateStr
 
     /**
      * Generate none-unicode slugs for simple parsing.
-     *
-     * @param string $string
-     *
-     * @return string
      */
     public static function simpleSlug(string $string): string
     {
         return strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $string)));
+    }
+
+    public static function sanitizePhoneNumber(?string $phone): string
+    {
+        return $phone ? preg_replace('/\D+/', '', $phone) : '';
     }
 }

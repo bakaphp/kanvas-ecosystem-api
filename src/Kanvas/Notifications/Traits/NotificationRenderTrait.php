@@ -27,6 +27,27 @@ trait NotificationRenderTrait
         return '';
     }
 
+    public function getEmailContent(): string
+    {
+        if ($this->getType()->hasEmailTemplate()) {
+            return $this->getEmailTemplate();
+        }
+
+        return '';
+    }
+
+    protected function getPushTemplate(): string
+    {
+        $templateName = $this->getType()->getPushTemplateName();
+
+        $renderTemplate = new RenderTemplateAction($this->app, $this->company);
+
+        return $renderTemplate->execute(
+            $templateName,
+            $this->getData()
+        );
+    }
+
     /**
      * Given the HTML for the current email notification
      */
@@ -36,7 +57,7 @@ trait NotificationRenderTrait
             throw new Exception('This notification type does not have an email template');
         }
 
-        $renderTemplate = new RenderTemplateAction($this->app);
+        $renderTemplate = new RenderTemplateAction($this->app, $this->company);
 
         return $renderTemplate->execute(
             $this->getTemplateName(),
@@ -61,7 +82,7 @@ trait NotificationRenderTrait
      */
     public function setData(array $data): self
     {
-        $this->data = $data;
+        $this->data = array_merge($this->data, $data);
 
         return $this;
     }
@@ -77,8 +98,8 @@ trait NotificationRenderTrait
     /*
     * Get notification template Name
     */
-    public function getTemplateName(): ?string
+    public function getTemplateName(): string
     {
-        return $this->templateName === null ? $this->getType()->template : $this->templateName;
+        return $this->templateName === null ? $this->getType()->getTemplateName() : $this->templateName;
     }
 }

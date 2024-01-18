@@ -1,0 +1,22 @@
+type productDashboard {
+    total_products: Int!
+    total_variants: Int!
+    product_status: [productStatusDashboard!]!
+}
+
+type productStatusDashboard {
+    status_id: ID!
+    status_name: String!
+    status_slug: String!
+    warehouses_name: String!
+    warehouses_id: ID!
+    total_amount: Int
+
+}
+
+extend type Query @guard {
+    productDashboard: productDashboard!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Builders\\Dashboard\\ProductDashboardBuilder@getCompanyInfo"
+        )
+}

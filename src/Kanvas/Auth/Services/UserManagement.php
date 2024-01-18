@@ -4,22 +4,24 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\Services;
 
+use Baka\Contracts\AppInterface;
 use Illuminate\Support\Arr;
-use Kanvas\Apps\Models\Apps;
+use Kanvas\AccessControlList\Actions\AssignRoleAction;
+use Kanvas\AccessControlList\Enums\AbilityEnum;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Users\Models\Users;
 
 class UserManagement
 {
-    protected Apps $app;
-
     /**
      * Construct function.
      */
     public function __construct(
-        protected Users $user
+        protected Users $user,
+        protected AppInterface $app,
+        protected ?Users $userEditing = null
     ) {
-        $this->app = app(Apps::class);
     }
 
     /**
@@ -29,19 +31,45 @@ class UserManagement
     {
         try {
             $customFields = null;
-            if (Arr::exists($data, 'custom_fields')) {
-                $customFields = $data['custom_fields'];
-                unset($data['custom_fields']);
-            }
+            $files = null;
+            $customFields = Arr::pull($data, 'custom_fields', []);
+            $files = Arr::pull($data, 'files', []);
+            $roleIds = Arr::pull($data, 'role_ids', []);
+
             $this->user->update(array_filter($data));
 
             if ($customFields) {
                 $this->user->setAll($customFields);
             }
+
+            if ($files) {
+                $this->user->addMultipleFilesFromUrl($files);
+            }
         } catch (InternalServerErrorException $e) {
             throw new InternalServerErrorException($e->getMessage());
         }
 
+        //update roles if
+        $this->updateRole($roleIds);
+
         return $this->user;
+    }
+
+    protected function updateRole(array $roleIds): void
+    {
+        if (! empty($roleIds) && $this->userEditing) {
+            $updateRole = $this->userEditing->isAdmin() || $this->userEditing->can(AbilityEnum::MANAGE_ROLES->value);
+            foreach ($roleIds as $roleId) {
+                if ($updateRole) {
+                    $role = RolesRepository::getByMixedParamFromCompany($roleId);
+
+                    $assign = new AssignRoleAction(
+                        $this->user,
+                        $role
+                    );
+                    $assign->execute();
+                }
+            }
+        }
     }
 }

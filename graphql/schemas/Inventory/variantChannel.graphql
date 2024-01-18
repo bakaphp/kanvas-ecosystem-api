@@ -1,0 +1,74 @@
+type VariantChannel {
+    id: ID
+    uuid: String!
+    slug: String!
+    name: String!
+    description: String
+    short_description: String
+    html_description: String
+    sku: String
+    channels: VariantChannelRelationship
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantChannelBuilder@getChannel"
+        )
+    price: Float
+    ean: String
+    files: [Filesystem]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    interactions(visitor: VisitorEntityInput!): Interactions
+        @method(name: "getEntitySocialInteractions")
+    product: Product
+    warehouses: [WarehouseVariantRelationship!]!
+        @hasMany(relation: "variantWarehouses")
+    attributes: [VariantsAttributes!]!
+}
+
+type VariantChannelRelationship {
+    name: String
+    price: Float
+    warehouses_id: Int
+    discounted_price: Float
+    is_published: Boolean
+}
+
+input VariantChannelInput {
+    price: Float!
+    discounted_price: Float!
+    is_published: Boolean!
+}
+
+extend type Mutation @guard {
+    addVariantToChannel(
+        id: ID!
+        channels_id: ID!
+        warehouses_id: ID!
+        input: VariantChannelInput!
+    ): Variant
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addToChannel"
+        )
+    removeVariantChannel(
+        id: ID!
+        channels_id: ID!
+        warehouses_id: ID!
+    ): Variant
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@removeChannel"
+        )
+}
+
+extend type Query {
+    channelVariants(
+        id: String!
+        search: String @search
+        visitor: VisitorEntityInput
+        where: _ @whereConditions(columns: ["slug", "uuid", "name"])
+    ): [VariantChannel!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantChannelBuilder@allVariantsPublishedInChannel"
+        )
+}

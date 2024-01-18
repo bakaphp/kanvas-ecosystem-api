@@ -1,31 +1,82 @@
 type Message {
-    id: Int!
-    parent_id: Int
+    id: ID!
+    parent_id: ID
     parent_unique_id: Mixed
     uuid: String!
-    companies_id: Int!
-    users_id: Int!
-    message_types_id: Int!
+    companies_id: ID!
+    users_id: ID!
+    message_types_id: ID!
     message: Mixed
     reactions_count: Int
     comment_count: Int
     total_liked: Int
     total_saved: Int
+    total_shared: Int
     parent: Message
     user: User!
     messageType: MessageType!
+    appModuleMessage: AppModuleMessage!
+    myInteraction: myInteraction @method(name: "getMyInteraction")
+    comments: [MessageComments!]!
+}
+
+type AppModuleMessage {
+    id: ID!
+    system_modules: String!
+    entity_id: Mixed!
+}
+
+type myInteraction {
+    is_liked: Boolean
+    is_saved: Boolean
+    is_shared: Boolean
+    is_reported: Boolean
 }
 
 input MessageInput {
-    message_types_id: Int!
+    message_types_id: ID!
     message: Mixed!
-    system_modules_id: Int!
+    parent_id: ID
+    system_modules_id: ID!
     entity_id: Mixed!
+    distribution: DistributionInput
 }
+
+enum DistributionType {
+    ALL
+    Channels
+    Followers
+}
+
+enum InteractionType {
+    LIKE @enum(value: 1)
+    SAVE @enum(value: 2)
+    SHARE @enum(value: 3)
+    REPORT @enum(value: 4)
+}
+
+input DistributionInput {
+    distributionType: DistributionType!
+    channels: [ID!]!
+    followers: [ID!]!
+}
+
 extend type Mutation @guard {
     createMessage(input: MessageInput!): Message
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@create"
+        )
+    interactionMessage(id: ID!, type: InteractionType!): Message
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@interaction"
+        )
+    attachTopicToMessage(message_id: ID!, topic_id: ID!): Message
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@attachTopicToMessage"
+        )
+    detachTopicToMessage(message_id: ID!, topic_id: ID!): Message
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@detachTopicToMessage"
         )
 }
 
@@ -48,11 +99,14 @@ extend type Query @guard {
                     "total_shared"
                 ]
             )
+        hasAppModuleMessage: _
+            @whereHasConditions(columns: ["entity_id", "system_modules"])
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
         search: String @search
     ): [Message]
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getAll"
+            scopes: ["fromApp"]
         )
 }

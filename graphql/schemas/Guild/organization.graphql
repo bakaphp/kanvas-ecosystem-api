@@ -14,7 +14,7 @@ input OrganizationInput {
 
 input OrganizationPeopleInput {
     organization_id: ID!
-    peoples_id: [ID!]!
+    peoples_id: [ID!]
 }
 
 extend type Mutation @guard {
@@ -46,10 +46,11 @@ extend type Query @guard {
                     "uuid"
                 ]
             )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [Organization!]!
         @paginate(
             model: "Kanvas\\Guild\\Organizations\\Models\\Organization"
             scopes: ["fromCompany"]
-            defaultCount: 10
+            defaultCount: 25
         )
 }

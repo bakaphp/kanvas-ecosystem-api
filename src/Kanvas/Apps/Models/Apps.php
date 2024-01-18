@@ -12,6 +12,7 @@ use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
@@ -70,7 +71,7 @@ class Apps extends BaseModel implements AppInterface
         });
     }
 
-    public static function getByUuid(string $uuid): self
+    public static function getByUuid(string $uuid, ?AppInterface $app = null): self
     {
         try {
             return self::where('key', $uuid)
@@ -78,8 +79,20 @@ class Apps extends BaseModel implements AppInterface
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException($e->getMessage());
+            throw new ExceptionsModelNotFoundException("No app found with id {$uuid}");
         }
+    }
+
+    public function companies(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Companies::class,
+            UserCompanyApps::class,
+            'apps_id',
+            'id',
+            'id',
+            'companies_id'
+        );
     }
 
     public function keys(): HasMany

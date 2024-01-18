@@ -91,10 +91,8 @@ trait HasCustomFields
 
     /**
      * Get the Custom Field.
-     *
-     * @return mixed
      */
-    public function get(string $name)
+    public function get(string $name): mixed
     {
         if ($value = $this->getFromRedis($name)) {
             return $value;
@@ -104,7 +102,7 @@ trait HasCustomFields
             return Str::jsonToArray($field->value);
         }
 
-        return ;
+        return null;
     }
 
     /**
@@ -151,10 +149,8 @@ trait HasCustomFields
 
     /**
      * Set value.
-     *
-     * @param mixed $value
      */
-    public function set(string $name, $value): AppsCustomFields
+    public function set(string $name, mixed $value): AppsCustomFields
     {
         $companyId = $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
         $modelName = get_class($this);
@@ -186,7 +182,7 @@ trait HasCustomFields
     public function createCustomField(string $name): CustomFields
     {
         $appsId = app(Apps::class)->id;
-        $companiesId = Auth::user() !== null ? Auth::user()->defaultCompany()->first()->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
+        $companiesId = Auth::user() !== null ? Auth::user()->getCurrentCompany()->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
         $textField = 1;
         // $cacheKey = Slug::generate(get_class($this) . '-' . $appsId . '-' . $name);
         //$lifetime = 604800;

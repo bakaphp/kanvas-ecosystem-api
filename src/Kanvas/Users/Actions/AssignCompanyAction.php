@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Users\Actions;
 
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
+use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Models\Role;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
@@ -17,22 +19,20 @@ use Kanvas\Users\Models\Users;
 
 class AssignCompanyAction
 {
-    public Users $user;
     public Companies $company;
-    public CompaniesBranches $branch;
-    public DefaultRoles $role;
+    public Role $role;
     public Apps $app;
 
     public function __construct(
-        Users $user,
-        CompaniesBranches $branch,
-        ?DefaultRoles $role = null,
+        public Users $user,
+        public CompaniesBranches $branch,
+        ?Role $role = null,
         ?Apps $app = null
     ) {
         $this->user = $user;
         $this->company = $branch->company()->firstOrFail();
         $this->branch = $branch;
-        $this->role = $role ?? DefaultRoles::ADMIN;
+        $this->role = $role ?? RolesRepository::getByNameFromCompany(RolesEnums::ADMIN->value, $this->company);
         $this->app = $app ?? app(Apps::class);
     }
 
@@ -64,7 +64,7 @@ class AssignCompanyAction
 
         $assignRole = new AssignRoleAction(
             $userAssociatedAppCompany,
-            RolesRepository::getByNameFromCompany($this->role->getValue()),
+            $this->role
         );
         $assignRole->execute();
 

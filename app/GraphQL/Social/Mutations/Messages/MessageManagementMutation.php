@@ -4,52 +4,95 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Mutations\Messages;
 
+use Baka\Exceptions\LightHouseCustomException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\Actions\DistributeChannelAction;
+use Kanvas\Social\Messages\Actions\DistributeToUsers;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
-use Kanvas\Social\Messages\Jobs\FillUserMessage;
-use Kanvas\Social\Messages\Models\UserMessageActivityType;
-use Kanvas\Social\Messages\Repositories\MessageRepository;
+use Kanvas\Social\Messages\Enums\ActivityTypeEnum;
+use Kanvas\Social\Messages\Enums\DistributionTypeEnum;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Users\Models\Users;
+use Kanvas\Auth\Exceptions\AuthenticationException;
 
 class MessageManagementMutation
 {
+    public function interaction(mixed $root, array $request): Message
+    {
+        $message = Message::getById((int)$request['id']);
+        $action = new CreateMessageAction($message, auth()->user(), ActivityTypeEnum::from($request['type']));
+        $action->execute();
+
+        return $message;
+    }
+
     /**
      * create
-     *
-     * @param  mixed $request
-     * @return void
      */
-    public function create(mixed $root, array $request)
+    public function create(mixed $root, array $request): Message
     {
-        $parent = null;
-        if (key_exists('parent_id', $request['input'])) {
-            $parent = MessageRepository::getById($request['input']['parent_id']);
+        $app = app(Apps::class);
+        /** @var Users $user */
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        /** @var array */
+        $messageData = $request['input'];
+
+        $messageType = MessagesTypesRepository::getById((int)$messageData['message_types_id'], $app);
+
+        /** @var SystemModules $systemModule */
+        $systemModule = SystemModules::getById((int)$messageData['system_modules_id'], $app);
+
+        $data = MessageInput::fromArray($messageData, $user, $messageType, $company, $app);
+        $action = new CreateMessageAction($data, $systemModule, $messageData['entity_id']);
+        $message = $action->execute();
+
+        if (! key_exists('distribution', $messageData)) {
+            return $message;
         }
 
-        $messageType = MessagesTypesRepository::getById($request['input']['message_types_id']);
-        $systemModule = SystemModules::getById($request['input']['system_modules_id']);
+        $distributionType = DistributionTypeEnum::from($messageData['distribution']['distributionType']);
 
-        $request['input']['parent_id'] = $parent ? $parent->id : 0;
-        $request['input']['parent_unique_id'] = $parent?->uuid;
-        $request['input']['apps_id'] = app(Apps::class)->id;
-        $request['input']['companies_id'] = auth()->user()->getCurrentCompany()->getId();
-        $request['input']['users_id'] = auth()->user()->id;
-        $data = MessageInput::from($request['input']);
-        $action = new CreateMessageAction($data, $systemModule, $request['input']['entity_id']);
-        $message = $action->execute();
-        $activity = [];
+        if ($distributionType->value == DistributionTypeEnum::ALL->value) {
+            $channels = key_exists('channels', $messageData['distribution']) ? $messageData['distribution']['channels'] : [];
+            (new DistributeChannelAction($channels, $message, $user))->execute();
+            (new DistributeToUsers($message))->execute();
+        } elseif ($distributionType->value == DistributionTypeEnum::Channels->value) {
+            $channels = key_exists('channels', $messageData['distribution']) ? $messageData['distribution']['channels'] : [];
+            (new DistributeChannelAction($channels, $message, $user))->execute();
+        } elseif ($distributionType->value == DistributionTypeEnum::Followers->value) {
+            (new DistributeToUsers($message))->execute();
+        }
 
-        $activityType = UserMessageActivityType::where('name', 'follow')->firstOrFail();
-        $activity = [
-                    'username' => '',
-                    'entity_namespace' => '',
-                    'text' => ' ',
-                    'type' => $activityType->id,
-            ];
+        return $message;
+    }
 
-        FillUserMessage::dispatch($message, $message->user, $activity)->onQueue('message');
+    public function update(mixed $root, array $request): Message
+    {
+        $message = Message::getById((int)$request['id'], app(Apps::class));
+        if (! $message->canEdit(auth()->user())) {
+            throw new AuthenticationException('You are not allowed to edit this message');
+        }
+        $message->update($request['input']);
+
+        return $message;
+    }
+
+    public function attachTopicToMessage(mixed $root, array $request): Message
+    {
+        $message = Message::getById((int)$request['id'], app(Apps::class));
+        $message->topics()->attach($request['topicId']);
+
+        return $message;
+    }
+
+    public function detachTopicToMessage(mixed $root, array $request): Message
+    {
+        $message = Message::getById((int)$request['id'], app(Apps::class));
+        $message->topics()->detach($request['topicId']);
 
         return $message;
     }

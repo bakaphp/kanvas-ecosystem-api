@@ -3,13 +3,16 @@ type People {
     uuid: String!
     company: Company! @belongsTo
     user: User! @belongsTo
-    name: String!
+    name: String! @method(name: "getName")
+    firstname: String!
+    middlename: String
+    lastname: String!
     dob: Date
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
     custom_fields: [CustomField!]!
         @paginate(
-            defaultCount: 10
+            defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
 }
@@ -24,20 +27,22 @@ type PeopleRelationship {
 input PeopleInput {
     id: ID
     firstname: String!
+    middlename: String
     lastname: String!
     facebook_contact_id: String
     twitter_contact_id: String
     linkedin_contact_id: String
     google_contact_id: String
     dob: String
-    contacts: [ContactInput!]!
-    address: [AddressInput!]!
-    custom_fields: [CustomFieldEntityInput!]!
+    contacts: [ContactInput!]
+    address: [AddressInput!]
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 input PeopleParticipantInput {
     id: ID
     firstname: String!
+    middlename: String
     lastname: String!
     participants_types_id: ID!
     facebook_contact_id: String
@@ -45,8 +50,8 @@ input PeopleParticipantInput {
     linkedin_contact_id: String
     google_contact_id: String
     dob: Date
-    contacts: [ContactInput!]!
-    address: [AddressInput!]!
+    contacts: [ContactInput!]
+    address: [AddressInput!]
 }
 
 extend type Query @guard {
@@ -60,18 +65,19 @@ extend type Query @guard {
                     "dob"
                 ]
             )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name", "dob"])
     ): [People!]!
         @paginate(
             model: "Kanvas\\Guild\\Customers\\Models\\People"
             scopes: ["fromCompany"]
-            defaultCount: 10
+            defaultCount: 25
         )
     peopleRelationships(
         where: _ @whereConditions(columns: ["name", "description", "id"])
     ): [PeopleRelationship!]!
         @paginate(
             model: "Kanvas\\Guild\\Customers\\Models\\PeopleRelationship"
-            defaultCount: 10
+            defaultCount: 25
             scopes: ["fromApp", "fromCompany"]
         )
 }

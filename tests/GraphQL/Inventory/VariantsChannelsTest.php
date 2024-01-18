@@ -42,8 +42,8 @@ class VariantsChannelsTest extends TestCase
             'regions_id' => $idRegion,
             'name' => 'Test Warehouse',
             'location' => 'Test Location',
-            'is_default' => false,
-            'is_published' => 1,
+            'is_default' => true,
+            'is_published' => true,
         ];
 
         $response = $this->graphQL('
@@ -60,7 +60,9 @@ class VariantsChannelsTest extends TestCase
             }', ['data' => $data])->assertJson([
             'data' => ['createWarehouse' => $data]
         ]);
-        $warehouseId = $response->json()['data']['createWarehouse']['id'];
+        $warehouseData = [
+            'id' => $response->json()['data']['createWarehouse']['id'],
+        ];
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
@@ -81,7 +83,7 @@ class VariantsChannelsTest extends TestCase
             'name' => fake()->name,
             'description' => fake()->text,
             'products_id' => $productId,
-            'warehouse_id' => $warehouseId
+            'warehouse' => $warehouseData
         ];
         $response = $this->graphQL('
         mutation($data: VariantsInput!) {
@@ -126,7 +128,7 @@ class VariantsChannelsTest extends TestCase
             [
                 'id' => $variantId,
                 'channels_id' => $channelId,
-                'warehouses_id' => $warehouseId,
+                'warehouses_id' => $warehouseData['id'],
                 'input' => [
                     'price' => 100,
                     'discounted_price' => 10,
@@ -149,7 +151,7 @@ class VariantsChannelsTest extends TestCase
             [
                 'id' => $variantId,
                 'channels_id' => $channelId,
-                'warehouses_id' => $warehouseId,
+                'warehouses_id' => $warehouseData['id'],
             ]
         );
         $response->assertJson([

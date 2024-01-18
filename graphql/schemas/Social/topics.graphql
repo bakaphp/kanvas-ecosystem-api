@@ -58,6 +58,19 @@ extend type Mutation {
         resolver: "App\\GraphQL\\Social\\Mutations\\Topics\\TopicsManagementMutation@update"
     )
 
+    followTopic(
+        id: ID!
+    ): Boolean
+    @field(
+        resolver: "App\\GraphQL\\Social\\Mutations\\Topics\\TopicsManagementMutation@followTopic"
+    )
+
+    unFollowTopic(
+        id: ID!
+    ): Boolean
+    @field(
+        resolver: "App\\GraphQL\\Social\\Mutations\\Topics\\TopicsManagementMutation@unFollowTopic"
+    )
     
 }
 

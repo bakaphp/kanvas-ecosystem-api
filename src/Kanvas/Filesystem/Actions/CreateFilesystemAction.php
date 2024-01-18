@@ -31,7 +31,7 @@ class CreateFilesystemAction
 
         $fileSystem = new Filesystem();
         $fileSystem->name = $this->file->getClientOriginalName();
-        $fileSystem->companies_id = $this->user->defaultCompany->getKey() ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
+        $fileSystem->companies_id = $this->user->getCurrentCompany()->getKey() ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
         $fileSystem->apps_id = $app->getKey();
         $fileSystem->users_id = $this->user->getKey();
         $fileSystem->path = $uploadPath;

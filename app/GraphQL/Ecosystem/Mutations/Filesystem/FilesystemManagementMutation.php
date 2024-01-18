@@ -52,6 +52,21 @@ class FilesystemManagementMutation
         return $fileEntity->softDelete();
     }
 
+    public function deAttachFiles(mixed $rootValue, array $request): bool
+    {
+        $company = auth()->user()->getCurrentCompany();
+        $fileEntities = FilesystemEntities::whereIn('uuid', $request['uuids'])
+            ->fromCompany($company)
+            ->notDeleted()
+            ->get();
+
+        foreach ($fileEntities as $fileEntity) {
+            $fileEntity->softDelete();
+        }
+
+        return true;
+    }
+
     /**
      * Upload a file, store it on the server and return the path.
      */

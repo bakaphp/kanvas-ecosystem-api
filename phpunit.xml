@@ -16,6 +16,15 @@
         <testsuite name="Social">
             <directory suffix="Test.php">./tests/Guild</directory>
         </testsuite>
+        <testsuite name="Connectors">
+            <directory suffix="Test.php">./tests/Connectors</directory>
+        </testsuite>
+        <testsuite name="Connectors">
+            <directory suffix="Test.php">./tests/Workflow</directory>
+        </testsuite>
+        <testsuite name="Connectors">
+            <directory suffix="Test.php">./tests/Baka</directory>
+        </testsuite>
     </testsuites>
     <php>
         <env name="APP_ENV" value="testing"/>
@@ -27,5 +36,8 @@
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
+        <ini name="display_errors" value="On" />
+        <ini name="display_startup_errors" value="On" />
+ 
     </php>
 </phpunit>

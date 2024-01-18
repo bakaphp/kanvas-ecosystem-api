@@ -33,7 +33,7 @@ trait HasCustomFieldsObserver
      */
     public function updated(CustomFieldModelInterface $model)
     {
-        if (!empty($this->customFields)) {
+        if (! empty($this->customFields)) {
             $model->deleteAllCustomFields();
             $model->saveCustomFields();
         }

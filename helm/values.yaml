@@ -27,6 +27,9 @@ deployments:
   queue:
     name: queue
     containerName: queue
+  notifications:
+    name: notifications-queue
+    containerName: notifications-queue
   healthcheck:
     name: healthcheck
     containerName: healthcheck

@@ -2,30 +2,30 @@
 
 input ImporterProductInput {
     name: String!
-    description: String!
-    regionId: Int!
+    description: String
+    regionId: Int
     slug: String!
     price: Float!
     discountPrice: Float
     sku: String!
-    variants: [VariantsInput]!
+    variants: [VariantsInput!]!
     quantity: Int!
     short_description: String
     html_description: String
     warranty_terms: String
-    files: [FilesystemInputUrl]
+    files: [FilesystemInputUrl!]
     upc: String
     isPublished: Boolean
-    warehouses: [Int]
+    warehouses: [Int!]
     source: String
     sourceId: Mixed
     productType: ProductTypeInput
-    categories: [CategoryInput]
-    attributes: [AttributeInput]
+    categories: [CategoryInput!]
+    attributes: [AttributeInput!]
 }
 
 extend type Mutation @guard {
-    importProduct(input: [ImporterProductInput!]!, branchId: Int!, regionId: Int!): String!
+    importProduct(input: [ImporterProductInput!]!, companyId: Int!, regionId: Int): String!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\ImportMutation@product"
         )

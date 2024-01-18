@@ -1,13 +1,15 @@
 type User {
     id: ID!
     uuid: String!
-    firstname: String!
-    lastname: String!
-    displayname: String!
+    firstname: String
+    lastname: String
+    displayname: String! @method(name: "getAppDisplayName")
     description: String
-    default_company: Int!
-    default_company_branch: Int!
-    email: Email!
+    dob: String
+    default_company: Int! @method(name: "defaultCompany")
+    default_company_branch: Int! @method(name: "defaultCompanyBranch")
+    email: Email! @method(name: "getAppEmail")
+    is_active: Boolean! @method(name: "getAppIsActive")
     contact: ContactInfo
         @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@contact")
     address: AddressType
@@ -21,9 +23,17 @@ type User {
     branches: [CompanyBranch!]! @HasManyThrough
     companies: [Company!]! @HasManyThrough
     apps: [App!]! @HasManyThrough
-    custom_fields: [CustomField!]!
+    photo: Filesystem @method(name: "getPhoto")
+    files: [Filesystem!]!
         @paginate(
-            defaultCount: 10
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    custom_fields(
+        orderBy: _ @orderBy(columns: ["updated_at", "created_at"])
+    ): [CustomField!]!
+        @paginate(
+            defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\HashFieldsQuery@getAllByGraphType"
         )
 }
@@ -91,10 +101,10 @@ input RegisterInput {
     lastname: String
     displayname: String
     email: Email! @rules(apply: ["required"])
-    password: String! @rules(apply: ["required"])
+    password: String! @rules(apply: ["required", "min:8"])
     password_confirmation: String! @rules(apply: ["required"])
     company_name: String
-    roles_id: ID
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 input DeviceInput {
@@ -119,7 +129,9 @@ input UpdateUserInput {
     state_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Models\\States,id"])
     country_id: Int
         @rules(apply: ["exists:Kanvas\\Locations\\Models\\Countries,id"])
-    custom_fields: [CustomFieldEntityInput!]!
+    custom_fields: [CustomFieldEntityInput!]
+    files: [FilesystemInputUrl!]
+    role_ids: [ID!]
 }
 
 extend type Mutation {
@@ -167,6 +179,16 @@ extend type Mutation {
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updateUser"
+        )
+    updateEmail(email: String!): Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updateUserEmail"
+        )
+    updateDisplayname(displayname: String!): Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updateUserDisplayName"
         )
     switchCompanyBranch(company_branch_id: Int!): Boolean!
         @guard

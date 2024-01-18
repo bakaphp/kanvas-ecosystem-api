@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Apps;
 
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
@@ -14,17 +15,18 @@ class AppsCrudTest extends TestCase
     public function testCreate()
     {
         $app = app(Apps::class);
+        $app->keys()->first()->user()->firstOrFail()->assign(RolesEnums::OWNER->value);
 
         $input = [
             'name' => fake()->name,
             'url' => fake()->url,
             'description' => trim(substr(fake()->text, 0, 44)),
             'domain' => fake()->safeEmailDomain,
-            'is_actived' => 1,
-            'ecosystem_auth' => 0,
-            'payments_active' => 0,
-            'is_public' => 1,
-            'domain_based' => 0,
+            'is_actived' => true,
+            'ecosystem_auth' => false,
+            'payments_active' => false,
+            'is_public' => true,
+            'domain_based' => false,
         ];
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation(
@@ -97,17 +99,18 @@ class AppsCrudTest extends TestCase
         $user = auth()->user();
         $apps->associateUser($user, StateEnums::ON->getValue());
         $app = app(Apps::class);
+        $app->keys()->first()->user()->firstOrFail()->assign(RolesEnums::OWNER->value);
 
         $input = [
             'name' => fake()->name,
             'url' => fake()->url,
             'description' => trim(substr(fake()->text, 0, 44)),
             'domain' => fake()->safeEmailDomain,
-            'is_actived' => 1,
-            'ecosystem_auth' => 0,
-            'payments_active' => 0,
-            'is_public' => 1,
-            'domain_based' => 0,
+            'is_actived' => true,
+            'ecosystem_auth' => false,
+            'payments_active' => false,
+            'is_public' => true,
+            'domain_based' => false,
         ];
 
         $response = $this->graphQL(/** @lang GraphQL */ '

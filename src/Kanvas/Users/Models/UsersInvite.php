@@ -23,6 +23,7 @@ use Kanvas\Models\BaseModel;
  * @property ?string $firstname
  * @property ?string $lastname
  * @property ?string $description
+ * @property ?string $configuration
  */
 class UsersInvite extends BaseModel
 {
@@ -32,20 +33,14 @@ class UsersInvite extends BaseModel
 
     /**
      * Not deleted scope.
-     *
-     * @param Builder $query
-     *
-     * @return Builder
      */
     public function scopeCompany(Builder $query): Builder
     {
-        return $query->where('companies_id', auth()->user()->defaultCompany->id);
+        return $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
     }
 
     /**
      * Get the user that owns the UsersInvite.
-     *
-     * @return BelongsTo
      */
     public function user(): BelongsTo
     {
@@ -54,8 +49,6 @@ class UsersInvite extends BaseModel
 
     /**
      * Belongs to company.
-     *
-     * @return BelongsTo
      */
     public function company(): BelongsTo
     {
@@ -64,8 +57,6 @@ class UsersInvite extends BaseModel
 
     /**
      * Belongs to branch.
-     *
-     * @return BelongsTo
      */
     public function branch(): BelongsTo
     {

@@ -53,6 +53,12 @@ class LeadTest extends TestCase
                     ],
                 ],
                 'custom_fields' => [],
+                'files' => [
+                    [
+                        'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                        'name' => 'dummy.pdf',
+                    ],
+                ],
             ];
         }
 
@@ -60,6 +66,7 @@ class LeadTest extends TestCase
             mutation($input: LeadInput!) {
                 createLead(input: $input) {                
                     id
+                    uuid
                     people {
                         id
                     }
@@ -109,6 +116,12 @@ class LeadTest extends TestCase
                 [
                     'name' => 'test',
                     'data' => 'test',
+                ],
+            ],
+            'files' => [
+                [
+                    'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'name' => 'dummy.pdf',
                 ],
             ],
         ];
@@ -167,6 +180,12 @@ class LeadTest extends TestCase
                     'data' => 'test',
                 ],
             ],
+            'files' => [
+                [
+                    'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'name' => 'dummy.pdf',
+                ],
+            ],
         ];
 
         $response = $this->createLeadAndGetResponse($input);
@@ -179,6 +198,7 @@ class LeadTest extends TestCase
             'title' => $title,
             'people_id' => $peopleId,
             'custom_fields' => [],
+            'files' => [],
         ];
 
         $this->graphQL('
@@ -239,6 +259,12 @@ class LeadTest extends TestCase
                     'data' => 'test',
                 ],
             ],
+            'files' => [
+                [
+                    'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'name' => 'dummy.pdf',
+                ],
+            ],
         ];
 
         $response = $this->createLeadAndGetResponse($input);
@@ -295,6 +321,12 @@ class LeadTest extends TestCase
                     'data' => 'test',
                 ],
             ],
+            'files' => [
+                [
+                    'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'name' => 'dummy.pdf',
+                ],
+            ],
         ];
 
         $response = $this->createLeadAndGetResponse($input);
@@ -324,5 +356,172 @@ class LeadTest extends TestCase
                     'restoreLead' => true,
                 ],
             ]);
+    }
+
+    public function testDashboard()
+    {
+        $this->graphQL('
+        {
+            leadsDashboard(first: 1, 
+                where: {
+                    column: USERS_ID, operator: EQ, value: 1186
+                    } 
+            ) {
+                data {
+                    total_active_leads
+                    total_closed_leads
+                    total_agents
+                }
+                
+            }
+        }')->assertSuccessful()
+            ->assertSee('total_active_leads')
+            ->assertSee('total_closed_leads')
+            ->assertSee('total_agents');
+    }
+
+    public function testFollowLead()
+    {
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $title = fake()->title();
+
+        $input = [
+            'branch_id' => $branch->getId(),
+            'title' => $title,
+            'pipeline_stage_id' => 0,
+            'people' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+                'contacts' => [
+                    [
+                        'value' => fake()->email(),
+                        'contacts_types_id' => 1,
+                        'weight' => 0,
+                    ],
+                ],
+                'address' => [
+                    [
+                        'address' => fake()->address(),
+                        'city' => fake()->city(),
+                        'state' => fake()->state(),
+                        'country' => fake()->country(),
+                        'zip' => fake()->postcode(),
+                    ],
+                ],
+                'custom_fields' => [],
+            ],
+            'custom_fields' => [
+                [
+                    'name' => 'test',
+                    'data' => 'test',
+                ],
+            ],
+            'files' => [
+                [
+                    'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'name' => 'dummy.pdf',
+                ],
+            ],
+        ];
+
+        $response = $this->createLeadAndGetResponse($input);
+
+        $leadUuid = $response['data']['createLead']['uuid'];
+
+        $this->graphQL('
+        mutation($input: FollowInput!) {
+            followLead(input: $input)
+            }
+        ', [
+        'input' => [
+            'entity_id' => $leadUuid,
+            'user_id' => $user->getId(),
+        ],
+        ])->assertJson([
+            'data' => [
+                'followLead' => true,
+            ],
+        ]);
+    }
+
+    public function testUnFollowLead()
+    {
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $title = fake()->title();
+
+        $input = [
+            'branch_id' => $branch->getId(),
+            'title' => $title,
+            'pipeline_stage_id' => 0,
+            'people' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+                'contacts' => [
+                    [
+                        'value' => fake()->email(),
+                        'contacts_types_id' => 1,
+                        'weight' => 0,
+                    ],
+                ],
+                'address' => [
+                    [
+                        'address' => fake()->address(),
+                        'city' => fake()->city(),
+                        'state' => fake()->state(),
+                        'country' => fake()->country(),
+                        'zip' => fake()->postcode(),
+                    ],
+                ],
+                'custom_fields' => [],
+            ],
+            'custom_fields' => [
+                [
+                    'name' => 'test',
+                    'data' => 'test',
+                ],
+            ],
+            'files' => [
+                [
+                    'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'name' => 'dummy.pdf',
+                ],
+            ],
+        ];
+
+        $response = $this->createLeadAndGetResponse($input);
+
+        $leadUuid = $response['data']['createLead']['uuid'];
+
+        $this->graphQL('
+        mutation($input: FollowInput!) {
+            followLead(input: $input)
+            }
+        ', [
+        'input' => [
+            'entity_id' => $leadUuid,
+            'user_id' => $user->getId(),
+        ],
+        ])->assertJson([
+            'data' => [
+                'followLead' => true,
+            ],
+        ]);
+
+        $this->graphQL('
+        mutation($input: FollowInput!) {
+            unFollowLead(input: $input)
+            }
+        ', [
+        'input' => [
+            'entity_id' => $leadUuid,
+            'user_id' => $user->getId(),
+        ],
+        ])->assertJson([
+            'data' => [
+                'unFollowLead' => true,
+            ],
+        ]);
     }
 }

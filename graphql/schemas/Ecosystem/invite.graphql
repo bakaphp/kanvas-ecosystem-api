@@ -22,14 +22,14 @@ type ExternalInvite {
 }
 
 input InviteInput {
-    role_id: Int!
+    role_id: Int
     companies_branches_id: Int
     email: String!
     firstname: String
     lastname: String
     description: String
     email_template: String
-    custom_fields: [CustomFieldEntityInput!]!
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 input CompleteInviteInput {

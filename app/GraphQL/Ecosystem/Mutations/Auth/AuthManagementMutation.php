@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Auth;
 
+use Baka\Validations\PasswordValidation;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Validator;
@@ -91,6 +92,8 @@ class AuthManagementMutation
         GraphQLContext $context = null,
         ResolveInfo $resolveInfo
     ): array {
+        $app = app(Apps::class);
+
         Validator::make(
             $request['data'],
             [
@@ -101,6 +104,7 @@ class AuthManagementMutation
                 ],
             ]
         )->validate();
+        PasswordValidation::validateArray($request['data'], $app);
 
         $data = RegisterInput::fromArray($request['data']);
         $user = new RegisterUsersAction($data);

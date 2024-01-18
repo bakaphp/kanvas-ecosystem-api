@@ -6,8 +6,9 @@ namespace Kanvas\Apps\Actions;
 
 use Illuminate\Support\Facades\DB;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\DataTransferObject\AppInput;
-use Kanvas\Apps\Enums\DefaultRoles;
+use Kanvas\Apps\Jobs\CreateSystemModuleJob;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Roles\Models\Roles;
@@ -29,8 +30,6 @@ class CreateAppsAction
     /**
      * Invoke function.
      *
-     * @return Apps
-     *
      * @throws Throwable
      */
     public function execute(): Apps
@@ -51,10 +50,14 @@ class CreateAppsAction
             $app->saveOrFail();
 
             $app->associateUser($this->user, $this->data->is_actived);
+            $this->user->assign(RolesEnums::OWNER->value);
 
             $this->settings($app);
             $this->systemModules($app);
             $this->acl($app);
+            CreateSystemModuleJob::dispatch($app);
+            //@todo
+            // $this->createEmailTemplate($app);
         });
 
         return $app;
@@ -109,6 +112,9 @@ class CreateAppsAction
             ], [
                 'name' => 'default_feeds_comments',
                 'value' => '3',
+            ], [
+                'name' => 'notification_from_user_id',
+                'value' => $this->user->getId(),
             ],
         ];
 
@@ -119,10 +125,6 @@ class CreateAppsAction
 
     /**
      * Create the system modules.
-     *
-     * @param Apps $app
-     *
-     * @return void
      */
     public function systemModules(Apps $app): void
     {
@@ -144,10 +146,12 @@ class CreateAppsAction
     public function acl(Apps $app): void
     {
         $roles = [
-            'Admins',
-            DefaultRoles::USER->getValue(),
-            DefaultRoles::MANAGER->getValue(),
-            DefaultRoles::DEVELOPER->getValue(),
+            //'Admins',
+            RolesEnums::OWNER->value,
+            RolesEnums::ADMIN->value, //replace from admins when migration is complete
+            RolesEnums::USER->value,
+            RolesEnums::MANAGER->value,
+            RolesEnums::DEVELOPER->value,
         ];
 
         foreach ($roles as $role) {

@@ -1,0 +1,49 @@
+<?php
+
+namespace Baka\Search;
+
+use Baka\Search\MeiliSearchService as SearchMeiliSearchService;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+
+class DeleteInMeiliSearchJob implements ShouldQueue
+{
+    use Dispatchable;
+    use InteractsWithQueue;
+    use Queueable;
+    use SerializesModels;
+
+    /**
+     * Create a new job instance.
+     */
+    public function __construct(
+        public string $indexName,
+        public Model $model
+    ) {
+        $this->model = $model;
+        $this->indexName = $indexName;
+    }
+
+    /**
+     * Execute the job.
+     *
+     * @return void
+     */
+    public function handle()
+    {
+        $meiliSearchService = new SearchMeiliSearchService();
+        $meiliSearchService->deleteRecord($this->indexName, $this->model);
+
+        //we did this because for some reason the index name with searchable queue takes the app id from local kanvas
+        $meiliSearchService->deleteRecord($this->removeCompanyId($this->indexName), $this->model);
+    }
+
+    protected function removeCompanyId(string $str): string
+    {
+        return preg_replace('/\d+$/', '', $str);
+    }
+}

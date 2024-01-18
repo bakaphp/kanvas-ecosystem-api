@@ -22,7 +22,7 @@ class AuthTest extends TestCase
         if (empty(self::$loginData)) {
             self::$loginData = LoginInput::from([
                 'email' => fake()->email,
-                'password' => fake()->password(8),
+                'password' => fake()->password(9),
                 'ip' => request()->ip(),
             ]);
         }
@@ -74,7 +74,7 @@ class AuthTest extends TestCase
     }
 
     /**
-     * test_save.
+     * test signup.
      */
     public function testSignup(): void
     {

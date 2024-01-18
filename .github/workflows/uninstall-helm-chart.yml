@@ -10,7 +10,7 @@ jobs:
       packages: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Kubernetes toolset
         uses: stefanprodan/kube-tools@v1.7.2

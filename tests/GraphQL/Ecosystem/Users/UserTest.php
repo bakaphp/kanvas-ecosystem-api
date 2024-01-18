@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Users;
 
+use Illuminate\Support\Facades\Mail;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Users\Models\Users;
@@ -68,6 +69,12 @@ class UserTest extends TestCase
                         [
                             'name' => 'test',
                             'data' => 'test',
+                        ],
+                    ],
+                    'files' => [
+                        [
+                            'name' => 'photo',
+                            'url' => fake()->url,
                         ],
                     ],
                 ],
@@ -174,5 +181,45 @@ class UserTest extends TestCase
         ->assertSee('time')
         ->assertSee('timezone')
         ->assertSee('refresh_token');
+    }
+
+    public function testChangeEmail(): void
+    {
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation updateEmail(
+                $email: String!
+            ) {
+                updateEmail(
+                    email: $email
+                )
+            }
+        ', [
+            'email' => fake()->email,
+        ])->assertJson([
+            'data' => [
+                'updateEmail' => true,
+            ],
+        ]);
+    }
+
+    public function testChangeDisplayName(): void
+    {
+        Mail::fake();
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation updateDisplayname(
+                $displayname: String!
+            ) {
+                updateDisplayname(
+                    displayname: $displayname
+                )
+            }
+        ', [
+            'displayname' => fake()->userName(),
+        ])->assertJson([
+            'data' => [
+                'updateDisplayname' => true,
+            ],
+        ]);
     }
 }

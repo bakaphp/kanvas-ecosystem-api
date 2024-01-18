@@ -75,11 +75,13 @@ class PeopleTest extends TestCase
         $user = auth()->user();
         $branch = $user->getCurrentBranch();
         $firstname = fake()->firstName();
+        $middlename = fake()->firstName();
         $lastname = fake()->lastName();
-        $name = $firstname . ' ' . $lastname;
+        $name = $firstname . ' ' . $middlename . ' ' . $lastname;
 
         $input = [
             'firstname' => $firstname,
+            'middlename' => $middlename, // @todo remove this
             'lastname' => $lastname,
             'contacts' => [
                 [
@@ -108,7 +110,10 @@ class PeopleTest extends TestCase
         $this->graphQL('
         mutation($input: PeopleInput!) {
             createPeople(input: $input) {                
-                name
+                firstname,
+                middlename,
+                lastname,
+                name,
             }
         }
     ', [
@@ -116,6 +121,9 @@ class PeopleTest extends TestCase
         ])->assertJson([
             'data' => [
                 'createPeople' => [
+                    'firstname' => $firstname,
+                    'middlename' => $middlename,
+                    'lastname' => $lastname,
                     'name' => $name,
                 ],
             ],

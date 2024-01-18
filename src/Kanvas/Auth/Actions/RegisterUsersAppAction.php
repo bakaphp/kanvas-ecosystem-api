@@ -26,6 +26,8 @@ class RegisterUsersAppAction
 
     /**
      * Register an user into a new app with a password for the login.
+     *
+     * @psalm-suppress MixedReturnStatement
      */
     public function execute(string $password): UsersAssociatedApps
     {
@@ -40,6 +42,10 @@ class RegisterUsersAppAction
         ], [
             'identify_id' => $this->user->getKey(),
             'password' => $password,
+            'firstname' => $this->user->firstname,
+            'lastname' => $this->user->lastname,
+            'email' => $this->user->email,
+            'is_active' => StatusEnums::ACTIVE->getValue(),
             'user_active' => StatusEnums::ACTIVE->getValue(),
             'user_role' => $this->user->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue(),
             'displayname' => $this->user->displayname,

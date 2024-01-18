@@ -7,6 +7,9 @@ namespace Baka\Traits;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Exceptions\ConfigurationException;
 
+/**
+ * @todo implement redis hashtable for speed
+ */
 trait HashTableTrait
 {
     protected ?Model $settingsModel = null;
@@ -32,7 +35,7 @@ trait HashTableTrait
     /**
      * Set the settings.
      */
-    public function set(string $key, mixed $value): bool
+    public function set(string $key, mixed $value, int $isPublic = 0): bool
     {
         $this->createSettingsModel();
 
@@ -54,15 +57,24 @@ trait HashTableTrait
         }
         $this->settingsModel->name = $key;
         $this->settingsModel->value = $value;
+        $this->settingsModel->is_public = $isPublic;
         $this->settingsModel->save();
 
         return true;
     }
 
+    /**
+     * @param array<array-key, array{name: string, data: mixed}> $settings
+     * @throws ConfigurationException
+     */
     public function setAll(array $settings): bool
     {
-        foreach ($settings as $value) {
-            $this->set($value['name'], $value['data']);
+        if (empty($settings)) {
+            return false;
+        }
+
+        foreach ($settings as $setting) {
+            $this->set($setting['name'], $setting['data']);
         }
 
         return true;
@@ -80,8 +92,6 @@ trait HashTableTrait
 
     /**
      * Get all the setting of a given record.
-     *
-     * @param bool $all
      */
     public function getAllSettings(bool $onlyPublicSettings = false): array
     {

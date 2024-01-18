@@ -6,11 +6,11 @@ namespace Kanvas\Templates\Models;
 
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Models\BaseModel;
-use Kanvas\Users\Models\Users;
+use Kanvas\Notifications\Models\NotificationTypes;
 
 /**
  * Apps Model.
@@ -29,7 +29,7 @@ use Kanvas\Users\Models\Users;
 class Templates extends BaseModel
 {
     use HasCustomFields;
-    use Cachable;
+    // use Cachable;
 
     /**
      * The table associated with the model.
@@ -44,30 +44,6 @@ class Templates extends BaseModel
      * @var array
      */
     protected $guarded = [];
-
-    /**
-     * Users relationship.
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(Users::class, 'users_id');
-    }
-
-    /**
-     * Users relationship.
-     */
-    public function company(): BelongsTo
-    {
-        return $this->belongsTo(Companies::class, 'companies_id');
-    }
-
-    /**
-     * Users relationship.
-     */
-    public function app(): BelongsTo
-    {
-        return $this->belongsTo(Apps::class, 'apps_id');
-    }
 
     public function addParentTemplate(Templates $template): void
     {
@@ -91,5 +67,13 @@ class Templates extends BaseModel
     public function hasParentTemplate(): bool
     {
         return $this->parent_template_id > 0;
+    }
+
+    /**
+     * NotificationTypes Relationship
+     */
+    public function notificationType(): HasOne
+    {
+        return $this->hasOne(NotificationTypes::class, 'template_id');
     }
 }

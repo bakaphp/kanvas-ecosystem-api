@@ -42,8 +42,8 @@ class RemoveVariantsToWarehouseTest extends TestCase
             'regions_id' => $idRegion,
             'name' => 'Test Warehouse',
             'location' => 'Test Location',
-            'is_default' => false,
-            'is_published' => 1,
+            'is_default' => true,
+            'is_published' => true,
         ];
 
         $response = $this->graphQL('
@@ -60,7 +60,9 @@ class RemoveVariantsToWarehouseTest extends TestCase
             }', ['data' => $data])->assertJson([
             'data' => ['createWarehouse' => $data]
         ]);
-        $warehouseId = $response->json()['data']['createWarehouse']['id'];
+        $warehouseData = [
+            'id' => $response->json()['data']['createWarehouse']['id'],
+        ];
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
@@ -81,7 +83,7 @@ class RemoveVariantsToWarehouseTest extends TestCase
             'name' => fake()->name,
             'description' => fake()->text,
             'products_id' => $productId,
-            'warehouse_id' => $warehouseId
+            'warehouse' => $warehouseData
         ];
         $response = $this->graphQL('
         mutation($data: VariantsInput!) {
@@ -118,14 +120,14 @@ class RemoveVariantsToWarehouseTest extends TestCase
         }', [
             'data' => $data,
             'id' => $variantId,
-            'warehouse_id' => $warehouseId
+            'warehouse_id' => $warehouseData['id']
         ]);
         $this->graphQL('
         mutation($id: Int! $warehouse_id: Int!) {
             removeVariantToWarehouse(id: $id warehouse_id: $warehouse_id)
         }', [
             'id' => $variantId,
-            'warehouse_id' => $warehouseId
+            'warehouse_id' => $warehouseData['id']
         ]);
         $this->assertArrayHasKey('data', $response->json());
     }

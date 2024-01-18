@@ -1,0 +1,104 @@
+type Reaction {
+    id: ID!
+    name: String!
+    icon: String!
+    company: Company!
+}
+
+input ReactionInput {
+    name: String!
+    icon: String!
+}
+
+input UserReactionInput {
+    reactions_id: ID!
+    entity_id: ID!
+    system_modules_uuid: ID!
+}
+
+type UserReaction {
+    id: ID!
+    user: User!
+    reaction: Reaction!
+    entity_id: ID!
+    entity_namespace: String!
+}
+type ReactionsGroupBy {
+    reactions_id: ID
+    name: String
+    icon: String
+    total: Int
+}
+
+extend type Mutation @guard {
+    createReaction(input: ReactionInput!): Reaction
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Reactions\\ReactionManagementMutation@create"
+        )
+    updateReaction(id: ID!, input: ReactionInput!): Reaction
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Reactions\\ReactionManagementMutation@update"
+        )
+    deleteReaction(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Reactions\\ReactionManagementMutation@delete"
+        )
+    reactToEntity(input: UserReactionInput!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Reactions\\ReactionManagementMutation@reactToEntity"
+        )
+}
+
+extend type Query {
+    getReactions(
+        where: _
+            @whereConditions(
+                columns: ["id", "name", "apps_id", "companies_id", "icon"]
+            )
+        orderBy: _ @orderBy(columns: ["id"])
+
+    ): [Reaction]!
+        @paginate(
+            model: "Kanvas\\Social\\Reactions\\Models\\Reaction"
+            defaultCount: 25
+            scopes: ["fromApp"]
+        )
+    getReaction(id: ID! @eq): Reaction
+        @find(model: "Kanvas\\Social\\Reactions\\Models\\Reaction")
+    getUserReactions(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "users_id"
+                    "reactions_id"
+                    "entity_id"
+                    "entity_namespace"
+                ]
+            )
+    ): [UserReaction!]
+        @paginate(
+            model: "Kanvas\\Social\\Reactions\\Models\\UserReaction"
+            defaultCount: 25
+        )
+    countUserReaction(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "users_id"
+                    "reactions_id"
+                    "entity_id"
+                    "entity_namespace"
+                ]
+            )
+    ): Int @count(model: "Kanvas\\Social\\Reactions\\Models\\UserReaction")
+    getUserReactionGroupByReaction(
+        system_module_uuid: ID,
+        entity_id: ID
+    ): [ReactionsGroupBy!]
+        @field(
+            resolver: "App\\GraphQL\\Social\\Queries\\Reactions\\UserReactionQueries@getUserReactionGroupByReaction"
+        )
+}
+

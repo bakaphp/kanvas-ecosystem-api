@@ -1,0 +1,88 @@
+type WarehouseVariantRelationship {
+    warehouses_id: ID!
+    warehouseinfo: Warehouse @belongsToMany(relation: "warehouse")
+    channels: [VariantChannelRelationship]
+    quantity: Float
+    price: Float
+    status: Status
+    sku: String
+    position: Int
+    serial_number: String
+    is_oversellable: Boolean
+    is_variant_default: Boolean
+    is_best_seller: Boolean
+    is_on_sale: Boolean
+    is_on_promo: Boolean
+    can_pre_order: Boolean
+    is_coming_soon: Boolean
+    is_new: Boolean
+    is_published: Boolean
+    status_history: [StatusHistoryRelationship]
+        @method(name: "getStatusHistory")
+}
+
+input VariantsWarehousesInput {
+    warehouse_id: ID!
+    quantity: Float
+    status: StatusReferenceInput
+    price: Float
+    sku: String
+    position: Int
+    serial_number: String
+    is_oversellable: Boolean
+    is_default: Boolean
+    is_best_seller: Boolean
+    is_on_sale: Boolean
+    is_on_promo: Boolean
+    can_pre_order: Boolean
+    is_coming_soon: Boolean
+    is_new: Boolean
+}
+
+extend type Mutation @guard {
+    addVariantToWarehouse(id: ID!, input: VariantsWarehousesInput!): Variant
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addToWarehouse"
+        )
+    updateVariantInWarehouse(id: ID!, input: VariantsWarehousesInput!): Variant
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@updateVariantInWarehouse"
+        )
+    removeVariantToWarehouse(id: Int!, warehouse_id: Int!): Variant
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@removeToWarehouse"
+        )
+}
+
+extend type Query @guard {
+    warehouseVariants(
+        warehouseId: Int!
+        search: String @search
+        where: _ @whereConditions(columns: ["quantity", "price", "sku"])
+    ): [Variant!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantWarehouseBuilder@allVariantsInWarehouse"
+        )
+    variantsByStatus(
+        warehouse_id: ID!
+        status_id: [ID]!
+        search: String @search
+        where: _ @whereConditions(columns: ["quantity", "price", "sku"])
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "products_id"
+                    "is_published"
+                ]
+            )
+    ): [Variant!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantWarehouseBuilder@getVariantsByStatus"
+        )
+}

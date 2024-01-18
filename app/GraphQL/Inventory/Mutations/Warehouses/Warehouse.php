@@ -49,6 +49,7 @@ class Warehouse
             )->getKey();
         }
         $warehouse->update($request);
+
         return $warehouse;
     }
 

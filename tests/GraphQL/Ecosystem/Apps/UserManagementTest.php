@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Apps;
 
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\RegisterUsersAppAction;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Users\Models\Users;
-use Kanvas\Users\Models\UsersAssociatedApps;
 use Tests\TestCase;
 
 class UserManagementTest extends TestCase
@@ -16,6 +17,7 @@ class UserManagementTest extends TestCase
     public function testGetAllAppUsers()
     {
         $app = app(Apps::class);
+        $app->keys()->first()->user()->firstOrFail()->assign(RolesEnums::OWNER->value);
 
         $response = $this->graphQL(
             /** @lang GraphQL */
@@ -46,6 +48,7 @@ class UserManagementTest extends TestCase
     public function testUpdateUserPassword()
     {
         $app = app(Apps::class);
+        $app->keys()->first()->user()->firstOrFail()->assign(RolesEnums::OWNER->value);
 
         $response = $this->graphQL(
             /** @lang GraphQL */
@@ -104,6 +107,7 @@ class UserManagementTest extends TestCase
     public function testUpdateUserEmail()
     {
         $app = app(Apps::class);
+        $app->keys()->first()->user()->firstOrFail()->assign(RolesEnums::OWNER->value);
 
         $response = $this->graphQL(
             /** @lang GraphQL */
@@ -152,5 +156,197 @@ class UserManagementTest extends TestCase
                 'appUserUpdateEmail' => true,
             ],
         ]);
+    }
+
+    public function testCreateUser()
+    {
+        $app = app(Apps::class);
+
+        $user = $app->keys()->first()->user()->firstOrFail();
+        $user->assign(RolesEnums::OWNER->value);
+        $company = $user->getCurrentCompany();
+
+        $email = fake()->email();
+        $response = $this->graphQL(/** @lang GraphQL */ '
+            mutation appCreateUser($data: CreateUserInput!) {
+                appCreateUser(data: $data) {
+                    id
+                    email
+                }
+              }',
+            [
+                'data' => [
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                    'email' => $email,
+                    'custom_fields' => [],
+                ],
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        );
+
+        $response->assertJson([
+            'data' => [
+                'appCreateUser' => [
+                    'email' => $email,
+                ],
+            ],
+        ]);
+
+        $user = Users::getByEmail($email);
+        $this->assertTrue($user->companies()->count() == 1);
+        $this->assertTrue($user->companies()->first()->id == $company->getId());
+    }
+
+    public function testDeletedUser()
+    {
+        $app = app(Apps::class);
+
+        $user = $app->keys()->first()->user()->firstOrFail();
+        $user->assign(RolesEnums::OWNER->value);
+
+        $email = fake()->email();
+        $response = $this->graphQL(/** @lang GraphQL */ '
+            mutation appCreateUser($data: CreateUserInput!) {
+                appCreateUser(data: $data) {
+                    id
+                    email
+                }
+              }',
+            [
+                'data' => [
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                    'email' => $email,
+                    'custom_fields' => [],
+                ],
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        );
+
+        $userId = $response->json('data.appCreateUser.id');
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation appDeleteUser($user_id: ID!) {
+                appDeleteUser(user_id: $user_id) 
+            }',
+            [
+                'user_id' => $userId,
+            ]
+        )->assertJson([
+            'data' => [
+                'appDeleteUser' => true,
+            ],
+        ]);
+    }
+
+    public function testRestoreDeletedUser()
+    {
+        $app = app(Apps::class);
+
+        $user = $app->keys()->first()->user()->firstOrFail();
+        $user->assign(RolesEnums::OWNER->value);
+
+        $email = fake()->email();
+        $response = $this->graphQL(/** @lang GraphQL */ '
+            mutation appCreateUser($data: CreateUserInput!) {
+                appCreateUser(data: $data) {
+                    id
+                    email
+                }
+              }',
+            [
+                'data' => [
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                    'email' => $email,
+                    'custom_fields' => [],
+                ],
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        );
+
+        $userId = $response->json('data.appCreateUser.id');
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation appDeleteUser($user_id: ID!) {
+                appDeleteUser(user_id: $user_id) 
+            }',
+            [
+                'user_id' => $userId,
+            ]
+        )->assertJson([
+            'data' => [
+                'appDeleteUser' => true,
+            ],
+        ]);
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation appRestoreDeletedUser($user_id: ID!) {
+                appRestoreDeletedUser(user_id: $user_id) 
+            }',
+            [
+                'user_id' => $userId,
+            ]
+        )->assertJson([
+            'data' => [
+                'appRestoreDeletedUser' => true,
+            ],
+        ]);
+    }
+
+    public function testCreateCompanyAssignmentUser()
+    {
+        $app = app(Apps::class);
+
+        $app->del(AppSettingsEnums::ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY->getValue());
+
+        $user = $app->keys()->first()->user()->firstOrFail();
+        $user->assign(RolesEnums::OWNER->value);
+        $company = $user->getCurrentCompany();
+
+        $email = fake()->email();
+        $response = $this->graphQL(/** @lang GraphQL */ '
+            mutation appCreateUser($data: CreateUserInput!) {
+                appCreateUser(data: $data) {
+                    id
+                    email
+                }
+              }',
+            [
+                'data' => [
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                    'email' => $email,
+                    'custom_fields' => [],
+                    'create_company' => true,
+                ],
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        );
+
+        $response->assertJson([
+            'data' => [
+                'appCreateUser' => [
+                    'email' => $email,
+                ],
+            ],
+        ]);
+
+        $user = Users::getByEmail($email);
+        $this->assertTrue($user->companies()->count() == 1);
+        $this->assertTrue($user->companies()->first()->id != $company->getId());
     }
 }

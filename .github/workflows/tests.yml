@@ -25,6 +25,9 @@ jobs:
       DB_CRM_DATABASE: social
       DB_CRM_USERNAME: root
       DB_CRM_PASSWORD: password
+      DB_WORKFLOW_DATABASE: social
+      DB_WORKFLOW_USERNAME: root
+      DB_WORKFLOW_PASSWORD: password
       KANVAS_APP_ID: 059ddaaf-89b5-4158-a85a-90cbd69aa34b
       APP_KEY: base64:4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY=
       APP_JWT_TOKEN: 4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY
@@ -48,6 +51,10 @@ jobs:
       MEILISEARCH_KEY: masterKey
       SCOUT_QUEUE: false
       #APP_DEBUG: true
+      #thirparty integration
+      TEST_ZOHO_CLIENT_ID: ${{ secrets.TEST_ZOHO_CLIENT_ID }}
+      TEST_ZOHO_CLIENT_SECRET: ${{ secrets.TEST_ZOHO_CLIENT_SECRET }}
+      TEST_ZOHO_CLIENT_REFRESH_TOKEN: ${{ secrets.TEST_ZOHO_CLIENT_REFRESH_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -86,7 +93,7 @@ jobs:
         ports:
           - 7700:7700
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -118,12 +125,26 @@ jobs:
         run: |
           mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS crm;'
 
+      - name: Setup WORKFLOW DB
+        run: |
+          mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS workflow;'
+
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
       - name: Setup Kanvas Ecosystem
         run: php artisan kanvas:setup-ecosystem
 
+      - name: create .env file
+        run: echo '' > .env
+
       - name: Run Tests
         if: success()
         run: php artisan test
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@master
+        if: failure()
+        with:
+          name: Logs
+          path: ./storage/logs

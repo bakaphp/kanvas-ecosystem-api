@@ -2,7 +2,11 @@
 
 namespace App\Console\Commands;
 
+use Baka\Traits\KanvasJobsTrait;
+use Bouncer;
 use Illuminate\Console\Command;
+use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -11,6 +15,8 @@ use Kanvas\Users\Repositories\UsersRepository;
 
 class KanvasUserAddToCompany extends Command
 {
+    use KanvasJobsTrait;
+
     /**
      * The name and signature of the console command.
      *
@@ -31,9 +37,12 @@ class KanvasUserAddToCompany extends Command
     public function handle(): void
     {
         $app = Apps::getById((int) $this->argument('apps_id'));
+        $this->overwriteAppService($app);
+        Bouncer::scope()->to(RolesEnums::getScope($app));
+
         $email = $this->argument('email');
         $branchId = $this->argument('branch_id');
-        $role = $this->argument('role') ?? DefaultRoles::ADMIN;
+        $role = RolesRepository::getByMixedParamFromCompany($this->argument('role') ?? RolesEnums::ADMIN->value);
 
         $branch = CompaniesBranches::findOrFail($branchId);
         $company = $branch->company()->first();

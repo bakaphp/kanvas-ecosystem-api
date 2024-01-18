@@ -29,6 +29,7 @@ class CompaniesBranchPostData extends Data
         public ?string $address = null,
         public ?string $phone = null,
         public ?int $zipcode = null,
+        public ?array $files = null
     ) {
     }
 
@@ -46,7 +47,8 @@ class CompaniesBranchPostData extends Data
             companies_id: (int) $request->get('companies_id'),
             users_id: Auth::user()->id,
             is_default: (int) $request->get('is_default'),
-            email : $request->get('email')
+            email : $request->get('email'),
+            files : $request->get('files'),
         );
     }
 
@@ -67,6 +69,7 @@ class CompaniesBranchPostData extends Data
             email : $data['email'] ?? null,
             phone : $data['phone'] ?? null,
             zipcode : $data['zipcode'] ?? null,
+            files: $data['files'] ?? null
         );
     }
 }

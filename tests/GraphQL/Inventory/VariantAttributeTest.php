@@ -42,8 +42,8 @@ class VariantAttributeTest extends TestCase
             'regions_id' => $idRegion,
             'name' => 'Test Warehouse',
             'location' => 'Test Location',
-            'is_default' => false,
-            'is_published' => 1,
+            'is_default' => true,
+            'is_published' => true,
         ];
 
         $response = $this->graphQL('
@@ -60,7 +60,10 @@ class VariantAttributeTest extends TestCase
             }', ['data' => $data])->assertJson([
             'data' => ['createWarehouse' => $data]
         ]);
-        $warehouseId = $response->json()['data']['createWarehouse']['id'];
+        $warehouseData = [
+            'id' => $response->json()['data']['createWarehouse']['id'],
+        ];
+
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
@@ -81,7 +84,7 @@ class VariantAttributeTest extends TestCase
             'name' => fake()->name,
             'description' => fake()->text,
             'products_id' => $productId,
-            'warehouse_id' => $warehouseId
+            'warehouse' => $warehouseData
         ];
         $response = $this->graphQL('
         mutation($data: VariantsInput!) {
@@ -164,8 +167,8 @@ class VariantAttributeTest extends TestCase
             'regions_id' => $idRegion,
             'name' => 'Test Warehouse',
             'location' => 'Test Location',
-            'is_default' => false,
-            'is_published' => 1,
+            'is_default' => true,
+            'is_published' => true,
         ];
 
         $response = $this->graphQL('
@@ -182,7 +185,9 @@ class VariantAttributeTest extends TestCase
             }', ['data' => $data])->assertJson([
             'data' => ['createWarehouse' => $data]
         ]);
-        $warehouseId = $response->json()['data']['createWarehouse']['id'];
+        $warehouseData = [
+            'id' => $response->json()['data']['createWarehouse']['id'],
+        ];
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
@@ -203,7 +208,7 @@ class VariantAttributeTest extends TestCase
             'name' => fake()->name,
             'description' => fake()->text,
             'products_id' => $productId,
-            'warehouse_id' => $warehouseId
+            'warehouse' => $warehouseData
         ];
         $response = $this->graphQL('
         mutation($data: VariantsInput!) {

@@ -20,8 +20,8 @@ class Random
         $usernameParts = array_filter(explode(' ', strtolower($displayname))); //explode and lowercase name
         $usernameParts = array_slice($usernameParts, 0, 2); //return only first two array part
 
-        $part1 = (!empty($usernameParts[0])) ? substr($usernameParts[0], 0, 8) : ''; //cut first name to 8 letters
-        $part2 = (!empty($usernameParts[1])) ? substr($usernameParts[1], 0, 5) : ''; //cut second name to 5 letters
+        $part1 = (! empty($usernameParts[0])) ? substr($usernameParts[0], 0, 8) : ''; //cut first name to 8 letters
+        $part2 = (! empty($usernameParts[1])) ? substr($usernameParts[1], 0, 5) : ''; //cut second name to 5 letters
         $part3 = ($randNo) ? rand(0, $randNo) : '';
 
         $username = $part1 . str_shuffle($part2) . $part3; //str_shuffle to randomly shuffle all characters

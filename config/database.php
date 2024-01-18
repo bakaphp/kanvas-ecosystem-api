@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Database\DBAL\TimestampType;
 use Illuminate\Support\Str;
 
 return [
@@ -174,6 +175,62 @@ return [
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
+        'content_engine' => [
+            'driver' => 'mysql',
+            'read' => [
+                'host' => [
+                    env('DB_CONTENT_HOST_READ', env('DB_CONTENT_HOST', '127.0.0.1')),
+                ],
+            ],
+            'write' => [
+                'host' => [
+                    env('DB_CONTENT_HOST', '127.0.0.1'),
+                ],
+            ],
+            'sticky' => true,
+            'port' => env('DB_CONTENT_PORT', '3306'),
+            'database' => env('DB_CONTENT_DATABASE', 'crm'),
+            'username' => env('DB_CONTENT_USERNAME', 'kanvas'),
+            'password' => env('DB_CONTENT_PASSWORD', ''),
+            'unix_socket' => env('DB_CONTENT_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_520_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => 'InnoDB',
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+        'workflow' => [
+            'driver' => 'mysql',
+            'read' => [
+                'host' => [
+                    env('DB_WORKFLOW_HOST_READ', env('DB_WORKFLOW_HOST', '127.0.0.1')),
+                ],
+            ],
+            'write' => [
+                'host' => [
+                    env('DB_WORKFLOW_HOST', '127.0.0.1'),
+                ],
+            ],
+            'sticky' => true,
+            'port' => env('DB_WORKFLOW_PORT', '3306'),
+            'database' => env('DB_WORKFLOW_DATABASE', 'workflow'),
+            'username' => env('DB_WORKFLOW_USERNAME', 'kanvas'),
+            'password' => env('DB_WORKFLOW_PASSWORD', ''),
+            'unix_socket' => env('DB_WORKFLOW_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_520_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => 'InnoDB',
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
     ],
 
     /*
@@ -207,6 +264,7 @@ return [
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
             'prefix' => env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_') . '_database_'),
+            'serializer' => extension_loaded('igbinary') ? Redis::SERIALIZER_IGBINARY : Redis::SERIALIZER_PHP,
         ],
 
         'default' => [
@@ -233,6 +291,5 @@ return [
             'database' => 2,
         ],
 
-    ],
-
+    ]
 ];

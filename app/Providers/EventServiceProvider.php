@@ -9,12 +9,22 @@ use Kanvas\Companies\Groups\Observers\CompaniesGroupsObserver;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesGroups;
 use Kanvas\Companies\Observers\CompaniesObserver;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Observers\LeadObserver;
+use Kanvas\Inventory\Status\Models\Status;
+use Kanvas\Inventory\Status\Observers\StatusObserver;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Inventory\Warehouses\Observers\WarehouseObserver;
+use Kanvas\Social\Messages\Models\UserMessage;
 use Kanvas\Social\Messages\Models\UserMessageActivity;
 use Kanvas\Social\Messages\Observers\UserMessageActivityObserver;
+use Kanvas\Social\Messages\Observers\UserMessageObserver;
 use Kanvas\Social\UsersLists\Models\UserList;
 use Kanvas\Social\UsersLists\Observers\UsersListsObserver;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Observers\UsersObserver;
+use Kanvas\Notifications\Events\PushNotificationsEvent;
+use Kanvas\Notifications\Listeners\NotificationsListener;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -24,6 +34,9 @@ class EventServiceProvider extends ServiceProvider
      * @var array<class-string, array<int, class-string>>
      */
     protected $listen = [
+        PushNotificationsEvent::class => [
+            NotificationsListener::class,
+        ],
     ];
 
     /**
@@ -38,6 +51,10 @@ class EventServiceProvider extends ServiceProvider
         CompaniesGroups::observe(CompaniesGroupsObserver::class);
         UserMessageActivity::observe(UserMessageActivityObserver::class);
         UserList::observe(UsersListsObserver::class);
+        Lead::observe(LeadObserver::class);
+        UserMessage::observe(UserMessageObserver::class);
+        Warehouses::observe(WarehouseObserver::class);
+        Status::observe(StatusObserver::class);
     }
 
     /**

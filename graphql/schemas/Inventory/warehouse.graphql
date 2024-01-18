@@ -10,7 +10,7 @@ type Warehouse {
     name: String!
     location: String
     is_default: Boolean!
-    is_published: Int!
+    is_published: Boolean!
 }
 
 input WarehouseInput {
@@ -18,8 +18,26 @@ input WarehouseInput {
     name: String!
     location: String
     is_default: Boolean!
-    is_published: Int!
+    is_published: Boolean!
     source_id: Mixed
+}
+
+input WarehouseReferenceInput {
+    id: ID!
+    quantity: Float
+    status: StatusReferenceInput
+    price: Float
+    sku: String
+    position: Int
+    serial_number: String
+    is_oversellable: Boolean
+    is_default: Boolean
+    is_best_seller: Boolean
+    is_on_sale: Boolean
+    is_on_promo: Boolean
+    can_pre_order: Boolean
+    is_coming_soon: Boolean
+    is_new: Boolean
 }
 
 input WarehouseInputUpdate {
@@ -53,6 +71,6 @@ extend type Query @guard {
         @paginate(
             model: "Kanvas\\Inventory\\Warehouses\\Models\\Warehouses"
             defaultCount: 25
-            scopes: ["fromCompany", "fromApp"]
+            scopes: ["fromCompany", "fromApp", "notDeleted"]
         )
 }

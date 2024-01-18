@@ -15,6 +15,7 @@ class FilesystemEntitiesRepository
 {
     /**
      * Get a filesystem entity.
+     * @psalm-suppress MixedReturnStatement
      */
     public static function getByIdAdnEntity(int $id, Model $entity, bool $isDeleted = false): FilesystemEntities
     {
@@ -39,8 +40,9 @@ class FilesystemEntitiesRepository
 
     /**
      * Get files for the given entity.
+     * @psalm-suppress MixedReturnStatement
      *
-     * @return Collection<FilesystemEntities>
+     * @return Collection<int, FilesystemEntities>
      */
     public static function getFilesByEntity(Model $entity): Collection
     {
@@ -55,7 +57,24 @@ class FilesystemEntitiesRepository
     }
 
     /**
+     * @psalm-suppress MixedReturnStatement
+     */
+    public static function getFileFromEntityByName(Model $entity, string $name): ?FilesystemEntities
+    {
+        $systemModule = SystemModulesRepository::getByModelName($entity::class);
+
+        return FilesystemEntities::join('filesystem', 'filesystem.id', '=', 'filesystem_entities.filesystem_id')
+                    ->where('filesystem_entities.entity_id', '=', $entity->getKey())
+                    ->where('filesystem_entities.system_modules_id', '=', $systemModule->getKey())
+                    ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
+                    ->where('filesystem_entities.field_name', '=', $name)
+                    ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue())
+                    ->first();
+    }
+
+    /**
      * Given the entity delete all related files.
+     * @psalm-suppress MixedReturnStatement
      */
     public static function deleteAllFilesFromEntity(Model $entity): int
     {

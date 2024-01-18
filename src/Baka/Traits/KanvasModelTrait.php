@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Baka\Traits;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Schema;
@@ -29,39 +31,48 @@ trait KanvasModelTrait
         return $this->uuid;
     }
 
-    public static function getByName(string $name): self
+    public static function getByName(string $name, ?AppInterface $app = null): self
     {
         try {
             return self::where('name', $name)
                 ->notDeleted()
+                ->when($app, function ($query, $app) {
+                    $query->fromApp($app);
+                })
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException($e->getMessage());
+            throw new ExceptionsModelNotFoundException("No record found for $name");
         }
     }
 
-    public static function getByUuid(string $uuid): self
+    public static function getByUuid(string $uuid, ?AppInterface $app = null): self
     {
         try {
             return self::where('uuid', $uuid)
                 ->notDeleted()
+                ->when($app, function ($query, $app) {
+                    $query->fromApp($app);
+                })
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException($e->getMessage());
+            throw new ExceptionsModelNotFoundException("No record found for $uuid");
         }
     }
 
-    public static function getById(mixed $id): self
+    public static function getById(mixed $id, ?AppInterface $app = null): self
     {
         try {
             return self::where('id', $id)
-                ->notDeleted()
-                ->firstOrFail();
+            ->when($app, function ($query, $app) {
+                $query->fromApp($app);
+            })
+            ->notDeleted()
+            ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException($e->getMessage());
+            throw new ExceptionsModelNotFoundException("No record found for $id");
         }
     }
 
@@ -74,7 +85,7 @@ trait KanvasModelTrait
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException($e->getMessage());
+            throw new ExceptionsModelNotFoundException("No record found for $id from company {$company->getId()}");
         }
     }
 
@@ -87,7 +98,33 @@ trait KanvasModelTrait
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException($e->getMessage());
+            throw new ExceptionsModelNotFoundException("No record found for $id from branch {$branch->getId()}");
+        }
+    }
+
+    public static function getByUuidFromCompany(string $uuid, CompanyInterface $company): self
+    {
+        try {
+            return self::where('uuid', $uuid)
+                ->notDeleted()
+                ->fromCompany($company)
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException("No record found for $uuid from company {$company->getId()}");
+        }
+    }
+
+    public static function getByUuidFromBranch(string $uuid, CompaniesBranches $branch): self
+    {
+        try {
+            return self::where('uuid', $uuid)
+                ->notDeleted()
+                ->where('companies_branches_id', $branch->getId())
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException("No record found for $uuid from branch {$branch->getId()}");
         }
     }
 
@@ -135,7 +172,12 @@ trait KanvasModelTrait
     {
         $this->is_deleted = StateEnums::YES->getValue();
 
-        return $this->saveOrFail();
+        $delete = $this->saveOrFail();
+        if (method_exists($this, 'searchableSoftDelete')) {
+            $this->searchableSoftDelete();
+        }
+
+        return $delete;
     }
 
     /**
@@ -175,5 +217,15 @@ trait KanvasModelTrait
     {
         return Schema::connection($this->getConnectionName())
                 ->hasColumn($this->getTableName(), $name);
+    }
+
+    public function getCacheKey(): string
+    {
+        return Str::simpleSlug(static::class) . '-' . $this->getId();
+    }
+
+    public function isDeleted(): bool
+    {
+        return (int) $this->is_deleted === StateEnums::YES->getValue();
     }
 }

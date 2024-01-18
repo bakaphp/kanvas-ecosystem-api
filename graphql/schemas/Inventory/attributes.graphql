@@ -23,6 +23,16 @@ type AttributesValue {
     value: Mixed
 }
 
+type ProductAttribute {
+    name: String!
+    value: Mixed
+}
+
+type VariantsAttributes {
+    name: String!
+    value: Mixed
+}
+
 extend type Mutation @guard {
     createAttribute(input: AttributeInput!): Attributes!
         @field(
@@ -42,7 +52,7 @@ extend type Query @guard {
         where: _ @whereConditions(columns: ["uuid", "name"])
     ): [Attributes!]!
         @paginate(
-            defaultCount: 10
+            defaultCount: 25
             model: "Kanvas\\Inventory\\Attributes\\Models\\Attributes"
             scopes: ["fromApp", "fromCompany"]
         )

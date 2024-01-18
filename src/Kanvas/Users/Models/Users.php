@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -22,6 +23,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
@@ -33,6 +35,8 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
+use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Locations\Models\Cities;
 use Kanvas\Locations\Models\Countries;
@@ -40,7 +44,10 @@ use Kanvas\Locations\Models\States;
 use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Notifications\Traits\HasNotificationSettings;
 use Kanvas\Roles\Models\Roles;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Traits\SearchableDynamicIndexTrait;
 use Kanvas\Users\Factories\UsersFactory;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 
 /**
@@ -103,9 +110,17 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use HasFilesystemTrait;
     use KanvasModelTrait;
     use HasNotificationSettings;
+    use SearchableDynamicIndexTrait;
+    use CanUseWorkflow;
 
     protected ?string $defaultCompanyName = null;
+
     protected $guarded = [];
+
+    protected $casts = [
+        'default_company' => 'integer',
+        'default_company_branch' => 'integer',
+    ];
 
     protected $hidden = [
         'password',
@@ -146,14 +161,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
-     * Default Company relationship.
-     */
-    public function defaultCompany(): HasOne
-    {
-        return $this->hasOne(Companies::class, 'id', 'default_company');
-    }
-
-    /**
      * Apps relationship.
      * use distinct() to avoid duplicate apps.
      * @psalm-suppress MixedReturnStatement
@@ -181,12 +188,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         // return $this->hasMany(Companies::class, 'users_id');
         return $this->hasManyThrough(
             Companies::class,
-            UsersAssociatedCompanies::class,
+            UsersAssociatedApps::class,
             'users_id',
             'id',
             'id',
             'companies_id'
-        )->where('companies.is_deleted', StateEnums::NO->getValue())->distinct();
+        )->where('users_associated_apps.apps_id', app(Apps::class)->getId())
+        ->where('companies.is_deleted', StateEnums::NO->getValue())->distinct();
     }
 
     /**
@@ -225,7 +233,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
                 ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
                 ->firstOrFail();
         } catch (EloquentModelNotFoundException $e) {
-            throw new ModelNotFoundException('User not found');
+            throw new ModelNotFoundException('User not found - ' . $this->getId());
         }
     }
 
@@ -286,6 +294,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function linkedSources(): HasMany
     {
         return $this->hasMany(UserLinkedSources::class, 'users_id');
+    }
+
+    public function channels(): BelongsToMany
+    {
+        $databaseSocial = config('database.social.database', 'social');
+
+        return $this->belongsToMany(Channel::class, $databaseSocial . '.channel_users', 'users_id', 'channel_id');
     }
 
     /**
@@ -350,6 +365,16 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return empty($this->default_company);
     }
 
+    public function defaultCompany(): int
+    {
+        return $this->currentCompanyId();
+    }
+
+    public function defaultCompanyBranch(): int
+    {
+        return $this->currentBranchId();
+    }
+
     /**
      * What the current company the users is logged in with
      * in this current session?
@@ -374,10 +399,12 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function currentBranchId(): int
     {
         if (! app()->bound(CompaniesBranches::class)) {
-            return (int) $this->get($this->getCurrentCompany()->branchCacheKey());
+            $currentBranchId = (int) $this->get($this->getCurrentCompany()->branchCacheKey());
         } else {
-            return app(CompaniesBranches::class)->company()->first()->getId();
+            $currentBranchId = app(CompaniesBranches::class)->getId();
         }
+
+        return $currentBranchId ? (int) $currentBranchId : $this->default_company_branch;
     }
 
     /**
@@ -455,6 +482,24 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return $user->saveOrFail();
     }
 
+    public function updateDisplayName(string $displayName, AppInterface $app): bool
+    {
+        $user = $this->getAppProfile($app);
+
+        $validator = Validator::make(
+            ['displayname' => $displayName],
+            ['displayname' => 'required|unique:users_associated_apps,displayname,NULL,users_id,apps_id,' . $app->getId()]
+        );
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
+
+        $user->displayname = $displayName;
+
+        return $user->updateOrFail();
+    }
+
     public function updateEmail(string $email): bool
     {
         $this->email = $email;
@@ -472,15 +517,21 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
-     * Is the creator of the current app.
+     * Is the owner of the current app.
      *  @psalm-suppress MixedReturnStatement
      */
     public function isAppOwner(): bool
     {
-        return (bool) AppKey::where('users_id', $this->getId())
-            ->where('apps_id', app(Apps::class)->getId())
-            ->notDeleted()
-            ->exists();
+        if (app()->bound(AppKey::class) && $this->isAn(RolesEnums::OWNER->value)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->isAppOwner() || $this->isAn(RolesEnums::ADMIN->value);
     }
 
     /**
@@ -500,5 +551,65 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         }
 
         return $mapAbilities->all();
+    }
+
+    public function getAppDisplayName(): string
+    {
+        $user = $this->getAppProfile(app(Apps::class));
+
+        return $user->displayname ?? $this->displayname;
+    }
+
+    public function getAppEmail(): string
+    {
+        $user = $this->getAppProfile(app(Apps::class));
+
+        return ! empty($user->email) ? $user->email : $this->email;
+    }
+
+    public function getAppIsActive(): bool
+    {
+        $user = $this->getAppProfile(app(Apps::class));
+
+        return $user->is_active;
+    }
+
+    public function getPhoto(): ?FilesystemEntities
+    {
+        return  $this->getFileByName('photo');
+    }
+
+    public static function getByIdFromCompany(mixed $id, CompanyInterface $company): self
+    {
+        try {
+            return self::where('id', $id)
+                ->whereRelation('companies', 'id', $company->getId())
+                ->notDeleted()
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
+    }
+
+    public static function searchableIndex(): string
+    {
+        return 'users_index_';
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted() && $this->isActive() && $this->banned == 0;
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->getId(),
+            'firstname' => $this->firstname,
+            'lastname' => $this->lastname,
+            'displayname' => $this->displayname,
+            'email' => $this->email,
+        ];
     }
 }

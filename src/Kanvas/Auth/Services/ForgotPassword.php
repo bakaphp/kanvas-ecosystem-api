@@ -29,7 +29,12 @@ class ForgotPassword
         $recoverUser->generateForgotHash($this->app);
 
         try {
-            $recoverUser->notify(new ResetPassword($recoverUser));
+            $recoverUser->notify(new ResetPassword(
+                $recoverUser,
+                [
+                    'subject' => $this->app->name . ' - Reset your password',
+                ]
+            ));
         } catch (ModelNotFoundException $e) {
             //throw $th;
         }
