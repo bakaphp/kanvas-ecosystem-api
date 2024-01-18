@@ -67,6 +67,7 @@ input CompanyInput {
     timezone: String
     phone: String
     country_code: String
+    users_id: Int
 }
 
 input CompanyBranchInput {

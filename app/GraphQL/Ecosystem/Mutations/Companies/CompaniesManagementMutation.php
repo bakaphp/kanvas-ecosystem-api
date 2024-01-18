@@ -4,61 +4,63 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Companies;
 
-use Illuminate\Support\Facades\Auth;
-use Kanvas\Companies\Branches\Actions\CreateCompanyBranchActions;
-use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPostData;
-use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Companies\Branches\Actions\UpdateCompanyBranchActions;
-use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPutData;
-use Kanvas\Companies\Branches\Actions\DeleteCompanyBranchActions;
-use Kanvas\Companies\Actions\CreateCompaniesAction;
-use Kanvas\Companies\DataTransferObject\CompaniesPostData;
-use Kanvas\Companies\Models\Companies;
-use Kanvas\Companies\Actions\UpdateCompaniesAction;
-use Kanvas\Companies\DataTransferObject\CompaniesPutData;
-use Kanvas\Companies\Actions\DeleteCompaniesAction;
-use Kanvas\Companies\Repositories\CompaniesRepository;
-use Kanvas\Users\Models\Users;
-use Kanvas\Enums\StateEnums;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Support\Facades\Auth;
+use Kanvas\Apps\Enums\DefaultRoles;
+use Kanvas\Companies\Actions\CreateCompaniesAction;
+use Kanvas\Companies\Actions\DeleteCompaniesAction;
+use Kanvas\Companies\Actions\UpdateCompaniesAction;
+use Kanvas\Companies\Branches\Actions\CreateCompanyBranchActions;
+use Kanvas\Companies\Branches\Actions\DeleteCompanyBranchActions;
+use Kanvas\Companies\Branches\Actions\UpdateCompanyBranchActions;
+use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPostData;
+use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPutData;
+use Kanvas\Companies\DataTransferObject\CompaniesPostData;
+use Kanvas\Companies\DataTransferObject\CompaniesPutData;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Enums\StateEnums;
+use Kanvas\Users\Models\Users;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class CompaniesManagementMutation
 {
     /**
      * createCompany
-     *
-     * @param  mixed $root
-     * @param  array $request
-     * @return Companies
      */
     public function createCompany(mixed $root, array $request): Companies
     {
-        $request['input']['users_id'] = Auth::user()->getKey();
+
+        if(auth()->user()->isAn((string) DefaultRoles::ADMIN->getValue()) && key_exists('users_id', $request['input'])) {
+            $request['input']['users_id'] = $request['input']['users_id'] && UsersRepository::isUserInApp($request['input']['users_id']) ? $request['input']['users_id'] : Auth::user()->getKey();
+        } else {
+            $request['input']['users_id'] = Auth::user()->getKey();
+        }
         $dto = CompaniesPostData::fromArray($request['input']);
         $action = new  CreateCompaniesAction($dto);
+
         return $action->execute();
     }
 
     /**
      * updateCompany
-     *
-     * @param  mixed $root
-     * @param  array $request
-     * @return Companies
      */
     public function updateCompany(mixed $root, array $request): Companies
     {
+        if(auth()->user()->isAn((string) DefaultRoles::ADMIN->getValue()) && key_exists('users_id', $request['input'])) {
+            $request['input']['users_id'] = $request['input']['users_id'] && UsersRepository::isUserInApp($request['input']['users_id']) ? $request['input']['users_id'] : Auth::user()->getKey();
+        } else {
+            $request['input']['users_id'] = Auth::user()->getKey();
+        }
         $dto = CompaniesPutData::fromArray($request['input']);
         $action = new UpdateCompaniesAction(Auth::user(), $dto);
+
         return $action->execute($request['id']);
     }
 
     /**
      * deleteCompany
-     *
-     * @param  mixed $root
-     * @param  array $request
-     * @return bool
      */
     public function deleteCompany(mixed $root, array $request): bool
     {
@@ -74,38 +76,32 @@ class CompaniesManagementMutation
     /**
      * createCompaniesBranch
      *
-     * @param  mixed $root
      * @param  array $req
-     * @return CompaniesBranches
      */
     public function createCompaniesBranch(mixed $root, array $request): CompaniesBranches
     {
         $request['input']['users_id'] = Auth::user()->getKey();
         $dto = CompaniesBranchPostData::fromArray($request['input']);
         $action = new  CreateCompanyBranchActions(Auth::user(), $dto);
+
         return $action->execute();
     }
 
     /**
      * updateCompanyBranch
      *
-     * @param  mixed $root
      * @param  array $req
-     * @return CompaniesBranches
      */
     public function updateCompanyBranch(mixed $root, array $request): CompaniesBranches
     {
         $dto = CompaniesBranchPutData::fromArray($request['input']);
         $action = new  UpdateCompanyBranchActions(Auth::user(), $dto);
+
         return $action->execute($request['id']);
     }
 
     /**
      * deleteCompanyBranch
-     *
-     * @param  mixed $root
-     * @param  array $request
-     * @return string
      */
     public function deleteCompanyBranch(mixed $root, array $request): string
     {
@@ -122,9 +118,6 @@ class CompaniesManagementMutation
      * insertInvite.
      *
      * @param  mixed $rootValue
-     * @param  array $request
-     *
-     * @return bool
      */
     public function addUserToBranch($rootValue, array $request): bool
     {
@@ -150,9 +143,6 @@ class CompaniesManagementMutation
      * insertInvite.
      *
      * @param  mixed $rootValue
-     * @param  array $request
-     *
-     * @return bool
      */
     public function addUserToCompany($rootValue, array $request): bool
     {
@@ -177,9 +167,7 @@ class CompaniesManagementMutation
      * insertInvite.
      *
      * @param  mixed $rootValue
-     * @param  array $request
      * @todo We need to REMOVE the company key from cache.
-     * @return bool
      */
     public function removeUserFromCompany($rootValue, array $request): bool
     {
@@ -208,9 +196,7 @@ class CompaniesManagementMutation
      * insertInvite.
      *
      * @param  mixed $rootValue
-     * @param  array $request
      * @todo We need to REMOVE the branch key from cache.
-     * @return bool
      */
     public function removeUserFromBranch($rootValue, array $request): bool
     {
