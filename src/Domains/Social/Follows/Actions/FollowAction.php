@@ -16,7 +16,8 @@ class FollowAction
     public function __construct(
         public Users $user,
         public EloquentModel $entity,
-        public ?CompanyInterface $company = null
+        public ?CompanyInterface $company = null,
+        public ?Apps $app = null
     ) {
     }
 
@@ -29,13 +30,15 @@ class FollowAction
         if (! $company instanceof CompanyInterface && ! empty($this->entity->companies_id) || ! empty($this->entity->company_id)) {
             $company = $this->entity->company()->firstOrFail();
         }
+        $this->app = $this->app ?? app(Apps::class);
 
-        UsersRepository::belongsToThisApp($this->user, app(Apps::class), $company);
+        UsersRepository::belongsToThisApp($this->user, $this->app, $company);
 
         $params = [
             'users_id' => $this->user->getId(),
             'entity_id' => $this->entity->getId(),
             'entity_namespace' => get_class($this->entity),
+            'apps_id' => $this->app->getId(),
         ];
 
         if ($company) {
