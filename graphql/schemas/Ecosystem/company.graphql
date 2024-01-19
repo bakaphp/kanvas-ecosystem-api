@@ -83,6 +83,7 @@ input CompanyInput {
     timezone: String
     phone: String
     country_code: String
+    users_id: Int
     files: [FilesystemInputUrl]
     is_active: Boolean
 }
