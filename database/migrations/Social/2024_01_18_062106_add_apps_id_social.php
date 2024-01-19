@@ -10,7 +10,6 @@ return new class () extends Migration {
      */
     public function up(): void
     {
-
         Schema::connection('social')->table('users_follows', function (Blueprint $table) {
             $table->string('apps_id')->nullable()->after('id');
         });
@@ -28,10 +27,9 @@ return new class () extends Migration {
         Schema::connection('social')->table('users_follows', function (Blueprint $table) {
             $table->dropColumn('apps_id');
         });
-        
+
         Schema::connection('social')->table('flags', function (Blueprint $table) {
             $table->dropColumn('apps_id');
         });
-
     }
 };
