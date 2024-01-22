@@ -22,6 +22,7 @@ class FollowAction
         if (! $this->company instanceof CompanyInterface && ! empty($this->entity->companies_id) || ! empty($this->entity->company_id)) {
             $this->company = $this->entity->company()->firstOrFail();
         }
+        $this->app = $this->app ?? app(Apps::class);
     }
 
     /**
@@ -29,8 +30,6 @@ class FollowAction
      */
     public function execute(): UsersFollows
     {
-        $this->app = $this->app ?? app(Apps::class);
-
         UsersRepository::belongsToThisApp($this->user, $this->app, $this->company);
 
         $params = [
