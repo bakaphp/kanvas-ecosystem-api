@@ -16,8 +16,13 @@ class FollowAction
     public function __construct(
         public Users $user,
         public EloquentModel $entity,
-        public ?CompanyInterface $company = null
+        public ?CompanyInterface $company = null,
+        public ?Apps $app = null
     ) {
+        if (! $this->company instanceof CompanyInterface && ! empty($this->entity->companies_id) || ! empty($this->entity->company_id)) {
+            $this->company = $this->entity->company()->firstOrFail();
+        }
+        $this->app = $this->app ?? app(Apps::class);
     }
 
     /**
@@ -25,22 +30,18 @@ class FollowAction
      */
     public function execute(): UsersFollows
     {
-        $company = $this->company;
-        if (! $company instanceof CompanyInterface && ! empty($this->entity->companies_id) || ! empty($this->entity->company_id)) {
-            $company = $this->entity->company()->firstOrFail();
-        }
-
-        UsersRepository::belongsToThisApp($this->user, app(Apps::class), $company);
+        UsersRepository::belongsToThisApp($this->user, $this->app, $this->company);
 
         $params = [
             'users_id' => $this->user->getId(),
             'entity_id' => $this->entity->getId(),
             'entity_namespace' => get_class($this->entity),
+            'apps_id' => $this->app->getId(),
         ];
 
-        if ($company) {
-            $params['companies_id'] = $company->getId();
-            $params['companies_branches_id'] = $company->defaultBranch()->firstOrFail()->getId();
+        if ($this->company) {
+            $params['companies_id'] = $this->company->getId();
+            $params['companies_branches_id'] = $this->company->defaultBranch()->firstOrFail()->getId();
         }
 
         if (isset($this->entity->companies_branches_id)) {

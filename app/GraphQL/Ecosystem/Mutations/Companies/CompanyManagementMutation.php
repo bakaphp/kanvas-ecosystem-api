@@ -33,7 +33,6 @@ class CompanyManagementMutation
         } else {
             $request['input']['users_id'] = Auth::user()->getKey();
         }
-        $request['input']['users_id'] = Auth::user()->getKey();
         $dto = CompaniesPostData::fromArray($request['input']);
         $action = new  CreateCompaniesAction($dto);
 
