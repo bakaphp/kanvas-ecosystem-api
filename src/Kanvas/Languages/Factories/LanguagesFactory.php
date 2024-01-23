@@ -24,7 +24,7 @@ class LanguagesFactory extends Factory
     public function definition()
     {
         //two random number to generate a random id
-        $id = random_int(1, 100) . date('s');
+        $id = random_int(1, 10) . date('s');
 
         //@todo modify id of language to be increment
         return [
