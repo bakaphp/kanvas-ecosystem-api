@@ -19,7 +19,7 @@ class MessageTypeFactory extends Factory
         return [
             'name' => fake()->name,
             'apps_id' => 1,
-            'languages_id' => $languages->id,
+            'languages_id' => 1, //$languages->id,
             'verb' => 'create',
             'template' => '<fake>',
             'templates_plura' => '<fake>',
