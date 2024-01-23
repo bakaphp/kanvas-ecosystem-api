@@ -26,7 +26,7 @@ class LanguagesFactory extends Factory
         //two random capital letters
         $id = chr(rand(65, 90)) . chr(rand(65, 90));
 
-        //@todo modify id of language to be increment 
+        //@todo modify id of language to be increment
         return [
             'name' => fake()->name(),
             'title' => fake()->name(),
