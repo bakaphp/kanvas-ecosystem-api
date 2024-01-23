@@ -28,7 +28,7 @@ class MessageTypeTest extends TestCase
             [
                 'input' => [
                     'name' => $name,
-                    'languages_id' => $language->id,
+                    'languages_id' => 1,
                     'verb' => 'test - ' . $name,
                     'template' => '<fake>',
                     'templates_plura' => '<fake>',
@@ -62,7 +62,7 @@ class MessageTypeTest extends TestCase
             [
                 'input' => [
                     'name' => $name,
-                    'languages_id' => $language->id,
+                    'languages_id' => 1,
                     'verb' => 'test - ' . $name,
                     'template' => '<fake>',
                     'templates_plura' => '<fake>',
@@ -86,7 +86,7 @@ class MessageTypeTest extends TestCase
                 'id' => $response->json('data.createMessageType.id'),
                 'input' => [
                     'name' => $name . ' - updated',
-                    'languages_id' => $language->id,
+                    'languages_id' => 1,
                     'verb' => 'test - ' . $name,
                     'template' => '<fake>',
                     'templates_plura' => '<fake>',
@@ -120,7 +120,7 @@ class MessageTypeTest extends TestCase
             [
                 'input' => [
                     'name' => $name,
-                    'languages_id' => $language->id,
+                    'languages_id' => 1,
                     'verb' => 'test - ' . $name,
                     'template' => '<fake>',
                     'templates_plura' => '<fake>',
