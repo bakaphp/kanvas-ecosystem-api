@@ -23,11 +23,11 @@ class LanguagesFactory extends Factory
      */
     public function definition()
     {
-        //@todo modify id of language to be increment
         return [
             'name' => fake()->name(),
             'title' => fake()->name(),
             'order' => 0,
+            'id' => Languages::latest()->first() ? Languages::latest()->first()->id + 1 : 1,
         ];
     }
 }

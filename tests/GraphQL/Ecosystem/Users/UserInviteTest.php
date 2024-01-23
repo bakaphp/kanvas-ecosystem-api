@@ -48,13 +48,9 @@ class UserInviteTest extends TestCase
             mutation inviteUser($data: InviteInput!) {
                 inviteUser(input: $data)
                 {
-                    id
-                    token
-                    refresh_token
-                    token_expires
-                    refresh_token_expires
-                    time
-                    timezone
+                   id,
+                   email,
+                   invite_hash,
                 }
             }',
             [
@@ -76,8 +72,7 @@ class UserInviteTest extends TestCase
             mutation processInvite($data: CompleteInviteInput!) {
                 processInvite(input: $data)
                 {
-                   id,
-                   email
+                   id
                 }
             }',
             [
