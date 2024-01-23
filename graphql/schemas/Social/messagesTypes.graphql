@@ -32,6 +32,7 @@ extend type Query {
                     "templates_plura"
                 ]
             )
+            orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
     ): [MessageType!]!
         @paginate(
             model: "Kanvas\\Social\\MessagesTypes\\Models\\MessageType"

@@ -6,6 +6,7 @@ namespace Tests\GraphQL\Ecosystem\Users;
 
 use Illuminate\Support\Facades\Notification;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
+use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 class UserInviteTest extends TestCase
@@ -71,8 +72,7 @@ class UserInviteTest extends TestCase
             mutation processInvite($data: CompleteInviteInput!) {
                 processInvite(input: $data)
                 {
-                   id,
-                   email
+                   id
                 }
             }',
             [
@@ -84,10 +84,12 @@ class UserInviteTest extends TestCase
                 ],
             ]
         )->assertSuccessful()
-        ->assertSeeText('email')
         ->assertSeeText('id');
 
-        $this->assertEquals($response->json('data.processInvite.email'), $invite['email']);
+        $this->assertArrayHasKey('id', $response->json('data.processInvite'));
+        $userId = $response->json('data.processInvite.id');
+        $user = Users::getById($userId);
+        $this->assertEquals($user->email, $invite['email']);
     }
 
     public function testDeleteInvite(): void
