@@ -20,7 +20,7 @@ class Languages extends BaseModel
 {
     // use Cachable;
     use HasFactory;
-    public $incrementing = false;
+    //public $incrementing = false;
 
     /**
      * The table associated with the model.

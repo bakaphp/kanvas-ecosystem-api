@@ -117,13 +117,15 @@ class UserManagementMutation
      *
      * @param  mixed $rootValue
      */
-    public function process($rootValue, array $request): Users
+    public function process($rootValue, array $request): array
     {
         $action = new ProcessInviteAction(
             CompleteInviteInput::from($request['input'])
         );
 
-        return $action->execute();
+        $user = $action->execute();
+
+        return $user->createToken('kanvas-login')->toArray();
     }
 
     public function updateUserEmail(mixed $rootValue, array $request): bool

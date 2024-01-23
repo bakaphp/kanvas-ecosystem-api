@@ -18,12 +18,15 @@ class UsersFollowsRepository
      * getByUserAndEntity
      * @psalm-suppress MixedReturnStatement
      */
-    public static function getByUserAndEntity(Users $user, EloquentModel $entity): ?UsersFollows
+    public static function getByUserAndEntity(Users $user, EloquentModel $entity, ?Apps $apps = null): ?UsersFollows
     {
+        $apps = $apps ?? app(Apps::class);
+
         return UsersFollows::where('users_id', $user->getId())
             ->where('is_deleted', 0)
             ->where('entity_id', $entity->getId())
             ->where('entity_namespace', get_class($entity))
+            ->where('apps_id', $apps->getId())
             ->first();
     }
 

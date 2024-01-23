@@ -116,7 +116,8 @@ class ProductImporterAction
 
             $this->productWarehouse();
 
-            // $this->variants();
+            //$this->variants();
+            $this->variantsLocation($this->product);
 
             if (! empty($this->importedProduct->productType)) {
                 $this->productType();
@@ -301,6 +302,15 @@ class ProductImporterAction
               $this->variantsAttributes($variantModel, $variant); */
 
             $this->addVariantsToLocation($variantModel);
+        }
+    }
+
+    public function variantsLocation(ProductsModel $product): void
+    {
+        if ($product->variants()->count() > 0) {
+            foreach ($product->variants as $variant) {
+                $this->addVariantsToLocation($variant);
+            }
         }
     }
 
