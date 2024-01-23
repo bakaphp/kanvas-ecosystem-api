@@ -18,7 +18,7 @@ return new class () extends Migration {
         Schema::table('languages', function (Blueprint $table) {
             // Add a new auto-increment big integer id column
             $table->bigIncrements('id')->first();
-            $table->string('code', 2)->after('title');
+            $table->string('code', 2)->nullable()->after('title');
         });
     }
 
