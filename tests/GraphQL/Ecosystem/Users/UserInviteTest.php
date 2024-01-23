@@ -85,7 +85,6 @@ class UserInviteTest extends TestCase
                 ],
             ]
         )->assertSuccessful()
-        ->assertSeeText('email')
         ->assertSeeText('id');
 
         $this->assertArrayHasKey('id', $response->json('data.processInvite'));

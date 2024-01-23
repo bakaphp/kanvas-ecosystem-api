@@ -23,8 +23,8 @@ class LanguagesFactory extends Factory
      */
     public function definition()
     {
-        //two random capital letters
-        $id = chr(rand(65, 90)) . chr(rand(65, 90));
+        //two random number to generate a random id
+        $id = random_int(1, 1000);
 
         //@todo modify id of language to be increment
         return [
