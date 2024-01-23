@@ -23,11 +23,14 @@ class LanguagesFactory extends Factory
      */
     public function definition()
     {
+        //two random capital letters
+        $id = chr(rand(65, 90)) . chr(rand(65, 90));
+
         return [
             'name' => fake()->name(),
             'title' => fake()->name(),
             'order' => 0,
-            'id' => Languages::latest()->first() ? Languages::latest()->first()->id + 1 : 1,
+            'id' => $id,
         ];
     }
 }
