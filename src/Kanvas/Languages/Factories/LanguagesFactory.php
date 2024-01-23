@@ -23,15 +23,11 @@ class LanguagesFactory extends Factory
      */
     public function definition()
     {
-        //two random number to generate a random id
-        $id = chr(rand(65, 90)) . chr(rand(65, 90));
-
         //@todo modify id of language to be increment
         return [
             'name' => fake()->name(),
             'title' => fake()->name(),
             'order' => 0,
-            'id' => $id,
         ];
     }
 }
