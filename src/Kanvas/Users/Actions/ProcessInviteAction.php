@@ -7,7 +7,6 @@ namespace Kanvas\Users\Actions;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\CreateUserAction;
-use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput as RegisterPostDataDto;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\DataTransferObject\CompleteInviteInput;
