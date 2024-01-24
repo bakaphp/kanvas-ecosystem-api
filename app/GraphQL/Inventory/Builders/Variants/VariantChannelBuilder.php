@@ -6,6 +6,7 @@ namespace App\GraphQL\Inventory\Builders\Variants;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -69,9 +70,41 @@ class VariantChannelBuilder
         return [
             'name' => $root->channel_name,
             'price' => $root->price,
-            'warehouses_id' => 0, //remove -_-
             'discounted_price' => $root->discounted_price,
             'is_published' => $root->is_published,
         ];
+    }
+
+    /**
+     * Get filter variant by channel
+     *
+     * @param mixed $root
+     * @param array $req
+     * @return Collection
+     */
+    public function getHasChannel(mixed $root, array $req): Collection
+    {
+        if (empty($req['HAS']['condition']['value'])) {
+            return collect();
+        }
+        $channelUuid = $req['HAS']['condition']['value'];
+
+        return $root->with(['channels' => function ($query) use ($channelUuid) {
+            $query->where('uuid', $channelUuid);
+        }])->get();
+    }
+
+    /**
+     * Get channel price history
+     *
+     * @param mixed $root
+     * @return array
+     */
+    public function getChannelHistory(mixed $root): array
+    {
+        return $root->pricesHistory(
+            'product_variants_warehouse_id',
+            $root->pivot->product_variants_warehouse_id
+        )->get()->toArray();
     }
 }

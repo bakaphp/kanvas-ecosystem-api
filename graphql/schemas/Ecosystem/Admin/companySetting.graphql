@@ -1,0 +1,17 @@
+extend type Mutation @guardByAppKey {
+    setCompanySetting(input: ModuleConfigInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Config\\ConfigManagement@setCompanySetting"
+        )
+    deleteCompanySetting(input: ModuleConfigInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Config\\ConfigManagement@deleteCompanySetting"
+        )
+}
+
+extend type Query @guardByAppKey {
+    companySetting(entity_uuid: String!): [ModuleConfig]!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Config\\ConfigManagement@getCompanySetting"
+        )
+}

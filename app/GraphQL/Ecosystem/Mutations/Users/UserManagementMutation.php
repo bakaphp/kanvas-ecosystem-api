@@ -44,7 +44,7 @@ class UserManagementMutation
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $app = app(Apps::class);
-        $canEditUser = $user->isAdmin() && $user->can(AbilityEnum::MANAGE_USERS->value);
+        $canEditUser = $user->isAdmin() || $user->can(AbilityEnum::MANAGE_USERS->value) || $user->isAppOwner();
         $userId = $canEditUser && (int) $request['id'] > 0 ? (int) $request['id'] : $user->getId();
 
         if ($user->isAppOwner()) {
@@ -117,22 +117,25 @@ class UserManagementMutation
      *
      * @param  mixed $rootValue
      */
-    public function process($rootValue, array $request): Users
+    public function process($rootValue, array $request): array
     {
         $action = new ProcessInviteAction(
             CompleteInviteInput::from($request['input'])
         );
 
-        return $action->execute();
+        $user = $action->execute();
+
+        return $user->createToken('kanvas-login')->toArray();
     }
 
     public function updateUserEmail(mixed $rootValue, array $request): bool
     {
         $user = auth()->user();
+        $app = app(Apps::class);
         UsersRepository::belongsToThisApp($user, app(Apps::class));
 
         //sent email notification
-        $updateEmail = $user->updateEmail($request['email']);
+        $updateEmail = $user->updateEmail($request['email'], $app);
         $updateEmailNotification = new ChangeEmailUserLogged($user);
         $updateEmailNotification->setFromUser($user);
 

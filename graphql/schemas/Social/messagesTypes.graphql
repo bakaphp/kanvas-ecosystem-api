@@ -1,4 +1,3 @@
-
 input CreateMessageTypeInput {
     languages_id: Int!
     name: String!
@@ -20,21 +19,36 @@ type MessageType {
 
 extend type Query {
     messageTypes(
-        where: _@whereConditions(
-            columns: ["id", "languages_id", "apps_id", "uuid", "name", "verb", "template", "templates_plura"]
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "languages_id"
+                    "apps_id"
+                    "uuid"
+                    "name"
+                    "verb"
+                    "template"
+                    "templates_plura"
+                ]
+            )
+            orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
+    ): [MessageType!]!
+        @paginate(
+            model: "Kanvas\\Social\\MessagesTypes\\Models\\MessageType"
+            defaultCount: 25
+            scopes: ["fromApp"]
         )
-    ): [MessageType] @paginate(
-        model: "Kanvas\\Social\\MessagesTypes\\Models\\MessageType"
-        defaultCount: 25,
-        scopes: ["fromApp"]
-    )
 }
-
 
 extend type Mutation @guard {
     createMessageType(input: CreateMessageTypeInput!): MessageType!
-    @field(resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessagesTypesMutation@create")
-    
-    updateMessageType(id: Int! input: CreateMessageTypeInput): MessageType!
-    @field(resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessagesTypesMutation@update")
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessagesTypesMutation@create"
+        )
+
+    updateMessageType(id: Int!, input: CreateMessageTypeInput): MessageType!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessagesTypesMutation@update"
+        )
 }

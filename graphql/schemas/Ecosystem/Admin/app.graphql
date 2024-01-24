@@ -11,6 +11,16 @@ type App {
     ecosystem_auth: Boolean
     is_public: Boolean!
     domain_based: Boolean
+    secrets: [AppKey]! @method(name: "getUserKeys")
+    created_at: String!
+    updated_at: String!
+}
+
+type AppKey {
+    client_id: ID!
+    client_secret_id: ID!
+    name: String!
+    user: User! @belongsTo
     created_at: String!
     updated_at: String!
 }

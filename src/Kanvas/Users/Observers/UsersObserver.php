@@ -34,7 +34,6 @@ class UsersObserver
      */
     public function created(Users $user): void
     {
-        $user->fireWorkflow(WorkflowEnum::CREATED->value);
         /*  if ($user->isFirstSignup() && $user->createDefaultCompany()) {
              $createCompany = new CreateCompaniesAction(
                  new CompaniesPostData(
@@ -78,6 +77,6 @@ class UsersObserver
             'email' => $user->email,
         ]);
 
-        $user->fireWorkflow(WorkflowEnum::UPDATED->value);
+        $user->fireWorkflow(WorkflowEnum::UPDATED->value, true, ['company' => $user->getCurrentCompany()]);
     }
 }

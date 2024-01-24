@@ -10,6 +10,7 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Users\Services\UserNotificationService;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class RegisterUsersAction extends CreateUserAction
 {
@@ -55,6 +56,8 @@ class RegisterUsersAction extends CreateUserAction
         if ($newUser) {
             $this->onBoarding($user, $company);
         }
+
+        $user->fireWorkflow(WorkflowEnum::REGISTERED->value, true, ['company' => $company]);
 
         return $user;
     }

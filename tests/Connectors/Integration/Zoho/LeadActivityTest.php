@@ -21,6 +21,7 @@ final class LeadActivityTest extends TestCase
         $lead->description = 'this is a test lead from github actions';
         $lead->saveOrFail();
 
+        $lead->del('ZOHO_LEAD_ID');
         $company = $lead->company()->firstOrFail();
         $app = app(Apps::class);
 

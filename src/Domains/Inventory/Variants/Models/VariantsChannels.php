@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Models;
 
+use Awobaz\Compoships\Compoships;
 use Baka\Traits\HasCompositePrimaryKeyTrait;
+use Baka\Traits\NoAppRelationshipTrait;
+use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Channels\Models\VariantChannelPriceHistory;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
@@ -21,18 +26,18 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
  * @property string $created_at
  * @property string $updated_at
  * @property bool $is_deleted
+ *
+ * @todo Add relationships and cascade softdelete
  */
 class VariantsChannels extends BaseModel
 {
     use HasCompositePrimaryKeyTrait;
+    use NoAppRelationshipTrait;
+    use NoCompanyRelationshipTrait;
+    use Compoships;
 
     protected $table = 'products_variants_channels';
-    protected $guarded = [
-        'product_variants_warehouse_id',
-        'channels_id',
-        'price',
-        'discount_price'
-    ];
+    protected $guarded = [];
 
     protected $primaryKey = ['product_variants_warehouse_id', 'channels_id'];
 
@@ -54,5 +59,14 @@ class VariantsChannels extends BaseModel
     public function warehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouses::class, 'warehouses_id');
+    }
+
+    public function pricesHistory(): HasMany
+    {
+        return $this->hasMany(
+            VariantChannelPriceHistory::class,
+            ['product_variants_warehouse_id','channels_id'],
+            ['product_variants_warehouse_id','channels_id']
+        );
     }
 }

@@ -42,6 +42,7 @@ class CreateChannel
         ], [
             'description' => $this->dto->description,
             'slug' => $this->dto->slug ?? Str::slug($this->dto->name),
+            'is_default' => $this->dto->is_default,
             'is_published' => $this->dto->is_published,
             'users_id' => $this->user->getId(),
         ]);

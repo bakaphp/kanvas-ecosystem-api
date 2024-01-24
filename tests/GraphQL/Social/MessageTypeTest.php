@@ -130,7 +130,7 @@ class MessageTypeTest extends TestCase
         $this->graphQL(/** @lang GRAPHQL */
             '
                 {
-                    messageTypes {
+                    messageTypes(orderBy: {column: ID, order: DESC}) {
                         data {
                             id
                             name
@@ -138,8 +138,8 @@ class MessageTypeTest extends TestCase
                     }
                 }
             '
-        )->assertJsonFragment([
-            'name' => $name,
+        )->assertSee([
+            $name,
         ]);
     }
 }

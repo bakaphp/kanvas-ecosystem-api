@@ -55,14 +55,14 @@ class Agent extends BaseModel
         );
     }
 
-    public static function getMemberNumber(UserInterface $user, CompanyInterface $company): int
+    public static function getByMemberNumber(string $memberNumber, CompanyInterface $company): self
     {
-        $memberId = AgentFilterEnum::MEMBER_NUMBER . $company->getId();
-
-        return (int) ($user->get($memberId) ? $user->get($memberId) : $user->getId());
+        return self::where('member_id', $memberNumber)
+            ->fromCompany($company)
+            ->firstOrFail();
     }
 
-    public function getNextAgentNumber(CompanyInterface $company): int
+    public static function getNextAgentNumber(CompanyInterface $company): int
     {
         $maxMemberId = Agent::where('companies_id', $company->getId())
                             ->max('member_id');
@@ -90,5 +90,13 @@ class Agent extends BaseModel
         }
 
         return $query;
+    }
+
+    public function getMemberNumber(): string
+    {
+        /**
+         * @psalm-suppress RedundantCastGivenDocblockType
+         */
+        return (string) $this->member_id;
     }
 }

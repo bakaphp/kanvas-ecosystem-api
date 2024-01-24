@@ -17,6 +17,7 @@ use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\CompaniesPostData;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Users\Actions\AssignCompanyAction;
@@ -24,6 +25,7 @@ use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Jobs\OnBoardingJob;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
 class CreateUserAction
@@ -82,6 +84,8 @@ class CreateUserAction
         if ($newUser && $company !== null) {
             $this->onBoarding($user, $company);
         }
+
+        $user->fireWorkflow(WorkflowEnum::REGISTERED->value, true, ['company' => $company]);
 
         return $user;
     }
@@ -145,7 +149,8 @@ class CreateUserAction
     {
         $roles = $this->data->role_ids;
         if (empty($roles)) {
-            $roles = [RolesEnums::ADMIN->value];
+            $defaultAppSettingsRole = $this->app->get(AppSettingsEnums::DEFAULT_SIGNUP_ROLE->getValue());
+            $roles = [RolesEnums::getRoleBySlug($defaultAppSettingsRole ?? RolesEnums::ADMIN->value)];
         }
 
         foreach ($roles as $role) {

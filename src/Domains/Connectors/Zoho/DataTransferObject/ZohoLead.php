@@ -38,15 +38,17 @@ class ZohoLead extends Data
         }
 
         $people = $lead->people()->first();
+        $owner = (string) ($lead->owner()->first() ? $lead->company()->first()->get(CustomFieldEnum::DEFAULT_OWNER->value) : null);
+        $status = (string) ($lead->status()->first() ? $lead->status()->first()->get(CustomFieldEnum::ZOHO_STATUS_NAME->value) : 'New Lead');
 
         return new self(
             $people->firstname,
             $people->lastname,
             $people->getPhones()->first()?->value,
             $people->getEmails()->first()?->value,
-            (string) ($lead->owner()->first()->get(CustomFieldEnum::ZOHO_USER_OWNER_ID->value) ?? $lead->company()->first()->get(CustomFieldEnum::DEFAULT_OWNER->value)),
+            $owner,
             $lead->description,
-            (string) ($lead->status()->first()->get(CustomFieldEnum::ZOHO_STATUS_NAME->value) ?? 'New Lead'),
+            $status,
             $additionalFields
         );
     }
@@ -80,8 +82,28 @@ class ZohoLead extends Data
                 }
                 $name = $name['name'];
             }
+            if (strtolower($key) == 'credit_score' && $value != null && (int) $value > 0) {
+                $creditScore = [
+                    1 => '720-950',
+                    2 => '680-719',
+                    3 => '640-679',
+                    4 => '639 or less',
+                ];
+
+                $value = $creditScore[(int) $value] ?? $value;
+            }
 
             $data[$name] = $value;
         }
+    }
+
+    public function hasMemberNumber(): bool
+    {
+        return $this->additionalFields['Member_ID'] ?? ($this->additionalFields['Member'] ?? false);
+    }
+
+    public function getMemberNumber(): ?string
+    {
+        return $this->additionalFields['Member_ID'] ?? ($this->additionalFields['Member'] ?? null);
     }
 }

@@ -32,9 +32,10 @@ class AppUserManagementMutation
     public function updateEmail(mixed $root, array $request): bool
     {
         $user = Users::getByUuid($request['uuid']);
-        UsersRepository::belongsToThisApp($user, app(Apps::class));
+        $app = app(Apps::class);
+        UsersRepository::belongsToThisApp($user, $app);
 
-        return $user->updateEmail($request['email']);
+        return $user->updateEmail($request['email'], $app);
     }
 
     public function createUser(mixed $rootValue, array $request): Users
