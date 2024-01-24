@@ -8,6 +8,7 @@ type Channel {
     uuid: String!
     description: String
     slug: String!
+    is_default: Boolean!
     is_published: Boolean!
 }
 
@@ -15,12 +16,16 @@ input CreateChannelInput {
     name: String!
     description: String
     slug: String
+    is_default: Boolean
+    is_published: Boolean
 }
 
 input UpdateChannelInput {
     name: String
     description: String
     slug: String
+    is_default: Boolean
+    is_published: Int
 }
 
 extend type Mutation @guard {

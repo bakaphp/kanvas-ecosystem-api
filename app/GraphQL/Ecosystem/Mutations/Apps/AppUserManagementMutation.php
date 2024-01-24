@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Mutations\Apps;
 
 use Baka\Support\Str;
+use Baka\Validations\PasswordValidation;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\CreateUserAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
@@ -31,9 +32,10 @@ class AppUserManagementMutation
     public function updateEmail(mixed $root, array $request): bool
     {
         $user = Users::getByUuid($request['uuid']);
-        UsersRepository::belongsToThisApp($user, app(Apps::class));
+        $app = app(Apps::class);
+        UsersRepository::belongsToThisApp($user, $app);
 
-        return $user->updateEmail($request['email']);
+        return $user->updateEmail($request['email'], $app);
     }
 
     public function createUser(mixed $rootValue, array $request): Users
@@ -52,6 +54,9 @@ class AppUserManagementMutation
         $createCompany = $request['data']['create_company'] ?? false;
         $assignCurrentUserBranch = $adminUserRegistrationAssignCurrentCompany ?? ! $createCompany;
         $assignBranch = $assignCurrentUserBranch ? $branch : null;
+
+        //validate
+        PasswordValidation::validateArray($request['data'], $app);
 
         $data = RegisterInput::fromArray($request['data'], $assignBranch);
         $user = (new CreateUserAction($data))->execute();

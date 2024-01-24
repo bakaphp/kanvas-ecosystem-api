@@ -10,10 +10,13 @@ use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction as AddToWarehouse;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
+use Kanvas\Inventory\Variants\Actions\UpdateToChannelAction;
 use Kanvas\Inventory\Variants\Actions\UpdateToWarehouseAction;
+use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel as VariantChannelDto;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
@@ -94,5 +97,15 @@ class VariantService
             ->firstOrFail();
 
         return (new UpdateToWarehouseAction($variantWarehouses, $variantWarehousesDto))->execute();
+    }
+
+    /**
+     * Update data of variant in a channel.
+     */
+    public static function updateVariantChannel(VariantsChannels $variantChannel, array $data): VariantsChannels
+    {
+        $variantChannelDto = VariantChannelDto::from($data);
+
+        return (new UpdateToChannelAction($variantChannel, $variantChannelDto))->execute();
     }
 }

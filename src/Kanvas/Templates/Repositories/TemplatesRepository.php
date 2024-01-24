@@ -20,15 +20,20 @@ class TemplatesRepository
     public static function getByName(string $name, AppInterface $app, ?CompanyInterface $company = null): Templates
     {
         try {
-            $query = Templates::notDeleted()
-                ->whereIn('apps_id', [AppEnums::LEGACY_APP_ID->getValue(), $app->getId()])
-                ->where('name', $name);
-
             // If company is provided, filter by its ID, otherwise default to 0
             $companyId = $company ? $company->getId() : AppEnums::GLOBAL_COMPANY_ID->getValue();
-            $query->where('companies_id', $companyId);
 
-            return $query->orderBy('apps_id', 'desc')->firstOrFail();
+            return Templates::notDeleted()
+                ->whereIn('apps_id', [AppEnums::LEGACY_APP_ID->getValue(), $app->getId()])
+                ->where('name', $name)
+                ->whereIn('companies_id', [$companyId, AppEnums::GLOBAL_COMPANY_ID->getValue()])
+                ->orderByRaw('
+                    CASE 
+                        WHEN companies_id = ? AND apps_id = ? THEN 1
+                        WHEN apps_id = ? THEN 2
+                        ELSE 3
+                    END', [$companyId, $app->getId(), $app->getId()])
+                ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             throw new ExceptionsModelNotFoundException('Template not found - ' . $name);
         }

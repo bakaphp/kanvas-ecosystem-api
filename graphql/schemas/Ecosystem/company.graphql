@@ -13,6 +13,7 @@ type Company {
     groups: [CompanyGroup!]! @hasMany(relation: "groups")
     branches: [CompanyBranch!]! @hasMany(relation: "branches") #need to filter by the branches the user has access to
     photo: Filesystem @method(name: "getPhoto")
+    is_active: Boolean!
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25
@@ -21,6 +22,7 @@ type Company {
     country_code: String
     created_at: DateTime
     updated_at: DateTime
+    total_users: Int!
 }
 
 type CompanyGroup {
@@ -81,7 +83,9 @@ input CompanyInput {
     timezone: String
     phone: String
     country_code: String
+    users_id: Int
     files: [FilesystemInputUrl]
+    is_active: Boolean
 }
 
 input CompanyBranchInput {
@@ -106,6 +110,7 @@ type CompanySettings {
 
 extend type Query @guard {
     companies(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [
@@ -119,12 +124,14 @@ extend type Query @guard {
                     "language"
                     "timezone"
                     "phone"
-                    "country_code"
+                    "country_code",
+                    "is_active"
                 ]
             )
         orderBy: _ @orderBy(columns: ["id"])
     ): [Company!]!
         @paginate(
+            defaultCount: 25
             model: "Kanvas\\Companies\\Models\\Companies"
             scopes: ["userAssociated"]
         )
@@ -145,6 +152,7 @@ extend type Query @guard {
         orderBy: _ @orderBy(columns: ["id"])
     ): [CompanyBranch!]!
         @paginate(
+            defaultCount: 25
             model: "Kanvas\\Companies\\Models\\CompaniesBranches"
             scopes: ["userAssociated"]
         )

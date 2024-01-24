@@ -6,7 +6,10 @@ namespace Kanvas\Notifications\Models;
 
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Models\BaseModel;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Templates\Models\Templates;
 
@@ -59,11 +62,68 @@ class NotificationTypes extends BaseModel
         return $this->belongsTo(Templates::class, 'template_id', 'id');
     }
 
+    public function channels(): HasMany
+    {
+        return $this->hasMany(NotificationTypeChannel::class, 'notification_type_id');
+    }
+
+    public function getChannelsInNotificationFormat(): array
+    {
+        $channels = [];
+
+        foreach ($this->channels as $channel) {
+            $channels[] = NotificationChannelEnum::getNotificationChannelBySlug($channel->channel->slug);
+        }
+
+        return $channels;
+    }
+
+    public function getPushTemplateName(): string
+    {
+        $pushNotificationTemplate = $this->channels()->where('notification_channel_id', NotificationChannelEnum::PUSH->value)->first();
+        $templateName = $pushNotificationTemplate->template()->exists() ? $pushNotificationTemplate->template()->first()->name : null;
+
+        if (empty($templateName)) {
+            throw new ModelNotFoundException('This notification type does not have an push template');
+        }
+
+        return $templateName;
+    }
+
     /**
      * Verify this notification type uses email template.
      */
     public function hasEmailTemplate(): bool
     {
-        return ! empty($this->template);
+        $templateName = $this->template()->exists() ? $this->template()->get()->name : $this->template;
+
+        return ! empty($templateName);
+    }
+
+    public function getTemplateName(): string
+    {
+        $templateName = $this->template()->exists() ? $this->template()->get()->name : $this->template;
+
+        if (empty($templateName)) {
+            throw new ModelNotFoundException('This notification type does not have an email template');
+        }
+
+        return $templateName;
+    }
+
+    public function getNotificationChannels(): array
+    {
+        return [
+            'mail',
+        ];
+    }
+
+    public function assignChannel(NotificationChannel $channel, Templates $template)
+    {
+        $this->channels()->firstOrCreate([
+            'notification_channel_id' => $channel->getId(),
+        ], [
+            'template_id' => $template->getId(),
+        ]);
     }
 }

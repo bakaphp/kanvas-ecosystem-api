@@ -1,0 +1,17 @@
+extend type Mutation @guardByAppKey {
+    setUserSetting(input: ModuleConfigInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Config\\ConfigManagement@setUserSetting"
+        )
+    deleteUserSetting(input: ModuleConfigInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Config\\ConfigManagement@deleteUserSetting"
+        )
+}
+
+extend type Query @guardByAppKey {
+    userSettings(entity_uuid: String!): [ModuleConfig]!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Config\\ConfigManagement@getUserSetting"
+        )
+}

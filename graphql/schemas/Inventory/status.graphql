@@ -45,6 +45,15 @@ extend type Query @guard {
                     "companies_id"
                 ]
             )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                ]
+            )
     ): [Status!]!
         @paginate(
             model: "Kanvas\\Inventory\\Status\\Models\\Status"

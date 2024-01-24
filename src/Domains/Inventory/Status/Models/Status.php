@@ -24,6 +24,7 @@ use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 class Status extends BaseModel
 {
     use SlugTrait;
+    //use Searchable;
     use DefaultTrait;
 
     protected $table = 'status';

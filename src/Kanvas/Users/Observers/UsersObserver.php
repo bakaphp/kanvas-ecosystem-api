@@ -14,6 +14,7 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class UsersObserver
 {
@@ -75,5 +76,7 @@ class UsersObserver
             'displayname' => $user->displayname,
             'email' => $user->email,
         ]);
+
+        $user->fireWorkflow(WorkflowEnum::UPDATED->value, true, ['company' => $user->getCurrentCompany()]);
     }
 }

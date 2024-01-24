@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Actions;
 
+use Kanvas\Inventory\Channels\Actions\CreatePriceHistoryAction;
 use Kanvas\Inventory\Channels\Models\Channels;
-use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
-use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel as VariantChannelDto;
+use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 
 class AddVariantToChannelAction
@@ -14,35 +15,36 @@ class AddVariantToChannelAction
     public function __construct(
         protected VariantsWarehouses $variantsWarehouses,
         protected Channels $channel,
-        protected VariantChannel $variantChannel
+        protected VariantChannelDto $variantChannelDto
     ) {
     }
 
-    public function execute(): Variants
+    public function execute(): VariantsChannels
     {
-        if ($this->variantsWarehouses->channels()->find($this->channel->getId())) {
-            $this->variantsWarehouses->channels()->syncWithoutDetaching([
-                $this->channel->getId() => [
-                    'price' => $this->variantChannel->price,
-                    'discounted_price' => $this->variantChannel->discounted_price,
-                    'is_published' => $this->variantChannel->is_published,
-                    'products_variants_id' => $this->variantsWarehouses->products_variants_id,
-                    'product_variants_warehouse_id' => $this->variantsWarehouses->getId(),
-                    'warehouses_id' => $this->variantsWarehouses->warehouses_id,
-                ]
-            ]);
-        } else {
-            $this->variantsWarehouses->channels()->attach([
-                $this->channel->getId() => [
-                    'price' => $this->variantChannel->price,
-                    'discounted_price' => $this->variantChannel->discounted_price,
-                    'is_published' => $this->variantChannel->is_published,
-                    'products_variants_id' => $this->variantsWarehouses->products_variants_id,
-                    'product_variants_warehouse_id' => $this->variantsWarehouses->getId(),
-                    'warehouses_id' => $this->variantsWarehouses->warehouses_id,
-                ]
-            ]);
+        $search = [
+            'product_variants_warehouse_id' => $this->variantsWarehouses->getId(),
+            'channels_id' => $this->channel->getId(),
+        ];
+
+        $variantChannel = VariantsChannels::firstOrCreate(
+            $search,
+            [
+                'price' => $this->variantChannelDto->price ?? 0.00,
+                'discounted_price' => $this->variantChannelDto->discounted_price ?? 0.00,
+                'is_published' => $this->variantChannelDto->is_published,
+                'products_variants_id' => $this->variantsWarehouses->products_variants_id,
+                'warehouses_id' => $this->variantsWarehouses->warehouses_id
+            ]
+        );
+
+        if ($this->variantChannelDto->price) {
+            (new CreatePriceHistoryAction(
+                $this->variantsWarehouses,
+                $this->channel,
+                $variantChannel->price
+            ))->execute();
         }
-        return $this->variantsWarehouses->variant;
+
+        return $variantChannel;
     }
 }

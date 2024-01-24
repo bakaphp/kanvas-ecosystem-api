@@ -2,11 +2,9 @@
 
 namespace Kanvas\Notifications\Listeners;
 
-use Kanvas\Notifications\Events\PushNotificationsEvent;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Queue\InteractsWithQueue;
-use Kanvas\Notifications\DataTransferObject\Notifications as NotificationsDto;
 use Kanvas\Notifications\Actions\CreateNotificationAction;
+use Kanvas\Notifications\DataTransferObject\Notifications as NotificationsDto;
+use Kanvas\Notifications\Events\PushNotificationsEvent;
 
 class NotificationsListener
 {
@@ -15,7 +13,6 @@ class NotificationsListener
      */
     public function __construct()
     {
-        //
     }
 
     /**

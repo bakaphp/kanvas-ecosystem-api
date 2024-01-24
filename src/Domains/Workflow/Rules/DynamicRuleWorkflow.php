@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Rules;
 
+use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
@@ -13,7 +14,7 @@ use Workflow\Workflow;
 
 class DynamicRuleWorkflow extends Workflow
 {
-    public function execute(Rule $rule, Model $entity, array $params)
+    public function execute(AppInterface $app, Rule $rule, Model $entity, array $params)
     {
         $activities = [];
 
@@ -42,7 +43,7 @@ class DynamicRuleWorkflow extends Workflow
 
         foreach ($rule->workflowActivities as $workflowActivity) {
             $activity = $workflowActivity->activity;
-            $activities[] = yield ActivityStub::make($activity->actionClass(), $entity, $params);
+            $activities[] = yield ActivityStub::make($activity->actionClass(), $entity, $app, $params);
         }
 
         return $activities;

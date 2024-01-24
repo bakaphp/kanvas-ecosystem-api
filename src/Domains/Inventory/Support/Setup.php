@@ -86,7 +86,8 @@ class Setup
                 $this->user,
                 StateEnums::DEFAULT_NAME->getValue(),
                 StateEnums::DEFAULT_NAME->getValue(),
-                StateEnums::YES->getValue()
+                (bool) StateEnums::YES->getValue(),
+                (bool) StateEnums::YES->getValue()
             ),
             $this->user
         );
@@ -125,7 +126,7 @@ class Setup
 
         $defaultWarehouse = $createWarehouse->execute();
 
-        $createDefaultProductType= new CreateProductTypeAction(
+        $createDefaultProductType = new CreateProductTypeAction(
             new ProductsTypes(
                 $this->company,
                 $this->user,

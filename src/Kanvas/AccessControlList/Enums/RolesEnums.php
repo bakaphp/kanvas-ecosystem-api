@@ -27,4 +27,19 @@ enum RolesEnums: string
 
         return 'app_' . $app->getKey() . '_company_' . $companyId;
     }
+
+    public static function getRoleBySlug(string $slug): string
+    {
+        $role = match (strtolower($slug)) {
+            'owner' => self::OWNER,
+            'admin' => self::ADMIN,
+            'user' => self::USER,
+            'agent' => self::AGENT,
+            'developer' => self::DEVELOPER,
+            'manager' => self::MANAGER,
+            default => self::ADMIN
+        };
+
+        return $role->value;
+    }
 }

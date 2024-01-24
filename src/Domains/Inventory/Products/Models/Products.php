@@ -6,6 +6,7 @@ namespace Kanvas\Inventory\Products\Models;
 
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -19,6 +20,7 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Traits\SearchableDynamicIndexTrait;
+use Awobaz\Compoships\Compoships;
 
 /**
  * Class Products.
@@ -45,9 +47,12 @@ class Products extends BaseModel
     use SlugTrait;
     use LikableTrait;
     use SearchableDynamicIndexTrait;
+    use CascadeSoftDeletes;
+    use Compoships;
 
     protected $table = 'products';
     protected $guarded = [];
+    protected $cascadeDeletes = ['variants'];
 
     protected $casts = [
         'is_published' => 'boolean',
@@ -92,6 +97,17 @@ class Products extends BaseModel
             'products_id',
             'attributes_id'
         )->withPivot('value');
+    }
+
+    /**
+     * attributes values.
+     */
+    public function attributeValues(): HasMany
+    {
+        return $this->hasMany(
+            ProductsAttributes::class,
+            'products_id',
+        );
     }
 
     /**

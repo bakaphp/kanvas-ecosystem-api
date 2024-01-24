@@ -6,6 +6,7 @@ namespace App\GraphQL\Ecosystem\Mutations\Companies;
 
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Auth;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\Actions\DeleteCompaniesAction;
 use Kanvas\Companies\Actions\UpdateCompaniesAction;
@@ -16,6 +17,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class CompanyManagementMutation
 {
@@ -24,7 +26,13 @@ class CompanyManagementMutation
      */
     public function createCompany(mixed $root, array $request): Companies
     {
-        $request['input']['users_id'] = Auth::user()->getKey();
+        if (auth()->user()->isAdmin() && key_exists('users_id', $request['input'])) {
+            $user = Users::getById($request['input']['users_id']);
+            UsersRepository::belongsToThisApp($user, app(Apps::class)) ;
+            $request['input']['users_id'] = $user->getKey();
+        } else {
+            $request['input']['users_id'] = Auth::user()->getKey();
+        }
         $dto = CompaniesPostData::fromArray($request['input']);
         $action = new  CreateCompaniesAction($dto);
 
@@ -36,6 +44,13 @@ class CompanyManagementMutation
      */
     public function updateCompany(mixed $root, array $request): Companies
     {
+        if (auth()->user()->isAdmin() && key_exists('users_id', $request['input'])) {
+            $user = Users::getById($request['input']['users_id']);
+            UsersRepository::belongsToThisApp($user, app(Apps::class)) ;
+            $request['input']['users_id'] = $user->getKey();
+        } else {
+            $request['input']['users_id'] = Auth::user()->getKey();
+        }
         $dto = CompaniesPutData::fromArray($request['input']);
         $action = new UpdateCompaniesAction(Auth::user(), $dto);
 

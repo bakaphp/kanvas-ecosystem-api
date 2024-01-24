@@ -17,17 +17,24 @@ class MeiliSearchService
         );
     }
 
-    public function indexModel(string $indexName, Model $model): void
+    public function indexModel(string $indexName, Model $entity): void
     {
         $documents = array_merge(
             [
-                'id' => $model->getKey(),
+                'id' => $entity->getKey(),
             ],
-            $model->toSearchableArray()
+            $entity->toSearchableArray()
         );
 
-        $primaryKey = $model->getKeyName();
+        $primaryKey = $entity->getKeyName();
         $index = $this->meiliClient->index($indexName);
         $index->addDocuments($documents, $primaryKey);
+    }
+
+    public function deleteRecord(string $indexName, Model $entity): array
+    {
+        $index = $this->meiliClient->index($indexName);
+
+        return $index->deleteDocument($entity->getKey());
     }
 }

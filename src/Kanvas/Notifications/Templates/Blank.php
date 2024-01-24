@@ -7,6 +7,9 @@ namespace Kanvas\Notifications\Templates;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Notifications\Notification;
 
+/**
+ * @deprecated version 2 , move to DynamicKanvasNotification
+ */
 class Blank extends Notification
 {
     /**

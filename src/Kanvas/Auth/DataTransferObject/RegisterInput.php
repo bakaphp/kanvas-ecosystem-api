@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Auth\DataTransferObject;
 
 use Baka\Support\Random;
+use Baka\Validations\PasswordValidation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -60,6 +61,7 @@ class RegisterInput extends Data
     public static function fromArray(array $request, ?CompaniesBranches $branch = null): self
     {
         $roles = isset($request['role_id']) ? [$request['role_id']] : ($request['role_ids'] ?? []);
+
         return new self(
             firstname: $request['firstname'] ?? '',
             lastname: $request['lastname'] ?? '',

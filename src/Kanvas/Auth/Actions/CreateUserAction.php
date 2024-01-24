@@ -17,6 +17,7 @@ use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\CompaniesPostData;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Users\Actions\AssignCompanyAction;
@@ -24,6 +25,7 @@ use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Jobs\OnBoardingJob;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
 class CreateUserAction
@@ -83,6 +85,8 @@ class CreateUserAction
             $this->onBoarding($user, $company);
         }
 
+        $user->fireWorkflow(WorkflowEnum::REGISTERED->value, true, ['company' => $company]);
+
         return $user;
     }
 
@@ -124,7 +128,7 @@ class CreateUserAction
         $user->session_page = StateEnums::NO->getValue();
         $user->language = $user->language ?: AppEnums::DEFAULT_LANGUAGE->getValue();
         $user->user_activation_key = Hash::make(time());
-        $user->roles_id = $this->data->roles_id ?? AppEnums::DEFAULT_ROLE_ID->getValue(); //@todo : remove this , legacy code
+        $user->roles_id = AppEnums::DEFAULT_ROLE_ID->getValue(); //@todo : remove this , legacy code
         $user->system_modules_id = 2;
 
         //create a new user assign it to the app and create the default company
@@ -145,7 +149,8 @@ class CreateUserAction
     {
         $roles = $this->data->role_ids;
         if (empty($roles)) {
-            $roles = [RolesEnums::ADMIN->value];
+            $defaultAppSettingsRole = $this->app->get(AppSettingsEnums::DEFAULT_SIGNUP_ROLE->getValue());
+            $roles = [RolesEnums::getRoleBySlug($defaultAppSettingsRole ?? RolesEnums::ADMIN->value)];
         }
 
         foreach ($roles as $role) {
@@ -164,11 +169,14 @@ class CreateUserAction
         if ($this->data->branch === null) {
             return ;
         }
+        $defaultRole = RolesEnums::USER->value;
 
         try {
-            $role = RolesRepository::getByMixedParamFromCompany($this->data->roles_id ?? RolesEnums::USER->value);
+            $selectedRoleId = ! empty($this->data->role_ids) ? $this->data->role_ids[0] : $defaultRole;
+
+            $role = RolesRepository::getByMixedParamFromCompany($selectedRoleId);
         } catch (Throwable $e) {
-            $role = RolesRepository::getByMixedParamFromCompany(RolesEnums::USER->value);
+            $role = RolesRepository::getByMixedParamFromCompany($defaultRole);
         }
 
         (new AssignCompanyAction(

@@ -10,7 +10,6 @@ use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\KanvasModelTrait;
 use Baka\Users\Contracts\UserInterface;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFoundException;
@@ -23,6 +22,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Enums\DefaultRoles;
@@ -33,7 +33,6 @@ use Kanvas\Auth\Traits\HasApiTokens;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
-use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Exceptions\ModelNotFoundException;
@@ -49,6 +48,7 @@ use Kanvas\Roles\Models\Roles;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Traits\SearchableDynamicIndexTrait;
 use Kanvas\Users\Factories\UsersFactory;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 
 /**
@@ -112,6 +112,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use KanvasModelTrait;
     use HasNotificationSettings;
     use SearchableDynamicIndexTrait;
+    use CanUseWorkflow;
 
     protected ?string $defaultCompanyName = null;
 
@@ -365,16 +366,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return empty($this->default_company);
     }
 
-    public function defaultCompany()
+    public function defaultCompany(): int
     {
         return $this->currentCompanyId();
     }
 
-    public function defaultCompanyBranch(): Attribute
+    public function defaultCompanyBranch(): int
     {
-        return Attribute::make(
-            get: fn () => $this->currentBranchId(),
-        );
+        return $this->currentBranchId();
     }
 
     /**
@@ -401,10 +400,12 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function currentBranchId(): int
     {
         if (! app()->bound(CompaniesBranches::class)) {
-            return (int) $this->get($this->getCurrentCompany()->branchCacheKey());
+            $currentBranchId = (int) $this->get($this->getCurrentCompany()->branchCacheKey());
         } else {
-            return app(CompaniesBranches::class)->getId();
+            $currentBranchId = app(CompaniesBranches::class)->getId();
         }
+
+        return $currentBranchId ? (int) $currentBranchId : $this->default_company_branch;
     }
 
     /**
@@ -500,10 +501,9 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return $user->updateOrFail();
     }
 
-    public function updateEmail(string $email): bool
+    public function updateEmail(string $email, AppInterface $app): bool
     {
-        $this->email = $email;
-
+        //@todo in the future we should remove this validation and use only the one in the app
         $validator = Validator::make(
             ['email' => $email],
             ['email' => 'required|email|unique:users,email,' . $this->id]
@@ -512,6 +512,30 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         if ($validator->fails()) {
             throw new ValidationException($validator);
         }
+
+        $user = $this->getAppProfile($app);
+
+        $validator = Validator::make(
+            ['email' => $email],
+            [
+                'email' => [
+                    'required',
+                    Rule::unique('users_associated_apps')->ignore($this->id, 'users_id')
+                        ->where(function ($query) use ($app) {
+                            return $query->where('apps_id', $app->getId());
+                        }),
+                ],
+            ]
+        );
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
+
+        $this->email = $email;
+        $user->email = $email;
+
+        $user->updateOrFail();
 
         return $this->saveOrFail();
     }

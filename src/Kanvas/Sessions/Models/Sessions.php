@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Sessions\Models;
 
+use Baka\Contracts\AppInterface;
 use Baka\Traits\KanvasAppScopesTrait;
+use Baka\Traits\KanvasModelTrait;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Users\Models\Users;
 use Laravel\Sanctum\PersonalAccessToken;
 use Lcobucci\JWT\Token\Plain;
@@ -30,6 +34,7 @@ use Lcobucci\JWT\Token\Plain;
 class Sessions extends PersonalAccessToken
 {
     use KanvasAppScopesTrait;
+    use KanvasModelTrait;
 
     /**
      * The attributes that should be cast to native types.
@@ -117,6 +122,20 @@ class Sessions extends PersonalAccessToken
     public function getKeyType(): string
     {
         return 'string';
+    }
+
+    public static function getById(mixed $id, ?AppInterface $app = null): self
+    {
+        try {
+            return self::where('id', $id)
+            ->when($app, function ($query, $app) {
+                $query->fromApp($app);
+            })
+            ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException("No record found for $id");
+        }
     }
 
     /**

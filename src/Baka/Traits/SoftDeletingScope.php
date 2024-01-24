@@ -19,4 +19,24 @@ class SoftDeletingScope extends EloquentSoftDeletingScope
     {
         $builder->where($model->getQualifiedDeletedAtColumn(), '=', 0);
     }
+
+    /**
+     * Extend the query builder with the needed functions.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $builder
+     * @return void
+     */
+    public function extend(Builder $builder)
+    {
+        foreach ($this->extensions as $extension) {
+            $this->{"add{$extension}"}($builder);
+        }
+
+        $builder->onDelete(function (Builder $builder) {
+            $column = $this->getDeletedAtColumn($builder);
+            return $builder->update([
+                $column => 1,
+            ]);
+        });
+    }
 }

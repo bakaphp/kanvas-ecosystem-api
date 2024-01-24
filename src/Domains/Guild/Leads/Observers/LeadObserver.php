@@ -10,7 +10,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
-use Kanvas\Workflow\Enums\RuleTypeEnum;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class LeadObserver
 {
@@ -63,11 +63,11 @@ class LeadObserver
 
     public function created(Lead $lead): void
     {
-        $lead->fireWorkflow(RuleTypeEnum::CREATED->value);
+        $lead->fireWorkflow(WorkflowEnum::CREATED->value);
     }
 
     public function updated(Lead $lead): void
     {
-        $lead->fireWorkflow(RuleTypeEnum::UPDATED->value);
+        $lead->fireWorkflow(WorkflowEnum::UPDATED->value);
     }
 }

@@ -50,7 +50,7 @@ extend type Query @guard {
             @whereConditions(
                 columns: ["entity_id", "entity_namespace", "interactions_id"]
             )
-    ): [UserInteraction]
+    ): [UserInteraction!]!
         @paginate(
             model: "Kanvas\\Social\\UsersInteractions\\Models\\UserInteraction"
             defaultCount: 25

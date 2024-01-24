@@ -9,6 +9,7 @@ use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Currencies\Models\Currencies;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
@@ -45,17 +46,18 @@ class KanvasInventoryDefaultUpdate extends Command
 
         foreach ($associatedApps as $company) {
             $companyData = $company->company;
-            if (!$companyData) {
+            if (! $companyData) {
                 continue;
             }
             $defaultWarehouses = Warehouses::getDefault($companyData);
             $defaultStatus = Status::getDefault($companyData);
             $defaultRegion = Regions::getDefault($companyData);
+            $defaultChannel = Channels::getDefault($companyData);
 
             $this->info("Checking company {$companyData->getId()} \n");
             $this->info("Checking company {$companyData->getId()} default status \n");
 
-            if (!$defaultRegion) {
+            if (! $defaultRegion) {
                 $this->info("Working company {$companyData->getId()} default region \n");
                 try {
                     $defaultRegion = Regions::firstOrCreate([
@@ -74,7 +76,7 @@ class KanvasInventoryDefaultUpdate extends Command
                 }
             }
 
-            if (!$defaultWarehouses) {
+            if (! $defaultWarehouses) {
                 $this->info("Working company {$companyData->getId()} default warehouse \n");
                 try {
                     $defaultWarehouses = Warehouses::firstOrCreate([
@@ -88,12 +90,11 @@ class KanvasInventoryDefaultUpdate extends Command
                         'is_published' => true
                     ]);
                 } catch (Throwable $e) {
-                    dd($e);
                     $this->error('Error creating default warehouse for : ' . $companyData->getId() . ' ' . $e->getMessage());
                 }
             }
 
-            if (!$defaultStatus) {
+            if (! $defaultStatus) {
                 $this->info("Working company {$companyData->getId()} default status \n");
                 try {
                     $defaultStatus = Status::firstOrCreate([
@@ -106,6 +107,23 @@ class KanvasInventoryDefaultUpdate extends Command
                     ]);
                 } catch (Throwable $e) {
                     $this->error('Error creating default status for : ' . $companyData->getId() . ' ' . $e->getMessage());
+                }
+            }
+
+            if (! $defaultChannel) {
+                $this->info("Working company {$companyData->getId()} default channel \n");
+                try {
+                    $defaultChannel = Channels::firstOrCreate([
+                        'companies_id' => $companyData->getId(),
+                        'apps_id' => $app->getId(),
+                        'slug' => Str::slug("Default"),
+                    ], [
+                        'name' => "Default",
+                        'users_id' => $companyData->users_id,
+                        'is_default' => true,
+                    ]);
+                } catch (Throwable $e) {
+                    $this->error('Error creating default channel for : ' . $companyData->getId() . ' ' . $e->getMessage());
                 }
             }
         }

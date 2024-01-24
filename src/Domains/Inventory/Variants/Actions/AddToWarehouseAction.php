@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Actions;
 
-use Kanvas\Inventory\Status\Actions\CreateStatusHistoryAction;
-use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses as VariantsWarehousesDto;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
@@ -29,7 +27,7 @@ class AddToWarehouseAction
      * execute.
      * @psalm-suppress ArgumentTypeCoercion
      */
-    public function execute(): Variants
+    public function execute(): VariantsWarehouses
     {
         $search = [
             'products_variants_id' => $this->variants->getId(),
@@ -56,13 +54,6 @@ class AddToWarehouseAction
             ]
         );
 
-        if ($this->variantsWarehousesDto->status_id) {
-            (new CreateStatusHistoryAction(
-                StatusRepository::getById($this->variantsWarehousesDto->status_id),
-                $variantsWarehouses
-            ))->execute();
-        }
-
-        return $this->variants;
+        return $variantsWarehouses;
     }
 }

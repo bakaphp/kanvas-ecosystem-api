@@ -51,7 +51,7 @@ extend type Query {
                     "entity_id"
                 ]
             )
-    ): [SocialChannel]
+    ): [SocialChannel!]!
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Channels\\GetSocialChannelsBuilder@getChannels"

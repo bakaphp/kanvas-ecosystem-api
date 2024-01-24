@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{.Values.deployments.notifications.name}}
+  namespace: {{.Values.namespace}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{.Values.deployments.notifications.name}}
+  template:
+    metadata:
+      labels:
+        app: {{.Values.deployments.notifications.name}}
+        type: api
+    spec:
+      volumes:
+        - name: envconfigmap
+          configMap:
+            name: envconfigmap
+            items:
+              - key: kanvasconfigmap
+                path: .env
+            defaultMode: 432
+        - name: webroot
+          emptyDir: {}
+      containers:
+        - name: {{.Values.deployments.notifications.containerName}}
+          image: {{.Values.apiImage}}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: envconfigmap
+              mountPath: /app/.env
+              subPath: .env
+            - name: webroot
+              mountPath: "/var/www/html"
+          resources:
+                requests:
+                    memory: "256M"
+                    cpu: "300m"
+                limits:
+                    memory: "600M"
+                    cpu: "800m"
+          command:
+            [
+              "/bin/sh",
+              "-c",
+              "cp -R /app/. /var/www/html && \
+               chmod -R 755 /var/www/html && \
+               chmod -R 777 /var/www/html/storage && \
+               chmod -R 777 /var/www/html/storage/logs && \
+               chmod -R 777 /var/www/html/bootstrap/cache && \
+               cd /var/www/html \
+               && php artisan config:cache \
+               && php artisan queue:work --queue notifications --timeout=400"
+            ]
+      securityContext:
+        fsGroup: 65533

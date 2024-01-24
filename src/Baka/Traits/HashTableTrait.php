@@ -35,7 +35,7 @@ trait HashTableTrait
     /**
      * Set the settings.
      */
-    public function set(string $key, mixed $value): bool
+    public function set(string $key, mixed $value, int $isPublic = 0): bool
     {
         $this->createSettingsModel();
 
@@ -57,11 +57,16 @@ trait HashTableTrait
         }
         $this->settingsModel->name = $key;
         $this->settingsModel->value = $value;
+        $this->settingsModel->is_public = $isPublic;
         $this->settingsModel->save();
 
         return true;
     }
 
+    /**
+     * @param array<array-key, array{name: string, data: mixed}> $settings
+     * @throws ConfigurationException
+     */
     public function setAll(array $settings): bool
     {
         if (empty($settings)) {

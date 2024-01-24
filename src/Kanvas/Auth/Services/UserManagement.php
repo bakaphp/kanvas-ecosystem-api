@@ -36,7 +36,11 @@ class UserManagement
             $files = Arr::pull($data, 'files', []);
             $roleIds = Arr::pull($data, 'role_ids', []);
 
-            $this->user->update(array_filter($data));
+            $userAppProfile = $this->user->getAppProfile($this->app);
+
+            //@todo when we update the login to use userAssociatedApps we need to remove this
+            $this->user->update($data);
+            $userAppProfile->update($data);
 
             if ($customFields) {
                 $this->user->setAll($customFields);
@@ -45,12 +49,12 @@ class UserManagement
             if ($files) {
                 $this->user->addMultipleFilesFromUrl($files);
             }
+
+            //update roles if
+            $this->updateRole($roleIds);
         } catch (InternalServerErrorException $e) {
             throw new InternalServerErrorException($e->getMessage());
         }
-
-        //update roles if
-        $this->updateRole($roleIds);
 
         return $this->user;
     }
@@ -59,16 +63,18 @@ class UserManagement
     {
         if (! empty($roleIds) && $this->userEditing) {
             $updateRole = $this->userEditing->isAdmin() || $this->userEditing->can(AbilityEnum::MANAGE_ROLES->value);
-            foreach ($roleIds as $roleId) {
-                if ($updateRole) {
-                    $role = RolesRepository::getByMixedParamFromCompany($roleId);
 
-                    $assign = new AssignRoleAction(
-                        $this->user,
-                        $role
-                    );
-                    $assign->execute();
-                }
+            if (! $updateRole) {
+                return;
+            }
+            foreach ($roleIds as $roleId) {
+                $role = RolesRepository::getByMixedParamFromCompany($roleId);
+
+                $assign = new AssignRoleAction(
+                    $this->user,
+                    $role
+                );
+                $assign->execute();
             }
         }
     }

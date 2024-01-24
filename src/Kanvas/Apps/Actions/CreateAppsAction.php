@@ -7,9 +7,9 @@ namespace Kanvas\Apps\Actions;
 use Illuminate\Support\Facades\DB;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
 use Kanvas\AccessControlList\Enums\RolesEnums;
-use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\DataTransferObject\AppInput;
-use Kanvas\Apps\Enums\DefaultRoles;
+use Kanvas\Apps\DataTransferObject\AppKeyInput;
+use Kanvas\Apps\Jobs\CreateSystemModuleJob;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Roles\Models\Roles;
@@ -56,7 +56,12 @@ class CreateAppsAction
             $this->settings($app);
             $this->systemModules($app);
             $this->acl($app);
-
+            CreateSystemModuleJob::dispatch($app);
+            (new CreateAppKeyAction(new AppKeyInput(
+                'Default',
+                $app,
+                $this->user
+            )))->execute();
             //@todo
             // $this->createEmailTemplate($app);
         });
@@ -147,7 +152,7 @@ class CreateAppsAction
     public function acl(Apps $app): void
     {
         $roles = [
-            'Admins',
+            //'Admins',
             RolesEnums::OWNER->value,
             RolesEnums::ADMIN->value, //replace from admins when migration is complete
             RolesEnums::USER->value,

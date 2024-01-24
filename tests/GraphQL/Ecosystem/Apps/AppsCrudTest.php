@@ -22,11 +22,11 @@ class AppsCrudTest extends TestCase
             'url' => fake()->url,
             'description' => trim(substr(fake()->text, 0, 44)),
             'domain' => fake()->safeEmailDomain,
-            'is_actived' => 1,
-            'ecosystem_auth' => 0,
-            'payments_active' => 0,
-            'is_public' => 1,
-            'domain_based' => 0,
+            'is_actived' => true,
+            'ecosystem_auth' => false,
+            'payments_active' => false,
+            'is_public' => true,
+            'domain_based' => false,
         ];
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation(
@@ -106,11 +106,11 @@ class AppsCrudTest extends TestCase
             'url' => fake()->url,
             'description' => trim(substr(fake()->text, 0, 44)),
             'domain' => fake()->safeEmailDomain,
-            'is_actived' => 1,
-            'ecosystem_auth' => 0,
-            'payments_active' => 0,
-            'is_public' => 1,
-            'domain_based' => 0,
+            'is_actived' => true,
+            'ecosystem_auth' => false,
+            'payments_active' => false,
+            'is_public' => true,
+            'domain_based' => false,
         ];
 
         $response = $this->graphQL(/** @lang GraphQL */ '
@@ -144,6 +144,66 @@ class AppsCrudTest extends TestCase
         $response->assertJson([
             'data' => [
                 'updateApp' => $input,
+            ],
+        ]);
+    }
+
+    public function testUsersSetting()
+    {
+        $app = app(Apps::class);
+        $input = [
+            'key' => 'test',
+            'value' => 'test',
+            'entity_uuid' => $app->uuid,
+        ];
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation(
+                $input: ModuleConfigInput!
+            ){
+                setAppSetting(
+                    input: $input
+                ) 
+            }',
+            [
+                'input' => $input,
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        )->assertJson([
+            'data' => [
+                'setAppSetting' => true,
+            ],
+        ]);
+    }
+
+    public function testDeleteUserSetting()
+    {
+        $app = app(Apps::class);
+        $input = [
+            'key' => 'test',
+            'value' => 'test',
+            'entity_uuid' => $app->uuid,
+        ];
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation(
+                $input: ModuleConfigInput!
+            ){
+                setAppSetting(
+                    input: $input
+                ) 
+            }',
+            [
+                'input' => $input,
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        )->assertJson([
+            'data' => [
+                'setAppSetting' => true,
             ],
         ]);
     }

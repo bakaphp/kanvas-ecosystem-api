@@ -8,10 +8,13 @@ use Baka\Contracts\AppInterface;
 use Baka\Enums\StateEnums;
 use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
+use Baka\Users\Contracts\UserInterface;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
@@ -82,9 +85,30 @@ class Apps extends BaseModel implements AppInterface
         }
     }
 
+    public function companies(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Companies::class,
+            UserCompanyApps::class,
+            'apps_id',
+            'id',
+            'id',
+            'companies_id'
+        );
+    }
+
     public function keys(): HasMany
     {
         return $this->hasMany(AppKey::class, 'apps_id');
+    }
+
+    public function getUserKeys(?UserInterface $user = null): Collection
+    {
+        $user = $user ?? Auth::user();
+
+        return $this->keys()
+            ->where('users_id', $user->getId())
+            ->get();
     }
 
     /**

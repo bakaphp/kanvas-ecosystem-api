@@ -27,6 +27,27 @@ trait NotificationRenderTrait
         return '';
     }
 
+    public function getEmailContent(): string
+    {
+        if ($this->getType()->hasEmailTemplate()) {
+            return $this->getEmailTemplate();
+        }
+
+        return '';
+    }
+
+    protected function getPushTemplate(): string
+    {
+        $templateName = $this->getType()->getPushTemplateName();
+
+        $renderTemplate = new RenderTemplateAction($this->app, $this->company);
+
+        return $renderTemplate->execute(
+            $templateName,
+            $this->getData()
+        );
+    }
+
     /**
      * Given the HTML for the current email notification
      */
@@ -77,8 +98,8 @@ trait NotificationRenderTrait
     /*
     * Get notification template Name
     */
-    public function getTemplateName(): ?string
+    public function getTemplateName(): string
     {
-        return $this->templateName === null ? $this->getType()->template : $this->templateName;
+        return $this->templateName === null ? $this->getType()->getTemplateName() : $this->templateName;
     }
 }

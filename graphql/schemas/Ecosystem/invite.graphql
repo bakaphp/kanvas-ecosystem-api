@@ -55,7 +55,7 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@getInvite"
         )
-    processInvite(input: CompleteInviteInput!): User!
+    processInvite(input: CompleteInviteInput!): TokenResponse!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@process"
         )

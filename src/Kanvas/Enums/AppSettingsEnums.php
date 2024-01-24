@@ -18,6 +18,8 @@ enum AppSettingsEnums implements EnumsInterface
     case ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY;
     case ONE_SIGNAL_APP_ID;
     case ONE_SIGNAL_REST_API_KEY;
+    case PASSWORD_STRENGTH;
+    case DEFAULT_SIGNUP_ROLE;
 
     /**
      * Get value.
@@ -35,6 +37,8 @@ enum AppSettingsEnums implements EnumsInterface
             self::ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY => 'admin_user_registration_assign_current_company',
             self::ONE_SIGNAL_APP_ID => 'one_signal_app_id',
             self::ONE_SIGNAL_REST_API_KEY => 'one_signal_rest_api_key',
+            self::PASSWORD_STRENGTH => 'flag_password_strength',
+            self::DEFAULT_SIGNUP_ROLE => 'default_signup_role',
         };
     }
 }

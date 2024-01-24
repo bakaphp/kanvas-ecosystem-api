@@ -29,6 +29,7 @@ class CompaniesFactory extends Factory
     public function definition()
     {
         $user = Users::factory()->create()->first();
+
         return [
             'users_id' => $user->id,
             'uuid' => Str::random(10),
@@ -43,7 +44,7 @@ class CompaniesFactory extends Factory
             'phone' => $this->faker->phoneNumber(),
             'has_activities' => 1,
             'country_code' => $this->faker->countryCode(),
-            'is_deleted' => 0
+            'is_deleted' => 0,
         ];
     }
 }

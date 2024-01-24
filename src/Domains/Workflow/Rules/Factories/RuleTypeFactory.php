@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Rules\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Workflow\Enums\RuleTypeEnum;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Rules\Models\RuleType;
 
 class RuleTypeFactory extends Factory
@@ -16,7 +15,7 @@ class RuleTypeFactory extends Factory
     public function definition()
     {
         return [
-           'name' => RuleTypeEnum::CREATED->value,
+           'name' => WorkflowEnum::CREATED->value,
         ];
     }
 }

@@ -15,7 +15,7 @@ class WarehouseObserver
      */
     public function creating(Warehouses $warehouse): void
     {
-        $defaultWarehouse = $warehouse::getDefault($warehouse->companies);
+        $defaultWarehouse = $warehouse::getDefault($warehouse->company);
 
         // if default already exist remove its default
         if ($warehouse->is_default && $defaultWarehouse) {
@@ -23,14 +23,14 @@ class WarehouseObserver
             $defaultWarehouse->saveQuietly();
         }
 
-        if (!$warehouse->is_default && !$defaultWarehouse) {
+        if (! $warehouse->is_default && ! $defaultWarehouse) {
             throw new ValidationException('Can\'t Save, you have to have at least one default Warehouse');
         }
     }
 
     public function updating(Warehouses $warehouse): void
     {
-        $defaultWarehouse = Warehouses::getDefault($warehouse->companies);
+        $defaultWarehouse = Warehouses::getDefault($warehouse->company);
 
         // if default already exist remove its default
         if ($defaultWarehouse &&
@@ -40,7 +40,7 @@ class WarehouseObserver
             $defaultWarehouse->is_default = false;
             $defaultWarehouse->saveQuietly();
         } elseif ($defaultWarehouse &&
-            !$warehouse->is_default &&
+            ! $warehouse->is_default &&
             $warehouse->getId() == $defaultWarehouse->getId()
         ) {
             throw new ValidationException('Can\'t Save, you have to have at least one default Warehouse');
