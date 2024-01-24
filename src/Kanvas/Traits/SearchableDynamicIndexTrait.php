@@ -60,15 +60,12 @@ trait SearchableDynamicIndexTrait
 
         if ($this->searchableDeleteRecord()) {
             $record = $this->find($this->id);
-            $appId = $record instanceof self ? $record->apps_id : $appId;
+            $appId = $record instanceof self && $record->apps_id ? $record->apps_id : $appId;
         }
-
         $indexName = self::$overWriteSearchIndex !== null
             ? self::$overWriteSearchIndex
             : self::searchableIndex();
-
         $indexName = config('scout.prefix') . 'app_' . $appId . '_' . $indexName;
-
         // Manually index the model in the second index
         IndexInMeiliSearchJob::dispatch($indexName, $this);
     }
