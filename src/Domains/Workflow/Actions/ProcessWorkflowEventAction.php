@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Actions;
 
 use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Workflow\Rules\DynamicRuleWorkflow;
@@ -28,7 +29,8 @@ class ProcessWorkflowEventAction
             return;
         }
 
-        $rules = RuleRepository::getRulesByModelAndType($this->app, $this->entity, $ruleType);
+        $company = isset($params['company']) && $params['company'] instanceof CompanyInterface ? $params['company'] : null;
+        $rules = RuleRepository::getRulesByModelAndType($this->app, $this->entity, $ruleType, $company);
         if ($rules->count() > 0) {
             foreach ($rules as $rule) {
                 $workflow = WorkflowStub::make(DynamicRuleWorkflow::class);
