@@ -85,7 +85,7 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
         try {
             $userInvite = UsersInvite::fromCompany($company)->fromApp($app)->where('email', $user->email)->firstOrFail();
             $agentOwner = Agent::fromCompany($company)->where('users_id', $userInvite->users_id)->firstOrFail();
-            $ownerInfo = $zohoService->getAgentByMemberNumber($agentOwner->member_id);
+            $ownerInfo = $zohoService->getAgentByMemberNumber((string) $agentOwner->member_id);
 
             $ownerId = $ownerInfo->Owner['id'];
             $ownerMemberNumber = $ownerInfo->Member_Number;
