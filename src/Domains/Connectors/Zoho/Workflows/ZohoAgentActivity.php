@@ -55,14 +55,16 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
             $ownerAgent = Agent::where('users_id', $ownerUser->getId())->fromCompany($company)->firstOrFail();
         } catch (Exception $e) {
         }
-        $ownerId = $ownerAgent ? $ownerAgent->member_id : 1001;
 
         $agentUpdateData = [
             'name' => $name,
             'users_linked_source_id' => $zohoId,
             'member_id' => $memberNumber,
-            'owner_id' => $ownerId ?? 1001,
         ];
+
+        if ($ownerAgent) {
+            $agentUpdateData['owner_id'] = $ownerAgent->member_id;
+        }
 
         if ($owner) {
             $agentUpdateData['owner_linked_source_id'] = $owner['id'];
