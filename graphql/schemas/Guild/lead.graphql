@@ -73,13 +73,6 @@ type LeadStatus {
     is_default: Boolean!
 }
 
-type LeadType {
-    id: ID!
-    company: Company! @belongsTo
-    name: String!
-    description: String
-}
-
 type LeadSource {
     id: ID!
     company: Company! @belongsTo
