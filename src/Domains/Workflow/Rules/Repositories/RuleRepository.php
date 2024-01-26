@@ -18,7 +18,8 @@ class RuleRepository
     public static function getRulesByModelAndType(
         AppInterface $app,
         EloquentModel $model,
-        RuleType $ruleType
+        RuleType $ruleType,
+        ?CompanyInterface $company = null
     ): Collection {
         $systemModule = SystemModulesRepository::getByModelName(get_class($model), $app);
         $bind = [
@@ -31,10 +32,16 @@ class RuleRepository
         ];
 
         //if it has a company reference m
-        if (isset($model->companies)
-            && $model->companies instanceof CompanyInterface
-        ) {
-            $bind['companies_id'] = $model->companies->getId();
+        $companyId = null;
+
+        if ($company) {
+            $companyId = $company->getId();
+        } elseif (isset($model->companies) && $model->companies instanceof CompanyInterface) {
+            $companyId = $model->companies->getId();
+        }
+
+        if ($companyId !== null) {
+            $bind['companies_id'] = $companyId;
         }
 
         return Rule::where('systems_modules_id', $bind['systems_module_id'])
