@@ -8,8 +8,8 @@ use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
@@ -86,10 +86,13 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
             $userInvite = UsersInvite::fromCompany($company)->fromApp($app)->where('email', $user->email)->firstOrFail();
             $agentOwner = Agent::fromCompany($company)->where('users_id', $userInvite->users_id)->firstOrFail();
             $ownerInfo = $zohoService->getAgentByMemberNumber((string) $agentOwner->member_id);
+            Log::info('owner info', [$ownerInfo]);
 
-            $ownerId = $ownerInfo->Owner['id'];
+            $ownerId = $ownerInfo->id;
             $ownerMemberNumber = $ownerInfo->Member_Number;
         } catch(Exception $e) {
+            //log the error
+            Log::error($e->getMessage() . ' error creating agent');
             $agentOwner = null;
             $ownerMemberNumber = null;
         }
