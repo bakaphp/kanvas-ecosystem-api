@@ -180,8 +180,8 @@ class Apps extends BaseModel implements AppInterface
     }
 
     /**
-     * Associate user to the app.
-     * @deprecated v2.0.0
+     * Create user profile for the app
+     * @psalm-suppress MixedReturnStatement 
      */
     public function associateUser(
         Users $user,
@@ -193,7 +193,7 @@ class Apps extends BaseModel implements AppInterface
     ): UsersAssociatedApps {
         return UsersAssociatedApps::firstOrCreate([
             'users_id' => $user->getKey(),
-            'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
+            'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(), //for now user profile uses company app id 0
             'apps_id' => $this->getKey(),
         ], [
             'users_id' => $user->getKey(),
@@ -202,7 +202,7 @@ class Apps extends BaseModel implements AppInterface
             'identify_id' => $companyUserIdentifier ?? $user->id,
             'user_active' => $isActive,
             'user_role' => $userRoleId ?? $user->roles_id,
-            'password' => $password,
+            'password' => $password ?? $user->password,
             'configuration' => Str::isJson($configuration) ? json_encode($configuration) : $configuration,
         ]);
     }
