@@ -23,7 +23,7 @@ class RegisterUsersAction extends CreateUserAction
     public function execute(): Users
     {
         $newUser = false;
-        $company = null;
+        $company = $this->data->branch ? $this->data->branch->company : null;
 
         $this->validateEmail();
 
@@ -46,7 +46,14 @@ class RegisterUsersAction extends CreateUserAction
         } catch(ModelNotFoundException $e) {
             $newUser = true;
             $user = $this->createNewUser();
-            $company = $this->createCompany($user);
+
+            // if company is not set we create a new company
+            if (! $company) {
+                $company = $this->createCompany($user);
+            } else {
+                $this->assignCompany($user);
+            }
+
             $this->registerUserInApp($user);
             $this->assignUserRole($user);
         }
