@@ -120,15 +120,19 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
                 continue;
             }
 
-            $fileContent = file_get_contents($file->url);
+            try {
+                $fileContent = file_get_contents($file->url);
 
-            $zohoLead->uploadAttachment(
-                (string) $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value),
-                $file->name,
-                $fileContent
-            );
+                $zohoLead->uploadAttachment(
+                    (string) $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value),
+                    $file->name,
+                    $fileContent
+                );
 
-            $syncFiles[$file->id] = $file->id;
+                $syncFiles[$file->id] = $file->id;
+            } catch(Throwable $e) {
+                //do nothing
+            }
         }
 
         $lead->set(
