@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\Zoho\Workflows;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Connectors\Zoho\DataTransferObject\ZohoLead;
@@ -16,6 +15,7 @@ use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Throwable;
+use Webleit\ZohoCrmApi\Modules\Leads as ZohoLeadModule;
 use Workflow\Activity;
 
 class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
@@ -50,6 +50,8 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
                 $zohoData
             );
         }
+
+        $this->uploadAttachments($zohoCrm->leads, $lead);
 
         return [
             'zohoLeadId' => $zohoLeadId,
@@ -103,5 +105,39 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
                 $zohoData['Sponsor'] = (string) $agent->user->get('sponsor');
             }
         }
+    }
+
+    protected function uploadAttachments(ZohoLeadModule $zohoLead, Lead $lead): void
+    {
+        if (! $lead->files()->count()) {
+            return;
+        }
+
+        $syncFiles = $lead->get(CustomFieldEnum::ZOHO_LEAD_SYNC_FILES->value) ?? [];
+
+        foreach ($lead->files()->get() as $file) {
+            if (isset($syncFiles[$file->id])) {
+                continue;
+            }
+
+            try {
+                $fileContent = file_get_contents($file->url);
+
+                $zohoLead->uploadAttachment(
+                    (string) $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value),
+                    $file->name,
+                    $fileContent
+                );
+
+                $syncFiles[$file->id] = $file->id;
+            } catch(Throwable $e) {
+                //do nothing
+            }
+        }
+
+        $lead->set(
+            CustomFieldEnum::ZOHO_LEAD_SYNC_FILES->value,
+            $syncFiles
+        );
     }
 }
