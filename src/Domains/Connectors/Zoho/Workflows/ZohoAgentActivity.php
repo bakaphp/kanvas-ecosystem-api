@@ -86,14 +86,13 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
             $userInvite = UsersInvite::fromCompany($company)->fromApp($app)->where('email', $user->email)->firstOrFail();
             $agentOwner = Agent::fromCompany($company)->where('users_id', $userInvite->users_id)->firstOrFail();
             $ownerInfo = $zohoService->getAgentByMemberNumber((string) $agentOwner->member_id);
-            Log::info('owner info', [$ownerInfo]);
 
             $ownerId = $ownerInfo->id;
             $ownerMemberNumber = $ownerInfo->Member_Number;
         } catch(Exception $e) {
             //log the error
-            Log::error($e->getMessage() . ' error creating agent');
             $agentOwner = null;
+            $ownerInfo = null;
             $ownerMemberNumber = null;
         }
 
@@ -109,7 +108,7 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
         $agent->saveOrFail();
 
         //create in zoho
-        $zohoAgent = $zohoService->createAgent($user, $agent, $agentOwner);
+        $zohoAgent = $zohoService->createAgent($user, $agent, $ownerInfo);
 
         $agent->users_linked_source_id = $zohoAgent->id;
         $agent->saveOrFail();
