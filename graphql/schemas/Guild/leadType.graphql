@@ -1,0 +1,7 @@
+type LeadType {
+    id: ID!
+    company: Company! @belongsTo
+    name: String!
+    description: String
+}
+
