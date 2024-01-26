@@ -16,6 +16,7 @@ enum AppSettingsEnums implements EnumsInterface
     case ONBOARDING_GUILD_SETUP;
     case ONBOARDING_INVENTORY_SETUP;
     case ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY;
+    case GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY;
     case ONE_SIGNAL_APP_ID;
     case ONE_SIGNAL_REST_API_KEY;
     case PASSWORD_STRENGTH;
@@ -35,6 +36,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::ONBOARDING_GUILD_SETUP => 'onboarding_guild_setup',
             self::ONBOARDING_INVENTORY_SETUP => 'onboarding_inventory_setup',
             self::ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY => 'admin_user_registration_assign_current_company',
+            self::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY => 'global_user_registration_assign_global_company',
             self::ONE_SIGNAL_APP_ID => 'one_signal_app_id',
             self::ONE_SIGNAL_REST_API_KEY => 'one_signal_rest_api_key',
             self::PASSWORD_STRENGTH => 'flag_password_strength',
