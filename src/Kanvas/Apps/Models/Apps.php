@@ -181,7 +181,7 @@ class Apps extends BaseModel implements AppInterface
 
     /**
      * Create user profile for the app
-     * @psalm-suppress MixedReturnStatement 
+     * @psalm-suppress MixedReturnStatement
      */
     public function associateUser(
         Users $user,
