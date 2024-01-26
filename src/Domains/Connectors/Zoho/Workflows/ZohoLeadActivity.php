@@ -20,6 +20,8 @@ use Workflow\Activity;
 
 class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
 {
+    public $tries = 10;
+
     /**
      * @param Lead $lead
      */

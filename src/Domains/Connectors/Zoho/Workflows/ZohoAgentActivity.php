@@ -20,6 +20,8 @@ use Workflow\Activity;
 
 class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
 {
+    public $tries = 10;
+
     public function execute(Model $user, AppInterface $app, array $params): array
     {
         if (! isset($params['company'])) {
@@ -87,7 +89,7 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
             $agentOwner = Agent::fromCompany($company)->where('users_id', $userInvite->users_id)->firstOrFail();
             $ownerInfo = $zohoService->getAgentByMemberNumber((string) $agentOwner->member_id);
 
-            $ownerId = $ownerInfo->id;
+            $ownerId = $ownerInfo->Owner['id'];
             $ownerMemberNumber = $ownerInfo->Member_Number;
         } catch(Exception $e) {
             //log the error
