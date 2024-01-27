@@ -77,7 +77,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
 
         if (! empty($memberNumber)) {
             $zohoData['Member_ID'] = $memberNumber;
-            $zohoData['Member'] = $memberNumber;
+            //$zohoData['Member'] = $memberNumber;
         }
 
         $zohoService = new ZohoService($app, $company);
