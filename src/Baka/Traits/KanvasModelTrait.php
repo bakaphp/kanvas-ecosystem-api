@@ -231,6 +231,6 @@ trait KanvasModelTrait
 
     public function hasWorkflow(): bool
     {
-        return method_exists($this->entity, 'fireWorkflow');
+        return method_exists($this, 'fireWorkflow');
     }
 }
