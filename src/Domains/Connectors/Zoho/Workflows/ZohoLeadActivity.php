@@ -69,10 +69,15 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
         Companies $company,
         array &$zohoData
     ): void {
-        $memberNumber = $zohoLead->getMemberNumber();
+        $memberNumber = (string) $zohoLead->getMemberNumber();
 
         if (empty($memberNumber) && $lead->user()->exists()) {
-            $memberNumber = $lead->user()->firstOrFail()->get('member_number_' . $company->getId());
+            $memberNumber = (string) $lead->user()->firstOrFail()->get('member_number_' . $company->getId());
+        }
+
+        if (! empty($memberNumber)) {
+            $zohoData['Member_ID'] = $memberNumber;
+            //$zohoData['Member'] = $memberNumber;
         }
 
         $zohoService = new ZohoService($app, $company);
@@ -105,12 +110,17 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
                 $zohoData['Owner'] = (int) $agentInfo->get('over_write_owner');
             }
         } elseif ($agentInfo) {
-            $zohoData['Owner'] = $agentInfo->owner_linked_source_id;
-            $data['Lead_Source'] = $agentInfo->name;
+            $zohoData['Owner'] = (int) $agentInfo->owner_linked_source_id;
+            $zohoData['Lead_Source'] = $agentInfo->name;
 
             if ($agentInfo->user && $agentInfo->user->get('sponsor')) {
                 $zohoData['Sponsor'] = (string) $agent->user->get('sponsor');
             }
+        }
+
+        //if value is 0 or empty, remove it
+        if (empty($zohoData['Owner'])) {
+            unset($zohoData['Owner']);
         }
     }
 
