@@ -51,7 +51,6 @@ class CreateAppsAction
             $app->saveOrFail();
 
             $app->associateUser($this->user, $this->data->is_actived);
-            $this->user->assign(RolesEnums::OWNER->value);
 
             $this->settings($app);
             $this->systemModules($app);
@@ -62,6 +61,7 @@ class CreateAppsAction
                 $app,
                 $this->user
             )))->execute();
+            $this->user->assign(RolesEnums::OWNER->value);
             //@todo
             // $this->createEmailTemplate($app);
         });

@@ -8,8 +8,8 @@ use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
@@ -20,6 +20,8 @@ use Workflow\Activity;
 
 class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
 {
+    public $tries = 10;
+
     public function execute(Model $user, AppInterface $app, array $params): array
     {
         if (! isset($params['company'])) {
@@ -53,14 +55,16 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
             $ownerAgent = Agent::where('users_id', $ownerUser->getId())->fromCompany($company)->firstOrFail();
         } catch (Exception $e) {
         }
-        $ownerId = $ownerAgent ? $ownerAgent->member_id : 1001;
 
         $agentUpdateData = [
             'name' => $name,
             'users_linked_source_id' => $zohoId,
             'member_id' => $memberNumber,
-            'owner_id' => $ownerId ?? 1001,
         ];
+
+        if ($ownerAgent) {
+            $agentUpdateData['owner_id'] = $ownerAgent->member_id;
+        }
 
         if ($owner) {
             $agentUpdateData['owner_linked_source_id'] = $owner['id'];
@@ -85,12 +89,14 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
         try {
             $userInvite = UsersInvite::fromCompany($company)->fromApp($app)->where('email', $user->email)->firstOrFail();
             $agentOwner = Agent::fromCompany($company)->where('users_id', $userInvite->users_id)->firstOrFail();
-            $ownerInfo = $zohoService->getAgentByMemberNumber($agentOwner->member_id);
+            $ownerInfo = $zohoService->getAgentByMemberNumber((string) $agentOwner->member_id);
 
             $ownerId = $ownerInfo->Owner['id'];
             $ownerMemberNumber = $ownerInfo->Member_Number;
         } catch(Exception $e) {
+            //log the error
             $agentOwner = null;
+            $ownerInfo = null;
             $ownerMemberNumber = null;
         }
 
@@ -106,7 +112,7 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
         $agent->saveOrFail();
 
         //create in zoho
-        $zohoAgent = $zohoService->createAgent($user, $agent, $agentOwner);
+        $zohoAgent = $zohoService->createAgent($user, $agent, $ownerInfo);
 
         $agent->users_linked_source_id = $zohoAgent->id;
         $agent->saveOrFail();

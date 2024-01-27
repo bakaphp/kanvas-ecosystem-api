@@ -17,6 +17,8 @@ use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Services\ForgotPassword as ForgotPasswordService;
 use Kanvas\Auth\Traits\AuthTrait;
 use Kanvas\Auth\Traits\TokenTrait;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Repositories\UsersRepository;
@@ -106,7 +108,13 @@ class AuthManagementMutation
         )->validate();
         PasswordValidation::validateArray($request['data'], $app);
 
-        $data = RegisterInput::fromArray($request['data']);
+        $userRegistrationAssignToAppDefaultCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
+        $branch = null;
+        if ($userRegistrationAssignToAppDefaultCompanyBranch) {
+            $branch = CompaniesBranches::getById($userRegistrationAssignToAppDefaultCompanyBranch);
+        }
+
+        $data = RegisterInput::fromArray($request['data'], $branch);
         $user = new RegisterUsersAction($data);
         $request = request();
 
