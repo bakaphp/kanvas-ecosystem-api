@@ -34,10 +34,16 @@ class RuleRepository
         //if it has a company reference m
         $companyId = null;
 
+        /**
+         * calling company will override the model default connection we do this to avoid issues in the queue
+         * @todo look for a better way to do this.
+         */
+        $duplicateModel = clone $model;
+
         if ($company) {
             $companyId = $company->getId();
-        } elseif (isset($model->company) && $model->company instanceof CompanyInterface) {
-            $companyId = $model->company->getId();
+        } elseif (isset($duplicateModel->company) && $duplicateModel->company instanceof CompanyInterface) {
+            $companyId = $duplicateModel->company->getId();
         }
 
         if ($companyId !== null) {

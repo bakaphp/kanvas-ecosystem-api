@@ -135,7 +135,7 @@ trait KanvasModelTrait
      */
     public function company(): BelongsTo
     {
-        return $this->belongsTo(
+        return $this->setConnection('ecosystem')->belongsTo(
             Companies::class,
             'companies_id',
             'id'
@@ -144,7 +144,7 @@ trait KanvasModelTrait
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(
+        return $this->setConnection('ecosystem')->belongsTo(
             Users::class,
             'users_id',
             'id'
@@ -156,7 +156,7 @@ trait KanvasModelTrait
      */
     public function app(): BelongsTo
     {
-        return  $this->belongsTo(
+        return  $this->setConnection('ecosystem')->belongsTo(
             Apps::class,
             'apps_id',
             'id'
