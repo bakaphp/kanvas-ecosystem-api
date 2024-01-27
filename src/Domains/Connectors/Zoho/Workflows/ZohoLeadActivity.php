@@ -38,8 +38,6 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
             $this->assignAgent($app, $zohoLead, $lead, $company, $zohoData);
         }
 
-        print_r($zohoData);
-        var_dump($zohoData);
         if (! $zohoLeadId = $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value)) {
             $zohoLead = $zohoCrm->leads->create($zohoData);
             $zohoLeadId = $zohoLead->getId();
@@ -120,6 +118,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
             }
         }
 
+        //if value is 0 or empty, remove it
         if (empty($zohoData['Owner'])) {
             unset($zohoData['Owner']);
         }
