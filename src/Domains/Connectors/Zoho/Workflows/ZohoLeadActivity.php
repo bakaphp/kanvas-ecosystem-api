@@ -69,10 +69,10 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
         Companies $company,
         array &$zohoData
     ): void {
-        $memberNumber = $zohoLead->getMemberNumber();
+        $memberNumber = (string) $zohoLead->getMemberNumber();
 
         if (empty($memberNumber) && $lead->user()->exists()) {
-            $memberNumber = $lead->user()->firstOrFail()->get('member_number_' . $company->getId());
+            $memberNumber = (string) $lead->user()->firstOrFail()->get('member_number_' . $company->getId());
         }
 
         if (! empty($memberNumber)) {
@@ -83,13 +83,13 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
         $zohoService = new ZohoService($app, $company);
 
         try {
-            $agent = $zohoService->getAgentByMemberNumber((string) $memberNumber);
+            $agent = $zohoService->getAgentByMemberNumber($memberNumber);
         } catch(Throwable $e) {
             $agent = null;
         }
 
         try {
-            $agentInfo = Agent::getByMemberNumber((string) $memberNumber, $company);
+            $agentInfo = Agent::getByMemberNumber($memberNumber, $company);
         } catch(Throwable $e) {
             $agentInfo = null;
         }
