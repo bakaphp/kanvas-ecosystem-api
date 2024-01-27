@@ -10,6 +10,7 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class AttachFilesystemAction
 {
@@ -50,6 +51,10 @@ class AttachFilesystemAction
         $fileEntity->field_name = $fieldName;
         $fileEntity->is_deleted = StateEnums::NO->getValue();
         $fileEntity->saveOrFail();
+
+        if (method_exists($this->entity, 'fireWorkflow')) {
+            $this->entity->fireWorkflow(WorkflowEnum::ATTACH_FILE->value);
+        }
 
         return $fileEntity;
     }
