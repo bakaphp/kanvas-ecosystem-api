@@ -36,7 +36,8 @@ class Agent extends BaseModel
 
     public function owner(): Users
     {
-        return $this->where('member_id', $this->owner_id)
+        return self::setConnection('crm')
+            ->where('member_id', $this->owner_id)
             ->where('companies_id', $this->companies_id)
             ->firstOrFail()->user;
     }
