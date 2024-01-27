@@ -71,8 +71,8 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
     ): void {
         $memberNumber = $zohoLead->getMemberNumber();
 
-        if (empty($memberNumber) && $lead->user) {
-            $memberNumber = $lead->user->get('member_number_' . $company->getId());
+        if (empty($memberNumber) && $lead->user()->exists()) {
+            $memberNumber = $lead->user()->firstOrFail()->get('member_number_' . $company->getId());
         }
 
         $zohoService = new ZohoService($app, $company);
