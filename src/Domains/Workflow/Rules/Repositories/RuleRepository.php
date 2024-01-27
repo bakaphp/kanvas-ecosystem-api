@@ -36,8 +36,8 @@ class RuleRepository
 
         if ($company) {
             $companyId = $company->getId();
-        } elseif (isset($model->companies) && $model->companies instanceof CompanyInterface) {
-            $companyId = $model->companies->getId();
+        } elseif (isset($model->company) && $model->company instanceof CompanyInterface) {
+            $companyId = $model->company->getId();
         }
 
         if ($companyId !== null) {
