@@ -75,16 +75,21 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
             $memberNumber = $lead->user()->firstOrFail()->get('member_number_' . $company->getId());
         }
 
+        if (! empty($memberNumber)) {
+            $zohoData['Member_ID'] = $memberNumber;
+            $zohoData['Member'] = $memberNumber;
+        }
+
         $zohoService = new ZohoService($app, $company);
 
         try {
-            $agent = $zohoService->getAgentByMemberNumber($memberNumber);
+            $agent = $zohoService->getAgentByMemberNumber((string) $memberNumber);
         } catch(Throwable $e) {
             $agent = null;
         }
 
         try {
-            $agentInfo = Agent::getByMemberNumber($memberNumber, $company);
+            $agentInfo = Agent::getByMemberNumber((string) $memberNumber, $company);
         } catch(Throwable $e) {
             $agentInfo = null;
         }
@@ -106,7 +111,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
             }
         } elseif ($agentInfo) {
             $zohoData['Owner'] = $agentInfo->owner_linked_source_id;
-            $data['Lead_Source'] = $agentInfo->name;
+            $zohoData['Lead_Source'] = $agentInfo->name;
 
             if ($agentInfo->user && $agentInfo->user->get('sponsor')) {
                 $zohoData['Sponsor'] = (string) $agent->user->get('sponsor');
