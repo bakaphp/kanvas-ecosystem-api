@@ -119,6 +119,10 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
                 $zohoData['Sponsor'] = (string) $agent->user->get('sponsor');
             }
         }
+
+        if (empty($zohoData['Owner'])) {
+            unset($zohoData['Owner']);
+        }
     }
 
     protected function uploadAttachments(ZohoLeadModule $zohoLead, Lead $lead): void
