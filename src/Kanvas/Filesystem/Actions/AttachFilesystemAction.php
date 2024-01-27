@@ -52,7 +52,7 @@ class AttachFilesystemAction
         $fileEntity->is_deleted = StateEnums::NO->getValue();
         $fileEntity->saveOrFail();
 
-        if (method_exists($this->entity, 'fireWorkflow')) {
+        if ($this->entity->hasWorkflow()) {
             $this->entity->fireWorkflow(WorkflowEnum::ATTACH_FILE->value);
         }
 

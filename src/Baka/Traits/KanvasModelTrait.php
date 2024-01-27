@@ -228,4 +228,9 @@ trait KanvasModelTrait
     {
         return (int) $this->is_deleted === StateEnums::YES->getValue();
     }
+
+    public function hasWorkflow(): bool
+    {
+        return method_exists($this->entity, 'fireWorkflow');
+    }
 }
