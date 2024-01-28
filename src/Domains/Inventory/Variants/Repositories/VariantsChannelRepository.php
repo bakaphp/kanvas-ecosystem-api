@@ -9,6 +9,10 @@ use Kanvas\Inventory\Variants\Models\Variants;
 
 class VariantsChannelRepository
 {
+    /**
+     * this is a temp solution to filter variants / product by attributes
+     * we should aim for shopify query implementation in the future.
+     */
     public static function filterByAttributes(string $channelId,  array $attributes, array $priceRange = []): Builder
     {
         $query = Variants::query();
