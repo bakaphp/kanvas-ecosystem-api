@@ -9,9 +9,11 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants as ModelsVariants;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
+use Kanvas\Inventory\Variants\Repositories\VariantsChannelRepository;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 use stdClass;
 
@@ -48,6 +50,39 @@ class VariantChannelBuilder
         ->where($variantsChannel->getTable() . '.is_published', 1);
     }
 
+    public function allVariantsPublishedInChannelFilterByAttributes(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): Builder {
+        $channelUuid = $args['id'];
+        $attributes = $args['attributes'];
+
+        if (empty($attributes)) {
+            throw new ValidationException('Attributes as array is required');
+        }
+
+        if (isset($attributes['price']) && ! is_array($attributes['price'])) {
+            throw new ValidationException('Price must be an array');
+        }
+
+        if (isset($attributes['millage']) && ! is_array($attributes['millage'])) {
+            throw new ValidationException('millage must be an array');
+        }
+
+        $channel = Channels::getByUuid($channelUuid);
+        
+        /**
+        * @var Builder
+        */
+        return VariantsChannelRepository::filterByAttributes(
+            $channel->uuid,
+            $attributes,
+            $attributes['price'] ?? []
+        );
+    }
+
     /**
      * Format channel data from builder
      */
@@ -77,10 +112,6 @@ class VariantChannelBuilder
 
     /**
      * Get filter variant by channel
-     *
-     * @param mixed $root
-     * @param array $req
-     * @return Collection
      */
     public function getHasChannel(mixed $root, array $req): Collection
     {
@@ -96,9 +127,6 @@ class VariantChannelBuilder
 
     /**
      * Get channel price history
-     *
-     * @param mixed $root
-     * @return array
      */
     public function getChannelHistory(mixed $root): array
     {
