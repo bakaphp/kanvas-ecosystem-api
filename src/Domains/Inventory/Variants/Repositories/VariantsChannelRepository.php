@@ -17,6 +17,7 @@ class VariantsChannelRepository
     {
         $query = Variants::query();
 
+        unset($attributes['millage']);
         unset($attributes['price']);
         $index = 1;
         foreach ($attributes as $name => $value) {
