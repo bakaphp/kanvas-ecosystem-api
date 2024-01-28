@@ -29,7 +29,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
     {
         $zohoLead = ZohoLead::fromLead($lead);
         $zohoData = $zohoLead->toArray();
-        $company = $lead->company()->firstOrFail();
+        $company = Companies::getById($lead->companies_id);
         $usesAgentsModule = $company->get(CustomFieldEnum::ZOHO_HAS_AGENTS_MODULE->value);
 
         $zohoCrm = Client::getInstance($app, $company);
@@ -126,6 +126,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
 
     protected function uploadAttachments(ZohoLeadModule $zohoLead, Lead $lead): void
     {
+        $lead->load('files');
         if (! $lead->files()->count()) {
             return;
         }
