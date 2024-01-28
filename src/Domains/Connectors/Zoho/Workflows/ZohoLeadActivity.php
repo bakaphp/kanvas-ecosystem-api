@@ -29,8 +29,9 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
     {
         $zohoLead = ZohoLead::fromLead($lead);
         $zohoData = $zohoLead->toArray();
-        $company = $lead->company()->firstOrFail();
+        $company = Companies::getById($lead->companies_id);
         $usesAgentsModule = $company->get(CustomFieldEnum::ZOHO_HAS_AGENTS_MODULE->value);
+        $lead->refresh();
 
         $zohoCrm = Client::getInstance($app, $company);
 
