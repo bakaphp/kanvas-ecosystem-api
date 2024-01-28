@@ -3,5 +3,19 @@ type LeadType {
     company: Company! @belongsTo
     name: String!
     description: String
+    is_active: Boolean
 }
 
+input LeadTypeInput {
+    companies_id: ID!
+    name: String!
+    description: String
+    is_active: Boolean
+}
+
+extend type Mutation @guard {
+    createLeadType(input: LeadTypeInput!): LeadType
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadTypeManagementMutation@create"
+        )
+}

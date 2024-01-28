@@ -11,12 +11,11 @@ use Spatie\LaravelData\Data;
 class LeadType extends Data
 {
     public function __construct(
-        public Apps $app,
-        public Companies $company,
+        public Apps $apps,
+        public Companies $companies,
         public string $name,
         public string $description,
-        public int $is_active,
-        public int $is_default
+        public int $is_active
     ) {
     }
 }

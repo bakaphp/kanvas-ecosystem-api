@@ -17,12 +17,11 @@ class CreateLeadTypeAction
     public function create(): LeadType
     {
         $leadType = new LeadType();
-        $leadType->apps_id = $this->leadTypeDto->app->getId();
-        $leadType->companies_id = $this->leadTypeDto->company->getId();
+        $leadType->apps_id = $this->leadTypeDto->apps->getId();
+        $leadType->companies_id = $this->leadTypeDto->companies->getId();
         $leadType->name = $this->leadTypeDto->name;
         $leadType->description = $this->leadTypeDto->description;
         $leadType->is_active = $this->leadTypeDto->is_active;
-        $leadType->is_default = $this->leadTypeDto->is_default;
         $leadType->saveOrFail();
 
         return $leadType;
