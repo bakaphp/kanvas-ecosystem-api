@@ -72,7 +72,7 @@ class VariantChannelBuilder
         }
 
         $channel = Channels::getByUuid($channelUuid);
-        
+
         /**
         * @var Builder
         */
