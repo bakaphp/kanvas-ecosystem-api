@@ -126,6 +126,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
 
     protected function uploadAttachments(ZohoLeadModule $zohoLead, Lead $lead): void
     {
+        $lead->load('files');
         if (! $lead->files()->count()) {
             return;
         }
