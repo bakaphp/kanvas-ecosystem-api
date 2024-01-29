@@ -27,6 +27,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
      */
     public function execute(Model $lead, AppInterface $app, array $params): array
     {
+        $lead = Lead::getById($lead->getId());
         $zohoLead = ZohoLead::fromLead($lead);
         $zohoData = $zohoLead->toArray();
         $company = Companies::getById($lead->companies_id);
