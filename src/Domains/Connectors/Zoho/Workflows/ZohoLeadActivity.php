@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Zoho\Workflows;
 
 use Baka\Contracts\AppInterface;
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Zoho\Client;
@@ -13,6 +14,7 @@ use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Throwable;
 use Webleit\ZohoCrmApi\Modules\Leads as ZohoLeadModule;
@@ -20,6 +22,7 @@ use Workflow\Activity;
 
 class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
 {
+    use KanvasJobsTrait;
     public $tries = 10;
 
     /**
@@ -27,6 +30,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
      */
     public function execute(Model $lead, AppInterface $app, array $params): array
     {
+        $this->overwriteAppService($app);
         $zohoLead = ZohoLead::fromLead($lead);
         $zohoData = $zohoLead->toArray();
         $company = Companies::getById($lead->companies_id);
@@ -59,6 +63,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
             'zohoLeadId' => $zohoLeadId,
             'zohoRequest' => $zohoData,
             'leadId' => $lead->getId(),
+            'systemModule' => SystemModulesRepository::getByModelName(get_class($lead))->getId()
         ];
     }
 
