@@ -13,6 +13,7 @@ use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Throwable;
 use Webleit\ZohoCrmApi\Modules\Leads as ZohoLeadModule;
@@ -27,7 +28,6 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
      */
     public function execute(Model $lead, AppInterface $app, array $params): array
     {
-        $lead = Lead::getById($lead->getId());
         $zohoLead = ZohoLead::fromLead($lead);
         $zohoData = $zohoLead->toArray();
         $company = Companies::getById($lead->companies_id);
@@ -60,6 +60,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
             'zohoLeadId' => $zohoLeadId,
             'zohoRequest' => $zohoData,
             'leadId' => $lead->getId(),
+            'systemModule' => SystemModulesRepository::getByModelName(get_class($lead))->getId()
         ];
     }
 
@@ -139,15 +140,19 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
                 continue;
             }
 
-            $fileContent = file_get_contents($file->url);
+            try {
+                $fileContent = file_get_contents($file->url);
 
-            $zohoLead->uploadAttachment(
-                (string) $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value),
-                $file->name,
-                $fileContent
-            );
+                $zohoLead->uploadAttachment(
+                    (string) $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value),
+                    $file->name,
+                    $fileContent
+                );
 
-            $syncFiles[$file->id] = $file->id;
+                $syncFiles[$file->id] = $file->id;
+            } catch(Throwable $e) {
+                //do nothing
+            }
         }
 
         $lead->set(
