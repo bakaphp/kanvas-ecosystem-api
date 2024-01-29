@@ -59,10 +59,6 @@ class VariantChannelBuilder
         $channelUuid = $args['id'];
         $attributes = $args['attributes'] ?? [];
 
-        if (empty($attributes)) {
-            // throw new ValidationException('Attributes as array is required');
-        }
-
         if (isset($attributes['price']) && ! is_array($attributes['price'])) {
             throw new ValidationException('Price must be an array');
         }
