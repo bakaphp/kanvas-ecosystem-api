@@ -104,4 +104,26 @@ extend type Query {
             defaultCount: 25
             builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantChannelBuilder@allVariantsPublishedInChannel"
         )
+
+    channelVariantsFilterByAttributes(
+        id: ID!
+        attributes: Mixed
+        where: _ @whereConditions(columns: ["slug", "uuid", "name", "sku"])
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "products_id"
+                    "status_id"
+                    "is_published"
+                ]
+            )
+    ): [VariantChannel!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantChannelBuilder@allVariantsPublishedInChannelFilterByAttributes"
+        )
 }

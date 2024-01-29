@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Zoho\Workflows;
 
 use Baka\Contracts\AppInterface;
+use Baka\Traits\KanvasJobsTrait;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
@@ -20,10 +21,12 @@ use Workflow\Activity;
 
 class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
 {
+    use KanvasJobsTrait;
     public $tries = 10;
 
     public function execute(Model $user, AppInterface $app, array $params): array
     {
+        $this->overwriteAppService($app);
         if (! isset($params['company'])) {
             throw new Exception('Company is required');
         }
