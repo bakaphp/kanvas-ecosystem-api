@@ -57,10 +57,10 @@ class VariantChannelBuilder
         ResolveInfo $resolveInfo
     ): Builder {
         $channelUuid = $args['id'];
-        $attributes = $args['attributes'];
+        $attributes = $args['attributes'] ?? [];
 
         if (empty($attributes)) {
-            throw new ValidationException('Attributes as array is required');
+            // throw new ValidationException('Attributes as array is required');
         }
 
         if (isset($attributes['price']) && ! is_array($attributes['price'])) {
