@@ -47,6 +47,13 @@ input VariantChannelInput {
     is_published: Boolean!
 }
 
+enum ChannelVariantsFilterByAttributesEnum {
+    SLUG @enum(value: "products_variants.slug")
+    UUID @enum(value: "products_variants.uuid")
+    NAME @enum(value: "products_variants.name")
+    SKU @enum(value: "products_variants.sku")
+}
+
 extend type Mutation @guard {
     addVariantToChannel(
         variants_id: ID!
@@ -108,7 +115,8 @@ extend type Query {
     channelVariantsFilterByAttributes(
         id: ID!
         attributes: Mixed
-        where: _ @whereConditions(columns: ["slug", "uuid", "name", "sku"])
+        search: String @search
+        where: _ @whereConditions(columnsEnum: ChannelVariantsFilterByAttributesEnum)
         orderBy: _
             @orderBy(
                 columns: [
