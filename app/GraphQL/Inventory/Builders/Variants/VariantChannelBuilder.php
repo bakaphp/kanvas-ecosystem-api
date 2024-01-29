@@ -69,6 +69,9 @@ class VariantChannelBuilder
 
         $channel = Channels::getByUuid($channelUuid);
 
+        //set index
+        ModelsVariants::setSearchIndex((int) $channel->companies_id);
+
         /**
         * @var Builder
         */

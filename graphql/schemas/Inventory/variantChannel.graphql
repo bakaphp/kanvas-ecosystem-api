@@ -108,6 +108,7 @@ extend type Query {
     channelVariantsFilterByAttributes(
         id: ID!
         attributes: Mixed
+        search: String @search
         where: _ @whereConditions(columns: ["slug", "uuid", "name", "sku"])
         orderBy: _
             @orderBy(
