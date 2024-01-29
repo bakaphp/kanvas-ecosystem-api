@@ -36,7 +36,7 @@ class CompaniesRepository
      * Get by uuid and app.
      * @psalm-suppress MixedReturnStatement
      */
-    public static function getByUuid(string $uuid, ?Apps $app = null): Companies
+    public static function getByUuid(string $uuid, ?Apps $app = null, ?Users $user = null): Companies
     {
         return Companies::where('uuid', $uuid)
                ->where('companies.is_deleted', StateEnums::NO->getValue())
@@ -48,8 +48,15 @@ class CompaniesRepository
                        'companies.id'
                    );
                    $query->where('user_company_apps.apps_id', $app->getId());
-               })
-               ->firstOrFail();
+               })->when($user, function ($query, $user) {
+                   $query->join(
+                       'users_associated_company',
+                       'users_associated_company.companies_id',
+                       '=',
+                       'companies.id'
+                   );
+                   $query->where('users_associated_company.users_id', $user->getId());
+               })->firstOrFail();
     }
 
     /**

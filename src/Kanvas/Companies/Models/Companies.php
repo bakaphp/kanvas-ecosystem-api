@@ -56,6 +56,8 @@ class Companies extends BaseModel implements CompanyInterface
 
     protected $table = 'companies';
 
+    protected $connection = 'ecosystem';
+
     /**
      * The attributes that should not be mass assignable.
      *
@@ -166,6 +168,7 @@ class Companies extends BaseModel implements CompanyInterface
     public function getTotalUsersAttribute(): int
     {
         (new CompaniesSetUsersCountAction($this))->execute();
+
         return $this->get('total_users') ?? (new CompaniesSetUsersCountAction($this))->execute();
     }
 
