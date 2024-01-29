@@ -62,8 +62,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
         return [
             'zohoLeadId' => $zohoLeadId,
             'zohoRequest' => $zohoData,
-            'leadId' => $lead->getId(),
-            'systemModule' => SystemModulesRepository::getByModelName(get_class($lead))->getId()
+            'leadId' => $lead->getId()
         ];
     }
 
