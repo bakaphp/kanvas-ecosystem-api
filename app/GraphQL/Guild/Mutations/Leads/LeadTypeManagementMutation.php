@@ -9,7 +9,6 @@ use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Guild\Leads\Actions\CreateLeadTypeAction;
 use Kanvas\Guild\Leads\DataTransferObject\LeadType;
 use Kanvas\Guild\Leads\Models\LeadType as LeadTypeModel;
-use Kanvas\Guild\Leads\Repositories\LeadTypesRepository;
 
 class LeadTypeManagementMutation
 {
@@ -33,7 +32,7 @@ class LeadTypeManagementMutation
         $companies = CompaniesRepository::getByUuid($req['input']['companies_id'], $app, auth()->user());
         $req['input']['companies_id'] = $companies->getId();
 
-        $leadType = LeadTypesRepository::getByUuid($req['id'], $companies);
+        $leadType = LeadTypeModel::getByUuidFromCompanyApp($req['id'], app: app(Apps::class), company: $companies);
         $leadType->update($req['input']);
 
         return $leadType;
@@ -42,7 +41,7 @@ class LeadTypeManagementMutation
     public function delete(mixed $root, array $req): bool
     {
         $app = app(Apps::class);
-        $leadType = LeadTypesRepository::getByUuid(uuid: $req['id'], app: $app);
+        $leadType = LeadTypeModel::getByUuidFromCompanyApp($req['id'], app: app(Apps::class));
         $companies = CompaniesRepository::getByUuid($leadType->company->uuid, $app, auth()->user());
 
         return $leadType->delete();
