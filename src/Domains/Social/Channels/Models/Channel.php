@@ -32,8 +32,7 @@ class Channel extends BaseModel
     {
         $databaseSocial = config('database.social.database', 'social');
 
-        return $this->setConnection('ecosystem')
-                ->belongsToMany(Users::class, $databaseSocial . '.channel_users', 'channel_id', 'users_id')
+        return $this->belongsToMany(Users::class, $databaseSocial . '.channel_users', 'channel_id', 'users_id')
                 ->withTimestamps()
                 ->withPivot('roles_id');
     }

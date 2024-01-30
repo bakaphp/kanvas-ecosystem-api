@@ -22,7 +22,7 @@ class UserMessage extends BaseModel
      */
     public function user(): BelongsTo
     {
-        return $this->setConnection('ecosystem')->belongsTo(Users::class, 'users_id');
+        return $this)->belongsTo(Users::class, 'users_id');
     }
 
     /**
