@@ -39,6 +39,16 @@ class VariantsChannels extends BaseModel
     protected $table = 'products_variants_channels';
     protected $guarded = [];
 
+    protected $fillable = [
+        'product_variants_warehouse_id',
+        'channels_id',
+        'price', 
+        'discounted_price', 
+        'is_published', 
+        'products_variants_id', 
+        'warehouses_id'
+    ];
+
     protected $primaryKey = ['product_variants_warehouse_id', 'channels_id'];
 
     public function channel(): BelongsTo
