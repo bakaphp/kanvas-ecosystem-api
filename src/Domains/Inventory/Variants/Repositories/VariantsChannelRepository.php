@@ -17,6 +17,7 @@ class VariantsChannelRepository
     {
         $query = Variants::query();
 
+        //@todo this has to be configurable by the channel or company
         unset($attributes['millage']);
         unset($attributes['price']);
         $index = 1;

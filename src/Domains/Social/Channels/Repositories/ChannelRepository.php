@@ -12,7 +12,7 @@ class ChannelRepository
 {
     public static function getById(int $id, Users $user): Channel
     {
-        return self::getByIdBuilder($user)->find($id);
+        return self::getByIdBuilder($user)->findOrFail($id);
     }
 
     public static function getByIdBuilder(Users $user): Builder

@@ -28,7 +28,7 @@ class Rule extends BaseModel
 
     public function systemModule(): BelongsTo
     {
-        return $this->setConnection('ecosystem')->belongsTo(SystemModules::class, 'systems_modules_id', 'id');
+        return $this->belongsTo(SystemModules::class, 'systems_modules_id', 'id');
     }
 
     public function workflowActivities(): HasMany
