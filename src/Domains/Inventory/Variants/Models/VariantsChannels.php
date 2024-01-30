@@ -42,11 +42,11 @@ class VariantsChannels extends BaseModel
     protected $fillable = [
         'product_variants_warehouse_id',
         'channels_id',
-        'price', 
-        'discounted_price', 
-        'is_published', 
-        'products_variants_id', 
-        'warehouses_id'
+        'price',
+        'discounted_price',
+        'is_published',
+        'products_variants_id',
+        'warehouses_id',
     ];
 
     protected $primaryKey = ['product_variants_warehouse_id', 'channels_id'];
