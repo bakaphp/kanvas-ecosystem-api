@@ -128,6 +128,8 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         'user_activation_key',
     ];
 
+    protected $connection = 'mysql';
+
     /**
      * The table associated with the model.
      *

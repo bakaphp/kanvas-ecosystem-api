@@ -144,7 +144,7 @@ trait KanvasModelTrait
 
     public function user(): BelongsTo
     {
-        return $this->setConnection('ecosystem')->belongsTo(
+        return $this->belongsTo(
             Users::class,
             'users_id',
             'id'
@@ -156,7 +156,7 @@ trait KanvasModelTrait
      */
     public function app(): BelongsTo
     {
-        return  $this->setConnection('ecosystem')->belongsTo(
+        return  $this->belongsTo(
             Apps::class,
             'apps_id',
             'id'
@@ -227,5 +227,10 @@ trait KanvasModelTrait
     public function isDeleted(): bool
     {
         return (int) $this->is_deleted === StateEnums::YES->getValue();
+    }
+
+    public function hasWorkflow(): bool
+    {
+        return method_exists($this, 'fireWorkflow');
     }
 }
