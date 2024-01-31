@@ -11,7 +11,6 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('leads_types', function (Blueprint $table) {
-
             $table->string('uuid')->after('companies_id');
         });
     }
@@ -22,7 +21,6 @@ return new class () extends Migration {
     public function down(): void
     {
         Schema::table('leads_types', function (Blueprint $table) {
-
             $table->dropColumn('uuid');
         });
     }
