@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
@@ -27,7 +28,6 @@ use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 /**
  * Companies Model.
@@ -119,7 +119,9 @@ class Companies extends BaseModel implements CompanyInterface
             'id',
             'id',
             'users_id'
-        );
+        )->when(app(Apps::class), function ($query, $app) {
+            $query->where('users_associated_apps.apps_id', $app->getId());
+        });
     }
 
     /**
