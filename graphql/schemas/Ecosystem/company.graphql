@@ -162,10 +162,11 @@ extend type Query @guard {
             @whereConditions(
                 columns: [
                     "id"
+                    "companies_id"
                     "uuid"
                     "firstname"
                     "lastname"
-                    "displayname"
+                    "displayname",
                     "email"
                     "phone"
                     "user_active"
@@ -184,7 +185,8 @@ extend type Query @guard {
             @whereConditions(
                 columns: [
                     "id"
-                    "uuid"
+                    "uuid",
+                    "companies_id"
                     "firstname"
                     "lastname"
                     "displayname"
