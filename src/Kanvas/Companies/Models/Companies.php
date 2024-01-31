@@ -27,6 +27,7 @@ use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 /**
  * Companies Model.
@@ -107,6 +108,18 @@ class Companies extends BaseModel implements CompanyInterface
     public function groups(): BelongsToMany
     {
         return $this->belongsToMany(CompaniesGroups::class, 'companies_associations');
+    }
+
+    public function users(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Users::class,
+            UsersAssociatedApps::class,
+            'companies_id',
+            'id',
+            'id',
+            'users_id'
+        );
     }
 
     /**
