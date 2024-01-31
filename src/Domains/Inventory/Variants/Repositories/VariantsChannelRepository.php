@@ -18,20 +18,26 @@ class VariantsChannelRepository
         $query = Variants::query();
 
         //@todo this has to be configurable by the channel or company
-        unset($attributes['millage']);
+        //unset($attributes['millage']);
         unset($attributes['price']);
         $index = 1;
         foreach ($attributes as $name => $value) {
-            $alias = 'pva' . $index; // Start with pva2 since pva1 is already used
+            $alias = 'pva' . $index; // Aliases for each join
             $query->join("products_variants_attributes as $alias", function ($join) use ($alias, $value, $index, $name) {
                 $join->on('products_variants.id', '=', "$alias.products_variants_id")
                      ->join('attributes as a' . $index, function ($join) use ($alias, $value, $name, $index) {
-                         $join->on("$alias.attributes_id", '=', 'a' . $index . '.id')
-                              ->where('a' . $index . '.name', '=', $name)
-                              ->where("$alias.value", '=', $value);
+                         $join->on("$alias.attributes_id", '=', 'a' . $index . '.id');
+
+                         // Handle 'millage' as a special case
+                         if ($name === 'millage' && is_array($value) && count($value) === 2) {
+                             $join->where('a' . $index . '.name', '=', 'odometer')
+                             ->whereBetween("$alias.value", $value);
+                         } else {
+                             $join->where('a' . $index . '.name', '=', $name)
+                                  ->where("$alias.value", '=', $value);
+                         }
                      });
             });
-
             $index++;
         }
 
