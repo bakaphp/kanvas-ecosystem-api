@@ -130,7 +130,7 @@ extend type Query @guard {
                 ]
             )
         hasUsers: _
-            @whereHasConditions(columns: ["id", "displayname", "email"])
+            @whereHasConditions(columns: ["id", "uuid", "displayname", "email"])
         orderBy: _ @orderBy(columns: ["id"])
     ): [Company!]!
         @paginate(
