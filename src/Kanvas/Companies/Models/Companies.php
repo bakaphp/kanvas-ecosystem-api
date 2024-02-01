@@ -266,21 +266,13 @@ class Companies extends BaseModel implements CompanyInterface
 
         return $query->select('companies.*')
             ->join(
-                'users_associated_company',
-                'users_associated_company.companies_id',
-                '=',
-                'companies.id'
-            )
-            ->join(
                 'users_associated_apps',
                 'users_associated_apps.companies_id',
                 '=',
                 'companies.id'
             )->when(! $user->isAdmin(), function ($query) use ($user) {
-                $query->where('users_associated_company.users_id', '=', $user->getKey())
-                ->where('users_associated_apps.users_id', '=', $user->getKey());
+                $query->where('users_associated_apps.users_id', '=', $user->getKey());
             })
-            ->where('users_associated_company.is_deleted', '=', StateEnums::NO->getValue())
             ->where('users_associated_apps.is_deleted', '=', StateEnums::NO->getValue())
             ->where('users_associated_apps.apps_id', '=', $app->getKey())
             ->where('companies.is_deleted', '=', StateEnums::NO->getValue())
