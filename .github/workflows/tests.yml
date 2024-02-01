@@ -7,7 +7,7 @@ jobs:
     name: PHP ${{ matrix.php-versions }}
     runs-on: ubuntu-latest
     env:
-      extensions: mbstring, intl, json, redis, swoole, xdebug
+      extensions: mbstring, intl, json, redis, swoole, xdebug, igbinary
       APP_ENV: testing
       DB_HOST: 127.0.0.1
       DB_HOST_READ: 127.0.0.1
@@ -58,7 +58,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-versions: ["8.2" ]
+        php-versions: ["8.2", "8.3"]
     services:
       mysql:
         image: mysql:8.0

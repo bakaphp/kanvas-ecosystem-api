@@ -103,12 +103,12 @@ class Message extends BaseModel
      */
     public function appModuleMessage(): HasOne
     {
-        return $this->setConnection('ecosystem')->hasOne(AppModuleMessage::class, 'message_id');
+        return $this->hasOne(AppModuleMessage::class, 'message_id');
     }
 
     public function users()
     {
-        return $this->setConnection('user_messages')->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
+        return $this->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
     }
 
     public function comments(): HasMany

@@ -138,7 +138,7 @@ extend type Query @guard {
                     "is_published"
                 ]
             )
-    ): [Variant]
+    ): [Variant!]!
         @paginate(
             defaultCount: 25
             scopes: ["fromApp", "fromCompany", "notDeleted"]

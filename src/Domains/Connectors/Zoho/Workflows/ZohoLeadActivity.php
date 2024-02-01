@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Zoho\Workflows;
 
 use Baka\Contracts\AppInterface;
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Connectors\Zoho\DataTransferObject\ZohoLead;
@@ -14,20 +14,26 @@ use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Throwable;
+use Webleit\ZohoCrmApi\Modules\Leads as ZohoLeadModule;
 use Workflow\Activity;
 
 class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
 {
+    use KanvasJobsTrait;
+    public $tries = 10;
+
     /**
      * @param Lead $lead
      */
     public function execute(Model $lead, AppInterface $app, array $params): array
     {
+        $this->overwriteAppService($app);
         $zohoLead = ZohoLead::fromLead($lead);
         $zohoData = $zohoLead->toArray();
-        $company = $lead->company()->firstOrFail();
+        $company = Companies::getById($lead->companies_id);
         $usesAgentsModule = $company->get(CustomFieldEnum::ZOHO_HAS_AGENTS_MODULE->value);
 
         $zohoCrm = Client::getInstance($app, $company);
@@ -51,10 +57,12 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
             );
         }
 
+        $this->uploadAttachments($zohoCrm->leads, $lead);
+
         return [
             'zohoLeadId' => $zohoLeadId,
             'zohoRequest' => $zohoData,
-            'leadId' => $lead->getId(),
+            'leadId' => $lead->getId()
         ];
     }
 
@@ -65,7 +73,17 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
         Companies $company,
         array &$zohoData
     ): void {
-        $memberNumber = $zohoLead->getMemberNumber();
+        $memberNumber = (string) $zohoLead->getMemberNumber();
+
+        if (empty($memberNumber) && $lead->user()->exists()) {
+            $memberNumber = (string) $lead->user()->firstOrFail()->get('member_number_' . $company->getId());
+        }
+
+        if (! empty($memberNumber)) {
+            $zohoData['Member_ID'] = $memberNumber;
+            //$zohoData['Member'] = $memberNumber;
+        }
+
         $zohoService = new ZohoService($app, $company);
 
         try {
@@ -96,12 +114,52 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
                 $zohoData['Owner'] = (int) $agentInfo->get('over_write_owner');
             }
         } elseif ($agentInfo) {
-            $zohoData['Owner'] = $agentInfo->owner_linked_source_id;
-            $data['Lead_Source'] = $agentInfo->name;
+            $zohoData['Owner'] = (int) $agentInfo->owner_linked_source_id;
+            $zohoData['Lead_Source'] = $agentInfo->name;
 
             if ($agentInfo->user && $agentInfo->user->get('sponsor')) {
                 $zohoData['Sponsor'] = (string) $agent->user->get('sponsor');
             }
         }
+
+        //if value is 0 or empty, remove it
+        if (empty($zohoData['Owner'])) {
+            unset($zohoData['Owner']);
+        }
+    }
+
+    protected function uploadAttachments(ZohoLeadModule $zohoLead, Lead $lead): void
+    {
+        $lead->load('files');
+        if (! $lead->files()->count()) {
+            return;
+        }
+
+        $syncFiles = $lead->get(CustomFieldEnum::ZOHO_LEAD_SYNC_FILES->value) ?? [];
+
+        foreach ($lead->files()->get() as $file) {
+            if (isset($syncFiles[$file->id])) {
+                continue;
+            }
+
+            try {
+                $fileContent = file_get_contents($file->url);
+
+                $zohoLead->uploadAttachment(
+                    (string) $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value),
+                    $file->name,
+                    $fileContent
+                );
+
+                $syncFiles[$file->id] = $file->id;
+            } catch(Throwable $e) {
+                //do nothing
+            }
+        }
+
+        $lead->set(
+            CustomFieldEnum::ZOHO_LEAD_SYNC_FILES->value,
+            $syncFiles
+        );
     }
 }

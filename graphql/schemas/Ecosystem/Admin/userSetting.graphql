@@ -10,7 +10,7 @@ extend type Mutation @guardByAppKey {
 }
 
 extend type Query @guardByAppKey {
-    userSettings(entity_uuid: String!): [ModuleConfig]!
+    userSettings(entity_uuid: String!): [ModuleConfig!]!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Config\\ConfigManagement@getUserSetting"
         )

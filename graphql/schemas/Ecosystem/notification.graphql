@@ -1,7 +1,7 @@
 type Notification {
     id: ID!
     users: User!
-    fromUsers: User!
+    fromUsers: User
     companies: Company!
     systemModule: SystemModule!
     types(filter: NotificationTypeFilterInput): NotificationType!
@@ -97,6 +97,7 @@ extend type Query @guard {
         @paginate(
             model: "Kanvas\\Notifications\\Models\\Notifications"
             scopes: ["allNotifications"]
+            defaultCount: 25
         )
     notificationTypes(
         where: _
@@ -116,6 +117,7 @@ extend type Query @guard {
         @paginate(
             model: "Kanvas\\Notifications\\Models\\NotificationTypes"
             scopes: ["fromApp", "notDeleted"]
+            defaultCount: 25
         )
     notificationChannels(
         where: _ @whereConditions(columns: ["id", "name", "slug"])
@@ -124,6 +126,7 @@ extend type Query @guard {
         @paginate(
             model: "Kanvas\\Notifications\\Models\\NotificationChannel"
             scopes: ["notDeleted"]
+            defaultCount: 25
         )
 }
 
