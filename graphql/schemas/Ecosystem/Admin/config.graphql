@@ -6,7 +6,7 @@ input ModuleConfigInput {
 }
 
 type ModuleConfig {
-    key: String
+    key: String!
     value: Mixed
     public: Boolean!
 }
