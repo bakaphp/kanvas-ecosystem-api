@@ -2,8 +2,11 @@ input ModuleConfigInput {
     key: String!
     value: Mixed!
     entity_uuid: String
+    public: Boolean
 }
+
 type ModuleConfig {
     key: String
     value: Mixed
+    public: Boolean!
 }
