@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
@@ -55,6 +56,8 @@ class Companies extends BaseModel implements CompanyInterface
     use SearchableDynamicIndexTrait;
 
     protected $table = 'companies';
+
+    protected $connection = 'ecosystem';
 
     /**
      * The attributes that should not be mass assignable.
@@ -107,6 +110,20 @@ class Companies extends BaseModel implements CompanyInterface
     public function groups(): BelongsToMany
     {
         return $this->belongsToMany(CompaniesGroups::class, 'companies_associations');
+    }
+
+    public function users(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Users::class,
+            UsersAssociatedApps::class,
+            'companies_id',
+            'id',
+            'id',
+            'users_id'
+        )->when(app(Apps::class), function ($query, $app) {
+            $query->where('users_associated_apps.apps_id', $app->getId());
+        });
     }
 
     /**
@@ -166,6 +183,7 @@ class Companies extends BaseModel implements CompanyInterface
     public function getTotalUsersAttribute(): int
     {
         (new CompaniesSetUsersCountAction($this))->execute();
+
         return $this->get('total_users') ?? (new CompaniesSetUsersCountAction($this))->execute();
     }
 
@@ -258,10 +276,11 @@ class Companies extends BaseModel implements CompanyInterface
                 'users_associated_apps.companies_id',
                 '=',
                 'companies.id'
-            )
-            ->where('users_associated_company.users_id', '=', $user->getKey())
+            )->when(! $user->isAdmin(), function ($query) use ($user) {
+                $query->where('users_associated_company.users_id', '=', $user->getKey())
+                ->where('users_associated_apps.users_id', '=', $user->getKey());
+            })
             ->where('users_associated_company.is_deleted', '=', StateEnums::NO->getValue())
-            ->where('users_associated_apps.users_id', '=', $user->getKey()) // Assuming you want to filter by the same user
             ->where('users_associated_apps.is_deleted', '=', StateEnums::NO->getValue())
             ->where('users_associated_apps.apps_id', '=', $app->getKey())
             ->where('companies.is_deleted', '=', StateEnums::NO->getValue())
