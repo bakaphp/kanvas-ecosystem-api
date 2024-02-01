@@ -15,7 +15,9 @@ class ConfigManagement
     public function setAppSetting(mixed $root, array $request): bool
     {
         $app = app(Apps::class);
-        $app->set($request['input']['key'], $request['input']['value']);
+        $user = auth()->user();
+        $isPublic = $user->isAdmin() ? (bool) $request['input']['public'] : false;
+        $app->set($request['input']['key'], $request['input']['value'], $isPublic);
 
         return true;
     }
@@ -32,7 +34,9 @@ class ConfigManagement
     public function setCompanySetting(mixed $root, array $request): bool
     {
         $companies = CompaniesRepository::getByUuid($request['input']['entity_uuid'], app(Apps::class));
-        $companies->set($request['input']['key'], $request['input']['value']);
+        $user = auth()->user();
+        $isPublic = $user->isAdmin() ? (bool) $request['input']['public'] : false;
+        $companies->set($request['input']['key'], $request['input']['value'], $isPublic);
 
         return true;
     }
@@ -50,8 +54,9 @@ class ConfigManagement
         $user = Users::getByUuid($request['input']['entity_uuid']);
 
         UsersRepository::belongsToThisApp($user, app(Apps::class));
-
-        $user->set($request['input']['key'], $request['input']['value']);
+        $currentUser = auth()->user();
+        $isPublic = $currentUser->isAdmin() ? (bool) $request['input']['public'] : false;
+        $user->set($request['input']['key'], $request['input']['value'], $isPublic);
 
         return true;
     }

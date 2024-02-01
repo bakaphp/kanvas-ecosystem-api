@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Queries\Config;
 
+use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Users\Models\Users;
@@ -13,29 +14,35 @@ class ConfigManagement
 {
     public function getAppSetting(mixed $root, array $request): array
     {
-        return $this->parseSettings(app(Apps::class)->getAll());
+        $user = auth()->user();
+
+        return $this->parseSettings(app(Apps::class)->getAll(), $user);
     }
 
     public function getCompanySetting(mixed $root, array $request): array
     {
-        return $this->parseSettings(CompaniesRepository::getByUuid($request['entity_uuid'], app(Apps::class))->getAll());
+        $user = auth()->user();
+
+        return $this->parseSettings(CompaniesRepository::getByUuid($request['entity_uuid'], app(Apps::class))->getAll(), $user);
     }
 
     public function getUserSetting(mixed $root, array $request): array
     {
         $user = Users::getByUuid($request['entity_uuid']);
+        $currentUser = auth()->user();
         UsersRepository::belongsToThisApp($user, app(Apps::class));
 
-        return $this->parseSettings($user->getAll());
+        return $this->parseSettings($user->getAll(), $currentUser);
     }
 
-    public function parseSettings(array $data): array
+    public function parseSettings(array $data, UserInterface $user): array
     {
         $settings = [];
         foreach ($data as $key => $value) {
             $settings[] = [
                 'key' => $key,
-                'value' => gettype($value) != 'array' ? (string)$value : $value,
+                'value' => gettype($value['value']) != 'array' ? (string)$value['value'] : $value['value'],
+                'public' => $user->isAdmin() ? (bool) $value['public'] : false,
             ];
         }
 
