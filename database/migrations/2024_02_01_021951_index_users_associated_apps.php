@@ -12,7 +12,7 @@ return new class () extends Migration {
     {
         Schema::table('users_associated_apps', function (Blueprint $table) {
 
-            $table->index([`apps_id`, `companies_id`, `is_deleted`]);
+            $table->index(['apps_id', 'companies_id', 'is_deleted']);
         });
     }
 
