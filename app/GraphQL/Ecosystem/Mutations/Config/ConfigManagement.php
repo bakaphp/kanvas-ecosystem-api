@@ -16,7 +16,7 @@ class ConfigManagement
     {
         $app = app(Apps::class);
         $user = auth()->user();
-        $isPublic = $user->isAdmin() ? (bool) $request['input']['public'] : false;
+        $isPublic = $user->isAdmin() && isset($request['input']['public']) ? (bool) $request['input']['public'] : false;
         $app->set($request['input']['key'], $request['input']['value'], $isPublic);
 
         return true;
@@ -35,7 +35,7 @@ class ConfigManagement
     {
         $companies = CompaniesRepository::getByUuid($request['input']['entity_uuid'], app(Apps::class));
         $user = auth()->user();
-        $isPublic = $user->isAdmin() ? (bool) $request['input']['public'] : false;
+        $isPublic = $user->isAdmin() && isset($request['input']['public']) ? (bool) $request['input']['public'] : false;
         $companies->set($request['input']['key'], $request['input']['value'], $isPublic);
 
         return true;
@@ -55,7 +55,7 @@ class ConfigManagement
 
         UsersRepository::belongsToThisApp($user, app(Apps::class));
         $currentUser = auth()->user();
-        $isPublic = $currentUser->isAdmin() ? (bool) $request['input']['public'] : false;
+        $isPublic = $currentUser->isAdmin() && isset($request['input']['public']) ? (bool) $request['input']['public'] : false;
         $user->set($request['input']['key'], $request['input']['value'], $isPublic);
 
         return true;
