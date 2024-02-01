@@ -1,0 +1,63 @@
+type LeadType {
+    id: ID!
+    uuid: ID!
+    company: Company! @belongsTo
+    name: String!
+    description: String
+    is_active: Boolean
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+input LeadTypeInput {
+    companies_id: ID!
+    name: String!
+    description: String
+    is_active: Boolean
+}
+
+extend type Mutation @guard {
+    createLeadType(input: LeadTypeInput!): LeadType
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadTypeManagementMutation@create"
+        )
+    updateLeadType(id: ID!, input: LeadTypeInput!): LeadType
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadTypeManagementMutation@update"
+        )
+    deleteLeadType(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadTypeManagementMutation@delete"
+        )
+}
+
+extend type Query @guard {
+    leadTypes(
+        where: _
+            @whereConditions(
+                columns: [
+                    "uuid"
+                    "name"
+                    "description"
+                    "is_active"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "name"
+                    "description"
+                    "is_active"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+    ): [LeadType!]!
+        @paginate(
+            model: "Kanvas\\Guild\\Leads\\Models\\LeadType"
+            defaultCount: 25
+            scopes: ["fromCompany", "notDeleted", "fromApp"]
+        )
+}
