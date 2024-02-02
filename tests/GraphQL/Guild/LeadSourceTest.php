@@ -167,7 +167,7 @@ class LeadSourceTest extends TestCase
 
     }
 
-    public function deleteLeadSource(): void
+    public function testDeleteLeadSource(): void
     {
         $companies = $this->graphQL(
             '
@@ -242,5 +242,42 @@ class LeadSourceTest extends TestCase
                 ],
             ]
         );
+    }
+
+    public function testGetLeadSource(): void
+    {
+        $response = $this->graphQL(
+            '
+                {
+                    leadSources {
+                        data {
+                            id,
+                            name,
+                            description,
+                            is_active,
+                            leadType {
+                                id
+                            }
+                        }
+                    }
+                }   
+            '
+        )->assertJsonStructure([
+            'data' => [
+                'leadSources' => [
+                    'data' => [
+                        '*' => [
+                            'id',
+                            'name',
+                            'description',
+                            'is_active',
+                            'leadType' => [
+                                'id',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
     }
 }

@@ -44,7 +44,7 @@ class LeadSourceManagementMutation
     public function delete(mixed $root, array $request): bool
     {
         $leadSource = LeadSourceModel::getByUuidFromCompanyApp($request['id'], app: app(Apps::class));
-        CompaniesRepository::userAssociatedToCompany($data['company'], auth()->user());
+        CompaniesRepository::userAssociatedToCompany($leadSource->company, auth()->user());
 
         return $leadSource->delete();
     }

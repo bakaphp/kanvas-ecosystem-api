@@ -1,5 +1,6 @@
 type LeadSource {
     id: ID!
+    uuid: ID
     name: String!
     uuid: String!
     description: String
@@ -18,26 +19,39 @@ input LeadSourceInput {
 }
 
 extend type Mutation @guard {
+    createLeadSource(input: LeadSourceInput): LeadSource
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadSourceManagementMutation@create"
+        )
 
-    createLeadSource(
-        input: LeadSourceInput
-    ): LeadSource
-    @field(
-        resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadSourceManagementMutation@create"
-    )
+    updateLeadSource(id: ID!, input: LeadSourceInput): LeadSource
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadSourceManagementMutation@update"
+        )
 
-    updateLeadSource(
-        id: ID!
-        input: LeadSourceInput
-    ): LeadSource
-    @field(
-        resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadSourceManagementMutation@update"
-    )
+    deleteLeadSource(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadSourceManagementMutation@delete"
+        )
+}
 
-    deleteLeadSource(
-        id: ID!
-    ): Boolean 
-    @field(
-        resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadSourceManagementMutation@delete"
+extend type Query @guard {
+    leadSources(
+        where: _
+            @whereConditions(
+                columns: [
+                    "uuid"
+                    "name"
+                    "description"
+                    "is_active"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+    ): [LeadSource]
+    @paginate(
+        model: "Kanvas\\Guild\\LeadSources\\Models\\LeadSource",
+        defaultCount: 25
+        scopes: ["fromCompany", "notDeleted"]
     )
 }
