@@ -14,6 +14,7 @@ type Company {
     branches: [CompanyBranch!]! @hasMany(relation: "branches") #need to filter by the branches the user has access to
     photo: Filesystem @method(name: "getPhoto")
     is_active: Boolean!
+    users: [User] @HasManyThrough
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25
@@ -124,10 +125,12 @@ extend type Query @guard {
                     "language"
                     "timezone"
                     "phone"
-                    "country_code",
+                    "country_code"
                     "is_active"
                 ]
             )
+        hasUsers: _
+            @whereHasConditions(columns: ["id", "uuid", "displayname", "email"])
         orderBy: _ @orderBy(columns: ["id"])
     ): [Company!]!
         @paginate(
@@ -162,6 +165,7 @@ extend type Query @guard {
             @whereConditions(
                 columns: [
                     "id"
+                    "companies_id"
                     "uuid"
                     "firstname"
                     "lastname"
@@ -185,6 +189,7 @@ extend type Query @guard {
                 columns: [
                     "id"
                     "uuid"
+                    "companies_id"
                     "firstname"
                     "lastname"
                     "displayname"

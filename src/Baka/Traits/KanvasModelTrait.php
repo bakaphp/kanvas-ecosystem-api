@@ -89,6 +89,18 @@ trait KanvasModelTrait
         }
     }
 
+    public static function getByUuidFromCompanyApp(string $uuid, ?CompanyInterface $company = null, ?AppInterface $app = null): self
+    {
+        return self::where('uuid', $uuid)
+        ->when($company, function ($query, $company) {
+            $query->where('companies_id', $company->getId());
+        })
+        ->when($app, function ($query, $app) {
+            $query->where('apps_id', $app->getId());
+        })
+        ->firstOrFail();
+    }
+
     public static function getByIdFromBranch(mixed $id, CompaniesBranches $branch): self
     {
         try {
