@@ -11,12 +11,12 @@ use Spatie\LaravelData\Data;
 class LeadSource extends Data
 {
     public function __construct(
-        public Apps $apps,
-        public Companies $companies,
-        public int $leads_types_id,
+        public Apps $app,
+        public Companies $company,
+        public int|string $leads_types_id,
         public string $name,
-        public string $description,
         public bool $is_active,
+        public ?string $description = null,
     ) {
     }
 }

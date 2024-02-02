@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Guild\LeadSources;
+namespace Kanvas\Guild\LeadSources\Models;
 
 use Kanvas\Guild\Models\BaseModel;
+use Kanvas\Guild\Leads\Models\LeadType;
+use Baka\Traits\UuidTrait;
 
 /**
  *  Class LeadSource
@@ -22,8 +24,14 @@ use Kanvas\Guild\Models\BaseModel;
  */
 class LeadSource extends BaseModel
 {
-    protected $table = 'lead_sources';
+    use UuidTrait;
+
+    protected $table = 'leads_sources';
 
     protected $guarded = [];
 
+    public function leadType(): BelongsTo
+    {
+        return $this->belongsTo(LeadType::class, 'leads_types_id', 'id');
+    }
 }

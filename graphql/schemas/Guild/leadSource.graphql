@@ -1,0 +1,43 @@
+type LeadSource {
+    id: ID!
+    name: String!
+    uuid: String!
+    description: String
+    is_active: Boolean
+    leadType: LeadType
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+input LeadSourceInput {
+    companies_id: ID!
+    name: String!
+    description: String
+    is_active: Boolean!
+    leads_types_id: ID!
+}
+
+extend type Mutation @guard {
+
+    createLeadSource(
+        input: LeadSourceInput
+    ): LeadSource
+    @field(
+        resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadSourceManagementMutation@create"
+    )
+
+    updateLeadSource(
+        id: ID!
+        input: LeadSourceInput
+    ): LeadSource
+    @field(
+        resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadSourceManagementMutation@update"
+    )
+
+    deleteLeadSource(
+        id: ID!
+    ): Boolean 
+    @field(
+        resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadSourceManagementMutation@delete"
+    )
+}
