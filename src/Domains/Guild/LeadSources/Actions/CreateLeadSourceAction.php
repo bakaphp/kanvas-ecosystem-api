@@ -18,7 +18,7 @@ class CreateLeadSourceAction
 
     public function execute(): LeadSourceModel
     {
-        LeadSourceModel::firstOrCreate([
+        return LeadSourceModel::firstOrCreate([
             'companies_id' => $this->leadSource->company->getId(),
             'apps_id' => $this->leadSource->app->getId(),
             'name' => $this->leadSource->name,
@@ -26,7 +26,5 @@ class CreateLeadSourceAction
             'is_active' => $this->leadSource->is_active,
             'leads_types_id' => $this->leadSource->leads_types_id,
         ]);
-
-        return $leadSource;
     }
 }
