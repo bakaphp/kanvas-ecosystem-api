@@ -95,14 +95,14 @@ class NotificationTypes extends BaseModel
      */
     public function hasEmailTemplate(): bool
     {
-        $templateName = $this->template()->exists() ? $this->template()->get()->name : $this->template;
+        $templateName = $this->template()->exists() ? $this->template()->first()->name : $this->template;
 
         return ! empty($templateName);
     }
 
     public function getTemplateName(): string
     {
-        $templateName = $this->template()->exists() ? $this->template()->get()->name : $this->template;
+        $templateName = $this->template()->exists() ? $this->template()->first()->name : $this->template;
 
         if (empty($templateName)) {
             throw new ModelNotFoundException('This notification type does not have an email template');
