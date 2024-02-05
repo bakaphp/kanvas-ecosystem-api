@@ -18,14 +18,14 @@ class CreateLeadSourceAction
 
     public function execute(): LeadSourceModel
     {
-        $leadSource = new LeadSourceModel();
-        $leadSource->apps_id = $this->leadSource->app->getId();
-        $leadSource->companies_id = $this->leadSource->company->getId();
-        $leadSource->leads_types_id = $this->leadSource->leads_types_id;
-        $leadSource->name = $this->leadSource->name;
-        $leadSource->description = $this->leadSource->description;
-        $leadSource->is_active = $this->leadSource->is_active;
-        $leadSource->saveOrFail();
+        LeadSourceModel::firstOrCreate([
+            'companies_id' => $this->leadSource->company->getId(),
+            'apps_id' => $this->leadSource->app->getId(),
+            'name' => $this->leadSource->name,
+            'description' => $this->leadSource->description,
+            'is_active' => $this->leadSource->is_active,
+            'leads_types_id' => $this->leadSource->leads_types_id,
+        ]);
 
         return $leadSource;
     }
