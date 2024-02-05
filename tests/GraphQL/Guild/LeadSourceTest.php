@@ -10,7 +10,6 @@ class LeadSourceTest extends TestCase
 {
     public function testCreateLeadSource(): void
     {
-
         $companies = $this->graphQL('
                 query{
                     me {
@@ -164,7 +163,6 @@ class LeadSourceTest extends TestCase
                 ],
             ]
         );
-
     }
 
     public function testDeleteLeadSource(): void

@@ -8,6 +8,7 @@ use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
 /**
  *  Class LeadSource
  *
