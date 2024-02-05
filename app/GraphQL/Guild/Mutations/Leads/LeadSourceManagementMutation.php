@@ -6,7 +6,7 @@ namespace App\GraphQL\Guild\Mutations\Leads;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Repositories\CompaniesRepository;
-use KAnvas\Guild\Leads\Models\LeadType;
+use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Guild\LeadSources\Models\LeadSource as LeadSourceModel;
