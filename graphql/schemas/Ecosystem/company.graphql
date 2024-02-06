@@ -143,6 +143,7 @@ extend type Query @guard {
         )
 
     branches(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [
