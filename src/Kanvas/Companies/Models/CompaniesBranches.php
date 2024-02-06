@@ -83,7 +83,7 @@ class CompaniesBranches extends BaseModel
 
     public function getTotalUsersAttribute(): int
     {
-        if(! $this->get('total_users')) {
+        if (! $this->get('total_users')) {
             $this->set('total_users', $this->users()->count());
         }
 
