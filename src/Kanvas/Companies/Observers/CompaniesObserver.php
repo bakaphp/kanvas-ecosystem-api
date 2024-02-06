@@ -33,7 +33,6 @@ class CompaniesObserver
     {
         $app = app(Apps::class);
         $user = $company->user()->first();
-
         $app->associateCompany($company);
 
         $createCompanyGroup = new CreateCompanyGroupActions($company, $app);
@@ -46,6 +45,7 @@ class CompaniesObserver
                 $company->id,
                 $company->users_id,
                 StateEnums::YES->getValue(),
+                true,
                 $company->email
             )
         );
