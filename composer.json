@@ -44,7 +44,7 @@
         "spatie/laravel-queueable-action": "^2.14",
         "spatie/laravel-webhook-server": "^3.4",
         "symfony/expression-language": "^7.0",
-        "symfony/http-client": "^6.2",
+        "symfony/http-client": "^7.0",
         "symfony/mailgun-mailer": "^7.0",
         "timokoerber/laravel-one-time-operations": "^1.4",
         "vladimir-yuldashev/laravel-queue-rabbitmq": "^13.3",
