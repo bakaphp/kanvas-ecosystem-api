@@ -13,6 +13,7 @@ use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Facades\Auth;
@@ -21,6 +22,7 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Models\BaseModel;
 use Kanvas\Roles\Models\Roles;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -95,6 +97,34 @@ class Apps extends BaseModel implements AppInterface
             'id',
             'companies_id'
         );
+    }
+
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(Users::class, 'users_associated_apps', 'apps_id', 'users_id')->groupBy('users.id');
+    }
+
+    public function systemModules(): HasMany
+    {
+        return $this->hasMany(SystemModules::class, 'apps_id');
+    }
+
+    public function getTotalUsersAttribute()
+    {
+        if(! $this->get('total_users')) {
+            $this->set('total_users', $this->users()->count());
+        }
+
+        return $this->get('total_users');
+    }
+
+    public function getTotalCompaniesAttribute()
+    {
+        if(! $this->get('total_companies')) {
+            $this->set('total_companies', $this->companies()->count());
+        }
+
+        return $this->get('total_companies');
     }
 
     public function keys(): HasMany
@@ -191,7 +221,7 @@ class Apps extends BaseModel implements AppInterface
         string $companyUserIdentifier = null,
         string $configuration = null
     ): UsersAssociatedApps {
-        return UsersAssociatedApps::firstOrCreate([
+        $userAssociatedApp = UsersAssociatedApps::firstOrCreate([
             'users_id' => $user->getKey(),
             'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(), //for now user profile uses company app id 0
             'apps_id' => $this->getKey(),
@@ -205,6 +235,7 @@ class Apps extends BaseModel implements AppInterface
             'password' => $password ?? $user->password,
             'configuration' => Str::isJson($configuration) ? json_encode($configuration) : $configuration,
         ]);
+        $this->set('total_users', $this->get('total_users'));
     }
 
     /**
