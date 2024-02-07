@@ -21,6 +21,8 @@ use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Warehouses\Observers\VariantsWarehouseObserver;
 use Kanvas\Inventory\Warehouses\Observers\WarehouseObserver;
+use Kanvas\Notifications\Events\PushNotificationsEvent;
+use Kanvas\Notifications\Listeners\NotificationsListener;
 use Kanvas\Social\Messages\Models\UserMessage;
 use Kanvas\Social\Messages\Models\UserMessageActivity;
 use Kanvas\Social\Messages\Observers\UserMessageActivityObserver;
@@ -28,9 +30,11 @@ use Kanvas\Social\Messages\Observers\UserMessageObserver;
 use Kanvas\Social\UsersLists\Models\UserList;
 use Kanvas\Social\UsersLists\Observers\UsersListsObserver;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
+use Kanvas\Users\Observers\UsersAssociatedAppsObserver;
 use Kanvas\Users\Observers\UsersObserver;
-use Kanvas\Notifications\Events\PushNotificationsEvent;
-use Kanvas\Notifications\Listeners\NotificationsListener;
+use Kanvas\Users\Models\UserCompanyApps;
+use Kanvas\Users\Observers\UsersAssociatedCompaniesObserver;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -64,6 +68,8 @@ class EventServiceProvider extends ServiceProvider
         VariantsWarehouses::observe(VariantsWarehouseObserver::class);
         Channels::observe(ChannelObserver::class);
         VariantsChannels::observe(VariantsChannelObserver::class);
+        UsersAssociatedApps::observe(UsersAssociatedAppsObserver::class);
+        UserCompanyApps::observe(UsersAssociatedCompaniesObserver::class);
     }
 
     /**
