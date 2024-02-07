@@ -60,6 +60,7 @@ type CompanyBranch {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
+    address: String
     zipcode: Int
     total_users: Int!
     is_active: Boolean!
