@@ -59,7 +59,7 @@ class ZohoService
             'Email' => $user->email,
             'Member_Number' => $agentInfo->getMemberNumber(),
             'Sponsor' => ! empty($agentInfo->owner_id) ? (string) $agentInfo->owner_id : '1001',
-            'Owner' => ! empty($agentInfo->owner_linked_source_id) ? (int) $agentInfo->owner_linked_source_id : $this->company->get('default_owner'),
+            'Owner' => ! empty($agentInfo->owner_linked_source_id) ? (int) $agentInfo->owner_linked_source_id : $this->company->get(CustomFieldEnum::DEFAULT_OWNER->value),
             'Account_Type' => 'Standard',
             'Name' => $agentInfo->name,
             'Office_Phone' => '',

@@ -79,6 +79,10 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
         ], $agentUpdateData);
         $user->set('member_number_' . $company->getId(), $memberNumber);
 
+        if ($company->get(CustomFieldEnum::ZOHO_DEFAULT_LANDING_PAGE->value)) {
+            $user->set('landing_page', $company->get(CustomFieldEnum::ZOHO_DEFAULT_LANDING_PAGE->value));
+        }
+
         return [
             'member_id' => $memberNumber,
             'zohoId' => $zohoId,

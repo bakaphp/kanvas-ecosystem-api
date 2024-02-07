@@ -27,12 +27,15 @@ type Cities {
 
 extend type Query {
     countries(
-        orderBy: _ @orderBy(columns: ["id", "created_at"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "name"])
         where: _ @whereConditions(columns: ["name", "code", "flag", "id"])
         hasStates: _ @whereHasConditions(columns: ["name"])
         hasCities: _ @whereHasConditions(columns: ["name"])
     ): [Country!]!
-        @paginate(model: "\\Kanvas\\Locations\\Models\\Countries")
+        @paginate(
+            defaultCount: 25
+            model: "\\Kanvas\\Locations\\Models\\Countries"
+        )
     country(id: Int! @eq): Country
         @find(model: "\\Kanvas\\Locations\\Models\\Countries")
 }
@@ -64,12 +67,7 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Locations\\CreateCountry"
         )
-    updateCountry(
-        id: ID!
-        name: String!
-        code: String!
-        flag: String
-    ): Country
+    updateCountry(id: ID!, name: String!, code: String!, flag: String): Country
         @update(model: "\\Kanvas\\Locations\\Models\\Countries")
     deleteCountry(id: ID!): Country!
         @delete(model: "\\Kanvas\\Locations\\Models\\Countries")

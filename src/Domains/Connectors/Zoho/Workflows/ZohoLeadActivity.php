@@ -14,7 +14,6 @@ use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Throwable;
 use Webleit\ZohoCrmApi\Modules\Leads as ZohoLeadModule;
@@ -62,7 +61,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
         return [
             'zohoLeadId' => $zohoLeadId,
             'zohoRequest' => $zohoData,
-            'leadId' => $lead->getId()
+            'leadId' => $lead->getId(),
         ];
     }
 
@@ -80,8 +79,8 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
         }
 
         if (! empty($memberNumber)) {
-            $zohoData['Member_ID'] = $memberNumber;
-            //$zohoData['Member'] = $memberNumber;
+            $zohoMemberField = $company->get(CustomFieldEnum::ZOHO_MEMBER_FIELD->value) ?? 'Member_ID';
+            $zohoData[$zohoMemberField] = $memberNumber;
         }
 
         $zohoService = new ZohoService($app, $company);
@@ -96,6 +95,11 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
             $agentInfo = Agent::getByMemberNumber($memberNumber, $company);
         } catch(Throwable $e) {
             $agentInfo = null;
+        }
+
+        $defaultLeadSource = $company->get(CustomFieldEnum::ZOHO_DEFAULT_LEAD_SOURCE->value);
+        if (! empty($defaultLeadSource)) {
+            $zohoData['Lead_Source'] = $defaultLeadSource;
         }
 
         if ($agent && $agent->count()) {
@@ -121,6 +125,8 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
                 $zohoData['Sponsor'] = (string) $agent->user->get('sponsor');
             }
         }
+
+
 
         //if value is 0 or empty, remove it
         if (empty($zohoData['Owner'])) {

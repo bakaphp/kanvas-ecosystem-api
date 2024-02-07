@@ -45,6 +45,7 @@ class VariantsChannelRepository
               ->join('channels as c', 'pvc.channels_id', '=', 'c.id')
               ->where('c.uuid', '=', $channelId)
               ->where('products_variants.is_deleted', '=', 0)
+              ->where('pvc.is_published', '=', 1)
               ->where('pvc.is_deleted', '=', 0)
               ->where('c.is_deleted', '=', 0);
 
