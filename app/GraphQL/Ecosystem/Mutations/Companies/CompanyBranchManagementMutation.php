@@ -78,6 +78,8 @@ class CompanyBranchManagementMutation
             $branch
         );
 
+        $branch->set('total_users', $branch->users()->count());
+
         return true;
     }
 

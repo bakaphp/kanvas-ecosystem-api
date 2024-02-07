@@ -15,14 +15,13 @@ class CompaniesBranchPutData extends Data
     /**
      * Construct function.
      *
-     * @param string $name
      * @param int|null $users_id
-     * @param array|null $files
      */
     public function __construct(
         public string $name,
         public int $companies_id,
         public int $is_default = 0,
+        public bool $is_active = true,
         public ?string $email = null,
         public ?string $address = null,
         public ?string $phone = null,
@@ -35,8 +34,6 @@ class CompaniesBranchPutData extends Data
      * Create new instance of DTO from request.
      *
      * @param Request $request Request Input data
-     *
-     * @return self
      */
     public static function viaRequest(Request $request): self
     {
@@ -53,8 +50,6 @@ class CompaniesBranchPutData extends Data
      * Create new instance of DTO from array of data.
      *
      * @param array $data Input data
-     *
-     * @return self
      */
     public static function fromArray(array $data): self
     {

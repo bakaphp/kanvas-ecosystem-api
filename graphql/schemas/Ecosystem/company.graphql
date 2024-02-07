@@ -61,6 +61,8 @@ type CompanyBranch {
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
     zipcode: Int
+    total_users: Int!
+    is_active: Boolean!
     is_default: Boolean!
     created_at: DateTime
     updated_at: DateTime
@@ -102,6 +104,7 @@ input CompanyBranchInput {
     timezone: String
     phone: String
     files: [FilesystemInputUrl]
+    is_active: Boolean
 }
 
 type CompanySettings {
@@ -140,6 +143,7 @@ extend type Query @guard {
         )
 
     branches(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [
