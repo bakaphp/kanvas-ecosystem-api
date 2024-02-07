@@ -10,16 +10,16 @@ class UsersAssociatedCompaniesObserver
 {
     public function created(UserCompanyApps $userCompanyApps)
     {
-        $userCompanyApps->app->set('total_companies', $userCompanyApps->apps->companies->count());
+        $userCompanyApps->app->set('total_companies', $userCompanyApps->app->companies->count());
     }
 
     public function updated(UserCompanyApps $userCompanyApps)
     {
-        $userCompanyApps->app->set('total_companies', $userCompanyApps->apps->companies->count());
+        $userCompanyApps->app->set('total_companies', $userCompanyApps->app->companies->count());
     }
 
     public function deleted(UserCompanyApps $userCompanyApps)
     {
-        $userCompanyApps->app->set('total_companies', $userCompanyApps->apps->companies->count());
+        $userCompanyApps->app->set('total_companies', $userCompanyApps->app->companies->count());
     }
 }
