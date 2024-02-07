@@ -61,6 +61,7 @@ type CompanyBranch {
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
     address: String
+    user: User! @belongsTo(relation: "user")
     zipcode: Int
     total_users: Int!
     is_active: Boolean!
