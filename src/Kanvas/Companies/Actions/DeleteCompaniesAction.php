@@ -36,7 +36,7 @@ class DeleteCompaniesAction
     {
         $companies = Companies::getById($id);
 
-        if (! $companies->isOwner($this->user) && ! $this->user->isAdmin()) {
+        if (! $companies->isOwner($this->user)) {
             throw new AuthorizationException('User cant delete this company');
         }
 
