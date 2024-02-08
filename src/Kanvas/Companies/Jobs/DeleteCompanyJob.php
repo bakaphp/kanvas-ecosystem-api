@@ -28,6 +28,6 @@ class DeleteCompanyJob implements ShouldQueue
     public function handle(): void
     {
         $companyDelete = new DeleteCompaniesAction($this->user);
-        $companyDelete->execute((int) $this->companiesId);
+        $companyDelete->execute($this->companiesId);
     }
 }
