@@ -8,10 +8,10 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
-use Kanvas\Companies\Actions\DeleteCompaniesAction;
 use Kanvas\Companies\Actions\UpdateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\CompaniesPostData;
 use Kanvas\Companies\DataTransferObject\CompaniesPutData;
+use Kanvas\Companies\Jobs\DeleteCompanyJob;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
@@ -65,8 +65,7 @@ class CompanyManagementMutation
         /**
          * @todo only super admin can do this
          */
-        $companyDelete = new DeleteCompaniesAction(Auth::user());
-        $companyDelete->execute((int) $request['id']);
+        DeleteCompanyJob::dispatch((int) $request['id'], Auth::user());
 
         return true;
     }
