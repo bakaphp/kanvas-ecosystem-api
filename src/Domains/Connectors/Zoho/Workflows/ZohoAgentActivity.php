@@ -99,7 +99,7 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
             $agentPage = $user->get('agent_website');
             $agentPageUserId = $sponsorsPage[$agentPage] ?? false;
 
-            $agentOwnerUserId = $agentPageUserId ?? $userInvite->users_id; 
+            $agentOwnerUserId = $agentPageUserId ?? $userInvite->users_id;
             $agentOwner = Agent::fromCompany($company)->where('users_id', $agentOwnerUserId)->firstOrFail();
             $ownerInfo = $zohoService->getAgentByMemberNumber((string) $agentOwner->member_id);
 
