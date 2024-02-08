@@ -94,8 +94,13 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
     protected function createAgent(AppInterface $app, ZohoService $zohoService, UserInterface $user, Companies $company): array
     {
         try {
+            $sponsorsPage = $company->get('sponsors_page') ?? [];
             $userInvite = UsersInvite::fromCompany($company)->fromApp($app)->where('email', $user->email)->firstOrFail();
-            $agentOwner = Agent::fromCompany($company)->where('users_id', $userInvite->users_id)->firstOrFail();
+            $agentPage = $user->get('agent_website');
+            $agentPageUserId = $sponsorsPage[$agentPage] ?? false;
+
+            $agentOwnerUserId = $agentPageUserId ?? $userInvite->users_id; 
+            $agentOwner = Agent::fromCompany($company)->where('users_id', $agentOwnerUserId)->firstOrFail();
             $ownerInfo = $zohoService->getAgentByMemberNumber((string) $agentOwner->member_id);
 
             $ownerId = $ownerInfo->Owner['id'];
