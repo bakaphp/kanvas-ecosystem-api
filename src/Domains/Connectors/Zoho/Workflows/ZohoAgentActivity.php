@@ -97,7 +97,7 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
             $sponsorsPage = $company->get('sponsors_page') ?? [];
             $userInvite = UsersInvite::fromCompany($company)->fromApp($app)->where('email', $user->email)->firstOrFail();
             $agentPage = $user->get('agent_website');
-            $agentPageUserId = $sponsorsPage[$agentPage] ?? false;
+            $agentPageUserId = $sponsorsPage[$agentPage] ?? null;
 
             $agentOwnerUserId = $agentPageUserId ?? $userInvite->users_id;
             $agentOwner = Agent::fromCompany($company)->where('users_id', $agentOwnerUserId)->firstOrFail();
