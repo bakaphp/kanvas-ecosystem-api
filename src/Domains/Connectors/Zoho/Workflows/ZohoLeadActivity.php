@@ -110,8 +110,8 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
             }
 
             if ($agentInfo) {
-                $lead->users_id = $agentInfo->users_id;
-                $lead->saveOrFail();
+                //$lead->users_id = $agentInfo->users_id;
+                //$lead->saveOrFail();
             }
 
             if ($agentInfo && $agentInfo->get('over_write_owner')) {
