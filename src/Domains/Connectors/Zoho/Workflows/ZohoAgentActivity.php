@@ -14,6 +14,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
+use Kanvas\Guild\Rotations\Models\Rotation;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersInvite;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -93,6 +94,8 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
 
     protected function createAgent(AppInterface $app, ZohoService $zohoService, UserInterface $user, Companies $company): array
     {
+        $companyDefaultUseRotation = $company->get('agent_use_rotation') ?? false;
+
         try {
             $userInvite = UsersInvite::fromCompany($company)->fromApp($app)->where('email', $user->email)->firstOrFail();
             $agentOwner = Agent::fromCompany($company)->where('users_id', $userInvite->users_id)->firstOrFail();
@@ -123,8 +126,19 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
             }
         }
 
+        if ($companyDefaultUseRotation) {
+            try {
+                $rotation = Rotation::getByIdFromCompany($companyDefaultUseRotation, $company);
+                $rotationDefaultOwner = $rotation->getAgent();
+                $ownerMemberNumber = $rotationDefaultOwner->member_id;
+                $ownerId = $rotationDefaultOwner->users_linked_source_id;
+            } catch(Exception $e) {
+            }
+        }
+
         $companyDefaultOwnerSourceId = $company->get(CustomFieldEnum::ZOHO_USER_OWNER_ID->value);
         $companyDefaultOwnerMemberId = $company->get(CustomFieldEnum::ZOHO_USER_OWNER_MEMBER_NUMBER->value) ?? 1001;
+
         $agent = new Agent();
         $agent->users_id = $user->getId();
         $agent->companies_id = $company->getId();
