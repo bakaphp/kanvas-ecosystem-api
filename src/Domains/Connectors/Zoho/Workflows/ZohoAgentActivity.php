@@ -129,7 +129,7 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
             }
         }
 
-        if ($companyDefaultUseRotation) {
+        if ($companyDefaultUseRotation && $ownerMemberNumber === null) {
             try {
                 $rotation = LeadRotation::getByIdFromCompany($companyDefaultUseRotation, $company);
                 $agentUser = $rotation->getAgent();
