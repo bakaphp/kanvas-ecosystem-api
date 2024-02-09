@@ -827,16 +827,16 @@
         },
         {
             "name": "berkayk/onesignal-laravel",
-            "version": "v2",
+            "version": "v2.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/berkayk/laravel-onesignal.git",
-                "reference": "e37aaf474903789f20239949c73e20382bd623bf"
+                "reference": "2eeca4d516ae791a6d764f0c605186b7d5d1c95e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/berkayk/laravel-onesignal/zipball/e37aaf474903789f20239949c73e20382bd623bf",
-                "reference": "e37aaf474903789f20239949c73e20382bd623bf",
+                "url": "https://api.github.com/repos/berkayk/laravel-onesignal/zipball/2eeca4d516ae791a6d764f0c605186b7d5d1c95e",
+                "reference": "2eeca4d516ae791a6d764f0c605186b7d5d1c95e",
                 "shasum": ""
             },
             "require": {
@@ -889,9 +889,9 @@
             ],
             "support": {
                 "issues": "https://github.com/berkayk/laravel-onesignal/issues",
-                "source": "https://github.com/berkayk/laravel-onesignal/tree/v2"
+                "source": "https://github.com/berkayk/laravel-onesignal/tree/v2.0.1"
             },
-            "time": "2023-02-21T08:06:05+00:00"
+            "time": "2024-02-09T15:51:26+00:00"
         },
         {
             "name": "brick/math",
