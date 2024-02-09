@@ -99,17 +99,6 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
     {
         $companyDefaultUseRotation = $company->get('agent_use_rotation') ?? false;
 
-        if ($companyDefaultUseRotation) {
-            try {
-                $rotation = LeadRotation::getByIdFromCompany($companyDefaultUseRotation, $company);
-                $agentUser = $rotation->getAgent();
-                $agentOwner = Agent::fromCompany($company)->where('users_id', $agentUser->getId())->firstOrFail();
-                $ownerMemberNumber = $agentOwner->member_id;
-                $ownerId = $agentOwner->users_linked_source_id;
-            } catch(Exception $e) {
-            }
-        }
-
         try {
             $userInvite = UsersInvite::fromCompany($company)->fromApp($app)->where('email', $user->email)->firstOrFail();
             $agentOwner = Agent::fromCompany($company)->where('users_id', $userInvite->users_id)->firstOrFail();
@@ -137,6 +126,17 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
                 $agentOwner = null;
                 $ownerInfo = null;
                 $ownerMemberNumber = null;
+            }
+        }
+
+        if ($companyDefaultUseRotation && $ownerMemberNumber === null) {
+            try {
+                $rotation = LeadRotation::getByIdFromCompany($companyDefaultUseRotation, $company);
+                $agentUser = $rotation->getAgent();
+                $agentOwner = Agent::fromCompany($company)->where('users_id', $agentUser->getId())->firstOrFail();
+                $ownerMemberNumber = $agentOwner->member_id;
+                $ownerId = $agentOwner->users_linked_source_id;
+            } catch(Exception $e) {
             }
         }
 
