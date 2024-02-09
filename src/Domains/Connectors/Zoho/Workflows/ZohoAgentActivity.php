@@ -94,13 +94,8 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
     protected function createAgent(AppInterface $app, ZohoService $zohoService, UserInterface $user, Companies $company): array
     {
         try {
-            $sponsorsPage = $company->get('sponsors_page') ?? [];
             $userInvite = UsersInvite::fromCompany($company)->fromApp($app)->where('email', $user->email)->firstOrFail();
-            $agentPage = $user->get('agent_website');
-            $agentPageUserId = $sponsorsPage[$agentPage] ?? null;
-
-            $agentOwnerUserId = $agentPageUserId ?? $userInvite->users_id;
-            $agentOwner = Agent::fromCompany($company)->where('users_id', $agentOwnerUserId)->firstOrFail();
+            $agentOwner = Agent::fromCompany($company)->where('users_id', $userInvite->users_id)->firstOrFail();
             $ownerInfo = $zohoService->getAgentByMemberNumber((string) $agentOwner->member_id);
 
             $ownerId = $ownerInfo->Owner['id'];
@@ -110,6 +105,22 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
             $agentOwner = null;
             $ownerInfo = null;
             $ownerMemberNumber = null;
+        }
+
+        $sponsorsPage = $company->get('sponsors_page') ?? [];
+        $agentPage = $user->get('agent_website');
+        $agentPageUserId = $sponsorsPage[$agentPage] ?? null;
+        //@todo this is ugly , testing it out
+        if ($agentPageUserId) {
+            try {
+                $agentOwner = Agent::fromCompany($company)->where('users_id', $agentPageUserId)->firstOrFail();
+                $ownerMemberNumber = $agentOwner->member_id;
+                $ownerId = $agentOwner->users_linked_source_id;
+            } catch(Exception $e) {
+                $agentOwner = null;
+                $ownerInfo = null;
+                $ownerMemberNumber = null;
+            }
         }
 
         $companyDefaultOwnerSourceId = $company->get(CustomFieldEnum::ZOHO_USER_OWNER_ID->value);
