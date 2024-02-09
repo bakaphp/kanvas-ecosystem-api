@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Mutations\Config;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
-use Kanvas\Companies\Repositories\CompaniesRepository;
 
 class ConfigManagement
 {
@@ -44,7 +43,7 @@ class ConfigManagement
     public function deleteCompanySetting(mixed $root, array $request): bool
     {
         $companies = CompaniesRepository::getByUuid($request['input']['entity_uuid'], app(Apps::class));
-        $companies->delete($request['input']['key']);
+        $companies->del($request['input']['key']);
 
         return true;
     }
