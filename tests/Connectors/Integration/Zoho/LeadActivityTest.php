@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\Workflows\ZohoLeadActivity;
+use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Enums\FlagEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -50,6 +51,10 @@ final class LeadActivityTest extends TestCase
         );
 
         $result = $activity->execute($lead, $app, []);
+
+        $zohoService = new ZohoService($app, $company);
+        $zohoService->deleteLead($lead);
+        
         $this->assertArrayHasKey('zohoLeadId', $result);
         $this->assertArrayHasKey('zohoRequest', $result);
         $this->assertArrayHasKey('leadId', $result);
