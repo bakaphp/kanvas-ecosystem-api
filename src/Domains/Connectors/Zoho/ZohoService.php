@@ -84,7 +84,7 @@ class ZohoService
     {
         $zohoLeadId = $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value);
         if ($zohoLeadId) {
-            $this->zohoCrm->leads->delete($zohoLeadId);
+            $this->zohoCrm->leads->delete((string) $zohoLeadId);
         }
     }
 
