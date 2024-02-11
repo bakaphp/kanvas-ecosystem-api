@@ -55,7 +55,7 @@ class Agent extends BaseModel
         );
     }
 
-    public static function getByMemberNumber(string $memberNumber, CompanyInterface $company): self
+    public static function getByMemberNumber(string|int $memberNumber, CompanyInterface $company): self
     {
         return self::where('member_id', $memberNumber)
             ->fromCompany($company)

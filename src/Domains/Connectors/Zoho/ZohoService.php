@@ -10,6 +10,7 @@ use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Agents\Models\Agent;
+use Kanvas\Guild\Leads\Models\Lead;
 use Webleit\ZohoCrmApi\ZohoCrm;
 
 class ZohoService
@@ -77,5 +78,23 @@ class ZohoService
         }
 
         return $zohoAgent;
+    }
+
+    public function deleteLead(Lead $lead): void
+    {
+        $zohoLeadId = $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value);
+        if ($zohoLeadId) {
+            $this->zohoCrm->leads->delete((string) $zohoLeadId);
+        }
+    }
+
+    public function deleteAgent(Agent $agent): void
+    {
+        $zohoAgentId = $agent->users_linked_source_id;
+        if ($this->zohoAgentModule == self::DEFAULT_AGENT_MODULE) {
+            $this->zohoCrm->agents->delete($zohoAgentId);
+        } else {
+            $this->zohoCrm->vendors->delete($zohoAgentId);
+        }
     }
 }
