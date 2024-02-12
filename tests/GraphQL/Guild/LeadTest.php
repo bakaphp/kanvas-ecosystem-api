@@ -536,7 +536,8 @@ class LeadTest extends TestCase
             mutation createSocialChannel($input: SocialChannelInput!) {
                 createSocialChannel(input: $input) {
                     id
-                    uuid
+                    uuid,
+                    slug
                 }
             }
         ', [
@@ -547,7 +548,14 @@ class LeadTest extends TestCase
                 'entity_id' => $lead['data']['createLead']['id'],
                 'entity_namespace_uuid' => $systemModule->uuid,
             ],
-        ])->json();
+        ]);
+        $channel->assertJson([
+            'data' => [
+                'createSocialChannel' => [
+                    'slug' => $lead['data']['createLead']['uuid'],
+                ],
+            ],
+        ]);
         $messageType = MessageType::factory()->create();
         $messageInput = [
             'message' => json_encode($lead['data']['createLead']),
