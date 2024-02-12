@@ -732,16 +732,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.298.2",
+            "version": "3.298.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "626f731c38e06ea483025334512f4c2afea1739d"
+                "reference": "b4d98bfc70df146774bf9b04f5ac5b39955fbad2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/626f731c38e06ea483025334512f4c2afea1739d",
-                "reference": "626f731c38e06ea483025334512f4c2afea1739d",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/b4d98bfc70df146774bf9b04f5ac5b39955fbad2",
+                "reference": "b4d98bfc70df146774bf9b04f5ac5b39955fbad2",
                 "shasum": ""
             },
             "require": {
@@ -821,9 +821,9 @@
             "support": {
                 "forum": "https://forums.aws.amazon.com/forum.jspa?forumID=80",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.298.2"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.298.7"
             },
-            "time": "2024-02-02T19:05:34+00:00"
+            "time": "2024-02-09T19:07:04+00:00"
         },
         {
             "name": "berkayk/onesignal-laravel",
@@ -2103,21 +2103,21 @@
         },
         {
             "name": "google/cloud-core",
-            "version": "v1.54.0",
+            "version": "v1.55.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-core.git",
-                "reference": "cd3f670dbb7f6a5b9b550b0d1b8e5b6ed148fb58"
+                "reference": "45c8e6e0511944b410bb788a940b2a1ab75975ff"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-core/zipball/cd3f670dbb7f6a5b9b550b0d1b8e5b6ed148fb58",
-                "reference": "cd3f670dbb7f6a5b9b550b0d1b8e5b6ed148fb58",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-core/zipball/45c8e6e0511944b410bb788a940b2a1ab75975ff",
+                "reference": "45c8e6e0511944b410bb788a940b2a1ab75975ff",
                 "shasum": ""
             },
             "require": {
                 "google/auth": "^1.34",
-                "google/gax": "^1.26.3",
+                "google/gax": "^1.27.0",
                 "guzzlehttp/guzzle": "^6.5.8|^7.4.4",
                 "guzzlehttp/promises": "^1.4||^2.0",
                 "guzzlehttp/psr7": "^2.6",
@@ -2163,9 +2163,9 @@
             ],
             "description": "Google Cloud PHP shared dependency, providing functionality useful to all components.",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-core/tree/v1.54.0"
+                "source": "https://github.com/googleapis/google-cloud-php-core/tree/v1.55.0"
             },
-            "time": "2024-01-26T20:27:24+00:00"
+            "time": "2024-02-09T19:51:53+00:00"
         },
         {
             "name": "google/cloud-storage",
@@ -2278,16 +2278,16 @@
         },
         {
             "name": "google/gax",
-            "version": "v1.26.3",
+            "version": "v1.27.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/gax-php.git",
-                "reference": "b7c782dcc40957ad84c9da947cc201f42e97859e"
+                "reference": "7d2533e84480018a351e9c3e20a284342ea7a75e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/gax-php/zipball/b7c782dcc40957ad84c9da947cc201f42e97859e",
-                "reference": "b7c782dcc40957ad84c9da947cc201f42e97859e",
+                "url": "https://api.github.com/repos/googleapis/gax-php/zipball/7d2533e84480018a351e9c3e20a284342ea7a75e",
+                "reference": "7d2533e84480018a351e9c3e20a284342ea7a75e",
                 "shasum": ""
             },
             "require": {
@@ -2327,9 +2327,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/gax-php/issues",
-                "source": "https://github.com/googleapis/gax-php/tree/v1.26.3"
+                "source": "https://github.com/googleapis/gax-php/tree/v1.27.0"
             },
-            "time": "2024-01-18T20:24:45+00:00"
+            "time": "2024-02-07T23:12:02+00:00"
         },
         {
             "name": "google/grpc-gcp",
@@ -8227,16 +8227,16 @@
         },
         {
             "name": "spatie/laravel-health",
-            "version": "1.26.0",
+            "version": "1.26.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-health.git",
-                "reference": "1138c9a41757ab035b05a4b3011ccdf508bef969"
+                "reference": "1cd60ad2cfa98d6376af25c56df876f6a3229a91"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/1138c9a41757ab035b05a4b3011ccdf508bef969",
-                "reference": "1138c9a41757ab035b05a4b3011ccdf508bef969",
+                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/1cd60ad2cfa98d6376af25c56df876f6a3229a91",
+                "reference": "1cd60ad2cfa98d6376af25c56df876f6a3229a91",
                 "shasum": ""
             },
             "require": {
@@ -8308,7 +8308,7 @@
                 "spatie"
             ],
             "support": {
-                "source": "https://github.com/spatie/laravel-health/tree/1.26.0"
+                "source": "https://github.com/spatie/laravel-health/tree/1.26.1"
             },
             "funding": [
                 {
@@ -8316,20 +8316,20 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-02-05T13:32:42+00:00"
+            "time": "2024-02-12T08:35:17+00:00"
         },
         {
             "name": "spatie/laravel-model-states",
-            "version": "2.6.0",
+            "version": "2.6.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-model-states.git",
-                "reference": "f47e21637aa6133d9415b6ba20f208805a97d166"
+                "reference": "fc078514e0910559e803306972df7bef7600ae82"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-model-states/zipball/f47e21637aa6133d9415b6ba20f208805a97d166",
-                "reference": "f47e21637aa6133d9415b6ba20f208805a97d166",
+                "url": "https://api.github.com/repos/spatie/laravel-model-states/zipball/fc078514e0910559e803306972df7bef7600ae82",
+                "reference": "fc078514e0910559e803306972df7bef7600ae82",
                 "shasum": ""
             },
             "require": {
@@ -8379,7 +8379,7 @@
                 "state"
             ],
             "support": {
-                "source": "https://github.com/spatie/laravel-model-states/tree/2.6.0"
+                "source": "https://github.com/spatie/laravel-model-states/tree/2.6.1"
             },
             "funding": [
                 {
@@ -8391,7 +8391,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2023-09-27T06:55:57+00:00"
+            "time": "2024-02-07T18:56:55+00:00"
         },
         {
             "name": "spatie/laravel-package-tools",
@@ -8540,32 +8540,32 @@
         },
         {
             "name": "spatie/laravel-webhook-server",
-            "version": "3.8.0",
+            "version": "3.8.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-webhook-server.git",
-                "reference": "bdcd23abd78805705a5ac29a66fddefea3fd32a0"
+                "reference": "d4cc24141a4d6a148e110df5f36217cc8f40f07e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-webhook-server/zipball/bdcd23abd78805705a5ac29a66fddefea3fd32a0",
-                "reference": "bdcd23abd78805705a5ac29a66fddefea3fd32a0",
+                "url": "https://api.github.com/repos/spatie/laravel-webhook-server/zipball/d4cc24141a4d6a148e110df5f36217cc8f40f07e",
+                "reference": "d4cc24141a4d6a148e110df5f36217cc8f40f07e",
                 "shasum": ""
             },
             "require": {
                 "ext-json": "*",
                 "guzzlehttp/guzzle": "^6.3|^7.3",
-                "illuminate/bus": "^8.50|^9.0|^10.0",
-                "illuminate/queue": "^8.50|^9.0|^10.0",
-                "illuminate/support": "^8.50|^9.0|^10.0",
+                "illuminate/bus": "^8.50|^9.0|^10.0|^11.0",
+                "illuminate/queue": "^8.50|^9.0|^10.0|^11.0",
+                "illuminate/support": "^8.50|^9.0|^10.0|^11.0",
                 "php": "^8.0",
                 "spatie/laravel-package-tools": "^1.11"
             },
             "require-dev": {
                 "mockery/mockery": "^1.4.3",
-                "orchestra/testbench": "^6.19|^7.0",
-                "pestphp/pest": "^1.22",
-                "pestphp/pest-plugin-laravel": "^1.3",
+                "orchestra/testbench": "^6.19|^7.0|^8.0",
+                "pestphp/pest": "^1.22|^2.0",
+                "pestphp/pest-plugin-laravel": "^1.3|^2.0",
                 "spatie/test-time": "^1.2.2"
             },
             "type": "library",
@@ -8602,7 +8602,7 @@
                 "webhook"
             ],
             "support": {
-                "source": "https://github.com/spatie/laravel-webhook-server/tree/3.8.0"
+                "source": "https://github.com/spatie/laravel-webhook-server/tree/3.8.1"
             },
             "funding": [
                 {
@@ -8610,7 +8610,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2023-11-27T11:46:04+00:00"
+            "time": "2024-02-12T08:18:25+00:00"
         },
         {
             "name": "spatie/php-structure-discoverer",
@@ -12231,16 +12231,16 @@
         },
         {
             "name": "weble/zohoclient",
-            "version": "4.2.1",
+            "version": "4.2.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Weble/ZohoClient.git",
-                "reference": "0f1dc5909e5264d036f23be070893a94919b656a"
+                "reference": "88c1689d8ecc46413685488a5669bccc2fd784f6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Weble/ZohoClient/zipball/0f1dc5909e5264d036f23be070893a94919b656a",
-                "reference": "0f1dc5909e5264d036f23be070893a94919b656a",
+                "url": "https://api.github.com/repos/Weble/ZohoClient/zipball/88c1689d8ecc46413685488a5669bccc2fd784f6",
+                "reference": "88c1689d8ecc46413685488a5669bccc2fd784f6",
                 "shasum": ""
             },
             "require": {
@@ -12278,7 +12278,7 @@
             ],
             "support": {
                 "issues": "https://github.com/Weble/ZohoClient/issues",
-                "source": "https://github.com/Weble/ZohoClient/tree/4.2.1"
+                "source": "https://github.com/Weble/ZohoClient/tree/4.2.2"
             },
             "funding": [
                 {
@@ -12286,7 +12286,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2022-05-26T06:59:53+00:00"
+            "time": "2024-02-07T17:00:38+00:00"
         },
         {
             "name": "webleit/zohocrmapi",
@@ -13140,16 +13140,16 @@
         },
         {
             "name": "fidry/cpu-core-counter",
-            "version": "1.0.0",
+            "version": "1.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/theofidry/cpu-core-counter.git",
-                "reference": "85193c0b0cb5c47894b5eaec906e946f054e7077"
+                "reference": "f92996c4d5c1a696a6a970e20f7c4216200fcc42"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/theofidry/cpu-core-counter/zipball/85193c0b0cb5c47894b5eaec906e946f054e7077",
-                "reference": "85193c0b0cb5c47894b5eaec906e946f054e7077",
+                "url": "https://api.github.com/repos/theofidry/cpu-core-counter/zipball/f92996c4d5c1a696a6a970e20f7c4216200fcc42",
+                "reference": "f92996c4d5c1a696a6a970e20f7c4216200fcc42",
                 "shasum": ""
             },
             "require": {
@@ -13189,7 +13189,7 @@
             ],
             "support": {
                 "issues": "https://github.com/theofidry/cpu-core-counter/issues",
-                "source": "https://github.com/theofidry/cpu-core-counter/tree/1.0.0"
+                "source": "https://github.com/theofidry/cpu-core-counter/tree/1.1.0"
             },
             "funding": [
                 {
@@ -13197,7 +13197,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2023-09-17T21:38:23+00:00"
+            "time": "2024-02-07T09:43:46+00:00"
         },
         {
             "name": "filp/whoops",
@@ -15317,16 +15317,16 @@
         },
         {
             "name": "spatie/array-to-xml",
-            "version": "3.2.2",
+            "version": "3.2.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/array-to-xml.git",
-                "reference": "96be97e664c87613121d073ea39af4c74e57a7f8"
+                "reference": "c95fd4db94ec199f798d4b5b4a81757bd20d88ab"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/array-to-xml/zipball/96be97e664c87613121d073ea39af4c74e57a7f8",
-                "reference": "96be97e664c87613121d073ea39af4c74e57a7f8",
+                "url": "https://api.github.com/repos/spatie/array-to-xml/zipball/c95fd4db94ec199f798d4b5b4a81757bd20d88ab",
+                "reference": "c95fd4db94ec199f798d4b5b4a81757bd20d88ab",
                 "shasum": ""
             },
             "require": {
@@ -15364,7 +15364,7 @@
                 "xml"
             ],
             "support": {
-                "source": "https://github.com/spatie/array-to-xml/tree/3.2.2"
+                "source": "https://github.com/spatie/array-to-xml/tree/3.2.3"
             },
             "funding": [
                 {
@@ -15376,7 +15376,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2023-11-14T14:08:51+00:00"
+            "time": "2024-02-07T10:39:02+00:00"
         },
         {
             "name": "spatie/backtrace",
