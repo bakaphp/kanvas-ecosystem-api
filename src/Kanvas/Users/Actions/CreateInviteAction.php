@@ -69,7 +69,7 @@ class CreateInviteAction
              'default_company_branch' => $companyBranch->getId(),
          ]);
  */
-         //@todo allow it to be customized
+        //@todo allow it to be customized
         $emailTitle = $this->inviteDto->app->get(AppSettingsEnums::INVITE_EMAIL_SUBJECT->getValue()) ?? 'You\'ve been invited to join ' . $company->name;
 
         $inviteEmail = new InviteTemplate($invite, [
