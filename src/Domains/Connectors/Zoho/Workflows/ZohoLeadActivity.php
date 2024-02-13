@@ -99,7 +99,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
 
         $defaultLeadSource = $company->get(CustomFieldEnum::ZOHO_DEFAULT_LEAD_SOURCE->value);
         if (! empty($defaultLeadSource)) {
-            $zohoData['Lead_Source'] = $defaultLeadSource;
+            $zohoData['Lead_Source'] = $lead->receiver ? $lead->receiver->name : $defaultLeadSource;
         }
 
         if ($agent && $agent->count()) {
@@ -119,14 +119,18 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
             }
         } elseif ($agentInfo) {
             $zohoData['Owner'] = (int) $agentInfo->owner_linked_source_id;
-            $zohoData['Lead_Source'] = $agentInfo->name;
+            if (empty($defaultLeadSource)) {
+                $zohoData['Lead_Source'] = $agentInfo->name;
+            }
 
             if ($agentInfo->user && $agentInfo->user->get('sponsor')) {
                 $zohoData['Sponsor'] = (string) $agent->user->get('sponsor');
             }
         }
 
-
+        if ($company->get(CustomFieldEnum::ZOHO_USE_AGENT_NAME->value)) {
+            $zohoData['Agent_Name'] = $agentInfo->name;
+        }
 
         //if value is 0 or empty, remove it
         if (empty($zohoData['Owner'])) {
