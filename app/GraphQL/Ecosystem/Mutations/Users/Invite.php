@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Users;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Actions\CreateInviteAction;
 use Kanvas\Users\Actions\ProcessInviteAction;
 use Kanvas\Users\DataTransferObject\CompleteInviteInput;
@@ -25,8 +26,10 @@ class Invite
     public function insertInvite($rootValue, array $request): UsersInvite
     {
         $request = $request['input'];
+        $app = app(Apps::class);
         $invite = new CreateInviteAction(
             new InviteDto(
+                $app,
                 $request['companies_branches_id'],
                 $request['role_id'],
                 $request['email'],

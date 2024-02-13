@@ -68,8 +68,11 @@ class UserManagementMutation
     {
         $request = $request['input'];
         $company = auth()->user()->getCurrentCompany();
+        $app = app(Apps::class);
+
         $invite = new CreateInviteAction(
             new InviteDto(
+                $app,
                 $request['companies_branches_id'] ?? auth()->user()->getCurrentBranch()->getId(),
                 $request['role_id'] ?? RolesRepository::getByNameFromCompany(RolesEnums::USER->value, $company)->id,
                 $request['email'],
