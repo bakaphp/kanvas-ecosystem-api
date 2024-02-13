@@ -30,7 +30,9 @@ class MessageBuilder
         ResolveInfo $resolveInfo
     ): Builder {
         return Message::fromApp()->whereHas('channels', function ($query) use ($args) {
-            $query->where('channels.uuid', $args['channel_id']);
-        })->select('messages.*');
+            $query->where('channels.uuid', $args['channel_uuid']);
+        })
+        ->where('messages.companies_id', auth()->user()->currentCompanyId())
+        ->select('messages.*');
     }
 }

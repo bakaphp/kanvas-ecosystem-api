@@ -110,8 +110,8 @@ extend type Query @guard {
             scopes: ["fromApp"]
         )
 
-    channel_messages(
-        channel_id: String!
+    channelMessages(
+        channel_uuid: String!
         where: _
             @whereConditions(
                 columns: [
