@@ -32,7 +32,9 @@ class MessageBuilder
         return Message::fromApp()->whereHas('channels', function ($query) use ($args) {
             $query->where('channels.uuid', $args['channel_uuid']);
         })
-        ->where('messages.companies_id', auth()->user()->currentCompanyId())
+        ->when(! auth()->user()->isAdmin(), function ($query) {
+            $query->where('companies_id', auth()->user()->currentCompanyId());
+        })
         ->select('messages.*');
     }
 }
