@@ -58,6 +58,7 @@ class Variants extends BaseModel
     protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];
 
     protected $table = 'products_variants';
+    protected $touches = ['attributes'];
     protected $fillable = [
         'users_id',
         'products_id',
@@ -227,28 +228,39 @@ class Variants extends BaseModel
 
     public function toSearchableArray(): array
     {
-        /**
-         * @psalm-suppress InvalidTemplateParam
-         */
-        $attributes = $this->attributes()->get(['name', 'products_variants_attributes.value'])->map(function ($item) {
-            return [
-                'name' => $item['name'],
-                'value' => $item['pivot']['value'],
-            ];
-        })->toArray();
-
-        $variant = $this->toArray();
-        $variant['user'] = [
-            'id' => $this->product->company->users_id,
-            'firstname' => $this->product->company->user->firstname,
-            'lastname' => $this->product->company->user->lastname,
+        $variant = [
+            "objectID" => $this->uuid,
+            "name" => $this->name,
+            "company" => [
+                'id' => $this->product->companies_id,
+                'name' => $this->product->company->name,
+            ],
+            "user" => [
+                'id' => $this->product->company->users_id,
+                'firstname' => $this->product->company->user->firstname,
+                'lastname' => $this->product->company->user->lastname,
+            ],
+            "uuid" => $this->uuid,
+            "slug" => $this->slug,
+            "sku" => $this->sku,
+            "status" => [
+                'id' => $this->status->getId(),
+                'name' => $this->status->name
+            ],
+            "description" => $this->description,
+            "attributes" => [],
+            "apps_id" => $this->apps_id,
+            "is_deleted" => $this->is_deleted,
         ];
-        $variant['company'] = [
-            'id' => $this->product->companies_id,
-            'name' => $this->product->company->name,
-        ];
-        $variant['attributes'] = $attributes;
-
+        $attributes = $this->attributes()->get();
+        foreach($attributes as $attribute) {
+            $variant['attributes'][$attribute->name] = $attribute->value;
+        }
         return $variant;
+    }
+
+    public function searchableAs(): string
+    {
+        return config('scout.prefix') . 'product_variant_index';
     }
 }
