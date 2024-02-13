@@ -53,7 +53,7 @@ class CompanyManagementMutation
             $request['input']['users_id'] = Auth::user()->getKey();
         }
         $dto = CompaniesPutData::fromArray($request['input']);
-        $action = new UpdateCompaniesAction(Auth::user(), $dto);
+        $action = new UpdateCompaniesAction($user ?? Auth::user(), $dto);
 
         return $action->execute((int) $request['id']);
     }
