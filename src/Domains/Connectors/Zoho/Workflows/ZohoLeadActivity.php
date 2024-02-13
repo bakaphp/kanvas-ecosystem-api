@@ -44,7 +44,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
         if (! $zohoLeadId = $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value)) {
             $zohoLead = $zohoCrm->leads->create($zohoData);
             $zohoLeadId = $zohoLead->getId();
-            
+
             $zohoData['Lead_Status'] = 'New Lead';
 
             $lead->set(
