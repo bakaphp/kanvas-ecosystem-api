@@ -8,7 +8,6 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
-use Kanvas\Companies\Actions\DeleteCompaniesAction;
 use Kanvas\Companies\Actions\UpdateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\CompaniesPostData;
 use Kanvas\Companies\DataTransferObject\CompaniesPutData;
@@ -51,9 +50,10 @@ class CompanyManagementMutation
             $request['input']['users_id'] = $user->getKey();
         } else {
             $request['input']['users_id'] = Auth::user()->getKey();
+            $user = Auth::user();
         }
         $dto = CompaniesPutData::fromArray($request['input']);
-        $action = new UpdateCompaniesAction($user ?? Auth::user(), $dto);
+        $action = new UpdateCompaniesAction($user, $dto);
 
         return $action->execute((int) $request['id']);
     }
