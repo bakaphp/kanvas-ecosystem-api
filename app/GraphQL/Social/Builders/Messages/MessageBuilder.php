@@ -22,4 +22,19 @@ class MessageBuilder
          */
         return Message::fromApp();
     }
+
+    public function getChannelMessages(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): Builder {
+        return Message::fromApp()->whereHas('channels', function ($query) use ($args) {
+            $query->where('channels.uuid', $args['channel_uuid']);
+        })
+        ->when(! auth()->user()->isAdmin(), function ($query) {
+            $query->where('companies_id', auth()->user()->currentCompanyId());
+        })
+        ->select('messages.*');
+    }
 }

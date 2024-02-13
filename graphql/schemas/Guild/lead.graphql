@@ -21,12 +21,13 @@ type Lead {
     pipeline: LeadPipeline @belongsTo
     stage: LeadPipelineStage @belongsTo(relation: "stage")
     participants: [LeadsParticipants!]! @hasMany
+    channels: [SocialChannel]! @hasMany
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
-    followers:  [User!]!
+    followers: [User!]!
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Follows\\FollowBuilder@getEntityFollowers"
@@ -180,7 +181,21 @@ extend type Query @guard {
                     "status"
                 ]
             )
-        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "title", "status", "pipeline_stage_id", "firstname", "lastname", "email", "phone"])
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "title"
+                    "status"
+                    "pipeline_stage_id"
+                    "firstname"
+                    "lastname"
+                    "email"
+                    "phone"
+                ]
+            )
     ): [Lead!]!
         @paginate(
             model: "Kanvas\\Guild\\Leads\\Models\\Lead"

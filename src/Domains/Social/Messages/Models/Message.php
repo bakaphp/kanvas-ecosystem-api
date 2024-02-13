@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Factories\MessageFactory;
 use Kanvas\Social\MessagesComments\Models\MessageComment;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -83,6 +84,14 @@ class Message extends BaseModel
     {
         return $this->belongsToMany(Topic::class, 'entity_topics', 'messages_id', 'entity_id')
                 ->where('entity_namespace', self::class);
+    }
+
+    /**
+     * The roles that belong to the Message
+     */
+    public function channels(): BelongsToMany
+    {
+        return $this->belongsToMany(Channel::class, 'channel_messages', 'messages_id', 'channel_id');
     }
 
     /**

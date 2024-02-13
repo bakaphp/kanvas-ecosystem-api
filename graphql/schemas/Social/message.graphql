@@ -109,4 +109,30 @@ extend type Query @guard {
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getAll"
             scopes: ["fromApp"]
         )
+
+    channelMessages(
+        channel_uuid: String!
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "parent_id"
+                    "parent_unique_id"
+                    "companies_id"
+                    "uuid"
+                    "message_types_id"
+                    "message"
+                    "reactions_count"
+                    "comments_count"
+                    "total_liked"
+                    "total_saved"
+                    "total_shared"
+                ]
+            )
+    ): [Message!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getChannelMessages"
+            scopes: ["fromApp"]
+        )
 }
