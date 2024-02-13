@@ -66,9 +66,8 @@ class LeadObserver
 
     public function created(Lead $lead): void
     {
-
         $lead->fireWorkflow(WorkflowEnum::CREATED->value);
-        if($lead->user) {
+        if ($lead->user) {
             (
                 new CreateChannelAction(
                     new Channel(
