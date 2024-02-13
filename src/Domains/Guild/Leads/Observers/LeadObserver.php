@@ -66,6 +66,9 @@ class LeadObserver
 
     public function created(Lead $lead): void
     {
+        print_r($lead->user);
+        print_r($lead);
+        die;
         $lead->fireWorkflow(WorkflowEnum::CREATED->value);
         (
             new CreateChannelAction(
