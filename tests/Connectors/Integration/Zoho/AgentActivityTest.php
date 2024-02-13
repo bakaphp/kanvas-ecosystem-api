@@ -7,6 +7,8 @@ namespace Tests\Connectors\Integration\Zoho;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\Workflows\ZohoAgentActivity;
+use Kanvas\Connectors\Zoho\ZohoService;
+use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Enums\FlagEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Models\StoredWorkflow;
@@ -45,6 +47,11 @@ final class AgentActivityTest extends TestCase
         $user->saveOrFail();
 
         $result = $activity->execute($user, $app, ['company' => $company]);
+
+        $zohoService = new ZohoService($app, $company);
+        $agent = Agent::getByMemberNumber($result['member_id'], $company);
+        $zohoService->deleteAgent($agent);
+
         $this->assertIsArray($result);
         $this->assertNotEmpty($result['zohoId']);
         $this->assertNotEmpty($result['member_id']);

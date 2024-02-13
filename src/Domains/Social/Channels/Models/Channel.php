@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Channels\Models;
 
+use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Social\Messages\Models\Message;
@@ -24,6 +25,8 @@ use Kanvas\Users\Models\Users;
  */
 class Channel extends BaseModel
 {
+    use UuidTrait;
+
     protected $table = 'channels';
 
     protected $guarded = [];

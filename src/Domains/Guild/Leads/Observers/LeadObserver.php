@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Observers;
 
 use Baka\Support\Str;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
+use Kanvas\Social\Channels\Actions\CreateChannelAction;
+use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class LeadObserver
@@ -64,6 +67,22 @@ class LeadObserver
     public function created(Lead $lead): void
     {
         $lead->fireWorkflow(WorkflowEnum::CREATED->value);
+        if ($lead->user) {
+            (
+                new CreateChannelAction(
+                    new Channel(
+                        app(Apps::class),
+                        $lead->company,
+                        $lead->user,
+                        (string)$lead->id,
+                        Lead::class,
+                        'Default Channel',
+                        $lead->description ?? '',
+                        $lead->uuid->toString()
+                    )
+                )
+            )->execute();
+        }
     }
 
     public function updated(Lead $lead): void

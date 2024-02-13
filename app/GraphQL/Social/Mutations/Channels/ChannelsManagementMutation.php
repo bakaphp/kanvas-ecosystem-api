@@ -12,6 +12,7 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Repositories\ChannelRepository;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
+use Baka\Support\Str;
 
 class ChannelsManagementMutation
 {
@@ -26,6 +27,7 @@ class ChannelsManagementMutation
             description: $request['input']['description'],
             entity_id: $request['input']['entity_id'],
             entity_namespace: $systemModule->uuid,
+            slug: $request['input']['slug'] ?? Str::slug($request['input']['name'])
         );
 
         $createChannel = new CreateChannelAction($channelDto);
