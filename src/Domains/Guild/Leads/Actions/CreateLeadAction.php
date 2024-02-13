@@ -39,7 +39,7 @@ class CreateLeadAction
         $newLead = new Lead();
         $newLead->leads_owner_id = $this->leadData->leads_owner_id;
 
-        if (!$this->leadData->leads_owner_id) {
+        if (! $this->leadData->leads_owner_id) {
             try {
                 $newLead->leads_owner_id = LeadsRepository::getDefaultReceiver($this->leadData->branch)->agents_id;
             } catch (ModelNotFoundException $e) {
