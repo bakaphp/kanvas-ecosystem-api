@@ -81,7 +81,6 @@ class LeadObserver
                 )
             )
         )->execute();
-
     }
 
     public function updated(Lead $lead): void
