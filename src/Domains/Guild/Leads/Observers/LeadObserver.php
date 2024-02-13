@@ -66,22 +66,24 @@ class LeadObserver
 
     public function created(Lead $lead): void
     {
-        $user = $lead->user;
+
         $lead->fireWorkflow(WorkflowEnum::CREATED->value);
-        (
-            new CreateChannelAction(
-                new Channel(
-                    app(Apps::class),
-                    $lead->company,
-                    $user,
-                    (string)$lead->id,
-                    Lead::class,
-                    'Default Channel',
-                    $lead->description ?? '',
-                    $lead->uuid->toString()
+        if($lead->user) {
+            (
+                new CreateChannelAction(
+                    new Channel(
+                        app(Apps::class),
+                        $lead->company,
+                        $lead->user,
+                        (string)$lead->id,
+                        Lead::class,
+                        'Default Channel',
+                        $lead->description ?? '',
+                        $lead->uuid->toString()
+                    )
                 )
-            )
-        )->execute();
+            )->execute();
+        }
     }
 
     public function updated(Lead $lead): void
