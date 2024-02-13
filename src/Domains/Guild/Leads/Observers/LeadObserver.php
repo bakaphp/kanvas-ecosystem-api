@@ -72,7 +72,7 @@ class LeadObserver
                 new Channel(
                     app(Apps::class),
                     $lead->company,
-                    $lead->user,
+                    auth()->user(),
                     (string)$lead->id,
                     Lead::class,
                     'Default Channel',
