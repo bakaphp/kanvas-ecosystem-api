@@ -33,7 +33,7 @@ class Channel extends BaseModel
 
     public function users(): BelongsToMany
     {
-        $databaseSocial = config('database.social.database', 'social');
+        $databaseSocial = config('database.connections.social.database', 'social');
 
         return $this->belongsToMany(Users::class, $databaseSocial . '.channel_users', 'channel_id', 'users_id')
                 ->withTimestamps()
