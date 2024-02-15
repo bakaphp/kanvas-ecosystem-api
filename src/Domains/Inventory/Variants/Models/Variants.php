@@ -283,7 +283,7 @@ class Variants extends BaseModel
             "is_deleted" => $this->is_deleted,
         ];
         $attributes = $this->attributes()->get();
-        foreach($attributes as $attribute) {
+        foreach ($attributes as $attribute) {
             $variant['attributes'][$attribute->name] = $attribute->value;
         }
         return $variant;
