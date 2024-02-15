@@ -27,14 +27,14 @@ class DeleteCompanyJob implements ShouldQueue
         public int $companiesId,
         public Users $user,
         public Apps $app
-        ) {
+    ) {
     }
 
     public function handle(): void
     {
         Auth::loginUsingId($this->user->getId());
         $this->overwriteAppService($this->app);
-        
+
         $companyDelete = new DeleteCompaniesAction($this->user, $this->app);
         $companyDelete->execute($this->companiesId);
     }
