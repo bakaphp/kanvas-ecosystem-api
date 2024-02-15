@@ -5,6 +5,7 @@ extend type User {
 type SocialChannel {
     id: ID!
     name: String!
+    uuid: String
     slug: String
     description: String!
     entity_namespace: String!

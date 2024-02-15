@@ -47,6 +47,13 @@ input VariantChannelInput {
     is_published: Boolean!
 }
 
+enum ChannelVariantsFilterByAttributesEnum {
+    SLUG @enum(value: "products_variants.slug")
+    UUID @enum(value: "products_variants.uuid")
+    NAME @enum(value: "products_variants.name")
+    SKU @enum(value: "products_variants.sku")
+}
+
 extend type Mutation @guard {
     addVariantToChannel(
         variants_id: ID!
@@ -103,5 +110,28 @@ extend type Query {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantChannelBuilder@allVariantsPublishedInChannel"
+        )
+
+    channelVariantsFilterByAttributes(
+        id: ID!
+        attributes: Mixed
+        search: String @search
+        where: _ @whereConditions(columnsEnum: ChannelVariantsFilterByAttributesEnum)
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "products_id"
+                    "status_id"
+                    "is_published"
+                ]
+            )
+    ): [VariantChannel!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantChannelBuilder@allVariantsPublishedInChannelFilterByAttributes"
         )
 }

@@ -10,6 +10,7 @@ use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
@@ -19,6 +20,7 @@ use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
@@ -103,6 +105,11 @@ class Lead extends BaseModel
     public function owner(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'leads_owner_id', 'id');
+    }
+
+    public function socialChannels(): HasMany
+    {
+        return $this->hasMany(Channel::class, 'entity_id', 'id')->where('entity_namespace', self::class);
     }
 
     public function receiver(): BelongsTo

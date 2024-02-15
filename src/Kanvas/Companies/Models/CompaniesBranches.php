@@ -7,12 +7,19 @@ namespace Kanvas\Companies\Models;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Facades\Auth;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Branches\Factories\CompaniesBranchesFactory;
+use Kanvas\Companies\Enums\Defaults;
+use Kanvas\CustomFields\Traits\HasCustomFields;
+use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Models\BaseModel;
+use Kanvas\Traits\SearchableDynamicIndexTrait;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedCompanies;
 
 /**
  * Companies Model.
@@ -30,6 +37,8 @@ class CompaniesBranches extends BaseModel
 {
     use UuidTrait;
     use HasFilesystemTrait;
+    use SearchableDynamicIndexTrait;
+    use HasCustomFields;
 
     /**
      * The table associated with the model.
@@ -72,6 +81,25 @@ class CompaniesBranches extends BaseModel
         return (bool) $this->is_default;
     }
 
+    public function getTotalUsersAttribute(): int
+    {
+        if (! $this->get('total_users')) {
+            $this->set('total_users', $this->users()->count());
+        }
+
+        return $this->get('total_users');
+    }
+
+    public static function searchableIndex(): string
+    {
+        return Defaults::SEARCHABLE_INDEX->getValue();
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return $this->is_deleted === StateEnums::NO->getValue();
+    }
+
     /**
      * Filter what the user can see.
      */
@@ -81,10 +109,28 @@ class CompaniesBranches extends BaseModel
 
         return $query->join('users_associated_company', function ($join) use ($user) {
             $join->on('users_associated_company.companies_id', '=', 'companies_branches.companies_id')
-                ->where('users_associated_company.users_id', '=', $user->getKey())
                 ->where('users_associated_company.is_deleted', '=', 0);
         })
+        ->join('users_associated_apps', function ($join) {
+            $join->on('users_associated_apps.companies_id', '=', 'companies_branches.companies_id')
+                ->where('users_associated_apps.apps_id', app(Apps::class)->getId());
+        })
+        ->when(! $user->isAdmin(), function ($query) use ($user) {
+            $query->where('users_associated_company.users_id', $user->getId());
+        })
         ->where('companies_branches.is_deleted', '=', 0);
+    }
+
+    public function users(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Users::class,
+            UsersAssociatedCompanies::class,
+            'companies_branches_id',
+            'id',
+            'id',
+            'users_id'
+        );
     }
 
     /**

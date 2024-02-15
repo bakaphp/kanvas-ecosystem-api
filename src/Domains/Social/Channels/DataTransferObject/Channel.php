@@ -19,6 +19,7 @@ class Channel extends Data
         public string $entity_namespace,
         public string $name = '',
         public string $description = '',
+        public ?string $slug = null
     ) {
     }
 }

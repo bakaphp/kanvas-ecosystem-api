@@ -17,6 +17,7 @@ class CompanyBranchTest extends TestCase
             'phone' => fake()->phoneNumber(),
             'email' => fake()->email(),
             'country_code' => 'US',
+            'is_active' => fake()->boolean(),
         ];
     }
 

@@ -26,7 +26,7 @@ class AddVariantToChannelAction
             'channels_id' => $this->channel->getId(),
         ];
 
-        $variantChannel = VariantsChannels::firstOrCreate(
+        $variantChannel = VariantsChannels::updateOrCreate(
             $search,
             [
                 'price' => $this->variantChannelDto->price ?? 0.00,

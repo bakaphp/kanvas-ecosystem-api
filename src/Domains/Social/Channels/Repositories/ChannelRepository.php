@@ -12,12 +12,12 @@ class ChannelRepository
 {
     public static function getById(int $id, Users $user): Channel
     {
-        return self::getByIdBuilder($user)->find($id);
+        return self::getByIdBuilder($user)->findOrFail($id);
     }
 
     public static function getByIdBuilder(Users $user): Builder
     {
-        $databaseSocial = config('database.social.database', 'social');
+        $databaseSocial = config('database.connections.social.database', 'social');
         $builder = Channel::join($databaseSocial . '.channel_users', 'channel_users.channel_id', '=', 'channels.id')
             ->where('users_id', auth()->user()->id);
 

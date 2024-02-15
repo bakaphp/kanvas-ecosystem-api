@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Notifications\Jobs;
 
 use Baka\Contracts\AppInterface;
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -22,6 +23,7 @@ class SendMessageNotificationsToUsersJob implements ShouldQueue
     use InteractsWithQueue;
     use Queueable;
     use SerializesModels;
+    use KanvasJobsTrait;
 
     public function __construct(
         protected Users $fromUser,
@@ -36,6 +38,7 @@ class SendMessageNotificationsToUsersJob implements ShouldQueue
      */
     public function handle(): void
     {
+        $this->overwriteAppService($this->app);
         $dynamicNotification = new DynamicKanvasNotification(
             $this->notificationType,
             $this->messagePayload->message

@@ -18,7 +18,8 @@ class RuleRepository
     public static function getRulesByModelAndType(
         AppInterface $app,
         EloquentModel $model,
-        RuleType $ruleType
+        RuleType $ruleType,
+        ?CompanyInterface $company = null
     ): Collection {
         $systemModule = SystemModulesRepository::getByModelName(get_class($model), $app);
         $bind = [
@@ -31,10 +32,22 @@ class RuleRepository
         ];
 
         //if it has a company reference m
-        if (isset($model->companies)
-            && $model->companies instanceof CompanyInterface
-        ) {
-            $bind['companies_id'] = $model->companies->getId();
+        $companyId = null;
+
+        /**
+         * calling company will override the model default connection we do this to avoid issues in the queue
+         * @todo look for a better way to do this.
+         */
+        $duplicateModel = clone $model;
+
+        if ($company) {
+            $companyId = $company->getId();
+        } elseif (isset($duplicateModel->company) && $duplicateModel->company instanceof CompanyInterface) {
+            $companyId = $duplicateModel->company->getId();
+        }
+
+        if ($companyId !== null) {
+            $bind['companies_id'] = $companyId;
         }
 
         return Rule::where('systems_modules_id', $bind['systems_module_id'])

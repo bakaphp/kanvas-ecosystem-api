@@ -44,6 +44,7 @@ class UpdateCompanyBranchActions
         $companyBranch->email = $this->data->email;
         $companyBranch->phone = $this->data->phone;
         $companyBranch->zipcode = $this->data->zipcode;
+        $companyBranch->is_active = $this->data->is_active;
         $companyBranch->updateOrFail();
 
         if ($this->data->files) {

@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Factories\MessageFactory;
 use Kanvas\Social\MessagesComments\Models\MessageComment;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -86,6 +87,14 @@ class Message extends BaseModel
     }
 
     /**
+     * The roles that belong to the Message
+     */
+    public function channels(): BelongsToMany
+    {
+        return $this->belongsToMany(Channel::class, 'channel_messages', 'messages_id', 'channel_id');
+    }
+
+    /**
      * messageType
      */
     public function messageType(): BelongsTo
@@ -103,12 +112,12 @@ class Message extends BaseModel
      */
     public function appModuleMessage(): HasOne
     {
-        return $this->setConnection('ecosystem')->hasOne(AppModuleMessage::class, 'message_id');
+        return $this->hasOne(AppModuleMessage::class, 'message_id');
     }
 
     public function users()
     {
-        return $this->setConnection('user_messages')->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
+        return $this->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
     }
 
     public function comments(): HasMany

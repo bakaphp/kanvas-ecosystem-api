@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Models;
 
 use Baka\Traits\NoAppRelationshipTrait;
+use Baka\Traits\UuidTrait;
 use Kanvas\Guild\Models\BaseModel;
 
 /**
@@ -13,6 +14,7 @@ use Kanvas\Guild\Models\BaseModel;
  * @property int $id
  * @property int $apps_id
  * @property int $companies_id
+ * @property string $uuid
  * @property string $name
  * @property string $description
  * @property int $is_active
@@ -24,6 +26,7 @@ use Kanvas\Guild\Models\BaseModel;
 class LeadType extends BaseModel
 {
     use NoAppRelationshipTrait;
+    use UuidTrait;
 
     protected $table = 'leads_types';
     protected $guarded = [];

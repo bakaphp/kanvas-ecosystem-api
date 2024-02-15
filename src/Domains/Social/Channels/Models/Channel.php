@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Channels\Models;
 
+use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Social\Messages\Models\Message;
@@ -24,16 +25,17 @@ use Kanvas\Users\Models\Users;
  */
 class Channel extends BaseModel
 {
+    use UuidTrait;
+
     protected $table = 'channels';
 
     protected $guarded = [];
 
     public function users(): BelongsToMany
     {
-        $databaseSocial = config('database.social.database', 'social');
+        $databaseSocial = config('database.connections.social.database', 'social');
 
-        return $this->setConnection('ecosystem')
-                ->belongsToMany(Users::class, $databaseSocial . '.channel_users', 'channel_id', 'users_id')
+        return $this->belongsToMany(Users::class, $databaseSocial . '.channel_users', 'channel_id', 'users_id')
                 ->withTimestamps()
                 ->withPivot('roles_id');
     }

@@ -1,6 +1,6 @@
 extend type Query {
     cities(
-        orderBy: _ @orderBy(columns: ["id", "created_at"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "name"])
         where: _
             @whereConditions(
                 columns: [
@@ -12,7 +12,8 @@ extend type Query {
                     "country_id"
                 ]
             )
-    ): [Cities!]! @paginate(model: "Kanvas\\Locations\\Models\\Cities")
+    ): [Cities!]!
+        @paginate(defaultCount: 25, model: "Kanvas\\Locations\\Models\\Cities")
     city(id: Int!): Cities @find(model: "Kanvas\\Locations\\Models\\Cities")
 }
 

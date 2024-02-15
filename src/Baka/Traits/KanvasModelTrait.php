@@ -89,6 +89,18 @@ trait KanvasModelTrait
         }
     }
 
+    public static function getByUuidFromCompanyApp(string $uuid, ?CompanyInterface $company = null, ?AppInterface $app = null): self
+    {
+        return self::where('uuid', $uuid)
+        ->when($company, function ($query, $company) {
+            $query->where('companies_id', $company->getId());
+        })
+        ->when($app, function ($query, $app) {
+            $query->where('apps_id', $app->getId());
+        })
+        ->firstOrFail();
+    }
+
     public static function getByIdFromBranch(mixed $id, CompaniesBranches $branch): self
     {
         try {
@@ -135,7 +147,7 @@ trait KanvasModelTrait
      */
     public function company(): BelongsTo
     {
-        return $this->setConnection('ecosystem')->belongsTo(
+        return $this->belongsTo(
             Companies::class,
             'companies_id',
             'id'
@@ -144,7 +156,7 @@ trait KanvasModelTrait
 
     public function user(): BelongsTo
     {
-        return $this->setConnection('ecosystem')->belongsTo(
+        return $this->belongsTo(
             Users::class,
             'users_id',
             'id'
@@ -156,7 +168,7 @@ trait KanvasModelTrait
      */
     public function app(): BelongsTo
     {
-        return  $this->setConnection('ecosystem')->belongsTo(
+        return  $this->belongsTo(
             Apps::class,
             'apps_id',
             'id'
@@ -227,5 +239,10 @@ trait KanvasModelTrait
     public function isDeleted(): bool
     {
         return (int) $this->is_deleted === StateEnums::YES->getValue();
+    }
+
+    public function hasWorkflow(): bool
+    {
+        return method_exists($this, 'fireWorkflow');
     }
 }

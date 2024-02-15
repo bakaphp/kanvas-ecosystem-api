@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Zoho\Workflows;
 
 use Baka\Contracts\AppInterface;
+use Baka\Traits\KanvasJobsTrait;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
+use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersInvite;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -20,8 +22,12 @@ use Workflow\Activity;
 
 class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
 {
+    use KanvasJobsTrait;
+    public $tries = 10;
+
     public function execute(Model $user, AppInterface $app, array $params): array
     {
+        $this->overwriteAppService($app);
         if (! isset($params['company'])) {
             throw new Exception('Company is required');
         }
@@ -53,14 +59,16 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
             $ownerAgent = Agent::where('users_id', $ownerUser->getId())->fromCompany($company)->firstOrFail();
         } catch (Exception $e) {
         }
-        $ownerId = $ownerAgent ? $ownerAgent->member_id : 1001;
 
         $agentUpdateData = [
             'name' => $name,
             'users_linked_source_id' => $zohoId,
             'member_id' => $memberNumber,
-            'owner_id' => $ownerId ?? 1001,
         ];
+
+        if ($ownerAgent) {
+            $agentUpdateData['owner_id'] = $ownerAgent->member_id;
+        }
 
         if ($owner) {
             $agentUpdateData['owner_linked_source_id'] = $owner['id'];
@@ -72,6 +80,10 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
         ], $agentUpdateData);
         $user->set('member_number_' . $company->getId(), $memberNumber);
 
+        if ($company->get(CustomFieldEnum::ZOHO_DEFAULT_LANDING_PAGE->value)) {
+            $user->set('landing_page', $company->get(CustomFieldEnum::ZOHO_DEFAULT_LANDING_PAGE->value));
+        }
+
         return [
             'member_id' => $memberNumber,
             'zohoId' => $zohoId,
@@ -80,22 +92,57 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
         ];
     }
 
+    /**
+     * @todo refactor this to a service
+     */
     protected function createAgent(AppInterface $app, ZohoService $zohoService, UserInterface $user, Companies $company): array
     {
+        $companyDefaultUseRotation = $company->get('agent_use_rotation') ?? false;
+
         try {
             $userInvite = UsersInvite::fromCompany($company)->fromApp($app)->where('email', $user->email)->firstOrFail();
             $agentOwner = Agent::fromCompany($company)->where('users_id', $userInvite->users_id)->firstOrFail();
-            $ownerInfo = $zohoService->getAgentByMemberNumber($agentOwner->member_id);
+            $ownerInfo = $zohoService->getAgentByMemberNumber((string) $agentOwner->member_id);
 
             $ownerId = $ownerInfo->Owner['id'];
             $ownerMemberNumber = $ownerInfo->Member_Number;
         } catch(Exception $e) {
+            //log the error
             $agentOwner = null;
+            $ownerInfo = null;
             $ownerMemberNumber = null;
+        }
+
+        $sponsorsPage = $company->get('sponsors_page') ?? [];
+        $agentPage = $user->get('agent_website');
+        $agentPageUserId = $sponsorsPage[$agentPage] ?? null;
+        //@todo this is ugly , testing it out
+        if ($agentPageUserId) {
+            try {
+                $agentOwner = Agent::fromCompany($company)->where('users_id', $agentPageUserId)->firstOrFail();
+                $ownerMemberNumber = $agentOwner->member_id;
+                $ownerId = $agentOwner->users_linked_source_id;
+            } catch(Exception $e) {
+                $agentOwner = null;
+                $ownerInfo = null;
+                $ownerMemberNumber = null;
+            }
+        }
+
+        if ($companyDefaultUseRotation && $ownerMemberNumber === null) {
+            try {
+                $rotation = LeadRotation::getByIdFromCompany($companyDefaultUseRotation, $company);
+                $agentUser = $rotation->getAgent();
+                $agentOwner = Agent::fromCompany($company)->where('users_id', $agentUser->getId())->firstOrFail();
+                $ownerMemberNumber = $agentOwner->member_id;
+                $ownerId = $agentOwner->users_linked_source_id;
+            } catch(Exception $e) {
+            }
         }
 
         $companyDefaultOwnerSourceId = $company->get(CustomFieldEnum::ZOHO_USER_OWNER_ID->value);
         $companyDefaultOwnerMemberId = $company->get(CustomFieldEnum::ZOHO_USER_OWNER_MEMBER_NUMBER->value) ?? 1001;
+
         $agent = new Agent();
         $agent->users_id = $user->getId();
         $agent->companies_id = $company->getId();
@@ -106,7 +153,7 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
         $agent->saveOrFail();
 
         //create in zoho
-        $zohoAgent = $zohoService->createAgent($user, $agent, $agentOwner);
+        $zohoAgent = $zohoService->createAgent($user, $agent, $ownerInfo);
 
         $agent->users_linked_source_id = $zohoAgent->id;
         $agent->saveOrFail();
