@@ -22,6 +22,7 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Models\BaseModel;
 use Kanvas\Roles\Models\Roles;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -96,6 +97,11 @@ class Apps extends BaseModel implements AppInterface
             'id',
             'companies_id'
         );
+    }
+
+    public function systemModules(): HasMany
+    {
+        return $this->hasMany(SystemModules::class, 'apps_id');
     }
 
     public function users(): BelongsToMany
