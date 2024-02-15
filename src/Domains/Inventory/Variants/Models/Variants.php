@@ -230,13 +230,23 @@ class Variants extends BaseModel
     {
         $variant = [
             "objectID" => $this->uuid,
+            'products_id' => $this->products_id,
             "name" => $this->name,
+            "files" => $this->files->map(function ($files) {
+                return [
+                    'uuid' => $files->uuid,
+                    'name' => $files->name,
+                    'url' => $files->url,
+                    'size' => $files->size,
+                    'field_name' => $files->field_name,
+                    'attributes' => $files->attributes,
+                ];
+            }),
             "company" => [
                 'id' => $this->product->companies_id,
                 'name' => $this->product->company->name,
             ],
             "user" => [
-                'id' => $this->product->company->users_id,
                 'firstname' => $this->product->company->user->firstname,
                 'lastname' => $this->product->company->user->lastname,
             ],
@@ -247,7 +257,27 @@ class Variants extends BaseModel
                 'id' => $this->status->getId(),
                 'name' => $this->status->name
             ],
+            "warehouses" => $this->variantWarehouses->map(function ($variantWarehouses) {
+                return [
+                    "id" => $variantWarehouses->warehouse->getId(),
+                    "name" => $variantWarehouses->warehouse->name,
+                    "price" => $variantWarehouses->price,
+                    "quantity" => $variantWarehouses->quantity,
+                    "status" => [
+                        'id' => $variantWarehouses->status->getId(),
+                        'name' => $variantWarehouses->status->name
+                    ]
+                ];
+            }),
+            "channels" => $this->channels->map(function ($channels) {
+                return [
+                    "name" => $channels->name,
+                    "price" => $channels->price,
+                    "is_published" => $channels->is_published,
+                ];
+            }),
             "description" => $this->description,
+            "short_description" => $this->short_description,
             "attributes" => [],
             "apps_id" => $this->apps_id,
             "is_deleted" => $this->is_deleted,
