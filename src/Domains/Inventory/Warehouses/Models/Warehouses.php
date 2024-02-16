@@ -182,7 +182,7 @@ class Warehouses extends BaseModel
      *
      * @return Int
      */
-    public function getTotalProducts(): Int
+    public function getTotalProducts(): int
     {
         if (! $totalProducts = $this->get('total_products')) {
             $this->set('total_products', $this->variantsWarehouses()->count());
