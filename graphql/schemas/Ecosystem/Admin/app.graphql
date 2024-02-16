@@ -11,8 +11,8 @@ type App {
     ecosystem_auth: Boolean
     is_public: Boolean!
     users: [User!]! @belongsToMany
-    total_users: Int! @count(relation: "users")
-    total_companies: Int! @count(relation: "companies")
+    total_users: Int!
+    total_companies: Int!
     total_system_modules: Int! @count(relation: "systemModules")
     systemModules: [SystemModule!]! @belongsToMany
     domain_based: Boolean

@@ -114,6 +114,27 @@ class Apps extends BaseModel implements AppInterface
         return $this->hasMany(AppKey::class, 'apps_id');
     }
 
+    public function getTotalUsersAttribute(): int
+    {
+        if(! $total_user = $this->get('total_users')) {
+            $this->set('total_users', $this->users()->count());
+
+            return $this->get('total_users');
+        }
+
+        return $total_user;
+    }
+
+    public function getTotalCompaniesAttribute(): int
+    {
+        if(! $total_companies = $this->get('total_companies')) {
+            $this->set('total_companies', $this->companies()->count());
+
+            return $this->get('total_companies');
+        }
+        return $total_companies;
+    }
+
     public function getUserKeys(?UserInterface $user = null): Collection
     {
         $user = $user ?? Auth::user();
