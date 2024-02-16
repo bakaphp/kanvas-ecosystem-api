@@ -1,16 +1,17 @@
 type Warehouse {
     id: Int!
-    companies: Company!
     apps: App!
     regions: Region!
     apps_id: Int!
     regions_id: Int!
-    companies_id: Int!
+    company: Company!
     uuid: String!
     name: String!
     location: String
     is_default: Boolean!
     is_published: Boolean!
+    total_products: Int!
+        @method(name: "getTotalProducts")
 }
 
 input WarehouseInput {
@@ -65,7 +66,7 @@ extend type Query @guard {
     getWarehouses(
         where: _
             @whereConditions(
-                columns: ["name", "location", "is_default", "is_published"]
+                columns: ["id", "name", "location", "is_default", "is_published"]
             )
     ): [Warehouse]!
         @paginate(
