@@ -116,7 +116,7 @@ class Apps extends BaseModel implements AppInterface
 
     public function getTotalUsersAttribute(): int
     {
-        if(! $total_user = $this->get('total_users')) {
+        if (! $total_user = $this->get('total_users')) {
             $this->set('total_users', $this->users()->count());
 
             return $this->get('total_users');
@@ -127,7 +127,7 @@ class Apps extends BaseModel implements AppInterface
 
     public function getTotalCompaniesAttribute(): int
     {
-        if(! $total_companies = $this->get('total_companies')) {
+        if (! $total_companies = $this->get('total_companies')) {
             $this->set('total_companies', $this->companies()->count());
 
             return $this->get('total_companies');
