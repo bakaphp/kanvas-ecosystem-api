@@ -7,11 +7,13 @@ namespace Kanvas\Inventory\Warehouses\Models;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Traits\DefaultTrait;
+use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 
 /**
  * Class Warehouses.
@@ -40,14 +42,6 @@ class Warehouses extends BaseModel
     protected $guarded = [];
 
     /**
-     * Get the companies that owns the Warehouses.
-     */
-    public function companies(): BelongsTo
-    {
-        return $this->belongsTo(Companies::class, 'companies_id');
-    }
-
-    /**
      *
      */
     public function apps(): BelongsTo
@@ -61,6 +55,16 @@ class Warehouses extends BaseModel
     public function regions(): BelongsTo
     {
         return $this->belongsTo(Regions::class, 'regions_id');
+    }
+
+    public function systemModules(): HasMany
+    {
+        return $this->hasMany(SystemModules::class, 'apps_id');
+    }
+
+    public function variantsWarehouses(): HasMany
+    {
+        return $this->hasMany(VariantsWarehouses::class, 'warehouses_id');
     }
 
     /**
@@ -171,5 +175,19 @@ class Warehouses extends BaseModel
         return Attribute::make(
             get: fn () => $this->pivot->is_published
         );
+    }
+
+    /**
+     * Get the total amount of products of a warehouse.
+     *
+     * @return Int
+     */
+    public function getTotalProducts(): Int
+    {
+        if(!$totalProducts = $this->get('total_products')) {
+            $this->set('total_products', $this->variantsWarehouses()->count());
+            return $this->get('total_products');
+        }
+        return $totalProducts;
     }
 }
