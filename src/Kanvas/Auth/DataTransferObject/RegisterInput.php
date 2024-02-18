@@ -51,7 +51,8 @@ class RegisterInput extends Data
             password: Hash::make($request->get('password')),
             default_company: $request->get('default_company') ?? null,
             role_ids: $roles,
-            custom_fields: $request->get('custom_fields') ?? []
+            custom_fields: $request->get('custom_fields') ?? [],
+            phone_number: $request->get('phone_number') ?? null,
         );
     }
 
