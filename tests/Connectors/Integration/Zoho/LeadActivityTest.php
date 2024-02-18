@@ -54,8 +54,6 @@ final class LeadActivityTest extends TestCase
 
         $zohoService = new ZohoService($app, $company);
         $zohoService->deleteLead($lead);
-        $zohoService->leads->delete($result['leadId']);
-
 
         $this->assertArrayHasKey('zohoLeadId', $result);
         $this->assertArrayHasKey('zohoRequest', $result);
