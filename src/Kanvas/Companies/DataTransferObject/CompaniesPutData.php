@@ -28,6 +28,7 @@ class CompaniesPutData extends Data
      * @property array|null $files
      */
     public function __construct(
+        public int $users_id,
         public string $name,
         public ?string $website,
         public ?string $address,
@@ -51,6 +52,7 @@ class CompaniesPutData extends Data
     public static function viaRequest(Request $request): self
     {
         return new self(
+            users_id: (int) $request->get('users_id'),
             currency_id: (int)$request->get('currency_id'),
             name: $request->get('name'),
             website: $request->get('website'),
@@ -74,6 +76,7 @@ class CompaniesPutData extends Data
     public static function fromArray(array $data): self
     {
         return new self(
+            users_id: (int) $data['users_id'],
             name: $data['name'],
             currency_id: $data['currency_id'] ?? null,
             website: $data['website'] ?? null,

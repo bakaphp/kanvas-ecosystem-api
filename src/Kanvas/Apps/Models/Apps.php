@@ -22,6 +22,7 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Models\BaseModel;
 use Kanvas\Roles\Models\Roles;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -98,6 +99,11 @@ class Apps extends BaseModel implements AppInterface
         );
     }
 
+    public function systemModules(): HasMany
+    {
+        return $this->hasMany(SystemModules::class, 'apps_id');
+    }
+
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(Users::class, 'users_associated_apps', 'apps_id', 'users_id');
@@ -106,6 +112,27 @@ class Apps extends BaseModel implements AppInterface
     public function keys(): HasMany
     {
         return $this->hasMany(AppKey::class, 'apps_id');
+    }
+
+    public function getTotalUsersAttribute(): int
+    {
+        if (! $totalUser = $this->get('total_users')) {
+            $this->set('total_users', $this->users()->count());
+
+            return $this->get('total_users');
+        }
+
+        return $totalUser;
+    }
+
+    public function getTotalCompaniesAttribute(): int
+    {
+        if (! $totalCompanies = $this->get('total_companies')) {
+            $this->set('total_companies', $this->companies()->count());
+
+            return $this->get('total_companies');
+        }
+        return $totalCompanies;
     }
 
     public function getUserKeys(?UserInterface $user = null): Collection

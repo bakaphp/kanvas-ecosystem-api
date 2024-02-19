@@ -104,6 +104,7 @@ input RegisterInput {
     password: String! @rules(apply: ["required", "min:8"])
     password_confirmation: String! @rules(apply: ["required"])
     company_name: String
+    phone_number: String
     custom_fields: [CustomFieldEntityInput!]
 }
 

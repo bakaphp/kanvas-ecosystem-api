@@ -28,6 +28,7 @@ final class UpdateCompaniesActionTest extends TestCase
 
         $faker = \Faker\Factory::create();
         $data = [
+            'users_id' => $company->users_id,
             'currency_id' => $company->currency_id,
             'name' => $faker->company,
             'profile_image' => $company->profile_image,
