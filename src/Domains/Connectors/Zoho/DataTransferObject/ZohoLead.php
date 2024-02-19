@@ -39,7 +39,8 @@ class ZohoLead extends Data
 
         $people = $lead->people()->first();
         $owner = (string) ($lead->owner()->first() ? $lead->company()->first()->get(CustomFieldEnum::DEFAULT_OWNER->value) : null);
-        $status = (string) ($lead->status()->first() ? $lead->status()->first()->get(CustomFieldEnum::ZOHO_STATUS_NAME->value) : 'New Lead');
+        $newLead = 'New Lead';
+        $status = (string) ($lead->status()->first() ? ($lead->status()->first()->get(CustomFieldEnum::ZOHO_STATUS_NAME->value) ?? $newLead) : $newLead);
 
         return new self(
             $people->firstname,
