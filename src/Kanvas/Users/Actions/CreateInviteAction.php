@@ -7,9 +7,9 @@ namespace Kanvas\Users\Actions;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Notifications\Templates\Invite as InviteTemplate;
 use Kanvas\Users\DataTransferObject\Invite as InviteDto;
 use Kanvas\Users\Models\Users;
@@ -50,7 +50,7 @@ class CreateInviteAction
             'companies_id' => $company->getKey(),
             'companies_branches_id' => $companyBranch->getKey(),
             'role_id' => $this->inviteDto->role_id,
-            'apps_id' => app(Apps::class)->getKey(),
+            'apps_id' => $this->inviteDto->app->getId(),
             'email' => $this->inviteDto->email,
             'firstname' => $this->inviteDto->firstname,
             'lastname' => $this->inviteDto->lastname,
@@ -69,9 +69,12 @@ class CreateInviteAction
              'default_company_branch' => $companyBranch->getId(),
          ]);
  */
+        //@todo allow it to be customized
+        $emailTitle = $this->inviteDto->app->get(AppSettingsEnums::INVITE_EMAIL_SUBJECT->getValue()) ?? 'You\'ve been invited to join ' . $company->name;
+
         $inviteEmail = new InviteTemplate($invite, [
             'fromUser' => $this->user,
-            'subject' => 'You have been invited to join ' . $company->name,
+            'subject' => $emailTitle,
             'template' => $this->inviteDto->email_template,
             'company' => $company,
         ]);
