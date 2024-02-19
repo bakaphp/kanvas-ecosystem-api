@@ -119,4 +119,10 @@ class VariantsWarehouses extends BaseModel
 
         return $statusHistories;
     }
+
+    public function getTotalProducts()
+    {
+        $total = VariantsWarehouses::where('is_deleted', 0)->sum('quantity');
+        return $total;
+    }
 }
