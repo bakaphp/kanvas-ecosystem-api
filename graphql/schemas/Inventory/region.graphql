@@ -2,7 +2,7 @@ type Region {
     id: Int!
     companies_id: Int!
     currency_id: Int!
-    companies: Company!
+    companies: Company! @belongsTo(relation: "company")
     currencies: Currency!
     uuid: String!
     name: String!
