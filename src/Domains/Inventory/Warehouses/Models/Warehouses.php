@@ -41,25 +41,14 @@ class Warehouses extends BaseModel
 
     protected $guarded = [];
 
-    /**
-     *
-     */
     public function apps(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
 
-    /**
-     *
-     */
     public function regions(): BelongsTo
     {
         return $this->belongsTo(Regions::class, 'regions_id');
-    }
-
-    public function systemModules(): HasMany
-    {
-        return $this->hasMany(SystemModules::class, 'apps_id');
     }
 
     public function variantsWarehouses(): HasMany
@@ -182,7 +171,7 @@ class Warehouses extends BaseModel
      *
      * @return Int
      */
-    public function getTotalProducts(): Int
+    public function getTotalProducts(): int
     {
         if (! $totalProducts = $this->get('total_products')) {
             $this->set(
