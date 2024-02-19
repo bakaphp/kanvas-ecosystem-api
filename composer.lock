@@ -3342,16 +3342,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v10.43.0",
+            "version": "v10.44.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "4f7802dfc9993cb57cf69615491ce1a7eb2e9529"
+                "reference": "1199dbe361787bbe9648131a79f53921b4148cf6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/4f7802dfc9993cb57cf69615491ce1a7eb2e9529",
-                "reference": "4f7802dfc9993cb57cf69615491ce1a7eb2e9529",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/1199dbe361787bbe9648131a79f53921b4148cf6",
+                "reference": "1199dbe361787bbe9648131a79f53921b4148cf6",
                 "shasum": ""
             },
             "require": {
@@ -3399,6 +3399,7 @@
             "conflict": {
                 "carbonphp/carbon-doctrine-types": ">=3.0",
                 "doctrine/dbal": ">=4.0",
+                "phpunit/phpunit": ">=11.0.0",
                 "tightenco/collect": "<5.5.33"
             },
             "provide": {
@@ -3543,20 +3544,20 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2024-01-30T16:25:02+00:00"
+            "time": "2024-02-13T16:01:16+00:00"
         },
         {
             "name": "laravel/octane",
-            "version": "v2.3.2",
+            "version": "v2.3.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/octane.git",
-                "reference": "ddb5e7fe33fe7aff24c61d262d7d9dc00918888f"
+                "reference": "8f9d0da559ba4366fecc5c106d1298abe6773396"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/octane/zipball/ddb5e7fe33fe7aff24c61d262d7d9dc00918888f",
-                "reference": "ddb5e7fe33fe7aff24c61d262d7d9dc00918888f",
+                "url": "https://api.github.com/repos/laravel/octane/zipball/8f9d0da559ba4366fecc5c106d1298abe6773396",
+                "reference": "8f9d0da559ba4366fecc5c106d1298abe6773396",
                 "shasum": ""
             },
             "require": {
@@ -3631,7 +3632,7 @@
                 "issues": "https://github.com/laravel/octane/issues",
                 "source": "https://github.com/laravel/octane"
             },
-            "time": "2024-01-30T03:05:25+00:00"
+            "time": "2024-02-04T15:49:02+00:00"
         },
         {
             "name": "laravel/prompts",
@@ -3758,16 +3759,16 @@
         },
         {
             "name": "laravel/scout",
-            "version": "v10.8.2",
+            "version": "v10.8.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/scout.git",
-                "reference": "4b5766ac110ef116c6571f4b3a29193bfd01c27c"
+                "reference": "f2e20b0eb3355b555038581b52aec4bfe814c700"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/scout/zipball/4b5766ac110ef116c6571f4b3a29193bfd01c27c",
-                "reference": "4b5766ac110ef116c6571f4b3a29193bfd01c27c",
+                "url": "https://api.github.com/repos/laravel/scout/zipball/f2e20b0eb3355b555038581b52aec4bfe814c700",
+                "reference": "f2e20b0eb3355b555038581b52aec4bfe814c700",
                 "shasum": ""
             },
             "require": {
@@ -3831,7 +3832,7 @@
                 "issues": "https://github.com/laravel/scout/issues",
                 "source": "https://github.com/laravel/scout"
             },
-            "time": "2024-01-30T18:52:49+00:00"
+            "time": "2024-02-13T17:22:36+00:00"
         },
         {
             "name": "laravel/serializable-closure",
@@ -3895,16 +3896,16 @@
         },
         {
             "name": "laravel/socialite",
-            "version": "v5.11.0",
+            "version": "v5.12.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/socialite.git",
-                "reference": "4f6a8af6f3f7c18da03d19842dd0514315501c10"
+                "reference": "7dae1b072573809f32ab6dcf4aebb57c8b3e8acf"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/socialite/zipball/4f6a8af6f3f7c18da03d19842dd0514315501c10",
-                "reference": "4f6a8af6f3f7c18da03d19842dd0514315501c10",
+                "url": "https://api.github.com/repos/laravel/socialite/zipball/7dae1b072573809f32ab6dcf4aebb57c8b3e8acf",
+                "reference": "7dae1b072573809f32ab6dcf4aebb57c8b3e8acf",
                 "shasum": ""
             },
             "require": {
@@ -3961,7 +3962,7 @@
                 "issues": "https://github.com/laravel/socialite/issues",
                 "source": "https://github.com/laravel/socialite"
             },
-            "time": "2023-12-02T18:22:36+00:00"
+            "time": "2024-02-16T08:58:20+00:00"
         },
         {
             "name": "laravel/tinker",
@@ -4768,16 +4769,16 @@
         },
         {
             "name": "meilisearch/meilisearch-php",
-            "version": "v1.6.0",
+            "version": "v1.6.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/meilisearch/meilisearch-php.git",
-                "reference": "4dbb26d583bd14506784846fb86cbb408007b132"
+                "reference": "a0bcb5ae8e8e32dec1d28613b53dc0360d995983"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/meilisearch/meilisearch-php/zipball/4dbb26d583bd14506784846fb86cbb408007b132",
-                "reference": "4dbb26d583bd14506784846fb86cbb408007b132",
+                "url": "https://api.github.com/repos/meilisearch/meilisearch-php/zipball/a0bcb5ae8e8e32dec1d28613b53dc0360d995983",
+                "reference": "a0bcb5ae8e8e32dec1d28613b53dc0360d995983",
                 "shasum": ""
             },
             "require": {
@@ -4792,7 +4793,7 @@
                 "guzzlehttp/guzzle": "^7.1",
                 "http-interop/http-factory-guzzle": "^1.0",
                 "phpstan/extension-installer": "^1.1",
-                "phpstan/phpstan": "1.10.50",
+                "phpstan/phpstan": "1.10.57",
                 "phpstan/phpstan-deprecation-rules": "^1.0",
                 "phpstan/phpstan-phpunit": "^1.0",
                 "phpstan/phpstan-strict-rules": "^1.1",
@@ -4830,9 +4831,9 @@
             ],
             "support": {
                 "issues": "https://github.com/meilisearch/meilisearch-php/issues",
-                "source": "https://github.com/meilisearch/meilisearch-php/tree/v1.6.0"
+                "source": "https://github.com/meilisearch/meilisearch-php/tree/v1.6.1"
             },
-            "time": "2024-01-15T13:07:32+00:00"
+            "time": "2024-02-16T13:42:26+00:00"
         },
         {
             "name": "mll-lab/graphql-php-scalars",
@@ -15799,16 +15800,16 @@
         },
         {
             "name": "vimeo/psalm",
-            "version": "5.21.1",
+            "version": "5.22.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/vimeo/psalm.git",
-                "reference": "8c473e2437be8b6a8fd8f630f0f11a16b114c494"
+                "reference": "e9dad66e11274315dac27e08349c628c7d6a1a43"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/vimeo/psalm/zipball/8c473e2437be8b6a8fd8f630f0f11a16b114c494",
-                "reference": "8c473e2437be8b6a8fd8f630f0f11a16b114c494",
+                "url": "https://api.github.com/repos/vimeo/psalm/zipball/e9dad66e11274315dac27e08349c628c7d6a1a43",
+                "reference": "e9dad66e11274315dac27e08349c628c7d6a1a43",
                 "shasum": ""
             },
             "require": {
@@ -15831,7 +15832,7 @@
                 "netresearch/jsonmapper": "^1.0 || ^2.0 || ^3.0 || ^4.0",
                 "nikic/php-parser": "^4.16",
                 "php": "^7.4 || ~8.0.0 || ~8.1.0 || ~8.2.0 || ~8.3.0",
-                "sebastian/diff": "^4.0 || ^5.0",
+                "sebastian/diff": "^4.0 || ^5.0 || ^6.0",
                 "spatie/array-to-xml": "^2.17.0 || ^3.0",
                 "symfony/console": "^4.1.6 || ^5.0 || ^6.0 || ^7.0",
                 "symfony/filesystem": "^5.4 || ^6.0 || ^7.0"
@@ -15905,7 +15906,7 @@
                 "issues": "https://github.com/vimeo/psalm/issues",
                 "source": "https://github.com/vimeo/psalm"
             },
-            "time": "2024-02-01T01:04:32+00:00"
+            "time": "2024-02-15T22:52:31+00:00"
         }
     ],
     "aliases": [],
