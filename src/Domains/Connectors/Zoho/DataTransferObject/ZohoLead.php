@@ -26,7 +26,8 @@ class ZohoLead extends Data
     public static function fromLead(Lead $lead): self
     {
         $customFields = $lead->getAll();
-        $companyZohoMapFields = $lead->company()->first()->get(CustomFieldEnum::FIELDS_MAP->value);
+        $company = $lead->company()->first();
+        $companyZohoMapFields = $company->get(CustomFieldEnum::FIELDS_MAP->value);
 
         $additionalFields = [];
         if ($companyZohoMapFields && is_array($companyZohoMapFields)) {
@@ -38,9 +39,10 @@ class ZohoLead extends Data
         }
 
         $people = $lead->people()->first();
-        $owner = (string) ($lead->owner()->first() ? $lead->company()->first()->get(CustomFieldEnum::DEFAULT_OWNER->value) : null);
+        $leadStatus = $lead->status()->first();
+        $owner = (string) ($lead->owner()->first() ? $company->get(CustomFieldEnum::DEFAULT_OWNER->value) : null);
         $newLead = 'New Lead';
-        $status = (string) ($lead->status()->first() ? ($lead->status()->first()->get(CustomFieldEnum::ZOHO_STATUS_NAME->value) ?? $newLead) : $newLead);
+        $status = $leadStatus ? ($leadStatus->get(CustomFieldEnum::ZOHO_STATUS_NAME->value) ?? $newLead) : $newLead;
 
         return new self(
             $people->firstname,
