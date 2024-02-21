@@ -183,6 +183,7 @@ extend type Query @guard {
                     "updated_at"
                 ]
             )
+        orderBy: _@orderBy(columns: ["created_at", "updated_at", "id", "name"])
     ): [User!]!
         @paginate(
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagementQuery@getAllCompanyUsers"
