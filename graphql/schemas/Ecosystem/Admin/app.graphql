@@ -141,7 +141,10 @@ extend type Query @guard {
 }
 
 extend type Query {
-    getAppSettings(key: String! @eq): AppSettings
+    getAppSettings(
+        key: String! @eq,
+        orderBy: _@orderBy(columns: ["created_at", "updated_at", "id", "name"])
+    ): AppSettings
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\AppsListQuery@getAppSettings"
         )
