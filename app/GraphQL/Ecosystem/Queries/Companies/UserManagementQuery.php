@@ -17,6 +17,8 @@ class UserManagementQuery
      */
     public function getAllCompanyUsers(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
     {
+        $companiesId = auth()->user()->isAdmin() && ! empty($args['companies_id']) ? $args['companies_id'] : auth()->user()->currentCompanyId();
+
         /**
          * @var Builder
          */
@@ -28,7 +30,7 @@ class UserManagementQuery
                 )
                 ->where(
                     'users_associated_company.companies_id',
-                    auth()->user()->currentCompanyId()
+                    $companiesId
                 )
                 ->where(
                     'users_associated_company.is_deleted',
@@ -42,6 +44,8 @@ class UserManagementQuery
      */
     public function getAllCompanyBranchUsers(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
     {
+        $companiesId = auth()->user()->isAdmin() && ! empty($args['companies_id']) ? $args['companies_id'] : auth()->user()->currentCompanyId();
+
         /**
          * @var Builder
          */
@@ -56,7 +60,7 @@ class UserManagementQuery
         )
         ->where(
             'users_associated_company.companies_branches_id',
-            auth()->user()->currentBranchId()
+            $companiesId
         );
     }
 }

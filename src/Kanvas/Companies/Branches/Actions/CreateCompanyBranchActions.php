@@ -47,6 +47,7 @@ class CreateCompanyBranchActions
         $companyBranch->email = $this->data->email;
         $companyBranch->phone = $this->data->phone;
         $companyBranch->zipcode = $this->data->zipcode;
+        $companyBranch->is_active = $this->data->is_active;
 
         $company->branches()->save($companyBranch);
 

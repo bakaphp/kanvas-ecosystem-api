@@ -13,6 +13,7 @@ use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Facades\Auth;
@@ -95,6 +96,11 @@ class Apps extends BaseModel implements AppInterface
             'id',
             'companies_id'
         );
+    }
+
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(Users::class, 'users_associated_apps', 'apps_id', 'users_id');
     }
 
     public function keys(): HasMany

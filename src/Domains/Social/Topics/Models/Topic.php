@@ -32,17 +32,17 @@ class Topic extends BaseModel
 
     public function app(): BelongsTo
     {
-        return $this->setConnection('ecosystem')->belongsTo(Apps::class, 'apps_id');
+        return $this->belongsTo(Apps::class, 'apps_id');
     }
 
     public function company(): BelongsTo
     {
-        return $this->setConnection('ecosystem')->belongsTo(Companies::class, 'companies_id');
+        return $this->belongsTo(Companies::class, 'companies_id');
     }
 
     public function user(): BelongsTo
     {
-        return $this->setConnection('ecosystem')->belongsTo(Users::class, 'users_id');
+        return $this->belongsTo(Users::class, 'users_id');
     }
 
     public function entities(): HasMany

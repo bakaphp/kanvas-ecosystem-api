@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Notifications\Jobs;
 
 use Baka\Contracts\AppInterface;
+use Baka\Traits\KanvasJobsTrait;
 use Berkayk\OneSignal\OneSignalClient;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -20,6 +21,7 @@ class PushNotificationsHandlerJob implements ShouldQueue
     use InteractsWithQueue;
     use Queueable;
     use SerializesModels;
+    use KanvasJobsTrait;
 
     /**
      * Create a new job instance.
@@ -39,6 +41,7 @@ class PushNotificationsHandlerJob implements ShouldQueue
      */
     public function handle()
     {
+        $this->overwriteAppService($this->app);
         $userOneSignalId = UsersLinkedSourcesRepository::getByUsersId($this->usersFollowId)->source_users_id;
 
         if (getenv('APP_ENV') !== 'testing') {

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Guild;
 
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\SystemModules\Models\SystemModules;
 use Tests\TestCase;
 
 class LeadTest extends TestCase
@@ -522,6 +525,98 @@ class LeadTest extends TestCase
             'data' => [
                 'unFollowLead' => true,
             ],
+        ]);
+    }
+
+    public function testChannelMessage()
+    {
+        $lead = $this->createLeadAndGetResponse();
+        $systemModule = SystemModules::where('name', Lead::class)->first();
+        $channel = $this->graphQL('
+            query socialChannels($where: QuerySocialChannelsWhereWhereConditions) {
+                socialChannels(where: $where) {
+                    data {
+                        id
+                        uuid
+                        slug
+                    }
+                }
+            }
+        ', ['where' => ['column' => 'SLUG', 'operator' => 'EQ', 'value' => $lead['data']['createLead']['uuid']]]);
+        $channel->assertJson([
+            'data' => [
+                'socialChannels' => [
+                    'data' => [
+                        [
+                            'slug' => $lead['data']['createLead']['uuid'],
+                        ],
+                    ],
+                ],
+
+            ],
+        ]);
+        $channel = $channel->json()['data']['socialChannels']['data'][0];
+        $messageType = MessageType::factory()->create();
+        $messageInput = [
+            'message' => json_encode($lead['data']['createLead']),
+            'message_types_id' => $messageType->id,
+            'system_modules_id' => 1,
+            'entity_id' => $lead['data']['createLead']['id'],
+            'distribution' => [
+                'distributionType' => 'Channels',
+                'channels' => [
+                    $channel['id'],
+                ],
+                'followers' => [],
+            ],
+        ];
+
+
+        $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        message
+                    }
+                }
+            ',
+            [
+                'input' => $messageInput,
+            ]
+        )->assertJson([
+            'data' => [
+                'createMessage' => [
+                    'message' => json_encode($lead['data']['createLead']),
+                ],
+            ],
+        ]);
+
+        $message = $this->graphQL(
+            '
+            query($channel_uuid: String!) {
+                channelMessages(
+                    channel_uuid: $channel_uuid
+                ) {
+                    data {
+                        message
+                    }
+                }
+            }
+        ',
+            [
+            'channel_uuid' => $channel['uuid'],
+        ]
+        );
+        $message->assertJsonStructure([
+        'data' => [
+            'channelMessages' => [
+                'data' => [
+                    '*' => [
+                        'message',
+                    ],
+                ],
+            ],
+        ],
         ]);
     }
 }

@@ -14,6 +14,7 @@ type Company {
     branches: [CompanyBranch!]! @hasMany(relation: "branches") #need to filter by the branches the user has access to
     photo: Filesystem @method(name: "getPhoto")
     is_active: Boolean!
+    users: [User] @HasManyThrough
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25
@@ -59,7 +60,11 @@ type CompanyBranch {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
+    address: String
+    user: User! @belongsTo(relation: "user")
     zipcode: Int
+    total_users: Int!
+    is_active: Boolean!
     is_default: Boolean!
     created_at: DateTime
     updated_at: DateTime
@@ -101,6 +106,7 @@ input CompanyBranchInput {
     timezone: String
     phone: String
     files: [FilesystemInputUrl]
+    is_active: Boolean
 }
 
 type CompanySettings {
@@ -124,10 +130,12 @@ extend type Query @guard {
                     "language"
                     "timezone"
                     "phone"
-                    "country_code",
+                    "country_code"
                     "is_active"
                 ]
             )
+        hasUsers: _
+            @whereHasConditions(columns: ["id", "uuid", "displayname", "email"])
         orderBy: _ @orderBy(columns: ["id"])
     ): [Company!]!
         @paginate(
@@ -137,6 +145,7 @@ extend type Query @guard {
         )
 
     branches(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [
@@ -162,6 +171,7 @@ extend type Query @guard {
             @whereConditions(
                 columns: [
                     "id"
+                    "companies_id"
                     "uuid"
                     "firstname"
                     "lastname"
@@ -185,6 +195,7 @@ extend type Query @guard {
                 columns: [
                     "id"
                     "uuid"
+                    "companies_id"
                     "firstname"
                     "lastname"
                     "displayname"

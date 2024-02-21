@@ -10,6 +10,7 @@ use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Agents\Models\Agent;
+use Kanvas\Guild\Leads\Models\Lead;
 use Webleit\ZohoCrmApi\ZohoCrm;
 
 class ZohoService
@@ -59,7 +60,7 @@ class ZohoService
             'Email' => $user->email,
             'Member_Number' => $agentInfo->getMemberNumber(),
             'Sponsor' => ! empty($agentInfo->owner_id) ? (string) $agentInfo->owner_id : '1001',
-            'Owner' => ! empty($agentInfo->owner_linked_source_id) ? (int) $agentInfo->owner_linked_source_id : $this->company->get('default_owner'),
+            'Owner' => ! empty($agentInfo->owner_linked_source_id) ? (int) $agentInfo->owner_linked_source_id : $this->company->get(CustomFieldEnum::DEFAULT_OWNER->value),
             'Account_Type' => 'Standard',
             'Name' => $agentInfo->name,
             'Office_Phone' => '',
@@ -77,5 +78,23 @@ class ZohoService
         }
 
         return $zohoAgent;
+    }
+
+    public function deleteLead(Lead $lead): void
+    {
+        $zohoLeadId = $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value);
+        if ($zohoLeadId) {
+            $this->zohoCrm->leads->delete((string) $zohoLeadId);
+        }
+    }
+
+    public function deleteAgent(Agent $agent): void
+    {
+        $zohoAgentId = $agent->users_linked_source_id;
+        if ($this->zohoAgentModule == self::DEFAULT_AGENT_MODULE) {
+            $this->zohoCrm->agents->delete($zohoAgentId);
+        } else {
+            $this->zohoCrm->vendors->delete($zohoAgentId);
+        }
     }
 }

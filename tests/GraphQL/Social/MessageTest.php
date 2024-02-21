@@ -59,7 +59,10 @@ class MessageTest extends TestCase
                     createMessage(input: $input) {
                         id
                         message
-                        message_types_id
+                        message_types_id, 
+                        users {
+                            id
+                        }
                     }
                 }
             ',
@@ -79,7 +82,10 @@ class MessageTest extends TestCase
                 messages {
                   data {
                     message
-                    message_types_id
+                    message_types_id,
+                    users {
+                        id
+                    }
                   }
                 }
               }

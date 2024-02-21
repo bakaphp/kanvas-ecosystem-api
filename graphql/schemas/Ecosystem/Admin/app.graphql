@@ -10,6 +10,11 @@ type App {
     payments_active: Boolean
     ecosystem_auth: Boolean
     is_public: Boolean!
+    users: [User!]! @belongsToMany
+    total_users: Int!
+    total_companies: Int!
+    total_system_modules: Int! @count(relation: "systemModules")
+    systemModules: [SystemModule!]! @belongsToMany
     domain_based: Boolean
     secrets: [AppKey]! @method(name: "getUserKeys")
     created_at: String!
