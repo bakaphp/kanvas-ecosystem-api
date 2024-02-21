@@ -254,8 +254,8 @@ class Variants extends BaseModel
             "slug" => $this->slug,
             "sku" => $this->sku,
             "status" => [
-                'id' => $this->status->getId(),
-                'name' => $this->status->name
+                'id' => $this->status->id ?? null,
+                'name' => $this->status->name ?? null
             ],
             "warehouses" => $this->variantWarehouses->map(function ($variantWarehouses) {
                 return [
