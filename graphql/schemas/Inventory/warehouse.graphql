@@ -65,7 +65,7 @@ extend type Query @guard {
     getWarehouses(
         where: _
             @whereConditions(
-                columns: ["name", "location", "is_default", "is_published"]
+                columns: ["id", "name", "location", "is_default", "is_published"]
             )
     ): [Warehouse]!
         @paginate(
