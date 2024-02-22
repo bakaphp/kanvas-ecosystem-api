@@ -121,8 +121,7 @@ class WarehouseTest extends TestCase
         ]);
         $warehouseId = $response['data']['createWarehouse']['id'];
 
-        $this->graphQL(
-            '
+        $this->graphQL('
             query getWarehouses($id: Mixed!) {
                 getWarehouses(where: {column: ID, operator: EQ, value: $id}){
                     data {
@@ -134,9 +133,7 @@ class WarehouseTest extends TestCase
                         is_published
                     }
                 }
-            }
-            '
-        ,['id' =>$warehouseId])->assertJson([
+            }', ['id' =>$warehouseId])->assertJson([
             'data' => ['getWarehouses' => ['data' => [$response->decodeResponseJson()['data']['createWarehouse']]]]
         ]);
     }

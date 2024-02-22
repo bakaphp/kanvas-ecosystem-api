@@ -85,7 +85,6 @@ class RegionTest extends TestCase
         ');
 
         $this->assertArrayHasKey('id', $response->json()['data']['regions']['data'][0]);
-
     }
 
     /**
