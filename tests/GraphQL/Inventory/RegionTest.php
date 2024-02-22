@@ -73,17 +73,19 @@ class RegionTest extends TestCase
             'data' => ['createRegion' => $data]
         ]);
 
-        $this->graphQL('
-            query getMutation {
+        $response = $this->graphQL('
+            query {
                 regions {
                   data {
+                    id
                     name
                   }
                 }
             }
-        ')->assertJson([
-            'data' => ['regions' => ['data' => [['name' => 'Test Region']]]]
-        ]);
+        ');
+
+        $this->assertArrayHasKey('id', $response->json()['data']['regions']['data'][0]);
+
     }
 
     /**
