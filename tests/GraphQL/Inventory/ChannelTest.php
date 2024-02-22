@@ -138,7 +138,7 @@ class ChannelTest extends TestCase
                     is_default
                 }
             }
-        }',['id' =>$channelId])->assertJson([
+        }', ['id' =>$channelId])->assertJson([
             'data' => ['channels' => ['data' => [$data]]]
         ]);
 
@@ -182,7 +182,7 @@ class ChannelTest extends TestCase
                     is_default
                 }
             }
-        }',['id' =>$channelId])->assertJson([
+        }', ['id' =>$channelId])->assertJson([
             'data' => ['channels' => ['data' => [$data]]]
         ]);
 

@@ -71,7 +71,6 @@ class CategoryTest extends TestCase
                 }
             }');
         $this->assertArrayHasKey('id', $response->json()['data']['categories']['data'][0]);
-
     }
 
     /**
