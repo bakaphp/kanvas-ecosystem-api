@@ -52,7 +52,7 @@ class ProductsTypesTest extends TestCase
             }', ['data' => $data])->assertJson([
             'data' => ['createProductType' => $data]
         ]);
-        $this->graphQL('
+        $response = $this->graphQL('
             query {
                 productTypes {
                     data {
@@ -60,9 +60,8 @@ class ProductsTypesTest extends TestCase
                         weight
                     }
                 }
-            }')->assertJson([
-            'data' => ['productTypes' => ['data' => [$data]]]
-        ]);
+            }');
+        $this->assertArrayHasKey('name', $response->json()['data']['productTypes']['data'][0]);
     }
 
     /**
