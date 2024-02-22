@@ -133,7 +133,7 @@ class WarehouseTest extends TestCase
                         is_published
                     }
                 }
-            }', ['id' =>$warehouseId])->assertJson([
+            }', ['id' => $warehouseId])->assertJson([
             'data' => ['getWarehouses' => ['data' => [$response->decodeResponseJson()['data']['createWarehouse']]]]
         ]);
     }
