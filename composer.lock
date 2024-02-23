@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "2ab8b36baa501ff1b5f223119737e059",
+    "content-hash": "5878b274f0e2cec459404551378e5b58",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -3497,16 +3497,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v10.44.0",
+            "version": "v10.45.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "1199dbe361787bbe9648131a79f53921b4148cf6"
+                "reference": "dcf5d1d722b84ad38a5e053289130b6962f830bd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/1199dbe361787bbe9648131a79f53921b4148cf6",
-                "reference": "1199dbe361787bbe9648131a79f53921b4148cf6",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/dcf5d1d722b84ad38a5e053289130b6962f830bd",
+                "reference": "dcf5d1d722b84ad38a5e053289130b6962f830bd",
                 "shasum": ""
             },
             "require": {
@@ -3699,7 +3699,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2024-02-13T16:01:16+00:00"
+            "time": "2024-02-21T14:07:36+00:00"
         },
         {
             "name": "laravel/octane",
@@ -5683,16 +5683,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.33.3",
+            "version": "v6.33.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "5514697392a982aed3834cca2504d21dbb8b62fe"
+                "reference": "973328cde53a3f2067b2bda9513daa1eff796475"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/5514697392a982aed3834cca2504d21dbb8b62fe",
-                "reference": "5514697392a982aed3834cca2504d21dbb8b62fe",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/973328cde53a3f2067b2bda9513daa1eff796475",
+                "reference": "973328cde53a3f2067b2bda9513daa1eff796475",
                 "shasum": ""
             },
             "require": {
@@ -5815,7 +5815,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2024-02-19T14:51:27+00:00"
+            "time": "2024-02-23T10:37:30+00:00"
         },
         {
             "name": "nyholm/psr7",
