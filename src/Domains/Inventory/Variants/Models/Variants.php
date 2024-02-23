@@ -58,6 +58,7 @@ class Variants extends BaseModel
     protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];
 
     protected $table = 'products_variants';
+    protected $touches = ['attributes'];
     protected $fillable = [
         'users_id',
         'products_id',
@@ -227,28 +228,69 @@ class Variants extends BaseModel
 
     public function toSearchableArray(): array
     {
-        /**
-         * @psalm-suppress InvalidTemplateParam
-         */
-        $attributes = $this->attributes()->get(['name', 'products_variants_attributes.value'])->map(function ($item) {
-            return [
-                'name' => $item['name'],
-                'value' => $item['pivot']['value'],
-            ];
-        })->toArray();
-
-        $variant = $this->toArray();
-        $variant['user'] = [
-            'id' => $this->product->company->users_id,
-            'firstname' => $this->product->company->user->firstname,
-            'lastname' => $this->product->company->user->lastname,
+        $variant = [
+            "objectID" => $this->uuid,
+            'products_id' => $this->products_id,
+            "name" => $this->name,
+            "files" => $this->files->map(function ($files) {
+                return [
+                    'uuid' => $files->uuid,
+                    'name' => $files->name,
+                    'url' => $files->url,
+                    'size' => $files->size,
+                    'field_name' => $files->field_name,
+                    'attributes' => $files->attributes,
+                ];
+            }),
+            "company" => [
+                'id' => $this->product->companies_id,
+                'name' => $this->product->company->name,
+            ],
+            "user" => [
+                'firstname' => $this->product->company->user->firstname,
+                'lastname' => $this->product->company->user->lastname,
+            ],
+            "uuid" => $this->uuid,
+            "slug" => $this->slug,
+            "sku" => $this->sku,
+            "status" => [
+                'id' => $this->status->id ?? null,
+                'name' => $this->status->name ?? null
+            ],
+            "warehouses" => $this->variantWarehouses->map(function ($variantWarehouses) {
+                return [
+                    "id" => $variantWarehouses->warehouse->getId(),
+                    "name" => $variantWarehouses->warehouse->name,
+                    "price" => $variantWarehouses->price,
+                    "quantity" => $variantWarehouses->quantity,
+                    "status" => [
+                        'id' => $variantWarehouses->status->getId(),
+                        'name' => $variantWarehouses->status->name
+                    ]
+                ];
+            }),
+            "channels" => $this->channels->map(function ($channels) {
+                return [
+                    "name" => $channels->name,
+                    "price" => $channels->price,
+                    "is_published" => $channels->is_published,
+                ];
+            }),
+            "description" => $this->description,
+            "short_description" => $this->short_description,
+            "attributes" => [],
+            "apps_id" => $this->apps_id,
+            "is_deleted" => $this->is_deleted,
         ];
-        $variant['company'] = [
-            'id' => $this->product->companies_id,
-            'name' => $this->product->company->name,
-        ];
-        $variant['attributes'] = $attributes;
-
+        $attributes = $this->attributes()->get();
+        foreach ($attributes as $attribute) {
+            $variant['attributes'][$attribute->name] = $attribute->value;
+        }
         return $variant;
+    }
+
+    public function searchableAs(): string
+    {
+        return config('scout.prefix') . 'product_variant_index';
     }
 }

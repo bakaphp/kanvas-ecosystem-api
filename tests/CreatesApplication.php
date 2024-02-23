@@ -54,7 +54,7 @@ trait CreatesApplication
             $user,
             $company
         );
-        //$setupInventory->run();
+        $setupInventory->run();
 
         //setup social
         $setupSocial = new SocialSupportSetup(
