@@ -178,7 +178,7 @@ class Warehouses extends BaseModel
                 'total_products',
                 $this->variantsWarehouses()->first()->getTotalProducts()
             );
-            return $this->get('total_products');
+            return (int) $this->get('total_products');
         }
         return (int) $totalProducts;
     }
