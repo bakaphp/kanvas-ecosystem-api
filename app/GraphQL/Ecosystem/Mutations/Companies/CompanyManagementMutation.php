@@ -66,7 +66,7 @@ class CompanyManagementMutation
         /**
          * @todo only super admin can do this
          */
-        DeleteCompanyJob::dispatch((int) $request['id'], Auth::user());
+        DeleteCompanyJob::dispatch((int) $request['id'], Auth::user(), app(Apps::class));
 
         return true;
     }

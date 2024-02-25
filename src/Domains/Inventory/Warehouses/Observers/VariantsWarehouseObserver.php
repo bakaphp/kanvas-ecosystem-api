@@ -20,11 +20,26 @@ class VariantsWarehouseObserver
             ))->execute();
         }
 
+        if ($variantWarehouse->wasChanged('quantity')) {
+            $variantWarehouse->warehouse->set(
+                'total_products',
+                $variantWarehouse->getTotalProducts()
+            );
+        }
+
         if ($variantWarehouse->wasChanged('status_id')) {
             (new CreateStatusHistoryAction(
                 StatusRepository::getById($variantWarehouse->status_id),
                 $variantWarehouse
             ))->execute();
         }
+    }
+
+    public function created(VariantsWarehouses $variantWarehouse): void
+    {
+        $variantWarehouse->warehouse->set(
+            'total_products',
+            $variantWarehouse->getTotalProducts()
+        );
     }
 }
