@@ -14,7 +14,7 @@ class AppsListQuery
      *
      * @param mixed $rootValue
      * @param array $request
-     * 
+     *
      * @return array
      */
     public function getAppSettings($rootValue, array $request): array
