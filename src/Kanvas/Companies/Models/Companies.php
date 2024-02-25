@@ -289,14 +289,12 @@ class Companies extends BaseModel implements CompanyInterface
 
     public static function search($query = '', $callback = null)
     {
-
         $query = self::traitSearch($query, $callback)->whereIn('apps', [app(Apps::class)->getId()]);
-        if(! auth()->user()->isAdmin()) {
+        if (! auth()->user()->isAdmin()) {
             $query->whereIn('users', [auth()->user()->getId()]);
         }
 
         return $query;
-
     }
 
     public function toSearchableArray()
