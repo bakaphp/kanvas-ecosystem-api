@@ -107,7 +107,7 @@ trait HashTableTrait
         }
 
         foreach ($settings as $setting) {
-            if(! $publicFormat) {
+            if (! $publicFormat) {
                 $allSettings[$setting->name] = $setting->value;
             } else {
                 $allSettings[$setting->name] = [

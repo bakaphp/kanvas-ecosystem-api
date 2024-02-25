@@ -14,7 +14,6 @@ class AppsListQuery
      *
      * @param mixed $rootValue
      * @param array $request
-     * @deprecated
      * 
      * @return array
      */
