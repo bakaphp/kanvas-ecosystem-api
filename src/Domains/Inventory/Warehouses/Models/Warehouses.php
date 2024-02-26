@@ -174,8 +174,7 @@ class Warehouses extends BaseModel
     public function getTotalProducts(): int
     {
         if (! $totalProducts = $this->get('total_products')) {
-            $this->setTotalProducts();
-            return (int) $this->get('total_products');
+            return (int) $this->setTotalProducts();
         }
         return (int) $totalProducts;
     }
