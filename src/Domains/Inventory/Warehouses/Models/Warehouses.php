@@ -187,10 +187,11 @@ class Warehouses extends BaseModel
     public function setTotalProducts(): int
     {
         if ($this->variantsWarehouses()->exists()) {
-            return $this->set(
+            $this->set(
                 'total_products',
                 $this->variantsWarehouses()->first()->getTotalProducts()
             );
+            return (int) $this->get('total_products');
         }
         return 0;
     }
