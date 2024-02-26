@@ -146,7 +146,7 @@ class CompanyTest extends TestCase
         $response = $this->graphQL( /** @lang GraphQL */
             '
             {
-                adminCompanySettings(entity_uuid: "54531de8-3c93-11ee-872c-0a4a2bea7003") {  
+                adminCompanySettings(entity_uuid: "'.$company->uuid.'") {  
                     key,
                     value,
                     public
