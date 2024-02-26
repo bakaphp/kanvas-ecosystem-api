@@ -142,11 +142,11 @@ class CompanyTest extends TestCase
         $usr = auth()->user();
         $company = $usr->getCurrentCompany();
         $app = app(Apps::class);
-        
+
         $response = $this->graphQL( /** @lang GraphQL */
             '
             {
-                adminCompanySettings(entity_uuid: "'.$company->uuid.'") {  
+                adminCompanySettings(entity_uuid: "' . $company->uuid . '") {  
                     key,
                     value,
                     public
@@ -164,7 +164,6 @@ class CompanyTest extends TestCase
         ->assertSee('value')
         ->assertSee('public');
     }
-    
 
     public function testDeleteCompany(): void
     {
