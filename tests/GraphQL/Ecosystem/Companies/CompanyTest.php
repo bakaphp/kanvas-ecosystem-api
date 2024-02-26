@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Companies;
 
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppEnums;
 use Tests\TestCase;
 
 class CompanyTest extends TestCase
@@ -134,6 +136,35 @@ class CompanyTest extends TestCase
         ->assertSuccessful()
         ->assertSee('name');
     }
+
+    public function testGetAdminCompanySettings()
+    {
+        $usr = auth()->user();
+        $company = $usr->getCurrentCompany();
+        $app = app(Apps::class);
+        
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            {
+                adminCompanySettings(entity_uuid: "54531de8-3c93-11ee-872c-0a4a2bea7003") {  
+                    key,
+                    value,
+                    public
+                }
+            }
+            ',
+            [],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        )
+        ->assertSuccessful()
+        ->assertSee('key')
+        ->assertSee('value')
+        ->assertSee('public');
+    }
+    
 
     public function testDeleteCompany(): void
     {
