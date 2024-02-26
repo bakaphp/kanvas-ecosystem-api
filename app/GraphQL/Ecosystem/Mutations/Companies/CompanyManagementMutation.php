@@ -18,6 +18,7 @@ use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
+use Exception;
 
 class CompanyManagementMutation
 {
@@ -66,6 +67,9 @@ class CompanyManagementMutation
         /**
          * @todo only super admin can do this
          */
+        if (Users::where('default_company', $request['id'])->count()) {
+            throw new Exception('You can not delete a company that has users associated');
+        }
         DeleteCompanyJob::dispatch((int) $request['id'], Auth::user(), app(Apps::class));
 
         return true;
