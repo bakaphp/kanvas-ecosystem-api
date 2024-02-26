@@ -213,7 +213,7 @@ extend type Query @guard {
             defaultCount: 25
         )
 
-    companySettings: CompanySettings
+    companySettings: CompanySettings!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\CompanySettingQuery@getAllSettings"
         )
