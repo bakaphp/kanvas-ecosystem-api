@@ -34,7 +34,7 @@ class CompanyManagementMutation
             $request['input']['users_id'] = Auth::user()->getKey();
         }
         $dto = CompaniesPostData::fromArray($request['input']);
-        $action = new  CreateCompaniesAction($dto);
+        $action = new CreateCompaniesAction($dto);
 
         return $action->execute();
     }
@@ -84,7 +84,8 @@ class CompanyManagementMutation
         $company->associateUser(
             $user,
             StateEnums::YES->getValue(),
-            CompaniesBranches::getGlobalBranch()
+            CompaniesBranches::getGlobalBranch(),
+            $request['role'] ?? null
         );
 
         return true;
