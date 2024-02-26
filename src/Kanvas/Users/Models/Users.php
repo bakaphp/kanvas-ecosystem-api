@@ -111,7 +111,9 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use HasFilesystemTrait;
     use KanvasModelTrait;
     use HasNotificationSettings;
-    use SearchableDynamicIndexTrait;
+    use SearchableDynamicIndexTrait {
+        search as public traitSearch;
+    }
     use CanUseWorkflow;
 
     protected ?string $defaultCompanyName = null;
@@ -636,6 +638,23 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             'lastname' => $this->lastname,
             'displayname' => $this->displayname,
             'email' => $this->email,
+            'apps' => $this->apps->pluck('id')->toArray(),
+            'companies' => $this->companies->pluck('id')->toArray(),
         ];
+    }
+
+    public function searchableAs(): string
+    {
+        return config('scout.prefix') . '_users';
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->whereIn('apps', [app(Apps::class)->getId()]);
+        if (! auth()->user()->isAdmin()) {
+            $query->whereIn('companies', [auth()->user()->currentCompanyId()]);
+        }
+
+        return $query;
     }
 }

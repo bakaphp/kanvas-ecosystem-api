@@ -17,6 +17,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\SetUsersCountAction as CompaniesSetUsersCountAction;
 use Kanvas\Companies\Enums\Defaults;
 use Kanvas\Companies\Factories\CompaniesFactory;
+use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Models\FilesystemEntities;
@@ -53,7 +54,9 @@ class Companies extends BaseModel implements CompanyInterface
 {
     use HashTableTrait;
     use HasFilesystemTrait;
-    use SearchableDynamicIndexTrait;
+    use SearchableDynamicIndexTrait {
+        search as public traitSearch;
+    }
 
     protected $table = 'companies';
 
@@ -148,6 +151,11 @@ class Companies extends BaseModel implements CompanyInterface
     public function currency(): BelongsTo
     {
         return $this->belongsTo(Currencies::class, 'currency_id');
+    }
+
+    public function searchableAs(): string
+    {
+        return config('scout.prefix') . '_companies';
     }
 
     /**
@@ -277,6 +285,26 @@ class Companies extends BaseModel implements CompanyInterface
             ->where('users_associated_apps.apps_id', '=', $app->getKey())
             ->where('companies.is_deleted', '=', StateEnums::NO->getValue())
             ->groupBy('companies.id');
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->whereIn('apps', [app(Apps::class)->getId()]);
+        if (! auth()->user()->isAdmin()) {
+            $query->whereIn('users', [auth()->user()->getId()]);
+        }
+
+        return $query;
+    }
+
+    public function toSearchableArray()
+    {
+        $array = $this->toArray();
+        $array['apps'] = UserCompanyApps::where('companies_id', $this->id)->get()->pluck('apps_id')->toArray();
+        $array['users'] = CompaniesRepository::getAllCompanyUsers($this)->pluck('id')->toArray();
+        $array = $this->transform($array);
+
+        return $array;
     }
 
     public function getPhoto(): ?FilesystemEntities
