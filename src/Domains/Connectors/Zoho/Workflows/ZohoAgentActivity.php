@@ -114,10 +114,17 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
         }
 
         $sponsorsPage = $company->get('sponsors_page') ?? [];
+        $sponsorsPageLandingPages = $company->get('sponsors_page_landing') ?? [];
         $agentPage = $user->get('agent_website');
         $agentPageUserId = $sponsorsPage[$agentPage] ?? null;
+        $agentPageLandingPage = $sponsorsPageLandingPages[$agentPage] ?? null;
+
+        if ($agentPageLandingPage !== null) {
+            $user->set('landing_page', $agentPageLandingPage);
+        }
+
         //@todo this is ugly , testing it out
-        if ($agentPageUserId) {
+        if ($agentPageUserId !== null) {
             try {
                 $agentOwner = Agent::fromCompany($company)->where('users_id', $agentPageUserId)->firstOrFail();
                 $ownerMemberNumber = $agentOwner->member_id;
@@ -129,7 +136,7 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
             }
         }
 
-        if ($companyDefaultUseRotation && $ownerMemberNumber === null) {
+        if ($companyDefaultUseRotation !== false && $ownerMemberNumber === null) {
             try {
                 $rotation = LeadRotation::getByIdFromCompany($companyDefaultUseRotation, $company);
                 $agentUser = $rotation->getAgent();
