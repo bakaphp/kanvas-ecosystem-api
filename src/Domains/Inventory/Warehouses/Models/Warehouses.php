@@ -174,12 +174,24 @@ class Warehouses extends BaseModel
     public function getTotalProducts(): int
     {
         if (! $totalProducts = $this->get('total_products')) {
-            $this->set(
+            return (int) $this->setTotalProducts();
+        }
+        return (int) $totalProducts;
+    }
+
+    /**
+     * Set the total amount of products of a warehouse.
+     *
+     * @return Int
+     */
+    public function setTotalProducts(): int
+    {
+        if ($this->variantsWarehouses()->exists()) {
+            return $this->set(
                 'total_products',
                 $this->variantsWarehouses()->first()->getTotalProducts()
             );
-            return (int) $this->get('total_products');
         }
-        return (int) $totalProducts;
+        return 0;
     }
 }
