@@ -16,6 +16,7 @@ return $config
         'trailing_comma_in_multiline' => true,
         'phpdoc_scalar' => true,
         'unary_operator_spaces' => true,
+        'single_space_after_construct' => true,
         'binary_operator_spaces' => true,
         'phpdoc_trim_consecutive_blank_line_separation' => true,
         'phpdoc_trim' => true,
