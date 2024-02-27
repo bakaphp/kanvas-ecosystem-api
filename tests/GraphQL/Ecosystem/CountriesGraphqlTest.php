@@ -50,12 +50,14 @@ class CountriesGraphqlTest extends TestCase
                     flag
                 }
             }
-        ', [
+        ',
+            [
             'name' => $name,
             'stateName' => $stateName,
             'cityName' => $cityName,
-        ], [],
-        [
+        ],
+            [],
+            [
             AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
         ]
         )->assertJson([
@@ -128,15 +130,18 @@ class CountriesGraphqlTest extends TestCase
                     name
                 }
             }
-        ', [
+        ',
+            [
             'id' => $country->id,
             'name' => $name,
             'code' => $country->code,
             'flag' => $country->flag,
-        ],[],
-        [
+        ],
+            [],
+            [
             AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
-        ]);
+        ]
+        );
         $this->assertArrayHasKey('data', $response);
     }
 
