@@ -14,13 +14,6 @@ class Region
 {
     /**
      * all.
-     *
-     * @param  mixed $root
-     * @param  array $args
-     * @param  GraphQLContext $context
-     * @param  ResolveInfo $resolveInfo
-     *
-     * @return Builder
      */
     public function all(
         mixed $root,
@@ -28,7 +21,12 @@ class Region
         GraphQLContext $context,
         ResolveInfo $resolveInfo
     ): Builder {
-        return RegionModel::where('companies_id', $context->user()->getCurrentCompany()->getId())
-                ->where('apps_id', app(Apps::class)->id);
+
+        $user = auth()->user();
+
+        return RegionModel::where('apps_id', app(Apps::class)->id)
+                ->when(! $user->isAppOwner(), function ($query, $user) {
+                    $query->where('companies_id', $user->currentCompanyId());
+                });
     }
 }
