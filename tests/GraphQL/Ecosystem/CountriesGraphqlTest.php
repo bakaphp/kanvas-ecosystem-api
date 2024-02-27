@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem;
 
+use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Locations\Models\States;
 use Tests\TestCase;
@@ -18,6 +21,9 @@ class CountriesGraphqlTest extends TestCase
         $name = fake()->name;
         $stateName = fake()->name;
         $cityName = fake()->name;
+        $app = app(Apps::class);
+        $app->keys()->first()->user()->firstOrFail()->assign(RolesEnums::OWNER->value);
+
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation(
                 $name: String!
@@ -48,7 +54,11 @@ class CountriesGraphqlTest extends TestCase
             'name' => $name,
             'stateName' => $stateName,
             'cityName' => $cityName,
-        ])->assertJson([
+        ], [],
+        [
+            AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+        ]
+        )->assertJson([
             'data' => [
                 'createCountry' => [
                     'name' => $name,
@@ -97,6 +107,10 @@ class CountriesGraphqlTest extends TestCase
     {
         $country = Countries::orderBy('id', 'desc')->first();
         $name = fake()->name;
+        $app = app(Apps::class);
+        $app->keys()->first()->user()->firstOrFail()->assign(RolesEnums::OWNER->value);
+
+
         $response = $this->graphQL(/** @lang GraphQL */ '
             mutation(
                 $id: ID!
@@ -119,6 +133,9 @@ class CountriesGraphqlTest extends TestCase
             'name' => $name,
             'code' => $country->code,
             'flag' => $country->flag,
+        ],[],
+        [
+            AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
         ]);
         $this->assertArrayHasKey('data', $response);
     }
