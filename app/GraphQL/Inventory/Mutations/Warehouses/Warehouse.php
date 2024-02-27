@@ -14,29 +14,25 @@ class Warehouse
 {
     /**
      * create.
-     *
-     * @param  mixed $root
-     * @param  array $request
-     *
-     * @return Warehouses
      */
     public function create(mixed $root, array $request): Warehouses
     {
         $request = $request['input'];
 
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        if (! $user->isAppOwner()) {
+            unset($request['companies_id']);
+        }
+
         return (new CreateWarehouseAction(
-            WarehousesDto::viaRequest($request),
-            auth()->user()
+            WarehousesDto::viaRequest($request, $user, $company),
+            $user
         ))->execute();
     }
 
     /**
      * update.
-     *
-     * @param  mixed $root
-     * @param  array $request
-     *
-     * @return Warehouses
      */
     public function update(mixed $root, array $request): Warehouses
     {
@@ -55,15 +51,11 @@ class Warehouse
 
     /**
      * delete.
-     *
-     * @param  mixed $root
-     * @param  array $request
-     *
-     * @return bool
      */
     public function delete(mixed $root, array $request): bool
     {
         $warehouse = WarehouseRepository::getById($request['id'], auth()->user()->getCurrentCompany());
+
         return $warehouse->delete();
     }
 }

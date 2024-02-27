@@ -15,7 +15,7 @@ use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Spatie\LaravelData\Data;
 
-class Warehouses extends Data
+class s extends Data
 {
     /**
      * __construct.
@@ -41,10 +41,8 @@ class Warehouses extends Data
      *
      * @return self
      */
-    public static function viaRequest(array $request): self
+    public static function viaRequest(array $request, UserInterface $user, CompanyInterface $company): self
     {
-        $company = auth()->user()->getCurrentCompany();
-
         if (! isset($request['regions_id'])) {
             throw new ValidationException('Region is required');
         }
@@ -52,7 +50,7 @@ class Warehouses extends Data
         return new self(
             isset($request['company_id']) ? Companies::getById($request['company_id']) : $company,
             app(Apps::class),
-            auth()->user(),
+            $user,
             RegionRepository::getById($request['regions_id'], $company),
             $request['name'],
             $request['location'] ?? null,

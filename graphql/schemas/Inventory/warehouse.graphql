@@ -1,22 +1,20 @@
 type Warehouse {
     id: Int!
-    apps: App!
-    regions: Region!
-    apps_id: Int!
+    regions: Region! @belongsTo(relation: "regions")
     regions_id: Int!
-    company: Company!
+    company: Company! @belongsTo(relation: "company")
     uuid: String!
     name: String!
     location: String
     is_default: Boolean!
     is_published: Boolean!
-    total_products: Int!
-        @method(name: "getTotalProducts")
+    total_products: Int! @method(name: "getTotalProducts")
 }
 
 input WarehouseInput {
     regions_id: Int!
     name: String!
+    companies_id: Int
     location: String
     is_default: Boolean!
     is_published: Boolean!
@@ -66,9 +64,16 @@ extend type Query @guard {
     getWarehouses(
         where: _
             @whereConditions(
-                columns: ["id", "name", "location", "is_default", "is_published"]
+                columns: [
+                    "id"
+                    "name"
+                    "location"
+                    "is_default"
+                    "is_published"
+                ]
             )
-    ): [Warehouse]!
+        orderBy: _ @orderBy(columns: ["id", "name", "created_at"])
+    ): [Warehouse!]!
         @paginate(
             model: "Kanvas\\Inventory\\Warehouses\\Models\\Warehouses"
             defaultCount: 25
