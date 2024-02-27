@@ -15,7 +15,7 @@ use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Spatie\LaravelData\Data;
 
-class s extends Data
+class Warehouses extends Data
 {
     /**
      * __construct.
