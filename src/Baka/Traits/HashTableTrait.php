@@ -93,7 +93,7 @@ trait HashTableTrait
     /**
      * Get all the setting of a given record.
      */
-    public function getAllSettings(bool $onlyPublicSettings = false): array
+    public function getAllSettings(bool $onlyPublicSettings = false, bool $publicFormat = false): array
     {
         $this->createSettingsModel();
 
@@ -107,18 +107,22 @@ trait HashTableTrait
         }
 
         foreach ($settings as $setting) {
-            $allSettings[$setting->name] = [
-                'value' => $setting->value,
-                'public' => (bool) $setting->is_public,
-            ];
+            if (! $publicFormat) {
+                $allSettings[$setting->name] = $setting->value;
+            } else {
+                $allSettings[$setting->name] = [
+                    'value' => $setting->value,
+                    'public' => (bool) $setting->is_public,
+                ];
+            }
         }
 
         return $allSettings;
     }
 
-    public function getAll(bool $onlyPublicSettings = false): array
+    public function getAll(bool $onlyPublicSettings = false, bool $publicFormat = false): array
     {
-        return $this->getAllSettings($onlyPublicSettings);
+        return $this->getAllSettings($onlyPublicSettings, $publicFormat);
     }
 
     /**

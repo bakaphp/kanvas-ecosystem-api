@@ -63,7 +63,9 @@ class CompanyUserTest extends TestCase
         $response = $this->graphQL( /** @lang GraphQL */
             '
             {
-                companyUsers() {     
+                companyUsers(
+                    orderBy: [{ field: "id", order: DESC }]
+                ) {     
                     data {
             
                             id,

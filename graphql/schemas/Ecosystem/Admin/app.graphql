@@ -140,10 +140,21 @@ extend type Query @guard {
         )
 }
 
+# deprecated
 extend type Query {
-    getAppSettings(key: String! @eq): AppSettings
+    getAppSettings(
+        key: String! @eq
+        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id", "name"])
+    ): AppSettings
+        @deprecated(reason: "Use getAppSetting instead")
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\AppsListQuery@getAppSettings"
+        )
+    appSetting(
+        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id", "name"])
+    ): AppSettings
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\AppsListQuery@getPublicAppSettings"
         )
 }
 

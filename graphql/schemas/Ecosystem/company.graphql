@@ -183,6 +183,7 @@ extend type Query @guard {
                     "updated_at"
                 ]
             )
+        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id", "name"])
     ): [User!]!
         @paginate(
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagementQuery@getAllCompanyUsers"
@@ -212,7 +213,7 @@ extend type Query @guard {
             defaultCount: 25
         )
 
-    companySettings: CompanySettings
+    companySettings: CompanySettings!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\CompanySettingQuery@getAllSettings"
         )
@@ -251,7 +252,7 @@ extend type Mutation @guardByAdmin {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@removeUserFromBranch"
         )
-    addUserToCompany(id: ID!, user_id: ID!): Boolean!
+    addUserToCompany(id: ID!, user_id: ID!, rol_id: ID): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@addUserToCompany"
         )
