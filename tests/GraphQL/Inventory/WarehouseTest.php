@@ -119,6 +119,7 @@ class WarehouseTest extends TestCase
             }', ['data' => $data])->assertJson([
             'data' => ['createWarehouse' => $data]
         ]);
+        $warehouseId = $response['data']['createWarehouse']['id'];
 
         $this->graphQL(
             '

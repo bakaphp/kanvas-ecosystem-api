@@ -26,11 +26,12 @@ Kanvas Niche isn't here to replace your existing backend-as-a-service or develop
 Our name, "Niche", reflects our mission: providing specialized solutions for prevalent challenges. By integrating Kanvas Niche into your workspace, you can expedite the development of headless apps, ensuring quicker delivery and dependable performance without overhauling your existing backend.
 
 Todo:
-- [x] Ecosystem (in progress)
+- [x] Ecosystem
 - [x] Inventory (in progress)
 - [x] CRM (in progress)
 - [x] Social (in progress)
-- [x] Workflow (in progress)
+- [x] Workflow
+- [ ] Action Engine
 - [x] GraphQL Documentation (in progress)
 
 ## Prerequisites

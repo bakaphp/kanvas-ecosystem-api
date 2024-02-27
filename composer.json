@@ -11,6 +11,8 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "algolia/algoliasearch-client-php": "^3.4",
+        "algolia/scout-extended": "^3.0",
         "awobaz/compoships": "^2.2",
         "berkayk/onesignal-laravel": "^2.0",
         "darryldecode/cart": "^4.2",

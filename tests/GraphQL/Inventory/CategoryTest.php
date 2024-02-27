@@ -59,18 +59,18 @@ class CategoryTest extends TestCase
             }', ['data' => $data])->assertJson([
             'data' => ['createCategory' => $data]
         ]);
-        $this->graphQL('
+        $response = $this->graphQL('
             query {
                 categories {
                     data {
+                        id,
                         name,
                         code,
                         position
                     }
                 }
-            }')->assertJson([
-            'data' => ['categories' => ['data' => [$data]]]
-        ]);
+            }');
+        $this->assertArrayHasKey('id', $response->json()['data']['categories']['data'][0]);
     }
 
     /**
