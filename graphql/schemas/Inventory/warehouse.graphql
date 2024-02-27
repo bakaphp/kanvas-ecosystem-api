@@ -61,7 +61,7 @@ extend type Mutation @guard {
         )
 }
 extend type Query @guard {
-    getWarehouses(
+    warehouses(
         where: _
             @whereConditions(
                 columns: [
