@@ -48,7 +48,7 @@ class Warehouses extends Data
         }
 
         return new self(
-            isset($request['company_id']) ? Companies::getById($request['company_id']) : $company,
+            isset($request['companies_id']) ? Companies::getById($request['companies_id']) : $company,
             app(Apps::class),
             $user,
             RegionRepository::getById($request['regions_id'], $company),
