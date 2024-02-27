@@ -38,6 +38,7 @@ extend type Query @guard {
                     "id"
                     "name"
                     "created_at"
+                    "is_default"
                 ]
             )
     ): [Region!]!
