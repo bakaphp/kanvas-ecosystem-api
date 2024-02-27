@@ -124,7 +124,7 @@ class WarehouseTest extends TestCase
         $this->graphQL(
             '
             query warehouses {
-                warehouses{
+                warehouses(orderBy: [{ column: ID, order: DESC }]){
                     data {
                         id
                         regions_id
