@@ -21,7 +21,6 @@ class Region
         GraphQLContext $context,
         ResolveInfo $resolveInfo
     ): Builder {
-
         $user = auth()->user();
 
         return RegionModel::where('apps_id', app(Apps::class)->id)
