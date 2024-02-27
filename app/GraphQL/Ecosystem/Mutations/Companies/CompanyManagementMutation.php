@@ -85,7 +85,7 @@ class CompanyManagementMutation
             $user,
             StateEnums::YES->getValue(),
             CompaniesBranches::getGlobalBranch(),
-            (int)$request['rol_id'] ?? null
+            (int) ($request['rol_id'] ?? null)
         );
 
         return true;
