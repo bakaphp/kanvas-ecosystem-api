@@ -82,16 +82,16 @@
         },
         {
             "name": "algolia/scout-extended",
-            "version": "v3.0.0",
+            "version": "v3.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/algolia/scout-extended.git",
-                "reference": "bf3d7876fadaaa1cdbce3a09cfd256227406a3fc"
+                "reference": "c72f03242b4a099715d2db789fda686d903c7559"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/algolia/scout-extended/zipball/bf3d7876fadaaa1cdbce3a09cfd256227406a3fc",
-                "reference": "bf3d7876fadaaa1cdbce3a09cfd256227406a3fc",
+                "url": "https://api.github.com/repos/algolia/scout-extended/zipball/c72f03242b4a099715d2db789fda686d903c7559",
+                "reference": "c72f03242b4a099715d2db789fda686d903c7559",
                 "shasum": ""
             },
             "require": {
@@ -157,9 +157,9 @@
             ],
             "support": {
                 "issues": "https://github.com/algolia/scout-extended/issues",
-                "source": "https://github.com/algolia/scout-extended/tree/v3.0.0"
+                "source": "https://github.com/algolia/scout-extended/tree/v3.0.1"
             },
-            "time": "2023-02-06T08:31:27+00:00"
+            "time": "2024-02-26T09:08:26+00:00"
         },
         {
             "name": "amphp/amp",
