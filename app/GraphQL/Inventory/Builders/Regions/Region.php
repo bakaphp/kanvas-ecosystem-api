@@ -6,7 +6,6 @@ namespace App\GraphQL\Inventory\Builders\Regions;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Regions\Models\Regions as RegionModel;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
@@ -23,9 +22,6 @@ class Region
     ): Builder {
         $user = auth()->user();
 
-        return RegionModel::where('apps_id', app(Apps::class)->id)
-                ->when(! $user->isAppOwner(), function ($query, $user) {
-                    $query->where('companies_id', $user->currentCompanyId());
-                });
+        return RegionModel::query();
     }
 }

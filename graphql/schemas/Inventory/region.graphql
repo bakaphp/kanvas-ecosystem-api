@@ -43,6 +43,7 @@ extend type Query @guard {
     ): [Region!]!
         @paginate(
             builder: "App\\GraphQL\\Inventory\\Builders\\Regions\\Region@all"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
             defaultCount: 25
         )
 }
