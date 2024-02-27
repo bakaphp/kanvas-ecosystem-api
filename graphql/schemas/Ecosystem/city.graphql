@@ -17,7 +17,7 @@ extend type Query {
     city(id: Int!): Cities @find(model: "Kanvas\\Locations\\Models\\Cities")
 }
 
-extend type Mutation {
+extend type Mutation @guardByAppKey {
     createCities(
         name: String!
         latitude: Float!
