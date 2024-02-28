@@ -199,4 +199,9 @@ class Products extends BaseModel
 
         return $query;
     }
+
+    public function isPublished(): bool
+    {
+        return $this->is_deleted && $this->is_published;
+    }
 }
