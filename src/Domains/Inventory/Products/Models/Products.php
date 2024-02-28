@@ -190,9 +190,9 @@ class Products extends BaseModel
 
     public static function search($query = '', $callback = null)
     {
-        $query = self::traitSearch($query, $callback)->whereIn('apps', [app(Apps::class)->getId()]);
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
         if (! auth()->user()->isAppOwner()) {
-            $query->whereIn('companies_id', [auth()->user()->getCurrentCompany()->getId()]);
+            $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
         }
 
         return $query;
