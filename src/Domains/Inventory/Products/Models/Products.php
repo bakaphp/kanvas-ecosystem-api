@@ -4,23 +4,24 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Products\Models;
 
+use Awobaz\Compoships\Compoships;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Models\Categories;
-use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Traits\SearchableDynamicIndexTrait;
-use Awobaz\Compoships\Compoships;
+use Laravel\Scout\Searchable;
 
 /**
  * Class Products.
@@ -46,7 +47,11 @@ class Products extends BaseModel
     use UuidTrait;
     use SlugTrait;
     use LikableTrait;
-    use SearchableDynamicIndexTrait;
+    #use SearchableDynamicIndexTrait;
+    use Searchable {
+        search as public traitSearch;
+    }
+
     use CascadeSoftDeletes;
     use Compoships;
 
@@ -135,18 +140,68 @@ class Products extends BaseModel
         return $this->belongsTo(Companies::class, 'companies_id');
     }
 
-    public static function searchableIndex(): string
-    {
-        return AppEnums::PRODUCT_SEARCH_INDEX->getValue();
-    }
-
     public function shouldBeSearchable(): bool
     {
         return $this->isPublished();
     }
 
+    public function toSearchableArray(): array
+    {
+        $product = [
+            'objectID' => $this->uuid,
+            'id' => $this->id,
+            'name' => $this->name,
+            'files' => $this->files->map(function ($files) {
+                return [
+                    'uuid' => $files->uuid,
+                    'name' => $files->name,
+                    'url' => $files->url,
+                    'size' => $files->size,
+                    'field_name' => $files->field_name,
+                    'attributes' => $files->attributes,
+                ];
+            }),
+            'company' => [
+                'id' => $this->companies_id,
+                'name' => $this->company->name,
+            ],
+            'user' => [
+                'firstname' => $this->company->user->firstname,
+                'lastname' => $this->company->user->lastname,
+            ],
+            'uuid' => $this->uuid,
+            'slug' => $this->slug,
+            'description' => $this->description,
+            'short_description' => $this->short_description,
+            'attributes' => [],
+            'apps_id' => $this->apps_id,
+            'is_deleted' => $this->is_deleted,
+        ];
+        $attributes = $this->attributes()->get();
+        foreach ($attributes as $attribute) {
+            $product['attributes'][$attribute->name] = $attribute->value;
+        }
+
+        return $product;
+    }
+
+    public function searchableAs(): string
+    {
+        return config('scout.prefix') . 'product_index';
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->whereIn('apps', [app(Apps::class)->getId()]);
+        if (! auth()->user()->isAppOwner()) {
+            $query->whereIn('companies_id', [auth()->user()->getCurrentCompany()->getId()]);
+        }
+
+        return $query;
+    }
+
     public function isPublished(): bool
     {
-        return $this->is_published && ! $this->isDeleted();
+        return $this->is_deleted && $this->is_published;
     }
 }

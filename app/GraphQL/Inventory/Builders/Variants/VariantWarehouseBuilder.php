@@ -32,7 +32,7 @@ class VariantWarehouseBuilder
         $variantWarehouse = new VariantsWarehouses();
 
         //set index
-        ModelsVariants::setSearchIndex((int) $warehouse->companies_id);
+        //ModelsVariants::setSearchIndex((int) $warehouse->companies_id);
 
         /**
          * @var Builder
@@ -73,7 +73,7 @@ class VariantWarehouseBuilder
         $variantWarehouse = new VariantsWarehouses();
 
         //set index
-        ModelsVariants::setSearchIndex((int) $warehouse->companies_id);
+        //ModelsVariants::setSearchIndex((int) $warehouse->companies_id);
 
         $builder = ModelsVariants::join($variantWarehouse->getTable(), $variantWarehouse->getTable() . '.products_variants_id', '=', $variants->getTable() . '.id')
         ->whereIn($variantWarehouse->getTable() . '.status_id', $statusId)
