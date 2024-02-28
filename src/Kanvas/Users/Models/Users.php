@@ -46,9 +46,9 @@ use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Notifications\Traits\HasNotificationSettings;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Social\Channels\Models\Channel;
-use Kanvas\Traits\SearchableDynamicIndexTrait;
 use Kanvas\Users\Factories\UsersFactory;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Laravel\Scout\Searchable;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 
 /**
@@ -111,9 +111,10 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use HasFilesystemTrait;
     use KanvasModelTrait;
     use HasNotificationSettings;
-    use SearchableDynamicIndexTrait {
+    use Searchable {
         search as public traitSearch;
     }
+
     use CanUseWorkflow;
 
     protected ?string $defaultCompanyName = null;
@@ -604,7 +605,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     public function getPhoto(): ?FilesystemEntities
     {
-        return  $this->getFileByName('photo');
+        return $this->getFileByName('photo');
     }
 
     public static function getByIdFromCompany(mixed $id, CompanyInterface $company): self

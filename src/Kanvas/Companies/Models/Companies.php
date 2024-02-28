@@ -24,11 +24,11 @@ use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
-use Kanvas\Traits\SearchableDynamicIndexTrait;
 use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
+use Laravel\Scout\Searchable;
 
 /**
  * Companies Model.
@@ -54,7 +54,7 @@ class Companies extends BaseModel implements CompanyInterface
 {
     use HashTableTrait;
     use HasFilesystemTrait;
-    use SearchableDynamicIndexTrait {
+    use Searchable {
         search as public traitSearch;
     }
 
@@ -309,6 +309,6 @@ class Companies extends BaseModel implements CompanyInterface
 
     public function getPhoto(): ?FilesystemEntities
     {
-        return  $this->getFileByName('photo');
+        return $this->getFileByName('photo');
     }
 }
