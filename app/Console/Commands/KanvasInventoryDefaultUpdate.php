@@ -134,7 +134,7 @@ class KanvasInventoryDefaultUpdate extends Command
                 ->where('companies_id', $companyData->getId())
                 ->get();
 
-            foreach($variants as $variant) {
+            foreach( $variants as $variant) {
                 $this->info("Working variant {$variant->getId()} warehouse assignment \n");
                 $variantWarehouseDto = DataTransferObjectVariantsWarehouses::viaRequest(
                     [
@@ -145,7 +145,7 @@ class KanvasInventoryDefaultUpdate extends Command
             }
 
             $variantsWarehouses = VariantsWarehouses::where('status_id', null)->get();
-            foreach($variantsWarehouses as $variantWarehouse) {
+            foreach ($variantsWarehouses as $variantWarehouse) {
                 $variantWarehouse->status_id = $defaultStatus->getId();
                 $variantWarehouse->saveQuietly();
             }
