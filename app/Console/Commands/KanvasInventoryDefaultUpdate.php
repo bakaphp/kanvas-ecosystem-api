@@ -149,7 +149,6 @@ class KanvasInventoryDefaultUpdate extends Command
                 $variantWarehouse->status_id = $defaultStatus->getId();
                 $variantWarehouse->saveQuietly();
             }
-
         }
 
         return;
