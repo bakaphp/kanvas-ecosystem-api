@@ -259,7 +259,6 @@ class Variants extends BaseModel
                 'name' => $this->status->name ?? null,
             ],
             'warehouses' => $this->variantWarehouses->map(function ($variantWarehouses) {
-
                 if (! $variantWarehouses->warehouse || ! $variantWarehouses->status) {
                     return [];
                 }
