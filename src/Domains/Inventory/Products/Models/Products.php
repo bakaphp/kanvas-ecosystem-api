@@ -20,7 +20,6 @@ use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
-use Kanvas\Traits\SearchableDynamicIndexTrait;
 use Laravel\Scout\Searchable;
 
 /**

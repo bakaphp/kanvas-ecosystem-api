@@ -25,7 +25,6 @@ use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
-use Kanvas\Traits\SearchableDynamicIndexTrait;
 use Laravel\Scout\Searchable;
 
 /**
