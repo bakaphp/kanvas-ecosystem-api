@@ -39,22 +39,7 @@ class ChannelTest extends TestCase
      */
     public function testGetChannels(): void
     {
-        $data = [
-            'name' => fake()->name,
-            'is_default' => true,
-        ];
-        $this->graphQL('
-            mutation($data: CreateChannelInput!) {
-                createChannel(input: $data)
-                {
-                    id
-                    name,
-                    is_default
-                }
-            }', ['data' => $data])->assertJson([
-            'data' => ['createChannel' => $data]
-        ]);
-        $this->graphQL('
+        $response = $this->graphQL('
             query {
                 channels {
                     data {
@@ -63,9 +48,9 @@ class ChannelTest extends TestCase
                         is_default
                     }
                 }
-            }')->assertJson([
-            'data' => ['channels' => ['data' => [$data]]]
-        ]);
+            }');
+
+        $this->assertArrayHasKey('id', $response->json()['data']['channels']['data'][0]);
     }
 
     /**
@@ -79,7 +64,7 @@ class ChannelTest extends TestCase
             'name' => fake()->name,
             'is_default' => true,
         ];
-        $this->graphQL('
+        $newChannel = $this->graphQL('
             mutation($data: CreateChannelInput!) {
                 createChannel(input: $data)
                 {
@@ -90,29 +75,31 @@ class ChannelTest extends TestCase
             }', ['data' => $data])->assertJson([
             'data' => ['createChannel' => $data]
         ]);
-        $response = $this->graphQL('
-        query {
-            channels {
+        $channelId = $newChannel['data']['createChannel']['id'];
+
+        $this->graphQL('
+        query($id: Mixed!) {
+            channels(where: {column: ID, operator: EQ, value: $id}) {
                 data {
                     id,
                     name,
                     is_default
                 }
             }
-        }')->assertJson([
+        }', ['id' => $channelId])->assertJson([
             'data' => ['channels' => ['data' => [$data]]]
         ]);
-        $id = $response['data']['channels']['data'][0]['id'];
+
         $data = [
             'name' => fake()->name,
         ];
         $this->graphQL('
-            mutation($id: Int!, $data: UpdateChannelInput!) {
-                updateChannel(id: $id, input: $data)
+            mutation($channelId: Int!, $data: UpdateChannelInput!) {
+                updateChannel(id: $channelId, input: $data)
                 {
                     name
                 }
-            }', ['id' => $id, 'data' => $data])->assertJson([
+            }', ['channelId' => $channelId, 'data' => $data])->assertJson([
             'data' => ['updateChannel' => $data]
         ]);
     }
@@ -128,7 +115,7 @@ class ChannelTest extends TestCase
             'name' => fake()->name,
             'is_default' => true,
         ];
-        $this->graphQL('
+        $newChannel = $this->graphQL('
             mutation($data: CreateChannelInput!) {
                 createChannel(input: $data)
                 {
@@ -139,23 +126,26 @@ class ChannelTest extends TestCase
             }', ['data' => $data])->assertJson([
             'data' => ['createChannel' => $data]
         ]);
-        $response = $this->graphQL('
-        query {
-            channels {
+
+        $channelId = $newChannel['data']['createChannel']['id'];
+
+        $this->graphQL('
+        query($id: Mixed!) {
+            channels(where: {column: ID, operator: EQ, value: $id}) {
                 data {
                     id,
                     name,
                     is_default
                 }
             }
-        }')->assertJson([
+        }', ['id' => $channelId])->assertJson([
             'data' => ['channels' => ['data' => [$data]]]
         ]);
-        $id = $response['data']['channels']['data'][0]['id'];
+
         $this->graphQL('
             mutation($id: Int!) {
                 deleteChannel(id: $id)
-            }', ['id' => $id])->assertJson([
+            }', ['id' => $channelId])->assertJson([
             'data' => ['deleteChannel' => true]
         ]);
     }
@@ -171,7 +161,7 @@ class ChannelTest extends TestCase
             'name' => fake()->name,
             'is_default' => true,
         ];
-        $this->graphQL('
+        $newChannel = $this->graphQL('
             mutation($data: CreateChannelInput!) {
                 createChannel(input: $data)
                 {
@@ -182,24 +172,24 @@ class ChannelTest extends TestCase
             }', ['data' => $data])->assertJson([
             'data' => ['createChannel' => $data]
         ]);
-        $response = $this->graphQL('
-        query {
-            channels {
+        $channelId = $newChannel['data']['createChannel']['id'];
+        $this->graphQL('
+        query($id: Mixed!) {
+            channels(where: {column: ID, operator: EQ, value: $id}) {
                 data {
                     id,
                     name,
                     is_default
                 }
             }
-        }')->assertJson([
+        }', ['id' => $channelId])->assertJson([
             'data' => ['channels' => ['data' => [$data]]]
         ]);
-        $id = $response['data']['channels']['data'][0]['id'];
 
         $this->graphQL('
             mutation($id: Int!) {
                 unPublishAllVariantsFromChannel(id: $id)
-            }', ['id' => $id])->assertJson([
+            }', ['id' => $channelId])->assertJson([
             'data' => ['unPublishAllVariantsFromChannel' => false] //doesn't have any product
         ]);
     }

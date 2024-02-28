@@ -10,7 +10,11 @@ extend type Mutation @guardByAppKey {
 }
 
 extend type Query @guardByAppKey {
-    companySetting(entity_uuid: String!): [ModuleConfig!]!
+    companySetting(entity_uuid: String!): [ModuleConfig!]! @deprecated(reason: "Use adminCompanySetting instead")
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Config\\ConfigManagement@getCompanySetting"
+        )
+    adminCompanySettings(entity_uuid: String!): [ModuleConfig!]!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Config\\ConfigManagement@getCompanySetting"
         )

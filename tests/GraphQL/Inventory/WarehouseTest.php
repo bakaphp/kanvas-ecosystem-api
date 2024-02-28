@@ -119,11 +119,12 @@ class WarehouseTest extends TestCase
             }', ['data' => $data])->assertJson([
             'data' => ['createWarehouse' => $data]
         ]);
+        $warehouseId = $response['data']['createWarehouse']['id'];
 
         $this->graphQL(
             '
-            query getWarehouses {
-                getWarehouses{
+            query warehouses {
+                warehouses(orderBy: [{ column: ID, order: DESC }]){
                     data {
                         id
                         regions_id
@@ -136,7 +137,7 @@ class WarehouseTest extends TestCase
             }
             '
         )->assertJson([
-            'data' => ['getWarehouses' => ['data' => [$response->decodeResponseJson()['data']['createWarehouse']]]]
+            'data' => ['warehouses' => ['data' => [$response->decodeResponseJson()['data']['createWarehouse']]]]
         ]);
     }
 

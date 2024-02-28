@@ -35,7 +35,7 @@ extend type Mutation @guard {
 }
 
 extend type Query @guard {
-    getStatus(
+    status(
         where: _
             @whereConditions(
                 columns: [

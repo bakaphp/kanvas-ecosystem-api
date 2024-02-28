@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Models;
 
+use Awobaz\Compoships\Compoships;
 use Baka\Enums\StateEnums;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
@@ -24,8 +25,7 @@ use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
-use Kanvas\Traits\SearchableDynamicIndexTrait;
-use Awobaz\Compoships\Compoships;
+use Laravel\Scout\Searchable;
 
 /**
  * Class Attributes.
@@ -50,7 +50,10 @@ class Variants extends BaseModel
     use SlugTrait;
     use UuidTrait;
     use SocialInteractionsTrait;
-    use SearchableDynamicIndexTrait;
+    use Searchable {
+        search as public traitSearch;
+    }
+
     use CascadeSoftDeletes;
     use Compoships;
 
@@ -58,6 +61,7 @@ class Variants extends BaseModel
     protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];
 
     protected $table = 'products_variants';
+    protected $touches = ['attributes'];
     protected $fillable = [
         'users_id',
         'products_id',
@@ -84,7 +88,7 @@ class Variants extends BaseModel
 
     public function shouldBeSearchable(): bool
     {
-        return $this->isPublished();
+        return $this->isPublished() && $this->product;
     }
 
     public function isPublished(): bool
@@ -227,28 +231,84 @@ class Variants extends BaseModel
 
     public function toSearchableArray(): array
     {
-        /**
-         * @psalm-suppress InvalidTemplateParam
-         */
-        $attributes = $this->attributes()->get(['name', 'products_variants_attributes.value'])->map(function ($item) {
-            return [
-                'name' => $item['name'],
-                'value' => $item['pivot']['value'],
-            ];
-        })->toArray();
+        $variant = [
+            'objectID' => $this->uuid,
+            'products_id' => $this->products_id,
+            'name' => $this->name,
+            'files' => [],
+            /* 'files' => $this->files->map(function ($files) {
+                return [
+                    'uuid' => $files->uuid,
+                    'name' => $files->name,
+                    'url' => $files->url,
+                    'size' => $files->size,
+                    'field_name' => $files->field_name,
+                    'attributes' => $files->attributes,
+                ];
+            }), */
+            'company' => [
+                'id' => $this->product->companies_id,
+                'name' => $this->product->company->name,
+            ],
+            'uuid' => $this->uuid,
+            'slug' => $this->slug,
+            'sku' => $this->sku,
+            'status' => [
+                'id' => $this->status->id ?? null,
+                'name' => $this->status->name ?? null,
+            ],
+            'warehouses' => $this->variantWarehouses->map(function ($variantWarehouses) {
+                if (! $variantWarehouses->warehouse || ! $variantWarehouses->status) {
+                    return [];
+                }
 
-        $variant = $this->toArray();
-        $variant['user'] = [
-            'id' => $this->product->company->users_id,
-            'firstname' => $this->product->company->user->firstname,
-            'lastname' => $this->product->company->user->lastname,
+                return [
+                    'id' => $variantWarehouses->warehouse->getId(),
+                    'name' => $variantWarehouses->warehouse->name,
+                    'price' => $variantWarehouses->price,
+                    'quantity' => $variantWarehouses->quantity,
+                    'status' => [
+                        'id' => $variantWarehouses->status->getId(),
+                        'name' => $variantWarehouses->status->name,
+                    ],
+                ];
+            }),
+            'channels' => $this->channels->map(function ($channels) {
+                return [
+                    'name' => $channels->name,
+                    'price' => $channels->price,
+                    'is_published' => $channels->is_published,
+                ];
+            }),
+            'description' => null, //$this->description,
+            'short_description' => null, //$this->short_description,
+            'attributes' => [],
+            'apps_id' => $this->apps_id,
         ];
-        $variant['company'] = [
-            'id' => $this->product->companies_id,
-            'name' => $this->product->company->name,
-        ];
-        $variant['attributes'] = $attributes;
+        $attributes = $this->attributes()->get();
+        foreach ($attributes as $attribute) {
+            //if its over 100 characters we dont want to index it
+            if (strlen($attribute->value) > 100) {
+                continue;
+            }
+            $variant['attributes'][$attribute->name] = $attribute->value;
+        }
 
         return $variant;
+    }
+
+    public function searchableAs(): string
+    {
+        return config('scout.prefix') . 'product_variant_index';
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        if (! auth()->user()->isAppOwner()) {
+            $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
+        }
+
+        return $query;
     }
 }

@@ -21,7 +21,7 @@ class ProductBuilder
         $user = auth()->user();
 
         if (! $user->isAppOwner()) {
-            Products::setSearchIndex($company->getId());
+            //Products::setSearchIndex($company->getId());
         }
 
         /**
