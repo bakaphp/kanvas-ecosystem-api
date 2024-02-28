@@ -28,6 +28,7 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Actions\RegisterUsersAppAction;
 use Kanvas\Auth\Contracts\Authenticatable as ContractsAuthenticatable;
 use Kanvas\Auth\Traits\HasApiTokens;
 use Kanvas\Companies\Models\Companies;
@@ -47,6 +48,7 @@ use Kanvas\Notifications\Traits\HasNotificationSettings;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Factories\UsersFactory;
+use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
@@ -239,6 +241,18 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
                 ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
                 ->firstOrFail();
         } catch (EloquentModelNotFoundException $e) {
+            /**
+             * until v3 (legacy) is deprecated we have to check or create the user profile the first time
+             * @todo remove in v2
+             */
+            try {
+                UsersRepository::belongsToThisApp($this, $app);
+            } catch (ModelNotFoundException $e) {
+                throw new ModelNotFoundException('User not found in app - ' . $this->getId());
+            }
+            $userRegisterInApp = new RegisterUsersAppAction($this);
+            $userRegisterInApp->execute($this->password);
+
             throw new ModelNotFoundException('User not found - ' . $this->getId());
         }
     }
