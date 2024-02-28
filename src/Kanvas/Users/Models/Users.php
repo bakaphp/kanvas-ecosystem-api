@@ -241,7 +241,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
                 ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
                 ->firstOrFail();
         } catch (EloquentModelNotFoundException $e) {
-
             /**
              * until v3 (legacy) is deprecated we have to check or create the user profile the first time
              * @todo remove in v2
