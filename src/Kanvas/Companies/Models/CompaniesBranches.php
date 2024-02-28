@@ -17,9 +17,9 @@ use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Models\BaseModel;
-use Kanvas\Traits\SearchableDynamicIndexTrait;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
+use Laravel\Scout\Searchable;
 
 /**
  * Companies Model.
@@ -37,7 +37,7 @@ class CompaniesBranches extends BaseModel
 {
     use UuidTrait;
     use HasFilesystemTrait;
-    use SearchableDynamicIndexTrait;
+    use Searchable;
     use HasCustomFields;
 
     /**
@@ -88,11 +88,6 @@ class CompaniesBranches extends BaseModel
         }
 
         return $this->get('total_users');
-    }
-
-    public static function searchableIndex(): string
-    {
-        return Defaults::SEARCHABLE_INDEX->getValue();
     }
 
     public function shouldBeSearchable(): bool
@@ -146,6 +141,6 @@ class CompaniesBranches extends BaseModel
 
     public function getPhoto(): ?FilesystemEntities
     {
-        return  $this->getFileByName('photo');
+        return $this->getFileByName('photo');
     }
 }

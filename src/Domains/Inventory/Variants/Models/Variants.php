@@ -51,7 +51,6 @@ class Variants extends BaseModel
     use SlugTrait;
     use UuidTrait;
     use SocialInteractionsTrait;
-    //use SearchableDynamicIndexTrait;
     use Searchable {
         search as public traitSearch;
     }
@@ -237,7 +236,8 @@ class Variants extends BaseModel
             'objectID' => $this->uuid,
             'products_id' => $this->products_id,
             'name' => $this->name,
-            'files' => $this->files->map(function ($files) {
+            'files' => [],
+            /* 'files' => $this->files->map(function ($files) {
                 return [
                     'uuid' => $files->uuid,
                     'name' => $files->name,
@@ -246,7 +246,7 @@ class Variants extends BaseModel
                     'field_name' => $files->field_name,
                     'attributes' => $files->attributes,
                 ];
-            }),
+            }), */
             'company' => [
                 'id' => $this->product->companies_id,
                 'name' => $this->product->company->name,

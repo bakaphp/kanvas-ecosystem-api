@@ -47,7 +47,6 @@ class Products extends BaseModel
     use UuidTrait;
     use SlugTrait;
     use LikableTrait;
-    #use SearchableDynamicIndexTrait;
     use Searchable {
         search as public traitSearch;
     }
