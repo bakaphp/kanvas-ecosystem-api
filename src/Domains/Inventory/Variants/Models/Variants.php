@@ -88,7 +88,7 @@ class Variants extends BaseModel
 
     public function shouldBeSearchable(): bool
     {
-        return $this->isPublished();
+        return $this->isPublished() && $this->product;
     }
 
     public function isPublished(): bool
