@@ -5,7 +5,13 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\App;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Zoho\Workflows\ZohoAgentActivity;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Models\StoredWorkflow;
 
 class KanvasVersionCommand extends Command
 {
@@ -33,6 +39,18 @@ class KanvasVersionCommand extends Command
         $this->newLine();
         $this->info('Kanvas Niche is running version : ' . AppEnums::VERSION->getValue());
         $this->newLine();
+        $app = Apps::getById(9);
+        App::scoped(Apps::class, function () use ($app) {
+            return $app;
+        });
+        $activity = new ZohoAgentActivity(
+            0,
+            now()->toDateTimeString(),
+            StoredWorkflow::make(),
+            []
+        );
+
+        $result = $activity->execute(Users::getById(11148), Apps::getById(9), ['company' => Companies::getById(7855)]);
 
         return;
     }
