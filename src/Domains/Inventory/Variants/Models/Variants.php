@@ -280,8 +280,8 @@ class Variants extends BaseModel
                     'is_published' => $channels->is_published,
                 ];
             }),
-            'description' => $this->description,
-            'short_description' => $this->short_description,
+            'description' => null, //$this->description,
+            'short_description' => null, //$this->short_description,
             'attributes' => [],
             'apps_id' => $this->apps_id,
         ];
