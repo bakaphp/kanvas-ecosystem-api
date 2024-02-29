@@ -132,6 +132,7 @@ class Apps extends BaseModel implements AppInterface
 
             return $this->get('total_companies');
         }
+
         return $totalCompanies;
     }
 
@@ -238,6 +239,11 @@ class Apps extends BaseModel implements AppInterface
             'password' => $password ?? $user->password,
             'configuration' => Str::isJson($configuration) ? json_encode($configuration) : $configuration,
         ]);
+    }
+
+    public function usersAssociatedApps(): HasMany
+    {
+        return $this->hasMany(UsersAssociatedApps::class, 'apps_id');
     }
 
     /**
