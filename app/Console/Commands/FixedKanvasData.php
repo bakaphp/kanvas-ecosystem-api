@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Kanvas\Fixed\FixedDefaultCompany;
 
 class FixedKanvasData extends Command
 {
@@ -25,8 +26,17 @@ class FixedKanvasData extends Command
      */
     public function handle()
     {
-        //
+        $fixed = $this->argument('fixed');
 
+        switch ($fixed) {
+            case 'FixedDefaultCompany':
+                FixedDefaultCompany::execute();
+
+                break;
+            default:
+                $this->error('Fixed not found');
+
+                break;
+        }
     }
-    
 }
