@@ -59,6 +59,7 @@ class CompaniesBranchPutData extends Data
             is_default : (int) $data['is_default'],
             email : $data['email'] ?? null,
             phone : $data['phone'] ?? null,
+            address : $data['address'] ?? null,
             zipcode : $data['zipcode'] ?? null,
             files : $data['files'] ?? null,
         );

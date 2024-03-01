@@ -887,16 +887,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.300.6",
+            "version": "3.300.9",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "957ccef631684d612d01ced2fa3b0506f2ec78c3"
+                "reference": "2704b9b10b42d53066eb383f47541124296db77c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/957ccef631684d612d01ced2fa3b0506f2ec78c3",
-                "reference": "957ccef631684d612d01ced2fa3b0506f2ec78c3",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/2704b9b10b42d53066eb383f47541124296db77c",
+                "reference": "2704b9b10b42d53066eb383f47541124296db77c",
                 "shasum": ""
             },
             "require": {
@@ -976,9 +976,9 @@
             "support": {
                 "forum": "https://forums.aws.amazon.com/forum.jspa?forumID=80",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.300.6"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.300.9"
             },
-            "time": "2024-02-27T19:05:27+00:00"
+            "time": "2024-03-01T19:04:32+00:00"
         },
         {
             "name": "berkayk/onesignal-laravel",
@@ -2195,26 +2195,26 @@
         },
         {
             "name": "google/cloud-core",
-            "version": "v1.56.0",
+            "version": "v1.56.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-core.git",
-                "reference": "35ca0fd74685c635a4c027c871de9d716c504933"
+                "reference": "c1ac9c2b89734b5e5f826af9919ae59cbaaadadc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-core/zipball/35ca0fd74685c635a4c027c871de9d716c504933",
-                "reference": "35ca0fd74685c635a4c027c871de9d716c504933",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-core/zipball/c1ac9c2b89734b5e5f826af9919ae59cbaaadadc",
+                "reference": "c1ac9c2b89734b5e5f826af9919ae59cbaaadadc",
                 "shasum": ""
             },
             "require": {
                 "google/auth": "^1.34",
-                "google/gax": "^1.27.0",
+                "google/gax": "^1.30",
                 "guzzlehttp/guzzle": "^6.5.8|^7.4.4",
                 "guzzlehttp/promises": "^1.4||^2.0",
                 "guzzlehttp/psr7": "^2.6",
                 "monolog/monolog": "^2.9|^3.0",
-                "php": ">=7.4",
+                "php": "^8.0",
                 "psr/http-message": "^1.0|^2.0",
                 "rize/uri-template": "~0.3"
             },
@@ -2255,27 +2255,27 @@
             ],
             "description": "Google Cloud PHP shared dependency, providing functionality useful to all components.",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-core/tree/v1.56.0"
+                "source": "https://github.com/googleapis/google-cloud-php-core/tree/v1.56.1"
             },
-            "time": "2024-02-23T23:49:35+00:00"
+            "time": "2024-03-01T11:25:35+00:00"
         },
         {
             "name": "google/cloud-storage",
-            "version": "v1.39.0",
+            "version": "v1.39.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-storage.git",
-                "reference": "2425a167578084af5c9b87fac6eb59b09b33b8f5"
+                "reference": "448e0db09e598c796aa7c68eaf20fdf9b10296ef"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-storage/zipball/2425a167578084af5c9b87fac6eb59b09b33b8f5",
-                "reference": "2425a167578084af5c9b87fac6eb59b09b33b8f5",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-storage/zipball/448e0db09e598c796aa7c68eaf20fdf9b10296ef",
+                "reference": "448e0db09e598c796aa7c68eaf20fdf9b10296ef",
                 "shasum": ""
             },
             "require": {
                 "google/cloud-core": "^1.55",
-                "php": ">=7.4",
+                "php": "^8.0",
                 "ramsey/uuid": "^4.2.3"
             },
             "require-dev": {
@@ -2312,9 +2312,9 @@
             ],
             "description": "Cloud Storage Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-storage/tree/v1.39.0"
+                "source": "https://github.com/googleapis/google-cloud-php-storage/tree/v1.39.1"
             },
-            "time": "2024-02-23T23:49:35+00:00"
+            "time": "2024-03-01T11:25:35+00:00"
         },
         {
             "name": "google/common-protos",
@@ -2370,35 +2370,36 @@
         },
         {
             "name": "google/gax",
-            "version": "v1.29.1",
+            "version": "v1.30.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/gax-php.git",
-                "reference": "54a863e63ee318308637adb283f6157ccc3aabbb"
+                "reference": "25fb6fe93f8a871d7c626dc4599a481d9ebb6b02"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/gax-php/zipball/54a863e63ee318308637adb283f6157ccc3aabbb",
-                "reference": "54a863e63ee318308637adb283f6157ccc3aabbb",
+                "url": "https://api.github.com/repos/googleapis/gax-php/zipball/25fb6fe93f8a871d7c626dc4599a481d9ebb6b02",
+                "reference": "25fb6fe93f8a871d7c626dc4599a481d9ebb6b02",
                 "shasum": ""
             },
             "require": {
                 "google/auth": "^1.34.0",
                 "google/common-protos": "^4.4",
-                "google/grpc-gcp": "^0.2||^0.3",
+                "google/grpc-gcp": "^0.3",
                 "google/longrunning": "~0.2",
                 "google/protobuf": "^3.22",
                 "grpc/grpc": "^1.13",
-                "guzzlehttp/promises": "^1.4||^2.0",
+                "guzzlehttp/promises": "^2.0",
                 "guzzlehttp/psr7": "^2.0",
-                "php": ">=7.4"
+                "php": "^8.0",
+                "ramsey/uuid": "^4.0"
             },
             "conflict": {
                 "ext-protobuf": "<3.7.0"
             },
             "require-dev": {
-                "phpspec/prophecy-phpunit": "^2.0",
-                "phpunit/phpunit": "^9.0",
+                "phpspec/prophecy-phpunit": "^2.1",
+                "phpunit/phpunit": "^9.6",
                 "squizlabs/php_codesniffer": "3.*"
             },
             "type": "library",
@@ -2419,9 +2420,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/gax-php/issues",
-                "source": "https://github.com/googleapis/gax-php/tree/v1.29.1"
+                "source": "https://github.com/googleapis/gax-php/tree/v1.30.0"
             },
-            "time": "2024-02-26T19:15:41+00:00"
+            "time": "2024-02-28T20:33:41+00:00"
         },
         {
             "name": "google/grpc-gcp",
@@ -2470,20 +2471,20 @@
         },
         {
             "name": "google/longrunning",
-            "version": "0.3.0",
+            "version": "0.3.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/php-longrunning.git",
-                "reference": "c21cb8f8794f724ca672dad94bf7d406e62476b9"
+                "reference": "a974fe870d5f57cc21da697923a1f4e8d08829c9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/php-longrunning/zipball/c21cb8f8794f724ca672dad94bf7d406e62476b9",
-                "reference": "c21cb8f8794f724ca672dad94bf7d406e62476b9",
+                "url": "https://api.github.com/repos/googleapis/php-longrunning/zipball/a974fe870d5f57cc21da697923a1f4e8d08829c9",
+                "reference": "a974fe870d5f57cc21da697923a1f4e8d08829c9",
                 "shasum": ""
             },
             "require-dev": {
-                "google/gax": "^1.26.0",
+                "google/gax": "^1.30",
                 "phpunit/phpunit": "^9.0"
             },
             "type": "library",
@@ -2508,9 +2509,9 @@
             ],
             "description": "Google LongRunning Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/php-longrunning/tree/v0.3.0"
+                "source": "https://github.com/googleapis/php-longrunning/tree/v0.3.1"
             },
-            "time": "2024-01-05T17:46:51+00:00"
+            "time": "2024-03-01T11:25:35+00:00"
         },
         {
             "name": "google/protobuf",
@@ -4990,30 +4991,29 @@
         },
         {
             "name": "mll-lab/laravel-graphiql",
-            "version": "v3.1.0",
+            "version": "v3.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mll-lab/laravel-graphiql.git",
-                "reference": "54d7dbe5376ab87a6ea83be11b1431d0af9e2f6c"
+                "reference": "a9c859c986ef6e96e84bab3c4bd2586933460b14"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mll-lab/laravel-graphiql/zipball/54d7dbe5376ab87a6ea83be11b1431d0af9e2f6c",
-                "reference": "54d7dbe5376ab87a6ea83be11b1431d0af9e2f6c",
+                "url": "https://api.github.com/repos/mll-lab/laravel-graphiql/zipball/a9c859c986ef6e96e84bab3c4bd2586933460b14",
+                "reference": "a9c859c986ef6e96e84bab3c4bd2586933460b14",
                 "shasum": ""
             },
             "require": {
-                "illuminate/console": "^9 || ^10",
-                "illuminate/contracts": "^9 || ^10",
-                "illuminate/support": "^9 || ^10",
+                "illuminate/console": "^9 || ^10 || ^11",
+                "illuminate/contracts": "^9 || ^10 || ^11",
+                "illuminate/support": "^9 || ^10 || ^11",
                 "php": "^8"
             },
             "require-dev": {
                 "ergebnis/composer-normalize": "^2.29",
-                "laravel/lumen-framework": "^9 || ^10",
+                "larastan/larastan": "^2.5.2",
                 "mll-lab/php-cs-fixer-config": "^5",
-                "nunomaduro/larastan": "^2.5.2",
-                "orchestra/testbench": "^7.7 || ^8.8",
+                "orchestra/testbench": "^7.7 || ^8.8 || ^9",
                 "phpstan/extension-installer": "^1",
                 "phpstan/phpstan": "^1.10.15",
                 "phpstan/phpstan-mockery": "^1.1.1",
@@ -5050,9 +5050,9 @@
             ],
             "support": {
                 "issues": "https://github.com/mll-lab/laravel-graphiql/issues",
-                "source": "https://github.com/mll-lab/laravel-graphiql/tree/v3.1.0"
+                "source": "https://github.com/mll-lab/laravel-graphiql/tree/v3.2.0"
             },
-            "time": "2023-07-04T13:58:40+00:00"
+            "time": "2024-03-01T10:59:56+00:00"
         },
         {
             "name": "monolog/monolog",
@@ -5620,16 +5620,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.33.4",
+            "version": "v6.34.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "973328cde53a3f2067b2bda9513daa1eff796475"
+                "reference": "e97a9c0715d25f080ff915f1c62e494426797ba3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/973328cde53a3f2067b2bda9513daa1eff796475",
-                "reference": "973328cde53a3f2067b2bda9513daa1eff796475",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/e97a9c0715d25f080ff915f1c62e494426797ba3",
+                "reference": "e97a9c0715d25f080ff915f1c62e494426797ba3",
                 "shasum": ""
             },
             "require": {
@@ -5752,7 +5752,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2024-02-23T10:37:30+00:00"
+            "time": "2024-03-01T10:45:57+00:00"
         },
         {
             "name": "nyholm/psr7",
@@ -8462,16 +8462,16 @@
         },
         {
             "name": "spatie/laravel-model-states",
-            "version": "2.6.2",
+            "version": "2.7.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-model-states.git",
-                "reference": "dc7883f88506064155428b023d428b8447dcc865"
+                "reference": "d3f7be00453a6d5474e0d14a31e4dc6f388792f0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-model-states/zipball/dc7883f88506064155428b023d428b8447dcc865",
-                "reference": "dc7883f88506064155428b023d428b8447dcc865",
+                "url": "https://api.github.com/repos/spatie/laravel-model-states/zipball/d3f7be00453a6d5474e0d14a31e4dc6f388792f0",
+                "reference": "d3f7be00453a6d5474e0d14a31e4dc6f388792f0",
                 "shasum": ""
             },
             "require": {
@@ -8521,7 +8521,7 @@
                 "state"
             ],
             "support": {
-                "source": "https://github.com/spatie/laravel-model-states/tree/2.6.2"
+                "source": "https://github.com/spatie/laravel-model-states/tree/2.7.0"
             },
             "funding": [
                 {
@@ -8533,7 +8533,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-02-15T10:16:56+00:00"
+            "time": "2024-03-01T12:55:29+00:00"
         },
         {
             "name": "spatie/laravel-package-tools",
