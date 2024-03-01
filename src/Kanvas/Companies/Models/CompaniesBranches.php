@@ -113,7 +113,8 @@ class CompaniesBranches extends BaseModel
         ->when(! $user->isAdmin(), function ($query) use ($user) {
             $query->where('users_associated_company.users_id', $user->getId());
         })
-        ->where('companies_branches.is_deleted', '=', 0);
+        ->where('companies_branches.is_deleted', '=', 0)
+        ->groupBy('companies_branches.id');
     }
 
     public function users(): HasManyThrough
