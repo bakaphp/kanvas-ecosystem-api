@@ -113,7 +113,7 @@ class ChannelTest extends TestCase
     {
         $data = [
             'name' => fake()->name,
-            'is_default' => true,
+            'is_default' => false,
         ];
         $newChannel = $this->graphQL('
             mutation($data: CreateChannelInput!) {
