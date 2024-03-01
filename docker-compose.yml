@@ -43,6 +43,7 @@ services:
     mysql:
         container_name: mysql${APP_CONTAINER_NAME}
         image: 'mysql/mysql-server:8.0'
+        command: --innodb_strict_mode=0 --innodb_log_file_size=512M
         ports:
             - '${FORWARD_DB_PORT:-3306}:3306'
         environment:

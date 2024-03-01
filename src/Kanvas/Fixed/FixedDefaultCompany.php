@@ -22,13 +22,20 @@ class FixedDefaultCompany implements FixedInterface
 
         foreach ($apps as $app) {
             foreach ($app->usersAssociatedApps as $userAssociatedApp) {
-                $userAssociatedApp->update([
-                    'companies_id' => 0,
-                    'password' => $userAssociatedApp->user->password,
-                    'firstname' => $userAssociatedApp->user->firstname,
-                    'lastname' => $userAssociatedApp->user->lastname,
-                    'displayname' => $userAssociatedApp->user->displayname,
-                ]);
+                if (! $userAssociatedApp->user) {
+                    echo "User not found for {$userAssociatedApp->users_id}\n";
+
+                    continue;
+                }
+                $data = $userAssociatedApp->toArray();
+                $data['companies_id'] = 0;
+                $data['password'] = $userAssociatedApp->user->password;
+                $data['firstname'] = $userAssociatedApp->user->firstname;
+                $data['lastname'] = $userAssociatedApp->user->lastname;
+                $data['displayname'] = $userAssociatedApp->user->displayname;
+                $userAssociatedApp->create($data);
+
+                echo "User {$userAssociatedApp->user->email} has been updated to default company\n";
             }
         }
     }
