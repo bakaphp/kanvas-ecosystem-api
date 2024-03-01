@@ -17,7 +17,8 @@ class FixedDefaultCompany implements FixedInterface
                       $subquery->select('users_id')
                                ->from('users_associated_apps')
                                ->where('companies_id', 0);
-                  });
+                  })
+                ->where('is_deleted', 0);
         }])->get();
 
         foreach ($apps as $app) {
@@ -27,13 +28,7 @@ class FixedDefaultCompany implements FixedInterface
 
                     continue;
                 }
-                $data = $userAssociatedApp->toArray();
-                $data['companies_id'] = 0;
-                $data['password'] = $userAssociatedApp->user->password;
-                $data['firstname'] = $userAssociatedApp->user->firstname;
-                $data['lastname'] = $userAssociatedApp->user->lastname;
-                $data['displayname'] = $userAssociatedApp->user->displayname;
-                $userAssociatedApp->create($data);
+                $userAssociatedApp->user->getAppProfile($app);
 
                 echo "User {$userAssociatedApp->user->email} has been updated to default company\n";
             }
