@@ -32,7 +32,7 @@ class ConfigManagement
         $currentUser = auth()->user();
         UsersRepository::belongsToThisApp($user, app(Apps::class));
 
-        return $this->parseSettings($user->getAll(), $currentUser);
+        return $this->parseSettings($user->getAll(false, true), $currentUser);
     }
 
     public function parseSettings(array $data, UserInterface $user): array

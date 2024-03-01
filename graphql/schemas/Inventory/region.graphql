@@ -3,7 +3,7 @@ type Region {
     companies_id: Int!
     currency_id: Int!
     companies: Company! @belongsTo(relation: "company")
-    currencies: Currency!
+    currencies: Currency! @belongsTo(relation: "currencies")
     uuid: String!
     name: String!
     slug: String!
@@ -11,14 +11,12 @@ type Region {
     settings: String
     is_default: Boolean!
 }
-type Currency {
-    id: Int!
-    name: String!
-}
+
 input RegionInput {
     currency_id: Int!
     name: String!
     slug: String
+    companies_id: Int
     short_slug: String!
     settings: String
     is_default: Int!
@@ -33,10 +31,15 @@ input RegionInputUpdate {
 }
 extend type Query @guard {
     regions(
-        where: _ @whereConditions(columns: ["name", "slug", "short_slug"])
-    ): [Region]
+        where: _
+            @whereConditions(
+                columns: ["name", "slug", "short_slug", "is_default", "companies_id"]
+            )
+        orderBy: _ @orderBy(columns: ["id", "name", "created_at", "is_default"])
+    ): [Region!]!
         @paginate(
             builder: "App\\GraphQL\\Inventory\\Builders\\Regions\\Region@all"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
             defaultCount: 25
         )
 }

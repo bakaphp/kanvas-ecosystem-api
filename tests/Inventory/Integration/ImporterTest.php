@@ -51,7 +51,7 @@ final class ImporterTest extends TestCase
         ];
 
         $warehouseData = (new CreateWarehouseAction(
-            WarehousesDto::viaRequest($warehouse),
+            WarehousesDto::viaRequest($warehouse, auth()->user(), $company),
             auth()->user()
         ))->execute();
 
@@ -60,7 +60,7 @@ final class ImporterTest extends TestCase
                 app(Apps::class),
                 $company,
                 auth()->user(),
-                "Default",
+                'Default',
                 true
             ),
             auth()->user()
@@ -94,7 +94,7 @@ final class ImporterTest extends TestCase
                         'quantity' => fake()->randomNumber(2),
                         'sku' => fake()->word(),
                         'is_new' => fake()->boolean(),
-                        'status' => $statusData
+                        'status' => $statusData,
                     ],
                     'description' => fake()->sentence(),
                     'sku' => fake()->word(),

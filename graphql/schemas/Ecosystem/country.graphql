@@ -57,7 +57,7 @@ input CreateCityInput {
     longitude: Float
 }
 
-extend type Mutation {
+extend type Mutation @guardByAppKey {
     createCountry(
         name: String!
         code: String!

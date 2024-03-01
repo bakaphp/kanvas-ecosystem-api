@@ -41,18 +41,16 @@ class Warehouses extends Data
      *
      * @return self
      */
-    public static function viaRequest(array $request): self
+    public static function viaRequest(array $request, UserInterface $user, CompanyInterface $company): self
     {
-        $company = auth()->user()->getCurrentCompany();
-
         if (! isset($request['regions_id'])) {
             throw new ValidationException('Region is required');
         }
 
         return new self(
-            isset($request['company_id']) ? Companies::getById($request['company_id']) : $company,
+            isset($request['companies_id']) ? Companies::getById($request['companies_id']) : $company,
             app(Apps::class),
-            auth()->user(),
+            $user,
             RegionRepository::getById($request['regions_id'], $company),
             $request['name'],
             $request['location'] ?? null,

@@ -15,7 +15,7 @@ extend type Query {
     state(id: Int!): States @find(model: "\\Kanvas\\Locations\\Models\\States")
 }
 
-extend type Mutation {
+extend type Mutation @guardByAppKey {
     createState(countries_id: Int!, name: String!, code: String!): States
         @create(model: "\\Kanvas\\Locations\\Models\\States")
     updateState(

@@ -15,24 +15,24 @@ class Region
     /**
      * create.
      *
-     * @param  mixed $root
-     * @param  array $request
-     *
      * @return Regions
      */
     public function create(mixed $root, array $request): RegionModel
     {
         $request = $request['input'];
         $currency = Currencies::findOrFail($request['currency_id']);
+        $user = auth()->user();
+        if (! $user->isAppOwner()) {
+            unset($request['companies_id']);
+        }
+
         $regionDto = RegionDto::viaRequest($request);
-        return (new CreateRegionAction($regionDto, auth()->user()))->execute();
+
+        return (new CreateRegionAction($regionDto, $user))->execute();
     }
 
     /**
      * update.
-     *
-     * @param  mixed $root
-     * @param  array $request
      *
      * @return Regions
      */
@@ -42,22 +42,19 @@ class Region
         $request = $request['input'];
         $region = RegionRepository::getById($id, auth()->user()->getCurrentCompany());
         $region->update($request);
+
         return $region;
     }
 
     /**
      * delete.
-     *
-     * @param  mixed $root
-     * @param  array $request
-     *
-     * @return bool
      */
     public function delete(mixed $root, array $request): bool
     {
         $id = $request['id'];
         $region = RegionRepository::getById($id, auth()->user()->getCurrentCompany());
         $region->delete();
+
         return true;
     }
 }

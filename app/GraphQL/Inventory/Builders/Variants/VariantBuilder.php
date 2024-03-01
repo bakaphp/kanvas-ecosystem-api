@@ -21,7 +21,7 @@ class VariantBuilder
         $company = $user->getCurrentCompany();
 
         if (! $user->isAppOwner()) {
-            Variants::setSearchIndex($company->getId());
+            //Variants::setSearchIndex($company->getId());
         }
         /**
          * @var Builder
