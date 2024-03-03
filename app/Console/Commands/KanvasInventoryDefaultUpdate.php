@@ -158,7 +158,7 @@ class KanvasInventoryDefaultUpdate extends Command
                     }
                 });
 
-                if (!empty($variantsWarehousesToFixData->first())) {
+                if (! empty($variantsWarehousesToFixData->first())) {
                     foreach ($variantsWarehousesToFixData as $warehouseToFix) {
                         $warehouseToFix->warehouses_id = $defaultWarehouses->getId();
                         $warehouseToFix->saveQuietly();
