@@ -47,6 +47,7 @@ class KanvasInventoryDefaultUpdate extends Command
         $app = Apps::getByUuid($appUid);
 
         $associatedApps = UserCompanyApps::where('apps_id', $app->getId())->get();
+        $variantsWarehousesToFix = VariantsWarehouses::whereDoesntHave('warehouse')->get();
 
         foreach ($associatedApps as $company) {
             $companyData = $company->company;
@@ -144,10 +145,25 @@ class KanvasInventoryDefaultUpdate extends Command
                 (new AddToWarehouseAction($variant, $defaultWarehouses, $variantWarehouseDto))->execute();
             }
 
-            $variantsWarehouses = VariantsWarehouses::where('status_id', null)->get();
+            $variantsWarehouses = VariantsWarehouses::where('status_id', null)->withTrashed()->orDoesntHave('status')->get();
             foreach ($variantsWarehouses as $variantWarehouse) {
                 $variantWarehouse->status_id = $defaultStatus->getId();
                 $variantWarehouse->saveQuietly();
+            }
+
+            if ($variantsWarehousesToFix) {
+                $variantsWarehousesToFixData = $variantsWarehousesToFix->map(function ($variantsWarehousesToFix) use ($companyData) {
+                    if ($variantsWarehousesToFix->variant->companies_id == $companyData->getId()) {
+                        return $variantsWarehousesToFix;
+                    }
+                });
+
+                if (! empty($variantsWarehousesToFixData->first())) {
+                    foreach ($variantsWarehousesToFixData as $warehouseToFix) {
+                        $warehouseToFix->warehouses_id = $defaultWarehouses->getId();
+                        $warehouseToFix->saveQuietly();
+                    }
+                }
             }
         }
 
