@@ -272,6 +272,7 @@ class Variants extends BaseModel
             }),
             'channels' => $this->channels->map(function ($channels) {
                 return [
+                    'id' => $channels->getId(),
                     'name' => $channels->name,
                     'price' => $channels->price,
                     'is_published' => $channels->is_published,
