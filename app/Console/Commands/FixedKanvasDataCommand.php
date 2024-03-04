@@ -5,7 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Kanvas\Fixed\FixedDefaultCompany;
 
-class FixedKanvasData extends Command
+class FixedKanvasDataCommand extends Command
 {
     /**
      * The name and signature of the console command.
@@ -30,7 +30,7 @@ class FixedKanvasData extends Command
 
         switch ($fixed) {
             case 'FixedDefaultCompany':
-                FixedDefaultCompany::execute();
+                FixedDefaultCompanyAction::execute();
 
                 break;
             default:

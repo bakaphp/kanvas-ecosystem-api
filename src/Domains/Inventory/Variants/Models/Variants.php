@@ -26,6 +26,7 @@ use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Laravel\Scout\Searchable;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Class Attributes.
@@ -271,6 +272,7 @@ class Variants extends BaseModel
             }),
             'channels' => $this->channels->map(function ($channels) {
                 return [
+                    'id' => $channels->getId(),
                     'name' => $channels->name,
                     'price' => $channels->price,
                     'is_published' => $channels->is_published,
@@ -306,5 +308,13 @@ class Variants extends BaseModel
         }
 
         return $query;
+    }
+
+    /**
+     * Modify the query used to retrieve models when making all of the models searchable.
+     */
+    protected function makeAllSearchableUsing(Builder $query): Builder
+    {
+        return $query->whereRelation('warehouses', 'warehouses.is_deleted', 0);
     }
 }

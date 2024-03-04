@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Fixed;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Fixed\Interfaces\FixedInterface;
+use Kanvas\Fixed\Contracts\FixedInterface;
 
-class FixedDefaultCompany implements FixedInterface
+class FixedDefaultCompanyAction implements FixedInterface
 {
     public static function execute()
     {
