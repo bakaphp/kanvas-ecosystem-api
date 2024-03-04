@@ -17,7 +17,7 @@
         "berkayk/onesignal-laravel": "^2.0",
         "darryldecode/cart": "^4.2",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
-        "genealabs/laravel-model-caching": "^0.13",
+        "genealabs/laravel-model-caching": "^11.0",
         "goldspecdigital/laravel-eloquent-uuid": "^10.0",
         "guzzlehttp/guzzle": "^7.6",
         "http-interop/http-factory-guzzle": "^1.0",
