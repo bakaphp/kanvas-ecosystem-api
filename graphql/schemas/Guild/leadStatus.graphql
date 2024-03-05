@@ -3,3 +3,31 @@ type LeadStatus {
     name: String!
     is_default: Int!
 }
+
+input LeadStatusInput {
+    name: String!
+    is_default: Int!
+}
+
+extend type Query {
+    leadStatuses: [LeadStatus]
+        @paginate(
+            model: "Kanvas\\Guild\\Leads\\Models\\LeadStatus"
+            defaultCount: 10
+        )
+}
+
+extend type Mutation @guard {
+    createLeadStatus(input: LeadStatusInput!): LeadStatus
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadStatusManagementMutation@create"
+        )
+    updateLeadStatus(id: ID!, input: LeadStatusInput!): LeadStatus
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadStatusManagementMutation@update"
+        )
+    deleteLeadStatus(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadStatusManagementMutation@delete"
+        )
+}
