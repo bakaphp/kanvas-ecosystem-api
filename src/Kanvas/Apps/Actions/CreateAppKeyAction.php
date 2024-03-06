@@ -11,6 +11,7 @@ use Illuminate\Validation\ValidationException;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\DataTransferObject\AppKeyInput;
 use Kanvas\Apps\Models\AppKey;
+use Kanvas\Auth\Actions\RegisterUsersAppAction;
 
 class CreateAppKeyAction
 {
@@ -56,6 +57,9 @@ class CreateAppKeyAction
 
         //@todo change to use scope
         $this->data->user->assign(RolesEnums::OWNER->value);
+
+        $userRegisterInApp = new RegisterUsersAppAction($this->data->user);
+        $userRegisterInApp->execute($this->data->user->password);
 
         return $app;
     }

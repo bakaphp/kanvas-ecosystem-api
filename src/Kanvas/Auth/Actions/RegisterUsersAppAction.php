@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\Actions;
 
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\Hash;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
@@ -18,7 +19,7 @@ class RegisterUsersAppAction
      * Construct function.
      */
     public function __construct(
-        protected Users $user,
+        protected Users|UserInterface $user,
         protected ?Apps $app = null
     ) {
         $this->app = $app ?? app(Apps::class);
