@@ -17,6 +17,8 @@ class ProductsObserver
 
     public function created(Products $products): void
     {
-        $products->productsTypes->setTotalProducts();
+        if ($products->productsTypes()->exists()) {
+            $products->productsTypes->setTotalProducts();
+        }
     }
 }
