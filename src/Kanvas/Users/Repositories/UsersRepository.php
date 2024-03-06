@@ -129,7 +129,7 @@ class UsersRepository
      * @psalm-suppress MixedReturnStatement
      * @throws ExceptionsModelNotFoundException
      */
-    public static function belongsToCompanyBranch(Users|UserInterface  $user, CompanyInterface $company, CompaniesBranches $branch): UsersAssociatedCompanies
+    public static function belongsToCompanyBranch(Users|UserInterface $user, CompanyInterface $company, CompaniesBranches $branch): UsersAssociatedCompanies
     {
         try {
             return UsersAssociatedCompanies::where('users_id', $user->getKey())
@@ -149,7 +149,7 @@ class UsersRepository
      * @psalm-suppress MixedReturnStatement
      * @throws ExceptionsModelNotFoundException
      */
-    public static function belongsToThisApp(Users|UserInterface  $user, Apps $app, ?CompanyInterface $company = null): UsersAssociatedApps
+    public static function belongsToThisApp(Users|UserInterface $user, Apps $app, ?CompanyInterface $company = null): UsersAssociatedApps
     {
         try {
             $query = UsersAssociatedApps::where('users_id', $user->getKey())
@@ -172,7 +172,7 @@ class UsersRepository
      * @psalm-suppress MixedReturnStatement
      * @throws ExceptionsModelNotFoundException
      */
-    public static function userOwnsThisApp(Users|UserInterface  $user, Apps $app): UsersAssociatedApps
+    public static function userOwnsThisApp(Users|UserInterface $user, Apps $app): UsersAssociatedApps
     {
         try {
             //for now user who own / created the app have global company id assign the them
