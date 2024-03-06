@@ -196,13 +196,16 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         // return $this->hasMany(Companies::class, 'users_id');
         return $this->hasManyThrough(
             Companies::class,
-            UsersAssociatedApps::class,
+            UsersAssociatedCompanies::class,
             'users_id',
             'id',
             'id',
             'companies_id'
-        )->where('users_associated_apps.apps_id', app(Apps::class)->getId())
-        ->where('companies.is_deleted', StateEnums::NO->getValue())->distinct();
+        )->join('users_associated_apps', 'users_associated_apps.companies_id', '=', 'companies.id')
+        ->where('users_associated_apps.apps_id', app(Apps::class)->getId())
+        ->where('companies.is_deleted', StateEnums::NO->getValue())
+        ->groupBy('companies.id')
+        ->distinct();
     }
 
     /**

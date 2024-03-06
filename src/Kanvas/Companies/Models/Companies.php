@@ -119,14 +119,15 @@ class Companies extends BaseModel implements CompanyInterface
     {
         return $this->hasManyThrough(
             Users::class,
-            UsersAssociatedApps::class,
+            UsersAssociatedCompanies::class,
             'companies_id',
             'id',
             'id',
             'users_id'
-        )->when(app(Apps::class), function ($query, $app) {
+        )->join('users_associated_apps', 'users_associated_apps.users_id', '=', 'users.id')
+        ->when(app(Apps::class), function ($query, $app) {
             $query->where('users_associated_apps.apps_id', $app->getId());
-        });
+        })->groupBy('users.id');
     }
 
     /**
