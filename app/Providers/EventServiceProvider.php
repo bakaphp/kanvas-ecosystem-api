@@ -14,6 +14,8 @@ use Kanvas\Guild\Leads\Observers\LeadObserver;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Observers\ChannelObserver;
 use Kanvas\Inventory\Channels\Observers\VariantsChannelObserver;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Products\Observers\ProductsObserver;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Regions\Observers\RegionObserver;
 use Kanvas\Inventory\Status\Models\Status;
@@ -70,6 +72,7 @@ class EventServiceProvider extends ServiceProvider
         Status::observe(StatusObserver::class);
         VariantsWarehouses::observe(VariantsWarehouseObserver::class);
         Channels::observe(ChannelObserver::class);
+        Products::observe(ProductsObserver::class);
         VariantsChannels::observe(VariantsChannelObserver::class);
         UsersAssociatedApps::observe(UsersAssociatedAppsObserver::class);
         UserCompanyApps::observe(UsersAssociatedCompaniesObserver::class);
