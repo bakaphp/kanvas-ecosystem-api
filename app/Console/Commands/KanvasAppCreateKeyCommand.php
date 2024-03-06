@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 use Kanvas\Apps\Actions\CreateAppKeyAction;
 use Kanvas\Apps\DataTransferObject\AppKeyInput;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Actions\RegisterUsersAppAction;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 
@@ -52,7 +53,7 @@ class KanvasAppCreateKeyCommand extends Command
                 )
             )
         )->execute();
-
+        
         $this->newLine();
         $this->info('App Key created successfully: ' . $appKey->client_id);
         $this->newLine();
