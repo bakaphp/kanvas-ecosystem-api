@@ -47,7 +47,7 @@ Todo:
 
 3. Get inside the php container using ```docker exec -it php bash```.
 
-4. Create 3 databases `inventory`, `social`, `crm`, update your .env with the connection info
+4. Create 4 databases `inventory`, `social`, `crm`, `workflow` update your .env with the connection info
 
 5. Check the .env and setup correctly the `REDIS` parameters and your database connections before running the setup-ecosystem
 
@@ -95,6 +95,7 @@ DB_CRM_DATABASE=cr
 DB_CRM_USERNAME=root
 DB_CRM_PASSWORD=password
 ```
+
 
 `php artisan guild:setup` to create and initialize the crm module for a current company
 
