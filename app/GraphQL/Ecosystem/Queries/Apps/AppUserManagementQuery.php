@@ -56,7 +56,7 @@ class AppUserManagementQuery
                          ->where('users_associated_apps.apps_id', '=', app(Apps::class)->getId())
                          ->where('users_associated_apps.is_deleted', '=', 0);
                 })
-                ->where('users.id', $args['users_id'])
+                ->where('users.id', $args['user_id'])
                 ->groupBy('companies.id');
     }
 }
