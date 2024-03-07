@@ -8,11 +8,13 @@ type ProductType {
     description: String
     weight: Int
     companies: Company!
+    is_published: Boolean
     total_products: Int! @method(name: "getTotalProducts")
 }
 
 input ProductTypeInput {
     name: String!
+    companies_id: Int
     description: String
     weight: Int!
     is_published: Boolean
