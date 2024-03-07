@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Apps\Actions;
 
 use Baka\Support\Str;
+use Bouncer;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -56,6 +57,7 @@ class CreateAppKeyAction
         $app->saveOrFail();
 
         //@todo change to use scope
+        Bouncer::scope()->to(RolesEnums::getScope($this->data->app));
         $this->data->user->assign(RolesEnums::OWNER->value);
 
         $userRegisterInApp = new RegisterUsersAppAction($this->data->user);
