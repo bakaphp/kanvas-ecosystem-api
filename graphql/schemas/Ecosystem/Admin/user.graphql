@@ -63,4 +63,10 @@ extend type Query @guardByAppKey {
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\AppUserManagementQuery@getAllAppUsers"
             defaultCount: 25
         )
+
+    adminUserCompanies(user_id: ID!): [Company!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\AppUserManagementQuery@getAdminUserCompanies"
+            defaultCount: 25
+        )
 }
