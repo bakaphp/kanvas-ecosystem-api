@@ -45,4 +45,26 @@ class AppUserManagementQuery
                     ->where('users_associated_company.companies_id', '>', 0);
             });
     }
+
+    public function getCompaniesByUser(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
+    {
+        return Users::select('companies.*')
+            ->join('users_associated_company', 'users_associated_company.users_id', '=', 'users.id')
+            ->join(
+                DB::raw('(SELECT companies_id FROM users_associated_apps where apps_id = ' . app(Apps::class)->getId() . ' AND is_deleted = 0) as users_associated_apps'),
+                function ($join) {
+                    $join->on('users_associated_apps.companies_id', '=', 'users_associated_company.companies_id');
+                }
+            )
+            ->join(
+                'companies',
+                'companies.id',
+                'users_associated_company.companies_id'
+            )
+            ->where(
+                'users.id',
+                $args['users_id']
+            )
+            ->groupBy('companies.id');
+    }
 }
