@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Kanvas\Fixed\FixedDefaultCompany;
+use Kanvas\Fixed\FixedDefaultCompanyAction;
 
 class FixedKanvasDataCommand extends Command
 {
