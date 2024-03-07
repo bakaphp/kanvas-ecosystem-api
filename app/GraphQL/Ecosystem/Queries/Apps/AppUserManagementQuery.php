@@ -48,7 +48,7 @@ class AppUserManagementQuery
 
     public function getCompaniesByUser(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
     {
-        User::select('companies.*')
+        Users::select('companies.*')
         ->join('user_associated_company', 'user_associated_company.user_id', '=', 'users.id')
         ->join('companies', 'companies.id', '=', 'user_associated_company.company_id')
         ->join('user_associated_apps', function ($join) {
@@ -57,7 +57,6 @@ class AppUserManagementQuery
                  ->where('user_associated_apps.is_deleted', '=', 0);
         })
         ->where('users.id', $args['users_id'])
-        ->groupBy('companies.id')
-        ->get();
+        ->groupBy('companies.id');
     }
 }
