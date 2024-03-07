@@ -46,15 +46,15 @@ class AppUserManagementQuery
             });
     }
 
-    public function getCompaniesByUser(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
+    public function getAdminUserCompanies(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
     {
         return Users::select('companies.*')
-                ->join('user_associated_company', 'user_associated_company.user_id', '=', 'users.id')
-                ->join('companies', 'companies.id', '=', 'user_associated_company.company_id')
-                ->join('user_associated_apps', function ($join) {
-                    $join->on('user_associated_apps.company_id', '=', 'user_associated_company.company_id')
-                         ->where('user_associated_apps.app_id', '=', app(Apps::class)->getId())
-                         ->where('user_associated_apps.is_deleted', '=', 0);
+                ->join('users_associated_company', 'users_associated_company.users_id', '=', 'users.id')
+                ->join('companies', 'companies.id', '=', 'users_associated_company.companies_id')
+                ->join('users_associated_apps', function ($join) {
+                    $join->on('users_associated_apps.companies_id', '=', 'users_associated_company.companies_id')
+                         ->where('users_associated_apps.apps_id', '=', app(Apps::class)->getId())
+                         ->where('users_associated_apps.is_deleted', '=', 0);
                 })
                 ->where('users.id', $args['users_id'])
                 ->groupBy('companies.id');
