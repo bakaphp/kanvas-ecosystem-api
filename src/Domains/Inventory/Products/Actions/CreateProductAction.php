@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Products\Actions;
 
-use App\GraphQL\Inventory\Mutations\Variants\Variants;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
@@ -70,10 +69,10 @@ class CreateProductAction
 
             if ($this->productDto->categories) {
                 foreach ($this->productDto->categories as $category) {
-                    $category = CategoriesRepository::getById($category, $this->productDto->company);
+                    $category = CategoriesRepository::getById((int) $category['id'], $this->productDto->company);
                 }
 
-                $products->categories()->attach($this->productDto->categories);
+                $products->categories()->attach($category);
             }
 
             if ($this->productDto->warehouses) {
