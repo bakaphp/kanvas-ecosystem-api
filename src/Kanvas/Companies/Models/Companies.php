@@ -287,8 +287,10 @@ class Companies extends BaseModel implements CompanyInterface
             ->groupBy('companies.id');
     }
 
-    public function scopeCompanyInApp(Builder $query, Apps $app): Builder
+    public function scopeCompanyInApp(Builder $query): Builder
     {
+        $app = app(Apps::class);
+
         return $query->join(
             'user_company_apps',
             'user_company_apps.companies_id',
