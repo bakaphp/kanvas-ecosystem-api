@@ -142,7 +142,7 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             model: "Kanvas\\Companies\\Models\\Companies"
-            scopes: ["userAssociated"]
+            scopes: ["companyInApp"]
         )
 
     branches(

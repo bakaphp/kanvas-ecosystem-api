@@ -291,6 +291,18 @@ class Companies extends BaseModel implements CompanyInterface
             ->groupBy('companies.id');
     }
 
+    public function scopeCompanyInApp(Builder $query): Builder
+    {
+        $app = app(Apps::class);
+
+        return $query->join(
+            'user_company_apps',
+            'user_company_apps.companies_id',
+            '=',
+            'companies.id'
+        )->where('user_company_apps.apps_id', '=', $app->getId());
+    }
+
     public static function search($query = '', $callback = null)
     {
         $query = self::traitSearch($query, $callback)->whereIn('apps', [app(Apps::class)->getId()]);
