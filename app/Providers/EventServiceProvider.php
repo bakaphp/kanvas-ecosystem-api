@@ -11,10 +11,12 @@ use Kanvas\Companies\Models\CompaniesGroups;
 use Kanvas\Companies\Observers\CompaniesObserver;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Observers\LeadObserver;
+use Kanvas\Inventory\Categories\Observers\ProductsCategoriesObserver;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Observers\ChannelObserver;
 use Kanvas\Inventory\Channels\Observers\VariantsChannelObserver;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Products\Models\ProductsCategories;
 use Kanvas\Inventory\Products\Observers\ProductsObserver;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Regions\Observers\RegionObserver;
@@ -76,6 +78,7 @@ class EventServiceProvider extends ServiceProvider
         VariantsChannels::observe(VariantsChannelObserver::class);
         UsersAssociatedApps::observe(UsersAssociatedAppsObserver::class);
         UserCompanyApps::observe(UsersAssociatedCompaniesObserver::class);
+        ProductsCategories::observe(ProductsCategoriesObserver::class);
     }
 
     /**
