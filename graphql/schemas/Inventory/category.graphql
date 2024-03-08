@@ -30,7 +30,7 @@ input CategoryUpdateInput {
     code: String
     slug: String
     position: Int
-    is_published: Boolean!
+    is_published: Boolean
 }
 
 input ProductCategoriesReferenceInput {
