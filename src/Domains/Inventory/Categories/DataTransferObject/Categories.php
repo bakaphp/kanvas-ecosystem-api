@@ -26,7 +26,8 @@ class Categories extends Data
         public string $name,
         public int $parent_id = 0,
         public int|string $position = 0,
-        public int $is_published = 1,
+        public bool $is_published = true,
+        public int $weight = 0,
         public ?string $code = null,
     ) {
     }
@@ -38,16 +39,17 @@ class Categories extends Data
      *
      * @return self
      */
-    public static function viaRequest(array $request): self
+    public static function viaRequest(array $request, UserInterface $user, CompanyInterface $company): self
     {
         return new self(
             app(Apps::class),
-            isset($request['company_id']) ? Companies::getById($request['company_id']) : auth()->user()->getCurrentCompany(),
-            auth()->user(),
+            isset($request['companies_id']) ? Companies::getById($request['companies_id']) : $company,
+            $user,
             $request['name'],
             $request['parent_id'] ?? 0,
             $request['position'] ?? 0,
-            $request['is_published'] ?? StateEnums::YES->getValue(),
+            $request['is_published'] ?? (bool) StateEnums::YES->getValue(),
+            $request['weight'] ?? 0,
             $request['code'] ?? null,
         );
     }

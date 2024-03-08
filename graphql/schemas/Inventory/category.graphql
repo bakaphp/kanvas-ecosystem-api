@@ -9,21 +9,32 @@ type Category {
     position: Int
     is_published: Boolean!
     companies: Company!
+    weight: Int
     users: User!
+    total_products: Int! @method(name: "getTotalProducts")
 }
 
 input CategoryInput {
     parent_id: Int
     name: String!
-    code: String!
+    code: String
     position: Int!
     source_id: Mixed
+    companies_id: Int
+    is_published: Boolean!
+    weight: Int!
 }
 input CategoryUpdateInput {
     parent_id: Int
     name: String!
     code: String
+    slug: String
     position: Int
+    is_published: Boolean!
+}
+
+input ProductCategoriesReferenceInput {
+    id: ID!
 }
 
 extend type Mutation @guard {
