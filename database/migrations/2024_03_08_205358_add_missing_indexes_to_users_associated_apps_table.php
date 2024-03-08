@@ -38,7 +38,6 @@ return new class () extends Migration {
     public function down(): void
     {
         Schema::table('users_associated_apps', function (Blueprint $table) {
-
             $table->dropIndex('companies_id');
             $table->dropIndex('apps_id_2');
         });
