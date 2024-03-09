@@ -154,12 +154,13 @@ extend type Query @guard {
                     "uuid"
                     "name"
                     "address"
+                    "companies_id"
                     "email"
                     "phone"
                     "is_default"
                 ]
             )
-        orderBy: _ @orderBy(columns: ["id"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name", "companies_id"])
     ): [CompanyBranch!]!
         @paginate(
             defaultCount: 25
