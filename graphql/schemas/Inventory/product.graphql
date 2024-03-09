@@ -35,7 +35,7 @@ input ProductInput {
     warranty_terms: String
     upc: String
     is_published: Boolean
-    categories: [Int!]
+    categories: [ProductCategoriesReferenceInput!]
     warehouses: [Int!]
     source_id: Mixed
     variants: [VariantsInput!]
