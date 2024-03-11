@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Branches\Factories\CompaniesBranchesFactory;
-use Kanvas\Companies\Enums\Defaults;
 use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Models\FilesystemEntities;
@@ -113,8 +112,11 @@ class CompaniesBranches extends BaseModel
         ->when(! $user->isAdmin(), function ($query) use ($user) {
             $query->where('users_associated_company.users_id', $user->getId());
         })
+        ->when(app()->bound(CompaniesBranches::class), function ($query) use ($user) {
+            $query->where('users_associated_apps.companies_id', app(CompaniesBranches::class)->company()->first()->getId());
+        })
         ->where('companies_branches.is_deleted', '=', 0)
-        ->groupBy('companies_branches.id');
+        ->groupBy(['users_associated_company.companies_id', 'users_associated_company.companies_branches_id']);
     }
 
     public function users(): HasManyThrough

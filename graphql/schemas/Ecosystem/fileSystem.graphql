@@ -3,7 +3,7 @@ type Filesystem {
     uuid: String!
     name: String!
     url: String!
-    type: String!
+    type: String
     size: Float!
     field_name: String!
     attributes: JSON
