@@ -116,7 +116,7 @@ class CompaniesBranches extends BaseModel
             $query->where('users_associated_apps.companies_id', app(CompaniesBranches::class)->company()->first()->getId());
         })
         ->where('companies_branches.is_deleted', '=', 0)
-        ->groupBy(['users_associated_company.companies_id', 'users_associated_company.companies_branches_id']);
+        ->groupBy('companies_branches.id');
     }
 
     public function users(): HasManyThrough
