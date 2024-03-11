@@ -42,4 +42,13 @@ class StatusObserver
             throw new ValidationException('Can\'t Save, you have to have at least one default Status');
         }
     }
+
+    public function deleting(Status $status): void
+    {
+        $defaultStatus = $status::getDefault($status->company);
+
+        if ($defaultStatus->getId() == $status->getId()) {
+            throw new ValidationException('Can\'t delete, you have to have at least one default Status');
+        }
+    }
 }
