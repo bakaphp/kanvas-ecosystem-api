@@ -97,7 +97,7 @@ class CompanyManagementMutation
                 CompaniesBranches::getGlobalBranch(),
                 (int) ($request['rol_id'] ?? null)
             );
-            
+
             if (is_object($branch)) {
                 $company->associateUser(
                     $user,
@@ -113,7 +113,6 @@ class CompanyManagementMutation
                 StateEnums::YES->getValue(),
                 (int) ($request['rol_id'] ?? null)
             );
-
         });
 
         return true;
@@ -134,7 +133,6 @@ class CompanyManagementMutation
         );
 
         $branch = app(CompaniesBranches::class);
-
         if (is_object($branch)) {
             DB::transaction(function () use ($user, $company, $branch) {
                 $baseConditions = [
