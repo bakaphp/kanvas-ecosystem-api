@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Companies;
 
+use Exception;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\Actions\UpdateCompaniesAction;
@@ -17,8 +19,9 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
+use Kanvas\Users\Models\UsersAssociatedCompanies;
 use Kanvas\Users\Repositories\UsersRepository;
-use Exception;
 
 class CompanyManagementMutation
 {
@@ -85,12 +88,33 @@ class CompanyManagementMutation
             auth()->user()
         );
 
-        $company->associateUser(
-            $user,
-            StateEnums::YES->getValue(),
-            CompaniesBranches::getGlobalBranch(),
-            (int) ($request['rol_id'] ?? null)
-        );
+        $branch = app(CompaniesBranches::class);
+
+        DB::transaction(function () use ($user, $company, $branch, $request) {
+            $company->associateUser(
+                $user,
+                StateEnums::YES->getValue(),
+                CompaniesBranches::getGlobalBranch(),
+                (int) ($request['rol_id'] ?? null)
+            );
+            
+            if (is_object($branch)) {
+                $company->associateUser(
+                    $user,
+                    StateEnums::YES->getValue(),
+                    $branch,
+                    (int) ($request['rol_id'] ?? null)
+                );
+            }
+
+            $company->associateUserApp(
+                $user,
+                app(Apps::class),
+                StateEnums::YES->getValue(),
+                (int) ($request['rol_id'] ?? null)
+            );
+
+        });
 
         return true;
     }
@@ -109,12 +133,44 @@ class CompanyManagementMutation
             auth()->user()
         );
 
-        $company->associateUser(
-            $user,
-            StateEnums::YES->getValue(),
-            CompaniesBranches::getGlobalBranch()
-        )->delete();
+        $branch = app(CompaniesBranches::class);
 
-        return true;
+        if (is_object($branch)) {
+            DB::transaction(function () use ($user, $company, $branch) {
+                $baseConditions = [
+                    ['users_id', '=', $user->getKey()],
+                    ['companies_id', '=', $company->getKey()],
+                ];
+
+                // Delete the specific branch association
+                UsersAssociatedCompanies::where($baseConditions)
+                    ->where('companies_branches_id', '=', $branch->getKey())
+                    ->delete();
+
+                // Check if there are no other branches associated (except the "0" branch)
+                $hasOtherBranches = UsersAssociatedCompanies::where($baseConditions)
+                    ->where('companies_branches_id', '!=', 0)
+                    ->exists();
+
+                if (! $hasOtherBranches) {
+                    // Delete the "0" branch association
+                    UsersAssociatedCompanies::where($baseConditions)
+                        ->where('companies_branches_id', '=', 0)
+                        ->delete();
+
+                    // Assuming getAppId() is a method you have available to get the app's ID
+                    $appId = app(Apps::class)->getId();
+
+                    // Delete associated apps
+                    UsersAssociatedApps::where($baseConditions)
+                        ->where('apps_id', '=', $appId)
+                        ->delete();
+                }
+            });
+
+            return true;
+        }
+
+        return false;
     }
 }
