@@ -18,11 +18,11 @@ input CategoryInput {
     parent_id: Int
     name: String!
     code: String
-    position: Int!
+    position: Int
     source_id: Mixed
     companies_id: Int
     is_published: Boolean!
-    weight: Int!
+    weight: Int
 }
 input CategoryUpdateInput {
     parent_id: Int
