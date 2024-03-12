@@ -1,5 +1,5 @@
 type ProductType {
-    id: Int!
+    id: ID!
     companies_id: Int!
     uuid: String!
     name: String!
@@ -14,7 +14,7 @@ type ProductType {
 
 input ProductTypeInput {
     name: String!
-    companies_id: Int
+    companies_id: ID
     description: String
     weight: Int!
     is_published: Boolean
@@ -32,11 +32,11 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\ProductsTypes\\ProductsTypes@create"
         )
-    updateProductType(id: Int!, input: ProductTypeUpdateInput!): ProductType!
+    updateProductType(id: ID!, input: ProductTypeUpdateInput!): ProductType!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\ProductsTypes\\ProductsTypes@update"
         )
-    deleteProductType(id: Int!): Boolean!
+    deleteProductType(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\ProductsTypes\\ProductsTypes@delete"
         )
