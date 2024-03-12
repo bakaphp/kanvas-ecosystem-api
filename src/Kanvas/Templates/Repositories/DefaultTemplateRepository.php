@@ -1,21 +1,15 @@
 <?php
 
-namespace Database\Seeders;
+declare(strict_types=1);
 
-use Illuminate\Database\Seeder;
-use Kanvas\Templates\Models\Templates;
-use Kanvas\Templates\Repositories\DefaultTemplateRepository;
+namespace Kanvas\Templates\Repositories;
 
-class TemplateSeeder extends Seeder
+class DefaultTemplateRepository
 {
-    /**
-     * Run the database seeds.
-     *
-     * @return void
-     */
-    public function run()
+    public static function getDefaultTemplate(): string
     {
-        $defaultTemplate = '<!DOCTYPE html>
+        return '
+        <!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
@@ -120,89 +114,102 @@ class TemplateSeeder extends Seeder
 
         </body>
         </html>';
+    }
 
-        Templates::create([
-            'id' => 1,
-            'apps_id' => 0,
-            'users_id' => 1,
-            'companies_id' => 0,
-            'parent_template_id' => 0,
-            'name' => 'Default',
-            'template' => DefaultTemplateRepository::getDefaultTemplate(),
-            'created_at' => date('Y-m-d H:i:s'),
-        ]);
-        
-        Templates::create([
-            'id' => 2,
-            'apps_id' => 0,
-            'users_id' => 1,
-            'companies_id' => 0,
-            'parent_template_id' => 0,
-            'name' => 'user-email-update',
-            'template' => DefaultTemplateRepository::getDefaultTemplate(),
-            'created_at' => date('Y-m-d H:i:s'),
-        ]);
+    public static function getUsersInvite(): string
+    {
+        return '<tr>
+        <td style="padding-right: 120px;">
+            <p style="color: #9b9b9b; font-size: 14px; ">
+                Hi {{ $user.firstname}} {{ $user.lastname}},
+            </h2>
 
-        Templates::create([
-            'id' => 3,
-            'apps_id' => 0,
-            'users_id' => 1,
-            'companies_id' => 0,
-            'name' => 'users-invite',
-            'parent_template_id' => 1,
-            'template' => DefaultTemplateRepository::getUsersInvite(),
-            'created_at' => date('Y-m-d H:i:s'),
-        ]);
+            <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
+                You have been invited to {{ $fromUser.getCurrentBranch().name}} by {{ $fromUser.firstname}} {{ $fromUser.lastname}}. Please click the button below to create your account.
+            </p>
+        </td>
+    </tr>
 
-        Templates::create([
-            'id' => 4,
-            'apps_id' => 0,
-            'users_id' => 1,
-            'companies_id' => 0,
-            'name' => 'change-password',
-            'parent_template_id' => 1,
-            'template' => DefaultTemplateRepository::getChangePassword(),
-            'created_at' => date('Y-m-d H:i:s'),
-        ]);
+    <tr>
+        <td>
+            <table style="margin: 17px 0 0px" cellspacing="0" cellpadding="0">
+                <tr>
+                    <td>
+                        <a href="{{invitationUrl}}" target="_blank" style="display: inline-block;">
+                            <img style="border-radius: 4px;" src="https://cdn.salesassist.io/emails/create-account.png" alt="Join Now">
+                        </a>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+    ';
+    }
 
-        Templates::create([
-            'id' => 5,
-            'apps_id' => 0,
-            'users_id' => 1,
-            'companies_id' => 0,
-            'name' => 'reset-password',
-            'parent_template_id' => 1,
-            'template' => DefaultTemplateRepository::getResetPassword(),
-            'created_at' => date('Y-m-d H:i:s'),
-        ]);
+    public static function getChangePassword(): string
+    {
+        return '<tr>
+        <td style="padding-right: 120px;">
+            <p style="color: #9b9b9b; font-size: 14px; ">
+                Hi {{ $user->firstname }} {{ $user->lastname }},
+            </h2>
 
-        Templates::create([
-            'id' => 6,
-            'apps_id' => 0,
-            'users_id' => 1,
-            'companies_id' => 0,
-            'name' => 'welcome',
-            'parent_template_id' => 1,
-            'template' => DefaultTemplateRepository::getWelcome(),
-            'created_at' => date('Y-m-d H:i:s'),
-        ]);
+            <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
+                Your {{ $app->name }} password was successfully updated.
+            </p>
+        </td>
+        </tr>';
+    }
 
+    public static function getResetPassword(): string
+    {
+        return '<tr>
+        <td style="padding-right: 120px;">
+            <p style="color: #9b9b9b; font-size: 14px; ">
+                Hi {{ $user->firstname}} {{ $user->lastname}},
+            </h2>
+            <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
+                You recently requested to reset your password for your SalesAssist account. Click the button below to reset it.
+            </p>
+        </td>
+    </tr>
 
-        $pushTemplate = '{
+    <tr>
+        <td>
+            <table style="margin: 17px 0 30px" cellspacing="0" cellpadding="0">
+                <tr>
+                    <td>
+                        <a href="{{resetUrl}}" target="_blank" style="display: inline-block;">
+                            <img style="border-radius: 4px;" src="https://cdn.salesassist.io/emails/reset-password.png" alt="Join Now">
+                        </a>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>';
+    }
+
+    public static function getWelcome(): string
+    {
+        return '<tr>
+        <td style="padding-right: 120px;">
+            <p style="color: #9b9b9b; font-size: 14px; ">
+                Hi {{ $user->firstname }} {{ $user->lastname }},
+            </h2>
+
+            <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
+               Welcome to {{ $app->name }} .
+            </p>
+        </td>
+        </tr>';
+    }
+
+    public static function getNewPushDefault(): string
+    {
+        return '{
             "title": "Hello {{$toUser->displayname}}",
             "subtitle": "New entity has been created",
             "message": "{{$fromUser->displayname}} has created a new entity: {{$entity[\"title\"]}}"
          }';
-
-        Templates::create([
-            'id' => 7,
-            'apps_id' => 0,
-            'users_id' => 1,
-            'companies_id' => 0,
-            'name' => 'new-push-default',
-            'parent_template_id' => 1,
-            'template' => DefaultTemplateRepository::getNewPushDefault(),
-            'created_at' => date('Y-m-d H:i:s'),
-        ]);
     }
 }
