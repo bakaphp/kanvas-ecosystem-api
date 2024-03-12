@@ -23,12 +23,8 @@ class FilesystemSettings extends BaseModel
 {
     use Cachable;
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
     protected $table = 'filesystem_settings';
+    protected $touches = ['filesystem'];
 
     /**
      * Filesystem relationship.
