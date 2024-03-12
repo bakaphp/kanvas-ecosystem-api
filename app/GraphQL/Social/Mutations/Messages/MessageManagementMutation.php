@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Mutations\Messages;
 
-use Baka\Exceptions\LightHouseCustomException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\Actions\DistributeChannelAction;
 use Kanvas\Social\Messages\Actions\DistributeToUsers;
@@ -16,7 +16,6 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
-use Kanvas\Auth\Exceptions\AuthenticationException;
 
 class MessageManagementMutation
 {
@@ -41,10 +40,11 @@ class MessageManagementMutation
         /** @var array */
         $messageData = $request['input'];
 
-        $messageType = MessagesTypesRepository::getById((int)$messageData['message_types_id'], $app);
+        $messageType = MessagesTypesRepository::getByVerb($messageData['message_verb'], $app);
 
-        /** @var SystemModules $systemModule */
-        $systemModule = SystemModules::getById((int)$messageData['system_modules_id'], $app);
+        if (key_exists('system_modules_id', $messageData)) {
+            $systemModule = SystemModules::getById((int)$messageData['system_modules_id'], $app);
+        }
 
         $data = MessageInput::fromArray($messageData, $user, $messageType, $company, $app);
         $action = new CreateMessageAction($data, $systemModule, $messageData['entity_id']);
