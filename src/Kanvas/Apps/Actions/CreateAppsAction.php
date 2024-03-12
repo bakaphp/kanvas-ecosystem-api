@@ -227,6 +227,5 @@ class CreateAppsAction
             $action = new CreateTemplateAction($dto);
             $action->execute();
         }
-
     }
 }
