@@ -72,7 +72,7 @@ class Setup
                 StateEnums::DEFAULT_NAME->getValue(),
                 StateEnums::DEFAULT_PARENT_ID->getValue(),
                 StateEnums::DEFAULT_POSITION->getValue(),
-                StateEnums::YES->getValue()
+                (bool) StateEnums::YES->getValue(),
             ),
             $this->user
         );

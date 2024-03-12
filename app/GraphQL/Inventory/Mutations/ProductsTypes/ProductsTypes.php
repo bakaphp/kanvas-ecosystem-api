@@ -21,13 +21,18 @@ class ProductsTypes
      */
     public function create(mixed $root, array $request): ProductsTypesModel
     {
-        $dto = ProductsTypesDto::viaRequest($request['input']);
-        $productType = (
-            new CreateProductTypeAction(
-                $dto,
-                auth()->user()
-            ))->execute();
-        return $productType;
+        $request = $request['input'];
+
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        if (! $user->isAppOwner()) {
+            unset($request['companies_id']);
+        }
+
+        return (new CreateProductTypeAction(
+            ProductsTypesDto::viaRequest($request, $user, $company),
+            $user
+        ))->execute();
     }
 
     /**

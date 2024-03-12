@@ -12,6 +12,10 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Status\Models\Status;
+use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction;
+use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses as DataTransferObjectVariantsWarehouses;
+use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Users\Models\UserCompanyApps;
 use Throwable;
@@ -43,6 +47,7 @@ class KanvasInventoryDefaultUpdate extends Command
         $app = Apps::getByUuid($appUid);
 
         $associatedApps = UserCompanyApps::where('apps_id', $app->getId())->get();
+        $variantsWarehousesToFix = VariantsWarehouses::whereDoesntHave('warehouse')->get();
 
         foreach ($associatedApps as $company) {
             $companyData = $company->company;
@@ -55,7 +60,6 @@ class KanvasInventoryDefaultUpdate extends Command
             $defaultChannel = Channels::getDefault($companyData);
 
             $this->info("Checking company {$companyData->getId()} \n");
-            $this->info("Checking company {$companyData->getId()} default status \n");
 
             if (! $defaultRegion) {
                 $this->info("Working company {$companyData->getId()} default region \n");
@@ -124,6 +128,41 @@ class KanvasInventoryDefaultUpdate extends Command
                     ]);
                 } catch (Throwable $e) {
                     $this->error('Error creating default channel for : ' . $companyData->getId() . ' ' . $e->getMessage());
+                }
+            }
+
+            $variants = Variants::whereDoesntHave('variantWarehouses')
+                ->where('companies_id', $companyData->getId())
+                ->get();
+
+            foreach ($variants as $variant) {
+                $this->info("Working variant {$variant->getId()} warehouse assignment \n");
+                $variantWarehouseDto = DataTransferObjectVariantsWarehouses::viaRequest(
+                    [
+                        'status_id' => $defaultStatus->getId()
+                    ]
+                );
+                (new AddToWarehouseAction($variant, $defaultWarehouses, $variantWarehouseDto))->execute();
+            }
+
+            $variantsWarehouses = VariantsWarehouses::where('status_id', null)->withTrashed()->orDoesntHave('status')->get();
+            foreach ($variantsWarehouses as $variantWarehouse) {
+                $variantWarehouse->status_id = $defaultStatus->getId();
+                $variantWarehouse->saveQuietly();
+            }
+
+            if ($variantsWarehousesToFix) {
+                $variantsWarehousesToFixData = $variantsWarehousesToFix->map(function ($variantsWarehousesToFix) use ($companyData) {
+                    if ($variantsWarehousesToFix->variant->companies_id == $companyData->getId()) {
+                        return $variantsWarehousesToFix;
+                    }
+                });
+
+                if (! empty($variantsWarehousesToFixData->first())) {
+                    foreach ($variantsWarehousesToFixData as $warehouseToFix) {
+                        $warehouseToFix->warehouses_id = $defaultWarehouses->getId();
+                        $warehouseToFix->saveQuietly();
+                    }
                 }
             }
         }
