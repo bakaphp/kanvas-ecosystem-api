@@ -27,7 +27,6 @@ class MessageTest extends TestCase
                     createMessage(input: $input) {
                         id
                         message
-                        message_types_id
                     }
                 }
             ',
@@ -58,7 +57,6 @@ class MessageTest extends TestCase
                     createMessage(input: $input) {
                         id
                         message
-                        message_types_id, 
                         users {
                             id
                         }
@@ -81,6 +79,7 @@ class MessageTest extends TestCase
                 messages {
                   data {
                     message
+                    message_types_id,
                     users {
                         id
                     }
@@ -126,6 +125,7 @@ class MessageTest extends TestCase
                 ) {
                   data {
                     message
+                    message_types_id
                   }
                 }
               }
@@ -172,6 +172,7 @@ class MessageTest extends TestCase
                     messages(search: $text) {
                         data {
                             message
+                            message_types_id
                         }
                     }
                 }
