@@ -7,6 +7,7 @@ namespace App\GraphQL\Ecosystem\Queries\Companies;
 use Baka\Enums\StateEnums;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
@@ -22,7 +23,7 @@ class UserManagementQuery
         /**
          * @var Builder
          */
-        return  Users::select('users.*')
+        return Users::select('users.*')
                 ->join(
                     'users_associated_company',
                     'users_associated_company.users_id',
@@ -49,7 +50,7 @@ class UserManagementQuery
         /**
          * @var Builder
          */
-        return  Users::join(
+        return Users::join(
             'users_associated_company',
             'users_associated_company.users_id',
             'users.id'

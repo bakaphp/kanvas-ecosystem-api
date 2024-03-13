@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Actions\CompaniesTotalBranchesAction;
 use Kanvas\Companies\Actions\SetUsersCountAction as CompaniesSetUsersCountAction;
 use Kanvas\Companies\Enums\Defaults;
 use Kanvas\Companies\Factories\CompaniesFactory;
@@ -190,9 +191,12 @@ class Companies extends BaseModel implements CompanyInterface
 
     public function getTotalUsersAttribute(): int
     {
-        (new CompaniesSetUsersCountAction($this))->execute();
-
         return $this->get('total_users') ?? (new CompaniesSetUsersCountAction($this))->execute();
+    }
+
+    public function getTotalBranchesAttribute(): int
+    {
+        return $this->get('total_branches') ?? (new CompaniesTotalBranchesAction($this))->execute();
     }
 
     /**
@@ -285,6 +289,18 @@ class Companies extends BaseModel implements CompanyInterface
             ->where('users_associated_apps.apps_id', '=', $app->getKey())
             ->where('companies.is_deleted', '=', StateEnums::NO->getValue())
             ->groupBy('companies.id');
+    }
+
+    public function scopeCompanyInApp(Builder $query): Builder
+    {
+        $app = app(Apps::class);
+
+        return $query->join(
+            'user_company_apps',
+            'user_company_apps.companies_id',
+            '=',
+            'companies.id'
+        )->where('user_company_apps.apps_id', '=', $app->getId());
     }
 
     public static function search($query = '', $callback = null)

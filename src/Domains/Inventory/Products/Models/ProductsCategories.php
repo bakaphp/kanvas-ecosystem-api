@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Products\Models;
 
+use Awobaz\Compoships\Compoships;
 use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Inventory\Categories\Models\Categories;
@@ -21,6 +22,7 @@ use Kanvas\Inventory\Models\BaseModel;
 class ProductsCategories extends BaseModel
 {
     use HasCompositePrimaryKeyTrait;
+    use Compoships;
 
     protected $table = 'products_categories';
     protected $guarded = [

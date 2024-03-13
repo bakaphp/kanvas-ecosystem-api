@@ -129,6 +129,11 @@ class Products extends BaseModel
         return $this->belongsTo(ProductsTypes::class, 'products_types_id');
     }
 
+    public function productsCategories(): HasMany
+    {
+        return $this->hasMany(ProductsCategories::class, 'products_id');
+    }
+
     /**
      * Get the companies that owns the product.
      * @todo remove and change companies for company

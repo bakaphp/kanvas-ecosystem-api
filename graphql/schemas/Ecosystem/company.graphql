@@ -24,6 +24,7 @@ type Company {
     created_at: DateTime
     updated_at: DateTime
     total_users: Int!
+    total_branches: Int!
 }
 
 type CompanyGroup {
@@ -141,7 +142,7 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             model: "Kanvas\\Companies\\Models\\Companies"
-            scopes: ["userAssociated"]
+            scopes: ["companyInApp"]
         )
 
     branches(
@@ -153,12 +154,13 @@ extend type Query @guard {
                     "uuid"
                     "name"
                     "address"
+                    "companies_id"
                     "email"
                     "phone"
                     "is_default"
                 ]
             )
-        orderBy: _ @orderBy(columns: ["id"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name", "companies_id"])
     ): [CompanyBranch!]!
         @paginate(
             defaultCount: 25
