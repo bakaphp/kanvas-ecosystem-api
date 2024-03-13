@@ -8,19 +8,23 @@ type ProductType {
     description: String
     weight: Int
     companies: Company!
+    is_published: Boolean
+    total_products: Int! @method(name: "getTotalProducts")
 }
 
 input ProductTypeInput {
     name: String!
+    companies_id: Int
     description: String
     weight: Int!
-    source_id: Mixed
+    is_published: Boolean
 }
 
 input ProductTypeUpdateInput {
     name: String
     description: String
     weight: Int
+    is_published: Boolean
 }
 
 extend type Mutation @guard {
@@ -48,6 +52,16 @@ extend type Query {
                     "uuid"
                     "description"
                     "weight"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "name"
+                    "weight"
+                    "is_published"
                 ]
             )
     ): [ProductType!]!
