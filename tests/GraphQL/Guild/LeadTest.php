@@ -559,7 +559,7 @@ class LeadTest extends TestCase
         $messageType = MessageType::factory()->create();
         $messageInput = [
             'message' => json_encode($lead['data']['createLead']),
-            'message_types_id' => $messageType->id,
+            'message_verb' => $messageType->verb,
             'system_modules_id' => 1,
             'entity_id' => $lead['data']['createLead']['id'],
             'distribution' => [
