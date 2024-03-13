@@ -9,11 +9,11 @@ input LeadStatusInput {
     is_default: Int!
 }
 
-extend type Query {
-    leadStatuses: [LeadStatus]
+extend type Query @guard {
+    leadStatuses: [LeadStatus!]!
         @paginate(
             model: "Kanvas\\Guild\\Leads\\Models\\LeadStatus"
-            defaultCount: 10
+            defaultCount: 25
         )
 }
 
