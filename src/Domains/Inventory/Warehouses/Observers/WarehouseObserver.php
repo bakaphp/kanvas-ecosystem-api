@@ -46,4 +46,13 @@ class WarehouseObserver
             throw new ValidationException('Can\'t Save, you have to have at least one default Warehouse');
         }
     }
+
+    public function deleting(Warehouses $warehouse): void
+    {
+        $defaultWarehouse = $warehouse::getDefault($warehouse->company);
+
+        if ($defaultWarehouse->getId() == $warehouse->getId()) {
+            throw new ValidationException('Can\'t delete, you have to have at least one default Warehouse');
+        }
+    }
 }

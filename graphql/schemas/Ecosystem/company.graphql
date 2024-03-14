@@ -24,6 +24,7 @@ type Company {
     created_at: DateTime
     updated_at: DateTime
     total_users: Int!
+    total_branches: Int!
 }
 
 type CompanyGroup {

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Categories;
 
-use Kanvas\Inventory\Categories\Actions\CreateCategory;
+use Kanvas\Inventory\Categories\Actions\CreateCategory as CreateCategoryAction;
 use Kanvas\Inventory\Categories\DataTransferObject\Categories as CategoriesDto;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
@@ -21,9 +21,18 @@ class Category
      */
     public function create(mixed $root, array $request): Categories
     {
-        $dto = CategoriesDto::viaRequest($request['input']);
-        $category = new CreateCategory($dto, auth()->user());
-        return $category->execute();
+        $request = $request['input'];
+
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        if (! $user->isAppOwner()) {
+            unset($request['companies_id']);
+        }
+
+        return (new CreateCategoryAction(
+            CategoriesDto::viaRequest($request, $user, $company),
+            $user
+        ))->execute();
     }
 
     /**

@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Actions\CompaniesTotalBranchesAction;
 use Kanvas\Companies\Actions\SetUsersCountAction as CompaniesSetUsersCountAction;
 use Kanvas\Companies\Enums\Defaults;
 use Kanvas\Companies\Factories\CompaniesFactory;
@@ -190,9 +191,12 @@ class Companies extends BaseModel implements CompanyInterface
 
     public function getTotalUsersAttribute(): int
     {
-        (new CompaniesSetUsersCountAction($this))->execute();
-
         return (int) ($this->get('total_users') ?? (new CompaniesSetUsersCountAction($this))->execute());
+    }
+
+    public function getTotalBranchesAttribute(): int
+    {
+        return (int) ($this->get('total_branches') ?? (new CompaniesTotalBranchesAction($this))->execute());
     }
 
     /**
