@@ -6,7 +6,6 @@ namespace App\GraphQL\Ecosystem\Mutations\Notifications;
 
 use Baka\Support\Str;
 use Illuminate\Support\Facades\Notification;
-use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Actions\EvaluateNotificationsLogicAction;
 use Kanvas\Notifications\Jobs\SendMessageNotificationsToAllFollowersJob;
@@ -29,10 +28,10 @@ class NotificationsManagementMutation
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        if ($user->isAn(RolesEnums::OWNER->value)) {
-            $userToNotify = UsersRepository::findUsersByIds($request['users_id']);
+        if ($user->isAdmin()) {
+            $userToNotify = UsersRepository::findUsersByArray($request['users']);
         } else {
-            $userToNotify = UsersRepository::findUsersByIds($request['users_id'], $company);
+            $userToNotify = UsersRepository::findUsersByArray($request['users'], $company);
         }
 
         $notification = new Blank(
