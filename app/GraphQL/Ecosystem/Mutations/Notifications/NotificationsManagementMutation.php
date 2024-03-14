@@ -52,11 +52,11 @@ class NotificationsManagementMutation
         $notification = new Blank(
             $request['template_name'],
             Str::isJson($request['data']) ? json_decode($request['data'], true) : (array) $request['data'], // This can have more validation like validate if is array o json
-            $request['via'],
+            ['mail'],
             auth()->user()
         );
         $notification->setFromUser(auth()->user());
-        Notification::route('mail', $request['users'][0])->notify($notification);
+        Notification::route('mail', $request['email'])->notify($notification);
 
         return true;
     }
