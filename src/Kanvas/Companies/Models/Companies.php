@@ -192,7 +192,7 @@ class Companies extends BaseModel implements CompanyInterface
     {
         (new CompaniesSetUsersCountAction($this))->execute();
 
-        return $this->get('total_users') ?? (new CompaniesSetUsersCountAction($this))->execute();
+        return (int) ($this->get('total_users') ?? (new CompaniesSetUsersCountAction($this))->execute());
     }
 
     /**
