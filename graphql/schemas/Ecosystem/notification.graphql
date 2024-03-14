@@ -150,7 +150,7 @@ extend type Mutation @guardByAppKey {
     sendNotificationAnonymousBaseOnTemplate(
         template_name: String!
         data: Mixed!
-        email: String!
+        email: Email!
     ): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\NotificationsManagementMutation@anonymousNotification"
