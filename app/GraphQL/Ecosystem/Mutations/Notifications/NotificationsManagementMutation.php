@@ -47,6 +47,20 @@ class NotificationsManagementMutation
         return true;
     }
 
+    public function anonymousNotification(mixed $root, array $request)
+    {
+        $notification = new Blank(
+            $request['template_name'],
+            Str::isJson($request['data']) ? json_decode($request['data'], true) : (array) $request['data'], // This can have more validation like validate if is array o json
+            $request['via'],
+            auth()->user()
+        );
+        $notification->setFromUser(auth()->user());
+        Notification::route('mail', $request['users'][0])->notify($notification);
+
+        return true;
+    }
+
     /**
      * sendNotificationByMessage
      * @psalm-suppress MixedArgument
