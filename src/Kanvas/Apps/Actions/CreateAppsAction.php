@@ -14,6 +14,9 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
+use Kanvas\Templates\Actions\CreateTemplateAction;
+use Kanvas\Templates\DataTransferObject\TemplateInput;
+use Kanvas\Templates\Repositories\DefaultTemplateRepository;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
@@ -62,8 +65,9 @@ class CreateAppsAction
                 $this->user
             )))->execute();
             $this->user->assign(RolesEnums::OWNER->value);
+
             //@todo
-            // $this->createEmailTemplate($app);
+            $this->createEmailTemplate($app);
         });
 
         return $app;
@@ -176,6 +180,52 @@ class CreateAppsAction
                 $app
             );
             $newRole->execute();
+        }
+    }
+
+    public function createEmailTemplate(Apps $app): void
+    {
+        // @todo
+        $templates = [
+            [
+                'name' => 'Default',
+                'template' => DefaultTemplateRepository::getDefaultTemplate(),
+            ],
+            [
+                'name' => 'user-email-update',
+                'template' => DefaultTemplateRepository::getDefaultTemplate(),
+            ],
+            [
+                'name' => 'users-invite',
+                'template' => DefaultTemplateRepository::getUsersInvite(),
+            ],
+            [
+                'name' => 'change-password',
+                'template' => DefaultTemplateRepository::getChangePassword(),
+            ],
+            [
+                'name' => 'reset-password',
+                'template' => DefaultTemplateRepository::getResetPassword(),
+            ],
+            [
+                'name' => 'welcome',
+                'template' => DefaultTemplateRepository::getWelcome(),
+            ],
+            [
+                'name' => 'new-push-default',
+                'template' => DefaultTemplateRepository::getNewPushDefault(),
+            ],
+        ];
+        foreach ($templates as $template) {
+            $dto = new TemplateInput(
+                $app,
+                $template['name'],
+                $template['template'],
+                null,
+                $this->user
+            );
+            $action = new CreateTemplateAction($dto);
+            $action->execute();
         }
     }
 }
