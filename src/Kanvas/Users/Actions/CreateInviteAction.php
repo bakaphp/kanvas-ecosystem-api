@@ -60,6 +60,7 @@ class CreateInviteAction
 
         if (count($this->inviteDto->customFields)) {
             $invite->setCustomFields($this->inviteDto->customFields);
+            $invite->saveCustomFields();
         }
 
         /*
