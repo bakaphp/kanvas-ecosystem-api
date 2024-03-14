@@ -29,7 +29,7 @@ use Kanvas\Models\BaseModel;
 class UsersInvite extends BaseModel
 {
     use HasCustomFields;
-    
+
     public $table = 'users_invite';
 
     protected $guarded = [];
