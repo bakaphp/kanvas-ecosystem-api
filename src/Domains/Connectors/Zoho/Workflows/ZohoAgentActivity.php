@@ -126,7 +126,6 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
             //if domain is attached to the invite, set it to the user
             $agentPageLandingPage = $sponsorsPageLandingPages[$userInvite->get('domain')] ?? null;
             $user->set('landing_page', $agentPageLandingPage);
-
         }
 
         //@todo this is ugly , testing it out
