@@ -32,19 +32,12 @@ use Kanvas\Users\Models\Users;
 class Filesystem extends BaseModel
 {
     use UuidTrait;
-    //use Cachable;
+    use Cachable;
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
     protected $table = 'filesystem';
 
     /**
      * Users relationship.
-     *
-     * @return BelongsTo
      */
     public function user(): BelongsTo
     {
@@ -53,8 +46,6 @@ class Filesystem extends BaseModel
 
     /**
      * Companies relationship.
-     *
-     * @return BelongsTo
      */
     public function company(): BelongsTo
     {
@@ -63,8 +54,6 @@ class Filesystem extends BaseModel
 
     /**
      * Apps relationship.
-     *
-     * @return BelongsTo
      */
     public function app(): BelongsTo
     {

@@ -29,14 +29,10 @@ use Kanvas\SystemModules\Models\SystemModules;
 class FilesystemEntities extends BaseModel
 {
     use UuidTrait;
-    //use Cachable;
+    use Cachable;
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
     protected $table = 'filesystem_entities';
+    protected $touches = ['filesystem'];
 
     protected $fillable = [
         'filesystem_id',
@@ -49,8 +45,6 @@ class FilesystemEntities extends BaseModel
 
     /**
      * Filesystem relationship.
-     *
-     * @return BelongsTo
      */
     public function filesystem(): BelongsTo
     {
@@ -59,8 +53,6 @@ class FilesystemEntities extends BaseModel
 
     /**
      * Companies relationship.
-     *
-     * @return BelongsTo
      */
     public function company(): BelongsTo
     {
@@ -69,8 +61,6 @@ class FilesystemEntities extends BaseModel
 
     /**
      * Apps relationship.
-     *
-     * @return BelongsTo
      */
     public function app(): BelongsTo
     {
@@ -79,8 +69,6 @@ class FilesystemEntities extends BaseModel
 
     /**
      * SystemModules relationship.
-     *
-     * @return BelongsTo
      */
     public function systemModule(): BelongsTo
     {

@@ -66,7 +66,7 @@ class ConfigManagement
 
         UsersRepository::belongsToThisApp($user, app(Apps::class));
         $user->set($request['input']['key'], $request['input']['value']);
-        $user->delete($request['input']['key']);
+        $user->del($request['input']['key']);
 
         return true;
     }
