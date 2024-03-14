@@ -11,6 +11,7 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Services\UserManagement as UserManagementService;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Notifications\Templates\ChangeEmailUserLogged;
 use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
 use Kanvas\Users\Actions\CreateInviteAction;
@@ -70,16 +71,19 @@ class UserManagementMutation
         $company = auth()->user()->getCurrentCompany();
         $app = app(Apps::class);
 
+        $branch = isset($request['companies_branches_id']) ? CompaniesBranches::getById($request['companies_branches_id']) : auth()->user()->getCurrentBranch();
+
         $invite = new CreateInviteAction(
             new InviteDto(
                 $app,
-                $request['companies_branches_id'] ?? auth()->user()->getCurrentBranch()->getId(),
+                $branch,
                 $request['role_id'] ?? RolesRepository::getByNameFromCompany(RolesEnums::USER->value, $company)->id,
                 $request['email'],
                 $request['firstname'] ?? null,
                 $request['lastname'] ?? null,
                 $request['description'] ?? null,
                 $request['email_template'] ?? null,
+                $request['custom_fields'] ?? []
             ),
             auth()->user()
         );
