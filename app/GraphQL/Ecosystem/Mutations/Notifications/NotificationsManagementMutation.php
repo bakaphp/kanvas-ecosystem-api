@@ -6,7 +6,6 @@ namespace App\GraphQL\Ecosystem\Mutations\Notifications;
 
 use Baka\Support\Str;
 use Illuminate\Support\Facades\Notification;
-use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Actions\EvaluateNotificationsLogicAction;
 use Kanvas\Notifications\Jobs\SendMessageNotificationsToAllFollowersJob;
@@ -29,10 +28,10 @@ class NotificationsManagementMutation
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        if ($user->isAn(RolesEnums::OWNER->value)) {
-            $userToNotify = UsersRepository::findUsersByIds($request['users_id']);
+        if ($user->isAdmin()) {
+            $userToNotify = UsersRepository::findUsersByArray($request['users']);
         } else {
-            $userToNotify = UsersRepository::findUsersByIds($request['users_id'], $company);
+            $userToNotify = UsersRepository::findUsersByArray($request['users'], $company);
         }
 
         $notification = new Blank(
@@ -44,6 +43,20 @@ class NotificationsManagementMutation
 
         $notification->setFromUser($user);
         Notification::send($userToNotify, $notification);
+
+        return true;
+    }
+
+    public function anonymousNotification(mixed $root, array $request)
+    {
+        $notification = new Blank(
+            $request['template_name'],
+            Str::isJson($request['data']) ? json_decode($request['data'], true) : (array) $request['data'], // This can have more validation like validate if is array o json
+            ['mail'],
+            auth()->user()
+        );
+        $notification->setFromUser(auth()->user());
+        Notification::route('mail', $request['email'])->notify($notification);
 
         return true;
     }

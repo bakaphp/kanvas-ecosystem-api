@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Models\BaseModel;
 
 /**
@@ -27,6 +28,8 @@ use Kanvas\Models\BaseModel;
  */
 class UsersInvite extends BaseModel
 {
+    use HasCustomFields;
+
     public $table = 'users_invite';
 
     protected $guarded = [];
