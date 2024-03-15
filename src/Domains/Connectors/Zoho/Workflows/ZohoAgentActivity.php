@@ -187,7 +187,7 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
         return [
             'agent' => $agent,
             'zohoAgent' => $zohoAgent,
-            'agentOwner' => $agentOwner,
+            'agentOwner' => $ownerInfo,
         ];
     }
 }
