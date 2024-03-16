@@ -156,6 +156,7 @@ trait HasCustomFields
         $modelName = get_class($this);
         $user = Auth::user();
 
+        $value = Str::isJson($value) || is_array($value) ? json_encode($value) : $value;
         $this->setInRedis($name, $value);
 
         $this->createCustomField($name);

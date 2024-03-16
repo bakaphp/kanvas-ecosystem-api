@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b87f9d5eaad8426511a3c13a9a4a702f",
+    "content-hash": "47f855da66649836d37a69b0a8df4c97",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -887,16 +887,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.300.9",
+            "version": "3.301.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "2704b9b10b42d53066eb383f47541124296db77c"
+                "reference": "a0173e793f244eeedd0a47d40437a3bb9d8f05b8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/2704b9b10b42d53066eb383f47541124296db77c",
-                "reference": "2704b9b10b42d53066eb383f47541124296db77c",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/a0173e793f244eeedd0a47d40437a3bb9d8f05b8",
+                "reference": "a0173e793f244eeedd0a47d40437a3bb9d8f05b8",
                 "shasum": ""
             },
             "require": {
@@ -976,9 +976,9 @@
             "support": {
                 "forum": "https://forums.aws.amazon.com/forum.jspa?forumID=80",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.300.9"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.301.0"
             },
-            "time": "2024-03-01T19:04:32+00:00"
+            "time": "2024-03-14T18:09:12+00:00"
         },
         {
             "name": "berkayk/onesignal-laravel",
@@ -1954,20 +1954,20 @@
         },
         {
             "name": "genealabs/laravel-model-caching",
-            "version": "11.0.0",
+            "version": "11.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mikebronner/laravel-model-caching.git",
-                "reference": "ecacd3a10060556cdabc9922e5ea555de569ec93"
+                "reference": "2a38f0f1ed3554cf2da272d66c4d08a7885f196b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mikebronner/laravel-model-caching/zipball/ecacd3a10060556cdabc9922e5ea555de569ec93",
-                "reference": "ecacd3a10060556cdabc9922e5ea555de569ec93",
+                "url": "https://api.github.com/repos/mikebronner/laravel-model-caching/zipball/2a38f0f1ed3554cf2da272d66c4d08a7885f196b",
+                "reference": "2a38f0f1ed3554cf2da272d66c4d08a7885f196b",
                 "shasum": ""
             },
             "require": {
-                "genealabs/laravel-pivot-events": "^10.0",
+                "genealabs/laravel-pivot-events": "^10.0|^11.0",
                 "illuminate/cache": "^10.0|^11.0",
                 "illuminate/config": "^10.0|^11.0",
                 "illuminate/console": "^10.0|^11.0",
@@ -2016,30 +2016,31 @@
             "description": "Automatic caching for Eloquent models.",
             "support": {
                 "issues": "https://github.com/mikebronner/laravel-model-caching/issues",
-                "source": "https://github.com/mikebronner/laravel-model-caching/tree/11.0.0"
+                "source": "https://github.com/mikebronner/laravel-model-caching/tree/11.0.1"
             },
-            "time": "2024-03-02T22:46:54+00:00"
+            "time": "2024-03-14T23:34:57+00:00"
         },
         {
             "name": "genealabs/laravel-pivot-events",
-            "version": "10.0.1",
+            "version": "11.0.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/GeneaLabs/laravel-pivot-events.git",
-                "reference": "862371f6f89be296cc026c9cf5b372dca4d7958b"
+                "url": "https://github.com/mikebronner/laravel-pivot-events.git",
+                "reference": "16e974d80160774641f4323f5ffb757b79f300d3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/GeneaLabs/laravel-pivot-events/zipball/862371f6f89be296cc026c9cf5b372dca4d7958b",
-                "reference": "862371f6f89be296cc026c9cf5b372dca4d7958b",
+                "url": "https://api.github.com/repos/mikebronner/laravel-pivot-events/zipball/16e974d80160774641f4323f5ffb757b79f300d3",
+                "reference": "16e974d80160774641f4323f5ffb757b79f300d3",
                 "shasum": ""
             },
             "require": {
-                "illuminate/database": "^8.0|^9.0|^10.0",
-                "illuminate/support": "^8.0|^9.0|^10.0"
+                "illuminate/database": "^8.0|^9.0|^10.0|^11.0",
+                "illuminate/support": "^8.0|^9.0|^10.0|^11.0"
             },
             "require-dev": {
-                "orchestra/testbench": "^7.0|^8.0",
+                "orchestra/testbench": "^9.0",
+                "phpunit/phpunit": "^10.5",
                 "symfony/thanks": "^1.0"
             },
             "type": "library",
@@ -2061,7 +2062,7 @@
                 }
             ],
             "description": "This package introduces new eloquent events for sync(), attach(), detach() or updateExistingPivot() methods on BelongsToMany relation.",
-            "homepage": "https://github.com/GeneaLabs/laravel-pivot",
+            "homepage": "https://github.com/mikebronner/laravel-pivot-events",
             "keywords": [
                 "eloquent events",
                 "eloquent extra events",
@@ -2070,10 +2071,10 @@
                 "laravel sync events"
             ],
             "support": {
-                "issues": "https://github.com/GeneaLabs/laravel-pivot/issues",
-                "source": "https://github.com/GeneaLabs/laravel-pivot"
+                "issues": "https://github.com/mikebronner/laravel-pivot-events/issues",
+                "source": "https://github.com/mikebronner/laravel-pivot-events"
             },
-            "time": "2023-03-22T14:46:23+00:00"
+            "time": "2024-03-14T23:24:54+00:00"
         },
         {
             "name": "goldspecdigital/laravel-eloquent-uuid",
@@ -6595,16 +6596,16 @@
         },
         {
             "name": "phpseclib/phpseclib",
-            "version": "3.0.36",
+            "version": "3.0.37",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpseclib/phpseclib.git",
-                "reference": "c2fb5136162d4be18fdd4da9980696f3aee96d7b"
+                "reference": "cfa2013d0f68c062055180dd4328cc8b9d1f30b8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/c2fb5136162d4be18fdd4da9980696f3aee96d7b",
-                "reference": "c2fb5136162d4be18fdd4da9980696f3aee96d7b",
+                "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/cfa2013d0f68c062055180dd4328cc8b9d1f30b8",
+                "reference": "cfa2013d0f68c062055180dd4328cc8b9d1f30b8",
                 "shasum": ""
             },
             "require": {
@@ -6685,7 +6686,7 @@
             ],
             "support": {
                 "issues": "https://github.com/phpseclib/phpseclib/issues",
-                "source": "https://github.com/phpseclib/phpseclib/tree/3.0.36"
+                "source": "https://github.com/phpseclib/phpseclib/tree/3.0.37"
             },
             "funding": [
                 {
@@ -6701,7 +6702,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2024-02-26T05:13:14+00:00"
+            "time": "2024-03-03T02:14:58+00:00"
         },
         {
             "name": "phpstan/phpdoc-parser",
@@ -7685,16 +7686,16 @@
         },
         {
             "name": "rize/uri-template",
-            "version": "0.3.5",
+            "version": "0.3.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/rize/UriTemplate.git",
-                "reference": "5ed4ba8ea34af84485dea815d4b6b620794d1168"
+                "reference": "34efe65c79710eed0883884f2285ae6d4a0aad19"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/rize/UriTemplate/zipball/5ed4ba8ea34af84485dea815d4b6b620794d1168",
-                "reference": "5ed4ba8ea34af84485dea815d4b6b620794d1168",
+                "url": "https://api.github.com/repos/rize/UriTemplate/zipball/34efe65c79710eed0883884f2285ae6d4a0aad19",
+                "reference": "34efe65c79710eed0883884f2285ae6d4a0aad19",
                 "shasum": ""
             },
             "require": {
@@ -7727,7 +7728,7 @@
             ],
             "support": {
                 "issues": "https://github.com/rize/UriTemplate/issues",
-                "source": "https://github.com/rize/UriTemplate/tree/0.3.5"
+                "source": "https://github.com/rize/UriTemplate/tree/0.3.6"
             },
             "funding": [
                 {
@@ -7743,7 +7744,7 @@
                     "type": "open_collective"
                 }
             ],
-            "time": "2022-10-12T17:22:51+00:00"
+            "time": "2024-03-10T08:07:49+00:00"
         },
         {
             "name": "sentry/sentry",
@@ -7836,16 +7837,16 @@
         },
         {
             "name": "sentry/sentry-laravel",
-            "version": "4.3.0",
+            "version": "4.3.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/getsentry/sentry-laravel.git",
-                "reference": "7f88c200f1ed352c299b5aee177ac5e5faf4b3f4"
+                "reference": "631a5eb59c9469ce1722233337c11747fc620a8d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/getsentry/sentry-laravel/zipball/7f88c200f1ed352c299b5aee177ac5e5faf4b3f4",
-                "reference": "7f88c200f1ed352c299b5aee177ac5e5faf4b3f4",
+                "url": "https://api.github.com/repos/getsentry/sentry-laravel/zipball/631a5eb59c9469ce1722233337c11747fc620a8d",
+                "reference": "631a5eb59c9469ce1722233337c11747fc620a8d",
                 "shasum": ""
             },
             "require": {
@@ -7909,7 +7910,7 @@
             ],
             "support": {
                 "issues": "https://github.com/getsentry/sentry-laravel/issues",
-                "source": "https://github.com/getsentry/sentry-laravel/tree/4.3.0"
+                "source": "https://github.com/getsentry/sentry-laravel/tree/4.3.1"
             },
             "funding": [
                 {
@@ -7921,7 +7922,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2024-03-08T08:12:38+00:00"
+            "time": "2024-03-13T09:37:21+00:00"
         },
         {
             "name": "shopify/shopify-api",
@@ -8295,32 +8296,30 @@
         },
         {
             "name": "spatie/laravel-google-cloud-storage",
-            "version": "2.2.6",
+            "version": "2.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-google-cloud-storage.git",
-                "reference": "c26ab07582714e7d26ee00124cf9ccd43df270d8"
+                "reference": "c25fc6a1b9f86e8d458830588d0c88c723badc8f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-google-cloud-storage/zipball/c26ab07582714e7d26ee00124cf9ccd43df270d8",
-                "reference": "c26ab07582714e7d26ee00124cf9ccd43df270d8",
+                "url": "https://api.github.com/repos/spatie/laravel-google-cloud-storage/zipball/c25fc6a1b9f86e8d458830588d0c88c723badc8f",
+                "reference": "c25fc6a1b9f86e8d458830588d0c88c723badc8f",
                 "shasum": ""
             },
             "require": {
-                "illuminate/contracts": "^9.0|^10.0",
-                "illuminate/filesystem": "^9.0|^10.0",
-                "illuminate/support": "^9.0|^10.0",
+                "illuminate/contracts": "^9.0|^10.0|^11.0",
+                "illuminate/filesystem": "^9.0|^10.0|^11.0",
+                "illuminate/support": "^9.0|^10.0|^11.0",
                 "league/flysystem-google-cloud-storage": "^3.0.15",
                 "php": "^8.0"
             },
             "require-dev": {
-                "brianium/paratest": "^6.4",
-                "nunomaduro/collision": "^6.1|^7.0",
-                "orchestra/testbench": "^7.0|^8.0",
+                "nunomaduro/collision": "^6.1|^7.0|^8.0",
+                "orchestra/testbench": "^7.0|^8.0|^9.0",
                 "phpunit/phpunit": "^9.6|^10.0",
-                "spatie/laravel-ray": "^1.29",
-                "vimeo/psalm": "^4.18|^5.9"
+                "spatie/laravel-ray": "^1.29"
             },
             "type": "library",
             "extra": {
@@ -8358,7 +8357,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-google-cloud-storage/issues",
-                "source": "https://github.com/spatie/laravel-google-cloud-storage/tree/2.2.6"
+                "source": "https://github.com/spatie/laravel-google-cloud-storage/tree/2.3.0"
             },
             "funding": [
                 {
@@ -8366,7 +8365,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2023-11-25T17:34:14+00:00"
+            "time": "2024-03-14T22:16:34+00:00"
         },
         {
             "name": "spatie/laravel-health",
@@ -8463,16 +8462,16 @@
         },
         {
             "name": "spatie/laravel-model-states",
-            "version": "2.7.0",
+            "version": "2.7.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-model-states.git",
-                "reference": "d3f7be00453a6d5474e0d14a31e4dc6f388792f0"
+                "reference": "91e7dfcf2d1d471d3b7fec151465346e7db43e72"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-model-states/zipball/d3f7be00453a6d5474e0d14a31e4dc6f388792f0",
-                "reference": "d3f7be00453a6d5474e0d14a31e4dc6f388792f0",
+                "url": "https://api.github.com/repos/spatie/laravel-model-states/zipball/91e7dfcf2d1d471d3b7fec151465346e7db43e72",
+                "reference": "91e7dfcf2d1d471d3b7fec151465346e7db43e72",
                 "shasum": ""
             },
             "require": {
@@ -8522,7 +8521,7 @@
                 "state"
             ],
             "support": {
-                "source": "https://github.com/spatie/laravel-model-states/tree/2.7.0"
+                "source": "https://github.com/spatie/laravel-model-states/tree/2.7.1"
             },
             "funding": [
                 {
@@ -8534,7 +8533,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-03-01T12:55:29+00:00"
+            "time": "2024-03-07T07:05:22+00:00"
         },
         {
             "name": "spatie/laravel-package-tools",
@@ -12152,31 +12151,31 @@
         },
         {
             "name": "vladimir-yuldashev/laravel-queue-rabbitmq",
-            "version": "v13.3.5",
+            "version": "v14.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/vyuldashev/laravel-queue-rabbitmq.git",
-                "reference": "2fda5722bf2b3d77e448aabcccce8d88305bcdea"
+                "reference": "30cc317d4bcd3ee8314e717fc3cef09cffae8e73"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/vyuldashev/laravel-queue-rabbitmq/zipball/2fda5722bf2b3d77e448aabcccce8d88305bcdea",
-                "reference": "2fda5722bf2b3d77e448aabcccce8d88305bcdea",
+                "url": "https://api.github.com/repos/vyuldashev/laravel-queue-rabbitmq/zipball/30cc317d4bcd3ee8314e717fc3cef09cffae8e73",
+                "reference": "30cc317d4bcd3ee8314e717fc3cef09cffae8e73",
                 "shasum": ""
             },
             "require": {
                 "ext-json": "*",
-                "illuminate/queue": "^9.0|^10.0",
+                "illuminate/queue": "^10.0|^11.0",
                 "php": "^8.0",
                 "php-amqplib/php-amqplib": "^v3.6"
             },
             "require-dev": {
-                "laravel/framework": "^9.0|^10.0",
+                "laravel/framework": "^9.0|^10.0|^11.0",
                 "laravel/horizon": "^5.0",
                 "laravel/pint": "^1.2",
                 "mockery/mockery": "^1.0",
-                "orchestra/testbench": "^7.0|^8.0",
-                "phpunit/phpunit": "^9.3"
+                "orchestra/testbench": "^7.0|^8.0|^9.0",
+                "phpunit/phpunit": "^10.0|^11.0"
             },
             "suggest": {
                 "ext-pcntl": "Required to use all features of the queue consumer."
@@ -12210,9 +12209,9 @@
             "description": "RabbitMQ driver for Laravel Queue. Supports Laravel Horizon.",
             "support": {
                 "issues": "https://github.com/vyuldashev/laravel-queue-rabbitmq/issues",
-                "source": "https://github.com/vyuldashev/laravel-queue-rabbitmq/tree/v13.3.5"
+                "source": "https://github.com/vyuldashev/laravel-queue-rabbitmq/tree/v14.0.0"
             },
-            "time": "2024-01-26T16:20:56+00:00"
+            "time": "2024-03-14T16:03:47+00:00"
         },
         {
             "name": "vlucas/phpdotenv",
@@ -13769,16 +13768,16 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "1.10.60",
+            "version": "1.10.62",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpstan/phpstan.git",
-                "reference": "95dcea7d6c628a3f2f56d091d8a0219485a86bbe"
+                "reference": "cd5c8a1660ed3540b211407c77abf4af193a6af9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/95dcea7d6c628a3f2f56d091d8a0219485a86bbe",
-                "reference": "95dcea7d6c628a3f2f56d091d8a0219485a86bbe",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/cd5c8a1660ed3540b211407c77abf4af193a6af9",
+                "reference": "cd5c8a1660ed3540b211407c77abf4af193a6af9",
                 "shasum": ""
             },
             "require": {
@@ -13827,7 +13826,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2024-03-07T13:30:19+00:00"
+            "time": "2024-03-13T12:27:20+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",

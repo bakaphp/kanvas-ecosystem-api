@@ -30,8 +30,6 @@ class ProductImporterJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
     use KanvasJobsTrait;
-    public $failOnTimeout = false;
-    public $timeout = 120000;
 
     /**
      * constructor.

@@ -99,8 +99,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     {
         $notificationTypeChannels = $this->type instanceof NotificationTypes ? $this->type->getChannelsInNotificationFormat() : [];
         $channels = ! empty($notificationTypeChannels) ? $notificationTypeChannels : $this->channels();
-
-        if (! empty($channels) && $this->type instanceof NotificationTypes) {
+        if (! empty($channels) && $this->type instanceof NotificationTypes && $notifiable instanceof UserInterface) {
             /**
              * @psalm-suppress MissingClosureReturnType
              */

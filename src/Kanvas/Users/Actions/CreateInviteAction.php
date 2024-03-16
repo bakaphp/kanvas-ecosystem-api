@@ -7,7 +7,6 @@ namespace Kanvas\Users\Actions;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
-use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Notifications\Templates\Invite as InviteTemplate;
@@ -28,7 +27,7 @@ class CreateInviteAction
      */
     public function execute(): UsersInvite
     {
-        $companyBranch = CompaniesBranches::getById($this->inviteDto->companies_branches_id);
+        $companyBranch = $this->inviteDto->companyBranch;
         $company = $companyBranch->company()->get()->first();
 
         CompaniesRepository::userAssociatedToCompanyAndBranch(
@@ -58,6 +57,11 @@ class CreateInviteAction
         ]);
 
         $invite->saveOrFail();
+
+        if (count($this->inviteDto->customFields)) {
+            $invite->setCustomFields($this->inviteDto->customFields);
+            $invite->saveCustomFields();
+        }
 
         /*
         $userTemp = new Users();
