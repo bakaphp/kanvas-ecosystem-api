@@ -17,7 +17,7 @@ class CreateMessageAction
      */
     public function __construct(
         public MessageInput $messageInput,
-        public SystemModules $systemModule,
+        public ?SystemModules $systemModule = null,
         public int|string $entityId,
     ) {
     }
@@ -43,12 +43,14 @@ class CreateMessageAction
             'total_shared' => $this->messageInput->total_shared,
         ]);
 
-        $associateMessage = new AssociateMessageToSystemModule(
-            $message,
-            $this->systemModule,
-            $this->entityId
-        );
-        $associateMessage->execute();
+        if ($this->systemModule) {
+            $associateMessage = new AssociateMessageToSystemModule(
+                $message,
+                $this->systemModule,
+                $this->entityId
+            );
+            $associateMessage->execute();
+        }
 
         return $message;
     }

@@ -27,8 +27,8 @@ class MessageTypeInput extends Data
         public int $languages_id = 0,
         public string $name = '',
         public string $verb = '',
-        public string $template = '',
-        public string $templates_plura = '',
+        public ?string $template = null,
+        public ?string $templates_plura = null,
     ) {
     }
 }
