@@ -40,7 +40,7 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
 
         $zohoService = new ZohoService($app, $company);
         $newAgentRecord = null;
-        
+
         try {
             $record = $zohoService->getAgentByEmail($user->email);
         } catch (Exception $e) {
@@ -93,7 +93,7 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
             'zohoId' => $zohoId,
             'users_id' => $user->getId(),
             'companies_id' => $company->getId(),
-            'newAgentRecord' => $newAgentRecord ?? []
+            'newAgentRecord' => $newAgentRecord ?? [],
         ];
     }
 
