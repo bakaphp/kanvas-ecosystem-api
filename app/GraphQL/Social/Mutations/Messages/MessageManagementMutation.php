@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Mutations\Messages;
 
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -13,6 +14,8 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Enums\ActivityTypeEnum;
 use Kanvas\Social\Messages\Enums\DistributionTypeEnum;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
+use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\SystemModules\Models\SystemModules;
 
@@ -36,7 +39,17 @@ class MessageManagementMutation
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $messageData = $request['input'];
-        $messageType = MessagesTypesRepository::getByVerb($messageData['message_verb'], $app);
+
+        try {
+            $messageType = MessagesTypesRepository::getByVerb($messageData['message_verb'], $app);
+        } catch (ModelNotFoundException $e) {
+            $messageTypeDto = MessageTypeInput::from([
+                'apps_id' => $app->getId(),
+                'name' => $messageData['message_verb'],
+                'verb' => $messageData['message_verb'],
+            ]);
+            $messageType = (new CreateMessageTypeAction($messageTypeDto))->execute();
+        }
         $systemModule = key_exists('system_modules_id', $messageData) ? SystemModules::getById((int)$messageData['system_modules_id'], $app) : null;
         $data = MessageInput::fromArray($messageData, $user, $messageType, $company, $app);
         $action = new CreateMessageAction($data, $systemModule, $messageData['entity_id']);
