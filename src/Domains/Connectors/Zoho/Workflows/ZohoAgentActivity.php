@@ -66,7 +66,10 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
             'member_id' => $memberNumber,
         ];
 
-        if ($ownerAgent) {
+        $companyDefaultOwnerMemberId = $company->get(CustomFieldEnum::ZOHO_USER_OWNER_MEMBER_NUMBER->value) ?? 1001;
+
+        //if the owner is the company default owner, set it
+        if ($ownerAgent && $newAgentRecord && $newAgentRecord->member_id == $companyDefaultOwnerMemberId) {
             $agentUpdateData['owner_id'] = $ownerAgent->member_id;
         }
 
