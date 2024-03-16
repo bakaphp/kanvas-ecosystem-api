@@ -39,7 +39,8 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
         }
 
         $zohoService = new ZohoService($app, $company);
-
+        $newAgentRecord = null;
+        
         try {
             $record = $zohoService->getAgentByEmail($user->email);
         } catch (Exception $e) {
