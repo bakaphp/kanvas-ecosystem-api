@@ -55,7 +55,7 @@ spec:
                chmod -R 777 /var/www/html/bootstrap/cache && \
                cd /var/www/html \
                && php artisan config:cache \
-               && php artisan queue:work --tries=3 --timeout=3550"
+               && php artisan queue:work --tries=3 --timeout=1750 --max-jobs=1000"
             ]
       securityContext:
         fsGroup: 65533

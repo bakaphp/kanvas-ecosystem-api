@@ -66,9 +66,9 @@ return [
             'driver' => 'redis',
             'connection' => 'default',
             'queue' => env('REDIS_QUEUE', 'default'),
-            'retry_after' => 3600,
-            'block_for' => null,
-            'after_commit' => false,
+            'retry_after' => 1800,
+            'block_for' => 5,
+            'after_commit' => true,
         ],
 
         'rabbitmq' => [
