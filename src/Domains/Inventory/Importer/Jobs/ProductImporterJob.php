@@ -14,6 +14,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Inventory\Enums\AppEnums;
@@ -22,6 +23,9 @@ use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter as ImporterDto;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Laravel\Scout\EngineManager;
+
+use function Sentry\captureException;
+
 use Throwable;
 
 class ProductImporterJob implements ShouldQueue, ShouldBeUnique
@@ -101,13 +105,18 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
         }
 
         foreach ($this->importer as $request) {
-            (new ProductImporterAction(
-                ProductImporter::from($request),
-                $company,
-                $this->user,
-                $this->region,
-                $this->app
-            ))->execute();
+            try {
+                (new ProductImporterAction(
+                    ProductImporter::from($request),
+                    $company,
+                    $this->user,
+                    $this->region,
+                    $this->app
+                ))->execute();
+            } catch (Throwable $e) {
+                Log::error($e->getMessage());
+                captureException($e);
+            }
         }
 
         //handle failed jobs
