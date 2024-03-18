@@ -296,7 +296,7 @@ return [
             'password' => env('REDIS_PASSWORD'),
             'port' => env('REDIS_PORT', '6379'),
             'database' => 3,
-            'options'=> [
+            'options' => [
                 'serializer' => 0,
                 'compression' => 0,
             ],
