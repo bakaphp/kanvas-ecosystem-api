@@ -14,6 +14,6 @@ trait NotDeletedScopesTrait
      */
     public function scopeNotDeleted(Builder $query): Builder
     {
-        return $query->where('is_deleted', '=', StateEnums::NO->getValue());
+        return $query->where($this->table . 'is_deleted', '=', StateEnums::NO->getValue());
     }
 }
