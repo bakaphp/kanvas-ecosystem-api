@@ -23,8 +23,10 @@ use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter as ImporterDto;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Laravel\Scout\EngineManager;
-use Throwable;
+
 use function Sentry\captureException;
+
+use Throwable;
 
 class ProductImporterJob implements ShouldQueue, ShouldBeUnique
 {
