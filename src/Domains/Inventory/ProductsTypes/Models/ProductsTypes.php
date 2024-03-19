@@ -37,14 +37,6 @@ class ProductsTypes extends BaseModel
     use CascadeSoftDeletes;
 
     protected $table = 'products_types';
-    protected $fillable = [
-        'name',
-        'uuid',
-        'description',
-        'weight',
-        'slug',
-        'is_published'
-    ];
     protected $guarded = [];
 
     /**
