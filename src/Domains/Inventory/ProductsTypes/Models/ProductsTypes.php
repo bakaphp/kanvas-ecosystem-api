@@ -6,7 +6,6 @@ namespace Kanvas\Inventory\ProductsTypes\Models;
 
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
-use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -15,8 +14,6 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Inventory\ProductsTypes\Actions\CreateProductTypeAttributeAction;
-use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypesAttributes as ProductsTypesAttributesDto;
 use Kanvas\Inventory\Traits\ScopesTrait;
 
 /**
@@ -113,27 +110,6 @@ class ProductsTypes extends BaseModel
     }
 
     /**
-     * Add a new attribute to a product type.
-     *
-     * @param UserInterface $user
-     * @param array $attributes
-     * @param boolean $toVariant
-     * @return void
-     */
-    public function addAttributes(UserInterface $user, array $attributes, bool $toVariant = false): void
-    {
-        foreach ($attributes as $attribute) {
-            $productsAttributesDto = ProductsTypesAttributesDto::viaRequest([
-                'product_type' => $this,
-                'attribute' => Attributes::getById((int) $attribute['id']),
-                'toVariant' => $toVariant
-            ]);
-
-            (new CreateProductTypeAttributeAction($productsAttributesDto, $user))->execute();
-        }
-    }
-
-    /**
      * Get all the products attributes from the product type
      *
      * @return array
@@ -141,7 +117,7 @@ class ProductsTypes extends BaseModel
     public function getProductsAttributes(): array
     {
         $attributes = $this->attributes()
-                            ->where('to_variants', 0)
+                            ->where('to_variant', 0)
                             ->where('products_types_attributes.is_deleted', 0)
                             ->get();
 
@@ -156,7 +132,7 @@ class ProductsTypes extends BaseModel
     public function getVariantsAttributes(): array
     {
         $attributes = $this->attributes()
-                            ->where('to_variants', 1)
+                            ->where('to_variant', 1)
                             ->where('products_types_attributes.is_deleted', 0)
                             ->get();
 

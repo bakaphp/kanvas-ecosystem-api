@@ -8,6 +8,7 @@ use Kanvas\Inventory\ProductsTypes\Actions\CreateProductTypeAction;
 use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes as ProductsTypesDto;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes as ProductsTypesModel;
 use Kanvas\Inventory\ProductsTypes\Repositories\ProductsTypesRepository;
+use Kanvas\Inventory\ProductsTypes\Services\ProductsTypesServices;
 
 class ProductsTypes
 {
@@ -35,11 +36,20 @@ class ProductsTypes
         ))->execute();
 
         if (isset($request['products_attributes'])) {
-            $productType->addAttributes(auth()->user(), $request['products_attributes']);
+            ProductsTypesServices::addAttributes(
+                $productType,
+                auth()->user(),
+                $request['products_attributes']
+            );
         }
 
         if (isset($request['variants_attributes'])) {
-            $productType->addAttributes(auth()->user(), $request['variants_attributes'], true);
+            ProductsTypesServices::addAttributes(
+                $productType,
+                auth()->user(),
+                $request['variants_attributes'],
+                true
+            );
         }
 
         return $productType;
@@ -59,13 +69,22 @@ class ProductsTypes
         $productType->update($request['input']);
 
         if (isset($request['input']['products_attributes'])) {
-            $productType->productsTypesAttributes()->where('to_variants', 0)->delete();
-            $productType->addAttributes(auth()->user(), $request['input']['products_attributes']);
+            $productType->productsTypesAttributes()->where('to_variant', 0)->delete();
+            ProductsTypesServices::addAttributes(
+                $productType,
+                auth()->user(),
+                $request['input']['products_attributes'],
+            );
         }
 
         if (isset($request['input']['variants_attributes'])) {
-            $productType->productsTypesAttributes()->where('to_variants', 1)->delete();
-            $productType->addAttributes(auth()->user(), $request['input']['variants_attributes'], true);
+            $productType->productsTypesAttributes()->where('to_variant', 1)->delete();
+            ProductsTypesServices::addAttributes(
+                $productType,
+                auth()->user(),
+                $request['input']['variants_attributes'],
+                true
+            );
         }
 
         return $productType;
