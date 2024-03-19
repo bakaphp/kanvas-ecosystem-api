@@ -10,6 +10,8 @@ type ProductType {
     companies: Company!
     is_published: Boolean
     total_products: Int! @method(name: "getTotalProducts")
+    products_attributes: [Attributes!]! @method(name: "getProductsAttributes")
+    variants_attributes: [Attributes!]! @method(name: "getVariantsAttributes")
 }
 
 input ProductTypeInput {
@@ -17,6 +19,8 @@ input ProductTypeInput {
     companies_id: ID
     description: String
     weight: Int!
+    products_attributes: [ProductTypeAttributesInput!]
+    variants_attributes: [ProductTypeAttributesInput!]
     is_published: Boolean
 }
 
@@ -25,6 +29,18 @@ input ProductTypeUpdateInput {
     description: String
     weight: Int
     is_published: Boolean
+    products_attributes: [ProductTypeAttributesInput!]
+    variants_attributes: [ProductTypeAttributesInput!]
+}
+
+input ProductTypeAttributesInput {
+    id: ID!
+    name: String
+}
+
+input ProductTypeAttributesAssignInput {
+    products_attributes: [ProductTypeAttributesInput!]
+    variants_attributes: [ProductTypeAttributesInput!]
 }
 
 extend type Mutation @guard {
@@ -39,6 +55,10 @@ extend type Mutation @guard {
     deleteProductType(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\ProductsTypes\\ProductsTypes@delete"
+        )
+    assignProductTypeAttribute(id: ID!, input: ProductTypeAttributesAssignInput): ProductType!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\ProductsTypes\\ProductsTypes@assignAttributes"
         )
 }
 extend type Query {
@@ -67,7 +87,7 @@ extend type Query {
     ): [ProductType!]!
         @paginate(
             model: "Kanvas\\Inventory\\ProductsTypes\\Models\\ProductsTypes"
-            defaultCount: 25
+            defaultCount: 1000
             scopes: ["fromApp", "fromCompany"]
         )
 }

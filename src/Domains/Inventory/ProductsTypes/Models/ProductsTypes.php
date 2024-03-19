@@ -6,9 +6,12 @@ namespace Kanvas\Inventory\ProductsTypes\Models;
 
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Traits\ScopesTrait;
@@ -31,9 +34,9 @@ class ProductsTypes extends BaseModel
     use UuidTrait;
     use SlugTrait;
     use ScopesTrait;
+    use CascadeSoftDeletes;
 
     protected $table = 'products_types';
-
     protected $guarded = [];
 
     /**
@@ -49,6 +52,24 @@ class ProductsTypes extends BaseModel
     public function products(): HasMany
     {
         return $this->hasMany(Products::class, 'products_types_id');
+    }
+
+    public function productsTypesAttributes(): HasMany
+    {
+        return $this->hasMany(ProductsTypesAttributes::class, 'products_Types_id');
+    }
+
+    /**
+     * attributes.
+     */
+    public function attributes(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Attributes::class,
+            ProductsTypesAttributes::class,
+            'products_types_id',
+            'attributes_id'
+        );
     }
 
     /**
@@ -78,5 +99,35 @@ class ProductsTypes extends BaseModel
         $this->set('total_products', $total);
 
         return (int) $total;
+    }
+
+    /**
+     * Get all the products attributes from the product type
+     *
+     * @return array
+     */
+    public function getProductsAttributes(): array
+    {
+        $attributes = $this->attributes()
+                            ->where('to_variant', 0)
+                            ->where('products_types_attributes.is_deleted', 0)
+                            ->get();
+
+        return $attributes->toArray();
+    }
+
+    /**
+     * Get all the variants attributes from the product type
+     *
+     * @return array
+     */
+    public function getVariantsAttributes(): array
+    {
+        $attributes = $this->attributes()
+                            ->where('to_variant', 1)
+                            ->where('products_types_attributes.is_deleted', 0)
+                            ->get();
+
+        return $attributes->toArray();
     }
 }

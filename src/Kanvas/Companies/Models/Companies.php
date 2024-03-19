@@ -191,12 +191,12 @@ class Companies extends BaseModel implements CompanyInterface
 
     public function getTotalUsersAttribute(): int
     {
-        return $this->get('total_users') ?? (new CompaniesSetUsersCountAction($this))->execute();
+        return (int) ($this->get('total_users') ?? (new CompaniesSetUsersCountAction($this))->execute());
     }
 
     public function getTotalBranchesAttribute(): int
     {
-        return $this->get('total_branches') ?? (new CompaniesTotalBranchesAction($this))->execute();
+        return (int) ($this->get('total_branches') ?? (new CompaniesTotalBranchesAction($this))->execute());
     }
 
     /**

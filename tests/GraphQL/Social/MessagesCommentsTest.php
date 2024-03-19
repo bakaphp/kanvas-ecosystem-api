@@ -22,14 +22,13 @@ class MessagesCommentsTest extends TestCase
                     createMessage(input: $input) {
                         id
                         message
-                        message_types_id
                     }
                 }
             ',
             [
                 'input' => [
                     'message' => $message,
-                    'message_types_id' => $messageType->id,
+                    'message_verb' => $messageType->verb,
                     'system_modules_id' => 1,
                     'entity_id' => '1',
                 ],
@@ -40,7 +39,6 @@ class MessagesCommentsTest extends TestCase
             'data' => [
                 'createMessage' => [
                     'message' => $message,
-                    'message_types_id' => $messageType->id,
                 ],
             ],
         ]);
@@ -88,14 +86,13 @@ class MessagesCommentsTest extends TestCase
                     createMessage(input: $input) {
                         id
                         message
-                        message_types_id
                     }
                 }
             ',
             [
                 'input' => [
                     'message' => fake()->text(),
-                    'message_types_id' => $messageType->id,
+                    'message_verb' => $messageType->verb,
                     'system_modules_id' => 1,
                     'entity_id' => '1',
                 ],
@@ -169,14 +166,13 @@ class MessagesCommentsTest extends TestCase
                     createMessage(input: $input) {
                         id
                         message
-                        message_types_id
                     }
                 }
             ',
             [
                 'input' => [
                     'message' => fake()->text(),
-                    'message_types_id' => $messageType->id,
+                    'message_verb' => $messageType->verb,
                     'system_modules_id' => 1,
                     'entity_id' => '1',
                 ],

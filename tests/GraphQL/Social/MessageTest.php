@@ -27,14 +27,13 @@ class MessageTest extends TestCase
                     createMessage(input: $input) {
                         id
                         message
-                        message_types_id
                     }
                 }
             ',
             [
                 'input' => [
                     'message' => $message,
-                    'message_types_id' => $messageType->id,
+                    'message_verb' => $messageType->verb,
                     'system_modules_id' => 1,
                     'entity_id' => '1',
                 ],
@@ -43,7 +42,6 @@ class MessageTest extends TestCase
             'data' => [
                 'createMessage' => [
                     'message' => $message,
-                    'message_types_id' => $messageType->id,
                 ],
             ],
         ]);
@@ -59,7 +57,6 @@ class MessageTest extends TestCase
                     createMessage(input: $input) {
                         id
                         message
-                        message_types_id, 
                         users {
                             id
                         }
@@ -69,7 +66,7 @@ class MessageTest extends TestCase
             [
                 'input' => [
                     'message' => $message,
-                    'message_types_id' => $messageType->id,
+                    'message_verb' => $messageType->verb,
                     'system_modules_id' => 1,
                     'entity_id' => '1',
                 ],
@@ -103,14 +100,13 @@ class MessageTest extends TestCase
                     createMessage(input: $input) {
                         id
                         message
-                        message_types_id
                     }
                 }
             ',
             [
                 'input' => [
                     'message' => $message,
-                    'message_types_id' => $messageType->id,
+                    'message_verb' => $messageType->verb,
                     'system_modules_id' => 1,
                     'entity_id' => '1',
                 ],
@@ -140,7 +136,6 @@ class MessageTest extends TestCase
                     'data' => [
                         [
                             'message' => $message,
-                            'message_types_id' => $messageType->id,
                         ],
                     ],
                 ],
@@ -158,14 +153,13 @@ class MessageTest extends TestCase
                     createMessage(input: $input) {
                         id
                         message
-                        message_types_id
                     }
                 }
             ',
             [
                 'input' => [
                     'message' => $message,
-                    'message_types_id' => $messageType->id,
+                    'message_verb' => $messageType->verb,
                     'system_modules_id' => 1,
                     'entity_id' => '1',
                 ],
@@ -192,7 +186,6 @@ class MessageTest extends TestCase
                     'data' => [
                         [
                             'message' => $message,
-                            'message_types_id' => $messageType->id,
                         ],
                     ],
                 ],
