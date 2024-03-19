@@ -8,11 +8,13 @@ use Baka\Contracts\AppInterface;
 use Baka\Traits\KanvasJobsTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Inventory\Enums\AppEnums;
@@ -21,15 +23,25 @@ use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter as ImporterDto;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Laravel\Scout\EngineManager;
+
+use function Sentry\captureException;
+
 use Throwable;
 
-class ProductImporterJob implements ShouldQueue
+class ProductImporterJob implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable;
     use InteractsWithQueue;
     use Queueable;
     use SerializesModels;
     use KanvasJobsTrait;
+
+    /**
+    * The number of seconds after which the job's unique lock will be released.
+    *
+    * @var int
+    */
+    public $uniqueFor = 1800;
 
     /**
      * constructor.
@@ -44,6 +56,14 @@ class ProductImporterJob implements ShouldQueue
         public Regions $region,
         public AppInterface $app
     ) {
+    }
+
+    /**
+     * Get the unique ID for the job.
+     */
+    public function uniqueId(): string
+    {
+        return $this->jobUuid . $this->app->getId() . $this->region->getId() . $this->branch->getId();
     }
 
     /**
@@ -85,13 +105,20 @@ class ProductImporterJob implements ShouldQueue
         }
 
         foreach ($this->importer as $request) {
-            (new ProductImporterAction(
-                ProductImporter::from($request),
-                $company,
-                $this->user,
-                $this->region,
-                $this->app
-            ))->execute();
+            try {
+                (new ProductImporterAction(
+                    ProductImporter::from($request),
+                    $company,
+                    $this->user,
+                    $this->region,
+                    $this->app
+                ))->execute();
+            } catch (Throwable $e) {
+                Log::error($e->getMessage());
+                captureException($e);
+            }
         }
+
+        //handle failed jobs
     }
 }

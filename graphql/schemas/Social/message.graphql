@@ -34,10 +34,10 @@ type myInteraction {
 }
 
 input MessageInput {
-    message_types_id: ID!
+    message_verb: ID!
     message: Mixed!
     parent_id: ID
-    system_modules_id: ID!
+    system_modules_id: ID
     entity_id: Mixed!
     distribution: DistributionInput
 }
