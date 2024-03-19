@@ -126,17 +126,17 @@ class Setup
 
         $defaultWarehouse = $createWarehouse->execute();
 
-        $createDefaultProductType = new CreateProductTypeAction(
-            new ProductsTypes(
-                $this->company,
-                $this->user,
-                StateEnums::DEFAULT_NAME->getValue(),
-                StateEnums::DEFAULT_NAME->getValue()
-            ),
-            $this->user
-        );
+        // $createDefaultProductType = new CreateProductTypeAction(
+        //     new ProductsTypes(
+        //         $this->company,
+        //         $this->user,
+        //         StateEnums::DEFAULT_NAME->getValue(),
+        //         StateEnums::DEFAULT_NAME->getValue()
+        //     ),
+        //     $this->user
+        // );
 
-        $defaultProductType = $createDefaultProductType->execute();
+        // $defaultProductType = $createDefaultProductType->execute();
 
         $createDefaultStatus = new CreateStatusAction(
             new Status(
@@ -155,7 +155,6 @@ class Setup
             $defaultChannel instanceof ModelsChannels &&
             $defaultRegion instanceof Regions &&
             $defaultWarehouse instanceof ModelsWarehouses &&
-            $defaultProductType instanceof ModelsProductsTypes &&
             $defaultStatus instanceof ModelsStatus;
     }
 }
