@@ -75,6 +75,12 @@ return [
             'level' => env('LOG_LEVEL', 'critical'),
         ],
 
+        'sentry' => [
+            'driver' => 'sentry',
+            'level' => null,
+            'bubble' => true,
+        ],
+
         'papertrail' => [
             'driver' => 'monolog',
             'level' => env('LOG_LEVEL', 'debug'),

@@ -119,10 +119,10 @@ class Apps extends BaseModel implements AppInterface
         if (! $totalUser = $this->get('total_users')) {
             $this->set('total_users', $this->users()->count());
 
-            return $this->get('total_users');
+            return (int) $this->get('total_users');
         }
 
-        return $totalUser;
+        return (int) $totalUser;
     }
 
     public function getTotalCompaniesAttribute(): int
@@ -130,10 +130,10 @@ class Apps extends BaseModel implements AppInterface
         if (! $totalCompanies = $this->get('total_companies')) {
             $this->set('total_companies', $this->companies()->count());
 
-            return $this->get('total_companies');
+            return (int) $this->get('total_companies');
         }
 
-        return $totalCompanies;
+        return (int) $totalCompanies;
     }
 
     public function getUserKeys(?UserInterface $user = null): Collection

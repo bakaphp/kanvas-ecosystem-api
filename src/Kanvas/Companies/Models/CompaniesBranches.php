@@ -86,7 +86,7 @@ class CompaniesBranches extends BaseModel
             $this->set('total_users', $this->users()->count());
         }
 
-        return $this->get('total_users');
+        return (int) $this->get('total_users');
     }
 
     public function shouldBeSearchable(): bool

@@ -64,11 +64,11 @@ return [
 
         'redis' => [
             'driver' => 'redis',
-            'connection' => 'default',
+            'connection' => 'queue',
             'queue' => env('REDIS_QUEUE', 'default'),
-            'retry_after' => 9000,
-            'block_for' => null,
-            'after_commit' => false,
+            'retry_after' => 1800,
+            'block_for' => 5,
+            'after_commit' => true,
         ],
 
         'rabbitmq' => [

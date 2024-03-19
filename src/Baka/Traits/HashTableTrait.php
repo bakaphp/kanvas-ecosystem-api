@@ -6,6 +6,7 @@ namespace Baka\Traits;
 
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Exceptions\ConfigurationException;
+use Baka\Support\Str;
 
 /**
  * @todo implement redis hashtable for speed
@@ -55,6 +56,7 @@ trait HashTableTrait
             $this->createSettingsModel();
             $this->settingsModel->{$this->getSettingsPrimaryKey()} = $this->getKey();
         }
+        $value = Str::isJson($value) ? json_decode($value, true) : $value;
         $this->settingsModel->name = $key;
         $this->settingsModel->value = $value;
         $this->settingsModel->is_public = (int) $isPublic;
