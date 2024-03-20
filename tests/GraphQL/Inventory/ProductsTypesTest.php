@@ -98,7 +98,7 @@ class ProductsTypesTest extends TestCase
         $id = $response['data']['productTypes']['data'][0]['id'];
         $data['weight'] = 2;
         $this->graphQL('
-            mutation($data: ProductTypeUpdateInput! $id: Int!) {
+            mutation($data: ProductTypeUpdateInput! $id: ID!) {
                 updateProductType(input: $data id: $id)
                 {
                     name
@@ -142,7 +142,7 @@ class ProductsTypesTest extends TestCase
             }');
         $id = $response['data']['productTypes']['data'][0]['id'];
         $this->graphQL('
-            mutation($id: Int!) {
+            mutation($id: ID!) {
                 deleteProductType(id: $id)
             }', ['id' => $id])->assertJson([
             'data' => ['deleteProductType' => true]

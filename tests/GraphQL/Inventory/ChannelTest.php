@@ -94,7 +94,7 @@ class ChannelTest extends TestCase
             'name' => fake()->name,
         ];
         $this->graphQL('
-            mutation($channelId: Int!, $data: UpdateChannelInput!) {
+            mutation($channelId: ID!, $data: UpdateChannelInput!) {
                 updateChannel(id: $channelId, input: $data)
                 {
                     name
@@ -143,7 +143,7 @@ class ChannelTest extends TestCase
         ]);
 
         $this->graphQL('
-            mutation($id: Int!) {
+            mutation($id: ID!) {
                 deleteChannel(id: $id)
             }', ['id' => $channelId])->assertJson([
             'data' => ['deleteChannel' => true]
@@ -187,7 +187,7 @@ class ChannelTest extends TestCase
         ]);
 
         $this->graphQL('
-            mutation($id: Int!) {
+            mutation($id: ID!) {
                 unPublishAllVariantsFromChannel(id: $id)
             }', ['id' => $channelId])->assertJson([
             'data' => ['unPublishAllVariantsFromChannel' => false] //doesn't have any product
