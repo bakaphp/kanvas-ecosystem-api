@@ -10,7 +10,7 @@ use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Actions\CreateProductTypeAttributeAction;
 use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypesAttributes as ProductsTypesAttributesDto;
 
-class ProductsTypesServices
+class ProductTypeService
 {
     /**
      * Add a new attribute to a product type.
@@ -23,11 +23,11 @@ class ProductsTypesServices
     public static function addAttributes(ProductsTypes $productsTypes, UserInterface $user, array $attributes, bool $toVariant = false): ProductsTypes
     {
         foreach ($attributes as $attribute) {
-            $productsAttributesDto = ProductsTypesAttributesDto::viaRequest([
-                'product_type' => $productsTypes,
-                'attribute' => Attributes::getById((int) $attribute['id']),
-                'toVariant' => $toVariant
-            ]);
+            $productsAttributesDto = (new ProductsTypesAttributesDto(
+                $productsTypes,
+                Attributes::getById((int) $attribute['id']),
+                $toVariant
+            ));
 
             (new CreateProductTypeAttributeAction($productsAttributesDto, $user))->execute();
         }

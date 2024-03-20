@@ -7,6 +7,7 @@ namespace Kanvas\Inventory\ProductsTypes\Models;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -104,30 +105,26 @@ class ProductsTypes extends BaseModel
     /**
      * Get all the products attributes from the product type
      *
-     * @return array
+     * @return Collection
      */
-    public function getProductsAttributes(): array
+    public function getProductsAttributes(): Collection
     {
-        $attributes = $this->attributes()
+        return $this->attributes()
                             ->where('to_variant', 0)
                             ->where('products_types_attributes.is_deleted', 0)
                             ->get();
-
-        return $attributes->toArray();
     }
 
     /**
      * Get all the variants attributes from the product type
      *
-     * @return array
+     * @return Collection
      */
-    public function getVariantsAttributes(): array
+    public function getVariantsAttributes(): Collection
     {
-        $attributes = $this->attributes()
+        return $this->attributes()
                             ->where('to_variant', 1)
                             ->where('products_types_attributes.is_deleted', 0)
                             ->get();
-
-        return $attributes->toArray();
     }
 }
