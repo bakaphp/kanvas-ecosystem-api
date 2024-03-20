@@ -33,7 +33,7 @@ input VariantsAttributesInput {
 }
 
 input VariantsInput {
-    products_id: Int
+    products_id: ID
     name: String!
     description: String
     short_description: String
@@ -54,7 +54,7 @@ input VariantsInput {
 }
 
 input VariantsUpdateInput {
-    products_id: Int
+    products_id: ID
     name: String
     description: String
     short_description: String
