@@ -3437,16 +3437,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v10.48.3",
+            "version": "v10.48.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "5791c052b41c6b593556adc687076bfbdd13c501"
+                "reference": "7e0701bf59cb76a51f7c1f7bea51c0c0c29c0b72"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/5791c052b41c6b593556adc687076bfbdd13c501",
-                "reference": "5791c052b41c6b593556adc687076bfbdd13c501",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/7e0701bf59cb76a51f7c1f7bea51c0c0c29c0b72",
+                "reference": "7e0701bf59cb76a51f7c1f7bea51c0c0c29c0b72",
                 "shasum": ""
             },
             "require": {
@@ -3551,7 +3551,7 @@
                 "league/flysystem-sftp-v3": "^3.0",
                 "mockery/mockery": "^1.5.1",
                 "nyholm/psr7": "^1.2",
-                "orchestra/testbench-core": "^8.18",
+                "orchestra/testbench-core": "^8.23.4",
                 "pda/pheanstalk": "^4.0",
                 "phpstan/phpstan": "^1.4.7",
                 "phpunit/phpunit": "^10.0.7",
@@ -3640,7 +3640,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2024-03-15T10:17:07+00:00"
+            "time": "2024-03-21T13:36:36+00:00"
         },
         {
             "name": "laravel/octane",
@@ -12432,23 +12432,23 @@
         },
         {
             "name": "webleit/zohocrmapi",
-            "version": "5.3.1",
+            "version": "5.4.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Weble/ZohoCrmApi.git",
-                "reference": "58ed28521eb15f37d4dbe5f554c0db9ee277f238"
+                "reference": "bcf3fda71cfc0ca8a253092a99170ed89adf7712"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Weble/ZohoCrmApi/zipball/58ed28521eb15f37d4dbe5f554c0db9ee277f238",
-                "reference": "58ed28521eb15f37d4dbe5f554c0db9ee277f238",
+                "url": "https://api.github.com/repos/Weble/ZohoCrmApi/zipball/bcf3fda71cfc0ca8a253092a99170ed89adf7712",
+                "reference": "bcf3fda71cfc0ca8a253092a99170ed89adf7712",
                 "shasum": ""
             },
             "require": {
                 "doctrine/inflector": "^2.0",
                 "ext-json": "*",
                 "guzzlehttp/guzzle": "^6.3 || ^7.0",
-                "illuminate/collections": "^8.0 || ^9.0 || ^10.0",
+                "illuminate/collections": "^8.0 || ^9.0 || ^10.0 || ^11.0",
                 "php": "^7.3 || ^8.0",
                 "weble/zohoclient": "^4.2"
             },
@@ -12483,7 +12483,7 @@
             ],
             "support": {
                 "issues": "https://github.com/Weble/ZohoCrmApi/issues",
-                "source": "https://github.com/Weble/ZohoCrmApi/tree/5.3.1"
+                "source": "https://github.com/Weble/ZohoCrmApi/tree/5.4.0"
             },
             "funding": [
                 {
@@ -12491,7 +12491,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-01-08T09:36:55+00:00"
+            "time": "2024-03-21T14:40:07+00:00"
         },
         {
             "name": "webmozart/assert",
