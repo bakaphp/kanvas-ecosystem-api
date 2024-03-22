@@ -41,7 +41,7 @@ class AttributeMutation
      */
     public function update(mixed $root, array $req): AttributeModel
     {
-        $attribute = AttributesRepository::getById($req['id'], auth()->user()->getCurrentCompany());
+        $attribute = AttributesRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
         $attribute->update($req['input']);
         return $attribute;
     }
@@ -56,7 +56,7 @@ class AttributeMutation
      */
     public function delete(mixed $root, array $req): bool
     {
-        $attribute = AttributesRepository::getById($req['id'], auth()->user()->getCurrentCompany());
+        $attribute = AttributesRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
         return $attribute->delete();
     }
 }

@@ -28,6 +28,7 @@ type Variant {
 }
 
 input VariantsAttributesInput {
+    id: ID
     name: String!
     value: Mixed
 }
