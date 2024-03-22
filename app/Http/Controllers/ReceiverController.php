@@ -46,6 +46,5 @@ class ReceiverController extends BaseController
         $workflow->start($leadExternalId, $receiver, app(Apps::class), []);
 
         return response()->json('Receiver processed');
-
     }
 }
