@@ -42,6 +42,6 @@ class LeadReceiver extends BaseModel
      */
     public function rotation(): BelongsTo
     {
-        return $this->belongsTo(Rotation::class, 'rotations_id');
+        return $this->belongsTo(LeadRotation::class, 'rotations_id');
     }
 }
