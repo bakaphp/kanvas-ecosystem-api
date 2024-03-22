@@ -48,7 +48,7 @@ class UserManagementMutation
         $canEditUser = $user->isAdmin() || $user->can(AbilityEnum::MANAGE_USERS->value) || $user->isAppOwner();
         $userId = $canEditUser && (int) $request['id'] > 0 ? (int) $request['id'] : $user->getId();
 
-        if ($user->isAppOwner()) {
+        if ($user->isAdmin()) {
             $userToEdit = UsersRepository::getUserOfAppById($userId, $app);
         } else {
             $userToEdit = UsersRepository::getUserOfCompanyById($company, (int) $userId);
