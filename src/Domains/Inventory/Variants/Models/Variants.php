@@ -218,7 +218,7 @@ class Variants extends BaseModel
                     'name' => $attribute['name'],
                     'value' => $attribute['value'],
                 ]);
-                $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();    
+                $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
             }
 
             (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
