@@ -44,12 +44,6 @@ class DeleteCompaniesAction
             $companies->softDelete();
         });
 
-        DB::transaction(function () use ($companies) {
-            foreach ($companies->branches as $branch) {
-                $branch->softDelete();
-            }
-        });
-
         //Guild
         DB::transaction(function () use ($companies) {
             DB::connection('crm')->transaction(function () use ($companies) {

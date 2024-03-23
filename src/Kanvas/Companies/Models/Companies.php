@@ -63,6 +63,8 @@ class Companies extends BaseModel implements CompanyInterface
 
     protected $connection = 'ecosystem';
 
+    protected $cascadeDeletes = ['branches'];
+
     /**
      * The attributes that should not be mass assignable.
      *
