@@ -9,6 +9,7 @@ use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Guild\Agents\Enums\AgentFilterEnum;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Users\Models\Users;
@@ -36,10 +37,17 @@ class Agent extends BaseModel
 
     public function owner(): Users
     {
-        return self::setConnection('crm')
-            ->where('member_id', $this->owner_id)
-            ->where('companies_id', $this->companies_id)
-            ->firstOrFail()->user;
+        try {
+            return self::setConnection('crm')
+                ->where('users_linked_source_id', $this->owner_linked_source_id)
+                ->where('companies_id', $this->companies_id)
+                ->firstOrFail()->user;
+        } catch (ModelNotFoundException $e) {
+            return self::setConnection('crm')
+                ->where('member_id', $this->owner_id)
+                ->where('companies_id', $this->companies_id)
+                ->firstOrFail()->user;
+        }
     }
 
     /**
