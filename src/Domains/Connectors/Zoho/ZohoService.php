@@ -63,7 +63,7 @@ class ZohoService
             'Owner' => ! empty($agentInfo->owner_linked_source_id) ? (int) $agentInfo->owner_linked_source_id : $this->company->get(CustomFieldEnum::DEFAULT_OWNER->value),
             'Account_Type' => 'Standard',
             'Name' => $agentInfo->name,
-            'Office_Phone' => '',
+            'Office_Phone' => $user->phone_number ?? '',
         ];
 
         if ($zohoAgentModule == self::DEFAULT_AGENT_MODULE) {
@@ -72,7 +72,7 @@ class ZohoService
             $zohoAgent = $this->zohoCrm->agents->create($data);
         } else {
             $data['Vendor_Name'] = $agentInfo->name;
-            $data['Phone'] = '';
+            $data['Phone'] = $user->phone_number ?? '';
 
             $zohoAgent = $this->zohoCrm->vendors->create($data);
         }
