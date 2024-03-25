@@ -6,6 +6,7 @@ namespace Kanvas\Companies\Models;
 
 use Baka\Contracts\CompanyInterface;
 use Baka\Traits\HashTableTrait;
+use Baka\Traits\SoftDeletesTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -60,12 +61,16 @@ class Companies extends BaseModel implements CompanyInterface
         search as public traitSearch;
     }
     use CascadeSoftDeletes;
+    use SoftDeletesTrait;
 
     protected $table = 'companies';
 
     protected $connection = 'ecosystem';
 
     protected $cascadeDeletes = ['branches'];
+
+    public const DELETED_AT = 'is_deleted';
+
 
     /**
      * The attributes that should not be mass assignable.
