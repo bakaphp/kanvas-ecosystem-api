@@ -6,6 +6,7 @@ namespace Kanvas\Companies\Models;
 
 use Baka\Contracts\CompanyInterface;
 use Baka\Traits\HashTableTrait;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -58,6 +59,7 @@ class Companies extends BaseModel implements CompanyInterface
     use Searchable {
         search as public traitSearch;
     }
+    use CascadeSoftDeletes;
 
     protected $table = 'companies';
 
