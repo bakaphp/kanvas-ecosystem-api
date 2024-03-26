@@ -38,9 +38,9 @@ class ReceiverController extends BaseController
 
         //validate the request entity_id
         $request->validate([
-            'entity_id' => 'required'
+            'entity_id' => 'required',
         ]);
-        
+
         $leadExternalId = $request->get('entity_id');
 
         if ($receiver->rotation === null) {
