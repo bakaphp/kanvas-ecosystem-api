@@ -39,9 +39,14 @@ class Products
     public function update(mixed $root, array $req): ProductsModel
     {
         $product = ProductsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
-        $product->update($req['input']);
+        $req['input']['slug'] = $product->slug;
+        $req['input']['apps_id'] = $product->apps_id;
+        $req['input']['companies_id'] = $product->companies_id;
+        $req['input'] = array_merge($product->toArray(), $req['input']);
+        $productDto = ProductDto::viaRequest($req['input'], auth()->user()->getCurrentCompany());
+        $action = new CreateProductAction($productDto, auth()->user());
 
-        return $product;
+        return $action->execute();
     }
 
     /**

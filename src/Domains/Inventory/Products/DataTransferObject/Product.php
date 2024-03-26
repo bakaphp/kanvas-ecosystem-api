@@ -39,6 +39,7 @@ class Product extends Data
         public array $variants = [],
         public array $attributes = [],
         public array $productType = [],
+        public array $files,
         public ?string $slug = null,
     ) {
     }
@@ -62,6 +63,7 @@ class Product extends Data
             $request['variants'] ?? [],
             $request['attributes'] ?? [],
             $request['productType'] ?? [],
+            $request['files'] ?? [],
             $request['slug'] ?? null,
         );
     }
