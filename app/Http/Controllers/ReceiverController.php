@@ -36,6 +36,11 @@ class ReceiverController extends BaseController
          * Then it will evaluate the data and send it to the queue to process.
          */
 
+        //validate the request entity_id
+        $request->validate([
+            'entity_id' => 'required'
+        ]);
+        
         $leadExternalId = $request->get('entity_id');
 
         if ($receiver->rotation === null) {
