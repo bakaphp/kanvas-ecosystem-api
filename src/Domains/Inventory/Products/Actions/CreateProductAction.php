@@ -107,7 +107,7 @@ class CreateProductAction
 
             throw $e;
         }
-        foreach($this->productDto->files as $file){
+        foreach ($this->productDto->files as $file) {
             $products->addFileFromUrl($file['url'], $file['name']);
         }
         return $products;
