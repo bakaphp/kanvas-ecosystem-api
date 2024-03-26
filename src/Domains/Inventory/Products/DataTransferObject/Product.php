@@ -26,13 +26,12 @@ class Product extends Data
         public UserInterface $user,
         public string $name,
         public string $description,
-        public ?ProductsTypes $productsType = null,
         public ?string $short_description = null,
         public ?string $html_description = null,
         public ?string $warranty_terms = null,
         public ?string $upc = null,
         public bool $is_published = true,
-
+        
         //@var array<int>
         public array $categories = [],
         public array $warehouses = [],
@@ -40,6 +39,7 @@ class Product extends Data
         public array $attributes = [],
         public array $productType = [],
         public array $files,
+        public ?ProductsTypes $productsType = null,
         public ?string $slug = null,
     ) {
     }
@@ -52,7 +52,6 @@ class Product extends Data
             auth()->user(),
             $request['name'],
             $request['description'],
-            isset($request['products_types_id']) ? ProductsTypesRepository::getById((int) $request['products_types_id'], $company) : null,
             $request['short_description'] ?? null,
             $request['html_description'] ?? null,
             $request['warranty_terms'] ?? null,
@@ -64,6 +63,7 @@ class Product extends Data
             $request['attributes'] ?? [],
             $request['productType'] ?? [],
             $request['files'] ?? [],
+            isset($request['products_types_id']) ? ProductsTypesRepository::getById((int) $request['products_types_id'], $company) : null,
             $request['slug'] ?? null,
         );
     }
