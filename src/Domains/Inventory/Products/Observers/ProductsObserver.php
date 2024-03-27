@@ -10,7 +10,7 @@ class ProductsObserver
 {
     public function saved(Products $products): void
     {
-        if ($products->wasChanged('products_types_id')) {
+        if ($products->wasChanged('products_types_id') && $products->productsTypes()->exists()) {
             $products->productsTypes->setTotalProducts();
         }
     }

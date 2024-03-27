@@ -18,17 +18,15 @@ class ZohoLeadOwnerActivity extends Activity
 
     public function execute(
         string $zohoLeadId,
-        int $receiverId,
+        LeadReceiver $receiver,
         AppInterface $app,
         array $params = []
     ): array {
         $this->overwriteAppService($app);
 
-        $receiver = LeadReceiver::getById($receiverId);
         if (! $receiver->rotation()->exists()) {
             return ['Rotation not found'];
         }
-
         $agent = $receiver->rotation()->first()->getAgent();
 
         $company = $receiver->company()->firstOrFail();
@@ -52,6 +50,9 @@ class ZohoLeadOwnerActivity extends Activity
             $zohoData
         );
 
-        return [$zohoLead];
+        return [
+            'message' => 'Owner updated successfully',
+            'lead' => $zohoLead->toArray()
+        ];
     }
 }
