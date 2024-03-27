@@ -12,9 +12,19 @@ use Workflow\Workflow;
 
 class ZohoLeadOwnerWorkflow extends Workflow
 {
-    public function execute(string $leadId, LeadReceiver $receiver, AppInterface $app): Generator
-    {
-        $result = yield ActivityStub::make(ZohoLeadOwnerActivity::class, $leadId, $receiver, $app);
+    public function execute(
+        string $leadId,
+        LeadReceiver $receiver,
+        AppInterface $app,
+        array $params = []
+    ): Generator {
+        $result = yield ActivityStub::make(
+            ZohoLeadOwnerActivity::class,
+            $leadId,
+            $receiver,
+            $app,
+            $params
+        );
 
         return $result;
     }

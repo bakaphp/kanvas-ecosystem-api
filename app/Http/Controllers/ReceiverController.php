@@ -8,6 +8,7 @@ use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller as BaseController;
+use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Zoho\Workflows\ZohoLeadOwnerWorkflow;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
@@ -24,6 +25,7 @@ class ReceiverController extends BaseController
     {
         $app = app(Apps::class);
         $receiver = LeadReceiver::fromApp($app)->where('uuid', $uuid)->first();
+        Auth::loginUsingId($receiver->users_id);
 
         if (! $receiver) {
             return response()->json('Receiver not found', 404);
