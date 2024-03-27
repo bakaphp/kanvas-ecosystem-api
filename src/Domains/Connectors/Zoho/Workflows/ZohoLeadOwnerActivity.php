@@ -24,7 +24,7 @@ class ZohoLeadOwnerActivity extends Activity
     ): array {
         $this->overwriteAppService($app);
 
-        if (!$receiver->rotation()->exists()) {
+        if (! $receiver->rotation()->exists()) {
             return ['Rotation not found'];
         }
 
