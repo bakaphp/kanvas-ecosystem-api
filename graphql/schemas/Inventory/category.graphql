@@ -1,5 +1,5 @@
 type Category {
-    id: Int!
+    id: ID!
     companies_id: Int!
     parent_id: Int
     uuid: String!
@@ -42,11 +42,11 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\Category@create"
         )
-    updateCategory(id: Int!, input: CategoryUpdateInput!): Category!
+    updateCategory(id: ID!, input: CategoryUpdateInput!): Category!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\Category@update"
         )
-    deleteCategory(id: Int!): Boolean!
+    deleteCategory(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Categories\\Category@delete"
         )
@@ -63,6 +63,17 @@ extend type Query @guard {
                     "code"
                     "uuid"
                     "position"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "position"
+                    "code"
                 ]
             )
     ): [Category!]!

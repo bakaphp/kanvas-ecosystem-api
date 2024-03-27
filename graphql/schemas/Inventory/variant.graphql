@@ -23,17 +23,19 @@ type Variant {
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
     attributes: [VariantsAttributes!]!
-    companies: Company
+    companies: Company!
+        @belongsTo(relation: "company")
     channels: [VariantChannelRelationship!]!
 }
 
 input VariantsAttributesInput {
+    id: ID
     name: String!
     value: Mixed
 }
 
 input VariantsInput {
-    products_id: Int
+    products_id: ID
     name: String!
     description: String
     short_description: String
@@ -54,7 +56,7 @@ input VariantsInput {
 }
 
 input VariantsUpdateInput {
-    products_id: Int
+    products_id: ID
     name: String
     description: String
     short_description: String

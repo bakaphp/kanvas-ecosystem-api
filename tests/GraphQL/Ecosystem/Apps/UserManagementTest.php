@@ -349,4 +349,58 @@ class UserManagementTest extends TestCase
         $this->assertTrue($user->companies()->count() == 1);
         $this->assertTrue($user->companies()->first()->id != $company->getId());
     }
+
+    public function testResetPassword()
+    {
+        $app = app(Apps::class);
+
+        $user = $app->keys()->first()->user()->firstOrFail();
+        $user->assign(RolesEnums::OWNER->value);
+
+        $email = fake()->email();
+        $response = $this->graphQL(/** @lang GraphQL */ '
+            mutation appCreateUser($data: CreateUserInput!) {
+                appCreateUser(data: $data) {
+                    id
+                    email,
+                    uuid
+                }
+              }',
+            [
+                'data' => [
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                    'email' => $email,
+                    'custom_fields' => [],
+                ],
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        );
+
+        $response->assertJson([
+            'data' => [
+                'appCreateUser' => [
+                    'email' => $email,
+                ],
+            ],
+        ]);
+
+        $user = Users::getByEmail($email);
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation appResetUserPassword($user_id: ID!, $password: String!) {
+                appResetUserPassword(user_id: $user_id, password: $password) 
+            }',
+            [
+                'user_id' => $user->uuid,
+                'password' => 'password',
+            ]
+        )->assertJson([
+            'data' => [
+                'appResetUserPassword' => true,
+            ],
+        ]);
+    }
 }

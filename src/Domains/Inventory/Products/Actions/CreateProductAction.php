@@ -8,14 +8,13 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
-use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
+use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Services\VariantService;
-use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 use Throwable;
 
 class CreateProductAction
@@ -61,25 +60,22 @@ class CreateProductAction
                     'html_description' => $this->productDto->html_description,
                     'warranty_terms' => $this->productDto->warranty_terms,
                     'upc' => $this->productDto->upc,
+                    'status_id' => $this->productDto->status_id,
                     'users_id' => $this->user->getId(),
                     'is_published' => $this->productDto->is_published,
                     'published_at' => Carbon::now(),
                 ]
             );
 
+            if (! empty($this->productDto->files)) {
+                $products->addMultipleFilesFromUrl($this->productDto->files);
+            }
+
             if ($this->productDto->categories) {
                 foreach ($this->productDto->categories as $category) {
                     $category = CategoriesRepository::getById((int) $category['id'], $this->productDto->company);
+                    $products->categories()->attach($category);
                 }
-
-                $products->categories()->attach($category);
-            }
-
-            if ($this->productDto->warehouses) {
-                foreach ($this->productDto->warehouses as $warehouse) {
-                    WarehouseRepository::getById($warehouse, $this->productDto->company);
-                }
-                $products->warehouses()->attach($this->productDto->warehouses);
             }
 
             if ($this->productDto->attributes) {
@@ -89,7 +85,7 @@ class CreateProductAction
                         'user' => $this->user,
                         'company' => $this->productDto->company,
                         'name' => $attribute['name'],
-                        'value' => $attribute['value']
+                        'value' => $attribute['value'],
                     ]);
 
                     $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
