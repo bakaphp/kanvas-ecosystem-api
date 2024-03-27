@@ -17,6 +17,7 @@ use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
+use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
@@ -121,6 +122,11 @@ class Products extends BaseModel
         return $this->hasMany(Variants::class, 'products_id');
     }
 
+    public function productsCategories(): HasMany
+    {
+        return $this->hasMany(ProductsCategories::class, 'products_id');
+    }
+
     /**
      * productsTypes.
      */
@@ -129,18 +135,9 @@ class Products extends BaseModel
         return $this->belongsTo(ProductsTypes::class, 'products_types_id');
     }
 
-    public function productsCategories(): HasMany
+    public function status(): BelongsTo
     {
-        return $this->hasMany(ProductsCategories::class, 'products_id');
-    }
-
-    /**
-     * Get the companies that owns the product.
-     * @todo remove and change companies for company
-     */
-    public function companies(): BelongsTo
-    {
-        return $this->belongsTo(Companies::class, 'companies_id');
+        return $this->belongsTo(Status::class, 'status_id');
     }
 
     public function shouldBeSearchable(): bool

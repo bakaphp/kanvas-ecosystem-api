@@ -9,6 +9,7 @@ type Product {
     html_description: String
     warranty_terms: String
     upc: String
+    status: Status
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25
@@ -22,7 +23,8 @@ type Product {
     attributes: [ProductAttribute!]! @BelongsToMany
     variants: [Variant!]! @HasMany
     productsTypes: ProductType @belongsTo
-    companies: Company! @belongsTo
+    companies: Company!
+        @belongsTo(relation: "company")
 }
 
 input ProductInput {
@@ -39,6 +41,7 @@ input ProductInput {
     warehouses: [Int!]
     source_id: Mixed
     variants: [VariantsInput!]
+    status: StatusReferenceInput
     attributes: [AttributeInput!]
     files: [FilesystemInputUrl!]
     price: Float
@@ -54,6 +57,7 @@ input ProductInputUpdate {
     warranty_terms: String
     upc: String
     is_published: Boolean
+    status: StatusReferenceInput
     files: [FilesystemInputUrl!]
 }
 

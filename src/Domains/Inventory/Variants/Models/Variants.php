@@ -214,7 +214,7 @@ class Variants extends BaseModel
                 $attributesDto = AttributesDto::from([
                     'app' => app(Apps::class),
                     'user' => $user,
-                    'company' => $this->product->companies,
+                    'company' => $this->product->company,
                     'name' => $attribute['name'],
                     'value' => $attribute['value'],
                 ]);
