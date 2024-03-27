@@ -49,10 +49,6 @@ class Products
     {
         $company = auth()->user()->getCurrentCompany();
 
-        if (auth()->user()->isAppOwner()) {
-            $company = null;
-        }
-
         if (isset($req['input']['status'])) {
             $req['input']['status_id'] = StatusRepository::getById((int) $req['input']['status']['id'], $company)->getId();
         }
