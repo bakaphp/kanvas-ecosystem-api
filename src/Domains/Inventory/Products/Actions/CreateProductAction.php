@@ -79,13 +79,6 @@ class CreateProductAction
                 }
             }
 
-            if ($this->productDto->warehouses) {
-                foreach ($this->productDto->warehouses as $warehouse) {
-                    WarehouseRepository::getById($warehouse, $this->productDto->company);
-                    $products->warehouses()->attach($this->productDto->warehouses);
-                }
-            }
-
             if ($this->productDto->attributes) {
                 foreach ($this->productDto->attributes as $attribute) {
                     $attributesDto = AttributesDto::from([
