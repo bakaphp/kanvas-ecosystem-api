@@ -9,6 +9,7 @@ use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
 use Kanvas\Inventory\Products\Actions\AddAttributeAction;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\Actions\RemoveAttributeAction;
+use Kanvas\Inventory\Products\Actions\UpdateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products as ProductsModel;
 use Kanvas\Inventory\Products\Repositories\ProductsRepository;
@@ -46,10 +47,17 @@ class Products
      */
     public function update(mixed $root, array $req): ProductsModel
     {
-        $product = ProductsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
-        $product->update($req['input']);
+        $company = auth()->user()->getCurrentCompany();
 
-        return $product;
+        if (isset($req['input']['status'])) {
+            $req['input']['status_id'] = StatusRepository::getById((int) $req['input']['status']['id'], $company)->getId();
+        }
+
+        $product = ProductsRepository::getById((int) $req['id'], $company);
+        $productDto = ProductDto::viaRequest($req['input'], $product->company);
+        $action = new UpdateProductAction($product, $productDto, auth()->user());
+
+        return $action->execute();
     }
 
     /**
