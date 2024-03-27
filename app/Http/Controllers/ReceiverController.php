@@ -50,7 +50,7 @@ class ReceiverController extends BaseController
         }
 
         $workflow = WorkflowStub::make(ZohoLeadOwnerWorkflow::class);
-        $workflow->start($leadExternalId, $receiver, app(Apps::class), []);
+        $workflow->start($leadExternalId, (int) $receiver->getId(), app(Apps::class), []);
 
         return response()->json('Receiver processed');
     }

@@ -18,12 +18,13 @@ class ZohoLeadOwnerActivity extends Activity
 
     public function execute(
         string $zohoLeadId,
-        LeadReceiver $receiver,
+        int $receiverId,
         AppInterface $app,
         array $params = []
     ): array {
         $this->overwriteAppService($app);
 
+        $receiver = LeadReceiver::getById($receiverId);
         if (! $receiver->rotation()->exists()) {
             return ['Rotation not found'];
         }
