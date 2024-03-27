@@ -81,6 +81,8 @@ class UserInviteTest extends TestCase
                     'lastname' => fake()->lastName(),
                     'password' => fake()->password(8),
                     'invite_hash' => $invite['invite_hash'],
+                    'phone_number' => fake()->phoneNumber(),
+
                 ],
             ]
         )->assertSuccessful()

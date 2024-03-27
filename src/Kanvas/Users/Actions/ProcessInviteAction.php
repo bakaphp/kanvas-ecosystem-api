@@ -38,6 +38,7 @@ class ProcessInviteAction
             'password' => $this->userInvite->password,
             'firstname' => $this->userInvite->firstname,
             'lastname' => $this->userInvite->lastname,
+            'phone_number' => $this->userInvite->phone_number ?? null,
             'role_ids' => [$invite->role_id],
         ], $invite->branch);
 

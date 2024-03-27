@@ -67,7 +67,7 @@ class CreateUserAction
             } catch (ModelNotFoundException $e) {
                 $this->registerUserInApp($user);
             }
-        } catch(ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             $newUser = true;
             $user = $this->createNewUser();
 
@@ -135,7 +135,6 @@ class CreateUserAction
         $user->saveOrFail();
 
         $user->setAll($this->data->custom_fields);
-
         return $user;
     }
 

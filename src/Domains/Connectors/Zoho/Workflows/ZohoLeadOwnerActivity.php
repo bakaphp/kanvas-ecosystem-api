@@ -8,7 +8,6 @@ use Baka\Contracts\AppInterface;
 use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Guild\Agents\Models\Agent;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Workflow\Activity;
 
@@ -17,24 +16,20 @@ class ZohoLeadOwnerActivity extends Activity
     use KanvasJobsTrait;
     public $tries = 10;
 
-    /**
-     * @param Lead $lead
-     */
     public function execute(
         string $zohoLeadId,
         LeadReceiver $receiver,
         AppInterface $app,
-        array $params
+        array $params = []
     ): array {
         $this->overwriteAppService($app);
 
-        if ($receiver->rotation === null) {
+        if (! $receiver->rotation()->exists()) {
             return ['Rotation not found'];
         }
+        $agent = $receiver->rotation()->first()->getAgent();
 
-        $agent = $receiver->rotation->getAgent();
-
-        $company = $receiver->company;
+        $company = $receiver->company()->firstOrFail();
         $agentOwner = Agent::fromCompany($company)->where('users_id', $agent->getId())->first();
 
         if (! $agentOwner) {
@@ -55,6 +50,9 @@ class ZohoLeadOwnerActivity extends Activity
             $zohoData
         );
 
-        return [$zohoLead];
+        return [
+            'message' => 'Owner updated successfully',
+            'lead' => $zohoLead->toArray()
+        ];
     }
 }

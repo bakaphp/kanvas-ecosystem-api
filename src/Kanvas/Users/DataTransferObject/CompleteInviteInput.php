@@ -10,24 +10,18 @@ class CompleteInviteInput extends Data
 {
     /**
      * Construct.
-     *
-     * @param string $invite_hash
-     * @param string $password
-     * @param string $firstname
-     * @param string $lastname
      */
     public function __construct(
         public string $invite_hash,
         public string $password,
         public string $firstname,
-        public string $lastname
+        public string $lastname,
+        public ?string $phone_number = null
     ) {
     }
 
     /**
      * Get invite hash.
-     *
-     * @return string
      */
     public function getInviteHash(): string
     {
