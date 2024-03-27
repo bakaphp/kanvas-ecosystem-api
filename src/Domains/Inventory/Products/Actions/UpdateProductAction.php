@@ -51,6 +51,7 @@ class UpdateProductAction
                     'html_description' => $this->productDto->html_description,
                     'warranty_terms' => $this->productDto->warranty_terms,
                     'upc' => $this->productDto->upc,
+                    'status_id' => $this->productDto->status_id,
                     'is_published' => $this->productDto->is_published,
                     'published_at' => $this->productDto->is_published ? Carbon::now() : null,
                 ]
