@@ -24,7 +24,7 @@ class ZohoLeadOwnerActivity extends Activity
         string $zohoLeadId,
         LeadReceiver $receiver,
         AppInterface $app,
-        array $params
+        array $params = []
     ): array {
         $this->overwriteAppService($app);
 
