@@ -7,8 +7,9 @@ namespace Kanvas\Inventory\Products\DataTransferObject;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Repositories\ProductsTypesRepository;
 use Spatie\LaravelData\Data;
@@ -39,10 +40,16 @@ class Product extends Data
         public array $variants = [],
         public array $attributes = [],
         public array $productType = [],
+        public array $files = [],
         public ?string $slug = null,
     ) {
     }
 
+    /**
+     * @psalm-suppress ArgumentTypeCoercion
+     * @throws BindingResolutionException
+     * @throws ModelNotFoundException
+     */
     public static function viaRequest(array $request, CompanyInterface $company): self
     {
         return new self(
@@ -62,6 +69,7 @@ class Product extends Data
             $request['variants'] ?? [],
             $request['attributes'] ?? [],
             $request['productType'] ?? [],
+            $request['files'] ?? [],
             $request['slug'] ?? null,
         );
     }
