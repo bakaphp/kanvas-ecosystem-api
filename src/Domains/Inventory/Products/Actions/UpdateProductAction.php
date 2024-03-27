@@ -55,7 +55,7 @@ class UpdateProductAction
                     'published_at' => $this->productDto->is_published ? Carbon::now() : null,
                 ]
             );
-           
+
             if (! empty($this->productDto->files)) {
                 $this->product->addMultipleFilesFromUrl($this->productDto->files);
             }
