@@ -47,15 +47,18 @@ class Products
      */
     public function update(mixed $root, array $req): ProductsModel
     {
-        if (auth()->user()->isAppOwner() && isset($req['input']['company_id'])) {
-            $company = Companies::getById($req['input']['company_id']);
-        } else {
-            $company = auth()->user()->getCurrentCompany();
+        $company = auth()->user()->getCurrentCompany();
+
+        if (auth()->user()->isAppOwner()) {
+            $company = null;
+        }
+
+        if (isset($req['input']['status'])) {
+            $req['input']['status_id'] = StatusRepository::getById((int) $req['input']['status']['id'], $company)->getId();
         }
 
         $product = ProductsRepository::getById((int) $req['id'], $company);
-        //$product->update($req['input']);
-        $productDto = ProductDto::viaRequest($req['input'], $company);
+        $productDto = ProductDto::viaRequest($req['input'], $product->company);
         $action = new UpdateProductAction($product, $productDto, auth()->user());
 
         return $action->execute();
