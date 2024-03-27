@@ -61,6 +61,7 @@ class CreateProductAction
                     'html_description' => $this->productDto->html_description,
                     'warranty_terms' => $this->productDto->warranty_terms,
                     'upc' => $this->productDto->upc,
+                    'status_id' => $this->productDto->status_id,
                     'users_id' => $this->user->getId(),
                     'is_published' => $this->productDto->is_published,
                     'published_at' => Carbon::now(),
