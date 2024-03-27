@@ -23,7 +23,8 @@ type Variant {
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
     attributes: [VariantsAttributes!]!
-    companies: Company
+    companies: Company!
+        @belongsTo(relation: "company")
     channels: [VariantChannelRelationship!]!
 }
 

@@ -32,6 +32,7 @@ class Product extends Data
         public ?string $html_description = null,
         public ?string $warranty_terms = null,
         public ?string $upc = null,
+        public ?int $status_id = null,
         public bool $is_published = true,
 
         //@var array<int>
@@ -63,6 +64,7 @@ class Product extends Data
             $request['html_description'] ?? null,
             $request['warranty_terms'] ?? null,
             $request['upc'] ?? null,
+            $request['status_id'] ?? null,
             $request['is_published'] ?? true,
             $request['categories'] ?? [],
             $request['warehouses'] ?? [],
