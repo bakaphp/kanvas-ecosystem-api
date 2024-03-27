@@ -16,7 +16,7 @@ class CompleteInviteInput extends Data
         public string $password,
         public string $firstname,
         public string $lastname,
-        public string $phone_number
+        public ?string $phone_number = null
     ) {
     }
 
