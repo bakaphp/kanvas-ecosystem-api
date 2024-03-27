@@ -37,6 +37,7 @@ input CompleteInviteInput {
     password: String!
     firstname: String!
     lastname: String!
+    phone_number: String!
 }
 
 extend type Mutation @guard {
