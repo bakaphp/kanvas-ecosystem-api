@@ -12,6 +12,7 @@ use Kanvas\Inventory\Products\Actions\RemoveAttributeAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products as ProductsModel;
 use Kanvas\Inventory\Products\Repositories\ProductsRepository;
+use Kanvas\Inventory\Status\Repositories\StatusRepository;
 
 class Products
 {
@@ -21,6 +22,13 @@ class Products
      */
     public function create(mixed $root, array $req): ProductsModel
     {
+        if (isset($req['input']['status'])) {
+            $req['input']['status_id'] = StatusRepository::getById(
+                (int) $req['input']['status']['id'],
+                auth()->user()->getCurrentCompany()
+            )->getId();
+        }
+
         if (auth()->user()->isAppOwner() && isset($req['input']['company_id'])) {
             $company = Companies::getById($req['input']['company_id']);
         } else {
