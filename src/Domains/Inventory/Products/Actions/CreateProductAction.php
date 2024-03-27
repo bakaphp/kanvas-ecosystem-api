@@ -15,7 +15,6 @@ use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Services\VariantService;
-use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 use Throwable;
 
 class CreateProductAction
