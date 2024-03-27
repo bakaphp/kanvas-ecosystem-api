@@ -25,11 +25,12 @@ class ReceiverController extends BaseController
     {
         $app = app(Apps::class);
         $receiver = LeadReceiver::fromApp($app)->where('uuid', $uuid)->first();
-        Auth::loginUsingId($receiver->users_id);
 
         if (! $receiver) {
-            return response()->json('Receiver not found', 404);
+            return response()->json(['message' => 'Receiver not found'], 404);
         }
+
+        Auth::loginUsingId($receiver->users_id);
 
         /**
          * @todo
@@ -46,12 +47,12 @@ class ReceiverController extends BaseController
         $leadExternalId = $request->get('entity_id');
 
         if ($receiver->rotation === null) {
-            return response()->json('Rotation not found', 404);
+            return response()->json(['message' => 'Rotation not found'], 404);
         }
 
         $workflow = WorkflowStub::make(ZohoLeadOwnerWorkflow::class);
-        $workflow->start($leadExternalId, (int) $receiver->getId(), app(Apps::class), []);
+        $workflow->start($leadExternalId, $receiver, app(Apps::class), []);
 
-        return response()->json('Receiver processed');
+        return response()->json(['message' => 'Receiver processed']);
     }
 }

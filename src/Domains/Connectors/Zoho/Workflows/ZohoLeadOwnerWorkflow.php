@@ -14,14 +14,14 @@ class ZohoLeadOwnerWorkflow extends Workflow
 {
     public function execute(
         string $leadId,
-        int $receiverId,
+        LeadReceiver $receiver,
         AppInterface $app,
         array $params = []
     ): Generator {
         $result = yield ActivityStub::make(
             ZohoLeadOwnerActivity::class,
             $leadId,
-            $receiverId,
+            $receiver,
             $app,
             $params
         );
