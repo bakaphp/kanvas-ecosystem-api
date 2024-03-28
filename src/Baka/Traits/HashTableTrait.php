@@ -76,7 +76,7 @@ trait HashTableTrait
         }
 
         foreach ($settings as $setting) {
-            $this->set($setting['name'], $setting['data'], $public);
+            $this->set($setting['name'], $setting['data'], $isPublic);
         }
 
         return true;
