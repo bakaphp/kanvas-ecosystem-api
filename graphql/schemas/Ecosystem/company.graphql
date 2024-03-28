@@ -25,6 +25,13 @@ type Company {
     updated_at: DateTime
     total_users: Int!
     total_branches: Int!
+    custom_fields(
+        orderBy: _ @orderBy(columns: ["updated_at", "created_at"])
+    ): [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\HashFieldsQuery@getAllByGraphType"
+        )
 }
 
 type CompanyGroup {
@@ -67,6 +74,13 @@ type CompanyBranch {
     total_users: Int!
     is_active: Boolean!
     is_default: Boolean!
+    custom_fields(
+        orderBy: _ @orderBy(columns: ["updated_at", "created_at"])
+    ): [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\HashFieldsQuery@getAllByGraphType"
+        )
     created_at: DateTime
     updated_at: DateTime
 }
@@ -142,7 +156,7 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             model: "Kanvas\\Companies\\Models\\Companies"
-            scopes: ["companyInApp"]
+            scopes: ["companyInApp", "notDeleted"]
         )
 
     branches(
@@ -160,12 +174,21 @@ extend type Query @guard {
                     "is_default"
                 ]
             )
-        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name", "companies_id"])
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "companies_id"
+                ]
+            )
     ): [CompanyBranch!]!
         @paginate(
             defaultCount: 25
             model: "Kanvas\\Companies\\Models\\CompaniesBranches"
-            scopes: ["userAssociated"]
+            scopes: ["userAssociated", "notDeleted"]
         )
 
     companyUsers(
