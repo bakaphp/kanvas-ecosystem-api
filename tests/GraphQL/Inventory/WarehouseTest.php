@@ -197,7 +197,7 @@ class WarehouseTest extends TestCase
         ]);
         $data = $response->decodeResponseJson()['data']['createWarehouse'];
         $this->graphQL('
-            mutation($id: Int!, $data: WarehouseInputUpdate!) {
+            mutation($id: ID!, $data: WarehouseInputUpdate!) {
                 updateWarehouse(id: $id, input: $data)
                 {
                     id
@@ -279,7 +279,7 @@ class WarehouseTest extends TestCase
         ]);
         $data = $response->decodeResponseJson()['data']['createWarehouse'];
         $this->graphQL('
-            mutation($id: Int!) {
+            mutation($id: ID!) {
                 deleteWarehouse(id: $id)
             }', [
             'id' => $data['id'],

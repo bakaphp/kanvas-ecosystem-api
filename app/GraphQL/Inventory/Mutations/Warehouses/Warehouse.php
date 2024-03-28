@@ -36,11 +36,11 @@ class Warehouse
      */
     public function update(mixed $root, array $request): Warehouses
     {
-        $warehouse = WarehouseRepository::getById($request['id'], auth()->user()->getCurrentCompany());
+        $warehouse = WarehouseRepository::getById((int) $request['id'], auth()->user()->getCurrentCompany());
         $request = $request['input'];
         if (key_exists('regions_id', $request)) {
             $request['regions_id'] = RegionRepository::getById(
-                $request['regions_id'],
+                (int) $request['regions_id'],
                 auth()->user()->getCurrentCompany()
             )->getKey();
         }
@@ -54,7 +54,7 @@ class Warehouse
      */
     public function delete(mixed $root, array $request): bool
     {
-        $warehouse = WarehouseRepository::getById($request['id'], auth()->user()->getCurrentCompany());
+        $warehouse = WarehouseRepository::getById((int) $request['id'], auth()->user()->getCurrentCompany());
 
         return $warehouse->delete();
     }

@@ -104,7 +104,7 @@ class RemoveVariantsToWarehouseTest extends TestCase
             'position' => rand(1, 4),
         ];
         $warehouseResponse = $this->graphQL('
-        mutation($data: VariantsWarehousesInput! $id: ID! $warehouse_id: Int!) {
+        mutation($data: VariantsWarehousesInput! $id: ID! $warehouse_id: ID!) {
             addVariantToWarehouse(input: $data id: $id warehouse_id: $warehouse_id)
             {
                 id
@@ -123,7 +123,7 @@ class RemoveVariantsToWarehouseTest extends TestCase
             'warehouse_id' => $warehouseData['id']
         ]);
         $this->graphQL('
-        mutation($id: Int! $warehouse_id: Int!) {
+        mutation($id: ID! $warehouse_id: ID!) {
             removeVariantToWarehouse(id: $id warehouse_id: $warehouse_id)
         }', [
             'id' => $variantId,

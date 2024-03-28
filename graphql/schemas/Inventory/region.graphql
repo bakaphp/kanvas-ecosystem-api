@@ -1,5 +1,5 @@
 type Region {
-    id: Int!
+    id: ID!
     companies_id: Int!
     currency_id: Int!
     companies: Company! @belongsTo(relation: "company")
@@ -13,16 +13,16 @@ type Region {
 }
 
 input RegionInput {
-    currency_id: Int!
+    currency_id: ID!
     name: String!
     slug: String
-    companies_id: Int
+    companies_id: ID
     short_slug: String!
     settings: String
     is_default: Int!
 }
 input RegionInputUpdate {
-    currency_id: Int
+    currency_id: ID
     name: String
     slug: String
     short_slug: String
@@ -48,11 +48,11 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Regions\\Region@create"
         )
-    updateRegion(id: Int!, input: RegionInputUpdate!): Region!
+    updateRegion(id: ID!, input: RegionInputUpdate!): Region!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Regions\\Region@update"
         )
-    deleteRegion(id: Int!): Boolean!
+    deleteRegion(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Regions\\Region@delete"
         )

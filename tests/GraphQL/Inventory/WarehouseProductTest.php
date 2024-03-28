@@ -81,7 +81,7 @@ class WarehouseProductTest extends TestCase
         $productId = $response->decodeResponseJson()['data']['createProduct']['id'];
         $this->graphQL(
             '
-                mutation addWarehouse($id: Int! $warehouse_id: Int!) {
+                mutation addWarehouse($id: ID! $warehouse_id: ID!) {
                     addWarehouse(id: $id, warehouse_id: $warehouse_id)
                     {
                         id

@@ -51,7 +51,7 @@ class Warehouses extends Data
             isset($request['companies_id']) ? Companies::getById($request['companies_id']) : $company,
             app(Apps::class),
             $user,
-            RegionRepository::getById($request['regions_id'], $company),
+            RegionRepository::getById((int) $request['regions_id'], $company),
             $request['name'],
             $request['location'] ?? null,
             $request['is_default'] ?? (bool) StateEnums::NO->getValue(),

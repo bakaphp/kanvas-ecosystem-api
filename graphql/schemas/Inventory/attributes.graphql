@@ -44,7 +44,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\AttributeMutation@update"
         )
-    deleteAttribute(id: ID!): Attributes!
+    deleteAttribute(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\AttributeMutation@delete"
         )

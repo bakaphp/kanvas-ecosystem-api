@@ -1,5 +1,5 @@
 type Channel {
-    id: Int!
+    id: ID!
     companies_id: Int!
     users_id: Int!
     companies: Company
@@ -33,15 +33,15 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Channels\\ChannelMutation@create"
         )
-    updateChannel(id: Int!, input: UpdateChannelInput!): Channel!
+    updateChannel(id: ID!, input: UpdateChannelInput!): Channel!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Channels\\ChannelMutation@update"
         )
-    deleteChannel(id: Int!): Boolean!
+    deleteChannel(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Channels\\ChannelMutation@delete"
         )
-    unPublishAllVariantsFromChannel(id: Int!): Boolean!
+    unPublishAllVariantsFromChannel(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Channels\\ChannelMutation@unPublishAllVariantsFromChannel"
         )

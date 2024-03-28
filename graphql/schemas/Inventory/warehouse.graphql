@@ -1,7 +1,7 @@
 type Warehouse {
-    id: Int!
+    id: ID!
     regions: Region! @belongsTo(relation: "regions")
-    regions_id: Int!
+    regions_id: ID!
     company: Company! @belongsTo(relation: "company")
     uuid: String!
     name: String!
@@ -12,9 +12,9 @@ type Warehouse {
 }
 
 input WarehouseInput {
-    regions_id: Int!
+    regions_id: ID!
     name: String!
-    companies_id: Int
+    companies_id: ID
     location: String
     is_default: Boolean!
     is_published: Boolean!
@@ -40,7 +40,7 @@ input WarehouseReferenceInput {
 }
 
 input WarehouseInputUpdate {
-    regions_id: Int
+    regions_id: ID
     name: String
     location: String
     is_default: Boolean
@@ -51,11 +51,11 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Warehouses\\Warehouse@create"
         )
-    updateWarehouse(input: WarehouseInputUpdate!, id: Int!): Warehouse!
+    updateWarehouse(input: WarehouseInputUpdate!, id: ID!): Warehouse!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Warehouses\\Warehouse@update"
         )
-    deleteWarehouse(id: Int!): Boolean!
+    deleteWarehouse(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Warehouses\\Warehouse@delete"
         )

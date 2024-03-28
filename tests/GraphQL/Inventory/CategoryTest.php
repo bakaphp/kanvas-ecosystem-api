@@ -123,7 +123,7 @@ class CategoryTest extends TestCase
             'name' => fake()->name,
         ];
         $this->graphQL('
-            mutation($id: Int!, $data: CategoryUpdateInput!) {
+            mutation($id: ID!, $data: CategoryUpdateInput!) {
                 updateCategory(id: $id, input: $data)
                 {
                     name
@@ -176,7 +176,7 @@ class CategoryTest extends TestCase
             'name' => fake()->name,
         ];
         $this->graphQL('
-            mutation($id: Int!, $data: CategoryUpdateInput!) {
+            mutation($id: ID!, $data: CategoryUpdateInput!) {
                 updateCategory(id: $id, input: $data)
                 {
                     name
@@ -185,7 +185,7 @@ class CategoryTest extends TestCase
             'data' => ['updateCategory' => $data]
         ]);
         $this->graphQL('
-            mutation($id: Int!) {
+            mutation($id: ID!) {
                 deleteCategory(id: $id)
             }', ['id' => $id])->assertJson([
             'data' => ['deleteCategory' => true]

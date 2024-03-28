@@ -18,7 +18,7 @@ class Attributes extends Data
         public AppInterface $app,
         public UserInterface $user,
         public string $name,
-        public string $value,
+        public mixed $value,
     ) {
     }
 

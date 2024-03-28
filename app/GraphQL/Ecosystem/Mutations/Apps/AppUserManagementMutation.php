@@ -103,4 +103,13 @@ class AppUserManagementMutation
 
         return true;
     }
+
+    public function appResetUserPassword(mixed $root, array $request): bool
+    {
+        $user = Users::getByUuid($request['user_id']);
+        $app = app(Apps::class);
+        UsersRepository::belongsToThisApp($user, $app);
+
+        return $user->resetPassword($request['password'], $app);
+    }
 }

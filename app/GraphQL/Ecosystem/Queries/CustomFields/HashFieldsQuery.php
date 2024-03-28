@@ -23,9 +23,9 @@ class HashFieldsQuery
         ResolveInfo $resolveInfo
     ): Builder {
         if ($root instanceof Users) {
-            $customFields = UserConfig::where('users_id', '=', $root->getKey());
+            $customFields = UserConfig::where('users_id', '=', $root->getKey())->where('is_public', '=', 1);
         } else {
-            $customFields = CompaniesSettings::where('companies_id', '=', $root->getKey());
+            $customFields = CompaniesSettings::where('companies_id', '=', $root->getKey())->where('is_public', '=', 1);
         }
 
         return $customFields;

@@ -54,7 +54,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@updateVariantInWarehouse"
         )
-    removeVariantToWarehouse(id: Int!, warehouse_id: Int!): Variant
+    removeVariantToWarehouse(id: ID!, warehouse_id: ID!): Variant
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@removeToWarehouse"
         )
@@ -62,7 +62,7 @@ extend type Mutation @guard {
 
 extend type Query @guard {
     warehouseVariants(
-        warehouseId: Int!
+        warehouseId: ID!
         search: String @search
         where: _ @whereConditions(columns: ["quantity", "price", "sku"])
     ): [Variant!]!

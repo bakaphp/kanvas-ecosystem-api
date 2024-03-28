@@ -40,7 +40,7 @@ class ChannelMutation
     {
         $id = $request['id'];
         $data = $request['input'];
-        $channel = ChannelRepository::getById($id, auth()->user()->getCurrentCompany());
+        $channel = ChannelRepository::getById((int) $id, auth()->user()->getCurrentCompany());
         $channel->update($data);
 
         return $channel;
@@ -57,7 +57,7 @@ class ChannelMutation
     public function delete(mixed $rootValue, array $request): bool
     {
         $id = $request['id'];
-        $channel = ChannelRepository::getById($id, auth()->user()->getCurrentCompany());
+        $channel = ChannelRepository::getById((int) $id, auth()->user()->getCurrentCompany());
 
         return $channel->delete();
     }
@@ -72,7 +72,7 @@ class ChannelMutation
     public function unPublishAllVariantsFromChannel(mixed $rootValue, array $request): bool
     {
         $id = $request['id'];
-        $channel = ChannelRepository::getById($id, auth()->user()->getCurrentCompany());
+        $channel = ChannelRepository::getById((int) $id, auth()->user()->getCurrentCompany());
 
         return $channel->unPublishAllVariants();
     }

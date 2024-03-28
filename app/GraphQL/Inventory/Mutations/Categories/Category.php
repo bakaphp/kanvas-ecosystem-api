@@ -45,7 +45,7 @@ class Category
      */
     public function update(mixed $root, array $request): Categories
     {
-        $category = CategoriesRepository::getById($request['id'], auth()->user()->getCurrentCompany());
+        $category = CategoriesRepository::getById((int) $request['id'], auth()->user()->getCurrentCompany());
         $category->update($request['input']);
         return $category;
     }
@@ -60,7 +60,7 @@ class Category
      */
     public function delete(mixed $root, array $request): bool
     {
-        $category = CategoriesRepository::getById($request['id'], auth()->user()->getCurrentCompany());
+        $category = CategoriesRepository::getById((int) $request['id'], auth()->user()->getCurrentCompany());
         return $category->delete();
     }
 }

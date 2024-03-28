@@ -1,6 +1,7 @@
 type Status {
     id: ID!
     name: String!
+    company: Company! @belongsTo(relation: "company")
     is_default: Boolean
     slug: String!
 }

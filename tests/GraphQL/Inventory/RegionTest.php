@@ -138,7 +138,7 @@ class RegionTest extends TestCase
             'currency_id' => 1,
         ];
         $this->graphQL('
-            mutation($data: RegionInputUpdate! $id: Int!) {
+            mutation($data: RegionInputUpdate! $id: ID!) {
                 updateRegion(input: $data id: $id)
                 {
                     id
@@ -201,7 +201,7 @@ class RegionTest extends TestCase
         ');
         $response = $response->decodeResponseJson();
         $this->graphQL('
-            mutation($id: Int!) {
+            mutation($id: ID!) {
                 deleteRegion(id: $id)
             }
         ', [
