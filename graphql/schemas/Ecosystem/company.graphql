@@ -156,7 +156,7 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             model: "Kanvas\\Companies\\Models\\Companies"
-            scopes: ["companyInApp", "notDeleted"]
+            scopes: ["companyInApp"]
         )
 
     branches(
