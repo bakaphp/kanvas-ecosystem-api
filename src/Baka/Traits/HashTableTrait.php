@@ -69,14 +69,14 @@ trait HashTableTrait
      * @param array<array-key, array{name: string, data: mixed}> $settings
      * @throws ConfigurationException
      */
-    public function setAll(array $settings): bool
+    public function setAll(array $settings, bool|int $isPublic = false): bool
     {
         if (empty($settings)) {
             return false;
         }
 
         foreach ($settings as $setting) {
-            $this->set($setting['name'], $setting['data']);
+            $this->set($setting['name'], $setting['data'], $isPublic);
         }
 
         return true;
