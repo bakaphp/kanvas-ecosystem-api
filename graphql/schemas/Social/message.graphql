@@ -18,6 +18,11 @@ type Message {
     appModuleMessage: AppModuleMessage!
     myInteraction: myInteraction @method(name: "getMyInteraction")
     comments: [MessageComments!]!
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
 }
 
 type AppModuleMessage {
