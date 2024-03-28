@@ -25,6 +25,11 @@ type Product {
     productsTypes: ProductType @belongsTo
     companies: Company!
         @belongsTo(relation: "company")
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
 }
 
 input ProductInput {

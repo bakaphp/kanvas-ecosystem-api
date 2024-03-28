@@ -25,6 +25,13 @@ type Company {
     updated_at: DateTime
     total_users: Int!
     total_branches: Int!
+    custom_fields(
+        orderBy: _ @orderBy(columns: ["updated_at", "created_at"])
+    ): [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\HashFieldsQuery@getAllByGraphType"
+        )
 }
 
 type CompanyGroup {
@@ -67,6 +74,11 @@ type CompanyBranch {
     total_users: Int!
     is_active: Boolean!
     is_default: Boolean!
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
     created_at: DateTime
     updated_at: DateTime
 }
