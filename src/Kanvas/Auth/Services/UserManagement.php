@@ -43,7 +43,7 @@ class UserManagement
             $userAppProfile->update($data);
 
             if ($customFields) {
-                $this->user->setAll($customFields);
+                $this->user->setAll($customFields, true);
             }
 
             if ($files) {
