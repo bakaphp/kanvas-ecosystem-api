@@ -23,6 +23,11 @@ type Product {
     variants: [Variant!]! @HasMany
     productsTypes: ProductType @belongsTo
     companies: Company! @belongsTo
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
 }
 
 input ProductInput {
