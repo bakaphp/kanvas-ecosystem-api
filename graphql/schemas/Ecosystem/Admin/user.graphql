@@ -33,6 +33,10 @@ extend type Mutation @guardByAppKey {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@restoreDeletedUser"
         )
+    appResetUserPassword(user_id: ID, password: String): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@appResetUserPassword"
+        )
 }
 
 enum UserAppEnumColumn {

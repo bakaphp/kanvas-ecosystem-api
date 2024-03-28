@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Attributes\Models;
 
 use Baka\Traits\UuidTrait;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 
 /**
  * Class Attributes.
@@ -24,9 +26,11 @@ use Kanvas\Inventory\Models\BaseModel;
 class Attributes extends BaseModel
 {
     use UuidTrait;
+    use CascadeSoftDeletes;
 
     public $table = 'attributes';
     public $guarded = [];
+    protected $cascadeDeletes = ['variantAttributes', 'defaultValues'];
 
     /**
      * companies.
@@ -42,6 +46,11 @@ class Attributes extends BaseModel
     public function apps(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
+    }
+
+    public function variantAttributes(): HasMany
+    {
+        return $this->hasMany(VariantsAttributes::class, 'attributes_id');
     }
 
     /**

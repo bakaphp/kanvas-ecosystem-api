@@ -208,15 +208,19 @@ class Variants extends BaseModel
                 continue;
             }
 
-            $attributesDto = AttributesDto::from([
-                'app' => app(Apps::class),
-                'user' => $user,
-                'company' => $this->product->companies,
-                'name' => $attribute['name'],
-                'value' => $attribute['value'],
-            ]);
+            if (isset($attribute['id'])) {
+                $attributeModel = Attributes::getById((int) $attribute['id']);
+            } else {
+                $attributesDto = AttributesDto::from([
+                    'app' => app(Apps::class),
+                    'user' => $user,
+                    'company' => $this->product->company,
+                    'name' => $attribute['name'],
+                    'value' => $attribute['value'],
+                ]);
+                $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
+            }
 
-            $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
             (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
         }
     }
