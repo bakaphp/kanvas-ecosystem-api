@@ -13,6 +13,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Traits\DefaultTrait;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Users\Models\Users;
 
@@ -43,8 +44,6 @@ class Channels extends BaseModel
 
     /**
      * Get the companies that owns the Warehouses.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function companies(): BelongsTo
     {
@@ -53,7 +52,6 @@ class Channels extends BaseModel
 
     /**
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function apps(): BelongsTo
     {
@@ -62,8 +60,6 @@ class Channels extends BaseModel
 
     /**
      * users.
-     *
-     * @return BelongsTo
      */
     public function users(): BelongsTo
     {
@@ -72,8 +68,6 @@ class Channels extends BaseModel
 
     /**
      * Get the user's first name.
-     *
-     * @return Attribute
      */
     protected function warehousesId(): Attribute
     {
@@ -84,8 +78,6 @@ class Channels extends BaseModel
 
     /**
      * Discounts.
-     *
-     * @return Attribute
      */
     protected function discountedPrice(): Attribute
     {
@@ -96,8 +88,6 @@ class Channels extends BaseModel
 
     /**
      * Get the user's first name.
-     *
-     * @return Attribute
      */
     protected function price(): Attribute
     {
@@ -108,8 +98,6 @@ class Channels extends BaseModel
 
     /**
      * Get the user's first name.
-     *
-     * @return Attribute
      */
     protected function isPublished(): Attribute
     {
@@ -120,8 +108,6 @@ class Channels extends BaseModel
 
     /**
      * Available products in this channel
-     *
-     * @return HasMany
      */
     public function availableProducts(): HasMany
     {
@@ -134,11 +120,13 @@ class Channels extends BaseModel
 
     /**
      * Update all variants doesn't matter the location from this channel
-     *
-     * @return bool
      */
     public function unPublishAllVariants(): bool
     {
+        Variants::fromCompany($this->company)->chunkById(100, function ($variants) {
+            $variants->unsearchable();
+        }, $column = 'id');
+
         return $this->availableProducts()->update(['is_published' => 0]) > 0;
     }
 

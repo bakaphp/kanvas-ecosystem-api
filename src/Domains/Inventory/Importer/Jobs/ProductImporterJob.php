@@ -83,9 +83,9 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
         $company = $this->branch->company()->firstOrFail();
 
         //mark all variants as unsearchable for this company before running the import
-        Variants::fromCompany($company)->chunkById(100, function ($variants) {
-            $variants->unsearchable();
-        }, $column = 'id');
+        /*         Variants::fromCompany($company)->chunkById(100, function ($variants) {
+                    $variants->unsearchable();
+                }, $column = 'id'); */
 
         foreach ($this->importer as $request) {
             try {
