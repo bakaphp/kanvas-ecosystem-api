@@ -13,6 +13,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Traits\DefaultTrait;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Users\Models\Users;
 
@@ -122,21 +123,11 @@ class Channels extends BaseModel
      */
     public function unPublishAllVariants(): bool
     {
-        $hasUpdated = false;
-        $this->availableProducts()->chunk(100, function ($variantsChannels) use (&$hasUpdated) {
-            foreach ($variantsChannels as $variantChannel) {
-                // Update the `is_published` status
-                $variantChannel->update(['is_published' => 0]);
+        Variants::fromCompany($this->company)->chunkById(100, function ($variants) {
+            $variants->unsearchable();
+        }, $column = 'id');
 
-                $variant = $variantChannel->variant;
-                if ($variant) {
-                    $variant->unsearchable();
-                    $hasUpdated = true;
-                }
-            }
-        });
-
-        return $hasUpdated;
+        return $this->availableProducts()->update(['is_published' => 0]) > 0;
     }
 
     public function pricesHistory(): HasMany
