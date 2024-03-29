@@ -74,10 +74,12 @@ type CompanyBranch {
     total_users: Int!
     is_active: Boolean!
     is_default: Boolean!
-    custom_fields: [CustomField!]!
+    custom_fields(
+        orderBy: _ @orderBy(columns: ["updated_at", "created_at"])
+    ): [CustomField!]!
         @paginate(
             defaultCount: 25
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\HashFieldsQuery@getAllByGraphType"
         )
     created_at: DateTime
     updated_at: DateTime
