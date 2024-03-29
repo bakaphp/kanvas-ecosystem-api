@@ -17,12 +17,11 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter as ImporterDto;
 use Kanvas\Inventory\Regions\Models\Regions;
-use Laravel\Scout\EngineManager;
+use Kanvas\Inventory\Variants\Models\Variants;
 
 use function Sentry\captureException;
 
@@ -83,26 +82,10 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
          */
         $company = $this->branch->company()->firstOrFail();
 
-        /**
-         * @var \Laravel\Scout\Engines\MeiliSearchEngine
-         */
-        $meiliSearchEngine = app(EngineManager::class)->engine();
-
-        /**
-         * @todo
-         * right now we are cleaning the index for the company but we have a issue
-         * this index is for all variants for a given company , but the search function
-         * is looking for variant of a given public channel
-         * so we need to move the index to be specific of the channel we are importing
-         * to avoid future issues
-         */
-        try {
-            $meiliSearchEngine->deleteIndex(
-                config('scout.prefix') . AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue() . $company->getId()
-            );
-        } catch (Throwable $e) {
-            //do nothing
-        }
+        //mark all variants as unsearchable for this company before running the import
+        Variants::fromCompany($company)->chunkById(100, function ($variants) {
+            $variants->unsearchable();
+        }, $column = 'id');
 
         foreach ($this->importer as $request) {
             try {
