@@ -17,13 +17,11 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter as ImporterDto;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
-use Laravel\Scout\EngineManager;
 
 use function Sentry\captureException;
 
@@ -85,10 +83,10 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
         $company = $this->branch->company()->firstOrFail();
 
         //mark all variants as unsearchable for this company before running the import
-        Variants::fromCompany($company)->chunkById(100, function($variants) {
+        Variants::fromCompany($company)->chunkById(100, function ($variants) {
             $variants->unsearchable();
         }, $column = 'id');
-        
+
         foreach ($this->importer as $request) {
             try {
                 (new ProductImporterAction(
