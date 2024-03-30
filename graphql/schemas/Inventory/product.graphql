@@ -23,7 +23,7 @@ type Product {
     attributes: [ProductAttribute!]! @BelongsToMany
     variants: [Variant!]! @HasMany
     productsTypes: ProductType @belongsTo
-    companies: Company! @belongsTo
+    companies: Company! @belongsTo(relation: "company")
     custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 25
