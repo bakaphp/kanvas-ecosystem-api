@@ -95,6 +95,8 @@ class CreateProductAction
 
             if ($this->productDto->variants) {
                 VariantService::createVariantsFromArray($products, $this->productDto->variants, $this->user);
+            } else {
+                VariantService::createDefaultVariant($products, $this->user);
             }
 
             DB::connection('inventory')->commit();
