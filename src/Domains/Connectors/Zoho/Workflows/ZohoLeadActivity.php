@@ -89,13 +89,13 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
 
         try {
             $agent = $zohoService->getAgentByMemberNumber($memberNumber);
-        } catch(Throwable $e) {
+        } catch (Throwable $e) {
             $agent = null;
         }
 
         try {
             $agentInfo = Agent::getByMemberNumber($memberNumber, $company);
-        } catch(Throwable $e) {
+        } catch (Throwable $e) {
             $agentInfo = null;
         }
 
@@ -124,7 +124,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
                 $zohoData['Lead_Source'] = $agentInfo->name;
             }
 
-            if ($agentInfo->user && !empty($agentInfo->user->get('sponsor'))) {
+            if ($agentInfo->user && ! empty($agentInfo->user->get('sponsor'))) {
                 $zohoData['Sponsor'] = (string) $agent->user->get('sponsor');
             }
         }
@@ -163,7 +163,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
                 );
 
                 $syncFiles[$file->id] = $file->id;
-            } catch(Throwable $e) {
+            } catch (Throwable $e) {
                 //do nothing
             }
         }
