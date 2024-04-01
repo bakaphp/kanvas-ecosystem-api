@@ -113,12 +113,11 @@ input DeviceInput {
     source_site: String!
     source_username: String
 }
-
+#  @rules(apply: ["unique:Kanvas\\Users\\Models\\Users,displayname"])
 input UpdateUserInput {
     firstname: String
     lastname: String
     displayname: String
-        @rules(apply: ["unique:Kanvas\\Users\\Models\\Users,displayname"])
     description: String
     sex: String
     phone_number: String
@@ -176,7 +175,7 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@reset"
         )
-    updateUser(id: ID!, data: UpdateUserInput!): User!
+    updateUser(id: ID!, data: UpdateUserInput!): User! @validator(class: "UpdateUserInputValidator")
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updateUser"
