@@ -104,8 +104,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
             $zohoData['Lead_Source'] = $lead->receiver ? $lead->receiver->name : $defaultLeadSource;
         }
 
-        if ($agent && $agent->count()) {
-            $agent = $agent->first();
+        if (is_object($agent)) {
             $zohoData['Owner'] = (int) $agent->Owner['id'];
             if ($agent->Sponsor) {
                 $zohoData['Sponsor'] = (string) $agent->Sponsor;
@@ -119,13 +118,13 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
             if ($agentInfo && $agentInfo->get('over_write_owner')) {
                 $zohoData['Owner'] = (int) $agentInfo->get('over_write_owner');
             }
-        } elseif ($agentInfo) {
+        } elseif ($agentInfo instanceof Agent) {
             $zohoData['Owner'] = (int) $agentInfo->owner_linked_source_id;
             if (empty($defaultLeadSource)) {
                 $zohoData['Lead_Source'] = $agentInfo->name;
             }
 
-            if ($agentInfo->user && $agentInfo->user->get('sponsor')) {
+            if ($agentInfo->user && !empty($agentInfo->user->get('sponsor'))) {
                 $zohoData['Sponsor'] = (string) $agent->user->get('sponsor');
             }
         }
