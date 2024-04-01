@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use Bouncer;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Schema as FacadesSchema;
 use Illuminate\Support\ServiceProvider;
@@ -43,7 +44,7 @@ class KanvasAppsProvider extends ServiceProvider
 
             //set app ACL scope
             Bouncer::scope()->to(RolesEnums::getScope($app));
-        } catch (Throwable $e) {
+        } catch (ModelNotFoundException $e) {
             throw new InternalServerErrorException(
                 'No App configure with this key: ' . $appIdentifier,
                 $e->getMessage()
