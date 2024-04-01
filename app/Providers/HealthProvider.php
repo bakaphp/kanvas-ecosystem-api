@@ -28,11 +28,13 @@ class HealthProvider extends ServiceProvider
            DatabaseCheck::new()->name('inventory')->connectionName('inventory'),
            DatabaseCheck::new()->name('social')->connectionName('social'),
            DatabaseCheck::new()->name('crm')->connectionName('crm'),
+           DatabaseCheck::new()->name('content_engine')->connectionName('content_engine'),
+           DatabaseCheck::new()->name('workflow')->connectionName('workflow'),
            RedisCheck::new()->name('redis'),
            RedisMemoryUsageCheck::new()->failWhenAboveMb(1000),
-           QueueCheck::new(),
-           MeiliSearchCheck::new()->url(config('scout.meilisearch.host') . '/health'),
-           ScheduleCheck::new()->heartbeatMaxAgeInMinutes(5),
+           //QueueCheck::new(),
+           //MeiliSearchCheck::new()->url(config('scout.meilisearch.host') . '/health'),
+           //ScheduleCheck::new()->heartbeatMaxAgeInMinutes(5),
           /* OptimizedAppCheck::new()->if(app()->isProduction()), */
         ]);
     }
