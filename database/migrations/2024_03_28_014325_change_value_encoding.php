@@ -11,7 +11,7 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('filesystem_settings', function (Blueprint $table) {
-            $table->string('value', 255)->charset('utf8mb4')->collation('utf8mb4_unicode_ci')->change();
+            $table->longText('value')->charset('utf8mb4')->collation('utf8mb4_unicode_ci')->change();
         });
     }
 
@@ -21,7 +21,7 @@ return new class () extends Migration {
     public function down(): void
     {
         Schema::table('filesystem_settings', function (Blueprint $table) {
-            $table->string('value')->change();
+            $table->longText('value')->change();
         });
     }
 };
