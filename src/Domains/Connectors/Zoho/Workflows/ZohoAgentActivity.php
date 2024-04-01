@@ -93,7 +93,7 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
             'zohoId' => $zohoId,
             'users_id' => $user->getId(),
             'companies_id' => $company->getId(),
-            'newAgentRecord' => $newAgentRecord ?? [],
+            //'newAgentRecord' => $newAgentRecord ?? [],
         ];
     }
 
