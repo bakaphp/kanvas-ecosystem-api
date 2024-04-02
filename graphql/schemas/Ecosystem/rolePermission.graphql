@@ -3,10 +3,13 @@ type Role {
     name: String!
     title: String
     scope: String
+    userCount: Int!
+    abilitiesCount: Int!
 }
 
 extend type Query @guard {
     roles(
+        search: String @search
         where: _ @whereConditions(columns: ["id", "name", "title"])
         orderBy: _ @orderBy(columns: ["id"])
     ): [Role!]!
