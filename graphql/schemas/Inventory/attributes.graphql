@@ -1,20 +1,29 @@
 input AttributeInput {
     name: String!
-    source_id: Mixed
     value: Mixed!
+    is_visible: Boolean
+    is_searchable: Boolean
+    is_filtrable: Boolean
 }
 
 input AttributeUpdateInput {
     name: String
+    is_visible: Boolean
+    is_searchable: Boolean
+    is_filtrable: Boolean
 }
 
 type Attributes {
     id: ID!
     uuid: String
     name: String
+    code: String
     created_at: String
     updated_at: String
     companies: [Company]
+    is_visible: Boolean
+    is_searchable: Boolean
+    is_filtrable: Boolean
     values: [AttributesValue!] @hasMany(relation: "defaultValues")
 }
 
