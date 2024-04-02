@@ -3,6 +3,8 @@ type Role {
     name: String!
     title: String
     scope: String
+    userCount: Int!
+    abilitiesCount: Int!
 }
 
 extend type Query @guard {
