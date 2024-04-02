@@ -141,7 +141,7 @@ class RolesManagementMutation
 
         $role = new UpdateRoleAction(
             (int) $request['id'],
-            $request['name'],
+            $request['name'] ?? null,
             $request['title'] ?? null
         );
 
