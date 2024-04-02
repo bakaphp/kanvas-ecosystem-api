@@ -1,9 +1,9 @@
 <?php
 
-use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Users\Models\Users;
-use Kanvas\Social\UsersLists\Models\UserList as ModelUserList;
 use Kanvas\AccessControlList\Models\Role;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\UsersLists\Models\UserList as ModelUserList;
+use Kanvas\Users\Models\Users;
 
 return [
 
@@ -144,7 +144,7 @@ return [
                 'sortableAttributes' => ['created_at','updated_at'],
             ],
             Role::class => [
-                'filterableAttributes' => ['scope', 'name', 'title']
+                'filterableAttributes' => ['scope', 'name', 'title'],
             ],
             ModelUserList::class => [
                 'filterableAttributes' => [
@@ -155,11 +155,10 @@ return [
                     'is_default',
                     'name',
                     'description',
-                    'items'
+                    'items',
                 ],
                 'sortableAttributes' => ['created_at','updated_at'],
             ],
-            
         ],
     ],
 
