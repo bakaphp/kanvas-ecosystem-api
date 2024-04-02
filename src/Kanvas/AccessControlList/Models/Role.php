@@ -21,11 +21,6 @@ class Role extends SilberRole
     use Searchable;
     protected $connection = 'mysql';
 
-    // public function users(): BelongsToMany
-    // {
-    //     return $this->belongsToMany(Users::class, 'assigned_roles', 'entity_id', 'role_id')->where('entity_type', Users::class);
-    // }
-
     public function getUserCountAttribute(): int
     {
         $count = Redis::get('role:' . $this->id . ':users_count');
