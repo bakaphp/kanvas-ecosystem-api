@@ -3,6 +3,7 @@
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use Kanvas\Social\UsersLists\Models\UserList as ModelUserList;
+use Kanvas\AccessControlList\Models\Role;
 
 return [
 
@@ -142,6 +143,9 @@ return [
                 'filterableAttributes' => ['apps_id'],
                 'sortableAttributes' => ['created_at','updated_at'],
             ],
+            Role::class => [
+                'filterableAttributes' => ['scope', 'name', 'title']
+            ],
             ModelUserList::class => [
                 'filterableAttributes' => [
                     'apps_id',
@@ -155,6 +159,7 @@ return [
                 ],
                 'sortableAttributes' => ['created_at','updated_at'],
             ],
+            
         ],
     ],
 
