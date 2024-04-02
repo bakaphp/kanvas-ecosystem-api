@@ -17,7 +17,6 @@ type Attributes {
     id: ID!
     uuid: String
     name: String
-    code: String
     created_at: String
     updated_at: String
     companies: [Company]
