@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\AccessControlList\Models;
 
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Facades\Redis;
-use Kanvas\Users\Models\Users;
 use Laravel\Scout\Searchable;
 use Silber\Bouncer\Database\Role as SilberRole;
 
@@ -29,7 +27,7 @@ class Role extends SilberRole
             Redis::setex('role:' . $this->id . ':users_count', 120, $count);
         }
 
-        return $count;
+        return (int)$count;
     }
 
     public function getAbilitiesCountAttribute(): int
@@ -40,6 +38,6 @@ class Role extends SilberRole
             Redis::setex('role:' . $this->id . ':abilities_count', 120, $count);
         }
 
-        return $count;
+        return (int)$count;
     }
 }
