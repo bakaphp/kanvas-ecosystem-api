@@ -9,6 +9,7 @@ use Bouncer;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
 use Kanvas\AccessControlList\Actions\UpdateRoleAction;
+use Kanvas\AccessControlList\Models\Role as KanvasRole;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Repositories\UsersRepository;
@@ -125,7 +126,9 @@ class RolesManagementMutation
             $request['title']
         );
 
-        return $role->execute(auth()->user()->getCurrentCompany());
+        $role = $role->execute(auth()->user()->getCurrentCompany());
+
+        return KanvasRole::find($role->id);
     }
 
     /**
@@ -145,6 +148,8 @@ class RolesManagementMutation
             $request['title'] ?? null
         );
 
-        return $role->execute(auth()->user()->getCurrentCompany());
+        $role = $role->execute(auth()->user()->getCurrentCompany());
+
+        return KanvasRole::find($role->id);
     }
 }
