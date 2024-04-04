@@ -33,6 +33,7 @@ class CreateCompanyBranchActions
             CompaniesRepository::userAssociatedToCompany($company, $this->user);
         } else {
             $company->isOwner($this->user);
+            $this->data->is_default = (int) StateEnums::YES->getValue();
         }
 
         if ($this->data->is_default === StateEnums::YES->getValue()) {
