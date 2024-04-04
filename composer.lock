@@ -12082,26 +12082,26 @@
         },
         {
             "name": "timokoerber/laravel-one-time-operations",
-            "version": "1.4.0",
+            "version": "1.4.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/TimoKoerber/laravel-one-time-operations.git",
-                "reference": "148fd0a05ddd4fbc2c8b65846cfb4a4cc788e37c"
+                "reference": "33292b8606ff51b8bebe2d6f62fe057621e56942"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/TimoKoerber/laravel-one-time-operations/zipball/148fd0a05ddd4fbc2c8b65846cfb4a4cc788e37c",
-                "reference": "148fd0a05ddd4fbc2c8b65846cfb4a4cc788e37c",
+                "url": "https://api.github.com/repos/TimoKoerber/laravel-one-time-operations/zipball/33292b8606ff51b8bebe2d6f62fe057621e56942",
+                "reference": "33292b8606ff51b8bebe2d6f62fe057621e56942",
                 "shasum": ""
             },
             "require": {
-                "illuminate/contracts": "^9.0|^10.0",
-                "illuminate/support": "^9.0|^10.0",
+                "illuminate/contracts": "^9.0|^10.0|^11.0",
+                "illuminate/support": "^9.0|^10.0|^11.0",
                 "php": "^8.0"
             },
             "require-dev": {
-                "orchestra/testbench": "7",
-                "phpunit/phpunit": "^9.4"
+                "orchestra/testbench": "7|^9.0",
+                "phpunit/phpunit": "^9.4|^10.5"
             },
             "type": "library",
             "extra": {
@@ -12140,9 +12140,9 @@
             ],
             "support": {
                 "issues": "https://github.com/TimoKoerber/laravel-one-time-operations/issues",
-                "source": "https://github.com/TimoKoerber/laravel-one-time-operations/tree/1.4.0"
+                "source": "https://github.com/TimoKoerber/laravel-one-time-operations/tree/1.4.2"
             },
-            "time": "2023-12-16T18:30:50+00:00"
+            "time": "2024-04-04T11:16:58+00:00"
         },
         {
             "name": "vladimir-yuldashev/laravel-queue-rabbitmq",
