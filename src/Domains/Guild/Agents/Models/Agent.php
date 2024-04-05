@@ -35,15 +35,21 @@ class Agent extends BaseModel
     protected $table = 'agents';
     protected $guarded = [];
 
+    /**
+     * @psalm-suppress MixedReturnStatement
+     * @psalm-suppress MixedPropertyFetch
+     */
     public function owner(): Users
     {
         try {
             return self::setConnection('crm')
+                ->isActive()
                 ->where('users_linked_source_id', $this->owner_linked_source_id)
                 ->where('companies_id', $this->companies_id)
                 ->firstOrFail()->user;
         } catch (ModelNotFoundException $e) {
             return self::setConnection('crm')
+                ->isActive()
                 ->where('member_id', $this->owner_id)
                 ->where('companies_id', $this->companies_id)
                 ->firstOrFail()->user;
@@ -98,6 +104,11 @@ class Agent extends BaseModel
         }
 
         return $query;
+    }
+
+    public function scopeIsActive(Builder $query): Builder
+    {
+        return $query->where('status_id', 1);
     }
 
     public function getMemberNumber(): string
