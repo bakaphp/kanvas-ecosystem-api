@@ -31,6 +31,7 @@ use Laravel\Scout\Searchable;
  * @property string $phone
  * @property string $zipcode
  * @property int $is_default
+ * @property int $is_active
  */
 class CompaniesBranches extends BaseModel
 {
