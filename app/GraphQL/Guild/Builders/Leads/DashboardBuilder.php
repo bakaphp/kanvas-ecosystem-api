@@ -23,13 +23,14 @@ class DashboardBuilder
         $memberId = 'member_number_' . $company->getId();
 
         $memberId = (int) ($user->get($memberId) ? $user->get($memberId) : $user->getId());
+
         /**
          * @var Builder
          */
         return Lead::selectRaw('
                     COUNT(CASE WHEN leads_status.name = ? THEN 1 END) + COUNT(CASE WHEN leads_status.name = ? THEN 1 END)  as total_active_leads,
                     COUNT(CASE WHEN leads_status.name = ? THEN 1 END) as total_closed_leads,
-                    (SELECT count(*) FROM agents where owner_id = ? AND companies_id = ?) as total_agents
+                    (SELECT count(*) FROM agents where owner_id = ? AND companies_id = ? and status_id = 1) as total_agents
                 ', ['active', 'created', 'closed', $memberId, $company->getId()])
                  ->join('leads_status', 'leads.leads_status_id', '=', 'leads_status.id')
                  ->fromCompany($company);
