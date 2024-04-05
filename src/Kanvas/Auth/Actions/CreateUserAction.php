@@ -31,6 +31,7 @@ use Throwable;
 class CreateUserAction
 {
     protected Apps $app;
+    protected bool $runWorkflow = true;
 
     /**
      * Construct function.
@@ -85,7 +86,9 @@ class CreateUserAction
             $this->onBoarding($user, $company);
         }
 
-        $user->fireWorkflow(WorkflowEnum::REGISTERED->value, true, ['company' => $company]);
+        if ($this->runWorkflow) {
+            $user->fireWorkflow(WorkflowEnum::REGISTERED->value, true, ['company' => $company]);
+        }
 
         return $user;
     }
@@ -135,6 +138,7 @@ class CreateUserAction
         $user->saveOrFail();
 
         $user->setAll($this->data->custom_fields);
+
         return $user;
     }
 
@@ -221,5 +225,10 @@ class CreateUserAction
         $action->execute();
 
         return $company;
+    }
+
+    public function disableWorkflow(): void
+    {
+        $this->runWorkflow = false;
     }
 }

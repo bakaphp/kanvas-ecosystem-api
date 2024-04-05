@@ -29,6 +29,8 @@ class RolesTest extends TestCase
                     id,
                     name
                     title
+                    userCount
+                    abilitiesCount
                 }
             }',
             [
@@ -65,6 +67,8 @@ class RolesTest extends TestCase
                     id,
                     name
                     title
+                    userCount
+                    abilitiesCount
                 }
             }',
             [
@@ -138,6 +142,8 @@ class RolesTest extends TestCase
                     id,
                     name
                     title
+                    userCount
+                    abilitiesCount
                 }
             }',
             [

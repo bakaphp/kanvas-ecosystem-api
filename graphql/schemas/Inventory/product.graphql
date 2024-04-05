@@ -1,6 +1,6 @@
 type Product {
-    id: Int!
-    products_types_id: Int
+    id: ID!
+    products_types_id: ID
     uuid: String!
     name: String!
     slug: String!
@@ -9,6 +9,7 @@ type Product {
     html_description: String
     warranty_terms: String
     upc: String
+    status: Status
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25
@@ -22,7 +23,7 @@ type Product {
     attributes: [ProductAttribute!]! @BelongsToMany
     variants: [Variant!]! @HasMany
     productsTypes: ProductType @belongsTo
-    companies: Company! @belongsTo
+    companies: Company! @belongsTo(relation: "company")
     custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 25
@@ -31,7 +32,7 @@ type Product {
 }
 
 input ProductInput {
-    products_types_id: Int
+    products_types_id: ID
     name: String!
     description: String!
     slug: String
@@ -44,6 +45,7 @@ input ProductInput {
     warehouses: [Int!]
     source_id: Mixed
     variants: [VariantsInput!]
+    status: StatusReferenceInput
     attributes: [AttributeInput!]
     files: [FilesystemInputUrl!]
     price: Float
@@ -59,6 +61,7 @@ input ProductInputUpdate {
     warranty_terms: String
     upc: String
     is_published: Boolean
+    status: StatusReferenceInput
     files: [FilesystemInputUrl!]
 }
 
@@ -67,31 +70,31 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@create"
         )
-    updateProduct(id: Int!, input: ProductInputUpdate): Product
+    updateProduct(id: ID!, input: ProductInputUpdate): Product
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@update"
         )
-    deleteProduct(id: Int!): Boolean
+    deleteProduct(id: ID!): Boolean
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@delete"
         )
-    addAttribute(id: Int!, attribute_id: Int!, value: String!): Product
+    addAttribute(id: ID!, attribute_id: ID!, value: String!): Product
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addAttribute"
         )
-    removeAttribute(id: Int!, attribute_id: Int!): Product
+    removeAttribute(id: ID!, attribute_id: ID!): Product
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@removeAttribute"
         )
-    addWarehouse(id: Int!, warehouse_id: Int!): Product
+    addWarehouse(id: ID!, warehouse_id: ID!): Product
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addWarehouse"
         )
-    removeWarehouse(id: Int!, warehouse_id: Int!): Product
+    removeWarehouse(id: ID!, warehouse_id: ID!): Product
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@removeWarehouse"
         )
-    addCategory(id: Int!, category_id: Int!): Product
+    addCategory(id: ID!, category_id: ID!): Product
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addCategory"
         )

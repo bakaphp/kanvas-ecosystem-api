@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\AccessControlList\Actions;
 
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Models\Role;
@@ -21,7 +20,7 @@ class UpdateRoleAction
      */
     public function __construct(
         public int $id,
-        public string $name,
+        public ?string $name = null,
         public ?string $title = null,
         public ?Apps $app = null
     ) {
@@ -33,28 +32,26 @@ class UpdateRoleAction
      */
     public function execute(?Companies $company = null): Role
     {
-        $validator = Validator::make(
-            [
-                'name' => $this->name,
-            ],
-            [
-                'name' => 'required|unique:roles,name,' . $this->id . ',id,scope,' . RolesEnums::getScope($this->app),
-            ]
-        );
+        if ($this->name) {
+            $validator = Validator::make(
+                [
+                    'name' => $this->name,
+                ],
+                [
+                    'name' => 'required|unique:roles,name,' . $this->id . ',id,scope,' . RolesEnums::getScope($this->app),
+                ]
+            );
 
-        if ($validator->fails()) {
-            throw new ValidationException($validator->errors()->first() . 'for roles in the current app');
+            if ($validator->fails()) {
+                throw new ValidationException($validator->errors()->first() . 'for roles in the current app');
+            }
         }
 
         $role = Role::find($this->id);
-
-        /*  if ($role->scope !== RolesEnums::getScope($this->app)) {
-             throw new AuthorizationException('You don\'t have permission to update this role');
-         } */
-
-        $role->name = $this->name;
-        $role->title = $this->title;
-        $role->saveOrFail();
+        $role->update([
+            'name' => $this->name ?? $role->name,
+            'title' => $this->title ?? $role->title,
+        ]);
 
         return $role;
     }
