@@ -36,9 +36,8 @@ class Agent extends BaseModel
     protected $guarded = [];
 
     /**
-     * @psalm-suppress MixedReturnStatement 
+     * @psalm-suppress MixedReturnStatement
      * @psalm-suppress MixedPropertyFetch
-     * @return Users 
      */
     public function owner(): Users
     {

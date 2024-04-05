@@ -78,7 +78,6 @@ class AgentsImportCommand extends Command
         }
 
         foreach ($records as $record) {
-
             $record['Record Id'] = str_replace('zcrm_', '', $record['Record Id']);
             $record['Owner Id'] = str_replace('zcrm_', '', $record['Owner Id']);
 
@@ -94,7 +93,6 @@ class AgentsImportCommand extends Command
                     $user->save();
                     $this->info('User ' . $user->email . ' updated successfully');
                 }
-
             } catch (ModelNotFoundException|EloquentModelNotFoundException $e) {
                 //create user
                 $createUser = new CreateUserAction(
@@ -133,6 +131,5 @@ class AgentsImportCommand extends Command
 
             $this->info('Agent ' . $agent->name . ' synced successfully');
         }
-
     }
 }
