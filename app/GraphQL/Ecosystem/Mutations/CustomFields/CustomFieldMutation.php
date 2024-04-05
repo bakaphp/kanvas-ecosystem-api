@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Mutations\CustomFields;
 
 use Kanvas\CustomFields\DataTransferObject\CustomFieldInput;
-use Kanvas\CustomFields\Models\CustomFields;
+use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 class CustomFieldMutation
@@ -25,7 +25,7 @@ class CustomFieldMutation
                 $customFieldInput->data
             );
 
-            return $customField instanceof CustomFields || $customField === true;
+            return $customField instanceof AppsCustomFields || $customField === true;
         }
 
         return false;
