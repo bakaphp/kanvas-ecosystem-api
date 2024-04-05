@@ -227,10 +227,8 @@ class CreateUserAction
         return $company;
     }
 
-    public function disableWorkflow(): self
+    public function disableWorkflow(): void
     {
         $this->runWorkflow = false;
-
-        return $this;
     }
 }
