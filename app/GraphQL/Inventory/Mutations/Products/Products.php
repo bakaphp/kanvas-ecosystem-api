@@ -13,6 +13,7 @@ use Kanvas\Inventory\Products\Actions\UpdateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products as ProductsModel;
 use Kanvas\Inventory\Products\Repositories\ProductsRepository;
+use Kanvas\Inventory\Shopify\Actions\CreateProductsAction;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
 
 class Products
@@ -38,7 +39,7 @@ class Products
 
         $productDto = ProductDto::viaRequest($req['input'], $company);
         $action = new CreateProductAction($productDto, auth()->user());
-
+        dd(CreateProductsAction::createProductShopify());
         return $action->execute();
     }
 
