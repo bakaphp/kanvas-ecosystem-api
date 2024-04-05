@@ -89,6 +89,7 @@ class Agent extends BaseModel
         $user = $user instanceof UserInterface ? $user : auth()->user();
         $company = $user->getCurrentCompany();
 
+        $userAgent = Agent::where('users_id', $user->getId())->where('companies_id', $company->getId())->first();
         $query->where('users_id', '>', 0);
 
         $lookingForSpecificUser = $query->wheresContain('users_id', '=', $user->getId());
@@ -97,6 +98,8 @@ class Agent extends BaseModel
             $memberId = $user->get('member_number_' . $company->getId()) ? $user->get('member_number_' . $company->getId()) : $user->getId();
 
             return $query->where('owner_id', $memberId);
+        } elseif ($company->get(AgentFilterEnum::FITTER_BY_OWNER->value) && ! $lookingForSpecificUser) {
+            return $query->where('owner_linked_source_id', $userAgent->users_linked_source_id);
         }
 
         if ($company->get(AgentFilterEnum::FILTER_BY_BRANCH->value)) {
