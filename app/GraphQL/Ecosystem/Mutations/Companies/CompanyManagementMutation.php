@@ -150,6 +150,14 @@ class CompanyManagementMutation
         );
 
         $branch = app(CompaniesBranches::class);
+
+        $companyDefaultBranch = $company->defaultBranch()->first();
+
+        //this happens if they we dont get a branch for via header for the current company (frontend needs to fix)
+        if ($branch->companies_id != $company->getId() && $companyDefaultBranch) {
+            $branch = $companyDefaultBranch;
+        }
+
         if (is_object($branch)) {
             DB::transaction(function () use ($user, $company, $branch) {
                 $baseConditions = [
