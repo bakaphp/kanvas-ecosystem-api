@@ -92,8 +92,9 @@ class CompanyManagementMutation
 
         $branch = app(CompaniesBranches::class);
 
-        $companyDefaultBranch = $company->defaultBranch()->get();
+        $companyDefaultBranch = $company->defaultBranch()->first();
 
+        //this happens if they we dont get a branch for via header for the current company (frontend needs to fix)
         if ($branch->companies_id != $company->getId() && $companyDefaultBranch) {
             $branch = $companyDefaultBranch;
         }
@@ -122,6 +123,7 @@ class CompanyManagementMutation
                 (int) ($request['rol_id'] ?? null)
             );
 
+            //@todo this is a legacy role and should be removed
             $assignLegacyRole = new AssignRoleAction(
                 $user,
                 $company,
