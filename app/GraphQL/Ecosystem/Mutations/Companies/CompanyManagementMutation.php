@@ -18,6 +18,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Users\Actions\AssignRoleAction;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
@@ -82,6 +83,7 @@ class CompanyManagementMutation
     {
         $user = Users::getById($request['user_id']);
         $company = Companies::getById($request['id']);
+        $app = app(Apps::class);
 
         CompaniesRepository::userAssociatedToCompany(
             $company,
@@ -90,7 +92,14 @@ class CompanyManagementMutation
 
         $branch = app(CompaniesBranches::class);
 
-        DB::transaction(function () use ($user, $company, $branch, $request) {
+        $companyDefaultBranch = $company->defaultBranch()->first();
+
+        //this happens if they we dont get a branch for via header for the current company (frontend needs to fix)
+        if ($branch->companies_id != $company->getId() && $companyDefaultBranch) {
+            $branch = $companyDefaultBranch;
+        }
+
+        DB::transaction(function () use ($user, $company, $branch, $request, $app) {
             $company->associateUser(
                 $user,
                 StateEnums::YES->getValue(),
@@ -113,6 +122,14 @@ class CompanyManagementMutation
                 StateEnums::YES->getValue(),
                 (int) ($request['rol_id'] ?? null)
             );
+
+            //@todo this is a legacy role and should be removed
+            $assignLegacyRole = new AssignRoleAction(
+                $user,
+                $company,
+                $app
+            );
+            $assignLegacyRole->execute('Admins');
         });
 
         return true;
@@ -133,6 +150,14 @@ class CompanyManagementMutation
         );
 
         $branch = app(CompaniesBranches::class);
+
+        $companyDefaultBranch = $company->defaultBranch()->first();
+
+        //this happens if they we dont get a branch for via header for the current company (frontend needs to fix)
+        if ($branch->companies_id != $company->getId() && $companyDefaultBranch) {
+            $branch = $companyDefaultBranch;
+        }
+
         if (is_object($branch)) {
             DB::transaction(function () use ($user, $company, $branch) {
                 $baseConditions = [
