@@ -31,7 +31,7 @@ class AppsCustomFields extends BaseModel
         'value',
     ];
 
-    protected $casts = [
+    /* protected $casts = [
         'value' => 'array',
-    ];
+    ]; */
 }
