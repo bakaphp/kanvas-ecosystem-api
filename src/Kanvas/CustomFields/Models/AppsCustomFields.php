@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\CustomFields\Models;
 
+use Baka\Casts\Json;
 use Kanvas\Models\BaseModel;
 
 /**
@@ -31,7 +32,7 @@ class AppsCustomFields extends BaseModel
         'value',
     ];
 
-    /* protected $casts = [
-        'value' => 'array',
-    ]; */
+    protected $casts = [
+        'value' => Json::class,
+    ];
 }
