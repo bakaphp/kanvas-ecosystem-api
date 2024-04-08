@@ -99,7 +99,7 @@ trait HasCustomFields
         }
 
         if ($field = $this->getCustomField($name)) {
-            return Str::jsonToArray($field->value);
+            return $field->value;
         }
 
         return null;
@@ -173,7 +173,7 @@ trait HasCustomFields
             'entity_id' => $this->getKey(),
             'label' => $name,
             'name' => $name,
-            'value' => ! is_array($value) ? $value : json_encode($value),
+            'value' => $value
         ]);
     }
 

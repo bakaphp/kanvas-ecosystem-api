@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Models;
 
+use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -38,6 +39,7 @@ class CompaniesBranches extends BaseModel
     use UuidTrait;
     use HasFilesystemTrait;
     use Searchable;
+    use NoAppRelationshipTrait;
     use HasCustomFields;
 
     /**
