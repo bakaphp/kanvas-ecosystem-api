@@ -1,0 +1,36 @@
+type RoleType {
+    app: App!
+    company: Company!
+    id: ID!
+    name: String!
+    description: String
+}
+
+input RoleTypeInput {
+    name: String!
+    description: String
+}
+
+
+extends type Mutation @guardByAdmin {
+    createRoleType(input: RoleTypeInput): RoleType!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\RoleType\\RoleTypeManagementMutation@createRoleType"
+        )
+    updateRoleType(id: ID!, input: RoleTypeInput): RoleType!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\RoleType\\RoleTypeManagementMutation@updateRoleType"
+        )
+}
+
+extend type Query {
+    roleTypes(
+        where: _ @whereConditions(columns: ["id", "name", "description"])
+        orderBy: _ @orderBy(columns: ["name"])
+    ): [RoleType!]!
+        @paginate(
+            defaultCount: 25
+            model:"Kanvas\\AccessControlList\\Models\\RoleType"
+            scopes: ["fromApp"]
+    )   
+}
