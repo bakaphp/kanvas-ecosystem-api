@@ -43,7 +43,7 @@ class RegisterUsersAction extends CreateUserAction
                 $this->registerUserInApp($user);
                 $company = $this->createCompany($user);
             }
-        } catch(ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             $newUser = true;
             $user = $this->createNewUser();
 
@@ -64,7 +64,9 @@ class RegisterUsersAction extends CreateUserAction
             $this->onBoarding($user, $company);
         }
 
-        $user->fireWorkflow(WorkflowEnum::REGISTERED->value, true, ['company' => $company]);
+        if ($this->runWorkflow) {
+            $user->fireWorkflow(WorkflowEnum::REGISTERED->value, true, ['company' => $company]);
+        }
 
         return $user;
     }
