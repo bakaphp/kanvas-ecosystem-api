@@ -7,7 +7,6 @@ namespace App\GraphQL\Ecosystem\Mutations\Roles;
 use Kanvas\AccessControlList\DataTransferObject\RoleType as RoleTypeDto;
 use Kanvas\AccessControlList\Models\RoleType;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 
 class RolesTypesManagementMutation
 {
@@ -16,11 +15,11 @@ class RolesTypesManagementMutation
         $dto = RoleTypeDto::from([
             'app' => app(Apps::class),
             'name' => $request['input']['name'],
-            'description' => $request['input']['description'],
+            'description' => $request['input']['description'] ?? null,
         ]);
 
         return RoleType::create([
-            'app_id' => $dto->app->getId(),
+            'apps_id' => $dto->app->getId(),
             'name' => $dto->name,
             'description' => $dto->description,
         ]);
@@ -28,15 +27,15 @@ class RolesTypesManagementMutation
 
     public function update(mixed $root, array $request): RoleType
     {
+        $roleType = RoleType::findOrFail($request['id']);
         $dto = RoleTypeDto::from([
             'app' => app(Apps::class),
             'name' => $request['input']['name'],
-            'description' => $request['input']['description'],
+            'description' => $request['input']['description'] ?? $roleType->description,
         ]);
 
-        $roleType = RoleType::findFirstOrFail($request['id']);
         $roleType->update([
-            'app_id' => $dto->app->getId(),
+            'apps_id' => $dto->app->getId(),
             'name' => $dto->name,
             'description' => $dto->description,
         ]);

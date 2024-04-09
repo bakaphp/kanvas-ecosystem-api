@@ -10,4 +10,5 @@ class RoleType extends BaseModel
 {
     public $table = 'roles_types';
     public $connection = 'mysql';
+    protected $guarded = [];
 }

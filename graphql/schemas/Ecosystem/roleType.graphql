@@ -11,26 +11,25 @@ input RoleTypeInput {
     description: String
 }
 
-
-extends type Mutation @guardByAdmin {
-    createRoleType(input: RoleTypeInput): RoleType!
+extend type Mutation @guardByAdmin {
+    createRoleType(input: RoleTypeInput!): RoleType!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\RoleType\\RoleTypeManagementMutation@createRoleType"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesTypesManagementMutation@create"
         )
-    updateRoleType(id: ID!, input: RoleTypeInput): RoleType!
+    updateRoleType(id: ID!, input: RoleTypeInput!): RoleType!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\RoleType\\RoleTypeManagementMutation@updateRoleType"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesTypesManagementMutation@update"
         )
 }
 
-extend type Query {
+extend type Query @guard {
     roleTypes(
         where: _ @whereConditions(columns: ["id", "name", "description"])
         orderBy: _ @orderBy(columns: ["name"])
     ): [RoleType!]!
         @paginate(
             defaultCount: 25
-            model:"Kanvas\\AccessControlList\\Models\\RoleType"
+            model: "Kanvas\\AccessControlList\\Models\\RoleType"
             scopes: ["fromApp"]
-    )   
+        )
 }
