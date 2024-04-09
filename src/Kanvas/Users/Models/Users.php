@@ -229,6 +229,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return $this->belongsTo(Countries::class, 'country_id');
     }
 
+    public function getMainRoleAttribute(): string
+    {
+        $role = Roles::where('scope', RolesEnums::getScope(app(Apps::class)))->first();
+
+        return $role ? $role->name : '';
+    }
+
     /**
      * Get the current user information for the running app.
      * @psalm-suppress MixedReturnStatement
