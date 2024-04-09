@@ -10,7 +10,7 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::connection('social')->table('app_module_message', function ($table) {
-            $table->string('entity_id', 255)->change();
+            $table->string('entity_id', 50)->change();
         });
     }
 
