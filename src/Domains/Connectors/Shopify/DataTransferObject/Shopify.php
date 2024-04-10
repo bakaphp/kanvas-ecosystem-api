@@ -21,9 +21,9 @@ class Shopify
         public CompanyInterface $company,
         public AppInterface $app,
         public Regions $region,
-        public string $api_key,
-        public string $api_secret,
-        public string $shop_url,
+        public string $apiKey,
+        public string $apiSecret,
+        public string $shopUrl,
     ) {
     }
 
