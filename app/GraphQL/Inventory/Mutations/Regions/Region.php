@@ -61,11 +61,4 @@ class Region
 
         return true;
     }
-
-    public function shopifySetup(mixed $root, array $request): bool
-    {
-        $shopifyDto = ShopifyDto::viaRequest($request['input']);
-        $shopifyService = ShopifyService::shopifySetup($shopifyDto);
-        return true;
-    }
 }
