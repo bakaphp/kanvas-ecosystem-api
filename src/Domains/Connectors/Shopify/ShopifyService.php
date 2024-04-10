@@ -27,9 +27,9 @@ class ShopifyService
      * Set the shopify credentials into companies custom fields.
      *
      * @param ShopifyDto $data
-     * @return array
+     * @return bool
      */
-    public static function shopifySetup(ShopifyDto $data): array
+    public static function shopifySetup(ShopifyDto $data): bool
     {
         $clientCredentialNaming = CustomFieldEnum::SHOPIFY_API_CREDENTIAL->value ."-". $data->company->getId() ."-". $data->region->getId();
 
@@ -39,8 +39,6 @@ class ShopifyService
             CustomFieldEnum::SHOP_URL->value => $data->shop_url,
         ];
 
-        $data->company->set($clientCredentialNaming, $configData);
-
-        return $data->company->get($clientCredentialNaming);
+        return $data->company->set($clientCredentialNaming, $configData);
     }
 }
