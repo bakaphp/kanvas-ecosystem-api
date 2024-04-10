@@ -35,15 +35,21 @@ class Agent extends BaseModel
     protected $table = 'agents';
     protected $guarded = [];
 
+    /**
+     * @psalm-suppress MixedReturnStatement
+     * @psalm-suppress MixedPropertyFetch
+     */
     public function owner(): Users
     {
         try {
             return self::setConnection('crm')
+                ->isActive()
                 ->where('users_linked_source_id', $this->owner_linked_source_id)
                 ->where('companies_id', $this->companies_id)
                 ->firstOrFail()->user;
         } catch (ModelNotFoundException $e) {
             return self::setConnection('crm')
+                ->isActive()
                 ->where('member_id', $this->owner_id)
                 ->where('companies_id', $this->companies_id)
                 ->firstOrFail()->user;
@@ -83,6 +89,7 @@ class Agent extends BaseModel
         $user = $user instanceof UserInterface ? $user : auth()->user();
         $company = $user->getCurrentCompany();
 
+        $userAgent = Agent::where('users_id', $user->getId())->where('companies_id', $company->getId())->first();
         $query->where('users_id', '>', 0);
 
         $lookingForSpecificUser = $query->wheresContain('users_id', '=', $user->getId());
@@ -91,6 +98,8 @@ class Agent extends BaseModel
             $memberId = $user->get('member_number_' . $company->getId()) ? $user->get('member_number_' . $company->getId()) : $user->getId();
 
             return $query->where('owner_id', $memberId);
+        } elseif ($company->get(AgentFilterEnum::FITTER_BY_OWNER->value) && ! $lookingForSpecificUser) {
+            return $query->where('owner_linked_source_id', $userAgent->users_linked_source_id);
         }
 
         if ($company->get(AgentFilterEnum::FILTER_BY_BRANCH->value)) {
@@ -98,6 +107,11 @@ class Agent extends BaseModel
         }
 
         return $query;
+    }
+
+    public function scopeIsActive(Builder $query): Builder
+    {
+        return $query->where('status_id', 1);
     }
 
     public function getMemberNumber(): string

@@ -37,7 +37,7 @@ extend type Query @guard {
     ): [Agent!]!
         @paginate(
             model: "Kanvas\\Guild\\Agents\\Models\\Agent"
-            scopes: ["fromCompany", "filterSettings"]
+            scopes: ["fromCompany", "filterSettings", "isActive"]
             defaultCount: 25
         )
 }
