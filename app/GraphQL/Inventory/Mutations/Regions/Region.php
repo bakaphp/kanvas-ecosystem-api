@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Regions;
 
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Shopify\DataTransferObject\Shopify as ShopifyDto;
+use Kanvas\Connectors\Shopify\ShopifyService;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
 use Kanvas\Inventory\Regions\DataTransferObject\Region as RegionDto;
@@ -55,6 +59,13 @@ class Region
         $region = RegionRepository::getById($id, auth()->user()->getCurrentCompany());
         $region->delete();
 
+        return true;
+    }
+
+    public function shopifySetup(mixed $root, array $request): bool
+    {
+        $shopifyDto = ShopifyDto::viaRequest($request['input']);
+        $shopifyService = ShopifyService::shopifySetup($shopifyDto);
         return true;
     }
 }
