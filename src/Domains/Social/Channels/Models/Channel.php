@@ -42,7 +42,7 @@ class Channel extends BaseModel
 
     public function systemModule(): BelongsTo
     {
-        return $this->belongsTo(SystemModules::class, 'entity_namespace', 'uuid');
+        return $this->belongsTo(SystemModules::class, 'entity_namespace', 'model_name');
     }
 
     public function messages(): BelongsToMany
