@@ -23,21 +23,24 @@ class ShopifyService
         $this->shopifySdk = Client::getInstance($app, $company, $region);
     }
 
+    /**
+     * Set the shopify credentials into companies custom fields.
+     *
+     * @param ShopifyDto $data
+     * @return array
+     */
     public static function shopifySetup(ShopifyDto $data): array
     {
-        $clientKeyNaming = CustomFieldEnum::SHOPIFY_API_KEY->value ."-". $data->company->getId() ."-". $data->region->getId();
-        $clientSecretNaming = CustomFieldEnum::SHOPIFY_API_KEY->value ."-". $data->company->getId() ."-". $data->region->getId();
-        $shopUrlNaming = CustomFieldEnum::SHOPIFY_API_KEY->value ."-". $data->company->getId() ."-". $data->region->getId();
+        $clientCredentialNaming = CustomFieldEnum::SHOPIFY_API_CREDENTIAL->value ."-". $data->company->getId() ."-". $data->region->getId();
 
-        $data->company->set($clientKeyNaming, $data->api_key);
-        $data->company->set($clientKeyNaming, $data->api_secret);
-        $data->company->set($clientKeyNaming, $data->shop_url);
+        $configData = [
+            CustomFieldEnum::SHOPIFY_API_KEY->value => $data->api_key,
+            CustomFieldEnum::SHOPIFY_API_SECRET->value => $data->api_secret,
+            CustomFieldEnum::SHOP_URL->value => $data->shop_url,
+        ];
 
+        $data->company->set($clientCredentialNaming, $configData);
 
-        return array([
-            "key" => $data->company->get($clientKeyNaming),
-            "secret" => $data->company->get($clientSecretNaming),
-            "shop" => $data->company->get($shopUrlNaming),
-        ]);
+        return $data->company->get($clientCredentialNaming);
     }
 }
