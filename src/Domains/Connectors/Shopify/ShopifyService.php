@@ -34,9 +34,9 @@ class ShopifyService
         $clientCredentialNaming = CustomFieldEnum::SHOPIFY_API_CREDENTIAL->value ."-". $data->company->getId() ."-". $data->region->getId();
 
         $configData = [
-            CustomFieldEnum::SHOPIFY_API_KEY->value => $data->api_key,
-            CustomFieldEnum::SHOPIFY_API_SECRET->value => $data->api_secret,
-            CustomFieldEnum::SHOP_URL->value => $data->shop_url,
+            CustomFieldEnum::SHOPIFY_API_KEY->value => $data->apiKey,
+            CustomFieldEnum::SHOPIFY_API_SECRET->value => $data->apiSecret,
+            CustomFieldEnum::SHOP_URL->value => $data->shopUrl,
         ];
 
         return $data->company->set($clientCredentialNaming, $configData);
