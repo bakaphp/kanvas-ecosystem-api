@@ -18,7 +18,7 @@ type Message {
     appModuleMessage: AppModuleMessage!
     myInteraction: myInteraction @method(name: "getMyInteraction")
     comments: [MessageComments!]!
-        custom_fields: [CustomField!]!
+    custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
@@ -47,6 +47,10 @@ input MessageInput {
     distribution: DistributionInput
 }
 
+input MessageUpdateInput {
+    message: Mixed
+}
+
 enum DistributionType {
     ALL
     Channels
@@ -70,6 +74,14 @@ extend type Mutation @guard {
     createMessage(input: MessageInput!): Message
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@create"
+        )
+    updateMessage(id: ID!, input: MessageUpdateInput!): Message
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@update"
+        )
+    deleteMessage(id: ID!): Message
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@delete"
         )
     interactionMessage(id: ID!, type: InteractionType!): Message
         @field(
