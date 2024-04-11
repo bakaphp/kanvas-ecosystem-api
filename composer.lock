@@ -12459,16 +12459,16 @@
         },
         {
             "name": "weble/zohoclient",
-            "version": "4.2.2",
+            "version": "4.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Weble/ZohoClient.git",
-                "reference": "88c1689d8ecc46413685488a5669bccc2fd784f6"
+                "reference": "fd4aeb7838e12bd837b42f640deaf9986b5f1390"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Weble/ZohoClient/zipball/88c1689d8ecc46413685488a5669bccc2fd784f6",
-                "reference": "88c1689d8ecc46413685488a5669bccc2fd784f6",
+                "url": "https://api.github.com/repos/Weble/ZohoClient/zipball/fd4aeb7838e12bd837b42f640deaf9986b5f1390",
+                "reference": "fd4aeb7838e12bd837b42f640deaf9986b5f1390",
                 "shasum": ""
             },
             "require": {
@@ -12506,7 +12506,7 @@
             ],
             "support": {
                 "issues": "https://github.com/Weble/ZohoClient/issues",
-                "source": "https://github.com/Weble/ZohoClient/tree/4.2.2"
+                "source": "https://github.com/Weble/ZohoClient/tree/4.3.0"
             },
             "funding": [
                 {
@@ -12514,20 +12514,20 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-02-07T17:00:38+00:00"
+            "time": "2024-04-09T13:21:35+00:00"
         },
         {
             "name": "webleit/zohocrmapi",
-            "version": "5.4.0",
+            "version": "5.4.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Weble/ZohoCrmApi.git",
-                "reference": "bcf3fda71cfc0ca8a253092a99170ed89adf7712"
+                "reference": "7c617df96dad69931e3d3fa8e43f93f84a6aef1a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Weble/ZohoCrmApi/zipball/bcf3fda71cfc0ca8a253092a99170ed89adf7712",
-                "reference": "bcf3fda71cfc0ca8a253092a99170ed89adf7712",
+                "url": "https://api.github.com/repos/Weble/ZohoCrmApi/zipball/7c617df96dad69931e3d3fa8e43f93f84a6aef1a",
+                "reference": "7c617df96dad69931e3d3fa8e43f93f84a6aef1a",
                 "shasum": ""
             },
             "require": {
@@ -12569,7 +12569,7 @@
             ],
             "support": {
                 "issues": "https://github.com/Weble/ZohoCrmApi/issues",
-                "source": "https://github.com/Weble/ZohoCrmApi/tree/5.4.0"
+                "source": "https://github.com/Weble/ZohoCrmApi/tree/5.4.1"
             },
             "funding": [
                 {
@@ -12577,7 +12577,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-03-21T14:40:07+00:00"
+            "time": "2024-04-09T13:23:15+00:00"
         },
         {
             "name": "webmozart/assert",
