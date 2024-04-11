@@ -6,6 +6,7 @@ namespace Baka\Users\Contracts;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Contracts\HashTableInterface;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
@@ -14,7 +15,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Users\Models\UsersAssociatedApps;
 
-interface UserInterface extends Authenticatable
+interface UserInterface extends Authenticatable, HashTableInterface
 {
     public static function getByEmail(string $email): self;
 

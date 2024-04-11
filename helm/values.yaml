@@ -30,6 +30,9 @@ deployments:
   notifications:
     name: notifications-queue
     containerName: notifications-queue
+  socialQueue:
+    name: kanvas-social
+    containerName: kanvas-social
   healthcheck:
     name: healthcheck
     containerName: healthcheck
