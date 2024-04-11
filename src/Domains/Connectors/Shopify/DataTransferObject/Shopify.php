@@ -34,10 +34,10 @@ class Shopify
      *
      * @return self
      */
-    public static function viaRequest(array $data): self
+    public static function viaRequest(array $data, CompanyInterface $company): self
     {
         return new self(
-            isset($data['companies_id']) ? Companies::getById($data['companies_id']) : auth()->user()->getCurrentCompany(),
+            $company,
             app(Apps::class),
             Regions::getById($data['region_id']),
             $data['client_id'],
