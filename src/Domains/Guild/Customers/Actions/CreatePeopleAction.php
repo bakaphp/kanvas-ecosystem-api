@@ -71,6 +71,7 @@ class CreatePeopleAction
                     'address' => $address->address,
                     'address_2' => $address->address_2,
                     'city' => $address->city,
+                    'county' => $address->county,
                     'state' => $address->state,
                     'zip' => $address->zipcode,
                     //'country' => $address->country,
