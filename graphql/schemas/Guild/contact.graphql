@@ -36,6 +36,7 @@ input AddressInput {
     address: String!
     address_2: String
     city: String
+    county: String
     city_id: ID
     state: String
     state_id: ID
