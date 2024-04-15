@@ -57,4 +57,5 @@ class CompaniesImporterAction
         }
 
         return true;
-    }}
+    }
+}
