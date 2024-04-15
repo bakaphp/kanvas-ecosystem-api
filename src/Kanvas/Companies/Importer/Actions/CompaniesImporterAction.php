@@ -15,7 +15,6 @@ use Throwable;
 
 class CompaniesImporterAction
 {
-
     /**
     * __construct.
     */
