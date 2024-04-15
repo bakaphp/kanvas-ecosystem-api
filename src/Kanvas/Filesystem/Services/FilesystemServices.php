@@ -101,8 +101,7 @@ class FilesystemServices
             'bucket' => $this->app->get('cloud-bucket'),
             'url' => $this->app->get('cloud-cdn'),
             'path' => $this->app->get('cloud-bucket-path') ?? '/',
-            'use_path_style_endpoint' => true,
-            'endpoint' => 'http://minio1:9000',
+            'use_path_style_endpoint' => false,
         ]);
     }
 
