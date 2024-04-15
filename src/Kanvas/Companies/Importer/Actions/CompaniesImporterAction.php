@@ -4,11 +4,26 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Importer\Actions;
 
+use Baka\Contracts\AppInterface;
+use Illuminate\Support\Facades\DB;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
+use Kanvas\Companies\DataTransferObject\CompaniesPostData;
 use Kanvas\Companies\Importer\DataTransferObject\CompaniesImporter;
+use Kanvas\Companies\Models\Companies;
+use Throwable;
 
 class CompaniesImporterAction
 {
+
+    /**
+    * __construct.
+    */
+    public function __construct(
+        public CompaniesImporter $importedCompany,
+        public ?Companies $company = null,
+    ) {
+    }
 
     /**
      * Run all method dor a specify product.
@@ -21,18 +36,18 @@ class CompaniesImporterAction
             DB::connection('ecosystem')->beginTransaction();
 
             if ($this->company === null) {
-                $companiesDto = CompaniesImporter::from([
-                    'name' => $this->name,
-                    'users_id' => $this->users_id,
-                    'email' => $this->email,
-                    'phone' => $this->phone,
-                    'currency_id' => $this->currency_id,
-                    'website' => $this->website,
-                    'address' => $this->address,
-                    'zipcode' => $this->zipcode,
-                    'language' => $this->language,
-                    'timezone' => $this->timezone,
-                    'country_code' => $this->country_code,
+                $companiesDto = CompaniesPostData::from([
+                    'name' => $this->importedCompany->name,
+                    'users_id' => $this->importedCompany->users_id,
+                    'email' => $this->importedCompany->email,
+                    'phone' => $this->importedCompany->phone,
+                    'currency_id' => $this->importedCompany->currency_id,
+                    'website' => $this->importedCompany->website,
+                    'address' => $this->importedCompany->address,
+                    'zipcode' => $this->importedCompany->zipcode,
+                    'language' => $this->importedCompany->language,
+                    'timezone' => $this->importedCompany->timezone,
+                    'country_code' => $this->importedCompany->country_code,
                 ]);
                 $this->company = (new CreateCompaniesAction($companiesDto))->execute();
             }

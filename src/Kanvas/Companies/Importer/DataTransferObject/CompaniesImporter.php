@@ -29,21 +29,4 @@ class CompaniesImporter extends Data
         public ?string $country_code = null,
     ) {
     }
-
-    /**
-     * is this product from shopify , bigcommerce or any other source.
-     */
-    public function isFromThirdParty(): bool
-    {
-        return $this->source && $this->sourceId;
-    }
-
-    public function getSourceKey(): string
-    {
-        if ($this->source === null) {
-            throw new ValidationException('Importer Source is required');
-        }
-
-        return $this->source . '_id';
-    }
 }
