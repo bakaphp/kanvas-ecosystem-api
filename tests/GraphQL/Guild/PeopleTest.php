@@ -47,6 +47,7 @@ class PeopleTest extends TestCase
                     [
                         'address' => fake()->address(),
                         'city' => fake()->city(),
+                        'county' => fake()->city(),
                         'state' => fake()->state(),
                         'country' => fake()->country(),
                         'zip' => fake()->postcode(),
@@ -99,6 +100,7 @@ class PeopleTest extends TestCase
                 [
                     'address' => fake()->address(),
                     'city' => fake()->city(),
+                    'county' => fake()->city(),
                     'state' => fake()->state(),
                     'country' => fake()->country(),
                     'zip' => fake()->postcode(),
@@ -156,6 +158,7 @@ class PeopleTest extends TestCase
                 [
                     'address' => fake()->address(),
                     'city' => fake()->city(),
+                    'county' => fake()->city(),
                     'state' => fake()->state(),
                     'country' => fake()->country(),
                     'zip' => fake()->postcode(),
@@ -223,6 +226,7 @@ class PeopleTest extends TestCase
                 [
                     'address' => fake()->address(),
                     'city' => fake()->city(),
+                    'county' => fake()->city(),
                     'state' => fake()->state(),
                     'country' => fake()->country(),
                     'zip' => fake()->postcode(),
@@ -273,6 +277,7 @@ class PeopleTest extends TestCase
                 [
                     'address' => fake()->address(),
                     'city' => fake()->city(),
+                    'county' => fake()->city(),
                     'state' => fake()->state(),
                     'country' => fake()->country(),
                     'zip' => fake()->postcode(),
