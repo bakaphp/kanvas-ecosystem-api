@@ -38,30 +38,18 @@ class Client
 
         list($clientKey, $clientSecret, $shopUrl) = self::getKeys($company, $app, $region);
 
-        if (empty($clientKey) || empty($clientSecret) || empty($refreshToken)) {
-            $configZohoKey = $company->get(FlagEnum::APP_GLOBAL_ZOHO->value) ? 'app' : 'company';
-            $configZohoKeyId = $company->get(FlagEnum::APP_GLOBAL_ZOHO->value) ? $app->name : $company->name;
-
-            throw new ValidationException('Zoho keys are not set for ' . $configZohoKey . ' ' . $configZohoKeyId);
+        // its no supposed to explote with this
+        if (empty($clientKey) || empty($clientSecret) || empty($shopUrl)) {
+            throw new ValidationException('Shopify keys are not set for company' . $company->name . ' ' . $company->id .' '. 'on region' . $region->getId());
         }
 
         $shopifySdk = new ShopifySDK();
+
         return $shopifySdk->config([
-            CustomFieldEnum::SHOP_URL => $shopUrl,
-            CustomFieldEnum::SHOPIFY_API_KEY => $clientKey,
-            CustomFieldEnum::SHOPIFY_API_SECRET => $clientSecret,
+            'ShopUrl' => $shopUrl,
+            'ApiKey' => $clientKey,
+            'Password' => $clientSecret,
         ]);
-
-        // $oAuthClient->setRefreshToken($refreshToken);
-        // $oAuthClient->setRegion(self::$region);
-        // $oAuthClient->useCache($cache);
-        // $oAuthClient->offlineMode();
-
-        // // setup the zoho crm client
-        // $client = new ZohoCrmClient($oAuthClient);
-        // $client->setMode(self::$environment);
-
-        // return new ZohoCrm($client);
     }
 
     /**
@@ -69,10 +57,14 @@ class Client
      */
     public static function getKeys(CompanyInterface $company, AppInterface $app, Regions $region): array
     {
+        $clientCredentialNaming = CustomFieldEnum::SHOPIFY_API_CREDENTIAL->value ."-". $company->getId() ."-". $region->getId();
+
+        $credential = $company->get($clientCredentialNaming);
+
         return [
-            $company->get(CustomFieldEnum::SHOPIFY_API_KEY->value . $company->getId() . $region->getId()),
-            $company->get(CustomFieldEnum::SHOPIFY_API_SECRET->value . $company->getId() . $region->getId()),
-            $company->get(CustomFieldEnum::SHOP_URL->value . $company->getId() . $region->getId()),
+            $credential[CustomFieldEnum::SHOPIFY_API_KEY->value],
+            $credential[CustomFieldEnum::SHOPIFY_API_SECRET->value],
+            $credential[CustomFieldEnum::SHOP_URL->value],
         ];
     }
 
