@@ -66,7 +66,10 @@ class ShopifyService
             $productInfo['variants'][] = $this->mapVariant($variant);
         }
 
-        return $this->shopifySdk->Product->post($productInfo);
+        $response = $this->shopifySdk->Product->post($productInfo);
+        $product->set(CustomFieldEnum::SHOPIFY_PRODUCT_ID->value.'_'.$this->region->getId(), $response['id']);
+
+        return $response;
     }
 
     /**
