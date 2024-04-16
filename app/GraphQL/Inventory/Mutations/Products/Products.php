@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Inventory\Mutations\Products;
 
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Shopify\ShopifyService;
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
 use Kanvas\Inventory\Products\Actions\AddAttributeAction;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
@@ -39,7 +40,7 @@ class Products
 
         $productDto = ProductDto::viaRequest($req['input'], $company);
         $action = new CreateProductAction($productDto, auth()->user());
-        dd(CreateProductsAction::createProductShopify());
+
         return $action->execute();
     }
 
