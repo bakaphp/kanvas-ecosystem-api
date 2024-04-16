@@ -38,7 +38,8 @@ class NotificationsManagementMutation
             $request['template_name'],
             Str::isJson($request['data']) ? json_decode($request['data'], true) : (array) $request['data'], // This can have more validation like validate if is array o json
             $request['via'],
-            $user
+            $user,
+            key_exists('attachment', $request) ? $request['attachment'] : null
         );
 
         $notification->setFromUser($user);

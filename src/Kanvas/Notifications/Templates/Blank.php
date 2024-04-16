@@ -19,7 +19,8 @@ class Blank extends Notification
         string $templateName,
         array $data,
         array $via,
-        Model $user
+        Model $user,
+        public ?string $pathAttachment = null
     ) {
         parent::__construct($user);
         $this->setType('blank');
