@@ -69,6 +69,12 @@ class ShopifyService
         $response = $this->shopifySdk->Product->post($productInfo);
         $product->set(CustomFieldEnum::SHOPIFY_PRODUCT_ID->value.'_'.$this->region->getId(), $response['id']);
 
+        foreach($response['variants'] as $shopifyVariant)
+        {
+            $variant = $product->variants('sku', $shopifyVariant['sku'])->first();
+            $variant->set(CustomFieldEnum::SHOPIFY_VARIANT_ID->value.'_'.$this->region->getId(), $shopifyVariant['id']);
+        }
+
         return $response;
     }
 
