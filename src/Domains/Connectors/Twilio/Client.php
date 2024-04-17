@@ -10,7 +10,7 @@ use Twilio\Rest\Client as TwilioClient;
 
 class Client
 {
-    protected static ?Client $instance = null;
+    protected static ?TwilioClient $instance = null;
 
     /**
      * Singleton.
@@ -27,7 +27,7 @@ class Client
         if (self::$instance === null) {
             $sid = $app->get(ConfigurationEnum::TWILIO_ACCOUNT_SID->value);
             $token = $app->get(ConfigurationEnum::TWILIO_AUTH_TOKEN->value);
-            self::$instance = new Client($sid, $token);
+            self::$instance = new TwilioClient($sid, $token);
         }
 
         return self::$instance;
