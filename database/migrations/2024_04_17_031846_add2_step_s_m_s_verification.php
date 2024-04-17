@@ -10,7 +10,6 @@ return new class () extends Migration {
      */
     public function up(): void
     {
-
         Schema::table('users_associated_apps', function (Blueprint $table) {
             $table->string('two_step_phone_number')->nullable()->after('email');
             $table->timestamp('email_verified_at')->nullable()->after('configuration');
