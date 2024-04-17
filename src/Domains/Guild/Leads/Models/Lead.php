@@ -22,6 +22,7 @@ use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
@@ -80,6 +81,16 @@ class Lead extends BaseModel
             'id',
             'id'
         );
+    }
+
+    public function getSystemModuleAttribute()
+    {
+        if (! $systemModule = $this->get('system_modules')) {
+            $systemModule = SystemModulesRepository::getByModelName(self::class);
+            $this->set('system_modules_id', $systemModule);
+        }
+
+        return $systemModule;
     }
 
     public function scopeFilterSettings(Builder $query, mixed $user = null): Builder
