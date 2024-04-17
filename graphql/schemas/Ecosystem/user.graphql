@@ -10,6 +10,7 @@ type User {
     default_company_branch: Int! @method(name: "defaultCompanyBranch")
     email: Email! @method(name: "getAppEmail")
     is_active: Boolean! @method(name: "getAppIsActive")
+    verify_two_factor: Boolean! @method(name: "runVerifyTwoFactorAuth")
     contact: ContactInfo
         @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@contact")
     address: AddressType
