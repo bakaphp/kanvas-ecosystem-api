@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Variants\Services;
 
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
@@ -86,11 +87,12 @@ class VariantService
      * @param UserInterface $user
      * @return Variants
      */
-    public static function createDefaultVariant(Products $product, UserInterface $user): Variants
+    public static function createDefaultVariant(Products $product, UserInterface $user, ?ProductDto $productDto = null): Variants
     {
         $variant = [
             'name' => $product->name,
             'description' => $product->description,
+            'sku' => $productDto->sku ?? null
         ];
 
         $variantDto = VariantsDto::from([
