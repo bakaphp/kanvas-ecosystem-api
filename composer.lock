@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "bbb1814e59dbd03d2bee774f661da7a7",
+    "content-hash": "6ac3d728bff85e72e51a3972fd78b3e3",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -881,16 +881,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.304.5",
+            "version": "3.304.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "c9a02677b00e28133915afd451a1c8c3726474b7"
+                "reference": "02abf9b8e2afbdf281e28757c582049d3db16df7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/c9a02677b00e28133915afd451a1c8c3726474b7",
-                "reference": "c9a02677b00e28133915afd451a1c8c3726474b7",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/02abf9b8e2afbdf281e28757c582049d3db16df7",
+                "reference": "02abf9b8e2afbdf281e28757c582049d3db16df7",
                 "shasum": ""
             },
             "require": {
@@ -970,9 +970,9 @@
             "support": {
                 "forum": "https://forums.aws.amazon.com/forum.jspa?forumID=80",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.304.5"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.304.6"
             },
-            "time": "2024-04-16T19:20:23+00:00"
+            "time": "2024-04-17T18:27:31+00:00"
         },
         {
             "name": "berkayk/onesignal-laravel",
@@ -12229,6 +12229,59 @@
                 "source": "https://github.com/TimoKoerber/laravel-one-time-operations/tree/1.4.2"
             },
             "time": "2024-04-04T11:16:58+00:00"
+        },
+        {
+            "name": "twilio/sdk",
+            "version": "8.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/twilio/twilio-php.git",
+                "reference": "750ecf56e1a8627823d182ed3b3d6e7f79e41820"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/750ecf56e1a8627823d182ed3b3d6e7f79e41820",
+                "reference": "750ecf56e1a8627823d182ed3b3d6e7f79e41820",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.1.0"
+            },
+            "require-dev": {
+                "guzzlehttp/guzzle": "^6.3 || ^7.0",
+                "phpunit/phpunit": ">=7.0 < 10"
+            },
+            "suggest": {
+                "guzzlehttp/guzzle": "An HTTP client to execute the API requests"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Twilio\\": "src/Twilio/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Twilio API Team",
+                    "email": "api@twilio.com"
+                }
+            ],
+            "description": "A PHP wrapper for Twilio's API",
+            "homepage": "https://github.com/twilio/twilio-php",
+            "keywords": [
+                "api",
+                "sms",
+                "twilio"
+            ],
+            "support": {
+                "issues": "https://github.com/twilio/twilio-php/issues",
+                "source": "https://github.com/twilio/twilio-php/tree/8.0.0"
+            },
+            "time": "2024-04-04T14:57:48+00:00"
         },
         {
             "name": "vladimir-yuldashev/laravel-queue-rabbitmq",
