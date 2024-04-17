@@ -22,7 +22,7 @@ use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
-use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
@@ -83,14 +83,10 @@ class Lead extends BaseModel
         );
     }
 
-    public function getSystemModuleAttribute()
+    public function systemModule(): BelongsTo
     {
-        if (! $systemModule = $this->get('system_modules')) {
-            $systemModule = SystemModulesRepository::getByModelName(self::class);
-            $this->set('system_modules_id', $systemModule);
-        }
-
-        return $systemModule;
+        return $this->belongsTo(SystemModules::class, 'apps_id', 'apps_id')
+                    ->where('model_name', self::class);
     }
 
     public function scopeFilterSettings(Builder $query, mixed $user = null): Builder

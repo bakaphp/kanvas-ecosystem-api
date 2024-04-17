@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Leads\Actions;
 
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadDataInput;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -45,7 +46,7 @@ class CreateLeadAction
             } catch (ModelNotFoundException $e) {
             }
         }
-
+        $newLead->apps_id = app(Apps::class)->getId();
         $newLead->users_id = $this->leadData->user->getId();
         $newLead->companies_id = $this->company->getId();
         $newLead->companies_branches_id = $this->leadData->branch->getId();
