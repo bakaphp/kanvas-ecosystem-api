@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Guild;
 
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
-use Kanvas\SystemModules\Models\SystemModules;
 use Tests\TestCase;
 
 class LeadTest extends TestCase
@@ -71,6 +69,9 @@ class LeadTest extends TestCase
                     id
                     uuid
                     people {
+                        id
+                    },
+                    systemModule{
                         id
                     }
                 }
@@ -531,7 +532,6 @@ class LeadTest extends TestCase
     public function testChannelMessage()
     {
         $lead = $this->createLeadAndGetResponse();
-        $systemModule = SystemModules::where('name', Lead::class)->first();
         $channel = $this->graphQL('
             query socialChannels($where: QuerySocialChannelsWhereWhereConditions) {
                 socialChannels(where: $where) {
@@ -560,7 +560,7 @@ class LeadTest extends TestCase
         $messageInput = [
             'message' => json_encode($lead['data']['createLead']),
             'message_verb' => $messageType->verb,
-            'system_modules_id' => 1,
+            'system_modules_id' => $lead['data']['createLead']['systemModule']['id'],
             'entity_id' => $lead['data']['createLead']['id'],
             'distribution' => [
                 'distributionType' => 'Channels',
