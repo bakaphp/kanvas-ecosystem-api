@@ -33,6 +33,7 @@ type Product {
 
 input ProductInput {
     products_types_id: ID
+    sku: String @rules(apply: ["required_without:variants"])
     name: String!
     description: String!
     slug: String
