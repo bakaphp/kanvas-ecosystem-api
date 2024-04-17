@@ -51,6 +51,7 @@ type AddressType {
 type ContactInfo {
     phone_number: String
     cell_phone_number: String
+    two_step_phone_number: String
 }
 
 type TokenResponse {
@@ -210,6 +211,16 @@ extend type Mutation {
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserDeviceMutation@remove"
+        )
+    sendVerificationCode: Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\TwoFactorAuthMutation@sendVerificationCode"
+        )
+    verifyCode(code: String!): Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\TwoFactorAuthMutation@verifyCode"
         )
 }
 

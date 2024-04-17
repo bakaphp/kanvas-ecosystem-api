@@ -36,6 +36,9 @@ use Kanvas\Users\Enums\StatusEnums;
  * @property int $banned
  * @property int $status
  * @property int $user_recover_code
+ * @property string $two_step_phone_number
+ * @property string $email_verified_at
+ * @property string $phone_verified_at
  * @property int $is_deleted
  */
 class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppInterface
@@ -77,6 +80,7 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
         'user_activation_key',
         'banned',
         'status',
+        'two_step_phone_number'
     ];
 
     protected $casts = [
