@@ -12,6 +12,7 @@ use Kanvas\AccessControlList\Actions\UpdateRoleAction;
 use Kanvas\AccessControlList\Models\Role as KanvasRole;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Silber\Bouncer\Database\Role as SilberRole;
@@ -57,13 +58,21 @@ class RolesManagementMutation
 
         $role = RolesRepository::getByMixedParamFromCompany($request['role']);
 
-        if ($auth->isAppOwner()) {
+        if ($auth->isAdmin()) {
             $user = UsersRepository::getUserOfAppById($userId, $app);
         } else {
             $user = UsersRepository::getUserOfCompanyById($company, $userId);
         }
 
         $user->retract($role->name);
+
+        return true;
+    }
+
+    public function givePermissionToRole(mixed $rootValue, array $request): bool
+    {
+        $systemModule = SystemModulesRepository::getByName($request['systemModule']);
+        Bouncer::allow($request['role'])->to($request['permission']);
 
         return true;
     }

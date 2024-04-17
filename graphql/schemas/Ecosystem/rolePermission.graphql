@@ -5,8 +5,22 @@ type Role {
     scope: String
     userCount: Int!
     abilitiesCount: Int!
+    abilities: [Module!]
 }
-
+type Abilities {
+    id: ID!
+    name: String!
+    title: String
+}
+type Module {
+    module: Module!
+    abilities: [Abilities!]
+}
+enum Module {
+    ECOSYSTEM @enum(value: 0)
+    INVENTORY @enum(value: 1)
+    CRM @enum(value: 2)
+}
 extend type Query @guard {
     roles(
         search: String @search
@@ -28,6 +42,10 @@ extend type Query @guard {
     getAllAbilities(userId: ID!): [String]
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleAbilitiesQuery@getAllAbilities"
+        )
+    getRoleAbilities(role: String!): [String]
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleAbilitiesQuery@getAllAbilitiesByRoles"
         )
 }
 
@@ -57,5 +75,13 @@ extend type Mutation @guardByAdmin {
     removePermissionToUser(userId: ID!, permission: String!): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@removePermissionToUser"
+        )
+    givePermissionToRole(
+        role: String!
+        permission: String!
+        systemModule: String!
+    ): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@givePermissionToRole"
         )
 }
