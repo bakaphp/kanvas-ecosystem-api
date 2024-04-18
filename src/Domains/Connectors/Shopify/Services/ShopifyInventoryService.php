@@ -59,6 +59,14 @@ class ShopifyInventoryService
             $response = $shopifyProduct->put($productInfo);
         }
 
+        foreach ($response['variants'] as $shopifyVariant) {
+            $variant = $product->variants('sku', $shopifyVariant['sku'])->first();
+            $variant->set(
+                ShopifyConfigurationService::getVariantKey($variant, $this->region), 
+                $shopifyVariant['id']
+            );
+        }
+
         try {
             $productListing = $this->shopifySdk->ProductListing($shopifyProductId);
 
@@ -82,5 +90,31 @@ class ShopifyInventoryService
             'sku' => $variant->sku,
             'barcode' => $variant->barcode,
         ];
+    }
+
+    public function createVariant(Variants $variant): array
+    {
+        $shopifyProductVariantId = $variant->get(ShopifyConfigurationService::getVariantKey($variant, $this->region));
+
+        $variantInfo = [
+            'product_id' => $variant->product->get(ShopifyConfigurationService::getProductKey($variant->product, $this->region)),
+            'option1' => $variant->name,
+            'sku' => $variant->sku,
+        ];
+
+        if(! $shopifyProductVariantId) {
+            $response = $this->shopifySdk->ProductVariant->post($variantInfo);
+            $shopifyProductVariantId = $response['id'];
+
+            $variant->set(
+                ShopifyConfigurationService::getVariantKey($variant, $this->region), 
+                $shopifyProductVariantId
+            );
+        } else {
+            $shopifyProductVariant = $this->shopifySdk->ProductVariant($shopifyProductVariantId);
+            $response = $shopifyProductVariant->put($variantInfo);
+        }
+
+        return $response;
     }
 }
