@@ -85,7 +85,7 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
         $user->set('member_number_' . $company->getId(), $memberNumber);
 
         if ($company->get(CustomFieldEnum::ZOHO_DEFAULT_LANDING_PAGE->value)) {
-            $user->set('landing_page', $company->get(CustomFieldEnum::ZOHO_DEFAULT_LANDING_PAGE->value));
+            $user->set('landing_page', $company->get(CustomFieldEnum::ZOHO_DEFAULT_LANDING_PAGE->value), true);
         }
 
         return [
@@ -126,7 +126,7 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
         $agentPageLandingPage = $sponsorsPageLandingPages[$agentPage] ?? null;
 
         if ($agentPageLandingPage !== null) {
-            $user->set('landing_page', $agentPageLandingPage);
+            $user->set('landing_page', $agentPageLandingPage, true);
         }
 
         if (is_object($userInvite) && $userInvite->get('domain')) {

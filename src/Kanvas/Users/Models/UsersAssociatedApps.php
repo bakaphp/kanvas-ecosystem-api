@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Models;
 
+use Baka\Support\Str;
 use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Users\Contracts\UserAppInterface;
@@ -36,6 +37,9 @@ use Kanvas\Users\Enums\StatusEnums;
  * @property int $banned
  * @property int $status
  * @property int $user_recover_code
+ * @property string $two_step_phone_number
+ * @property string $email_verified_at
+ * @property string $phone_verified_at
  * @property int $is_deleted
  */
 class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppInterface
@@ -77,6 +81,9 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
         'user_activation_key',
         'banned',
         'status',
+        'two_step_phone_number',
+        'phone_verified_at',
+        'email_verified_at',
     ];
 
     protected $casts = [
@@ -129,6 +136,11 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
     public function isBanned(): bool
     {
         return $this->banned === StatusEnums::ACTIVE->getValue();
+    }
+
+    public function getTwoStepPhoneNumber(): string
+    {
+        return Str::sanitizePhoneNumber($this->two_step_phone_number);
     }
 
     /**

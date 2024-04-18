@@ -15,6 +15,7 @@ class Address extends Data
         public readonly string $address,
         public readonly ?string $address_2 = null,
         public readonly ?string $city = null,
+        public readonly ?string $county = null,
         public readonly ?string $state = null,
         public readonly ?string $country = null,
         public readonly ?string $zipcode = null,

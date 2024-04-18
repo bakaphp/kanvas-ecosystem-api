@@ -21,6 +21,8 @@ use Kanvas\Social\Models\BaseModel;
 use Kanvas\Social\Topics\Models\Topic;
 use Kanvas\Users\Models\Users;
 use Laravel\Scout\Searchable;
+use Baka\Traits\SoftDeletesTrait;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 
 /**
  *  Class Message
@@ -45,6 +47,8 @@ class Message extends BaseModel
     use UuidTrait;
     use Searchable;
     use HasFactory;
+    use CascadeSoftDeletes;
+    use SoftDeletesTrait;
 
     protected $table = 'messages';
 
@@ -55,6 +59,10 @@ class Message extends BaseModel
     protected $casts = [
         'message' => Json::class,
     ];
+
+    protected $cascadeDeletes = ['comments'];
+
+    public const DELETED_AT = 'is_deleted';
 
     /**
      * Create a new factory instance for the model.
