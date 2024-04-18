@@ -6,8 +6,6 @@ namespace Kanvas\Connectors\Shopify\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Regions\Models\Regions;
 
 class Shopify
@@ -29,16 +27,12 @@ class Shopify
 
     /**
      * fromArray.
-     *
-     * @param  array $data
-     *
-     * @return self
      */
-    public static function viaRequest(array $data, CompanyInterface $company): self
+    public static function viaRequest(array $data, AppInterface $app, CompanyInterface $company): self
     {
         return new self(
             $company,
-            app(Apps::class),
+            $app,
             Regions::getById($data['region_id']),
             $data['client_id'],
             $data['client_secret'],

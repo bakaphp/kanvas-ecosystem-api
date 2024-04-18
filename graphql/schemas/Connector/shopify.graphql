@@ -4,7 +4,7 @@ input ShopifySetupInput {
     client_secret: String!
     shop_name: String!
     region_id: ID!
-    companies_id: ID
+    company_id: ID
 }
 
 extend type Mutation @guard {

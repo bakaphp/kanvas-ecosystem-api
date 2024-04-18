@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\Shopify\DataTransferObject\Shopify as ShopifyDto;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Enums\StatusEnum;
+use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -28,13 +29,10 @@ class ShopifyService
 
     /**
      * Set the shopify credentials into companies custom fields.
-     *
-     * @param ShopifyDto $data
-     * @return bool
      */
     public static function shopifySetup(ShopifyDto $data): bool
     {
-        $clientCredentialNaming = CustomFieldEnum::SHOPIFY_API_CREDENTIAL->value ."-". $data->company->getId() ."-". $data->region->getId();
+        $clientCredentialNaming = CustomFieldEnum::SHOPIFY_API_CREDENTIAL->value . '-' . $data->app->getId() . '-' . $data->company->getId() . '-' . $data->region->getId();
 
         $configData = [
             CustomFieldEnum::SHOPIFY_API_KEY->value => $data->apiKey,
@@ -42,15 +40,14 @@ class ShopifyService
             CustomFieldEnum::SHOP_URL->value => $data->shopUrl,
         ];
 
-        return $data->company->set($clientCredentialNaming, $configData);
+        return $data->company->set(
+            $clientCredentialNaming,
+            $configData
+        );
     }
 
     /**
      * Map and create an product on shopify sdk.
-     *
-     * @param Products $product
-     * @param StatusEnum $status
-     * @return array
      */
     public function createProduct(Products $product, StatusEnum $status): array
     {
@@ -58,21 +55,19 @@ class ShopifyService
             'title' => $product->name,
             'body_html' => $product->description,
             'product_type' => $product->productsTypes->name,
-            'status' => $status->value
+            'status' => $status->value,
         ];
 
-        foreach($product->variants as $variant)
-        {
+        foreach ($product->variants as $variant) {
             $productInfo['variants'][] = $this->mapVariant($variant);
         }
 
         $response = $this->shopifySdk->Product->post($productInfo);
-        $product->set(CustomFieldEnum::SHOPIFY_PRODUCT_ID->value.'_'.$this->region->getId(), $response['id']);
+        $product->set(ShopifyConfigurationService::getProductKey($product, $this->region), $response['id']);
 
-        foreach($response['variants'] as $shopifyVariant)
-        {
+        foreach ($response['variants'] as $shopifyVariant) {
             $variant = $product->variants('sku', $shopifyVariant['sku'])->first();
-            $variant->set(CustomFieldEnum::SHOPIFY_VARIANT_ID->value.'_'.$this->region->getId(), $shopifyVariant['id']);
+            $variant->set(CustomFieldEnum::SHOPIFY_VARIANT_ID->value . '_' . $this->region->getId(), $shopifyVariant['id']);
         }
 
         return $response;
@@ -80,9 +75,6 @@ class ShopifyService
 
     /**
      * Map the data from the variant into the array
-     *
-     * @param Variants $variant
-     * @return array
      */
     public function mapVariant(Variants $variant): array
     {

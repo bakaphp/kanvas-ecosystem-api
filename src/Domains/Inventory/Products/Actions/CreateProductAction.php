@@ -101,15 +101,13 @@ class CreateProductAction
                 VariantService::createDefaultVariant($products, $this->user, $this->productDto);
             }
 
-            foreach($products->variants as $variant)
-            {
+            foreach ($products->variants as $variant) {
                 $regions = $variant->warehouses->map(function ($warehouses) {
                     return $warehouses->regions;
                 });
             }
 
-            foreach($regions as $region)
-            {
+            foreach ($regions as $region) {
                 $shopifyService = new ShopifyService($products->app, $products->company, $region);
                 $shopifyService->createProduct($products, StatusEnum::ACTIVE);
             }
