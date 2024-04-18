@@ -58,6 +58,7 @@ class Client
 
         $credential = $company->get($clientCredentialNaming);
 
+        // its no supposed to explode with this
         if (empty($credential)) {
             throw new ValidationException(
                 'Shopify keys are not set for company ' . $company->name . ' ' . $company->id . ' ' . 'on region ' . $region->name

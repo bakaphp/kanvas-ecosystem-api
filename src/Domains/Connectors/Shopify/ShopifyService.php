@@ -32,7 +32,7 @@ class ShopifyService
      */
     public static function shopifySetup(ShopifyDto $data): bool
     {
-        $clientCredentialNaming = CustomFieldEnum::SHOPIFY_API_CREDENTIAL->value . '-' . $data->app->getId() . '-' . $data->company->getId() . '-' . $data->region->getId();
+        $clientCredentialNaming = ShopifyConfigurationService::generateCredentialKey($data->company, $data->app, $data->region);
 
         $configData = [
             CustomFieldEnum::SHOPIFY_API_KEY->value => $data->apiKey,
@@ -67,9 +67,21 @@ class ShopifyService
 
         foreach ($response['variants'] as $shopifyVariant) {
             $variant = $product->variants('sku', $shopifyVariant['sku'])->first();
-            $variant->set(CustomFieldEnum::SHOPIFY_VARIANT_ID->value . '_' . $this->region->getId(), $shopifyVariant['id']);
+            $variant->set(ShopifyConfigurationService::getVariantKey($variant, $this->region), $shopifyVariant['id']);
         }
 
+        return $response;
+    }
+
+    public function createVariant(Variants $variant): array
+    {
+        $variantInfo = [
+            'product_id' => $variant->product->get(ShopifyConfigurationService::getProductKey($variant->product, $this->region)),
+            'option1' => $variant->name,
+            'sku' => $variant->sku,
+        ];
+
+        $response = $this->shopifySdk->ProductVariant->post($variantInfo);
         return $response;
     }
 
