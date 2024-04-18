@@ -31,8 +31,11 @@ final class ProductTest extends TestCase
             $region
         );
 
-        print_r($shopify->saveProduct($product, StatusEnum::ACTIVE));
+        $shopifyResponse = $shopify->saveProduct($product, StatusEnum::ACTIVE);
 
-
+        $this->assertEquals(
+            $shopifyResponse['id'],
+            $product->get(ShopifyConfigurationService::getProductKey($product, $region))
+        );
     }
 }

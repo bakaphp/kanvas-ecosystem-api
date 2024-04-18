@@ -72,6 +72,11 @@ class ShopifyInventoryService
         return $response;
     }
 
+    public function saveVariants(Variants $variant): array
+    {
+       //
+    }
+
     /**
      * Map the data from the variant into the array
      */
