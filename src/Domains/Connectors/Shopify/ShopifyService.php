@@ -8,11 +8,8 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\Shopify\DataTransferObject\Shopify as ShopifyDto;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Shopify\Enums\StatusEnum;
 use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
-use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
-use Kanvas\Inventory\Variants\Models\Variants;
 use PHPShopify\ShopifySDK;
 
 class ShopifyService
@@ -44,17 +41,5 @@ class ShopifyService
             $clientCredentialNaming,
             $configData
         );
-    }
-
-    public function createVariant(Variants $variant): array
-    {
-        $variantInfo = [
-            'product_id' => $variant->product->get(ShopifyConfigurationService::getProductKey($variant->product, $this->region)),
-            'option1' => $variant->name,
-            'sku' => $variant->sku,
-        ];
-
-        $response = $this->shopifySdk->ProductVariant->post($variantInfo);
-        return $response;
     }
 }
