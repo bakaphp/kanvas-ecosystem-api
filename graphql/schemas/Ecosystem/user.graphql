@@ -126,6 +126,7 @@ input UpdateUserInput {
     sex: String
     phone_number: String
     cell_phone_number: String
+    two_step_phone_number: String
     address_1: String
     address_2: String
     zip_code: Int
