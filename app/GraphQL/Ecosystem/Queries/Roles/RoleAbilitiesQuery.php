@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Queries\Roles;
 
-use Kanvas\AccessControlList\Enums\RolesEnums;
-use Kanvas\AccessControlList\Models\Role;
-use Kanvas\Apps\Models\Apps;
+use Bouncer;
+use DB;
 use Kanvas\Users\Repositories\UsersRepository;
+use Silber\Bouncer\Database\Ability;
 
 class RoleAbilitiesQuery
 {
@@ -27,9 +27,19 @@ class RoleAbilitiesQuery
 
     public function getAllAbilitiesByRoles(mixed $root, array $request)
     {
-        $scope = RolesEnums::getScope(app(Apps::class));
+        $roles = Bouncer::role()->where('name', $request['role'])->first();
+        $subQuery = DB::table('permissions')
+                    ->where('entity_type', 'roles')
+                    ->where('permissions.entity_id', $roles->id)
+                    ->select('permissions.*');
+        $abilities = Ability::join('abilities_modules', 'abilities.id', '=', 'abilities_modules.abilities_id')
+                        ->leftJoinSub($subQuery, 'permissions', function ($join) {
+                            $join->on('abilities.id', '=', 'permissions.ability_id');
+                        })
+                        ->orderBy('module_id')
+                        ->select('abilities.*', 'permissions.entity_id as roleId', 'abilities_modules.module_id as module')
+                        ->get();
 
-        return Role::where('name', $request['role'])
-        ->where('scope', $scope)->first()->abilities;
+        return $abilities;
     }
 }

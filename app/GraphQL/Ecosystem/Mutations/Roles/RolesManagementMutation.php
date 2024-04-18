@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Roles;
 
-use Baka\Support\Str;
 use Bouncer;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
@@ -71,8 +70,8 @@ class RolesManagementMutation
 
     public function givePermissionToRole(mixed $rootValue, array $request): bool
     {
-        $systemModule = SystemModulesRepository::getByName($request['systemModule']);
-        Bouncer::allow($request['role'])->to($request['permission']);
+        $systemModule = SystemModulesRepository::getByModelName($request['systemModule']);
+        Bouncer::allow($request['role'])->to($request['permission'], $systemModule->model_name);
 
         return true;
     }
@@ -93,7 +92,7 @@ class RolesManagementMutation
             $user = UsersRepository::getUserOfCompanyById($company, $userId);
         }
 
-        Bouncer::allow($user)->to(Str::slug($request['permission']));
+        Bouncer::allow($user)->to($request['permission']);
 
         return true;
     }

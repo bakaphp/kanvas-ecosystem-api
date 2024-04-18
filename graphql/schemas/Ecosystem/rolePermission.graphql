@@ -11,10 +11,9 @@ type Abilities {
     id: ID!
     name: String!
     title: String
-}
-type Module {
     module: Module!
-    abilities: [Abilities!]
+    entity_type: String
+    roleId: ID
 }
 enum Module {
     ECOSYSTEM @enum(value: 0)
@@ -43,7 +42,7 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleAbilitiesQuery@getAllAbilities"
         )
-    getRoleAbilities(role: String!): [String]
+    getRoleAbilities(role: String!): [Abilities]
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleAbilitiesQuery@getAllAbilitiesByRoles"
         )

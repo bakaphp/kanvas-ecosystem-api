@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Kanvas\AccessControlList\Actions\CreateAbilitiesByModule;
 use Kanvas\Apps\Models\Apps;
-use Silber\Bouncer\Database\Ability;
 
 class UpdateAbilitiesCommand extends Command
 {
@@ -36,11 +35,5 @@ class UpdateAbilitiesCommand extends Command
         foreach ($apps as $app) {
             (new CreateAbilitiesByModule($app))->execute();
         }
-        \Bouncer::scope()->to('app_1_company_0');
-        $company = Ability::leftJoin('permissions', 'permissions.ability_id', '=', 'abilities.id')
-            ->where('permissions.entity_type', 'roles')
-            ->select('abilities.*')
-            ->get();
-        dd($company);
     }
 }
