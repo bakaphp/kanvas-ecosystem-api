@@ -10,6 +10,6 @@ input ShopifySetupInput {
 extend type Mutation @guard {
     shopifySetup(input: ShopifySetupInput!): Boolean
         @field(
-            resolver: "App\\GraphQL\\Connector\\Shopify\\Mutations\\Shopify@shopifySetup"
+            resolver: "App\\GraphQL\\Connector\\Shopify\\Mutations\\ShopifyMutation@shopifySetup"
         )
 }
