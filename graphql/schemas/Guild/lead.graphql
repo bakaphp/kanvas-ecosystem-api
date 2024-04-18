@@ -21,7 +21,8 @@ type Lead {
     pipeline: LeadPipeline @belongsTo
     stage: LeadPipelineStage @belongsTo(relation: "stage")
     participants: [LeadsParticipants!]! @hasMany
-    channels: [SocialChannel]! @hasMany
+    channels: [SocialChannel]! @hasMany(relation: "socialChannels")
+    systemModule: SystemModule!
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25

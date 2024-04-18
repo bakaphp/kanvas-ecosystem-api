@@ -12,7 +12,7 @@ use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Customers\Models\People as ModelsPeople;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
-use Kanvas\Guild\Leads\DataTransferObject\Lead;
+use Spatie\LaravelData\DataCollection;
 
 class PeopleManagementMutation
 {
@@ -31,8 +31,8 @@ class PeopleManagementMutation
             'firstname' => $data['firstname'],
             'middlename' => $data['middlename'] ?? null,
             'lastname' => $data['lastname'],
-            'contacts' => Contact::collection($data['contacts']),
-            'address' => Address::collection($data['address']),
+            'contacts' => Contact::collect($data['contacts'], DataCollection::class),
+            'address' => Address::collect($data['address'], DataCollection::class),
             'id' => $data['id'] ?? 0,
             'dob' => $data['dob'] ?? null,
             'facebook_contact_id' => $data['facebook_contact_id'] ?? null,
@@ -60,8 +60,8 @@ class PeopleManagementMutation
             'firstname' => $data['firstname'],
             'middlename' => $data['middlename'] ?? null,
             'lastname' => $data['lastname'],
-            'contacts' => Contact::collection($data['contacts']),
-            'address' => Address::collection($data['address']),
+            'contacts' => Contact::collect($data['contacts'], DataCollection::class),
+            'address' => Address::collect($data['address'], DataCollection::class),
             'id' => $people->getId(),
             'dob' => $data['dob'] ?? null,
             'facebook_contact_id' => $data['facebook_contact_id'] ?? null,

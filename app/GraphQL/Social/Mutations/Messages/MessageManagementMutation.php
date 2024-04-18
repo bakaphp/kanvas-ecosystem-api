@@ -86,6 +86,17 @@ class MessageManagementMutation
         return $message;
     }
 
+    public function delete(mixed $root, array $request): Message
+    {
+        $message = Message::getById((int)$request['id'], app(Apps::class));
+        if (! $message->canEdit(auth()->user())) {
+            throw new AuthenticationException('You are not allowed to delete this message');
+        }
+        $message->delete();
+
+        return $message;
+    }
+
     public function attachTopicToMessage(mixed $root, array $request): Message
     {
         $message = Message::getById((int)$request['id'], app(Apps::class));

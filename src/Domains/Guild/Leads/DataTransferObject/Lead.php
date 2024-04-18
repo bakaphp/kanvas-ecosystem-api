@@ -15,6 +15,7 @@ use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
+use Spatie\LaravelData\DataCollection;
 
 class Lead extends Data
 {
@@ -66,8 +67,8 @@ class Lead extends Data
                 'user' => $user,
                 'firstname' => $request['people']['firstname'],
                 'lastname' => $request['people']['lastname'],
-                'contacts' => Contact::collection($request['people']['contacts']),
-                'address' => Address::collection($request['people']['address']),
+                'contacts' => Contact::collect($request['people']['contacts'], DataCollection::class),
+                'address' => Address::collect($request['people']['address'], DataCollection::class),
                 'id' => $request['people']['id'] ?? 0,
                 'dob' => $request['people']['dob'] ?? null,
                 'facebook_contact_id' => $request['people']['facebook_contact_id'] ?? null,

@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class () extends Migration {
@@ -9,8 +10,8 @@ return new class () extends Migration {
      */
     public function up(): void
     {
-        Schema::connection('social')->table('app_module_message', function ($table) {
-            $table->string('entity_id', 50)->nullable()->change();
+        Schema::table('leads', function (Blueprint $table) {
+            $table->integer('apps_id')->nullable()->after('id');
         });
     }
 
@@ -19,8 +20,8 @@ return new class () extends Migration {
      */
     public function down(): void
     {
-        Schema::connection('social')->table('app_module_message', function ($table) {
-            $table->integer('entity_id')->nullable()->change();
+        Schema::table('leads', function (Blueprint $table) {
+            $table->dropColumn('apps_id');
         });
     }
 };

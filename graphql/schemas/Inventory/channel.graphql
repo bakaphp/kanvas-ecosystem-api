@@ -57,6 +57,16 @@ extend type Query @guard {
                     "slug"
                 ]
             )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "name"
+                    "slug"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
     ): [Channel!]
         @paginate(
             model: "Kanvas\\Inventory\\Channels\\Models\\Channels"
