@@ -45,6 +45,6 @@ class ShopifyConfigurationService
 
     public static function getVariantKey(Variants $variant, Regions $region): string
     {
-        return CustomFieldEnum::SHOPIFY_VARIANT_ID->value . '-' . $variant->product()->app->getId() . '-' . $variant->company->getId() . '-' . $region->getId() . '-' . $variant->getId();
+        return CustomFieldEnum::SHOPIFY_VARIANT_ID->value . '-' . $variant->product->app->getId() . '-' . $variant->company->getId() . '-' . $region->getId() . '-' . $variant->getId();
     }
 }
