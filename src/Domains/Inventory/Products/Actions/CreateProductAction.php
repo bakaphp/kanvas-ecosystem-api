@@ -10,7 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Connectors\Shopify\Enums\StatusEnum;
-use Kanvas\Connectors\Shopify\ShopifyService;
+use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
@@ -108,8 +108,8 @@ class CreateProductAction
             }
 
             foreach ($regions as $region) {
-                $shopifyService = new ShopifyService($products->app, $products->company, $region);
-                $shopifyService->createProduct($products, StatusEnum::ACTIVE);
+                $shopifyService = new ShopifyInventoryService($products->app, $products->company, $region);
+                $shopifyService->saveProduct($products, StatusEnum::ACTIVE);
             }
 
             DB::connection('inventory')->commit();

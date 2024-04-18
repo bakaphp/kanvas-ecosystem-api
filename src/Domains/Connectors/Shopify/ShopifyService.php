@@ -46,33 +46,6 @@ class ShopifyService
         );
     }
 
-    /**
-     * Map and create an product on shopify sdk.
-     */
-    public function createProduct(Products $product, StatusEnum $status): array
-    {
-        $productInfo = [
-            'title' => $product->name,
-            'body_html' => $product->description,
-            'product_type' => $product->productsTypes->name,
-            'status' => $status->value,
-        ];
-
-        foreach ($product->variants as $variant) {
-            $productInfo['variants'][] = $this->mapVariant($variant);
-        }
-
-        $response = $this->shopifySdk->Product->post($productInfo);
-        $product->set(ShopifyConfigurationService::getProductKey($product, $this->region), $response['id']);
-
-        foreach ($response['variants'] as $shopifyVariant) {
-            $variant = $product->variants('sku', $shopifyVariant['sku'])->first();
-            $variant->set(ShopifyConfigurationService::getVariantKey($variant, $this->region), $shopifyVariant['id']);
-        }
-
-        return $response;
-    }
-
     public function createVariant(Variants $variant): array
     {
         $variantInfo = [
@@ -83,17 +56,5 @@ class ShopifyService
 
         $response = $this->shopifySdk->ProductVariant->post($variantInfo);
         return $response;
-    }
-
-    /**
-     * Map the data from the variant into the array
-     */
-    public function mapVariant(Variants $variant): array
-    {
-        return [
-            'option1' => $variant->name,
-            'sku' => $variant->sku,
-            'barcode' => $variant->barcode,
-        ];
     }
 }
