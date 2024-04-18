@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Leads\Actions;
 
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadDataInput;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -23,11 +24,13 @@ class CreateLeadAction
      */
     public function __construct(
         protected readonly LeadDataInput $leadData,
-        protected ?LeadAttempt $leadAttempt = null
+        protected ?LeadAttempt $leadAttempt = null,
+        protected ?Apps $app = null
     ) {
         /**
          * @psalm-suppress MixedAssignment
          */
+        $this->app = $this->app ?? app(Apps::class);
         $this->company = $this->leadData->branch->company()->firstOrFail();
     }
 
@@ -45,7 +48,7 @@ class CreateLeadAction
             } catch (ModelNotFoundException $e) {
             }
         }
-
+        $newLead->apps_id = $this->app->getId();
         $newLead->users_id = $this->leadData->user->getId();
         $newLead->companies_id = $this->company->getId();
         $newLead->companies_branches_id = $this->leadData->branch->getId();
