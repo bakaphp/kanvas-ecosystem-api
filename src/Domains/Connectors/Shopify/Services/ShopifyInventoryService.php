@@ -62,7 +62,7 @@ class ShopifyInventoryService
         foreach ($response['variants'] as $shopifyVariant) {
             $variant = $product->variants('sku', $shopifyVariant['sku'])->first();
             $variant->set(
-                ShopifyConfigurationService::getVariantKey($variant, $this->region), 
+                ShopifyConfigurationService::getVariantKey($variant, $this->region),
                 $shopifyVariant['id']
             );
         }
@@ -102,12 +102,12 @@ class ShopifyInventoryService
             'sku' => $variant->sku,
         ];
 
-        if(! $shopifyProductVariantId) {
+        if (! $shopifyProductVariantId) {
             $response = $this->shopifySdk->ProductVariant->post($variantInfo);
             $shopifyProductVariantId = $response['id'];
 
             $variant->set(
-                ShopifyConfigurationService::getVariantKey($variant, $this->region), 
+                ShopifyConfigurationService::getVariantKey($variant, $this->region),
                 $shopifyProductVariantId
             );
         } else {

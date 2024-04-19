@@ -32,7 +32,5 @@ final class ProductTest extends TestCase
         );
 
         print_r($shopify->saveProduct($product, StatusEnum::ACTIVE));
-
-
     }
 }

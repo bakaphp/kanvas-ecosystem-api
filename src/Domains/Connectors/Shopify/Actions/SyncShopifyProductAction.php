@@ -13,7 +13,6 @@ class SyncShopifyProductAction
     public function __construct(
         protected Products $product,
     ) {
-
     }
 
     public function execute()
