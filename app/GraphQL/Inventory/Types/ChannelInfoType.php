@@ -17,11 +17,12 @@ class ChannelInfoType
          * @todo allow to change the channel by param or header, to support the multi region
          */
         $defaultChannel = $variant->variantChannels()->first();
+        $warehouseInfo = $defaultChannel?->productVariantWarehouse()->first();
 
         return [
             'price' => $defaultChannel?->price ?? 0,
             'discounted_price' => $defaultChannel?->discounted_price ?? 0,
-            'quantity' => 1,
+            'quantity' => $warehouseInfo?->quantity ?? 0,
             'is_best_seller' => false,
             'is_on_sale' => false,
             'is_on_promotion' => false,
