@@ -123,6 +123,11 @@ extend type Query @guard {
                 relation: "warehouses"
                 columns: ["id", "name", "uuid"]
             )
+        hasChannels: _
+            @whereHasConditions(
+                relation: "channels"
+                columns: ["id", "name", "uuid"]
+            )
         hasAttributes: _
             @whereHasConditions(
                 relation: "attributes"
