@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Shopify;
 
-use Kanvas\Connectors\Shopify\DataTransferObject\Shopify;
 use Kanvas\Connectors\Shopify\Enums\StatusEnum;
-use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
 use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
