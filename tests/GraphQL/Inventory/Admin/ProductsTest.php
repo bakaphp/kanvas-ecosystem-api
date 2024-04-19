@@ -32,19 +32,24 @@ class ProductsTest extends TestCase
 
         $data = [
             'name' => fake()->name,
+            'sku' => fake()->word,
             'description' => fake()->text,
         ];
 
-        $this->graphQL('
+        $response = $this->graphQL('
             mutation($data: ProductInput!) {
                 createProduct(input: $data)
                 {
                     name
                     description
                 }
-            }', ['data' => $data])->assertJson([
+            }', ['data' => $data]);
+
+        unset($data['sku']);
+        $response->assertJson([
             'data' => ['createProduct' => $data],
         ])->assertOk();
+
 
         $this->graphQL(
             '

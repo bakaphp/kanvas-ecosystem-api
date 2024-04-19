@@ -101,17 +101,6 @@ class CreateProductAction
                 VariantService::createDefaultVariant($products, $this->user, $this->productDto);
             }
 
-            foreach ($products->variants as $variant) {
-                $regions = $variant->warehouses->map(function ($warehouses) {
-                    return $warehouses->regions;
-                });
-            }
-
-            foreach ($regions as $region) {
-                $shopifyService = new ShopifyInventoryService($products->app, $products->company, $region);
-                $shopifyService->saveProduct($products, StatusEnum::ACTIVE);
-            }
-
             DB::connection('inventory')->commit();
         } catch (Throwable $e) {
             DB::connection('inventory')->rollback();
