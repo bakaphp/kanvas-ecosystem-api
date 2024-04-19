@@ -92,7 +92,7 @@ class ShopifyInventoryService
         ];
     }
 
-    public function createVariant(Variants $variant): array
+    public function saveVariant(Variants $variant): array
     {
         $shopifyProductVariantId = $variant->get(ShopifyConfigurationService::getVariantKey($variant, $this->region));
 
