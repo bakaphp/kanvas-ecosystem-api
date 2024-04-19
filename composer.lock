@@ -8011,16 +8011,16 @@
         },
         {
             "name": "shopify/shopify-api",
-            "version": "v5.4.0",
+            "version": "v5.5.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Shopify/shopify-api-php.git",
-                "reference": "0365e3face702008e8232cc77fa5ba2fcebf993d"
+                "reference": "48d775f956b5ebec90f06200baca627fd07a9089"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Shopify/shopify-api-php/zipball/0365e3face702008e8232cc77fa5ba2fcebf993d",
-                "reference": "0365e3face702008e8232cc77fa5ba2fcebf993d",
+                "url": "https://api.github.com/repos/Shopify/shopify-api-php/zipball/48d775f956b5ebec90f06200baca627fd07a9089",
+                "reference": "48d775f956b5ebec90f06200baca627fd07a9089",
                 "shasum": ""
             },
             "require": {
@@ -8040,10 +8040,14 @@
             },
             "require-dev": {
                 "ergebnis/composer-normalize": "^2.30",
+                "ext-apcu": "*",
                 "maglnet/composer-require-checker": "^3.0 || ^4.0",
                 "mikey179/vfsstream": "^1.6",
                 "phpunit/phpunit": "^9",
                 "squizlabs/php_codesniffer": "^3.6"
+            },
+            "suggest": {
+                "ext-apcu": "Log fewer API deprecation warnings"
             },
             "type": "library",
             "autoload": {
@@ -8075,9 +8079,9 @@
             ],
             "support": {
                 "issues": "https://github.com/Shopify/shopify-api-php/issues",
-                "source": "https://github.com/Shopify/shopify-api-php/tree/v5.4.0"
+                "source": "https://github.com/Shopify/shopify-api-php/tree/v5.5.0"
             },
-            "time": "2024-04-08T18:45:30+00:00"
+            "time": "2024-04-18T13:13:18+00:00"
         },
         {
             "name": "silber/bouncer",
