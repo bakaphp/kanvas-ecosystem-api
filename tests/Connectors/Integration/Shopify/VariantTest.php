@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\Shopify;
 
 use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
-use Kanvas\Inventory\Variants\Models\Variants;
 use Tests\TestCase;
 
 final class VariantTest extends TestCase
 {
     public function testCreateProduct()
     {
-        $variant = Variants::first();
+        $product = Products::first();
 
-        $region = Regions::fromCompany($variant->company)->first();
+        $region = Regions::fromCompany($product->company)->first();
         /*
                 ShopifyConfigurationService::setup(new Shopify(
                     $product->company,
@@ -24,11 +24,23 @@ final class VariantTest extends TestCase
                 )); */
 
         $shopify = new ShopifyInventoryService(
-            $variant->app,
-            $variant->company,
+            $product->app,
+            $product->company,
             $region
         );
 
-        print_r($shopify->saveVariant($variant));
+        foreach ($product->variants as $variant) {
+            $shopifyVariantResponse = $shopify->saveVariant($variant);
+
+            $this->assertEquals(
+                $variant->sku,
+                $shopifyVariantResponse['sku']
+            );
+
+            $this->assertEquals(
+                $variant->getShopifyId($region),
+                $shopifyVariantResponse['id']
+            );
+        }
     }
 }

@@ -31,7 +31,7 @@ class ShopifyInventoryService
      */
     public function saveProduct(Products $product, StatusEnum $status): array
     {
-        $shopifyProductId = $product->get(ShopifyConfigurationService::getProductKey($product, $this->region));
+        $shopifyProductId = $product->getShopifyId($this->region);
 
         $productInfo = [
             'title' => $product->name,
@@ -50,10 +50,7 @@ class ShopifyInventoryService
 
             $response = $this->shopifySdk->Product->post($productInfo);
             $shopifyProductId = $response['id'];
-            $product->set(
-                ShopifyConfigurationService::getProductKey($product, $this->region),
-                $shopifyProductId
-            );
+            $product->setShopifyId($this->region, $shopifyProductId);
         } else {
             $shopifyProduct = $this->shopifySdk->Product($shopifyProductId);
             $response = $shopifyProduct->put($productInfo);
@@ -61,10 +58,7 @@ class ShopifyInventoryService
 
         foreach ($response['variants'] as $shopifyVariant) {
             $variant = $product->variants('sku', $shopifyVariant['sku'])->first();
-            $variant->set(
-                ShopifyConfigurationService::getVariantKey($variant, $this->region),
-                $shopifyVariant['id']
-            );
+            $variant->setShopifyId($this->region, $shopifyVariant['id']);
         }
 
         try {
@@ -94,10 +88,10 @@ class ShopifyInventoryService
 
     public function saveVariant(Variants $variant): array
     {
-        $shopifyProductVariantId = $variant->get(ShopifyConfigurationService::getVariantKey($variant, $this->region));
+        $shopifyProductVariantId = $variant->getShopifyId($this->region);
 
         $variantInfo = [
-            'product_id' => $variant->product->get(ShopifyConfigurationService::getProductKey($variant->product, $this->region)),
+            'product_id' => $variant->product->getShopifyId($this->region),
             'option1' => $variant->name,
             'sku' => $variant->sku,
         ];
@@ -106,10 +100,7 @@ class ShopifyInventoryService
             $response = $this->shopifySdk->ProductVariant->post($variantInfo);
             $shopifyProductVariantId = $response['id'];
 
-            $variant->set(
-                ShopifyConfigurationService::getVariantKey($variant, $this->region),
-                $shopifyProductVariantId
-            );
+            $variant->setShopifyId($this->region, $shopifyProductVariantId);
         } else {
             $shopifyProductVariant = $this->shopifySdk->ProductVariant($shopifyProductVariantId);
             $response = $shopifyProductVariant->put($variantInfo);

@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Models\BaseModel;
@@ -47,6 +48,7 @@ class Products extends BaseModel
     use UuidTrait;
     use SlugTrait;
     use LikableTrait;
+    use HasShopifyCustomField;
     use Searchable {
         search as public traitSearch;
     }

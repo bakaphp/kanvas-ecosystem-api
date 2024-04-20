@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
 use Kanvas\Inventory\Attributes\Models\Attributes;
@@ -51,6 +52,7 @@ class Variants extends BaseModel
     use SlugTrait;
     use UuidTrait;
     use SocialInteractionsTrait;
+    use HasShopifyCustomField;
     use Searchable {
         search as public traitSearch;
     }
