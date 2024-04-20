@@ -108,4 +108,29 @@ class ShopifyInventoryService
 
         return $response;
     }
+
+    protected function changeProductStatus(Products $product, StatusEnum $status): array
+    {
+        $shopifyProductId = $product->getShopifyId($this->region);
+
+        $productInfo = [
+            'id' => $shopifyProductId,
+            'status' => $status->value,
+        ];
+
+        $shopifyProduct = $this->shopifySdk->Product($shopifyProductId);
+        $response = $shopifyProduct->put($productInfo);
+
+        return $response;
+    }
+
+    public function unPublishProduct(Products $product): array
+    {
+        return $this->changeProductStatus($product, StatusEnum::ARCHIVED);
+    }
+
+    public function publishProduct(Products $product): array
+    {
+        return $this->changeProductStatus($product, StatusEnum::ACTIVE);
+    }
 }

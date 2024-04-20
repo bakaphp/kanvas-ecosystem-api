@@ -80,6 +80,7 @@ class Variants extends BaseModel
         'html_description',
         'sku',
         'ean',
+        'apps_id',
     ];
     protected $guarded = [];
     protected static ?string $overWriteSearchIndex = null;
