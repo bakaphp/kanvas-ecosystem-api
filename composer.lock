@@ -8011,16 +8011,16 @@
         },
         {
             "name": "shopify/shopify-api",
-            "version": "v5.4.0",
+            "version": "v5.5.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Shopify/shopify-api-php.git",
-                "reference": "0365e3face702008e8232cc77fa5ba2fcebf993d"
+                "reference": "48d775f956b5ebec90f06200baca627fd07a9089"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Shopify/shopify-api-php/zipball/0365e3face702008e8232cc77fa5ba2fcebf993d",
-                "reference": "0365e3face702008e8232cc77fa5ba2fcebf993d",
+                "url": "https://api.github.com/repos/Shopify/shopify-api-php/zipball/48d775f956b5ebec90f06200baca627fd07a9089",
+                "reference": "48d775f956b5ebec90f06200baca627fd07a9089",
                 "shasum": ""
             },
             "require": {
@@ -8040,10 +8040,14 @@
             },
             "require-dev": {
                 "ergebnis/composer-normalize": "^2.30",
+                "ext-apcu": "*",
                 "maglnet/composer-require-checker": "^3.0 || ^4.0",
                 "mikey179/vfsstream": "^1.6",
                 "phpunit/phpunit": "^9",
                 "squizlabs/php_codesniffer": "^3.6"
+            },
+            "suggest": {
+                "ext-apcu": "Log fewer API deprecation warnings"
             },
             "type": "library",
             "autoload": {
@@ -8075,9 +8079,9 @@
             ],
             "support": {
                 "issues": "https://github.com/Shopify/shopify-api-php/issues",
-                "source": "https://github.com/Shopify/shopify-api-php/tree/v5.4.0"
+                "source": "https://github.com/Shopify/shopify-api-php/tree/v5.5.0"
             },
-            "time": "2024-04-08T18:45:30+00:00"
+            "time": "2024-04-18T13:13:18+00:00"
         },
         {
             "name": "silber/bouncer",
@@ -8453,16 +8457,16 @@
         },
         {
             "name": "spatie/laravel-health",
-            "version": "1.28.0",
+            "version": "1.28.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-health.git",
-                "reference": "39871021e1857ae9621450e4c972507701ef1b2a"
+                "reference": "b6ce48ebb8eb036861bae091954f7c2144634b12"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/39871021e1857ae9621450e4c972507701ef1b2a",
-                "reference": "39871021e1857ae9621450e4c972507701ef1b2a",
+                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/b6ce48ebb8eb036861bae091954f7c2144634b12",
+                "reference": "b6ce48ebb8eb036861bae091954f7c2144634b12",
                 "shasum": ""
             },
             "require": {
@@ -8534,7 +8538,7 @@
                 "spatie"
             ],
             "support": {
-                "source": "https://github.com/spatie/laravel-health/tree/1.28.0"
+                "source": "https://github.com/spatie/laravel-health/tree/1.28.1"
             },
             "funding": [
                 {
@@ -8542,7 +8546,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-04-08T08:11:30+00:00"
+            "time": "2024-04-19T10:07:24+00:00"
         },
         {
             "name": "spatie/laravel-model-states",
@@ -12232,16 +12236,16 @@
         },
         {
             "name": "twilio/sdk",
-            "version": "8.0.0",
+            "version": "8.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/twilio/twilio-php.git",
-                "reference": "750ecf56e1a8627823d182ed3b3d6e7f79e41820"
+                "reference": "161fbeb588f367e35e70a86841406ff6f0810b14"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/750ecf56e1a8627823d182ed3b3d6e7f79e41820",
-                "reference": "750ecf56e1a8627823d182ed3b3d6e7f79e41820",
+                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/161fbeb588f367e35e70a86841406ff6f0810b14",
+                "reference": "161fbeb588f367e35e70a86841406ff6f0810b14",
                 "shasum": ""
             },
             "require": {
@@ -12279,9 +12283,9 @@
             ],
             "support": {
                 "issues": "https://github.com/twilio/twilio-php/issues",
-                "source": "https://github.com/twilio/twilio-php/tree/8.0.0"
+                "source": "https://github.com/twilio/twilio-php/tree/8.0.1"
             },
-            "time": "2024-04-04T14:57:48+00:00"
+            "time": "2024-04-18T11:15:50+00:00"
         },
         {
             "name": "vladimir-yuldashev/laravel-queue-rabbitmq",

@@ -26,15 +26,14 @@ class UserType
     /**
      * Return the user contact info formatted for the response type.
      */
-    public function contact(Users $user, array $request): Users
+    public function contact(Users $user, array $request): array
     {
         $app = app(Apps::class);
-        $user->contact = [
+
+        return [
             'phone_number' => $user->phone_number,
             'cell_phone_number' => $user->cell_phone_number,
             'two_step_phone_number' => $user->getAppProfile($app)->two_step_phone_number,
         ];
-
-        return $user;
     }
 }
