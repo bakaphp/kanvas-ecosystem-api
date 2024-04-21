@@ -60,7 +60,9 @@ class ShopifyInventoryService
 
         foreach ($response['variants'] as $shopifyVariant) {
             $variant = $product->variants('sku', $shopifyVariant['sku'])->first();
-            $variant->setShopifyId($this->region, $shopifyVariant['id']);
+            if ($variant->getShopifyId($this->region) === null) {
+                $variant->setShopifyId($this->region, $shopifyVariant['id']);
+            }
         }
 
         try {
@@ -92,7 +94,7 @@ class ShopifyInventoryService
         }
 
         $shopifyVariantInfo = [
-            'option1' => $variant->name,
+            'option1' => $variant->sku ?? $variant->name,
             'sku' => $variant->sku,
             'barcode' => $variant->barcode,
             'price' => $price,
@@ -118,15 +120,49 @@ class ShopifyInventoryService
         if ($shopifyProductVariantId === null) {
             $response = $shopifyProduct->Variant->post($variantInfo);
             $shopifyProductVariantId = $response['id'];
-            $shopifyProductVariantInventoryId = $response['shopify_inventory_item_id'];
+            $shopifyProductVariantInventoryId = $response['inventory_item_id'];
 
             $variant->setShopifyId($this->region, $shopifyProductVariantId);
+            $variant->setInventoryId($this->region, $shopifyProductVariantInventoryId);
         } else {
             unset($variantInfo['option1']);
             $response = $shopifyProduct->Variant($shopifyProductVariantId)->put($variantInfo);
+
+            if ($variant->getInventoryId($this->region) === null) {
+                $variant->setInventoryId($this->region, $response['inventory_item_id']);
+            }
         }
 
         return $response;
+    }
+
+    public function setStock(Variants $variant,  bool $isAdjustment = false): int
+    {
+        $shopifyVariant = $this->shopifySdk->ProductVariant($variant->getShopifyId($this->region));
+        $channelInfo = $variant->variantChannels()->where('channels_id', $this->channel->getId())->first();
+        $warehouseInfo = $channelInfo?->productVariantWarehouse()->first();
+
+        $shopifyVariant->put([
+            'inventory_management' => 'shopify',
+        ]);
+
+        $defaultLocation = $this->shopifySdk->Shop->get()['primary_location_id'];
+
+        if ($isAdjustment) {
+            $shopifyInventory = $this->shopifySdk->InventoryLevel->adjust([
+                'inventory_item_id' => $variant->getInventoryId($this->region),
+                'location_id' => $defaultLocation,
+                'available_adjustment' => $warehouseInfo?->quantity ?? 0,
+            ]);
+        } else {
+            $shopifyInventory = $this->shopifySdk->InventoryLevel->set([
+                'inventory_item_id' => $variant->getInventoryId($this->region),
+                'location_id' => $defaultLocation,
+                'available' => $warehouseInfo?->quantity ?? 0,
+            ]);
+        }
+
+        return (int) $shopifyInventory['available'];
     }
 
     protected function changeProductStatus(Products $product, StatusEnum $status): array
@@ -152,5 +188,22 @@ class ShopifyInventoryService
     public function publishProduct(Products $product): array
     {
         return $this->changeProductStatus($product, StatusEnum::ACTIVE);
+    }
+
+    public function addImages(Variants $variant, string $imageUrl): void
+    {
+        $shopifyProduct = $this->shopifySdk->Product($variant->product->getShopifyId($this->region));
+        $shopifyVariant = $shopifyProduct->Variant($variant->getShopifyId($this->region));
+
+        $shopifyVariantData = $shopifyVariant->get();
+
+        $image = $shopifyProduct->Image->post(['src' => $imageUrl]);
+
+        $shopifyVariant->put(['image_id' => $image['id']]);
+
+        if ($shopifyVariantData['image_id'] !== null) {
+            $shopifyProduct->Image($shopifyVariantData['image_id'])->delete();
+        }
+
     }
 }

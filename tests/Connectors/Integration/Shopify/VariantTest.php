@@ -51,4 +51,41 @@ final class VariantTest extends TestCase
             );
         }
     }
+
+    public function testSetStock()
+    {
+        $product = Products::first();
+
+        $region = Regions::fromCompany($product->company)->first();
+        $channel = Channels::fromCompany($product->company)->first();
+
+        /*
+                ShopifyConfigurationService::setup(new Shopify(
+                    $product->company,
+                    $product->app,
+                    $region,
+                )); */
+
+        $shopify = new ShopifyInventoryService(
+            $product->app,
+            $product->company,
+            $region,
+            $channel
+        );
+
+        $shopifyProduct = $shopify->saveProduct($product, StatusEnum::ACTIVE);
+
+        foreach ($product->variants as $variant) {
+            $shopify->saveVariant($variant);
+            $shopifyVariantResponse = $shopify->setStock($variant);
+
+            $channelInfo = $variant->variantChannels()->where('channels_id', $channel->getId())->first();
+            $warehouseInfo = $channelInfo?->productVariantWarehouse()->first();
+
+            $this->assertEquals(
+                $warehouseInfo?->quantity ?? 0,
+                $shopifyVariantResponse
+            );
+        }
+    }
 }
