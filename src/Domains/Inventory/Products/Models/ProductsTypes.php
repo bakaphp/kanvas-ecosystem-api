@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Products\Models;
 
 use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Inventory\Products\Factories\ProductTypeFactory;
 
 /**
  * Class Products.
@@ -25,4 +26,9 @@ class ProductsTypes extends BaseModel
 {
     protected $table = 'products_types';
     protected $guarded = [];
+
+    protected static function newFactory()
+    {
+        return new ProductTypeFactory();
+    }
 }

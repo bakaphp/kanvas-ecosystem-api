@@ -28,7 +28,7 @@ class CompaniesFactory extends Factory
      */
     public function definition()
     {
-        $user = Users::factory()->create()->first();
+        $user = Users::factory()->create();
 
         return [
             'users_id' => $user->id,
