@@ -80,4 +80,32 @@ final class VariantTest extends TestCase
             );
         }
     }
+
+    public function testSetImage()
+    {
+        $product = Products::first();
+
+        $region = Regions::fromCompany($product->company)->first();
+        $channel = Channels::fromCompany($product->company)->first();
+        $this->setupShopifyConfiguration($product, $region);
+
+        $shopify = new ShopifyInventoryService(
+            $product->app,
+            $product->company,
+            $region,
+            $channel
+        );
+
+        $shopifyProduct = $shopify->saveProduct($product, StatusEnum::ACTIVE);
+
+        foreach ($product->variants as $variant) {
+            $shopify->saveVariant($variant);
+            $shopifyVariantResponse = $shopify->addImages($variant, fake()->imageUrl(640, 480, 'animals', true));
+
+            $this->assertEquals(
+                $variant->image,
+                $shopifyVariantResponse
+            );
+        }
+    }
 }
