@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Traits;
 
+use Exception;
 use Kanvas\Connectors\Shopify\DataTransferObject\Shopify;
 use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
 use Kanvas\Inventory\Products\Models\Products;
@@ -13,11 +14,8 @@ trait HasShopifyConfiguration
 {
     public function setupShopifyConfiguration(Products $product, Regions $region): void
     {
-        echo ' Shopify URL: ' .  getenv('TEST_SHOPIFY_SHOP_URL');
-        
-        die();
         if (! getenv('TEST_SHOPIFY_API_KEY') || ! getenv('TEST_SHOPIFY_API_SECRET') || ! getenv('TEST_SHOPIFY_SHOP_URL')) {
-            return;
+            throw new Exception('Missing Shopify configuration');
         }
 
         ShopifyConfigurationService::setup(new Shopify(
