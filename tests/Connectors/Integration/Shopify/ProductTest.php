@@ -18,6 +18,9 @@ final class ProductTest extends TestCase
 
     public function testCreateProduct()
     {
+        /**
+         * @todo use create product factory or action instead of first
+         */
         $product = Products::first();
         $region = Regions::fromCompany($product->company)->first();
         $channel = Channels::fromCompany($product->company)->first();
