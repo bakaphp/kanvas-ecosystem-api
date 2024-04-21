@@ -197,6 +197,7 @@ class ShopifyInventoryService
 
         $shopifyVariantData = $shopifyVariant->get();
 
+        //product will have all the images of its variants
         $image = $shopifyProduct->Image->post(['src' => $imageUrl]);
 
         $shopifyVariant->put(['image_id' => $image['id']]);
