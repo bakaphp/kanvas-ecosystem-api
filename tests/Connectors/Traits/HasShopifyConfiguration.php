@@ -13,6 +13,7 @@ trait HasShopifyConfiguration
 {
     public function setupShopifyConfiguration(Products $product, Regions $region): void
     {
+        echo getenv('TEST_SHOPIFY_SHOP_URL'); die();
         if (! getenv('TEST_SHOPIFY_API_KEY') || ! getenv('TEST_SHOPIFY_API_SECRET') || ! getenv('TEST_SHOPIFY_SHOP_URL')) {
             return;
         }
