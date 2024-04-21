@@ -13,7 +13,7 @@ use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 
 class ProductFactory extends Factory
 {
-    USE KanvasFactoryStateTrait;
+    use KanvasFactoryStateTrait;
 
     protected $model = Products::class;
 

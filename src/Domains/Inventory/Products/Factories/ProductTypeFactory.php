@@ -30,5 +30,4 @@ class ProductTypeFactory extends Factory
             'weight' => 0,
         ];
     }
-
 }
