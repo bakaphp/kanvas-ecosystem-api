@@ -204,6 +204,5 @@ class ShopifyInventoryService
         if ($shopifyVariantData['image_id'] !== null) {
             $shopifyProduct->Image($shopifyVariantData['image_id'])->delete();
         }
-
     }
 }
