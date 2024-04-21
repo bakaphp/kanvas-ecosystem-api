@@ -10,22 +10,19 @@ use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Tests\Connectors\Traits\HasShopifyConfiguration;
 use Tests\TestCase;
 
 final class ProductTest extends TestCase
 {
+    use HasShopifyConfiguration;
+    
     public function testCreateProduct()
     {
         $product = Products::first();
         $region = Regions::fromCompany($product->company)->first();
         $channel = Channels::fromCompany($product->company)->first();
-
-        /*
-                ShopifyConfigurationService::setup(new Shopify(
-                    $product->company,
-                    $product->app,
-                    $region,
-                )); */
+        $this->setupShopifyConfiguration($product, $region);
 
         $shopify = new ShopifyInventoryService(
             $product->app,
@@ -62,12 +59,7 @@ final class ProductTest extends TestCase
         $product = Products::first();
         $region = Regions::fromCompany($product->company)->first();
         $channel = Channels::fromCompany($product->company)->first();
-        /*
-                ShopifyConfigurationService::setup(new Shopify(
-                    $product->company,
-                    $product->app,
-                    $region,
-                )); */
+        $this->setupShopifyConfiguration($product, $region);
 
         $shopify = new ShopifyInventoryService(
             $product->app,
@@ -102,12 +94,7 @@ final class ProductTest extends TestCase
         $product = Products::first();
         $region = Regions::fromCompany($product->company)->first();
         $channel = Channels::fromCompany($product->company)->first();
-        /*
-                ShopifyConfigurationService::setup(new Shopify(
-                    $product->company,
-                    $product->app,
-                    $region,
-                )); */
+        $this->setupShopifyConfiguration($product, $region);
 
         $shopify = new ShopifyInventoryService(
             $product->app,
