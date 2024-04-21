@@ -18,7 +18,6 @@ trait HasShopifyConfiguration
         if (app(Apps::class)->get(CustomFieldEnum::SHOPIFY_API_KEY->value) !== null
             && app(Apps::class)->get(CustomFieldEnum::SHOPIFY_API_SECRET->value) !== null
             && app(Apps::class)->get(CustomFieldEnum::SHOP_URL->value) !== null) {
-
             return;
         }
 
@@ -30,6 +29,5 @@ trait HasShopifyConfiguration
             getenv('TEST_SHOPIFY_API_SECRET'),
             getenv('TEST_SHOPIFY_SHOP_URL')
         ));
-
     }
 }
