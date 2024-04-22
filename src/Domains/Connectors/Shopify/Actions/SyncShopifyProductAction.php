@@ -19,7 +19,7 @@ class SyncShopifyProductAction
     public function execute()
     {
         foreach ($this->product->variants as $variant) {
-            $variant->warehouses->map(function ($warehouses) use ($variant){
+            $variant->warehouses->map(function ($warehouses) use ($variant) {
                 $shopifyService = new ShopifyInventoryService($variant->app, $variant->company, $warehouses);
                 $shopifyService->saveProduct($variant->product, StatusEnum::ACTIVE);
             });

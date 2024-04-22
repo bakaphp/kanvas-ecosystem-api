@@ -33,7 +33,7 @@ final class VariantTest extends TestCase
             $warehouse
         );
 
-       $shopify->saveProduct($product, StatusEnum::ACTIVE);
+        $shopify->saveProduct($product, StatusEnum::ACTIVE);
 
         foreach ($product->variants as $variant) {
             $shopifyVariantResponse = $shopify->saveVariant($variant);
