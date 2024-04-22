@@ -9,7 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
-use Throwable;
+use Twilio\Exceptions\RestException;
 
 class TwoFactorAuthMutation
 {
@@ -65,7 +65,7 @@ class TwoFactorAuthMutation
 
                 return true;
             }
-        } catch (Throwable $e) {
+        } catch (RestException $e) {
             throw new ValidationException($e->getMessage());
         }
 
