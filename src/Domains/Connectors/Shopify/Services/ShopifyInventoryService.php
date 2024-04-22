@@ -139,7 +139,8 @@ class ShopifyInventoryService
     public function setStock(Variants $variant, bool $isAdjustment = false): int
     {
         $shopifyVariant = $this->shopifySdk->ProductVariant($variant->getShopifyId($this->warehouses->regions));
-        $channelInfo = $variant->variantChannels()->where('channels_id', $this->channel->getId())->first();
+        //Temporal change
+        $channelInfo = $variant->variantChannels()->first();
         $warehouseInfo = $channelInfo?->productVariantWarehouse()->first();
 
         $shopifyVariant->put([
