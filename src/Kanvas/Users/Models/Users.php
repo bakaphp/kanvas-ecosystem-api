@@ -669,7 +669,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         $user = $this->getAppProfile(app(Apps::class));
 
-        return $user->is_active;
+        return (bool) $user->is_active;
     }
 
     public function runVerifyTwoFactorAuth(?AppInterface $app = null): bool
@@ -679,8 +679,8 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         /**
          * @todo user config per app
          */
-        return $this->get(UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value)
-                && ! ($user->phone_verified_at && now()->subDays(30)->lte(new Carbon($user->phone_verified_at)));
+        return ! ($this->get(UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value)
+                && $user->phone_verified_at && now()->subDays(30)->lte(new Carbon($user->phone_verified_at)));
     }
 
     public function getPhoto(): ?FilesystemEntities
