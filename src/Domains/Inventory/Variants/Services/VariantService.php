@@ -61,7 +61,7 @@ class VariantService
                 }
             }
 
-            $warehouse = WarehouseRepository::getById($variantDto->warehouse_id, $company);
+            $warehouse = WarehouseRepository::getById($variantDto->warehouse_id, $company, $variantDto->product->app);
 
             if (isset($variant['warehouse']['status'])) {
                 $variant['warehouse']['status_id'] = StatusRepository::getById(
@@ -71,6 +71,11 @@ class VariantService
             } else {
                 $variant['warehouse']['status_id'] = Status::getDefault($company)->getId();
             }
+
+            if ($variantDto->sku && (! isset($variant['warehouse']['sku']) || ! $variant['warehouse']['sku'])) {
+                $variant['warehouse']['sku'] = $variantDto->sku;
+            }
+
             $variantWarehouses = VariantsWarehouses::viaRequest($variant['warehouse'] ?? []);
 
             (new AddToWarehouse($variantModel, $warehouse, $variantWarehouses))->execute();
@@ -82,17 +87,13 @@ class VariantService
 
     /**
      * Create a default variant from the product alone.
-     *
-     * @param Products $product
-     * @param UserInterface $user
-     * @return Variants
      */
     public static function createDefaultVariant(Products $product, UserInterface $user, ?ProductDto $productDto = null): Variants
     {
         $variant = [
             'name' => $product->name,
             'description' => $product->description,
-            'sku' => $productDto->sku ?? null
+            'sku' => $productDto->sku ?? null,
         ];
 
         $variantDto = VariantsDto::from([

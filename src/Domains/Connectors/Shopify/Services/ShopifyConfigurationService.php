@@ -47,4 +47,9 @@ class ShopifyConfigurationService
     {
         return CustomFieldEnum::SHOPIFY_VARIANT_ID->value . '-' . $variant->product->app->getId() . '-' . $variant->company->getId() . '-' . $region->getId() . '-' . $variant->getId();
     }
+
+    public static function getVariantInventoryKey(Variants $variant, Regions $region): string
+    {
+        return CustomFieldEnum::SHOPIFY_VARIANT_INVENTORY_ID->value . '-' . $variant->product->app->getId() . '-' . $variant->company->getId() . '-' . $region->getId() . '-' . $variant->getId();
+    }
 }

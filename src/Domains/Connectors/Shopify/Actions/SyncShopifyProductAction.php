@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Shopify\Actions;
 
 use Kanvas\Connectors\Shopify\Enums\StatusEnum;
 use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
 
 class SyncShopifyProductAction
@@ -18,14 +19,10 @@ class SyncShopifyProductAction
     public function execute()
     {
         foreach ($this->product->variants as $variant) {
-            $regions = $variant->warehouses->map(function ($warehouses) {
-                return $warehouses->regions;
+            $variant->warehouses->map(function ($warehouses) use ($variant) {
+                $shopifyService = new ShopifyInventoryService($variant->app, $variant->company, $warehouses);
+                $shopifyService->saveProduct($variant->product, StatusEnum::ACTIVE);
             });
-        }
-
-        foreach ($regions as $region) {
-            $shopifyService = new ShopifyInventoryService($this->product->app, $this->product->company, $region);
-            $shopifyService->saveProduct($this->product, StatusEnum::ACTIVE);
         }
     }
 }
