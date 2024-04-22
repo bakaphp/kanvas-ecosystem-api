@@ -13,7 +13,7 @@ use Kanvas\Exceptions\ValidationException;
 
 use function Sentry\captureException;
 
-use Twilio\Exceptions\RestException;
+use Throwable;
 
 class TwoFactorAuthMutation
 {
@@ -69,7 +69,7 @@ class TwoFactorAuthMutation
 
                 return true;
             }
-        } catch (RestException $e) {
+        } catch (Throwable $e) {
             //throw new ValidationException($e->getMessage());
             Log::error($e->getMessage());
             captureException($e);
