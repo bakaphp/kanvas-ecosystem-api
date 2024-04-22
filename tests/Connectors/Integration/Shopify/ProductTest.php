@@ -22,15 +22,15 @@ final class ProductTest extends TestCase
          * @todo use create product factory or action instead of first
          */
         $product = Products::first();
-        $region = Regions::fromCompany($product->company)->first();
         $channel = Channels::fromCompany($product->company)->first();
-        $this->setupShopifyConfiguration($product, $region);
+        $variant = $product->variants()->first();
+        $warehouse = $variant->warehouses()->first();
+        $this->setupShopifyConfiguration($product, $warehouse);
 
         $shopify = new ShopifyInventoryService(
             $product->app,
             $product->company,
-            $region,
-            $channel
+            $warehouse
         );
 
         $shopifyResponse = $shopify->saveProduct($product, StatusEnum::ACTIVE);
@@ -46,7 +46,7 @@ final class ProductTest extends TestCase
         );
 
         $this->assertEquals(
-            $product->getShopifyId($region),
+            $product->getShopifyId($warehouse->regions),
             $shopifyResponse['id']
         );
 
@@ -59,15 +59,16 @@ final class ProductTest extends TestCase
     public function testUpdateProduct()
     {
         $product = Products::first();
-        $region = Regions::fromCompany($product->company)->first();
         $channel = Channels::fromCompany($product->company)->first();
-        $this->setupShopifyConfiguration($product, $region);
+        $variant = $product->variants()->first();
+        $warehouse = $variant->warehouses()->first();
+
+        $this->setupShopifyConfiguration($product, $warehouse);
 
         $shopify = new ShopifyInventoryService(
             $product->app,
             $product->company,
-            $region,
-            $channel
+            $warehouse
         );
 
         $product->name = fake()->name;
@@ -81,7 +82,7 @@ final class ProductTest extends TestCase
         );
 
         $this->assertEquals(
-            $product->getShopifyId($region),
+            $product->getShopifyId($warehouse->regions),
             $shopifyResponse['id']
         );
 
@@ -94,21 +95,20 @@ final class ProductTest extends TestCase
     public function testDeleteProduct()
     {
         $product = Products::first();
-        $region = Regions::fromCompany($product->company)->first();
-        $channel = Channels::fromCompany($product->company)->first();
-        $this->setupShopifyConfiguration($product, $region);
+        $variant = $product->variants()->first();
+        $warehouse = $variant->warehouses()->first();
+        $this->setupShopifyConfiguration($product, $warehouse);
 
         $shopify = new ShopifyInventoryService(
             $product->app,
             $product->company,
-            $region,
-            $channel
+            $warehouse
         );
 
         $shopifyResponse = $shopify->unPublishProduct($product);
 
         $this->assertEquals(
-            $product->getShopifyId($region),
+            $product->getShopifyId($warehouse->regions),
             $shopifyResponse['id']
         );
 
