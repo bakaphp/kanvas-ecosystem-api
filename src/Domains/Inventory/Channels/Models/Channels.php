@@ -67,46 +67,6 @@ class Channels extends BaseModel
     }
 
     /**
-     * Get the user's first name.
-     */
-    protected function warehousesId(): Attribute
-    {
-        return Attribute::make(
-            get: fn () => $this->pivot->warehouses_id,
-        );
-    }
-
-    /**
-     * Discounts.
-     */
-    protected function discountedPrice(): Attribute
-    {
-        return Attribute::make(
-            get: fn () => $this->pivot->discounted_price,
-        );
-    }
-
-    /**
-     * Get the user's first name.
-     */
-    protected function price(): Attribute
-    {
-        return Attribute::make(
-            get: fn () => $this->pivot->price,
-        );
-    }
-
-    /**
-     * Get the user's first name.
-     */
-    protected function isPublished(): Attribute
-    {
-        return Attribute::make(
-            get: fn () => $this->pivot->is_published,
-        );
-    }
-
-    /**
      * Available products in this channel
      */
     public function availableProducts(): HasMany

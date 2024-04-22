@@ -18,6 +18,7 @@ use Kanvas\Guild\Models\BaseModel;
  * @property string $address
  * @property string $address_2
  * @property string $city
+ * @property string $county
  * @property int $city_id
  * @property string $state
  * @property int $state_id

@@ -10,6 +10,7 @@ use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\KanvasModelTrait;
 use Baka\Users\Contracts\UserInterface;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFoundException;
@@ -47,6 +48,7 @@ use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Notifications\Traits\HasNotificationSettings;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Factories\UsersFactory;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
@@ -131,6 +133,52 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     protected $hidden = [
         'password',
         'user_activation_key',
+        'user_activation_email',
+        'user_activation_forgot',
+    ];
+
+    protected $fillable = [
+        'email',
+        'password',
+        'firstname',
+        'lastname',
+        'description',
+        'roles_id',
+        'displayname',
+        'default_company',
+        'default_company_branch',
+        'city_id',
+        'state_id',
+        'country_id',
+        'registered',
+        'lastvisit',
+        'sex',
+        'dob',
+        'timezone',
+        'phone_number',
+        'cell_phone_number',
+        'profile_privacy',
+        'profile_image',
+        'profile_header',
+        'profile_header_mobile',
+        'user_active',
+        'user_login_tries',
+        'user_last_login_try',
+        'welcome',
+        'user_activation_key',
+        'user_activation_email',
+        'user_activation_forgot',
+        'language',
+        'karma',
+        'votes',
+        'votes_points',
+        'banned',
+        'location',
+        'status',
+        'address_1',
+        'address_2',
+        'zip_code',
+        'user_recover_code',
     ];
 
     protected $connection = 'mysql';
@@ -621,7 +669,18 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         $user = $this->getAppProfile(app(Apps::class));
 
-        return $user->is_active;
+        return (bool) $user->is_active;
+    }
+
+    public function runVerifyTwoFactorAuth(?AppInterface $app = null): bool
+    {
+        $user = $this->getAppProfile($app ?? app(Apps::class));
+
+        /**
+         * @todo user config per app
+         */
+        return ! ($this->get(UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value)
+                && $user->phone_verified_at && now()->subDays(30)->lte(new Carbon($user->phone_verified_at)));
     }
 
     public function getPhoto(): ?FilesystemEntities
