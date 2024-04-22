@@ -56,7 +56,7 @@ extend type Query {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Channels\\GetSocialChannelsBuilder@getChannels"
-            scopes: ["fromCompany", "fromApp"]
+            scopes: ["fromApp"]
         )
 }
 
