@@ -13,21 +13,16 @@ class SyncShopifyProductAction
 {
     public function __construct(
         protected Products $product,
-        protected Channels $channel
     ) {
     }
 
     public function execute()
     {
         foreach ($this->product->variants as $variant) {
-            $regions = $variant->warehouses->map(function ($warehouses) {
-                return $warehouses->regions;
+            $variant->warehouses->map(function ($warehouses) use ($variant) {
+                $shopifyService = new ShopifyInventoryService($variant->app, $variant->company, $warehouses);
+                $shopifyService->saveProduct($variant->product, StatusEnum::ACTIVE);
             });
-        }
-
-        foreach ($regions as $region) {
-            $shopifyService = new ShopifyInventoryService($this->product->app, $this->product->company, $region, $this->channel);
-            $shopifyService->saveProduct($this->product, StatusEnum::ACTIVE);
         }
     }
 }
