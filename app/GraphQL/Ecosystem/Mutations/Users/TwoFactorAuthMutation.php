@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Mutations\Users;
 
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
+
+use function Sentry\captureException;
+
 use Twilio\Exceptions\RestException;
 
 class TwoFactorAuthMutation
@@ -66,7 +70,11 @@ class TwoFactorAuthMutation
                 return true;
             }
         } catch (RestException $e) {
-            throw new ValidationException($e->getMessage());
+            //throw new ValidationException($e->getMessage());
+            Log::error($e->getMessage());
+            captureException($e);
+
+            return false;
         }
 
         return false;
