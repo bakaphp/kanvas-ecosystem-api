@@ -8,6 +8,8 @@ use Carbon\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
+use Kanvas\Exceptions\ValidationException;
+use Twilio\Exceptions\RestException;
 
 class TwoFactorAuthMutation
 {
@@ -44,23 +46,27 @@ class TwoFactorAuthMutation
         $code = $request['code'];
         $userApp = $user->getAppProfile($app);
 
-        $checkCode = $twilio->verify
-                ->v2
-                ->services($app->get(ConfigurationEnum::TWILIO_VERIFICATION_SID->value))
-                ->verificationChecks
-                ->create(
-                    [
-                        'to' => '+' . $userApp->getTwoStepPhoneNumber(),
-                        'code' => $code,
-                    ]
-                );
+        try {
+            $checkCode = $twilio->verify
+                    ->v2
+                    ->services($app->get(ConfigurationEnum::TWILIO_VERIFICATION_SID->value))
+                    ->verificationChecks
+                    ->create(
+                        [
+                            'to' => '+' . $userApp->getTwoStepPhoneNumber(),
+                            'code' => $code,
+                        ]
+                    );
 
-        if ($checkCode->valid === true) {
-            $userApp->update([
-                'phone_verified_at' => Carbon::now()->toDateTimeString(),
-            ]);
+            if ($checkCode->valid === true) {
+                $userApp->update([
+                    'phone_verified_at' => Carbon::now()->toDateTimeString(),
+                ]);
 
-            return true;
+                return true;
+            }
+        } catch (RestException $e) {
+            throw new ValidationException($e->getMessage());
         }
 
         return false;
