@@ -676,6 +676,10 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         $user = $this->getAppProfile($app ?? app(Apps::class));
 
+        if (! $this->get(UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value) && $user->phone_verified_at && now()->subDays(7)->lte(new Carbon($user->phone_verified_at))) {
+            return false;
+        }
+
         /**
          * @todo user config per app
          */
