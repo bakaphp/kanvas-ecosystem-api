@@ -8,10 +8,12 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Connectors\Shopify\Enums\StatusEnum;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Social\Channels\Models\Channel;
 use PHPShopify\ShopifySDK;
 use Throwable;
 
@@ -80,27 +82,31 @@ class ShopifyInventoryService
     /**
      * Map the data from the variant into the array
      */
-    public function mapVariant(Variants $variant): array
+    public function mapVariant(Variants $variant, Channel $channel = null): array
     {
-        // Temporal commenting
-        // $channelInfo = $variant->variantChannels()->where('channels_id', $this->channel->getId())->first();
-        // $warehouseInfo = $channelInfo?->productVariantWarehouse()->first();
+        $warehouseInfo = $variant->variantWarehouses()->where('warehouses_id', $this->warehouses->getId());
 
-        // $price = $channelInfo?->price ?? 0;
-        // $discountedPrice = $channelInfo?->discounted_price ?? 0;
-        // if ($discountedPrice > 0 && $discountedPrice < $price) {
-        //     $price = $discountedPrice;
-        //     $discountedPrice = $price;
-        // }
+        if ($channel) {
+            $channelInfo = $variant->variantChannels()->where('channels_id', $channel->getId())->first();
+    
+            $price = $channelInfo?->price ?? 0;
+            $discountedPrice = $channelInfo?->discounted_price ?? 0;
+            if ($discountedPrice > 0 && $discountedPrice < $price) {
+                $price = $discountedPrice;
+                $discountedPrice = $price;
+            }
+        } else {
+            $price = $warehouseInfo?->price ?? 0;
+        }
 
         $shopifyVariantInfo = [
             'option1' => $variant->sku ?? $variant->name,
             'sku' => $variant->sku,
             'barcode' => $variant->barcode,
-            // 'price' => $price,
-            // 'quantity' => $warehouseInfo?->quantity ?? 0,
-            // 'compare_at_price' => $discountedPrice,
-            //'inventory_policy' => 'deny',
+            'price' => $price,
+            'quantity' => $warehouseInfo?->quantity ?? 0,
+            'compare_at_price' => $discountedPrice ?? 0,
+            'inventory_policy' => 'deny',
         ];
 
         if ($variant->product->getShopifyId($this->warehouses->regions)) {
@@ -110,11 +116,11 @@ class ShopifyInventoryService
         return $shopifyVariantInfo;
     }
 
-    public function saveVariant(Variants $variant): array
+    public function saveVariant(Variants $variant, Channels $channel = null): array
     {
         $shopifyProductVariantId = $variant->getShopifyId($this->warehouses->regions);
 
-        $variantInfo = $this->mapVariant($variant);
+        $variantInfo = $this->mapVariant($variant, $channel);
 
         $shopifyProduct = $this->shopifySdk->Product($variant->product->getShopifyId($this->warehouses->regions));
         if ($shopifyProductVariantId === null) {
@@ -136,10 +142,10 @@ class ShopifyInventoryService
         return $response;
     }
 
-    public function setStock(Variants $variant, bool $isAdjustment = false): int
+    public function setStock(Variants $variant, Channels $channel, bool $isAdjustment = false): int
     {
         $shopifyVariant = $this->shopifySdk->ProductVariant($variant->getShopifyId($this->warehouses->regions));
-        //Temporal change
+
         $channelInfo = $variant->variantChannels()->first();
         $warehouseInfo = $channelInfo?->productVariantWarehouse()->first();
 
