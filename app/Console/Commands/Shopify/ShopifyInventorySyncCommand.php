@@ -51,7 +51,7 @@ class ShopifyInventorySyncCommand extends Command
         foreach ($products as $product) {
             $this->info("Checking product {$product->getId()} {$product->name} \n");
 
-            foreach($product->variants as $variant) {
+            foreach ($product->variants as $variant) {
                 $variant->warehouses->map(function ($warehouses) use ($variant) {
                     $shopifyService = new ShopifyInventoryService($variant->app, $variant->company, $warehouses);
                     $shopifyService->saveProduct($variant->product, StatusEnum::ACTIVE);

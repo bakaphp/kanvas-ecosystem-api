@@ -88,7 +88,7 @@ class ShopifyInventoryService
 
         if ($channel) {
             $channelInfo = $variant->variantChannels()->where('channels_id', $channel->getId())->first();
-    
+
             $price = $channelInfo?->price ?? 0;
             $discountedPrice = $channelInfo?->discounted_price ?? 0;
             if ($discountedPrice > 0 && $discountedPrice < $price) {
