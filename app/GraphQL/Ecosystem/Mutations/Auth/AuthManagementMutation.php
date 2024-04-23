@@ -68,7 +68,7 @@ class AuthManagementMutation
         $userApp = $user->getAppProfile($app);
 
         //if the user has 2fa enabled and the 30 days validation is not enabled
-        if (! $this->get(UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value) && $userApp->phone_verified_at) {
+        if (! $user->get(UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value) && $userApp->phone_verified_at) {
             $userApp->phone_verified_at = null;
             $userApp->save();
         }
