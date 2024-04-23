@@ -21,6 +21,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
+use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Repositories\UsersRepository;
 use Laravel\Socialite\Facades\Socialite;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
@@ -62,10 +63,19 @@ class AuthManagementMutation
     public function logout(mixed $rootValue, array $request): bool
     {
         $session = new Sessions();
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $userApp = $user->getAppProfile($app);
+
+        //if the user has 2fa enabled and the 30 days validation is not enabled
+        if (! $this->get(UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value) && $userApp->phone_verified_at) {
+            $userApp->phone_verified_at = null;
+            $userApp->save();
+        }
 
         return $session->end(
-            auth()->user(),
-            app(Apps::class),
+            $user,
+            $app,
             auth()->getRequestJwtToken()->claims()->get('sessionId')
         );
     }
