@@ -69,9 +69,9 @@ final class VariantTest extends TestCase
 
         foreach ($product->variants as $variant) {
             $shopify->saveVariant($variant);
-            $shopifyVariantResponse = $shopify->setStock($variant);
 
             $channelInfo = $variant->variantChannels()->where('channels_id', $channel->getId())->first();
+            $shopifyVariantResponse = $shopify->setStock($variant, $channelInfo);
             $warehouseInfo = $channelInfo?->productVariantWarehouse()->first();
 
             $this->assertEquals(
