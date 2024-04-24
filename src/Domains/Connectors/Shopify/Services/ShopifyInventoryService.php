@@ -82,7 +82,7 @@ class ShopifyInventoryService
     /**
      * Map the data from the variant into the array
      */
-    public function mapVariant(Variants $variant, Channel $channel = null): array
+    public function mapVariant(Variants $variant, ?Channel $channel = null): array
     {
         $warehouseInfo = $variant->variantWarehouses()->where('warehouses_id', $this->warehouses->getId());
 
