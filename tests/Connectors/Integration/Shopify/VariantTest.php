@@ -49,64 +49,64 @@ final class VariantTest extends TestCase
             );
         }
     }
-    // Comment temporal
-    // public function testSetStock()
-    // {
-    //     $product = Products::first();
 
-    //     $channel = Channels::fromCompany($product->company)->first();
-    //     $variant = $product->variants()->first();
-    //     $warehouse = $variant->warehouses()->first();
-    //     $this->setupShopifyConfiguration($product, $warehouse);
+    public function testSetStock()
+    {
+        $product = Products::first();
 
-    //     $shopify = new ShopifyInventoryService(
-    //         $product->app,
-    //         $product->company,
-    //         $warehouse
-    //     );
+        $channel = Channels::fromCompany($product->company)->first();
+        $variant = $product->variants()->first();
+        $warehouse = $variant->warehouses()->first();
+        $this->setupShopifyConfiguration($product, $warehouse);
 
-    //     $shopifyProduct = $shopify->saveProduct($product, StatusEnum::ACTIVE);
+        $shopify = new ShopifyInventoryService(
+            $product->app,
+            $product->company,
+            $warehouse
+        );
 
-    //     foreach ($product->variants as $variant) {
-    //         $shopify->saveVariant($variant);
-    //         $shopifyVariantResponse = $shopify->setStock($variant);
+        $shopifyProduct = $shopify->saveProduct($product, StatusEnum::ACTIVE);
 
-    //         $channelInfo = $variant->variantChannels()->where('channels_id', $channel->getId())->first();
-    //         $warehouseInfo = $channelInfo?->productVariantWarehouse()->first();
+        foreach ($product->variants as $variant) {
+            $shopify->saveVariant($variant);
 
-    //         $this->assertEquals(
-    //             $warehouseInfo?->quantity ?? 0,
-    //             $shopifyVariantResponse
-    //         );
-    //     }
-    // }
+            $channelInfo = $variant->variantChannels()->where('channels_id', $channel->getId())->first();
+            $shopifyVariantResponse = $shopify->setStock($variant, $channelInfo);
+            $warehouseInfo = $channelInfo?->productVariantWarehouse()->first();
 
-    // public function testSetImage()
-    // {
-    //     $product = Products::first();
+            $this->assertEquals(
+                $warehouseInfo?->quantity ?? 0,
+                $shopifyVariantResponse
+            );
+        }
+    }
 
-    //     $channel = Channels::fromCompany($product->company)->first();
-    //     $variant = $product->variants()->first();
-    //     $warehouse = $variant->warehouses()->first();
-    //     $this->setupShopifyConfiguration($product, $warehouse);
+    public function testSetImage()
+    {
+        $product = Products::first();
 
-    //     $shopify = new ShopifyInventoryService(
-    //         $product->app,
-    //         $product->company,
-    //         $warehouse
-    //     );
+        $channel = Channels::fromCompany($product->company)->first();
+        $variant = $product->variants()->first();
+        $warehouse = $variant->warehouses()->first();
+        $this->setupShopifyConfiguration($product, $warehouse);
+
+        $shopify = new ShopifyInventoryService(
+            $product->app,
+            $product->company,
+            $warehouse
+        );
 
 
-    //     $shopifyProduct = $shopify->saveProduct($product, StatusEnum::ACTIVE);
+        $shopifyProduct = $shopify->saveProduct($product, StatusEnum::ACTIVE);
 
-    //     foreach ($product->variants as $variant) {
-    //         $shopify->saveVariant($variant);
-    //         $shopifyVariantResponse = $shopify->addImages($variant, fake()->imageUrl(640, 480, 'animals', true));
+        foreach ($product->variants as $variant) {
+            $shopify->saveVariant($variant);
+            $shopifyVariantResponse = $shopify->addImages($variant, fake()->imageUrl(640, 480, 'animals', true));
 
-    //         $this->assertEquals(
-    //             $variant->image,
-    //             $shopifyVariantResponse
-    //         );
-    //     }
-    // }
+            $this->assertEquals(
+                $variant->image,
+                $shopifyVariantResponse
+            );
+        }
+    }
 }
