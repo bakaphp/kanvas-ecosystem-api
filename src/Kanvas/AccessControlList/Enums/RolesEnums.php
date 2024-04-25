@@ -42,4 +42,18 @@ enum RolesEnums: string
 
         return $role->value;
     }
+
+    public static function isEnumValue(string $value): bool
+    {
+        $values = [
+            self::ADMIN->value,
+            self::OWNER->value,
+            self::USER->value,
+            self::AGENT->value,
+            self::DEVELOPER->value,
+            self::MANAGER->value,
+        ];
+
+        return in_array($value, $values);
+    }
 }
