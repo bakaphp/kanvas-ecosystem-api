@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Queries\Roles;
 
 use Bouncer;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Users\Repositories\UsersRepository;
 use Silber\Bouncer\Database\Ability;
 

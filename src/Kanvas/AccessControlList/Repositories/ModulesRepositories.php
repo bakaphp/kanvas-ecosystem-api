@@ -7,7 +7,7 @@ namespace Kanvas\AccessControlList\Repositories;
 use Kanvas\AccessControlList\Enums\ModuleEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Companies\Models\Users;
+use Kanvas\Users\Models\Users;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Products\Models\ProductsTypes;
 use Kanvas\Inventory\Regions\Models\Regions;
