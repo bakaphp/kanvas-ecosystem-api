@@ -53,7 +53,7 @@ enum RolesEnums: string
             self::DEVELOPER->value,
             self::MANAGER->value,
         ];
-    
+
         return in_array($value, $values);
     }
 }
