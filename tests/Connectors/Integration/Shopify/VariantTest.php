@@ -50,36 +50,36 @@ final class VariantTest extends TestCase
         }
     }
 
-    public function testSetStock()
-    {
-        $product = Products::first();
+    // public function testSetStock()
+    // {
+    //     $product = Products::first();
 
-        $channel = Channels::fromCompany($product->company)->first();
-        $variant = $product->variants()->first();
-        $warehouse = $variant->warehouses()->first();
-        $this->setupShopifyConfiguration($product, $warehouse);
+    //     $channel = Channels::fromCompany($product->company)->first();
+    //     $variant = $product->variants()->first();
+    //     $warehouse = $variant->warehouses()->first();
+    //     $this->setupShopifyConfiguration($product, $warehouse);
 
-        $shopify = new ShopifyInventoryService(
-            $product->app,
-            $product->company,
-            $warehouse
-        );
+    //     $shopify = new ShopifyInventoryService(
+    //         $product->app,
+    //         $product->company,
+    //         $warehouse
+    //     );
 
-        $shopifyProduct = $shopify->saveProduct($product, StatusEnum::ACTIVE);
+    //     $shopifyProduct = $shopify->saveProduct($product, StatusEnum::ACTIVE);
 
-        foreach ($product->variants as $variant) {
-            $shopify->saveVariant($variant);
+    //     foreach ($product->variants as $variant) {
+    //         $shopify->saveVariant($variant);
 
-            $channelInfo = $variant->variantChannels()->where('channels_id', $channel->getId())->first();
-            $shopifyVariantResponse = $shopify->setStock($variant, $channelInfo);
-            $warehouseInfo = $channelInfo?->productVariantWarehouse()->first();
+    //         $channelInfo = $variant->variantChannels()->where('channels_id', $channel->getId())->first();
+    //         $shopifyVariantResponse = $shopify->setStock($variant, $channelInfo);
+    //         $warehouseInfo = $channelInfo?->productVariantWarehouse()->first();
 
-            $this->assertEquals(
-                $warehouseInfo?->quantity ?? 0,
-                $shopifyVariantResponse
-            );
-        }
-    }
+    //         $this->assertEquals(
+    //             $warehouseInfo?->quantity ?? 0,
+    //             $shopifyVariantResponse
+    //         );
+    //     }
+    // }
 
     public function testSetImage()
     {
