@@ -13,5 +13,4 @@ class Abilities extends Ability
         'title',
         'entity_type',
     ];
-
 }
