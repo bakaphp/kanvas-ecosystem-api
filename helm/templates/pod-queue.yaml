@@ -13,6 +13,8 @@ spec:
       labels:
         app: {{.Values.deployments.queue.name}}
         type: api
+      annotations:
+        instrumentation.opentelemetry.io/inject-java: "true"
     spec:
       volumes:
         - name: envconfigmap
