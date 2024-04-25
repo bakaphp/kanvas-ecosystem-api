@@ -17,7 +17,6 @@ class AbilitiesModules extends BaseModel
     public function systemModule(): BelongsTo
     {
         return $this->belongsTo(SystemModules::class, 'system_modules_id');
-
     }
 
     public function ability(): BelongsTo
