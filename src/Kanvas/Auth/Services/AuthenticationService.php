@@ -94,8 +94,8 @@ class AuthenticationService
      */
     protected function loginAttemptsValidation(UserAppInterface $user): bool
     {
-        $loginResetTime = $this->app->get('auth.login_reset_time') ?? config('auth.login_reset_time');
-        $maxLoginAttempts = $this->app->get('auth.max_login_attempts') ?? config('auth.max_login_attempts');
+        $loginResetTime = $this->app->get('login_reset_time') ?? config('auth.login_reset_time');
+        $maxLoginAttempts = $this->app->get('max_login_attempts') ?? config('auth.max_login_attempts');
 
         $currentTime = time();
         $timeThreshold = $currentTime - ($loginResetTime * 60);
