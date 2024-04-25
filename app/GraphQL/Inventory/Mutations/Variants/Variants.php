@@ -71,7 +71,7 @@ class Variants
         (new AddToWarehouse($variantModel, $warehouse, $variantWarehouses))->execute();
 
         if (isset($req['input']['channels'])) {
-            foreach($req['input']['channels'] as $variantChannel) {
+            foreach ($req['input']['channels'] as $variantChannel) {
                 $warehouse = WarehouseRepository::getById((int) $variantChannel['warehouses_id']);
                 $channel = ChannelRepository::getById((int) $variantChannel['channels_id']);
                 $variantChannelDto = VariantChannel::from($variantChannel);
