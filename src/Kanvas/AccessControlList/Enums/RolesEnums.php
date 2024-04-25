@@ -45,25 +45,15 @@ enum RolesEnums: string
 
     public static function isEnumValue(string $value): bool
     {
-        if ($value === self::ADMIN->value) {
-            return true;
-        }
-        if ($value === self::OWNER->value) {
-            return true;
-        }
-        if ($value === self::USER->value) {
-            return true;
-        }
-        if ($value === self::AGENT->value) {
-            return true;
-        }
-        if ($value === self::DEVELOPER->value) {
-            return true;
-        }
-        if ($value === self::MANAGER->value) {
-            return true;
-        }
-
-        return false;
+        $values = [
+            self::ADMIN->value,
+            self::OWNER->value,
+            self::USER->value,
+            self::AGENT->value,
+            self::DEVELOPER->value,
+            self::MANAGER->value,
+        ];
+    
+        return in_array($value, $values);
     }
 }
