@@ -15,6 +15,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Repositories\UsersRepository;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Silber\Bouncer\Database\Role as SilberRole;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 
 class RolesManagementMutation
 {
@@ -151,5 +152,24 @@ class RolesManagementMutation
         $role = $role->execute(auth()->user()->getCurrentCompany());
 
         return KanvasRole::find($role->id);
+    }
+
+    public function deleteRole(mixed $rootValue, array $request): bool
+    {
+        $user = auth()->user();
+
+        if (! $user->isAdmin()) {
+            throw new AuthorizationException('You are not allowed to perform this action');
+        }
+
+        $role = KanvasRole::findOrFail($request['id']);
+
+        if (RolesEnums::isEnumValue($role->name)) {
+            throw new AuthorizationException('You are not allowed to delete this role');
+        }
+
+        $role->delete();
+
+        return true;
     }
 }

@@ -48,6 +48,7 @@ use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Notifications\Traits\HasNotificationSettings;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Factories\UsersFactory;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
@@ -668,14 +669,22 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         $user = $this->getAppProfile(app(Apps::class));
 
-        return $user->is_active;
+        return (bool) $user->is_active;
     }
 
     public function runVerifyTwoFactorAuth(?AppInterface $app = null): bool
     {
         $user = $this->getAppProfile($app ?? app(Apps::class));
 
-        return ! ($user->phone_verified_at && now()->subDays(30)->lte(new Carbon($user->phone_verified_at)));
+        if (! $this->get(UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value) && $user->phone_verified_at && now()->subDays(7)->lte(new Carbon($user->phone_verified_at))) {
+            return false;
+        }
+
+        /**
+         * @todo user config per app
+         */
+        return ! ($this->get(UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value)
+                && $user->phone_verified_at && now()->subDays(30)->lte(new Carbon($user->phone_verified_at)));
     }
 
     public function getPhoto(): ?FilesystemEntities

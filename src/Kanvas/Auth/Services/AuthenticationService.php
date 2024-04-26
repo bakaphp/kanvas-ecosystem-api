@@ -21,7 +21,6 @@ use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Lcobucci\JWT\Token;
-use stdClass;
 
 class AuthenticationService
 {
@@ -58,11 +57,11 @@ class AuthenticationService
              * @todo remove in v2
              */
             $authentically = $user->getAppProfile($app);
-        } catch(ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             //user doesn't have a profile yet , verify if we need to create it
             try {
                 UsersRepository::belongsToThisApp($user, $app);
-            } catch(ModelNotFoundException $e) {
+            } catch (ModelNotFoundException $e) {
                 throw new AuthenticationException('Invalid email or password.');
             }
             $userRegisterInApp = new RegisterUsersAppAction($user);
@@ -95,31 +94,28 @@ class AuthenticationService
      */
     protected function loginAttemptsValidation(UserAppInterface $user): bool
     {
-        //load config
-        $config = new stdClass();
-        $config->login_reset_time = $this->app->get('max_autologin_time') ?? config('auth.max_autologin_time');
-        $config->max_login_attempts = $this->app->get('max_autologin_time') ?? config('auth.max_autologin_attempts');
-        //$config->max_login_attempts = env('AUTH_MAX_AUTOLOGIN_ATTEMPTS');
+        $loginResetTime = $this->app->get('login_reset_time') ?? config('auth.login_reset_time');
+        $maxLoginAttempts = $this->app->get('max_login_attempts') ?? config('auth.max_login_attempts');
 
-        // If the last login is more than x minutes ago, then reset the login tries/time
-        if ($user->user_last_login_try
-            && $config->login_reset_time
-            && $user->user_last_login_try < (time() - ($config->login_reset_time * 60))
-        ) {
-            $user->user_login_tries = 0; //turn back to 0 attempt, success
+        $currentTime = time();
+        $timeThreshold = $currentTime - ($loginResetTime * 60);
+
+        // Reset login attempts if the last attempt was earlier than the reset threshold
+        if ($user->user_last_login_try && $user->user_last_login_try < $timeThreshold) {
+            $user->user_login_tries = 0;
             $user->user_last_login_try = 0;
             $user->updateOrFail();
         }
 
-        // Check to see if user is allowed to login again... if his tries are exceeded
-        if ($user->user_last_login_try
-            && $config->login_reset_time
-            && $config->max_login_attempts
-            && $user->user_last_login_try >= (time() - ($config->login_reset_time * 60))
-            && $user->user_login_tries >= $config->max_login_attempts
-        ) {
+        // Block login if maximum attempts are exceeded within the reset time period
+        if ($user->user_last_login_try && $user->user_last_login_try >= $timeThreshold
+            && $user->user_login_tries >= $maxLoginAttempts) {
             throw new AuthenticationException(
-                sprintf('Your account has been locked because of %d failed login attempts, please wait %d minutes to try again', $config->max_login_attempts, $config->login_reset_time)
+                sprintf(
+                    'Your account has been locked due to %d failed login attempts. Please wait %d minutes to try again.',
+                    $maxLoginAttempts,
+                    $loginResetTime
+                )
             );
         }
 
