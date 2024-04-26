@@ -49,7 +49,7 @@ final class VariantTest extends TestCase
             );
         }
     }
-    // Comment temporal
+
     // public function testSetStock()
     // {
     //     $product = Products::first();
@@ -69,9 +69,9 @@ final class VariantTest extends TestCase
 
     //     foreach ($product->variants as $variant) {
     //         $shopify->saveVariant($variant);
-    //         $shopifyVariantResponse = $shopify->setStock($variant);
 
     //         $channelInfo = $variant->variantChannels()->where('channels_id', $channel->getId())->first();
+    //         $shopifyVariantResponse = $shopify->setStock($variant, $channelInfo);
     //         $warehouseInfo = $channelInfo?->productVariantWarehouse()->first();
 
     //         $this->assertEquals(
@@ -81,32 +81,32 @@ final class VariantTest extends TestCase
     //     }
     // }
 
-    // public function testSetImage()
-    // {
-    //     $product = Products::first();
+    public function testSetImage()
+    {
+        $product = Products::first();
 
-    //     $channel = Channels::fromCompany($product->company)->first();
-    //     $variant = $product->variants()->first();
-    //     $warehouse = $variant->warehouses()->first();
-    //     $this->setupShopifyConfiguration($product, $warehouse);
+        $channel = Channels::fromCompany($product->company)->first();
+        $variant = $product->variants()->first();
+        $warehouse = $variant->warehouses()->first();
+        $this->setupShopifyConfiguration($product, $warehouse);
 
-    //     $shopify = new ShopifyInventoryService(
-    //         $product->app,
-    //         $product->company,
-    //         $warehouse
-    //     );
+        $shopify = new ShopifyInventoryService(
+            $product->app,
+            $product->company,
+            $warehouse
+        );
 
 
-    //     $shopifyProduct = $shopify->saveProduct($product, StatusEnum::ACTIVE);
+        $shopifyProduct = $shopify->saveProduct($product, StatusEnum::ACTIVE);
 
-    //     foreach ($product->variants as $variant) {
-    //         $shopify->saveVariant($variant);
-    //         $shopifyVariantResponse = $shopify->addImages($variant, fake()->imageUrl(640, 480, 'animals', true));
+        foreach ($product->variants as $variant) {
+            $shopify->saveVariant($variant);
+            $shopifyVariantResponse = $shopify->addImages($variant, fake()->imageUrl(640, 480, 'animals', true));
 
-    //         $this->assertEquals(
-    //             $variant->image,
-    //             $shopifyVariantResponse
-    //         );
-    //     }
-    // }
+            $this->assertEquals(
+                $variant->image,
+                $shopifyVariantResponse
+            );
+        }
+    }
 }

@@ -70,6 +70,20 @@ class Variants
 
         (new AddToWarehouse($variantModel, $warehouse, $variantWarehouses))->execute();
 
+        if (isset($req['input']['channels'])) {
+            foreach ($req['input']['channels'] as $variantChannel) {
+                $warehouse = WarehouseRepository::getById((int) $variantChannel['warehouses_id']);
+                $channel = ChannelRepository::getById((int) $variantChannel['channels_id']);
+                $variantChannelDto = VariantChannel::from($variantChannel);
+
+                VariantService::addVariantChannel(
+                    $variantModel,
+                    $warehouse,
+                    $channel,
+                    $variantChannelDto
+                );
+            }
+        }
         return $variantModel;
     }
 
@@ -190,13 +204,15 @@ class Variants
     {
         $variant = VariantsRepository::getById((int) $req['variants_id'], auth()->user()->getCurrentCompany());
         $warehouse = WarehouseRepository::getById((int) $req['warehouses_id']);
-        $variantWarehouses = ModelsVariantsWarehouses::where('products_variants_id', $variant->getId())
-            ->where('warehouses_id', $warehouse->getId())
-            ->firstOrFail();
-
         $channel = ChannelRepository::getById((int) $req['channels_id']);
-        $variantChannel = VariantChannel::from($req['input']);
-        (new AddVariantToChannelAction($variantWarehouses, $channel, $variantChannel))->execute();
+        $variantChannelDto = VariantChannel::from($req['input']);
+
+        VariantService::addVariantChannel(
+            $variant,
+            $warehouse,
+            $channel,
+            $variantChannelDto
+        );
 
         return $variant;
     }
