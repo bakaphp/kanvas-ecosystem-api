@@ -7,6 +7,7 @@ namespace Kanvas\Companies\Models;
 use Baka\Contracts\CompanyInterface;
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\SoftDeletesTrait;
+use Carbon\Carbon;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -185,7 +186,7 @@ class Companies extends BaseModel implements CompanyInterface
 
     public function shouldBeSearchable(): bool
     {
-        return $this->is_deleted === StateEnums::NO->getValue();
+        return ! $this->is_deleted->greaterThan(Carbon::create(2010));
     }
 
     /**
