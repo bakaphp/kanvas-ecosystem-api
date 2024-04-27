@@ -240,8 +240,7 @@ trait KanvasModelTrait
     public function isDeleted(): bool
     {
         if ($this->is_deleted instanceof Carbon) {
-            print_R($this->is_deleted->toDateTimeString());
-            return true;
+            return $this->is_deleted->greaterThan(Carbon::create(2010));
         }
 
         return (int) $this->is_deleted === StateEnums::YES->getValue();
