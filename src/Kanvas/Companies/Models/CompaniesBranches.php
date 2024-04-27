@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Branches\Factories\CompaniesBranchesFactory;
 use Kanvas\CustomFields\Traits\HasCustomFields;
-use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Models\BaseModel;
@@ -94,7 +93,7 @@ class CompaniesBranches extends BaseModel
 
     public function shouldBeSearchable(): bool
     {
-        return $this->is_deleted === StateEnums::NO->getValue();
+        return ! $this->isDeleted();
     }
 
     /**

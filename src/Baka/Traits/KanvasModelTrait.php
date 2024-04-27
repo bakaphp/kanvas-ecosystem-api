@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -168,7 +169,7 @@ trait KanvasModelTrait
      */
     public function app(): BelongsTo
     {
-        return  $this->belongsTo(
+        return $this->belongsTo(
             Apps::class,
             'apps_id',
             'id'
@@ -238,6 +239,10 @@ trait KanvasModelTrait
 
     public function isDeleted(): bool
     {
+        if ($this->is_deleted instanceof Carbon) {
+            return $this->is_deleted->greaterThan(Carbon::create(2010));
+        }
+
         return (int) $this->is_deleted === StateEnums::YES->getValue();
     }
 
