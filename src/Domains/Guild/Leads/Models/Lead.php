@@ -124,6 +124,27 @@ class Lead extends BaseModel
             })->where('is_deleted', 0);
         }
 
+        if ($app->get(LeadFilterEnum::FILTER_BY_SPONSOR->value)) {
+            $company = $user->getCurrentCompany();
+            $agent = Agent::fromCompany($company)->where('users_id', $user->getId())->first();
+
+            if (! $agent) {
+                return $query->where('users_id', $user->getId());
+            }
+
+            return $query->where(function ($query) use ($user, $agent) {
+                $query->where('users_id', $user->getId())
+                      ->orWhereIn('users_id', function ($query) use ($agent) {
+                          $query->select('users_id')
+                                ->from('agents')
+                                ->where('companies_id', $agent->companies_id)
+                                ->where('owner_id', $agent->member_id)
+                                ->where('status_id', 1)
+                                ->where('is_deleted', 0);
+                      });
+            })->where('is_deleted', 0);
+        }
+
         return $query;
     }
 
