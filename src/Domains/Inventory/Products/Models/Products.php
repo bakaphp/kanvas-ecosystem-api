@@ -202,6 +202,6 @@ class Products extends BaseModel
 
     public function isPublished(): bool
     {
-        return $this->is_deleted && $this->is_published;
+        return ! $this->is_deleted && $this->is_published;
     }
 }
