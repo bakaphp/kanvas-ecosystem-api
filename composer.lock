@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a5d15430d2a322aae34e7260bf16d62e",
+    "content-hash": "a220ad43cab49d38652f341d3e56309e",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -1550,6 +1550,67 @@
                 }
             ],
             "time": "2023-12-20T15:40:13+00:00"
+        },
+        {
+            "name": "darryldecode/cart",
+            "version": "dev-l11-compatibility",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/laravel-shift/laravelshoppingcart.git",
+                "reference": "8ea3c581ed3c6ca840128160fcaa480365bea6a5"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/laravel-shift/laravelshoppingcart/zipball/8ea3c581ed3c6ca840128160fcaa480365bea6a5",
+                "reference": "8ea3c581ed3c6ca840128160fcaa480365bea6a5",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/support": "5.0.*|5.1.*|5.2.*|5.3.*|5.4.*|5.5.*|5.6.*|5.7.*|5.8.*|^6.0|^7.0|^8.0|^9.0|^10.0|^11.0",
+                "illuminate/translation": "5.0.*|5.1.*|5.2.*|5.3.*|5.4.*|5.5.*|5.6.*|5.7.*|5.8.*|^6.0|^7.0|^8.0|^9.0|^10.0|^11.0",
+                "illuminate/validation": "5.0.*|5.1.*|5.2.*|5.3.*|5.4.*|5.5.*|5.6.*|5.7.*|5.8.*|^6.0|^7.0|^8.0|^9.0|^10.0|^11.0",
+                "php": ">=7.3"
+            },
+            "require-dev": {
+                "mockery/mockery": "^1.4.2",
+                "phpunit/phpunit": "^9.0|^10.5",
+                "symfony/var-dumper": "5.1.5.*@dev"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Darryldecode\\Cart\\CartServiceProvider"
+                    ],
+                    "aliases": {
+                        "Cart": "Darryldecode\\Cart\\Facades\\CartFacade"
+                    }
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Darryldecode\\": "src/Darryldecode"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Darryl Fernandez",
+                    "email": "engrdarrylfernandez@gmail.com"
+                }
+            ],
+            "description": "Laravel 5 Shopping cart",
+            "keywords": [
+                "cart",
+                "laravel",
+                "shopping cart"
+            ],
+            "support": {
+                "source": "https://github.com/laravel-shift/laravelshoppingcart/tree/l11-compatibility"
+            },
+            "time": "2024-02-27T01:03:17+00:00"
         },
         {
             "name": "daverandom/libdns",
@@ -15377,7 +15438,9 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {
+        "darryldecode/cart": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
