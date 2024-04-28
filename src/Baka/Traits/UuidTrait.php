@@ -16,7 +16,7 @@ trait UuidTrait
     public static function bootUuidTrait()
     {
         static::creating(function ($model) {
-            $model->uuid = $model->uuid ?? Str::uuid();
+            $model->uuid = $model->uuid ?? Str::uuid()->toString();
         });
     }
 }
