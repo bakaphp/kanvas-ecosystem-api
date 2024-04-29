@@ -9,6 +9,8 @@ use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Connectors\Shopify\Enums\StatusEnum;
+use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
@@ -96,7 +98,7 @@ class CreateProductAction
             if ($this->productDto->variants) {
                 VariantService::createVariantsFromArray($products, $this->productDto->variants, $this->user);
             } else {
-                VariantService::createDefaultVariant($products, $this->user);
+                VariantService::createDefaultVariant($products, $this->user, $this->productDto);
             }
 
             DB::connection('inventory')->commit();

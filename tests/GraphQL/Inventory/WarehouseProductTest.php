@@ -63,6 +63,7 @@ class WarehouseProductTest extends TestCase
 
         $data = [
             'name' => fake()->name,
+            'sku' => fake()->word,
             'description' => fake()->text,
         ];
 
@@ -74,8 +75,11 @@ class WarehouseProductTest extends TestCase
                     name
                     description
                 }
-            }', ['data' => $data])->assertJson([
-            'data' => ['createProduct' => $data]
+            }', ['data' => $data]);
+
+        unset($data['sku']);
+        $response->assertJson([
+            'data' => ['createProduct' => $data],
         ]);
 
         $productId = $response->decodeResponseJson()['data']['createProduct']['id'];

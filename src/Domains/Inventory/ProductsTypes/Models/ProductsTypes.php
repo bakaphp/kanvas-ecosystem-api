@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Inventory\Products\Factories\ProductTypeFactory;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Traits\ScopesTrait;
 
@@ -42,8 +43,6 @@ class ProductsTypes extends BaseModel
 
     /**
      * Get the user that owns the ProductsTypes.
-     *
-     * @return BelongsTo
      */
     public function companies(): BelongsTo
     {
@@ -75,21 +74,18 @@ class ProductsTypes extends BaseModel
 
     /**
      * Get the total amount of products of a product type.
-     *
-     * @return Int
      */
     public function getTotalProducts(): int
     {
         if (! $totalProducts = $this->get('total_products')) {
             return (int) $this->setTotalProducts();
         }
+
         return (int) $totalProducts;
     }
 
     /**
      * Set the total amount of products of a product type.
-     *
-     * @return Int
      */
     public function setTotalProducts(): int
     {
@@ -104,8 +100,6 @@ class ProductsTypes extends BaseModel
 
     /**
      * Get all the products attributes from the product type
-     *
-     * @return Collection
      */
     public function getProductsAttributes(): Collection
     {
@@ -117,8 +111,6 @@ class ProductsTypes extends BaseModel
 
     /**
      * Get all the variants attributes from the product type
-     *
-     * @return Collection
      */
     public function getVariantsAttributes(): Collection
     {
@@ -126,5 +118,10 @@ class ProductsTypes extends BaseModel
                             ->where('to_variant', 1)
                             ->where('products_types_attributes.is_deleted', 0)
                             ->get();
+    }
+
+    public static function newFactory()
+    {
+        return new ProductTypeFactory();
     }
 }
