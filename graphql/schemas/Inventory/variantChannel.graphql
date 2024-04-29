@@ -47,6 +47,14 @@ input VariantChannelInput {
     is_published: Boolean!
 }
 
+input VariantChannelReferenceInput {
+    warehouses_id: ID!
+    channels_id: ID!
+    price: Float!
+    discounted_price: Float
+    is_published: Boolean!
+}
+
 enum ChannelVariantsFilterByAttributesEnum {
     SLUG @enum(value: "products_variants.slug")
     UUID @enum(value: "products_variants.uuid")

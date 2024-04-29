@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Variants\Services;
 
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction as AddToWarehouse;
+use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
 use Kanvas\Inventory\Variants\Actions\UpdateToChannelAction;
 use Kanvas\Inventory\Variants\Actions\UpdateToWarehouseAction;
@@ -61,7 +63,7 @@ class VariantService
                 }
             }
 
-            $warehouse = WarehouseRepository::getById($variantDto->warehouse_id, $company);
+            $warehouse = WarehouseRepository::getById($variantDto->warehouse_id, $company, $variantDto->product->app);
 
             if (isset($variant['warehouse']['status'])) {
                 $variant['warehouse']['status_id'] = StatusRepository::getById(
@@ -71,6 +73,11 @@ class VariantService
             } else {
                 $variant['warehouse']['status_id'] = Status::getDefault($company)->getId();
             }
+
+            if ($variantDto->sku && (! isset($variant['warehouse']['sku']) || ! $variant['warehouse']['sku'])) {
+                $variant['warehouse']['sku'] = $variantDto->sku;
+            }
+
             $variantWarehouses = VariantsWarehouses::viaRequest($variant['warehouse'] ?? []);
 
             (new AddToWarehouse($variantModel, $warehouse, $variantWarehouses))->execute();
@@ -82,17 +89,13 @@ class VariantService
 
     /**
      * Create a default variant from the product alone.
-     *
-     * @param Products $product
-     * @param UserInterface $user
-     * @return Variants
      */
     public static function createDefaultVariant(Products $product, UserInterface $user, ?ProductDto $productDto = null): Variants
     {
         $variant = [
             'name' => $product->name,
             'description' => $product->description,
-            'sku' => $productDto->sku ?? null
+            'sku' => $productDto->sku ?? null,
         ];
 
         $variantDto = VariantsDto::from([
@@ -153,5 +156,23 @@ class VariantService
         $variantChannelDto = VariantChannelDto::from($data);
 
         return (new UpdateToChannelAction($variantChannel, $variantChannelDto))->execute();
+    }
+
+    /**
+     * Add variants to channels.
+     *
+     * @param Variants $variant
+     * @param Warehouses $warehouse
+     * @param Channels $channel
+     * @param VariantChannelDto $variantChannelDto
+     * @return VariantsChannels
+     */
+    public static function addVariantChannel(Variants $variant, Warehouses $warehouse, Channels $channel, VariantChannelDto $variantChannelDto): VariantsChannels
+    {
+        $variantWarehouses = ModelsVariantsWarehouses::where('products_variants_id', $variant->getId())
+        ->where('warehouses_id', $warehouse->getId())
+        ->firstOrFail();
+
+        return (new AddVariantToChannelAction($variantWarehouses, $channel, $variantChannelDto))->execute();
     }
 }

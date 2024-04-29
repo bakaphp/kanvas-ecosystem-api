@@ -70,6 +70,7 @@ input VariantsInput {
     source_id: Mixed
     attributes: [VariantsAttributesInput!]
     warehouse: WarehouseReferenceInput
+    channels: [VariantChannelReferenceInput!]
 }
 
 input VariantsUpdateInput {
