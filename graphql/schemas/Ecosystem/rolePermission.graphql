@@ -41,6 +41,11 @@ extend type Mutation @guardByAdmin {
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@updateRole"
         )
 
+    deleteRole(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@deleteRole"
+        )
+
     #assign role to the company and to the app
     assignRoleToUser(userId: ID!, role: Mixed!): Boolean
         @field(

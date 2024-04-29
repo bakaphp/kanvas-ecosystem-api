@@ -82,6 +82,6 @@ extend type Query @guard {
     ): [Invite!]!
         @paginate(
             model: "Kanvas\\Users\\Models\\UsersInvite"
-            scopes: ["fromCompany"]
+            scopes: ["fromCompany", "fromApp"]
         )
 }
