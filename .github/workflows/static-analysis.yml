@@ -122,4 +122,4 @@ jobs:
         run: php artisan kanvas:setup-ecosystem
 
       - name: Execute type checking
-        run: vendor/bin/phpstan --configuration="phpstan.src.neon.dist" --xdebug
+        run: vendor/bin/phpstan --configuration="phpstan.neon.dist" --xdebug
