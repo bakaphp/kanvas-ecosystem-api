@@ -145,7 +145,11 @@ class VariantService
             ->where('warehouses_id', $warehouse->getId())
             ->firstOrFail();
 
-        return (new UpdateToWarehouseAction($variantWarehouses, $variantWarehousesDto))->execute();
+        return (
+            new UpdateToWarehouseAction(
+                $variantWarehouses,
+                $variantWarehousesDto
+            ))->execute();
     }
 
     /**
@@ -155,24 +159,31 @@ class VariantService
     {
         $variantChannelDto = VariantChannelDto::from($data);
 
-        return (new UpdateToChannelAction($variantChannel, $variantChannelDto))->execute();
+        return (
+            new UpdateToChannelAction(
+                $variantChannel,
+                $variantChannelDto
+            ))->execute();
     }
 
     /**
      * Add variants to channels.
-     *
-     * @param Variants $variant
-     * @param Warehouses $warehouse
-     * @param Channels $channel
-     * @param VariantChannelDto $variantChannelDto
-     * @return VariantsChannels
      */
-    public static function addVariantChannel(Variants $variant, Warehouses $warehouse, Channels $channel, VariantChannelDto $variantChannelDto): VariantsChannels
-    {
+    public static function addVariantChannel(
+        Variants $variant,
+        Warehouses $warehouse,
+        Channels $channel,
+        VariantChannelDto $variantChannelDto
+    ): VariantsChannels {
         $variantWarehouses = ModelsVariantsWarehouses::where('products_variants_id', $variant->getId())
         ->where('warehouses_id', $warehouse->getId())
         ->firstOrFail();
 
-        return (new AddVariantToChannelAction($variantWarehouses, $channel, $variantChannelDto))->execute();
+        return (
+            new AddVariantToChannelAction(
+                $variantWarehouses,
+                $channel,
+                $variantChannelDto
+            ))->execute();
     }
 }
