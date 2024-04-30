@@ -65,23 +65,28 @@ class VariantsChannelsTest extends TestCase
         ];
         $data = [
             'name' => fake()->name,
+            'sku' => fake()->word,
             'description' => fake()->text,
         ];
         $response = $this->graphQL('
-        mutation($data: ProductInput!) {
-            createProduct(input: $data)
-            {
-                id
-                name
-                description
-            }
-        }', ['data' => $data])->assertJson([
-            'data' => ['createProduct' => $data]
+            mutation($data: ProductInput!) {
+                createProduct(input: $data)
+                {
+                    id
+                    name
+                    description
+                }
+            }', ['data' => $data]);
+
+        unset($data['sku']);
+        $response->assertJson([
+            'data' => ['createProduct' => $data],
         ]);
         $productId = $response->json()['data']['createProduct']['id'];
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
+            'sku' => fake()->word,
             'products_id' => $productId,
             'warehouse' => $warehouseData
         ];
@@ -91,6 +96,7 @@ class VariantsChannelsTest extends TestCase
             { 
                 id
                 name
+                sku
                 description
                 products_id
             }
@@ -213,23 +219,28 @@ class VariantsChannelsTest extends TestCase
         ];
         $data = [
             'name' => fake()->name,
+            'sku' => fake()->word,
             'description' => fake()->text,
         ];
         $response = $this->graphQL('
-        mutation($data: ProductInput!) {
-            createProduct(input: $data)
-            {
-                id
-                name
-                description
-            }
-        }', ['data' => $data])->assertJson([
-            'data' => ['createProduct' => $data]
+            mutation($data: ProductInput!) {
+                createProduct(input: $data)
+                {
+                    id
+                    name
+                    description
+                }
+            }', ['data' => $data]);
+
+        unset($data['sku']);
+        $response->assertJson([
+            'data' => ['createProduct' => $data],
         ]);
         $productId = $response->json()['data']['createProduct']['id'];
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
+            'sku' => fake()->word,
             'products_id' => $productId,
             'warehouse' => $warehouseData
         ];
@@ -239,6 +250,7 @@ class VariantsChannelsTest extends TestCase
             { 
                 id
                 name
+                sku
                 description
                 products_id
             }

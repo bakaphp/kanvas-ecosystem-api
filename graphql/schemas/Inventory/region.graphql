@@ -29,6 +29,7 @@ input RegionInputUpdate {
     settings: String
     is_default: Int
 }
+
 extend type Query @guard {
     regions(
         where: _

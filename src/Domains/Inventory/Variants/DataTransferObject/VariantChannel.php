@@ -10,7 +10,7 @@ class VariantChannel extends Data
 {
     public function __construct(
         public float $price,
-        public float $discounted_price,
+        public float $discounted_price = 0.00,
         public bool $is_published = false,
     ) {
     }

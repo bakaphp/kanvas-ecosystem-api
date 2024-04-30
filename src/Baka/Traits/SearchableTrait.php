@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Baka\Traits;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -13,13 +14,13 @@ trait SearchableTrait
 {
     abstract public static function getModel(): Model;
 
-    public static function getById(int $id, ?CompanyInterface $company = null): Model
+    public static function getById(int $id, ?CompanyInterface $company = null, ?AppInterface $app = null): Model
     {
         $company = $company ?? auth()->user()->getCurrentCompany();
 
         try {
             return self::getModel()::fromCompany($company)
-                ->fromApp()
+                ->fromApp($app)
                 ->notDeleted()
                 ->where('id', $id)
                 ->firstOrFail();
@@ -28,7 +29,7 @@ trait SearchableTrait
         }
     }
 
-    public static function getByUuid(string $uuid, ?CompanyInterface $company = null): Model
+    public static function getByUuid(string $uuid, ?CompanyInterface $company = null, ?AppInterface $app = null): Model
     {
         $company = $company ?? auth()->user()->getCurrentCompany();
 
@@ -43,13 +44,13 @@ trait SearchableTrait
         }
     }
 
-    public static function getByName(string $name, ?CompanyInterface $company = null): Model
+    public static function getByName(string $name, ?CompanyInterface $company = null, ?AppInterface $app = null): Model
     {
         $company = $company ?? auth()->user()->getCurrentCompany();
 
         try {
             return self::getModel()::fromCompany($company)
-                ->fromApp()
+                ->fromApp($app)
                 ->notDeleted()
                 ->where('name', $name)
                 ->firstOrFail();
