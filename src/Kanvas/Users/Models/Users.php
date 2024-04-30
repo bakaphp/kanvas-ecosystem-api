@@ -48,6 +48,7 @@ use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Notifications\Traits\HasNotificationSettings;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Factories\UsersFactory;
 use Kanvas\Users\Repositories\UsersRepository;
@@ -232,6 +233,12 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             'id',
             'apps_id'
         )->where('apps.is_deleted', StateEnums::NO->getValue())->distinct();
+    }
+
+    public function systemModule(): BelongsTo
+    {
+        return $this->belongsTo(SystemModules::class, 'apps_id', 'apps_id')->where('model_name', self::class);
+
     }
 
     /**
