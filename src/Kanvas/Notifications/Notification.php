@@ -150,7 +150,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
             $mailMessage->subject($this->subject);
         }
         if (isset($this->pathAttachment)) {
-            $mailMessage->attach($this->pathAttachment);
+            $mailMessage->attachMany($this->pathAttachment);
         }
 
         return $mailMessage;
