@@ -172,6 +172,9 @@ class Products extends BaseModel
                 'firstname' => $this->company->user->firstname,
                 'lastname' => $this->company->user->lastname,
             ],
+            'variants' => $this->variants->map(function ($variant) {
+                return $variant->toSearchableArray();
+            }),
             'uuid' => $this->uuid,
             'slug' => $this->slug,
             'description' => $this->description,
