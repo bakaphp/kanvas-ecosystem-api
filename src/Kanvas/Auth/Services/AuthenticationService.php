@@ -159,12 +159,18 @@ class AuthenticationService
     /**
      * clean user session
      */
-    public function logout(UserInterface $user, Token $token): bool
+    public function logout(Users $user, Token $token): bool
     {
         $sessionId = $token->claims()->get('sessionId') ?? null;
 
         $session = new Sessions();
         $session->end($user, app(Apps::class), $sessionId);
+
+        $user->fireWorkflow(
+            WorkflowEnum::USER_LOGOUT->value,
+            true,
+            ['company' => $user->getCurrentCompany()]
+        );
 
         return true;
     }
