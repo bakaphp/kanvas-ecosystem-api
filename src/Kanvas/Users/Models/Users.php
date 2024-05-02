@@ -238,7 +238,6 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function systemModule(): BelongsTo
     {
         return $this->belongsTo(SystemModules::class, 'apps_id', 'apps_id')->where('model_name', self::class);
-
     }
 
     /**
