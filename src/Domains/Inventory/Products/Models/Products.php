@@ -154,7 +154,7 @@ class Products extends BaseModel
             'objectID' => $this->uuid,
             'id' => $this->id,
             'name' => $this->name,
-            'files' => $this->files->map(function ($files) {
+            'files' => $this->getFiles()->map(function ($files) {
                 return [
                     'uuid' => $files->uuid,
                     'name' => $files->name,
