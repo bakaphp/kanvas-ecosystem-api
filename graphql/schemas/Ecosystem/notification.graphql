@@ -2,8 +2,8 @@ type Notification {
     id: ID!
     users: User!
     fromUsers: User
-    companies: Company!
-    systemModule: SystemModule!
+    companies: Company
+    systemModule: SystemModule
     types(filter: NotificationTypeFilterInput): NotificationType!
     entity_id: String!
     entity(fields: JSON): Mixed @method(name: "getEntityData")
