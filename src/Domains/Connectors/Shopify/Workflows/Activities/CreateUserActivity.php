@@ -5,13 +5,47 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Shopify\Workflows\Activities;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Connectors\Shopify\Client;
+use Kanvas\Currencies\Models\Currencies;
+use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
+use Kanvas\Inventory\Regions\DataTransferObject\Region as RegionDto;
 use Kanvas\Users\Models\Users;
 use Workflow\Activity;
 
 class CreateUserActivity extends Activity
 {
-    public function execute(Apps $app, Users $user, array $params): void
+    public $tries = 1;
+
+    public function execute(Users $user, Apps $app, array $params): void
     {
-        
+        $company = CompaniesRepository::getById($user->default_company);
+        $defaultRegion = $company->regions->where('default', true)->first();
+        $currency = $company->currency ?? Currencies::where('code', 'USD')->first();
+        if (! $defaultRegion) {
+            $dto = RegionDto::from([
+                'company' => $company,
+                'app' => $app,
+                'user' => $user,
+                'currency' => $currency,
+                'name' => 'Default Region',
+                'is_default' => 1,
+                'short_slug' => 'default',
+            ]);
+            $defaultRegion = (new CreateRegionAction($dto, $user))->execute();
+        }
+
+        $client = Client::getInstance($app, $company, $defaultRegion);
+        $customer = [
+            'first_name' => $user->firstname,
+            'last_name' => $user->lastname,
+            'email' => $user->email,
+            'phone' => $user->phone,
+            'verified_email' => true,
+            'send_email_invite' => false,
+            'password' => $params['password'],
+            'password_confirmation' => $params['password'],
+        ];
+        $client->Customer->post($customer);
     }
 }

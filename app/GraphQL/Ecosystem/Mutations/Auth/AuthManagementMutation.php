@@ -130,6 +130,7 @@ class AuthManagementMutation
 
         $registeredUser = $user->execute();
         $tokenResponse = $registeredUser->createToken('kanvas-login')->toArray();
+        $registeredUser->fireWorkflow('created', params: ['password' => $data->password]);
 
         return [
             'user' => $registeredUser,
