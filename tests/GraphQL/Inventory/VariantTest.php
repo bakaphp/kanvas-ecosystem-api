@@ -66,7 +66,7 @@ class VariantTest extends TestCase
 
         $data = [
             'name' => fake()->name,
-            'sku' => fake()->word,
+            'sku' => fake()->word . fake()->word,
             'description' => fake()->text,
         ];
         $response = $this->graphQL('
@@ -202,7 +202,7 @@ class VariantTest extends TestCase
 
         $data = [
             'name' => fake()->name,
-            'sku' => fake()->word,
+            'sku' => fake()->word . fake()->word,
             'description' => fake()->text,
         ];
         $response = $this->graphQL('
@@ -355,7 +355,7 @@ class VariantTest extends TestCase
 
         $data = [
             'name' => fake()->name,
-            'sku' => fake()->word,
+            'sku' => fake()->word . fake()->word,
             'description' => fake()->text,
         ];
         $response = $this->graphQL('

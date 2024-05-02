@@ -16,7 +16,7 @@ class ProductsTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->word
+            'sku' => fake()->word . fake()->word,
         ];
 
         $response = $this->graphQL('
@@ -42,7 +42,7 @@ class ProductsTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->word
+            'sku' => fake()->word . fake()->word,
         ];
 
         $response = $this->graphQL('
@@ -80,7 +80,7 @@ class ProductsTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->word
+            'sku' => fake()->word . fake()->word,
         ];
         $response = $this->graphQL('
             mutation($data: ProductInput!) {
@@ -136,7 +136,7 @@ class ProductsTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->word
+            'sku' => fake()->word . fake()->word,
         ];
         $response = $this->graphQL('
         mutation($data: ProductInput!) {
@@ -217,7 +217,7 @@ class ProductsTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->word
+            'sku' => fake()->word . fake()->word,
         ];
         $response = $this->graphQL('
             mutation($data: ProductInput!) {
@@ -257,7 +257,7 @@ class ProductsTest extends TestCase
             'name' => fake()->name,
             'description' => fake()->text,
             'products_id' => $id,
-            'sku' => fake()->word,
+            'sku' => fake()->word . fake()->word,
             'warehouse' => $warehouseData
         ];
         $variantResponse = $this->graphQL('
@@ -329,7 +329,7 @@ class ProductsTest extends TestCase
 
         $data = [
             'name' => fake()->name,
-            'sku' => fake()->word,
+            'sku' => fake()->word . fake()->word,
             'description' => fake()->text,
         ];
         $response = $this->graphQL('
@@ -370,7 +370,7 @@ class ProductsTest extends TestCase
             'name' => fake()->name,
             'description' => fake()->text,
             'products_id' => $id,
-            'sku' => fake()->word,
+            'sku' => fake()->word . fake()->word,
             'warehouse' => $warehouseData
         ];
         $variantResponse = $this->graphQL('
