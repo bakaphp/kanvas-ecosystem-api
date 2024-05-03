@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Shopify\Workflows\Activities;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
@@ -19,7 +19,8 @@ class CreateUserActivity extends Activity
 
     public function execute(Users $user, Apps $app, array $params): void
     {
-        $company = CompaniesRepository::getById($user->default_company);
+
+        $company = Companies::find($user->default_company);
         $defaultRegion = $company->regions->where('default', true)->first();
         $currency = $company->currency ?? Currencies::where('code', 'USD')->first();
         if (! $defaultRegion) {
@@ -46,6 +47,8 @@ class CreateUserActivity extends Activity
             'password' => $params['password'],
             'password_confirmation' => $params['password'],
         ];
-        $client->Customer->post($customer);
+        $customer = $client->Customer->post($customer);
+        $user->set('shopify_id', $customer['id']);
+        $user->save();
     }
 }
