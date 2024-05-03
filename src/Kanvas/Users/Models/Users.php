@@ -52,6 +52,7 @@ use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Factories\UsersFactory;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
@@ -559,6 +560,12 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $user = $this->getAppProfile($app);
         $user->password = Hash::make($newPassword);
         $user->user_activation_forgot = '';
+
+        $this->fireWorkflow(
+            WorkflowEnum::AFTER_FORGOT_PASSWORD->value,
+            true,
+            ['app' => $app]
+        );
 
         return $user->saveOrFail();
     }
