@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Shopify\Workflows;
 
 use Baka\Contracts\AppInterface;
+use Kanvas\Connectors\Shopify\Workflows\Activities\CreateUserActivity;
 use Kanvas\Users\Models\Users;
 use Workflow\ActivityStub;
 use Workflow\Workflow;
