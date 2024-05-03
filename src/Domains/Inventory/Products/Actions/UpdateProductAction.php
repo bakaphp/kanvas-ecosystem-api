@@ -9,6 +9,7 @@ use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
 use Throwable;
@@ -59,6 +60,17 @@ class UpdateProductAction
 
             if (! empty($this->productDto->files)) {
                 $this->product->addMultipleFilesFromUrl($this->productDto->files);
+            }
+
+            if ($this->productDto->categories) {
+                $this->product->productsCategories()->delete();
+                foreach($this->product->productsCategories()->get() as $category) {
+                    dd($category->delete());
+                }
+                foreach ($this->productDto->categories as $category) {
+                    $category = CategoriesRepository::getById((int) $category['id'], $this->productDto->company);
+                    $this->product->categories()->attach($category);
+                }
             }
 
             DB::connection('inventory')->commit();

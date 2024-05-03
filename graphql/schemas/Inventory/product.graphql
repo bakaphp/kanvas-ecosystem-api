@@ -64,6 +64,7 @@ input ProductInputUpdate {
     is_published: Boolean
     status: StatusReferenceInput
     files: [FilesystemInputUrl!]
+    categories: [ProductCategoriesReferenceInput!]
 }
 
 extend type Mutation @guard {

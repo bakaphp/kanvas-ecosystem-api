@@ -31,8 +31,8 @@ trait SoftDeletesTrait
 
         $time = $this->freshTimestamp();
 
-        $columns = [$this->getDeletedAtColumn() => $this->fromDateTime($time)];
-
+        $columns = [$this->getDeletedAtColumn() => 1];
+        dd($columns);
         $this->{$this->getDeletedAtColumn()} = $time;
 
         if ($this->timestamps && ! is_null($this->getUpdatedAtColumn())) {
@@ -43,9 +43,10 @@ trait SoftDeletesTrait
 
         $columns['is_deleted'] = 1;
         $query->update($columns);
-
+        // dd($columns);
+        dd($query);
         $this->syncOriginalAttributes(array_keys($columns));
-
+        dd($this);
         if (method_exists($this, 'searchableSoftDelete')) {
             $this->searchableSoftDelete();
         }
