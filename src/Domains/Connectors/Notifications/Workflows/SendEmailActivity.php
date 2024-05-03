@@ -19,18 +19,15 @@ class SendEmailActivity extends Activity implements WorkflowActivityInterface
     use KanvasJobsTrait;
     public $tries = 10;
 
-    /**
-     * @param Lead $lead
-     */
-    public function execute(Model $user, AppInterface $app, array $params): array
+    public function execute(Model $entity, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
 
-        if (! isset($params['template_name']) || ! isset($params['data'])) {
+        if (! isset($params['template_name']) || ! isset($params['data']) || ! $params['toEmail']) {
             return [
-                'message' => 'Missing required params template_name or data',
+                'message' => 'Missing required params template_name or data or toEmail',
                 'data' => $params,
-                'user' => $user->getId(),
+                'user' => $entity->getId(),
             ];
         }
 
@@ -39,19 +36,19 @@ class SendEmailActivity extends Activity implements WorkflowActivityInterface
             $params['template_name'],
             Str::isJson($params['data']) ? json_decode($params['data'], true) : (array) $params['data'], // This can have more validation like validate if is array o json
             ['mail'],
-            $user
+            $entity
         );
 
         //$notification->setFromUser($user); @todo set system default user
-        if (! isset($params['toEmail'])) {
-            $user->notify($notification);
-        }
         Notification::route('mail', $params['toEmail'])->notify($notification);
 
         return [
             'message' => 'Email sent successfully',
             'data' => $params,
-            'user' => $user->getId(),
+            'entity' => [
+                get_class($entity),
+                $entity->getId(),
+            ],
         ];
     }
 }
