@@ -19,7 +19,6 @@ class CreateUserActivity extends Activity
 
     public function execute(Users $user, Apps $app, array $params): void
     {
-
         $company = Companies::find($user->default_company);
         $defaultRegion = $company->regions->where('default', true)->first();
         $currency = $company->currency ?? Currencies::where('code', 'USD')->first();
