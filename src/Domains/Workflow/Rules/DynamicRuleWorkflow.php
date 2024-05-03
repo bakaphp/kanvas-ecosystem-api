@@ -41,7 +41,7 @@ class DynamicRuleWorkflow extends Workflow
             return $activities;
         }
 
-        if(is_array($rule->params) && count($rule->params) > 0){
+        if (is_array($rule->params) && count($rule->params) > 0) {
             $params = array_merge($params, $rule->params);
         }
 
