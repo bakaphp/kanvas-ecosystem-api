@@ -9002,16 +9002,16 @@
         },
         {
             "name": "spatie/laravel-health",
-            "version": "1.28.1",
+            "version": "1.29.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-health.git",
-                "reference": "b6ce48ebb8eb036861bae091954f7c2144634b12"
+                "reference": "daf8f00127a830ab38cbc7a08598a6e93aecd69c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/b6ce48ebb8eb036861bae091954f7c2144634b12",
-                "reference": "b6ce48ebb8eb036861bae091954f7c2144634b12",
+                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/daf8f00127a830ab38cbc7a08598a6e93aecd69c",
+                "reference": "daf8f00127a830ab38cbc7a08598a6e93aecd69c",
                 "shasum": ""
             },
             "require": {
@@ -9083,7 +9083,7 @@
                 "spatie"
             ],
             "support": {
-                "source": "https://github.com/spatie/laravel-health/tree/1.28.1"
+                "source": "https://github.com/spatie/laravel-health/tree/1.29.0"
             },
             "funding": [
                 {
@@ -9091,7 +9091,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-04-19T10:07:24+00:00"
+            "time": "2024-05-02T10:06:22+00:00"
         },
         {
             "name": "spatie/laravel-model-states",
