@@ -10,7 +10,6 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Notifications\Templates\ResetPassword;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
-use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class ForgotPassword
 {
