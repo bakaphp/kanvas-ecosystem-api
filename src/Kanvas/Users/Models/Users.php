@@ -48,9 +48,11 @@ use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Notifications\Traits\HasNotificationSettings;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Factories\UsersFactory;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
@@ -232,6 +234,11 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             'id',
             'apps_id'
         )->where('apps.is_deleted', StateEnums::NO->getValue())->distinct();
+    }
+
+    public function systemModule(): BelongsTo
+    {
+        return $this->belongsTo(SystemModules::class, 'apps_id', 'apps_id')->where('model_name', self::class);
     }
 
     /**
@@ -553,6 +560,12 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $user = $this->getAppProfile($app);
         $user->password = Hash::make($newPassword);
         $user->user_activation_forgot = '';
+
+        $this->fireWorkflow(
+            WorkflowEnum::AFTER_FORGOT_PASSWORD->value,
+            true,
+            ['app' => $app]
+        );
 
         return $user->saveOrFail();
     }

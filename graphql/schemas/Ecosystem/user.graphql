@@ -21,6 +21,7 @@ type User {
     roles: Mixed! @method(name: "getRoles")
     mainRole: String!
     created_at: DateTime
+    systemModule: SystemModule! @belongsTo(relation: "systemModule")
     updated_at: DateTime
     branches: [CompanyBranch!]! @HasManyThrough
     companies: [Company!]! @HasManyThrough

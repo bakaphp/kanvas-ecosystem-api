@@ -19,7 +19,7 @@ class FilesystemEntitiesRepository
      */
     public static function getByIdAdnEntity(int $id, Model $entity, bool $isDeleted = false): FilesystemEntities
     {
-        $app = app(Apps::class);
+        $app = $entity->app ?? app(Apps::class);
         $systemModule = SystemModulesRepository::getByModelName($entity::class);
         $addCompanySql = null;
 
@@ -46,7 +46,8 @@ class FilesystemEntitiesRepository
      */
     public static function getFilesByEntity(Model $entity): Collection
     {
-        $systemModule = SystemModulesRepository::getByModelName($entity::class);
+        $app = $entity->app ?? app(Apps::class);
+        $systemModule = SystemModulesRepository::getByModelName($entity::class, $app);
 
         return FilesystemEntities::join('filesystem', 'filesystem.id', '=', 'filesystem_entities.filesystem_id')
                     ->where('filesystem_entities.entity_id', '=', $entity->getKey())
@@ -61,7 +62,8 @@ class FilesystemEntitiesRepository
      */
     public static function getFileFromEntityByName(Model $entity, string $name): ?FilesystemEntities
     {
-        $systemModule = SystemModulesRepository::getByModelName($entity::class);
+        $app = $entity->app ?? app(Apps::class);
+        $systemModule = SystemModulesRepository::getByModelName($entity::class, $app);
 
         return FilesystemEntities::join('filesystem', 'filesystem.id', '=', 'filesystem_entities.filesystem_id')
                     ->where('filesystem_entities.entity_id', '=', $entity->getKey())
@@ -78,7 +80,8 @@ class FilesystemEntitiesRepository
      */
     public static function deleteAllFilesFromEntity(Model $entity): int
     {
-        $systemModule = SystemModulesRepository::getByModelName($entity::class);
+        $app = $entity->app ?? app(Apps::class);
+        $systemModule = SystemModulesRepository::getByModelName($entity::class, $app);
 
         return FilesystemEntities::where('entity_id', '=', $entity->getKey())
             ->where('filesystem_entities.system_modules_id', '=', $systemModule->getKey())
