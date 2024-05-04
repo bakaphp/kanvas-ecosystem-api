@@ -11,7 +11,7 @@ class MetadataType
 {
     public function linkedStores(Variants $variant, array $request): array
     {
-        $region = app(Regions::class) ?? $variant->company->defaultRegion->firstOrFail();
+        $region = ! app()->bound(Regions::class) ? $variant->company->defaultRegion->firstOrFail() : app(Regions::class);
 
         return [
             'shopify' => [
