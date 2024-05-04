@@ -25,6 +25,7 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserCompanyApps;
@@ -166,6 +167,11 @@ class Companies extends BaseModel implements CompanyInterface
     public function searchableAs(): string
     {
         return config('scout.prefix') . '_companies';
+    }
+
+    public function regions(): HasMany
+    {
+        return $this->hasMany(Regions::class, 'companies_id');
     }
 
     /**

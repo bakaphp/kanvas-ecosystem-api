@@ -1195,16 +1195,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.305.5",
+            "version": "3.305.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "aff7806278b7ce7777ced1afd7534c72329e9240"
+                "reference": "aa08a9fd78c1091c7d9e1e3aff01204208ba8729"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/aff7806278b7ce7777ced1afd7534c72329e9240",
-                "reference": "aff7806278b7ce7777ced1afd7534c72329e9240",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/aa08a9fd78c1091c7d9e1e3aff01204208ba8729",
+                "reference": "aa08a9fd78c1091c7d9e1e3aff01204208ba8729",
                 "shasum": ""
             },
             "require": {
@@ -1284,9 +1284,9 @@
             "support": {
                 "forum": "https://forums.aws.amazon.com/forum.jspa?forumID=80",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.305.5"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.305.8"
             },
-            "time": "2024-04-29T18:07:32+00:00"
+            "time": "2024-05-02T18:25:26+00:00"
         },
         {
             "name": "berkayk/onesignal-laravel",
@@ -2434,16 +2434,16 @@
         },
         {
             "name": "google/auth",
-            "version": "v1.38.0",
+            "version": "v1.39.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-auth-library-php.git",
-                "reference": "5d0c47368fc644d98d0a6299362d4ce03a0ef250"
+                "reference": "23e8e696d87f8d7dfefbd347ca1c99ce17ecb368"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-auth-library-php/zipball/5d0c47368fc644d98d0a6299362d4ce03a0ef250",
-                "reference": "5d0c47368fc644d98d0a6299362d4ce03a0ef250",
+                "url": "https://api.github.com/repos/googleapis/google-auth-library-php/zipball/23e8e696d87f8d7dfefbd347ca1c99ce17ecb368",
+                "reference": "23e8e696d87f8d7dfefbd347ca1c99ce17ecb368",
                 "shasum": ""
             },
             "require": {
@@ -2488,9 +2488,9 @@
             "support": {
                 "docs": "https://googleapis.github.io/google-auth-library-php/main/",
                 "issues": "https://github.com/googleapis/google-auth-library-php/issues",
-                "source": "https://github.com/googleapis/google-auth-library-php/tree/v1.38.0"
+                "source": "https://github.com/googleapis/google-auth-library-php/tree/v1.39.0"
             },
-            "time": "2024-04-24T18:36:53+00:00"
+            "time": "2024-05-02T16:03:51+00:00"
         },
         {
             "name": "google/cloud-core",
