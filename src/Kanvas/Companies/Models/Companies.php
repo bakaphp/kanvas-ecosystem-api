@@ -174,6 +174,11 @@ class Companies extends BaseModel implements CompanyInterface
         return $this->hasMany(Regions::class, 'companies_id');
     }
 
+    public function defaultRegion(): HasOne
+    {
+        return $this->hasOne(Regions::class, 'companies_id')->where('is_default', StateEnums::YES->getValue());
+    }
+
     /**
      * Get the default company key for the current app
      * this is use to store in redis the default company id for the current
