@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Workflows\Activities;
 
-use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Shopify\Client;
@@ -16,13 +15,16 @@ class CreateUserActivity extends Activity
 {
     public $tries = 1;
 
-    public function execute(Users $user, Apps $app, array $params): void
+    public function execute(Users $user, Apps $app, array $params): array
     {
         $company = Companies::find($user->default_company);
         $defaultRegion = $company->regions->where('default', true)->first();
         $currency = $company->currency ?? Currencies::where('code', 'USD')->first();
         if (! $defaultRegion) {
-            throw new Exception('Default region not found');
+            return [
+                'status' => 'error',
+                'message' => 'Default region not found',
+            ];
         }
 
         $client = Client::getInstance($app, $company, $defaultRegion);
@@ -39,5 +41,10 @@ class CreateUserActivity extends Activity
         $customer = $client->Customer->post($customer);
         $user->set('shopify_id', $customer['id']);
         $user->save();
+
+        return [
+            'status' => 'success',
+            'message' => 'Customer created successfully',
+        ];
     }
 }
