@@ -225,4 +225,22 @@ class Products extends BaseModel
     {
         return new ProductFactory();
     }
+
+    public function getShopifyResponseId()
+    {
+        $response = [];
+        foreach ($this->variants as $variant) {
+            $response[] = $variant->variantWarehouses->map(function ($variantWarehouses) {
+                return [
+                    'id' => $this->getShopifyId($variantWarehouses->warehouse->regions),
+                    'region_id' => $variantWarehouses->warehouse->regions->getId(),
+                    'variant_id' => $variantWarehouses->products_variants_id
+                ];
+            });
+            dd($response); ///// Tiene data
+        }
+        dd($response); ///// Pierde toda la data
+
+        return $response;
+    }
 }
