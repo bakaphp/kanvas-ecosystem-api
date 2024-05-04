@@ -21,7 +21,6 @@ class RegionMiddleware
     {
         $regionHeaderKey = AppEnums::KANVAS_APP_REGION_HEADER->getValue();
         if ($request->hasHeader($regionHeaderKey)) {
-
             $app = app(Apps::class);
             $region = Regions::getByUuid($request->header($regionHeaderKey), $app);
 
