@@ -117,7 +117,7 @@ class AuthManagementMutation
             ]
         )->validate();
         PasswordValidation::validateArray($request['data'], $app);
-        $password = $request['data']['password'];
+
         $userRegistrationAssignToAppDefaultCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
         $branch = null;
         if ($userRegistrationAssignToAppDefaultCompanyBranch) {
@@ -130,7 +130,6 @@ class AuthManagementMutation
 
         $registeredUser = $user->execute();
         $tokenResponse = $registeredUser->createToken('kanvas-login')->toArray();
-        $registeredUser->fireWorkflow('created', params: ['password' => $password ]);
 
         return [
             'user' => $registeredUser,
