@@ -43,6 +43,10 @@ class VariantService
             $variantModel = (new CreateVariantsAction($variantDto, $user))->execute();
             $company = $variantDto->product->company()->get()->first();
 
+            if (isset($variant['source']) && isset($variant['sourceId'])) {
+                $variantModel->set($variant['source'], $variant['sourceId']);
+            }
+
             if (isset($variant['attributes'])) {
                 $variantModel->addAttributes($user, $variant['attributes']);
             }
