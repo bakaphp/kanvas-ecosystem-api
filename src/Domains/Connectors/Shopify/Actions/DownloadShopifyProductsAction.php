@@ -26,7 +26,7 @@ class DownloadShopifyProductsAction
     ) {
     }
 
-    public function execute(array $params = [])
+    public function execute(array $params = []) : int
     {
         $firstPage = null;
         $shopify = Client::getInstance(
@@ -102,6 +102,8 @@ class DownloadShopifyProductsAction
             $this->warehouses->region,
             $this->app
         );
+
+        return $totalRecords;
     }
 
     protected function mapVariants(array $variants, array $shopifyProductOptions): array
