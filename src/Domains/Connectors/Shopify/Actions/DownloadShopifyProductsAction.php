@@ -8,6 +8,8 @@ use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Shopify\Client;
+use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Users\Models\Users;
@@ -61,7 +63,7 @@ class DownloadShopifyProductsAction
 
                 $productsToImport[] = [
                     'name' => $name,
-                    'description' => $description,
+                    'description' => $description ?? '',
                     'slug' => $slug,
                     'sku' => (string) $productId,
                     'regionId' => $this->warehouses->region->id,
@@ -70,6 +72,8 @@ class DownloadShopifyProductsAction
                     'quantity' => 1,
                     'isPublished' => true,
                     'files' => $this->files['files'] ?? [],
+                    'source' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_PRODUCT_ID->value, $this->warehouses->company, $this->app, $this->warehouses->region),
+                    'sourceId' => $productId,
                     'categories' => [
                         [
                             'name' => ! empty($shopifyProduct['product_type']) ? $shopifyProduct['product_type'] : 'Uncategorized',
@@ -89,6 +93,7 @@ class DownloadShopifyProductsAction
         } while ($shopifyP->getNextPageParams());
 
         $jobUuid = Str::uuid()->toString();
+
         ProductImporterJob::dispatch(
             $jobUuid,
             $productsToImport,
@@ -115,6 +120,8 @@ class DownloadShopifyProductsAction
                 'is_published' => true,
                 'slug' => (string) $variant['id'],
                 'files' => $this->files['filesSystemVariantImages'][$variant['id']] ?? [],
+                'source' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_VARIANT_ID->value, $this->warehouses->company, $this->app, $this->warehouses->region),
+                'sourceId' => $variant['id'],
                 'warehouse' => [
                     'id' => $this->warehouses->id,
                     'price' => (float) $variant['price'],

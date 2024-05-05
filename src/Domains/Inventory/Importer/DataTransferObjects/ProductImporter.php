@@ -53,6 +53,6 @@ class ProductImporter extends Data
             throw new ValidationException('Importer Source is required');
         }
 
-        return $this->source . '_id';
+        return $this->source;
     }
 }
