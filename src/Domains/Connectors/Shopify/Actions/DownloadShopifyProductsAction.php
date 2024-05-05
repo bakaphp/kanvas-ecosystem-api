@@ -26,7 +26,7 @@ class DownloadShopifyProductsAction
     ) {
     }
 
-    public function execute(array $params = []) : int
+    public function execute(array $params = []): int
     {
         $firstPage = null;
         $shopify = Client::getInstance(
