@@ -22,12 +22,15 @@ jobs:
       DB_SOCIAL_DATABASE: social
       DB_SOCIAL_USERNAME: root
       DB_SOCIAL_PASSWORD: password
-      DB_CRM_DATABASE: social
+      DB_CRM_DATABASE: crm
       DB_CRM_USERNAME: root
       DB_CRM_PASSWORD: password
-      DB_WORKFLOW_DATABASE: social
+      DB_WORKFLOW_DATABASE: workflows
       DB_WORKFLOW_USERNAME: root
       DB_WORKFLOW_PASSWORD: password
+      DB_COMMERCE_DATABASE: commerce
+      DB_COMMERCE_USERNAME: root
+      DB_COMMERCE_PASSWORD: password
       KANVAS_APP_ID: 059ddaaf-89b5-4158-a85a-90cbd69aa34b
       APP_KEY: base64:4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY=
       APP_JWT_TOKEN: 4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY
