@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Orders\Models;
 
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Souk\Models\BaseModel;
@@ -16,14 +18,15 @@ use Laravel\Scout\Searchable;
  * Class Order
  *
  * @property int $id
- * @property int $app_id
+ * @property int $apps_id
+ * @property int companies_id
  * @property string $uuid
  * @property string|null $tracking_client_id
  * @property string|null $user_email
  * @property string|null $token
  * @property int|null $billing_address_id
  * @property int|null $shipping_address_id
- * @property int|null $user_id
+ * @property int|null $users_id
  * @property float|null $total_gross_amount
  * @property float|null $total_net_amount
  * @property float|null $shipping_price_gross_amount
@@ -53,7 +56,7 @@ class Order extends BaseModel
     use Searchable;
     use CanUseWorkflow;
 
-    protected $table = 'leads';
+    protected $table = 'orders';
     protected $guarded = [];
 
     public function items(): HasMany
@@ -64,5 +67,16 @@ class Order extends BaseModel
     public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'user_id', 'id');
+    }
+
+    public function scopeFilterByUser(Builder $query, mixed $user = null): Builder
+    {
+        $user = $user instanceof UserInterface ? $user : auth()->user();
+
+        if (! $user->isAppOwner()) {
+            return $query->where('users_id', $user->getId());
+        }
+
+        return $query;
     }
 }

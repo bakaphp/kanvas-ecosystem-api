@@ -15,7 +15,7 @@ use Laravel\Scout\Searchable;
  * Class OrderItem
  *
  * @property int $id
- * @property int $app_id
+ * @property int $apps_id
  * @property string $uuid
  * @property string $product_name
  * @property string $product_sku
@@ -42,7 +42,7 @@ class OrderItem extends BaseModel
     use Searchable;
     use CanUseWorkflow;
 
-    protected $table = 'leads';
+    protected $table = 'order_items';
     protected $guarded = [];
 
     public function order(): BelongsTo

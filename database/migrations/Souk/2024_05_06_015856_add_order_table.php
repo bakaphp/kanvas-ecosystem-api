@@ -14,14 +14,15 @@ return new class () extends Migration {
     {
         Schema::create('orders', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->bigInteger('app_id')->index();
+            $table->bigInteger('apps_id')->index();
+            $table->bigInteger('companies_id')->index();
             $table->uuid('uuid')->index();
             $table->string('tracking_client_id', 255)->nullable()->index();
             $table->string('user_email', 255)->nullable()->index();
             $table->string('token', 255)->nullable()->index();
             $table->unsignedBigInteger('billing_address_id')->nullable()->index();
             $table->unsignedBigInteger('shipping_address_id')->nullable()->index();
-            $table->unsignedBigInteger('user_id')->nullable()->index();
+            $table->unsignedBigInteger('users_id')->nullable()->index();
             $table->decimal('total_gross_amount', 10, 2)->nullable();
             $table->decimal('total_net_amount', 10, 2)->nullable();
             $table->decimal('shipping_price_gross_amount', 10, 2)->nullable();
@@ -44,12 +45,12 @@ return new class () extends Migration {
             $table->timestamps(); // Includes both `created_at` and `updated_at` columns
             $table->boolean('is_deleted')->default(false)->index();
 
-            $table->unique(['app_id', 'uuid']);
+            $table->unique(['apps_id', 'uuid']);
         });
 
         Schema::create('order_items', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->bigInteger('app_id')->index();
+            $table->bigInteger('apps_id')->index();
             $table->uuid('uuid')->index();
             $table->string('product_name', 255);
             $table->string('product_sku', 255);
@@ -68,7 +69,7 @@ return new class () extends Migration {
             $table->timestamps(); // Adds `created_at` and `updated_at` columns
             $table->boolean('is_deleted')->default(false);
 
-            $table->unique(['app_id', 'uuid']);
+            $table->unique(['apps_id', 'uuid']);
             // Foreign key constraints
             $table->foreign('order_id')->references('id')->on('orders')->onDelete('cascade');
         });
