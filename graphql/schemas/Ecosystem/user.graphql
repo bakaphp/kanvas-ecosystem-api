@@ -225,6 +225,11 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\TwoFactorAuthMutation@verifyCode"
         )
+    updatePhotoProfile(file: Upload!, user_id: ID!): User!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updatePhotoProfile"
+        )
 }
 
 type Query @guard {
