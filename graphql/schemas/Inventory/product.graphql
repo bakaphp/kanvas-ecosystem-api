@@ -16,7 +16,6 @@ type Product {
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
     is_published: Boolean
-    shopify: ShopifyId @method(name: "getShopifyResponseId")
     created_at: String
     updated_at: String
     categories: [Category!]! @BelongsToMany

@@ -24,7 +24,7 @@ class Kernel extends HttpKernel
         \App\Http\Middleware\JsonResponse::class,
         \App\Http\Middleware\KanvasAppKey::class,
         \App\Http\Middleware\RolesMiddleware::class,
-
+        \App\Http\Middleware\RegionMiddleware::class,
     ];
 
     /**
