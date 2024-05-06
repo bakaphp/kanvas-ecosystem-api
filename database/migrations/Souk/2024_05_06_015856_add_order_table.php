@@ -20,6 +20,7 @@ return new class () extends Migration {
             $table->string('tracking_client_id', 255)->nullable()->index();
             $table->string('user_email', 255)->nullable()->index();
             $table->string('token', 255)->nullable()->index();
+            $table->bigInteger('order_number')->nullable()->index();
             $table->unsignedBigInteger('billing_address_id')->nullable()->index();
             $table->unsignedBigInteger('shipping_address_id')->nullable()->index();
             $table->unsignedBigInteger('users_id')->nullable()->index();
@@ -46,6 +47,7 @@ return new class () extends Migration {
             $table->boolean('is_deleted')->default(false)->index();
 
             $table->unique(['apps_id', 'uuid']);
+            $table->unique(['apps_id', 'companies_id', 'order_number']);
         });
 
         Schema::create('order_items', function (Blueprint $table) {

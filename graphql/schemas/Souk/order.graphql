@@ -6,6 +6,7 @@ type Order {
     token: String
     billing_address_id: Int
     shipping_address_id: Int
+    order_number: Int
     user_id: Int
     user: User @belongsTo
     total_gross_amount: Float
@@ -94,6 +95,7 @@ extend type Query @guard {
                     "uuid"
                     "companies_id"
                     "users_id"
+                    "user_email"
                     "status"
                 ]
             )

@@ -27,6 +27,7 @@ use Laravel\Scout\Searchable;
  * @property int|null $billing_address_id
  * @property int|null $shipping_address_id
  * @property int|null $users_id
+ * @property int $order_number
  * @property float|null $total_gross_amount
  * @property float|null $total_net_amount
  * @property float|null $shipping_price_gross_amount
