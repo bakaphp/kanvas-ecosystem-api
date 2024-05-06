@@ -23,6 +23,7 @@ use Laravel\Scout\Searchable;
  * @property string $uuid
  * @property string|null $tracking_client_id
  * @property string|null $user_email
+ * @property string|null $user_phone
  * @property string|null $token
  * @property int|null $billing_address_id
  * @property int|null $shipping_address_id
