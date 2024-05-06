@@ -42,6 +42,7 @@ class KanvasSetupCommand extends Command
             'migrate --path database/migrations/Social/ --database social',
             'migrate --path database/migrations/Guild/ --database crm',
             'migrate --path database/migrations/Workflow/ --database workflow',
+            'migrate --path database/migrations/Souk/ --database commerce',
             'migrate --path vendor/laravel-workflow/laravel-workflow/src/migrations/ --database workflow',
             'db:seed',
             'db:seed --class=Database\\\Seeders\\\GuildSeeder --database crm',

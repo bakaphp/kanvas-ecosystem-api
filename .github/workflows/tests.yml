@@ -131,6 +131,10 @@ jobs:
       - name: Setup WORKFLOW DB
         run: |
           mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS workflow;'
+          
+      - name: Setup COMMERCE DB
+        run: |
+          mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS commerce;'
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
