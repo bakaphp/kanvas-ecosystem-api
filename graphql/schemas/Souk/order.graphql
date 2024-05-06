@@ -98,6 +98,7 @@ extend type Query @guard {
                     "companies_id"
                     "users_id"
                     "user_email"
+                    "user_phone"
                     "status"
                 ]
             )
