@@ -19,6 +19,7 @@ return new class () extends Migration {
             $table->uuid('uuid')->index();
             $table->string('tracking_client_id', 255)->nullable()->index();
             $table->string('user_email', 255)->nullable()->index();
+            $table->string('user_phone', 255)->nullable()->index();
             $table->string('token', 255)->nullable()->index();
             $table->bigInteger('order_number')->nullable()->index();
             $table->unsignedBigInteger('billing_address_id')->nullable()->index();

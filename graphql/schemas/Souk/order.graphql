@@ -3,12 +3,14 @@ type Order {
     uuid: String!
     tracking_client_id: String
     user_email: String
+    user_phone: String
     token: String
     billing_address_id: Int
     shipping_address_id: Int
     order_number: Int
     user_id: Int
     user: User @belongsTo
+    company: Company @belongsTo
     total_gross_amount: Float
     total_net_amount: Float
     shipping_price_gross_amount: Float
