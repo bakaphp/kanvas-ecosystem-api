@@ -51,7 +51,6 @@ class AttributeMutation
         if (isset($req['input']['values'])) {
             $attribute->defaultValues()->delete();
             (new AddAttributeValue($attribute, $req['input']['values']))->execute();
-
         }
         return $attribute;
     }
