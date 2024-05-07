@@ -22,12 +22,15 @@ jobs:
       DB_SOCIAL_DATABASE: social
       DB_SOCIAL_USERNAME: root
       DB_SOCIAL_PASSWORD: password
-      DB_CRM_DATABASE: social
+      DB_CRM_DATABASE: crm
       DB_CRM_USERNAME: root
       DB_CRM_PASSWORD: password
-      DB_WORKFLOW_DATABASE: social
+      DB_WORKFLOW_DATABASE: workflows
       DB_WORKFLOW_USERNAME: root
       DB_WORKFLOW_PASSWORD: password
+      DB_COMMERCE_DATABASE: commerce
+      DB_COMMERCE_USERNAME: root
+      DB_COMMERCE_PASSWORD: password
       KANVAS_APP_ID: 059ddaaf-89b5-4158-a85a-90cbd69aa34b
       APP_KEY: base64:4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY=
       APP_JWT_TOKEN: 4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY
@@ -51,10 +54,13 @@ jobs:
       MEILISEARCH_KEY: masterKey
       SCOUT_QUEUE: false
       #APP_DEBUG: true
-      #thirparty integration
+      #third party integration
       TEST_ZOHO_CLIENT_ID: ${{ secrets.TEST_ZOHO_CLIENT_ID }}
       TEST_ZOHO_CLIENT_SECRET: ${{ secrets.TEST_ZOHO_CLIENT_SECRET }}
       TEST_ZOHO_CLIENT_REFRESH_TOKEN: ${{ secrets.TEST_ZOHO_CLIENT_REFRESH_TOKEN }}
+      TEST_SHOPIFY_API_KEY: ${{ secrets.TEST_SHOPIFY_API_KEY }}
+      TEST_SHOPIFY_API_SECRET: ${{ secrets.TEST_SHOPIFY_API_SECRET }}
+      TEST_SHOPIFY_SHOP_URL: ${{ secrets.TEST_SHOPIFY_SHOP_URL }}
     strategy:
       fail-fast: false
       matrix:
@@ -128,6 +134,10 @@ jobs:
       - name: Setup WORKFLOW DB
         run: |
           mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS workflow;'
+          
+      - name: Setup COMMERCE DB
+        run: |
+          mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS commerce;'
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress

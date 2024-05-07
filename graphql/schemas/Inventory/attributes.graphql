@@ -59,7 +59,23 @@ extend type Mutation @guard {
 }
 extend type Query @guard {
     attributes(
-        where: _ @whereConditions(columns: ["uuid", "id", "name"])
+        where: _ 
+            @whereConditions(
+                columns: [
+                    "uuid",
+                    "id",
+                    "name"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                ]
+            )
     ): [Attributes!]!
         @paginate(
             defaultCount: 25

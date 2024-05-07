@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Regions;
 
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Shopify\DataTransferObject\Shopify as ShopifyDto;
+use Kanvas\Connectors\Shopify\ShopifyService;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
 use Kanvas\Inventory\Regions\DataTransferObject\Region as RegionDto;

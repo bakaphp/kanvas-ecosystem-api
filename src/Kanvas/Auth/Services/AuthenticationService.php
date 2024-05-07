@@ -20,6 +20,7 @@ use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Lcobucci\JWT\Token;
 
 class AuthenticationService
@@ -74,6 +75,12 @@ class AuthenticationService
         if (Hash::check($loginInput->getPassword(), $authentically->password) && $authentically->isActive()) {
             Password::rehash($loginInput->getPassword(), $authentically);
             $this->resetLoginTries($authentically);
+
+            $user->fireWorkflow(
+                WorkflowEnum::USER_LOGIN->value,
+                true,
+                ['company' => $user->getCurrentCompany()]
+            );
 
             return $user;
         } elseif (! $authentically->isActive()) {
@@ -152,12 +159,18 @@ class AuthenticationService
     /**
      * clean user session
      */
-    public function logout(UserInterface $user, Token $token): bool
+    public function logout(Users $user, Token $token): bool
     {
         $sessionId = $token->claims()->get('sessionId') ?? null;
 
         $session = new Sessions();
         $session->end($user, app(Apps::class), $sessionId);
+
+        $user->fireWorkflow(
+            WorkflowEnum::USER_LOGOUT->value,
+            true,
+            ['company' => $user->getCurrentCompany()]
+        );
 
         return true;
     }

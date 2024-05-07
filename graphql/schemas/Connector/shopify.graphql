@@ -1,0 +1,15 @@
+
+input ShopifySetupInput {
+    client_id: String!
+    client_secret: String!
+    shop_name: String!
+    region_id: ID!
+    company_id: ID
+}
+
+extend type Mutation @guard {
+    shopifySetup(input: ShopifySetupInput!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Shopify\\Mutations\\ShopifyMutation@shopifySetup"
+        )
+}

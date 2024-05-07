@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
 use Kanvas\Inventory\Attributes\Models\Attributes;
@@ -51,6 +52,7 @@ class Variants extends BaseModel
     use SlugTrait;
     use UuidTrait;
     use SocialInteractionsTrait;
+    use HasShopifyCustomField;
     use Searchable {
         search as public traitSearch;
     }
@@ -78,6 +80,7 @@ class Variants extends BaseModel
         'html_description',
         'sku',
         'ean',
+        'apps_id',
     ];
     protected $guarded = [];
     protected static ?string $overWriteSearchIndex = null;
@@ -240,7 +243,7 @@ class Variants extends BaseModel
             'objectID' => $this->uuid,
             'products_id' => $this->products_id,
             'name' => $this->name,
-            'files' => $this->files->map(function ($files) {
+            'files' => $this->getFiles()->map(function ($files) {
                 return [
                     'uuid' => $files->uuid,
                     'name' => $files->name,

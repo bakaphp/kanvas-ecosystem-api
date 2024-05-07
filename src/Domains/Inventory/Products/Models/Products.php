@@ -12,13 +12,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Inventory\Products\Factories\ProductFactory;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Laravel\Scout\Searchable;
@@ -47,6 +49,7 @@ class Products extends BaseModel
     use UuidTrait;
     use SlugTrait;
     use LikableTrait;
+    use HasShopifyCustomField;
     use Searchable {
         search as public traitSearch;
     }
@@ -151,7 +154,7 @@ class Products extends BaseModel
             'objectID' => $this->uuid,
             'id' => $this->id,
             'name' => $this->name,
-            'files' => $this->files->map(function ($files) {
+            'files' => $this->getFiles()->map(function ($files) {
                 return [
                     'uuid' => $files->uuid,
                     'name' => $files->name,
@@ -166,9 +169,12 @@ class Products extends BaseModel
                 'name' => $this->company->name,
             ],
             'user' => [
-                'firstname' => $this->company->user->firstname,
-                'lastname' => $this->company->user->lastname,
+                'firstname' => $this?->company?->user?->firstname,
+                'lastname' => $this?->company?->user?->lastname,
             ],
+            'variants' => $this->variants->map(function ($variant) {
+                return $variant->toSearchableArray();
+            }),
             'uuid' => $this->uuid,
             'slug' => $this->slug,
             'description' => $this->description,
@@ -203,5 +209,20 @@ class Products extends BaseModel
     public function isPublished(): bool
     {
         return ! $this->is_deleted && $this->is_published;
+    }
+
+    public function addVariant(array $variant): Variants
+    {
+        return current(VariantService::createVariantsFromArray($this, [$variant], $this->user));
+    }
+
+    public function addVariants(array $variants): array
+    {
+        return VariantService::createVariantsFromArray($this, $variants, $this->user);
+    }
+
+    public static function newFactory()
+    {
+        return new ProductFactory();
     }
 }

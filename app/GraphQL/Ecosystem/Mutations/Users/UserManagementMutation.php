@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Users;
 
+use Exception;
 use Illuminate\Support\Facades\Auth as AuthFacade;
 use Illuminate\Support\Facades\Hash;
 use Kanvas\AccessControlList\Enums\AbilityEnum;
@@ -12,6 +13,8 @@ use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Services\UserManagement as UserManagementService;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Filesystem\Actions\AttachFilesystemAction;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Notifications\Templates\ChangeEmailUserLogged;
 use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
 use Kanvas\Users\Actions\CreateInviteAction;
@@ -157,5 +160,28 @@ class UserManagementMutation
         UsersRepository::belongsToThisApp($user, app(Apps::class));
 
         return $user->updateDisplayName($request['displayname'], app(Apps::class));
+    }
+
+    public function updatePhotoProfile(mixed $rootValue, array $request): Users
+    {
+        $loggedUser = auth()->user();
+        if ($request['user_id'] != $loggedUser->getId() && ! $loggedUser->isAdmin()) {
+            throw new Exception('You are not allowed to update this photo user');
+        }
+        $user = UsersRepository::getUserOfAppById((int)$request['user_id']);
+        $app = app(Apps::class);
+
+        $filesystem = new FilesystemServices(app(Apps::class));
+        $file = $request['file'];
+        in_array($file->extension(), ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp']) ?: throw new Exception('Invalid file format');
+
+        $filesystemEntity = $filesystem->upload($file, $user);
+        $action = new AttachFilesystemAction(
+            $filesystemEntity,
+            $user
+        );
+        $action->execute('photo');
+
+        return $user;
     }
 }

@@ -34,6 +34,7 @@ class Product extends Data
         public ?string $upc = null,
         public ?int $status_id = null,
         public bool $is_published = true,
+        public ?string $sku = null,
 
         //@var array<int>
         public array $categories = [],
@@ -66,6 +67,7 @@ class Product extends Data
             $request['upc'] ?? null,
             $request['status_id'] ?? null,
             $request['is_published'] ?? true,
+            $request['sku'] ?? null,
             $request['categories'] ?? [],
             $request['warehouses'] ?? [],
             $request['variants'] ?? [],

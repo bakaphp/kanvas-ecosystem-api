@@ -16,16 +16,20 @@ class ProductsTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
+            'sku' => fake()->word . fake()->word,
         ];
 
-        $this->graphQL('
+        $response = $this->graphQL('
             mutation($data: ProductInput!) {
                 createProduct(input: $data)
                 {
                     name
                     description
                 }
-            }', ['data' => $data])->assertJson([
+            }', ['data' => $data]);
+
+        unset($data['sku']);
+        $response->assertJson([
             'data' => ['createProduct' => $data],
         ]);
     }
@@ -38,16 +42,20 @@ class ProductsTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
+            'sku' => fake()->word . fake()->word,
         ];
 
-        $this->graphQL('
+        $response = $this->graphQL('
             mutation($data: ProductInput!) {
                 createProduct(input: $data)
                 {
                     name
                     description
                 }
-            }', ['data' => $data])->assertJson([
+            }', ['data' => $data]);
+
+        unset($data['sku']);
+        $response->assertJson([
             'data' => ['createProduct' => $data],
         ]);
 
@@ -72,15 +80,19 @@ class ProductsTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
+            'sku' => fake()->word . fake()->word,
         ];
-        $this->graphQL('
-        mutation($data: ProductInput!) {
-            createProduct(input: $data)
-            {
-                name
-                description
-            }
-        }', ['data' => $data])->assertJson([
+        $response = $this->graphQL('
+            mutation($data: ProductInput!) {
+                createProduct(input: $data)
+                {
+                    name
+                    description
+                }
+            }', ['data' => $data]);
+
+        unset($data['sku']);
+        $response->assertJson([
             'data' => ['createProduct' => $data],
         ]);
 
@@ -124,6 +136,7 @@ class ProductsTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
+            'sku' => fake()->word . fake()->word,
         ];
         $response = $this->graphQL('
         mutation($data: ProductInput!) {
@@ -135,6 +148,7 @@ class ProductsTest extends TestCase
             }
         }', ['data' => $data]);
 
+        unset($data['sku']);
         $response->assertJson([
             'data' => ['createProduct' => $data],
         ]);
@@ -203,15 +217,19 @@ class ProductsTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
+            'sku' => fake()->word . fake()->word,
         ];
-        $this->graphQL('
-        mutation($data: ProductInput!) {
-            createProduct(input: $data)
-            {
-                name
-                description
-            }
-        }', ['data' => $data])->assertJson([
+        $response = $this->graphQL('
+            mutation($data: ProductInput!) {
+                createProduct(input: $data)
+                {
+                    name
+                    description
+                }
+            }', ['data' => $data]);
+
+        unset($data['sku']);
+        $response->assertJson([
             'data' => ['createProduct' => $data],
         ]);
 
@@ -239,6 +257,7 @@ class ProductsTest extends TestCase
             'name' => fake()->name,
             'description' => fake()->text,
             'products_id' => $id,
+            'sku' => fake()->word . fake()->word,
             'warehouse' => $warehouseData
         ];
         $variantResponse = $this->graphQL('
@@ -310,16 +329,20 @@ class ProductsTest extends TestCase
 
         $data = [
             'name' => fake()->name,
+            'sku' => fake()->word . fake()->word,
             'description' => fake()->text,
         ];
-        $this->graphQL('
-        mutation($data: ProductInput!) {
-            createProduct(input: $data)
-            {
-                name
-                description
-            }
-        }', ['data' => $data])->assertJson([
+        $response = $this->graphQL('
+            mutation($data: ProductInput!) {
+                createProduct(input: $data)
+                {
+                    name
+                    description
+                }
+            }', ['data' => $data]);
+
+        unset($data['sku']);
+        $response->assertJson([
             'data' => ['createProduct' => $data],
         ]);
 
@@ -347,6 +370,7 @@ class ProductsTest extends TestCase
             'name' => fake()->name,
             'description' => fake()->text,
             'products_id' => $id,
+            'sku' => fake()->word . fake()->word,
             'warehouse' => $warehouseData
         ];
         $variantResponse = $this->graphQL('
@@ -355,6 +379,7 @@ class ProductsTest extends TestCase
             {
                 id
                 name
+                sku
                 description
                 products_id
             }
