@@ -57,7 +57,7 @@ input VariantsInput {
     description: String
     short_description: String
     html_description: String
-    sku: String! @rules(apply: ["required","unique:Kanvas\\Inventory\\Variants\\Models\\Variants,sku"])
+    sku: String!
     ean: String
     barcode: String
     serial_number: String
