@@ -83,6 +83,7 @@ type RegisterResponse {
 input LoginInput {
     email: String!
     password: String!
+    device_id: String
 }
 
 input SocialLoginInput {
