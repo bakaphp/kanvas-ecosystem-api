@@ -18,7 +18,6 @@ class Attributes extends Data
         public AppInterface $app,
         public UserInterface $user,
         public string $name,
-        public mixed $value,
         public bool $isVisible = false,
         public bool $isSearchable = false,
         public bool $isFiltrable = false,
@@ -32,7 +31,6 @@ class Attributes extends Data
             app(Apps::class),
             auth()->user(),
             $request['name'],
-            $request['value'],
             $request['is_visible'] ?? false,
             $request['is_searchable'] ?? false,
             $request['is_filtrable'] ?? false

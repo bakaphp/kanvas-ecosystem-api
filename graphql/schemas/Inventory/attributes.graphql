@@ -1,6 +1,6 @@
 input AttributeInput {
     name: String!
-    value: Mixed!
+    values: [AttributesValueInput!]
     is_visible: Boolean
     is_searchable: Boolean
     is_filtrable: Boolean
@@ -8,9 +8,14 @@ input AttributeInput {
 
 input AttributeUpdateInput {
     name: String
+    values: [AttributesValueInput!]
     is_visible: Boolean
     is_searchable: Boolean
     is_filtrable: Boolean
+}
+
+input AttributesValueInput {
+    value: Mixed!
 }
 
 type Attributes {
