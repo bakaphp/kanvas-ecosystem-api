@@ -11,7 +11,7 @@ class MetadataType
     public function linkedStores(Variants $variant, array $request): array
     {
         return [
-            'shopify' => null,
+            'shopify' => $variant->getShopifyId(),
         ];
     }
 }
