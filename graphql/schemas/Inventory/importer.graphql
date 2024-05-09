@@ -22,6 +22,7 @@ input ImporterProductInput {
     productType: ProductTypeInput
     categories: [CategoryInput!]
     attributes: [AttributeInput!]
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 extend type Mutation @guard {
