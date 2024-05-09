@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
@@ -196,6 +197,11 @@ class Lead extends BaseModel
     public function attempt(): BelongsTo
     {
         return $this->belongsTo(LeadAttempt::class, 'id', 'leads_id');
+    }
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(CompaniesBranches::class, 'companies_branches_id');
     }
 
     public function isOpen(): bool
