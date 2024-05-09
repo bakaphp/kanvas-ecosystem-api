@@ -62,6 +62,13 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         $this->subject = $options['subject'] ?? null;
     }
 
+    public function setSubject(?string $subject = null): self
+    {
+        $this->subject = $subject;
+
+        return $this;
+    }
+
     /**
      * Notification via channels
      */
@@ -161,7 +168,9 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      */
     public function setType(string $type): void
     {
-        $this->type = NotificationTypes::getByName($type);
+        $this->type = NotificationTypes::where('apps_id', $this->app->getId())
+            ->where('name', $type)
+            ->firstOrFail();
     }
 
     /**
