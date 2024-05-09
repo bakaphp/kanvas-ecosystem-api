@@ -30,13 +30,13 @@ class ProductImporter extends Data
         public array $files = [],
         public array $productType = [],
         public array $attributes = [],
+        public array $customFields = [],
         public array $warehouses = [
             [
                 'warehouse' => 'default',
                 'channel' => 'default',
             ],
         ],
-        public array $customFields = [],
     ) {
     }
 
