@@ -57,6 +57,7 @@ class NotificationsManagementMutation
             auth()->user()
         );
         $notification->setFromUser(auth()->user());
+        $notification->setSubject($request['subject']);
         Notification::route('mail', $request['email'])->notify($notification);
 
         return true;
