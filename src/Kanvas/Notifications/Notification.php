@@ -53,6 +53,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         $this->data = [
             'entity' => $this->entity,
             'app' => $this->app,
+            'options' => $options,
         ];
 
         $this->handleFromUserOption($options);
