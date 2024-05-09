@@ -87,13 +87,6 @@ class ProductImporterAction
                 $this->product->setAllCustomFields($this->importedProduct->customFields);
             }
 
-            if ($this->importedProduct->isFromThirdParty()) {
-                $this->product->setLinkedSource(
-                    $this->importedProduct->source,
-                    $this->importedProduct->sourceId
-                );
-            }
-
             if (! empty($this->importedProduct->files)) {
                 foreach ($this->importedProduct->files as $file) {
                     $this->product->addFileFromUrl($file['url'], $file['name']);
