@@ -66,7 +66,7 @@ class RemoveVariantsToWarehouseTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->word
+            'sku' => fake()->time
         ];
         $response = $this->graphQL('
             mutation($data: ProductInput!) {
@@ -87,7 +87,7 @@ class RemoveVariantsToWarehouseTest extends TestCase
             'name' => fake()->name,
             'description' => fake()->text,
             'products_id' => $productId,
-            'sku' => fake()->word,
+            'sku' => fake()->time,
             'warehouse' => $warehouseData
         ];
         $response = $this->graphQL('

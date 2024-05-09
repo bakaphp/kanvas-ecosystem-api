@@ -230,6 +230,34 @@ return [
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
+        'commerce' => [
+            'driver' => 'mysql',
+            'read' => [
+                'host' => [
+                    env('DB_COMMERCE_HOST_READ', env('DB_COMMERCE_HOST', '127.0.0.1')),
+                ],
+            ],
+            'write' => [
+                'host' => [
+                    env('DB_COMMERCE_HOST', '127.0.0.1'),
+                ],
+            ],
+            'sticky' => true,
+            'port' => env('DB_COMMERCE_PORT', '3306'),
+            'database' => env('DB_COMMERCE_DATABASE', 'commerce'),
+            'username' => env('DB_COMMERCE_USERNAME', 'kanvas'),
+            'password' => env('DB_COMMERCE_PASSWORD', ''),
+            'unix_socket' => env('DB_COMMERCE_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_520_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => 'InnoDB',
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
     ],
 
     /*

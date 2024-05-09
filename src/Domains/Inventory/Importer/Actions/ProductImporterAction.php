@@ -54,14 +54,6 @@ class ProductImporterAction
         public Regions $region,
         public ?AppInterface $app = null
     ) {
-        if ($this->importedProduct->isFromThirdParty()) {
-            $this->product = ProductsModel::getByCustomField(
-                $this->importedProduct->getSourceKey(),
-                $this->importedProduct->sourceId,
-                $this->company
-            );
-        }
-
         $this->app = $this->app ?? app(Apps::class);
     }
 
@@ -75,31 +67,24 @@ class ProductImporterAction
         try {
             DB::connection('inventory')->beginTransaction();
 
-            if ($this->product === null) {
-                $productDto = ProductsDto::from([
-                    'app' => $this->app,
-                    'company' => $this->company,
-                    'user' => $this->user,
-                    'name' => $this->importedProduct->name,
-                    'slug' => $this->importedProduct->slug,
-                    'description' => $this->importedProduct->description,
-                    'short_description' => $this->importedProduct->shortDescription,
-                    'html_description' => $this->importedProduct->htmlDescription,
-                    'warranty_terms' => $this->importedProduct->warrantyTerms,
-                    'upc' => $this->importedProduct->upc,
-                    'variants' => $this->importedProduct->variants,
-                    'is_published' => $this->importedProduct->isPublished,
-                ]);
-                $this->product = (new CreateProductAction($productDto, $this->user))->execute();
-            }
+            $productDto = ProductsDto::from([
+                'app' => $this->app,
+                'company' => $this->company,
+                'user' => $this->user,
+                'name' => $this->importedProduct->name,
+                'slug' => $this->importedProduct->slug,
+                'description' => $this->importedProduct->description,
+                'short_description' => $this->importedProduct->shortDescription,
+                'html_description' => $this->importedProduct->htmlDescription,
+                'warranty_terms' => $this->importedProduct->warrantyTerms,
+                'upc' => $this->importedProduct->upc,
+                'variants' => $this->importedProduct->variants,
+                'is_published' => $this->importedProduct->isPublished,
+            ]);
+            $this->product = (new CreateProductAction($productDto, $this->user))->execute();
 
-            if ($this->importedProduct->isFromThirdParty()) {
-                $this->product->setLinkedSource(
-                    $this->importedProduct->source,
-                    $this->importedProduct->sourceId
-                );
-
-                $this->product->set('source', $this->importedProduct->source);
+            if (isset($this->importedProduct->customFields) && ! empty($this->importedProduct->customFields)) {
+                $this->product->setAllCustomFields($this->importedProduct->customFields);
             }
 
             if (! empty($this->importedProduct->files)) {

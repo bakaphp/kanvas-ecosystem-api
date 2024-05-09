@@ -7,6 +7,7 @@ namespace Kanvas\Guild\Leads\Models;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Rotations\Models\Rotation;
 
@@ -43,5 +44,10 @@ class LeadReceiver extends BaseModel
     public function rotation(): BelongsTo
     {
         return $this->belongsTo(LeadRotation::class, 'rotations_id');
+    }
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(CompaniesBranches::class, 'companies_branches_id');
     }
 }

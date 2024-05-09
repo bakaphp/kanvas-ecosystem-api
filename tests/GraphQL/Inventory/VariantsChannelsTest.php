@@ -65,7 +65,7 @@ class VariantsChannelsTest extends TestCase
         ];
         $data = [
             'name' => fake()->name,
-            'sku' => fake()->word,
+            'sku' => fake()->time,
             'description' => fake()->text,
         ];
         $response = $this->graphQL('
@@ -86,7 +86,7 @@ class VariantsChannelsTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->word,
+            'sku' => fake()->time,
             'products_id' => $productId,
             'warehouse' => $warehouseData
         ];
@@ -219,7 +219,7 @@ class VariantsChannelsTest extends TestCase
         ];
         $data = [
             'name' => fake()->name,
-            'sku' => fake()->word,
+            'sku' => fake()->time,
             'description' => fake()->text,
         ];
         $response = $this->graphQL('
@@ -240,7 +240,7 @@ class VariantsChannelsTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->word,
+            'sku' => fake()->time,
             'products_id' => $productId,
             'warehouse' => $warehouseData
         ];

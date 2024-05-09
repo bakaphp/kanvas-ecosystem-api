@@ -30,17 +30,18 @@ class ProductImporter extends Data
         public array $files = [],
         public array $productType = [],
         public array $attributes = [],
+        public array $customFields = [],
         public array $warehouses = [
             [
                 'warehouse' => 'default',
                 'channel' => 'default',
             ],
-        ]
+        ],
     ) {
     }
 
     /**
-     * is this product from shopify , bigcommerce or any other source.
+     * @deprecated
      */
     public function isFromThirdParty(): bool
     {
@@ -53,6 +54,6 @@ class ProductImporter extends Data
             throw new ValidationException('Importer Source is required');
         }
 
-        return $this->source . '_id';
+        return $this->source;
     }
 }

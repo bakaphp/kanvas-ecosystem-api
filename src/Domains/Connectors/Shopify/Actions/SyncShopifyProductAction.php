@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\Shopify\Actions;
 
 use Kanvas\Connectors\Shopify\Enums\StatusEnum;
 use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
-use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
 
 class SyncShopifyProductAction
