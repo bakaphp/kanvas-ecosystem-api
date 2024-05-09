@@ -83,6 +83,10 @@ class ProductImporterAction
             ]);
             $this->product = (new CreateProductAction($productDto, $this->user))->execute();
 
+            if (isset($this->importedProduct->customFields) && ! empty($this->importedProduct->customFields)) {
+                $this->product->setAllCustomFields($this->importedProduct->customFields);
+            }
+
             if ($this->importedProduct->isFromThirdParty()) {
                 $this->product->setLinkedSource(
                     $this->importedProduct->source,

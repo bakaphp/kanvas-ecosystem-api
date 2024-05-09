@@ -173,8 +173,25 @@ trait HasCustomFields
             'entity_id' => $this->getKey(),
             'label' => $name,
             'name' => $name,
-            'value' => $value
+            'value' => $value,
         ]);
+    }
+
+    /**
+     * @param array<array-key, array{name: string, data: mixed}> $settings
+     * @throws ConfigurationException
+     */
+    public function setAllCustomFields(array $settings, bool|int $isPublic = false): bool
+    {
+        if (empty($settings)) {
+            return false;
+        }
+
+        foreach ($settings as $setting) {
+            $this->set($setting['name'], $setting['data'], $isPublic);
+        }
+
+        return true;
     }
 
     /**

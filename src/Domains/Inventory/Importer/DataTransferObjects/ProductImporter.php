@@ -35,12 +35,13 @@ class ProductImporter extends Data
                 'warehouse' => 'default',
                 'channel' => 'default',
             ],
-        ]
+        ],
+        public array $customFields = [],
     ) {
     }
 
     /**
-     * is this product from shopify , bigcommerce or any other source.
+     * @deprecated
      */
     public function isFromThirdParty(): bool
     {
