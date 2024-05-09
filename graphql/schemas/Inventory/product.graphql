@@ -31,11 +31,6 @@ type Product {
         )
 }
 
-type ShopifyId {
-    id: String
-    region_id: ID
-}
-
 input ProductInput {
     products_types_id: ID
     sku: String @rules(apply: ["required_without:variants"])
