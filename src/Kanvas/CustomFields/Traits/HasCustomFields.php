@@ -178,17 +178,17 @@ trait HasCustomFields
     }
 
     /**
-     * @param array<array-key, array{name: string, data: mixed}> $settings
+     * @param array<array-key, array{name: string, data: mixed}> $data
      * @throws ConfigurationException
      */
-    public function setAllCustomFields(array $settings, bool|int $isPublic = false): bool
+    public function setAllCustomFields(array $customFields, bool|int $isPublic = false): bool
     {
-        if (empty($settings)) {
+        if (empty($customFields)) {
             return false;
         }
 
-        foreach ($settings as $setting) {
-            $this->set($setting['name'], $setting['data'], $isPublic);
+        foreach ($customFields as $data) {
+            $this->set($data['name'], $data['data']);
         }
 
         return true;
