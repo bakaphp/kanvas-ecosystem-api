@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\Actions;
 
+use Baka\Social\DataTransferObject\User as SocialiteUser;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Users\Models\Sources;
 use Kanvas\Users\Models\UserLinkedSources;
 use Kanvas\Users\Models\Users;
-use Laravel\Socialite\Two\User as SocialiteUser;
 
 class SocialLoginAction
 {
@@ -63,6 +63,7 @@ class SocialLoginAction
             ]);
         }
 
-        return $userLinkedSource->user;
+
+        return $existedUser;
     }
 }

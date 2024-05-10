@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Auth;
 
+use Baka\Social\SocialManager;
 use Baka\Validations\PasswordValidation;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -23,7 +24,6 @@ use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Repositories\UsersRepository;
-use Laravel\Socialite\Facades\Socialite;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class AuthManagementMutation
@@ -169,8 +169,7 @@ class AuthManagementMutation
         $data = $req['data'];
         $token = $data['token'];
         $provider = $data['provider'];
-
-        $user = Socialite::driver($provider)->userFromToken($token);
+        $user = SocialManager::getDriver($provider)->getUserFromToken($token);
         $socialLogin = new SocialLoginAction($user, $provider);
 
         $loggedUser = $socialLogin->execute();
