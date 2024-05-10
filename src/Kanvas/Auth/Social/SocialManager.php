@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Baka\Social;
+namespace Kanvas\Auth\Social;
 
-use Baka\Social\Contracts\DriverInterface;
-
-use Baka\Social\Drivers\GoogleDriver;
 use Kanvas\Apps\Models\Apps;
+
+use Kanvas\Auth\Social\Contracts\DriverInterface;
+use Kanvas\Auth\Social\Drivers\GoogleDriver;
 
 class SocialManager
 {

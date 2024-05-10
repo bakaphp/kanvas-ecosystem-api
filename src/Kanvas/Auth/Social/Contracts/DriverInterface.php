@@ -1,8 +1,8 @@
 <?php
 
-namespace Baka\Social\Contracts;
+namespace Kanvas\Auth\Social\Contracts;
 
-use Baka\Social\DataTransferObject\User;
+use Kanvas\Auth\Social\DataTransferObject\User;
 
 interface DriverInterface
 {

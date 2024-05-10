@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Auth;
 
-use Baka\Social\SocialManager;
 use Baka\Validations\PasswordValidation;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -16,6 +15,7 @@ use Kanvas\Auth\Actions\SocialLoginAction;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Services\ForgotPassword as ForgotPasswordService;
+use Kanvas\Auth\Social\SocialManager;
 use Kanvas\Auth\Traits\AuthTrait;
 use Kanvas\Auth\Traits\TokenTrait;
 use Kanvas\Companies\Models\CompaniesBranches;

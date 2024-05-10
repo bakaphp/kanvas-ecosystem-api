@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Baka\Social\Drivers;
+namespace Kanvas\Auth\Social\Drivers;
 
-use Baka\Social\Contracts\DriverInterface;
-use Baka\Social\DataTransferObject\User;
 use Google_Client;
 use Kanvas\Auth\Exceptions\AuthenticationException;
+use Kanvas\Auth\Social\Contracts\DriverInterface;
+use Kanvas\Auth\Social\DataTransferObject\User;
 
 class GoogleDriver implements DriverInterface
 {
