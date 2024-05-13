@@ -71,6 +71,7 @@ input VariantsInput {
     attributes: [VariantsAttributesInput!]
     warehouse: WarehouseReferenceInput
     channels: [VariantChannelReferenceInput!]
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 input VariantsUpdateInput {

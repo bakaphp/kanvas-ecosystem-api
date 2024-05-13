@@ -51,6 +51,7 @@ input ProductInput {
     files: [FilesystemInputUrl!]
     price: Float
     company_id: ID
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 input ProductInputUpdate {
