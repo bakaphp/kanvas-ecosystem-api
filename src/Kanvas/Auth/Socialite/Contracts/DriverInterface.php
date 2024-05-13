@@ -1,8 +1,8 @@
 <?php
 
-namespace Kanvas\Auth\Social\Contracts;
+namespace Kanvas\Auth\Socialite\Contracts;
 
-use Kanvas\Auth\Social\DataTransferObject\User;
+use Kanvas\Auth\Socialite\DataTransferObject\User;
 
 interface DriverInterface
 {

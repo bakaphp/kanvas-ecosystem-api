@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Auth\Social;
+namespace Kanvas\Auth\Socialite;
 
+use Exception;
 use Kanvas\Apps\Models\Apps;
-
-use Kanvas\Auth\Social\Contracts\DriverInterface;
-use Kanvas\Auth\Social\Drivers\GoogleDriver;
+use Kanvas\Auth\Socialite\Contracts\DriverInterface;
+use Kanvas\Auth\Socialite\Drivers\GoogleDriver;
 
 class SocialManager
 {

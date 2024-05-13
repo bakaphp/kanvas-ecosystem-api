@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Auth\Social\Drivers;
+namespace Kanvas\Auth\Socialite\Drivers;
 
 use Google_Client;
 use Kanvas\Auth\Exceptions\AuthenticationException;
-use Kanvas\Auth\Social\Contracts\DriverInterface;
-use Kanvas\Auth\Social\DataTransferObject\User;
+use Kanvas\Auth\Socialite\Contracts\DriverInterface;
+use Kanvas\Auth\Socialite\DataTransferObject\User;
 
 class GoogleDriver implements DriverInterface
 {
