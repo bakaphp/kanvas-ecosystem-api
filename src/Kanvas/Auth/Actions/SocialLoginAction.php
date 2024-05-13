@@ -7,7 +7,7 @@ namespace Kanvas\Auth\Actions;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
-use Kanvas\Auth\Social\DataTransferObject\User as SocialiteUser;
+use Kanvas\Auth\Socialite\DataTransferObject\User as SocialiteUser;
 use Kanvas\Users\Models\Sources;
 use Kanvas\Users\Models\UserLinkedSources;
 use Kanvas\Users\Models\Users;

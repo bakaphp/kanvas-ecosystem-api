@@ -15,7 +15,7 @@ use Kanvas\Auth\Actions\SocialLoginAction;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Services\ForgotPassword as ForgotPasswordService;
-use Kanvas\Auth\Social\SocialManager;
+use Kanvas\Auth\Socialite\SocialManager;
 use Kanvas\Auth\Traits\AuthTrait;
 use Kanvas\Auth\Traits\TokenTrait;
 use Kanvas\Companies\Models\CompaniesBranches;
