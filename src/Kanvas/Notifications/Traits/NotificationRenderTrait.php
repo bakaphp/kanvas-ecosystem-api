@@ -37,7 +37,7 @@ trait NotificationRenderTrait
         return '';
     }
 
-    public function getEmailSubject(): ?string
+    public function getNotificationTitle(): ?string
     {
         $title = $this->getType()->title;
 
