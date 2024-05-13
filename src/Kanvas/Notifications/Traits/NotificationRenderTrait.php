@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Notifications\Traits;
 
 use Exception;
+use Illuminate\Support\Facades\Blade;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Templates\Actions\RenderTemplateAction;
 
@@ -34,6 +35,20 @@ trait NotificationRenderTrait
         }
 
         return '';
+    }
+
+    public function getNotificationTitle(): ?string
+    {
+        $title = $this->getType()->title;
+
+        if (! $title) {
+            return null;
+        }
+
+        return Blade::render(
+            $title,
+            $this->getData()
+        );
     }
 
     protected function getPushTemplate(): string

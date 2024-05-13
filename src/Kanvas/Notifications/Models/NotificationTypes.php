@@ -22,6 +22,7 @@ use Kanvas\Templates\Models\Templates;
  * @property string $name
  * @property string $key
  * @property string $description
+ * @property string|null title
  * @property string $template
  * @property string $icon_url
  * @property int $with_realtime
