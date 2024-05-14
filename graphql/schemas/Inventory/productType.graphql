@@ -25,7 +25,7 @@ input ProductTypeInput {
 }
 
 input ProductTypeUpdateInput {
-    name: String
+    name: String!
     description: String
     weight: Int
     is_published: Boolean
