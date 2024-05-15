@@ -23,7 +23,7 @@ class CartManagementMutation
             $cart->add([
                 'id' => $variant->getId(),
                 'name' => $variant->name,
-                'price' => $variant->variantWarehouses()->firstOrFail()->price,
+                'price' => $variant->variantWarehouses()->firstOrFail()->price, //@todo modify to use channel instead of warehouse
                 'quantity' => $item['quantity'],
                 'attributes' => $variant->product->attributes ? $variant->product->attributes->map(function ($attribute) {
                     return [
