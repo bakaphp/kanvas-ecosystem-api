@@ -65,6 +65,12 @@ extend type Query @guard {
                     "dob"
                 ]
             )
+         hasEmails: _
+            @whereHasConditions(relation: "emails", columns: ["id", "value"])
+        hasPhones: _
+            @whereHasConditions(relation: "phones", columns: ["id", "value"])
+        hasCustomFields: _
+            @whereHasConditions(relation: "customFields", columns: ["name", "value"])
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name", "dob"])
     ): [People!]!
         @paginate(

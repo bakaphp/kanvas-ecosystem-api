@@ -62,6 +62,30 @@ class People extends BaseModel
         );
     }
 
+    public function emails(): HasMany
+    {
+        return $this->hasMany(
+            Contact::class,
+            'peoples_id',
+            'id'
+        )->where(
+            'contacts_types_id',
+            ContactType::getByName('Email')->getId()
+        );
+    }
+
+    public function phones(): HasMany
+    {
+        return $this->hasMany(
+            Contact::class,
+            'peoples_id',
+            'id'
+        )->where(
+            'contacts_types_id',
+            ContactType::getByName('Phone')->getId()
+        );
+    }
+
     /**
      * @psalm-suppress MixedReturnStatement
      */
@@ -94,6 +118,7 @@ class People extends BaseModel
     public function getName(): string
     {
         $name = trim($this->firstname . ' ' . $this->middlename . ' ' . $this->lastname);
+
         return preg_replace('/\s+/', ' ', $name);
     }
 
