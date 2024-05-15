@@ -166,6 +166,7 @@ extend type Mutation @guard {
 
 extend type Query @guard {
     leads(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [
