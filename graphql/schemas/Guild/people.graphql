@@ -57,21 +57,18 @@ input PeopleParticipantInput {
 extend type Query @guard {
     peoples(
         where: _
-            @whereConditions(
-                columns: [
-                    "id"
-                    "uuid"
-                    "companies_id"
-                    "dob"
-                ]
-            )
-         hasEmails: _
+            @whereConditions(columns: ["id", "uuid", "companies_id", "dob"])
+        hasEmails: _
             @whereHasConditions(relation: "emails", columns: ["id", "value"])
         hasPhones: _
             @whereHasConditions(relation: "phones", columns: ["id", "value"])
         hasCustomFields: _
-            @whereHasConditions(relation: "customFields", columns: ["name", "value"])
-        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name", "dob"])
+            @whereHasConditions(
+                relation: "customFields"
+                columns: ["name", "value"]
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "updated_at", "name", "dob"])
     ): [People!]!
         @paginate(
             model: "Kanvas\\Guild\\Customers\\Models\\People"
