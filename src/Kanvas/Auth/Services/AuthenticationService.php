@@ -21,6 +21,7 @@ use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Laravel\Socialite\Facades\Socialite;
 use Lcobucci\JWT\Token;
 
 class AuthenticationService
@@ -173,5 +174,13 @@ class AuthenticationService
         );
 
         return true;
+    }
+
+    public static function getSocialite(Apps $app, string $provider)
+    {
+        $config = $app->get($provider . '_socialite');
+        config(['services.' . $provider => $config]);
+
+        return Socialite::driver($provider);
     }
 }

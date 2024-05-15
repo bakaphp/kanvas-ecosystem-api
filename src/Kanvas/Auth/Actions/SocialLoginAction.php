@@ -7,10 +7,10 @@ namespace Kanvas\Auth\Actions;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
+use Kanvas\Auth\Socialite\DataTransferObject\User as SocialiteUser;
 use Kanvas\Users\Models\Sources;
 use Kanvas\Users\Models\UserLinkedSources;
 use Kanvas\Users\Models\Users;
-use Laravel\Socialite\Two\User as SocialiteUser;
 
 class SocialLoginAction
 {
@@ -61,6 +61,8 @@ class SocialLoginAction
                 'source_users_id_text' => $this->socialUser->token,
                 'source_username' => $this->socialUser->nickname ?? $this->socialUser->name,
             ]);
+
+            return $existedUser;
         }
 
         return $userLinkedSource->user;
