@@ -761,7 +761,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return $query;
     }
 
-    public function setCurrentDeviceId(string $deviceId): void
+    public function setCurrentDeviceId(?string $deviceId = null): void
     {
         $this->currentDeviceId = $deviceId;
     }
