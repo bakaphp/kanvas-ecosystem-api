@@ -22,6 +22,7 @@ class LoginInput extends Data
         public string $email,
         public string $password,
         public string $ip,
+        public ?string $deviceId = null
     ) {
     }
 
