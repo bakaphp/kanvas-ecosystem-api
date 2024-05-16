@@ -243,7 +243,7 @@ class Variants extends BaseModel
             'objectID' => $this->uuid,
             'products_id' => $this->products_id,
             'name' => $this->name,
-            'files' => $this->getFiles()->map(function ($files) {
+            'files' => $this->getFiles()->take(5)->map(function ($files) {
                 return [
                     'uuid' => $files->uuid,
                     'name' => $files->name,
@@ -254,8 +254,8 @@ class Variants extends BaseModel
                 ];
             }),
             'company' => [
-                'id' => $this->product->companies_id,
-                'name' => $this->product->company->name,
+                'id' => $this?->product?->companies_id,
+                'name' => $this?->product?->company?->name,
             ],
             'uuid' => $this->uuid,
             'slug' => $this->slug,
