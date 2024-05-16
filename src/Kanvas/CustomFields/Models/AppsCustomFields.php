@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\CustomFields\Models;
 
 use Baka\Casts\Json;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Models\BaseModel;
 
 /**
@@ -35,4 +36,10 @@ class AppsCustomFields extends BaseModel
     protected $casts = [
         'value' => Json::class,
     ];
+
+    public function __construct(array $attributes = [])
+    {
+        $this->setTable(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields');
+        parent::__construct($attributes);
+    }
 }
