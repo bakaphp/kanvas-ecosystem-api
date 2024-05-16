@@ -46,7 +46,8 @@ trait HasShopifyCustomField
 
     public function getShopifyUrl(Regions $region): string
     {
-        $key = CustomFieldEnum::SHOPIFY_PRODUCT_URL->value.'-'.$region->getId();
+        $key = CustomFieldEnum::SHOPIFY_PRODUCT_URL->value . '-' . $region->getId();
+
         return match (true) {
             $this instanceof Variants => $this->product->get($key),
             default => $this->get($key),
