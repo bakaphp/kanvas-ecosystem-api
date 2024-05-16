@@ -47,7 +47,7 @@ class Variants
         }
 
         if (isset($req['input']['warehouses'])) {
-            foreach($req['input']['warehouses'] as $warehouseData) {
+            foreach( $req['input']['warehouses'] as $warehouseData) {
                 $warehouse = WarehouseRepository::getById((int) $warehouseData['id'], $company);
 
                 VariantService::addToWarehouses(
