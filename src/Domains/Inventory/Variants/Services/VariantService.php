@@ -194,7 +194,6 @@ class VariantService
         Companies $company,
         array $warehousesInfo
     ): ModelsVariantsWarehouses {
-
         if (isset($warehousesInfo['status'])) {
             $status = StatusRepository::getById(
                 (int) $warehousesInfo['status']['id'],
