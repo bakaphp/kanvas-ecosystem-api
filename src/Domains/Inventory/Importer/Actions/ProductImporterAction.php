@@ -80,6 +80,7 @@ class ProductImporterAction
                 'upc' => $this->importedProduct->upc,
                 'variants' => $this->importedProduct->variants,
                 'is_published' => $this->importedProduct->isPublished,
+                'attributes' => $this->importedProduct->attributes,
             ]);
             $this->product = (new CreateProductAction($productDto, $this->user))->execute();
 
@@ -95,10 +96,6 @@ class ProductImporterAction
             }
 
             $this->categories();
-
-            if (! empty($this->importedProduct->attributes)) {
-                $this->attributes();
-            }
 
             $this->productWarehouse();
 
