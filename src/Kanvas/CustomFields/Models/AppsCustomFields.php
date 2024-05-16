@@ -39,7 +39,7 @@ class AppsCustomFields extends BaseModel
 
     public function __construct(array $attributes = [])
     {
-        $this->table = DB::connection('ecosystem')->getDatabaseName() . 'apps_custom_fields';
+        $this->setTable(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields');
         parent::__construct($attributes);
     }
 }
