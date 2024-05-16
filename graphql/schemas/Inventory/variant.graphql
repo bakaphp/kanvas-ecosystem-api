@@ -69,7 +69,7 @@ input VariantsInput {
     price: Float
     source_id: Mixed
     attributes: [VariantsAttributesInput!]
-    warehouse: WarehouseReferenceInput
+    warehouses: [WarehouseReferenceInput!]
     channels: [VariantChannelReferenceInput!]
     custom_fields: [CustomFieldEntityInput!]
 }
