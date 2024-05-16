@@ -254,8 +254,8 @@ class Variants extends BaseModel
                 ];
             }),
             'company' => [
-                'id' => $this->product->companies_id,
-                'name' => $this->product->company->name,
+                'id' => $this?->product?->companies_id,
+                'name' => $this?->product?->company?->name,
             ],
             'uuid' => $this->uuid,
             'slug' => $this->slug,
