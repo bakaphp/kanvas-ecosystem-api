@@ -46,7 +46,7 @@ class Variants
             $variantModel->addAttributes(auth()->user(), $req['input']['attributes']);
         }
 
-        if(isset($req['input']['warehouses'])) {
+        if (isset($req['input']['warehouses'])) {
             foreach($req['input']['warehouses'] as $warehouseData) {
                 $warehouse = WarehouseRepository::getById((int) $warehouseData['id'], $company);
 

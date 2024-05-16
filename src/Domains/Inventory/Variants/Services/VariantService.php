@@ -189,7 +189,7 @@ class VariantService
     }
 
     public static function addToWarehouses(
-        Variants $variant, 
+        Variants $variant,
         Warehouses $warehouse,
         Companies $company,
         array $warehousesInfo
