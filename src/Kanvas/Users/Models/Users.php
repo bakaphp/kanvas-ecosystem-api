@@ -766,7 +766,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $this->currentDeviceId = $deviceId;
     }
 
-    public function getCurrentDeviceId(): string
+    public function getCurrentDeviceId(): ?string
     {
         return $this->currentDeviceId;
     }
