@@ -231,6 +231,11 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updatePhotoProfile"
         )
+    setToggleTwoFactorAuthIn30Days(active: Boolean!): Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\TwoFactorAuthMutation@setToggleTwoFactorAuthIn30Days"
+        )
 }
 
 type Query @guard {

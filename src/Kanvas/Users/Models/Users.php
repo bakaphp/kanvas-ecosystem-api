@@ -124,6 +124,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use CanUseWorkflow;
 
     protected ?string $defaultCompanyName = null;
+    protected ?string $currentDeviceId = null;
 
     protected $guarded = [];
 
@@ -691,15 +692,16 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function runVerifyTwoFactorAuth(?AppInterface $app = null): bool
     {
         $user = $this->getAppProfile($app ?? app(Apps::class));
+        $twoFactorKey = UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value . '-' . $this->getCurrentDeviceId();
 
-        if (! $this->get(UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value) && $user->phone_verified_at && now()->subDays(7)->lte(new Carbon($user->phone_verified_at))) {
-            return false;
+        if (! $this->get($twoFactorKey) && $user->phone_verified_at && now()->subDays(7)->lte(new Carbon($user->phone_verified_at))) {
+          //  return false;
         }
 
         /**
          * @todo user config per app
          */
-        return ! ($this->get(UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value)
+        return ! ((bool) $this->get($twoFactorKey)
                 && $user->phone_verified_at && now()->subDays(30)->lte(new Carbon($user->phone_verified_at)));
     }
 
@@ -757,5 +759,15 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         }
 
         return $query;
+    }
+
+    public function setCurrentDeviceId(string $deviceId): void
+    {
+        $this->currentDeviceId = $deviceId;
+    }
+
+    public function getCurrentDeviceId(): string
+    {
+        return $this->currentDeviceId;
     }
 }

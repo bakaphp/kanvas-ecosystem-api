@@ -73,18 +73,23 @@ class TokenGuard extends AuthTokenGuard
 
         if (! empty($token->claims()->get('sessionId'))) {
             $userSession = $session->getById($token->claims()->get('sessionId'), $app);
+            $tokenDeviceId = $token->claims()->get('deviceId');
 
             if (! $user = $userSession->user()->first()) {
                 throw new AuthorizationException('Session User not found');
             }
 
-            return $session->check(
+            $sessionUser = $session->check(
                 $user,
                 $token->claims()->get('sessionId'),
                 (string)  $request->ip(),
                 app(Apps::class),
                 1
             );
+
+            $sessionUser->setCurrentDeviceId($tokenDeviceId);
+
+            return $sessionUser;
         } else {
             throw new AuthorizationException('Session User not found');
         }

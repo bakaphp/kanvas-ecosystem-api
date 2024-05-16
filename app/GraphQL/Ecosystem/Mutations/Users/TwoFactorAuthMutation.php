@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Users\Enums\UserConfigEnum;
 
 use function Sentry\captureException;
 
@@ -78,5 +79,19 @@ class TwoFactorAuthMutation
         }
 
         return false;
+    }
+
+    public function setToggleTwoFactorAuthIn30Days($rootValue, array $request): bool
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        $key = UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value . '-' . $user->getCurrentDeviceId();
+
+        if ($request['active']) {
+            return $user->set($key, (int) $request['active']);
+        }
+
+        return $user->del($key);
     }
 }
