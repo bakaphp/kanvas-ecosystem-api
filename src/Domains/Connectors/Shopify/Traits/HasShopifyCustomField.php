@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Traits;
 
+use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Regions\Models\Regions;
@@ -40,6 +41,16 @@ trait HasShopifyCustomField
         return match (true) {
             $this instanceof Variants => $this->get(ShopifyConfigurationService::getVariantInventoryKey($this, $region)),
             default => null,
+        };
+    }
+
+    public function getShopifyUrl(Regions $region): string
+    {
+        $key = CustomFieldEnum::SHOPIFY_PRODUCT_URL->value . '-' . $region->getId();
+
+        return match (true) {
+            $this instanceof Variants => $this->product->get($key),
+            default => $this->get($key),
         };
     }
 }
