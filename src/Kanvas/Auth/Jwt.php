@@ -39,7 +39,7 @@ class Jwt
      *
      * @return Plain
      */
-    public static function createToken(string $sessionId, string $email, float $expirationAt = 0): Plain
+    public static function createToken(string $sessionId, string $email, float $expirationAt = 0, ?string $deviceId = null): Plain
     {
         $now = new DateTimeImmutable();
         $config = self::getConfig();
@@ -56,6 +56,7 @@ class Jwt
                 ->expiresAt($now->modify('+' . $expiration . ' hour'))
                 ->withClaim('sessionId', $sessionId)
                 ->withClaim('email', $email)
+                ->withClaim('deviceId', $deviceId)
                 // Builds a new token
                 ->getToken($config->signer(), $config->signingKey());
     }

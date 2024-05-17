@@ -39,6 +39,7 @@ class PeopleManagementMutation
             'google_contact_id' => $data['google_contact_id'] ?? null,
             'apple_contact_id' => $data['apple_contact_id'] ?? null,
             'linkedin_contact_id' => $data['linkedin_contact_id'] ?? null,
+            'custom_fields' => $data['custom_fields'] ?? [],
         ]);
 
         $createPeople = new CreatePeopleAction($people);
@@ -68,6 +69,7 @@ class PeopleManagementMutation
             'google_contact_id' => $data['google_contact_id'] ?? null,
             'apple_contact_id' => $data['apple_contact_id'] ?? null,
             'linkedin_contact_id' => $data['linkedin_contact_id'] ?? null,
+            'custom_fields' => $data['custom_fields'] ?? [],
         ]);
 
         $updatePeople = new UpdatePeopleAction($people, $peopleData);

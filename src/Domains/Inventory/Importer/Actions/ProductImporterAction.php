@@ -80,6 +80,7 @@ class ProductImporterAction
                 'upc' => $this->importedProduct->upc,
                 'variants' => $this->importedProduct->variants,
                 'is_published' => $this->importedProduct->isPublished,
+                'attributes' => $this->importedProduct->attributes,
             ]);
             $this->product = (new CreateProductAction($productDto, $this->user))->execute();
 
@@ -88,16 +89,13 @@ class ProductImporterAction
             }
 
             if (! empty($this->importedProduct->files)) {
+                $this->product->deleteFiles();
                 foreach ($this->importedProduct->files as $file) {
                     $this->product->addFileFromUrl($file['url'], $file['name']);
                 }
             }
 
             $this->categories();
-
-            if (! empty($this->importedProduct->attributes)) {
-                $this->attributes();
-            }
 
             $this->productWarehouse();
 

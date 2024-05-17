@@ -15,6 +15,7 @@ use Kanvas\Auth\Actions\SocialLoginAction;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Services\ForgotPassword as ForgotPasswordService;
+use Kanvas\Auth\Socialite\SocialManager;
 use Kanvas\Auth\Traits\AuthTrait;
 use Kanvas\Auth\Traits\TokenTrait;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -23,7 +24,6 @@ use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Repositories\UsersRepository;
-use Laravel\Socialite\Facades\Socialite;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class AuthManagementMutation
@@ -44,6 +44,7 @@ class AuthManagementMutation
     ): array {
         $email = $request['data']['email'];
         $password = $request['data']['password'];
+        $deviceId = $request['data']['device_id'] ?? null;
         $request = request();
 
         $user = $this->login(
@@ -51,10 +52,11 @@ class AuthManagementMutation
                 'email' => $email,
                 'password' => $password,
                 'ip' => $request->ip(),
+                'deviceId' => $deviceId
             ])
         );
 
-        return $user->createToken('kanvas-login')->toArray();
+        return $user->createToken(name: 'kanvas-login', deviceId: $deviceId)->toArray();
     }
 
     /**
@@ -169,12 +171,11 @@ class AuthManagementMutation
         $data = $req['data'];
         $token = $data['token'];
         $provider = $data['provider'];
-
-        $user = Socialite::driver($provider)->userFromToken($token);
+        $user = SocialManager::getDriver($provider)->getUserFromToken($token);
         $socialLogin = new SocialLoginAction($user, $provider);
 
         $loggedUser = $socialLogin->execute();
-        $tokenResponse = $loggedUser->createToken('kanvas-login')->toArray();
+        $tokenResponse = $loggedUser->createToken(name: 'kanvas-login')->toArray();
 
         return $tokenResponse;
     }

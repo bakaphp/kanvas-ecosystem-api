@@ -154,9 +154,12 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
                 //->subject($this->app->get('name') . ' - ' . $this->getTitle()
                 ->view('emails.layout', ['html' => $this->getEmailContent()]);
 
+        $this->subject = $this->subject ?? $this->getNotificationTitle();
+
         if ($this->subject) {
             $mailMessage->subject($this->subject);
         }
+
         if (isset($this->pathAttachment) && $this->pathAttachment !== null) {
             $mailMessage->attachMany($this->pathAttachment);
         }

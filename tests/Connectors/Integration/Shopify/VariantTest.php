@@ -98,10 +98,11 @@ final class VariantTest extends TestCase
 
 
         $shopifyProduct = $shopify->saveProduct($product, StatusEnum::ACTIVE);
+        $url = 'https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png';
 
         foreach ($product->variants as $variant) {
             $shopify->saveVariant($variant);
-            $shopifyVariantResponse = $shopify->addImages($variant, fake()->imageUrl(640, 480, 'animals', true));
+            $shopifyVariantResponse = $shopify->addImages($variant, $url);
 
             $this->assertEquals(
                 $variant->image,
