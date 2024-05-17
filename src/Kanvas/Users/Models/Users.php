@@ -692,7 +692,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function runVerifyTwoFactorAuth(?AppInterface $app = null): bool
     {
         $user = $this->getAppProfile($app ?? app(Apps::class));
-        $twoFactorKey = UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value . '-' . $this->getCurrentDeviceId();
+        $twoFactorKey = $this->getCurrentDeviceId() ? UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value . '-' . $this->getCurrentDeviceId() : UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value;
 
         if (! $this->get($twoFactorKey) && $user->phone_verified_at && now()->subDays(7)->lte(new Carbon($user->phone_verified_at))) {
             //  return false;
