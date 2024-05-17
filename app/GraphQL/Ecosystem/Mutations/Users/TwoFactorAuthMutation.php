@@ -86,7 +86,7 @@ class TwoFactorAuthMutation
         $user = auth()->user();
         $app = app(Apps::class);
 
-        $key = UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value . '-' . $user->getCurrentDeviceId();
+        $key = $user->getCurrentDeviceId() ? UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value . '-' . $user->getCurrentDeviceId() : UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value;
 
         if ($request['active']) {
             return $user->set($key, (int) $request['active']);
