@@ -21,7 +21,7 @@ input ImporterProductInput {
     sourceId: Mixed
     productType: ProductTypeInput
     categories: [CategoryInput!]
-    attributes: [AttributeInput!]
+    attributes: [ProductAttributesInput!]
     customFields: [CustomFieldEntityInput!]
 }
 
