@@ -282,7 +282,7 @@ class ProductsTest extends TestCase
             'attributes' => [
                 [
                     'name' => fake()->name,
-                    'values' => fake()->name,
+                    'value' => fake()->name,
                 ],
             ],
         ];
