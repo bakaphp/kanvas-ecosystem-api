@@ -212,7 +212,7 @@ class Variants extends BaseModel
             }
 
             if (isset($attribute['id'])) {
-                $attributeModel = Attributes::getById((int) $attribute['id']);
+                $attributeModel = Attributes::getById((int) $attribute['id'], $this->app);
             } else {
                 $attributesDto = AttributesDto::from([
                     'app' => app(Apps::class),
