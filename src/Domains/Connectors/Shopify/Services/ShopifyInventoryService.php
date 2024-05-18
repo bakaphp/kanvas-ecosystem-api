@@ -111,7 +111,6 @@ class ShopifyInventoryService
             'inventory_policy' => 'deny',
         ];
 
-        print_r($shopifyVariantInfo); die();
         if ($variant->product->getShopifyId($this->warehouses->regions)) {
             $shopifyVariantInfo['product_id'] = $variant->product->getShopifyId($this->warehouses->regions);
         }
