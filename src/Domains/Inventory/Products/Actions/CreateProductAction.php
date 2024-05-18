@@ -88,10 +88,7 @@ class CreateProductAction
                     ]);
 
                     $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
-
-                    if (count($attribute['values']) > 0) {
-                        (new AddAttributeAction($products, $attributeModel, $attribute['values'][0]['value']))->execute();
-                    }
+                    (new AddAttributeAction($products, $attributeModel, $attribute['value']))->execute();
                 }
             }
 
