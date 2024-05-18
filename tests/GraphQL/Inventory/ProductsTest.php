@@ -17,6 +17,12 @@ class ProductsTest extends TestCase
             'name' => fake()->name,
             'description' => fake()->text,
             'sku' => fake()->time,
+            'attributes' => [
+                [
+                    'name' => fake()->name,
+                    'value' => fake()->name,
+                ],
+            ],
         ];
 
         $response = $this->graphQL('
@@ -25,6 +31,10 @@ class ProductsTest extends TestCase
                 {
                     name
                     description
+                    attributes {
+                        name
+                        value
+                    }
                 }
             }', ['data' => $data]);
 
@@ -218,6 +228,12 @@ class ProductsTest extends TestCase
             'name' => fake()->name,
             'description' => fake()->text,
             'sku' => fake()->time,
+            'attributes' => [
+                [
+                    'name' => fake()->name,
+                    'value' => fake()->name,
+                ],
+            ],
         ];
         $response = $this->graphQL('
             mutation($data: ProductInput!) {
@@ -225,6 +241,10 @@ class ProductsTest extends TestCase
                 {
                     name
                     description
+                    attributes {
+                        name
+                        value
+                    }
                 }
             }', ['data' => $data]);
 
@@ -258,7 +278,13 @@ class ProductsTest extends TestCase
             'description' => fake()->text,
             'products_id' => $id,
             'sku' => fake()->time,
-            'warehouse' => $warehouseData
+            'warehouse' => $warehouseData,
+            'attributes' => [
+                [
+                    'name' => fake()->name,
+                    'value' => fake()->name,
+                ],
+            ],
         ];
         $variantResponse = $this->graphQL('
         mutation($data: VariantsInput!) {
@@ -371,7 +397,7 @@ class ProductsTest extends TestCase
             'description' => fake()->text,
             'products_id' => $id,
             'sku' => fake()->time,
-            'warehouse' => $warehouseData
+            'warehouse' => $warehouseData,
         ];
         $variantResponse = $this->graphQL('
         mutation($data: VariantsInput!) {

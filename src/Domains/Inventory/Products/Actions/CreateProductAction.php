@@ -9,10 +9,9 @@ use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Repositories\CompaniesRepository;
-use Kanvas\Connectors\Shopify\Enums\StatusEnum;
-use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
+use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
@@ -82,15 +81,18 @@ class CreateProductAction
 
             if ($this->productDto->attributes) {
                 foreach ($this->productDto->attributes as $attribute) {
-                    $attributesDto = AttributesDto::from([
-                        'app' => $this->productDto->app,
-                        'user' => $this->user,
-                        'company' => $this->productDto->company,
-                        'name' => $attribute['name'],
-                        'value' => $attribute['value'],
-                    ]);
+                    if (isset($attribute['id'])) {
+                        $attributeModel = Attributes::getById((int) $attribute['id'], $products->app);
+                    } else {
+                        $attributesDto = AttributesDto::from([
+                            'app' => $this->productDto->app,
+                            'user' => $this->user,
+                            'company' => $this->productDto->company,
+                            'name' => $attribute['name'],
+                        ]);
 
-                    $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
+                        $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
+                    }
                     (new AddAttributeAction($products, $attributeModel, $attribute['value']))->execute();
                 }
             }

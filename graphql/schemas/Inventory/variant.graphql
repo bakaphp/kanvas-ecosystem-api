@@ -45,6 +45,7 @@ type VariantPricingInfo{
     is_coming_soon: Boolean
 }
 
+#@deprecated(reason: "Use the ProductAttributesInput type instead")
 input VariantsAttributesInput {
     id: ID
     name: String!

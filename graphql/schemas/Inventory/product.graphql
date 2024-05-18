@@ -47,11 +47,17 @@ input ProductInput {
     source_id: Mixed
     variants: [VariantsInput!]
     status: StatusReferenceInput
-    attributes: [AttributeInput!]
+    attributes: [ProductAttributesInput!]
     files: [FilesystemInputUrl!]
     price: Float
     company_id: ID
     custom_fields: [CustomFieldEntityInput!]
+}
+
+input ProductAttributesInput {
+    id: ID
+    name: String!
+    value: Mixed
 }
 
 input ProductInputUpdate {
@@ -64,6 +70,7 @@ input ProductInputUpdate {
     upc: String
     is_published: Boolean
     status: StatusReferenceInput
+    attributes: [ProductAttributesInput!]
     files: [FilesystemInputUrl!]
 }
 
