@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Shopify;
+namespace App\Console\Commands\Connectors\Shopify;
 
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;

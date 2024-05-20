@@ -35,6 +35,7 @@ class UsersRepository
             })
             ->whereIn('users.id', $users)
             ->orWhereIn('users.email', $users)
+            ->groupBy('users.id')
             ->get();
     }
 

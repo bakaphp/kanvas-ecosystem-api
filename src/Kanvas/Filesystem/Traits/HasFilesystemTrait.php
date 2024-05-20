@@ -125,6 +125,9 @@ trait HasFilesystemTrait
      */
     public function files(): HasManyThrough
     {
+        $app = $this->app ?? app(Apps::class);
+        $systemModule = SystemModulesRepository::getByModelName(get_class($this), $app);
+
         return $this->hasManyThrough(
             Filesystem::class,
             FilesystemEntities::class,
@@ -134,7 +137,7 @@ trait HasFilesystemTrait
             'filesystem_id'
         )->where(
             'filesystem_entities.system_modules_id',
-            SystemModulesRepository::getByModelName(get_class($this))->getId()
+            $systemModule->getId()
         )
         ->where(
             'filesystem_entities.is_deleted',

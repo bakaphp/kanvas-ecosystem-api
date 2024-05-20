@@ -17,6 +17,7 @@ class MetadataType
             'shopify' => [
                 'id' => $variant->getShopifyId($region),
                 'inventory_id' => $variant->getInventoryId($region),
+                'url' => $variant->getShopifyUrl($region),
                 //'product_id' => $variant->product->getShopifyId($region),
             ],
         ];
