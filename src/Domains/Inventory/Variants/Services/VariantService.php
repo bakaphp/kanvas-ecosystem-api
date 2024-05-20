@@ -51,9 +51,7 @@ class VariantService
             if (isset($variant['attributes'])) {
                 $variantModel->addAttributes($user, $variant['attributes']);
             }
-            if (! $variantDto->warehouse_id) {
-                $variantDto->warehouse_id = Warehouses::getDefault($company)->getId();
-            }
+
             if (isset($variant['status']['id'])) {
                 $status = StatusRepository::getById(
                     (int) $variant['status']['id'],
@@ -68,24 +66,28 @@ class VariantService
                 }
             }
 
-            $warehouse = WarehouseRepository::getById($variantDto->warehouse_id, $company, $variantDto->product->app);
-
-            if (isset($variant['warehouse']['status'])) {
-                $variant['warehouse']['status_id'] = StatusRepository::getById(
-                    (int) $variant['warehouse']['status']['id'],
-                    $company
-                )->getId();
+            if (isset($variant['warehouses'])) {
+                foreach ($variant['warehouses'] as $warehouseData) {
+                    $warehouse = WarehouseRepository::getById((int) $warehouseData['id'], $company);
+    
+                    VariantService::addToWarehouses(
+                        $variantModel,
+                        $warehouse,
+                        $company,
+                        $warehouseData
+                    );
+                }
             } else {
-                $variant['warehouse']['status_id'] = Status::getDefault($company)->getId();
+                $warehouse = Warehouses::getDefault($company);
+    
+                VariantService::addToWarehouses(
+                    $variantModel,
+                    $warehouse,
+                    $company,
+                    []
+                );
             }
 
-            if ($variantDto->sku && (! isset($variant['warehouse']['sku']) || ! $variant['warehouse']['sku'])) {
-                $variant['warehouse']['sku'] = $variantDto->sku;
-            }
-
-            $variantWarehouses = VariantsWarehouses::viaRequest($variant['warehouse'] ?? []);
-
-            (new AddToWarehouse($variantModel, $warehouse, $variantWarehouses))->execute();
             $variantsData[] = $variantModel;
         }
 
@@ -206,6 +208,9 @@ class VariantService
         $warehousesInfo['status_id'] = $status ? $status->getId() : null;
         $variantWarehouses = VariantsWarehouses::viaRequest($warehousesInfo ?? []);
 
+        if ($variant->sku && (! isset($warehousesInfo['sku']) || ! $warehousesInfo['sku'])) {
+            $warehousesInfo['sku'] = $variant->sku;
+        }
         return (new AddToWarehouse($variant, $warehouse, $variantWarehouses))->execute();
     }
 }
