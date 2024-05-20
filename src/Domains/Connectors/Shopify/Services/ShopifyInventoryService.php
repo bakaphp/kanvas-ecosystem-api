@@ -18,6 +18,7 @@ use Throwable;
 class ShopifyInventoryService
 {
     protected ShopifySDK $shopifySdk;
+    protected ShopifyImageService $shopifyImageService;
 
     public function __construct(
         protected AppInterface $app,
@@ -25,6 +26,7 @@ class ShopifyInventoryService
         protected Warehouses $warehouses,
     ) {
         $this->shopifySdk = Client::getInstance($app, $company, $warehouses->regions);
+        $this->shopifyImageService = new ShopifyImageService($app, $company, $warehouses->regions);
     }
 
     /**
@@ -78,6 +80,8 @@ class ShopifyInventoryService
             //do nothing
         }
 
+        $this->shopifyImageService->processEntityImage($product);
+
         return $response;
     }
 
@@ -101,15 +105,20 @@ class ShopifyInventoryService
             $price = $warehouseInfo?->price ?? 0;
         }
 
+        $quantity = $warehouseInfo?->quantity ?? 0;
         $shopifyVariantInfo = [
             'option1' => $variant->sku ?? $variant->name,
             'sku' => $variant->sku,
             'barcode' => $variant->barcode,
             'price' => $price,
-            'quantity' => $warehouseInfo?->quantity ?? 0,
+            'quantity' => $quantity,
             'compare_at_price' => $discountedPrice ?? 0,
             'inventory_policy' => 'deny',
         ];
+
+        if ($quantity > 0) {
+            $this->setStock($variant, $channel);
+        }
 
         if ($variant->product->getShopifyId($this->warehouses->regions)) {
             $shopifyVariantInfo['product_id'] = $variant->product->getShopifyId($this->warehouses->regions);
@@ -140,6 +149,8 @@ class ShopifyInventoryService
                 $variant->setInventoryId($this->warehouses->regions, $response['inventory_item_id']);
             }
         }
+
+        $this->shopifyImageService->processEntityImage($variant);
 
         return $response;
     }
@@ -197,22 +208,5 @@ class ShopifyInventoryService
     public function publishProduct(Products $product): array
     {
         return $this->changeProductStatus($product, StatusEnum::ACTIVE);
-    }
-
-    public function addImages(Variants $variant, string $imageUrl): void
-    {
-        $shopifyProduct = $this->shopifySdk->Product($variant->product->getShopifyId($this->warehouses->regions));
-        $shopifyVariant = $shopifyProduct->Variant($variant->getShopifyId($this->warehouses->regions));
-
-        $shopifyVariantData = $shopifyVariant->get();
-
-        //product will have all the images of its variants
-        $image = $shopifyProduct->Image->post(['src' => $imageUrl]);
-
-        $shopifyVariant->put(['image_id' => $image['id']]);
-
-        if ($shopifyVariantData['image_id'] !== null) {
-            $shopifyProduct->Image($shopifyVariantData['image_id'])->delete();
-        }
     }
 }
