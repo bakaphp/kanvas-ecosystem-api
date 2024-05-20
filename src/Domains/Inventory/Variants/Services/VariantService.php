@@ -69,7 +69,6 @@ class VariantService
             if (isset($variant['warehouses'])) {
                 foreach ($variant['warehouses'] as $warehouseData) {
                     $warehouse = WarehouseRepository::getById((int) $warehouseData['id'], $company);
-    
                     VariantService::addToWarehouses(
                         $variantModel,
                         $warehouse,
@@ -79,7 +78,6 @@ class VariantService
                 }
             } else {
                 $warehouse = Warehouses::getDefault($company);
-    
                 VariantService::addToWarehouses(
                     $variantModel,
                     $warehouse,
