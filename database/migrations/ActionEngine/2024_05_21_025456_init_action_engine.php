@@ -86,7 +86,7 @@ return new class () extends Migration {
             $table->dateTime('updated_at')->nullable();
             $table->boolean('is_deleted')->default(false);
             $table->index(['apps_id', 'companies_id']);
-            $table->index(['apps_id', 'companies_id', 'companies_branches_id']);
+            $table->index(['apps_id', 'companies_id', 'companies_branches_id'], 'apps_companies_branch_index');
             $table->index('pipelines_id');
         });
 
