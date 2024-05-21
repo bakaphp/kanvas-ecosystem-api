@@ -93,7 +93,7 @@ spec:
                      cd /var/www/html \
                      && php artisan lighthouse:cache \
                      && php artisan config:cache \
-                     && php artisan schedule:run"
+                     && php artisan schedule:work"
                   ]
       securityContext:
         fsGroup: 65533
