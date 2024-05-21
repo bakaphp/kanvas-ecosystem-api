@@ -30,5 +30,4 @@ class Action extends BaseModel
 
     protected $table = 'actions';
     protected $guarded = [];
-
 }
