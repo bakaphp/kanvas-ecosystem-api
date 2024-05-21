@@ -89,10 +89,7 @@ class ProductImporterAction
             }
 
             if (! empty($this->importedProduct->files)) {
-                $this->product->deleteFiles();
-                foreach ($this->importedProduct->files as $file) {
-                    $this->product->addFileFromUrl($file['url'], $file['name']);
-                }
+                $this->product->overWriteFiles($this->importedProduct->files);
             }
 
             $this->categories();
