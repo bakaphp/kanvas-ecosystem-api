@@ -173,8 +173,8 @@ class ReactionTest extends TestCase
         $response = $this->graphQL(/** @lang GRAPHQL */
             '
             
-            query getReactions {
-                getReactions(
+            query reactions {
+                reactions(
                     orderBy: {column: ID, order: DESC}
                 ) {
                     data {
@@ -185,9 +185,9 @@ class ReactionTest extends TestCase
                 }
             }'
         );
-        $this->assertArrayHasKey('getReactions', $response->json('data'));
-        $this->assertArrayHasKey('data', $response->json('data.getReactions'));
-        $this->assertArrayHasKey('id', $response->json('data.getReactions.data.0'));
+        $this->assertArrayHasKey('reactions', $response->json('data'));
+        $this->assertArrayHasKey('data', $response->json('data.reactions'));
+        $this->assertArrayHasKey('id', $response->json('data.reactions.data.0'));
     }
 
     public function testReactToEntity()
