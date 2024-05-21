@@ -54,6 +54,16 @@ class FilesystemEntitiesRepository
                     ->where('filesystem_entities.system_modules_id', '=', $systemModule->getKey())
                     ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
                     ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue())
+                    ->select(
+                        'filesystem_entities.*',
+                        'filesystem.url',
+                        'filesystem.path',
+                        'filesystem.name',
+                        'filesystem.apps_id',
+                        'filesystem.users_id',
+                        'filesystem.size',
+                        'filesystem.file_type'
+                    )
                     ->get();
     }
 
@@ -71,6 +81,16 @@ class FilesystemEntitiesRepository
                     ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
                     ->where('filesystem_entities.field_name', '=', $name)
                     ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue())
+                    ->select(
+                        'filesystem_entities.*',
+                        'filesystem.url',
+                        'filesystem.path',
+                        'filesystem.name',
+                        'filesystem.apps_id',
+                        'filesystem.users_id',
+                        'filesystem.size',
+                        'filesystem.file_type'
+                    )
                     ->first();
     }
 
