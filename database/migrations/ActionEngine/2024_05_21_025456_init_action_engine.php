@@ -27,7 +27,6 @@ return new class () extends Migration {
             $table->dateTime('created_at');
             $table->dateTime('updated_at')->nullable();
             $table->boolean('is_deleted')->default(false);
-            $table->timestamps();
             $table->index(['apps_id', 'companies_id']);
             $table->index(['uuid', 'apps_id', 'companies_id', 'is_deleted']);
             $table->index('pipelines_id');
@@ -42,7 +41,6 @@ return new class () extends Migration {
             $table->dateTime('created_at')->nullable();
             $table->date('updated_at')->nullable();
             $table->boolean('is_deleted')->default(false);
-            $table->timestamps();
             $table->index('lead_uuid');
         });
 
@@ -56,7 +54,6 @@ return new class () extends Migration {
             $table->dateTime('created_at');
             $table->dateTime('updated_at')->nullable();
             $table->boolean('is_deleted')->default(false);
-            $table->timestamps();
             $table->index('users_id');
         });
 
@@ -66,7 +63,6 @@ return new class () extends Migration {
             $table->unsignedInteger('actions_id');
             $table->dateTime('created_at');
             $table->primary(['business_verticals_id', 'actions_id']);
-            $table->timestamps();
         });
 
         // Create companies_actions table
@@ -89,7 +85,6 @@ return new class () extends Migration {
             $table->dateTime('created_at');
             $table->dateTime('updated_at')->nullable();
             $table->boolean('is_deleted')->default(false);
-            $table->timestamps();
             $table->index(['apps_id', 'companies_id']);
             $table->index(['apps_id', 'companies_id', 'companies_branches_id']);
             $table->index('pipelines_id');
@@ -110,7 +105,6 @@ return new class () extends Migration {
             $table->dateTime('created_at');
             $table->dateTime('updated_at')->nullable();
             $table->boolean('is_deleted')->default(false);
-            $table->timestamps();
             $table->index('leads_id');
             $table->index('receivers_id');
             $table->index('contacts_id');
@@ -132,7 +126,6 @@ return new class () extends Migration {
             $table->dateTime('created_at');
             $table->dateTime('updated_at')->nullable();
             $table->boolean('is_deleted')->default(false);
-            $table->timestamps();
             $table->primary(['marketplace_apps_id', 'companies_id']);
             $table->index('apps_id');
             $table->index('users_id');
@@ -154,7 +147,6 @@ return new class () extends Migration {
             $table->dateTime('created_at');
             $table->dateTime('updated_at')->nullable();
             $table->boolean('is_deleted')->default(false);
-            $table->timestamps();
             $table->index('message_id');
             $table->index('pipelines_stages_id');
             $table->index('entity_uuid');
@@ -180,7 +172,6 @@ return new class () extends Migration {
             $table->dateTime('created_at');
             $table->dateTime('updated_at')->nullable();
             $table->boolean('is_deleted')->default(false);
-            $table->timestamps();
             $table->index('companies_id');
             $table->index('users_id');
             $table->index('system_modules_id');
@@ -203,7 +194,6 @@ return new class () extends Migration {
             $table->dateTime('created_at');
             $table->dateTime('updated_at');
             $table->boolean('is_deleted')->default(false);
-            $table->timestamps();
             $table->index('hooks_id');
             $table->index('status');
         });
@@ -220,7 +210,6 @@ return new class () extends Migration {
             $table->dateTime('created_at');
             $table->dateTime('updated_at')->nullable();
             $table->boolean('is_deleted')->default(false);
-            $table->timestamps();
             $table->unique(['sources_id', 'system_modules_id']);
             $table->index('created_at');
             $table->index('updated_at');
@@ -242,7 +231,6 @@ return new class () extends Migration {
             $table->dateTime('created_at');
             $table->dateTime('updated_at')->nullable();
             $table->boolean('is_deleted')->default(false);
-            $table->timestamps();
             $table->index('is_active');
             $table->index('created_at');
             $table->index('updated_at');
@@ -260,7 +248,6 @@ return new class () extends Migration {
             $table->dateTime('created_at');
             $table->dateTime('updated_at')->nullable();
             $table->boolean('is_deleted')->default(false);
-            $table->timestamps();
             $table->index('created_at');
             $table->index('updated_at');
         });
@@ -277,7 +264,6 @@ return new class () extends Migration {
             $table->dateTime('updated_at')->nullable();
             $table->boolean('is_default')->default(false);
             $table->boolean('is_deleted')->default(false);
-            $table->timestamps();
             $table->index('companies_id');
             $table->index('weight');
             $table->index('users_id');
@@ -298,7 +284,6 @@ return new class () extends Migration {
             $table->dateTime('created_at');
             $table->dateTime('updated_at')->nullable();
             $table->boolean('is_deleted')->default(false);
-            $table->timestamps();
             $table->index('pipelines_id');
         });
 
@@ -311,7 +296,6 @@ return new class () extends Migration {
             $table->dateTime('created_at');
             $table->dateTime('updated_at')->nullable();
             $table->boolean('is_deleted')->default(false);
-            $table->timestamps();
             $table->index('pipelines_stages_id');
         });
     }
