@@ -92,7 +92,8 @@ spec:
                      chmod -R 777 /var/www/html/bootstrap/cache && \
                      cd /var/www/html \
                      && php artisan lighthouse:cache \
-                     && php artisan config:cache"
+                     && php artisan config:cache \
+                     && php artisan schedule:run"
                   ]
       securityContext:
         fsGroup: 65533
