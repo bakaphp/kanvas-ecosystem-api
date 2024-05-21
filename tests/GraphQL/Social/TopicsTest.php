@@ -135,7 +135,7 @@ class TopicsTest extends TestCase
         $this->graphQL(
             '
             {
-             getTopics {
+             topics {
                 data {
                     id
                     name
