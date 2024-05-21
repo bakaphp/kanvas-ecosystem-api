@@ -33,9 +33,9 @@ deployments:
   socialQueue:
     name: kanvas-social
     containerName: kanvas-social
-  healthcheck:
-    name: healthcheck
-    containerName: healthcheck
+  # healthcheck:
+  #   name: healthcheck
+  #   containerName: healthcheck
 
 # Services Values
 
