@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{.Values.deployments.laravelScheduler.name}}
+  namespace: {{.Values.namespace}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{.Values.deployments.laravelScheduler.name}}
+  template:
+    metadata:
+      labels:
+        app: {{.Values.deployments.laravelScheduler.name}}
+        type: api
+      annotations:
+        instrumentation.opentelemetry.io/inject-java: "true"
+    spec:
+      volumes:
+        - name: envconfigmap
+          configMap:
+            name: envconfigmap
+            items:
+              - key: kanvasconfigmap
+                path: .env
+            defaultMode: 432
+        - name: webroot
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: nginx-php-api
+            items:
+              - key: config
+                path: default.conf
+        - name: nginx-config
+          configMap:
+            name: nginx-config
+            items:
+              - key: nginx.conf
+                path: nginx.conf
+      containers:
+        - name: nginx
+          image: nginx:1.24
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: config
+              mountPath: /etc/nginx/conf.d
+            - name: webroot
+              mountPath: "/var/www/html"
+          resources:
+                requests:
+                    memory: "128M"
+                    cpu: "100m"
+                limits:
+                    memory: "512M"
+                    cpu: "200m"
+        - name: {{.Values.deployments.laravelScheduler.containerName}}
+          image: {{.Values.apiImage}}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: envconfigmap
+              mountPath: /app/.env
+              subPath: .env
+            - name: webroot
+              mountPath: "/var/www/html"
+          resources:
+                requests:
+                    memory: "256M"
+                    cpu: "300m"
+                limits:
+                    memory: "600M"
+                    cpu: "800m"
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  [
+                    "/bin/sh",
+                    "-c",
+                    "cp -R /app/. /var/www/html && \
+                     chmod -R 755 /var/www/html && \
+                     chmod -R 777 /var/www/html/storage && \
+                     chmod -R 777 /var/www/html/storage/logs && \
+                     chmod -R 777 /var/www/html/bootstrap/cache && \
+                     cd /var/www/html \
+                     && php artisan lighthouse:cache \
+                     && php artisan config:cache \
+                     && php artisan schedule:work"
+                  ]
+      securityContext:
+        fsGroup: 65533

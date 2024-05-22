@@ -33,9 +33,9 @@ deployments:
   socialQueue:
     name: kanvas-social
     containerName: kanvas-social
-  healthcheck:
-    name: healthcheck
-    containerName: healthcheck
+  laravelScheduler:
+    name: scheduler
+    containerName: scheduler
 
 # Services Values
 
