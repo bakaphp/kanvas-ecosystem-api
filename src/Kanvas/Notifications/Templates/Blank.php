@@ -23,7 +23,7 @@ class Blank extends Notification
         $this->setType('blank');
         $this->setTemplateName($templateName);
         $this->setData($data);
-        
+
         if (! empty($via)) {
             $this->channels = $via;
         }
