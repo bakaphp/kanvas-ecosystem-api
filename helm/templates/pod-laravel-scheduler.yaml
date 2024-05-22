@@ -13,8 +13,6 @@ spec:
       labels:
         app: {{.Values.deployments.laravelScheduler.name}}
         type: api
-      annotations:
-        instrumentation.opentelemetry.io/inject-java: "true"
     spec:
       volumes:
         - name: envconfigmap
@@ -39,26 +37,6 @@ spec:
               - key: nginx.conf
                 path: nginx.conf
       containers:
-        - name: nginx
-          image: nginx:1.24
-          ports:
-            - containerPort: 80
-              protocol: TCP
-          volumeMounts:
-            - name: nginx-config
-              mountPath: /etc/nginx/nginx.conf
-              subPath: nginx.conf
-            - name: config
-              mountPath: /etc/nginx/conf.d
-            - name: webroot
-              mountPath: "/var/www/html"
-          resources:
-                requests:
-                    memory: "128M"
-                    cpu: "100m"
-                limits:
-                    memory: "512M"
-                    cpu: "200m"
         - name: {{.Values.deployments.laravelScheduler.containerName}}
           image: {{.Values.apiImage}}
           imagePullPolicy: Always
