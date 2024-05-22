@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: laravel-schedule
 spec:
-  successfulJobsHistoryLimit: 3
+  successfulJobsHistoryLimit: 0
   failedJobsHistoryLimit: 0
   schedule: "* * * * *"
   jobTemplate:
