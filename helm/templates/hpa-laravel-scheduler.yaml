@@ -1,25 +1,25 @@
-# apiVersion: autoscaling/v2
-# kind: HorizontalPodAutoscaler
-# metadata:
-#   name: {{.Values.deployments.laravelScheduler.name}}
-#   namespace: {{.Values.namespace}}
-# spec:
-#   maxReplicas: 15
-#   minReplicas: 2
-#   scaleTargetRef:
-#     apiVersion: apps/v1
-#     kind: Deployment
-#     name: {{.Values.deployments.laravelScheduler.name}}
-#   metrics:
-#     - type: Resource
-#       resource:
-#           name: cpu
-#           target:
-#               type: Utilization
-#               averageUtilization: 95
-#     - type: Resource
-#       resource:
-#           name: memory
-#           target:
-#               type: Utilization
-#               averageUtilization: 95
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{.Values.deployments.laravelScheduler.name}}
+  namespace: {{.Values.namespace}}
+spec:
+  maxReplicas: 5
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{.Values.deployments.laravelScheduler.name}}
+  metrics:
+    - type: Resource
+      resource:
+          name: cpu
+          target:
+              type: Utilization
+              averageUtilization: 95
+    - type: Resource
+      resource:
+          name: memory
+          target:
+              type: Utilization
+              averageUtilization: 95
