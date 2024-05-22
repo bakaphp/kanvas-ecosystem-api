@@ -31,10 +31,12 @@ class SendEmailActivity extends Activity implements WorkflowActivityInterface
             ];
         }
 
+        $data = Str::isJson($params['data']) ? json_decode($params['data'], true) : (array) $params['data'];
+        $data['app'] = $app;
         //kanvas-notifications-templates-resetpassword
         $notification = new Blank(
             $params['template_name'],
-            Str::isJson($params['data']) ? json_decode($params['data'], true) : (array) $params['data'], // This can have more validation like validate if is array o json
+            $data, // This can have more validation like validate if is array o json
             ['mail'],
             $entity
         );
