@@ -61,9 +61,7 @@ class VariantService
             }
 
             if (! empty($variantDto->files)) {
-                foreach ($variantDto->files as $file) {
-                    $variantModel->addFileFromUrl($file['url'], $file['name']);
-                }
+                $variantModel->overWriteFiles($variantDto->files);
             }
 
             if (isset($variant['warehouses'])) {
