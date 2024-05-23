@@ -33,6 +33,8 @@ class SendEmailActivity extends Activity implements WorkflowActivityInterface
 
         $data = Str::isJson($params['data']) ? json_decode($params['data'], true) : (array) $params['data'];
         $data['app'] = $app;
+        $data['subject'] = $params['subject'];
+        
         //kanvas-notifications-templates-resetpassword
         $notification = new Blank(
             $params['template_name'],

@@ -9,6 +9,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Currencies\Models\Currencies;
+use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use Workflow\Activity;
 
@@ -18,6 +19,7 @@ class CreateUserActivity extends Activity
 
     public function execute(Users $user, Apps $app, array $params): array
     {
+
         if (! isset($params['company']) || ! $params['company'] instanceof Companies) {
             return [
                 'status' => 'error',
@@ -26,8 +28,8 @@ class CreateUserActivity extends Activity
             ];
         }
 
-        $company = $params['company'];
-        $defaultRegion = $company->regions->where('default', true)->first();
+        $company = $app->get('default_shopify_company_id') ? Companies::findFirst($app->get('default_shopify_company_id')) : $params['company'];
+        $defaultRegion = Regions::getDefault($company);
         $currency = $company->currency ?? Currencies::where('code', 'USD')->first();
 
         if (! $defaultRegion) {
