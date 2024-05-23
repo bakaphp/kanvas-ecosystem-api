@@ -42,7 +42,7 @@ class VariantService
             ]);
 
             $variantModel = (new CreateVariantsAction($variantDto, $user))->execute();
-            $company = $variantDto->product->company()->get()->first();
+            $company = $variantDto->product->company;
 
             if (isset($variant['custom_fields']) && ! empty($variant['custom_fields'])) {
                 $variantModel->setAllCustomFields($variant['custom_fields']);
@@ -110,7 +110,7 @@ class VariantService
         ]);
         $variantModel = (new CreateVariantsAction($variantDto, $user))->execute();
 
-        $company = $variantDto->product->company()->get()->first();
+        $company = $variantDto->product->company;
 
         $warehouse = Warehouses::getDefault($company);
 
@@ -137,10 +137,10 @@ class VariantService
         if (isset($data['status'])) {
             $data['status_id'] = StatusRepository::getById(
                 (int) $data['status']['id'],
-                $variant->product->company()->get()->first()
+                $variant->product->company
             )->getId();
         } else {
-            $data['status_id'] = Status::getDefault($variant->product->company()->get()->first())->getId();
+            $data['status_id'] = Status::getDefault($variant->product->company)->getId();
         }
 
         $variantWarehousesDto = VariantsWarehouses::viaRequest($variant, $warehouse, $data);
