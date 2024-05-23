@@ -43,7 +43,7 @@ class UpdateToWarehouseAction
                 'serial_number' => $this->variantsWarehousesDto->serial_number,
                 'status_id' => $this->variantsWarehousesDto->status_id,
                 'is_oversellable' => $this->variantsWarehousesDto->is_oversellable,
-                'is_default' => $this->variantsWarehousesDto->is_default ?? $this->variantsWarehouses->is_default,
+                'is_default' => $this->variantsWarehousesDto->is_default ?? $this->variantsWarehousesDto->is_default,
                 'is_best_seller' => $this->variantsWarehousesDto->is_best_seller,
                 'is_on_sale' => $this->variantsWarehousesDto->is_on_sale,
                 'is_on_promo' => $this->variantsWarehousesDto->is_on_promo,
