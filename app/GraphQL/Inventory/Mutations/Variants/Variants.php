@@ -168,7 +168,7 @@ class Variants
         $variant = VariantsRepository::getById((int) $req['id'], $company);
         $warehouse = WarehouseRepository::getById($req['warehouse_id'], $company);
 
-        WarehouseService::removeVariantWarehouses($variant,$warehouse, auth()->user());
+        WarehouseService::removeVariantWarehouses($variant, $warehouse, auth()->user());
 
         return $variant;
     }

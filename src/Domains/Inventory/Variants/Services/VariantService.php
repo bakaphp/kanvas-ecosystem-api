@@ -139,7 +139,7 @@ class VariantService
                 (int) $data['status']['id'],
                 $variant->product->company()->get()->first()
             )->getId();
-        }else {
+        } else {
             $data['status_id'] = Status::getDefault($variant->product->company()->get()->first())->getId();
         }
 
