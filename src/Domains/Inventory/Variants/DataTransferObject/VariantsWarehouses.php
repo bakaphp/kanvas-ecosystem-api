@@ -13,8 +13,8 @@ class VariantsWarehouses extends Data
     public function __construct(
         public Variants $variant,
         public Warehouses $warehouse,
-        public ?float $quantity = 0,
-        public float $price = 0.00,
+        public float $quantity,
+        public float $price,
         public string $sku,
         public int $position = 0,
         public ?string $serial_number = null,
