@@ -539,6 +539,15 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $user->user_activation_forgot = Str::random(50);
         $user->updateOrFail();
 
+        $this->fireWorkflow(
+            WorkflowEnum::REQUEST_FORGOT_PASSWORD->value,
+            true,
+            [
+                'app' => $app,
+                'profile' => $user,
+            ]
+        );
+
         return $user->user_activation_forgot;
     }
 
