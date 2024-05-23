@@ -19,7 +19,6 @@ class CreateUserActivity extends Activity
 
     public function execute(Users $user, Apps $app, array $params): array
     {
-
         if (! isset($params['company']) || ! $params['company'] instanceof Companies) {
             return [
                 'status' => 'error',
