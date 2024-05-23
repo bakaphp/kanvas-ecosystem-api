@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Shopify\Workflows\Activities;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Currencies\Models\Currencies;
@@ -28,7 +29,8 @@ class CreateUserActivity extends Activity
             ];
         }
 
-        $company = $params['company'];
+        $defaultCompanyId = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
+        $company = $defaultCompanyId ? CompaniesBranches::getById($defaultCompanyId)->company : $params['company'];
         $defaultRegion = Regions::getDefault($company);
         $currency = $company->currency ?? Currencies::where('code', 'USD')->first();
 
