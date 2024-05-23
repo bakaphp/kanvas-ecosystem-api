@@ -31,6 +31,7 @@ class RegisterInput extends Data
         public ?CompaniesBranches $branch = null,
         public ?string $phone_number = null,
         public ?string $cell_phone_number = null,
+        public ?string $raw_password = null
     ) {
     }
 
@@ -53,6 +54,7 @@ class RegisterInput extends Data
             role_ids: $roles,
             custom_fields: $request->get('custom_fields') ?? [],
             phone_number: $request->get('phone_number') ?? null,
+            raw_password: $request->get('password') ?? null,
         );
     }
 
@@ -74,7 +76,8 @@ class RegisterInput extends Data
             custom_fields: $request['custom_fields'] ?? [],
             branch: $branch,
             phone_number: $request['phone_number'] ?? null,
-            cell_phone_number: $request['cell_phone_number'] ?? null
+            cell_phone_number: $request['cell_phone_number'] ?? null,
+            raw_password: $request['password'] ?? null,
         );
     }
 }
