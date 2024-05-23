@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Variants\Services;
 
 use Baka\Users\Contracts\UserInterface;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
@@ -24,6 +23,7 @@ use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
+use Kanvas\Inventory\Warehouses\Services\WarehouseService;
 
 class VariantService
 {
@@ -69,7 +69,7 @@ class VariantService
             if (isset($variant['warehouses'])) {
                 foreach ($variant['warehouses'] as $warehouseData) {
                     $warehouse = WarehouseRepository::getById((int) $warehouseData['id'], $company);
-                    VariantService::addToWarehouses(
+                    WarehouseService::addToWarehouses(
                         $variantModel,
                         $warehouse,
                         $company,
@@ -78,7 +78,7 @@ class VariantService
                 }
             } else {
                 $warehouse = Warehouses::getDefault($company);
-                VariantService::addToWarehouses(
+                WarehouseService::addToWarehouses(
                     $variantModel,
                     $warehouse,
                     $company,
@@ -122,7 +122,7 @@ class VariantService
         } else {
             $variant['warehouse']['status_id'] = Status::getDefault($company)->getId();
         }
-        $variantWarehouses = VariantsWarehouses::viaRequest($variant['warehouse'] ?? []);
+        $variantWarehouses = VariantsWarehouses::viaRequest($variantModel, $warehouse, $variant['warehouse'] ?? []);
 
         (new AddToWarehouse($variantModel, $warehouse, $variantWarehouses))->execute();
 
@@ -139,16 +139,14 @@ class VariantService
                 (int) $data['status']['id'],
                 $variant->product->company()->get()->first()
             )->getId();
+        }else {
+            $data['status_id'] = Status::getDefault($variant->product->company()->get()->first())->getId();
         }
 
-        $variantWarehousesDto = VariantsWarehouses::viaRequest($data);
-        $variantWarehouses = ModelsVariantsWarehouses::where('products_variants_id', $variant->getId())
-            ->where('warehouses_id', $warehouse->getId())
-            ->firstOrFail();
+        $variantWarehousesDto = VariantsWarehouses::viaRequest($variant, $warehouse, $data);
 
         return (
             new UpdateToWarehouseAction(
-                $variantWarehouses,
                 $variantWarehousesDto
             ))->execute();
     }
@@ -186,29 +184,5 @@ class VariantService
                 $channel,
                 $variantChannelDto
             ))->execute();
-    }
-
-    public static function addToWarehouses(
-        Variants $variant,
-        Warehouses $warehouse,
-        Companies $company,
-        array $warehousesInfo
-    ): ModelsVariantsWarehouses {
-        if (isset($warehousesInfo['status'])) {
-            $status = StatusRepository::getById(
-                (int) $warehousesInfo['status']['id'],
-                $company
-            )->getId();
-        } else {
-            $status = Status::getDefault($company);
-        }
-
-        $warehousesInfo['status_id'] = $status ? $status->getId() : null;
-        $variantWarehouses = VariantsWarehouses::viaRequest($warehousesInfo ?? []);
-
-        if ($variant->sku && (! isset($warehousesInfo['sku']) || ! $warehousesInfo['sku'])) {
-            $warehousesInfo['sku'] = $variant->sku;
-        }
-        return (new AddToWarehouse($variant, $warehouse, $variantWarehouses))->execute();
     }
 }
