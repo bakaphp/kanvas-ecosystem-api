@@ -31,7 +31,7 @@ class WarehouseService
         $toDelete = array_diff($existedWarehouses, $warehousesId);
 
         foreach ($warehouses as $warehouseData) {
-            $warehouseModel = WarehouseRepository::getById((int) $warehouseData['warehouse_id'], $user->getCurrentCompany());
+            $warehouseModel = WarehouseRepository::getById((int) $warehouseData['warehouse_id'], $variant->product->company()->get()->first());
 
             if (isset($warehouseData['status'])) {
                 $warehouseData['status_id'] = StatusRepository::getById(
@@ -39,7 +39,7 @@ class WarehouseService
                     $variant->product->company()->get()->first()
                 )->getId();
             } else {
-                $warehouseData['status_id'] = Status::getDefault($user->getCurrentCompany())->getId();
+                $warehouseData['status_id'] = Status::getDefault($variant->product->company()->get()->first())->getId();
             }
 
             $variantWarehousesDto = VariantsWarehouses::viaRequest($variant, $warehouseModel, $warehouseData);
