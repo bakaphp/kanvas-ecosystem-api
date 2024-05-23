@@ -33,6 +33,7 @@ class ForgotPassword
                 $recoverUser,
                 [
                     'subject' => $this->app->name . ' - Reset your password',
+                    'app' => $this->app,
                 ]
             ));
         } catch (ModelNotFoundException $e) {
