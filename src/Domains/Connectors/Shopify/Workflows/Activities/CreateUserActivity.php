@@ -29,7 +29,7 @@ class CreateUserActivity extends Activity
         }
 
         $defaultCompanyId = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
-        $company = $defaultCompanyId ? Companies::findFirst($defaultCompanyId) : $params['company'];
+        $company = $defaultCompanyId ? Companies::getById($defaultCompanyId) : $params['company'];
         $defaultRegion = Regions::getDefault($company);
         $currency = $company->currency ?? Currencies::where('code', 'USD')->first();
 
