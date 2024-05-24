@@ -13,4 +13,5 @@ enum WorkflowEnum: string
     case USER_LOGIN = 'user-login';
     case USER_LOGOUT = 'user-logout';
     case AFTER_FORGOT_PASSWORD = 'after-forgot-password';
+    case REQUEST_FORGOT_PASSWORD = 'request-forgot-password';
 }

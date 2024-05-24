@@ -9,6 +9,7 @@ use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification;
+use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Workflow\Activity;
@@ -34,6 +35,8 @@ class SendEmailActivity extends Activity implements WorkflowActivityInterface
         $data['app'] = $app;
         $data['subject'] = $params['subject'];
 
+        $smtpRuntime = new SmtpRuntimeConfiguration($app);
+        $smtpRuntime->loadSmtpSettings();
         //kanvas-notifications-templates-resetpassword
         $notification = new Blank(
             $params['template_name'],
