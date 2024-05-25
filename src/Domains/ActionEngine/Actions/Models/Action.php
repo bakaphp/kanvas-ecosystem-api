@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Domains\ActionEngine\Actions\Models;
 
 use Baka\Traits\UuidTrait;

@@ -117,6 +117,9 @@
         "migrate-commerce": [
             "php artisan migrate --path database/migrations/Souk/ --database commerce"
         ],
+        "migrate-action-engine": [
+            "php artisan migrate --path database/migrations/ActionEngine/ --database action_engine"
+        ],
         "migrate-laravel-workflow": [
             "php artisan migrate --path vendor/laravel-workflow/laravel-workflow/src/migrations/ --database workflow"
         ]
