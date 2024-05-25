@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -94,6 +95,17 @@ class UsersRepository
             ->firstOrFail();
     }
 
+    public static function getUsersByDaysCreated(int $days, ?AppInterface $app = null): Collection
+    {
+        $app = $app ?? app(Apps::class);
+
+        return Users::join('users_associated_apps', 'users_associated_apps.users_id', 'users.id')
+                ->where(DB::raw('DATEDIFF(CURDATE(), users_associated_apps.created_at)'), '=', $days)
+                ->select('users.*')
+                ->groupBy('users.id')
+                ->get();
+    }
+
     /**
      * getAll.
      * @psalm-suppress MixedReturnStatement
@@ -104,6 +116,7 @@ class UsersRepository
             ->join('users_associated_company', 'users_associated_company.users_id', 'users.id')
             ->where('users_associated_company.companies_id', $companiesId)
             ->whereNot('users.id', auth()->user()->id)
+            ->select('users.*')
             ->get();
     }
 
