@@ -5,7 +5,12 @@ declare(strict_types=1);
 namespace Domains\ActionEngine\Engagements\Models;
 
 use Baka\Traits\UuidTrait;
+use Domains\ActionEngine\Actions\Models\CompanyAction;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\ActionEngine\Models\BaseModel;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Social\Messages\Models\Message;
 
 /**
  * Class Engagement.
@@ -29,4 +34,24 @@ class Engagement extends BaseModel
 
     protected $table = 'engagements';
     protected $guarded = [];
+
+    public function companyAction(): BelongsTo
+    {
+        return $this->belongsTo(CompanyAction::class, 'companies_actions_id', 'id');
+    }
+
+    public function message(): BelongsTo
+    {
+        return $this->belongsTo(Message::class, 'message_id', 'id');
+    }
+
+    public function lead(): BelongsTo
+    {
+        return $this->belongsTo(Lead::class, 'leads_id', 'id');
+    }
+
+    public function person(): BelongsTo
+    {
+        return $this->belongsTo(People::class, 'people_id', 'id');
+    }
 }
