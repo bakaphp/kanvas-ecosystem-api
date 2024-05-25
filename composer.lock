@@ -1195,18 +1195,6 @@
         },
         {
             "name": "aws/aws-sdk-php",
-<<<<<<< HEAD
-            "version": "3.307.2",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "bbe5c19d52b350e9d5284d13afe4bec56fbd21b3"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/bbe5c19d52b350e9d5284d13afe4bec56fbd21b3",
-                "reference": "bbe5c19d52b350e9d5284d13afe4bec56fbd21b3",
-=======
             "version": "3.308.1",
             "source": {
                 "type": "git",
@@ -1217,7 +1205,6 @@
                 "type": "zip",
                 "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/bf5f1221d4c5c67d3213150fb91dfb5ce627227b",
                 "reference": "bf5f1221d4c5c67d3213150fb91dfb5ce627227b",
->>>>>>> development
                 "shasum": ""
             },
             "require": {
@@ -1297,15 +1284,9 @@
             "support": {
                 "forum": "https://forums.aws.amazon.com/forum.jspa?forumID=80",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-<<<<<<< HEAD
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.307.2"
-            },
-            "time": "2024-05-20T18:16:04+00:00"
-=======
                 "source": "https://github.com/aws/aws-sdk-php/tree/3.308.1"
             },
             "time": "2024-05-22T18:05:56+00:00"
->>>>>>> development
         },
         {
             "name": "berkayk/onesignal-laravel",
