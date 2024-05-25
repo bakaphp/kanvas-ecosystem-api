@@ -89,7 +89,7 @@ input VariantsUpdateInput {
     attributes: [VariantsAttributesInput!]
     serial_number: String
     is_published: Boolean
-    warehouse: VariantsWarehousesInput
+    warehouses: [VariantsWarehousesInput!]
 }
 
 extend type Mutation @guard {

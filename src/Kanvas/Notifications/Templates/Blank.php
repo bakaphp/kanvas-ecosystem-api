@@ -19,7 +19,7 @@ class Blank extends Notification
         Model $entity,
         public ?array $pathAttachment = null
     ) {
-        parent::__construct($entity);
+        parent::__construct($entity, $data);
         $this->setType('blank');
         $this->setTemplateName($templateName);
         $this->setData($data);

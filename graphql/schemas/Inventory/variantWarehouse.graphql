@@ -29,7 +29,7 @@ type WarehouseVariantRelationship {
 
 input VariantsWarehousesInput {
     warehouse_id: ID!
-    quantity: Float
+    quantity: Int
     status: StatusReferenceInput
     price: Float
     sku: String

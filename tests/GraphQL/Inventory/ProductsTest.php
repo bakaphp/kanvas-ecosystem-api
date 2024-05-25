@@ -296,6 +296,7 @@ class ProductsTest extends TestCase
                 products_id
             }
         }', ['data' => $data]);
+
         $this->assertArrayHasKey('id', $variantResponse->json()['data']['createVariant']);
     }
 

@@ -9,7 +9,7 @@ use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification;
-use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Workflow\Activity;
@@ -31,10 +31,16 @@ class SendEmailActivity extends Activity implements WorkflowActivityInterface
             ];
         }
 
+        $data = Str::isJson($params['data']) ? json_decode($params['data'], true) : (array) $params['data'];
+        $data['app'] = $app;
+        $data['subject'] = $params['subject'];
+
+        $smtpRuntime = new SmtpRuntimeConfiguration($app);
+        $smtpRuntime->loadSmtpSettings();
         //kanvas-notifications-templates-resetpassword
         $notification = new Blank(
             $params['template_name'],
-            Str::isJson($params['data']) ? json_decode($params['data'], true) : (array) $params['data'], // This can have more validation like validate if is array o json
+            $data, // This can have more validation like validate if is array o json
             ['mail'],
             $entity
         );

@@ -1,0 +1,11 @@
+# apiVersion: autoscaling.k8s.io/v1
+# kind: VerticalPodAutoscaler
+# metadata:
+#   name: {{.Values.deployments.laravelScheduler.name}}
+# spec:
+#   targetRef:
+#     apiVersion: "apps/v1"
+#     kind: Deployment
+#     name: {{.Values.deployments.laravelScheduler.name}}
+#   updatePolicy:
+#     updateMode: "Auto"

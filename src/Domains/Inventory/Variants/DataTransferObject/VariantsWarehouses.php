@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\DataTransferObject;
 
+use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Spatie\LaravelData\Data;
 
 class VariantsWarehouses extends Data
 {
     public function __construct(
-        public ?float $quantity = null,
-        public ?float $price = null,
-        public ?string $sku = null,
+        public Variants $variant,
+        public Warehouses $warehouse,
+        public float $quantity,
+        public float $price,
+        public string $sku,
         public int $position = 0,
         public ?string $serial_number = null,
         public ?int $status_id = null,
@@ -26,12 +30,14 @@ class VariantsWarehouses extends Data
     ) {
     }
 
-    public static function viaRequest(array $request): self
+    public static function viaRequest(Variants $variant, Warehouses $warehouse, array $request): self
     {
         return new self(
-            $request['quantity'] ?? null,
-            $request['price'] ?? null,
-            $request['sku'] ?? null,
+            $variant,
+            $warehouse,
+            isset($request['quantity']) ? $request['quantity'] : 0,
+            isset($request['price']) ? $request['price'] : 0.00,
+            $request['sku'] ?? $variant->sku,
             $request['position'] ?? 0,
             $request['serial_number'] ?? null,
             $request['status_id'] ?? null,

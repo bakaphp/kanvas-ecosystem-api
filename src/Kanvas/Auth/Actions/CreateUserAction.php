@@ -92,7 +92,7 @@ class CreateUserAction
                 true,
                 [
                     'company' => $company,
-                    'password' => $this->data->password,
+                    'password' => $this->data->raw_password,
                 ]
             );
         }

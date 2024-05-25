@@ -34,6 +34,7 @@ class CreateVariantsAction
         $search = [
             'products_id' => $this->variantDto->product->getId(),
             'slug' => $this->variantDto->slug ?? Str::slug($this->variantDto->name),
+            'sku' => $this->variantDto->sku,
             'companies_id' => $this->variantDto->product->companies_id,
             'apps_id' => $this->variantDto->product->apps_id,
         ];
@@ -46,7 +47,6 @@ class CreateVariantsAction
                 'description' => $this->variantDto->description,
                 'short_description' => $this->variantDto->short_description,
                 'html_description' => $this->variantDto->html_description,
-                'sku' => $this->variantDto->sku,
                 'status_id' => $this->variantDto->status_id,
                 'ean' => $this->variantDto->ean,
                 'barcode' => $this->variantDto->barcode,
