@@ -56,7 +56,7 @@ class MailCaddieLabJob implements ShouldQueue
                 $user
             );
             $notification->setSubject('Join to Caddie Lab');
-            if ($user->get('paid_subscription')) {
+            if (!$user->get('paid_subscription')) {
                 Notification::route('mail', $user->email)->notify($notification);
             }
         }
