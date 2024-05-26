@@ -2,8 +2,9 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
-use Kanvas\Apps\Repositories\AppsRepository;
 use Illuminate\Support\Facades\Schedule;
+use Illuminate\Support\Facades\Schema;
+use Kanvas\Apps\Repositories\AppsRepository;
 use Kanvas\Connectors\Jobs\MailCaddieLabJob;
 
 /*
@@ -21,6 +22,7 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::job(new MailCaddieLabJob(AppsRepository::findFirstByKey(getenv('CADDIE_APP_KEY'))))
-        ->everySecond();
-
+if (Schema::hasTable('apps')) {
+    Schedule::job(new MailCaddieLabJob(AppsRepository::findFirstByKey(getenv('CADDIE_APP_KEY'))))
+            ->everySecond();
+}
