@@ -4,7 +4,7 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Kanvas\Apps\Repositories\AppsRepository;
 use Illuminate\Support\Facades\Schedule;
-use Kanvas\Users\Jobs\MailCaddieLabJob;
+use Kanvas\Connectors\Jobs\MailCaddieLabJob;
 
 /*
 |--------------------------------------------------------------------------
