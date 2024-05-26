@@ -88,7 +88,7 @@ class VariantsChannelsTest extends TestCase
             'description' => fake()->text,
             'sku' => fake()->time,
             'products_id' => $productId,
-            'warehouse' => $warehouseData
+            'warehouses' => [$warehouseData]
         ];
         $response = $this->graphQL('
         mutation($data: VariantsInput!) {
@@ -242,7 +242,7 @@ class VariantsChannelsTest extends TestCase
             'description' => fake()->text,
             'sku' => fake()->time,
             'products_id' => $productId,
-            'warehouse' => $warehouseData
+            'warehouses' => [$warehouseData]
         ];
         $response = $this->graphQL('
         mutation($data: VariantsInput!) {

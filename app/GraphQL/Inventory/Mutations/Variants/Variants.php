@@ -7,7 +7,6 @@ namespace App\GraphQL\Inventory\Mutations\Variants;
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Repositories\ChannelRepository;
-use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction as AddToWarehouse;
@@ -23,6 +22,7 @@ use Kanvas\Inventory\Variants\Repositories\VariantsRepository;
 use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
+use Kanvas\Inventory\Warehouses\Services\WarehouseService;
 
 class Variants
 {
@@ -46,29 +46,34 @@ class Variants
         if (isset($req['input']['attributes'])) {
             $variantModel->addAttributes(auth()->user(), $req['input']['attributes']);
         }
-        if (! $variantDto->warehouse_id) {
-            $variantDto->warehouse_id = Warehouses::getDefault($company)->getId();
-        }
-        $warehouse = WarehouseRepository::getById($variantDto->warehouse_id, $company);
 
-        if (isset($req['input']['warehouse']['status'])) {
-            $status = StatusRepository::getById(
-                (int) $req['input']['warehouse']['status']['id'],
-                $company
-            )->getId();
+        if (isset($req['input']['warehouses'])) {
+            foreach ($req['input']['warehouses'] as $warehouseData) {
+                $warehouse = WarehouseRepository::getById((int) $warehouseData['id'], $company);
+
+                WarehouseService::addToWarehouses(
+                    $variantModel,
+                    $warehouse,
+                    $company,
+                    $warehouseData
+                );
+            }
         } else {
-            $status = Status::getDefault($company);
+            $warehouse = Warehouses::getDefault($company);
+
+            WarehouseService::addToWarehouses(
+                $variantModel,
+                $warehouse,
+                $company,
+                []
+            );
         }
-        $req['input']['warehouse']['status_id'] = $status ? $status->getId() : null;
 
         if (! empty($variantDto->files)) {
             foreach ($variantDto->files as $file) {
                 $variantModel->addFileFromUrl($file['url'], $file['name']);
             }
         }
-        $variantWarehouses = VariantsWarehouses::viaRequest($req['input']['warehouse'] ?? []);
-
-        (new AddToWarehouse($variantModel, $warehouse, $variantWarehouses))->execute();
 
         if (isset($req['input']['channels'])) {
             foreach ($req['input']['channels'] as $variantChannel) {
@@ -104,9 +109,8 @@ class Variants
             $variant->addAttributes(auth()->user(), $req['input']['attributes']);
         }
 
-        if (isset($req['input']['warehouse'])) {
-            $warehouse = WarehouseRepository::getById((int) $req['input']['warehouse']['warehouse_id'], $company);
-            VariantService::updateWarehouseVariant($variant, $warehouse, $req['input']['warehouse']);
+        if (isset($req['input']['warehouses'])) {
+            WarehouseService::updateWarehouseVariant($variant, auth()->user(), $req['input']['warehouses']);
         }
 
         return $variant;
@@ -134,7 +138,7 @@ class Variants
         if (isset($req['input']['status'])) {
             $req['input']['status_id'] = StatusRepository::getById((int) $req['input']['status']['id'], $company)->getId();
         }
-        $variantWarehouses = VariantsWarehouses::viaRequest($req['input']);
+        $variantWarehouses = VariantsWarehouses::viaRequest($variant, $warehouse, $req['input']);
 
         (new AddToWarehouse($variant, $warehouse, $variantWarehouses))->execute();
 
@@ -155,7 +159,6 @@ class Variants
     }
 
     /**
-     * @todo Remove and use softdelete.
      * removeToWarehouse.
      */
     public function removeToWarehouse(mixed $root, array $req): VariantModel
@@ -163,9 +166,9 @@ class Variants
         $company = auth()->user()->getCurrentCompany();
 
         $variant = VariantsRepository::getById((int) $req['id'], $company);
-
         $warehouse = WarehouseRepository::getById($req['warehouse_id'], $company);
-        $variant->warehouses()->detach($warehouse);
+
+        WarehouseService::removeVariantWarehouses($variant, $warehouse, auth()->user());
 
         return $variant;
     }

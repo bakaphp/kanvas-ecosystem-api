@@ -278,7 +278,7 @@ class ProductsTest extends TestCase
             'description' => fake()->text,
             'products_id' => $id,
             'sku' => fake()->time,
-            'warehouse' => $warehouseData,
+            'warehouses' => [$warehouseData],
             'attributes' => [
                 [
                     'name' => fake()->name,
@@ -296,6 +296,7 @@ class ProductsTest extends TestCase
                 products_id
             }
         }', ['data' => $data]);
+
         $this->assertArrayHasKey('id', $variantResponse->json()['data']['createVariant']);
     }
 
@@ -397,7 +398,7 @@ class ProductsTest extends TestCase
             'description' => fake()->text,
             'products_id' => $id,
             'sku' => fake()->time,
-            'warehouse' => $warehouseData,
+            'warehouses' => [$warehouseData]
         ];
         $variantResponse = $this->graphQL('
         mutation($data: VariantsInput!) {

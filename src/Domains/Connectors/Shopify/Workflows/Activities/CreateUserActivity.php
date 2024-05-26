@@ -56,7 +56,8 @@ class CreateUserActivity extends Activity
         ];
 
         $customer = $client->Customer->post($customer);
-        $user->set(CustomFieldEnum::USER_SHOPIFY_ID->value, $customer['id']);
+        $shopifyUserKey = CustomFieldEnum::USER_SHOPIFY_ID->value . '-' . $app->getId();
+        $user->set($shopifyUserKey, $customer['id']);
 
         return [
             'status' => 'success',

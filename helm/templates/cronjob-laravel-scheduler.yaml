@@ -27,7 +27,7 @@ spec:
                   - key: phpini
                     path: phpupdate.ini
           containers:
-            - name: {{.Values.deployments.api.containerName}}
+            - name: {{.Values.deployments.laravelScheduler.containerName}}
               image: {{.Values.apiImage}}
               imagePullPolicy: Always
               volumeMounts:
