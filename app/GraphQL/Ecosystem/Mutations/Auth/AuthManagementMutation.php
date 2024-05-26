@@ -24,6 +24,7 @@ use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class AuthManagementMutation
@@ -52,7 +53,7 @@ class AuthManagementMutation
                 'email' => $email,
                 'password' => $password,
                 'ip' => $request->ip(),
-                'deviceId' => $deviceId
+                'deviceId' => $deviceId,
             ])
         );
 
@@ -197,6 +198,15 @@ class AuthManagementMutation
         $tokenResponse = $registeredUser->createToken('kanvas-login')->toArray();
 
         $request = request();
+
+        $registeredUser->fireWorkflow(
+            WorkflowEnum::REQUEST_FORGOT_PASSWORD->value,
+            true,
+            [
+                'app' => app(Apps::class),
+                'profile' => $user,
+            ]
+        );
 
         return true;
     }
