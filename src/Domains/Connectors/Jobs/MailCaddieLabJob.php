@@ -16,7 +16,6 @@ use Illuminate\Queue\SerializesModels;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 
-
 class MailCaddieLabJob implements ShouldQueue
 {
     use Dispatchable;
@@ -42,7 +41,7 @@ class MailCaddieLabJob implements ShouldQueue
             );
             $notification->setSubject('Join to Caddie Lab');
             echo " Sending email to " . $user->email . "\n";
-            if (!$user->get('paid_subscription')) {
+            if (! $user->get('paid_subscription')) {
                 Notification::route('mail', $user->email)->notify($notification);
             }
         }
@@ -56,7 +55,7 @@ class MailCaddieLabJob implements ShouldQueue
                 $user
             );
             $notification->setSubject('Join to Caddie Lab');
-            if (!$user->get('paid_subscription')) {
+            if (! $user->get('paid_subscription')) {
                 Notification::route('mail', $user->email)->notify($notification);
             }
         }

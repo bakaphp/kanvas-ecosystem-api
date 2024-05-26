@@ -23,7 +23,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 if (Schema::hasTable('apps')) {
-    if(getenv('CADDIE_APP_KEY')) {
+    if (getenv('CADDIE_APP_KEY')) {
         Schedule::job(new MailCaddieLabJob(AppsRepository::findFirstByKey(getenv('CADDIE_APP_KEY'))))
             ->everySecond();
     }
