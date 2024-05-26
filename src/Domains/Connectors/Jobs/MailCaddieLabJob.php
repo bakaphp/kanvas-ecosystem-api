@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Users\Jobs;
+namespace Kanvas\Connectors\Jobs;
 
 use Baka\Contracts\Queue\QueueableJobInterface;
 use Illuminate\Contracts\Queue\ShouldQueue;
