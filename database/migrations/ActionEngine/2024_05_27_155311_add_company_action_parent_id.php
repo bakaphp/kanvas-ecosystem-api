@@ -12,7 +12,7 @@ return new class () extends Migration {
     {
         Schema::table('companies_actions', function (Blueprint $table) {
             // Ensure 'parent_id' and 'id' have the same type
-            $table->bigInteger('parent_id')->nullable()->after('users_id')->index();
+            $table->unsignedBigInteger('parent_id')->nullable()->after('users_id')->index();
             $table->string('path')->nullable()->after('parent_id')->index();
 
             // Add the foreign key constraint
