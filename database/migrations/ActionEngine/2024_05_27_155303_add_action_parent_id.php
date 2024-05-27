@@ -18,8 +18,6 @@ return new class () extends Migration {
             // Add the foreign key constraint
             $table->foreign('parent_id')->references('id')->on('actions')->cascadeOnDelete();
         });
-
-
     }
 
     /**

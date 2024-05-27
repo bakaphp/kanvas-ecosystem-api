@@ -29,6 +29,5 @@ return new class () extends Migration {
             $table->dropColumn('parent_id');
             $table->dropColumn('path');
         });
-
     }
 };
