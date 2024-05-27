@@ -6,6 +6,7 @@ namespace Domains\ActionEngine\Actions\Models;
 
 use Baka\Traits\UuidTrait;
 use Kanvas\ActionEngine\Models\BaseModel;
+use Nevadskiy\Tree\AsTree;
 
 /**
  * Class Action.
@@ -16,6 +17,8 @@ use Kanvas\ActionEngine\Models\BaseModel;
  * @property int $companies_id
  * @property int $users_id
  * @property int $pipelines_id
+ * @property int $parent_id
+ * @property string path
  * @property string $name
  * @property string $slug
  * @property string $description
@@ -29,6 +32,7 @@ use Kanvas\ActionEngine\Models\BaseModel;
 class Action extends BaseModel
 {
     use UuidTrait;
+    use AsTree;
 
     protected $table = 'actions';
     protected $guarded = [];
