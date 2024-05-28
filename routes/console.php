@@ -21,10 +21,3 @@ use Kanvas\Connectors\Jobs\MailCaddieLabJob;
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
-
-if (Schema::hasTable('apps')) {
-    if (getenv('CADDIE_APP_KEY')) {
-        Schedule::job(new MailCaddieLabJob(AppsRepository::findFirstByKey(getenv('CADDIE_APP_KEY'))))
-            ->daily();
-    }
-}

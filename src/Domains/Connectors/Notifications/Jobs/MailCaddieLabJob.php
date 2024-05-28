@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Internal\Jobs;
+namespace Kanvas\Connectors\Notifications\Jobs;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
