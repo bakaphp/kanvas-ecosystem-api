@@ -38,7 +38,7 @@ class MailCaddieLabJob implements ShouldQueue
         $this->sendMails($peoples, 'join-caddie');
     }
 
-    public function sendMails(Collection  $peoples, string $template)
+    public function sendMails(Collection $peoples, string $template)
     {
         foreach ($peoples as $people) {
             $email = $people->emails()->first();
