@@ -4,18 +4,17 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Jobs;
 
-use Baka\Contracts\Queue\QueueableJobInterface;
+use Baka\Traits\KanvasJobsTrait;
+use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Support\Facades\Notification;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Notifications\Templates\Blank;
-use Kanvas\Users\Repositories\UsersRepository;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Baka\Traits\KanvasJobsTrait;
-use Illuminate\Bus\Queueable;
-
+use Illuminate\Support\Facades\Notification;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Notifications\Templates\Blank;
 
 class MailCaddieLabJob implements ShouldQueue
 {
@@ -32,32 +31,28 @@ class MailCaddieLabJob implements ShouldQueue
 
     public function handle()
     {
-        $users = UsersRepository::getUsersByDaysCreated(7, $this->app);
-        foreach ($users as $user) {
-            $notification = new Blank(
-                'join-caddie',
-                [],
-                ['mail'],
-                $user
-            );
-            $notification->setSubject('Join to Caddie Lab');
-            echo " Sending email to " . $user->email . "\n";
-            if (!$user->get('paid_subscription')) {
-                Notification::route('mail', $user->email)->notify($notification);
-            }
-        }
+        $peoples = PeoplesRepository::getUsersByDaysCreated(7, $this->app);
+        $this->sendMails($peoples, 'join-caddie');
 
-        $users = UsersRepository::getUsersByDaysCreated(28, $this->app);
-        foreach ($users as $user) {
+        $peoples = PeoplesRepository::getUsersByDaysCreated(28, $this->app);
+        $this->sendMails($peoples, 'join-caddie');
+    }
+
+    public function sendMails(Collection  $peoples, string $template)
+    {
+        foreach ($peoples as $people) {
+            $email = $people->emails()->first();
+            $url = $this->app->get('billing_url') . '/' . '?email=' . $email->value . '&paid=false';
             $notification = new Blank(
-                'deal-caddie',
-                [],
+                $template,
+                ['membershipUpgradeUrl' => $url],
                 ['mail'],
-                $user
+                $people
             );
             $notification->setSubject('Join to Caddie Lab');
-            if (!$user->get('paid_subscription')) {
-                Notification::route('mail', $user->email)->notify($notification);
+            echo ' Sending email to ' . $email->value . "\n";
+            if (! $user->get('paid_subscription')) {
+                Notification::route('mail', $email->value)->notify($notification);
             }
         }
     }

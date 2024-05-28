@@ -14,6 +14,9 @@ use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleRelationship;
+use Kanvas\Apps\Models\Apps;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 
 class PeoplesRepository
 {
@@ -49,6 +52,13 @@ class PeoplesRepository
             ->where('p.companies_id', $company->getId())
             ->where('p.is_deleted', 0)
             ->first();
+    }
+
+    public static function getByDaysCreated(int $days, Apps $app): Collection
+    {
+        return People::where(DB::raw('DATEDIFF(NOW(), created_at)'), '=', $days)
+            ->where('apps_id', $app->getId())
+            ->get();
     }
 
     public static function findByEmailOrCreate(string $email, UserInterface $user, CompanyInterface $company, ?string $name): People
