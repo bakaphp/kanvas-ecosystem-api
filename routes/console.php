@@ -25,6 +25,6 @@ Artisan::command('inspire', function () {
 if (Schema::hasTable('apps')) {
     if (getenv('CADDIE_APP_KEY')) {
         Schedule::job(new MailCaddieLabJob(AppsRepository::findFirstByKey(getenv('CADDIE_APP_KEY'))))
-            ->everySecond();
+            ->daily();
     }
 }
