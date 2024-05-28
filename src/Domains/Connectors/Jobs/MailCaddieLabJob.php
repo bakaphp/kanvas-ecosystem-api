@@ -31,10 +31,10 @@ class MailCaddieLabJob implements ShouldQueue
 
     public function handle()
     {
-        $peoples = PeoplesRepository::getUsersByDaysCreated(7, $this->app);
+        $peoples = PeoplesRepository::getByDaysCreated(7, $this->app);
         $this->sendMails($peoples, 'join-caddie');
 
-        $peoples = PeoplesRepository::getUsersByDaysCreated(28, $this->app);
+        $peoples = PeoplesRepository::getByDaysCreated(28, $this->app);
         $this->sendMails($peoples, 'join-caddie');
     }
 
