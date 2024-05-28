@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ce0a69d9849d8ce6fd49f842a9750fc3",
+    "content-hash": "2939262e81b0fe33577c46164f677afb",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -2503,16 +2503,16 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.357.0",
+            "version": "v0.356.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
-                "reference": "c84b0ac2191d56d40d43bc18e62b37a2781040a9"
+                "reference": "8e22b0a6f661f2db3f99abb6ee5a1dcf28d370e7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/c84b0ac2191d56d40d43bc18e62b37a2781040a9",
-                "reference": "c84b0ac2191d56d40d43bc18e62b37a2781040a9",
+                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/8e22b0a6f661f2db3f99abb6ee5a1dcf28d370e7",
+                "reference": "8e22b0a6f661f2db3f99abb6ee5a1dcf28d370e7",
                 "shasum": ""
             },
             "require": {
@@ -2541,9 +2541,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.357.0"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.356.0"
             },
-            "time": "2024-05-27T01:02:20+00:00"
+            "time": "2024-05-18T01:10:18+00:00"
         },
         {
             "name": "google/auth",
@@ -6170,6 +6170,68 @@
                 "source": "https://github.com/nette/utils/tree/v4.0.4"
             },
             "time": "2024-01-17T16:50:36+00:00"
+        },
+        {
+            "name": "nevadskiy/laravel-tree",
+            "version": "0.5.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/nevadskiy/laravel-tree.git",
+                "reference": "3b09382e19f3035ee263a641707309fbf8867650"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/nevadskiy/laravel-tree/zipball/3b09382e19f3035ee263a641707309fbf8867650",
+                "reference": "3b09382e19f3035ee263a641707309fbf8867650",
+                "shasum": ""
+            },
+            "require": {
+                "laravel/framework": "^8.79|^9.0|^10.0|^11.0",
+                "php": "^7.3|^8.0"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": "^3.0",
+                "orchestra/testbench": "^6.25|^7.0|^8.0|^v9.0.0",
+                "phpunit/phpunit": "^9.0|^10.5"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Nevadskiy\\Tree\\TreeServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Nevadskiy\\Tree\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Nevadskiy",
+                    "email": "nevadskiy@gmail.com"
+                }
+            ],
+            "description": "Tree-like structure for Eloquent models.",
+            "keywords": [
+                "eloquent",
+                "hierarchy",
+                "laravel",
+                "ltree",
+                "materialized path",
+                "path",
+                "tree"
+            ],
+            "support": {
+                "issues": "https://github.com/nevadskiy/laravel-tree/issues",
+                "source": "https://github.com/nevadskiy/laravel-tree/tree/0.5.0"
+            },
+            "time": "2024-03-14T15:34:24+00:00"
         },
         {
             "name": "nikic/php-parser",
