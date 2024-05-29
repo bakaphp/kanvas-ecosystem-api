@@ -7,6 +7,7 @@ namespace Kanvas\Apps\Support;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Contracts\HashTableInterface;
+use Illuminate\Support\Facades\Config;
 
 class SmtpRuntimeConfiguration
 {
@@ -24,15 +25,30 @@ class SmtpRuntimeConfiguration
     /**
      * Load SMTP settings from the given source.
      */
-    protected function loadSmtpSettingsFromSource(string $provider, HashTableInterface $source): void
+    protected function loadSmtpSettingsFromSource(string $provider, HashTableInterface $source): string
     {
-        config([
-            "mail.mailers.{$provider}.host" => $source->get('smtp_host'),
-            "mail.mailers.{$provider}.port" => $source->get('smtp_port'),
-            "mail.mailers.{$provider}.username" => $source->get('smtp_username'),
-            "mail.mailers.{$provider}.password" => $source->get('smtp_password'),
-            "mail.mailers.{$provider}.encryption" => $source->get('smtp_encryption') ?? 'tls'
-        ]);
+        $fromAddress = $this->getFromEmail();
+        $config = [
+            'driver' => $source->get('smtp_driver') ?? 'smtp',
+            'host' => $source->get('smtp_host'),
+            'port' => $source->get('smtp_port'),
+            'from' => [
+                'address' => $fromAddress['address'],
+                'name' => $fromAddress['name'],
+            ],
+            'encryption' => $source->get('smtp_encryption') ?? 'tls',
+            'username' => $source->get('smtp_username'),
+            'password' => $source->get('smtp_password'),
+        ];
+
+        Config::set('mail.mailers.' . $provider, $config);
+
+        return $provider;
+    }
+
+    protected function resetMailConfig(): void
+    {
+        Config::set('mail', config('mail.default'));
     }
 
     /**
@@ -57,6 +73,8 @@ class SmtpRuntimeConfiguration
      */
     public function loadSmtpSettings(): string
     {
+        $this->resetMailConfig();
+
         if ($this->company !== null && $this->company->get('smtp_host')) {
             $this->loadCompanySettings();
 
