@@ -27,15 +27,10 @@ class SmtpRuntimeConfiguration
      */
     protected function loadSmtpSettingsFromSource(string $provider, HashTableInterface $source): string
     {
-        $fromAddress = $this->getFromEmail();
         $config = [
-            'driver' => 'smtp',
+            'transport' => 'smtp',
             'host' => $source->get('smtp_host'),
             'port' => $source->get('smtp_port'),
-            'from' => [
-                'address' => $fromAddress['address'],
-                'name' => $fromAddress['name'],
-            ],
             'encryption' => $source->get('smtp_encryption') ?? 'tls',
             'username' => $source->get('smtp_username'),
             'password' => $source->get('smtp_password'),
@@ -47,10 +42,6 @@ class SmtpRuntimeConfiguration
         return $provider;
     }
 
-    protected function resetMailConfig(): void
-    {
-        Config::set('mail', config('mail.default'));
-    }
 
     /**
      * Load SMTP settings from the app.
@@ -74,8 +65,6 @@ class SmtpRuntimeConfiguration
      */
     public function loadSmtpSettings(): string
     {
-        $this->resetMailConfig();
-
         if ($this->company !== null && $this->company->get('smtp_host')) {
             return $this->loadCompanySettings();
         } elseif ($this->app->get('smtp_host')) {
@@ -92,8 +81,8 @@ class SmtpRuntimeConfiguration
     {
         if ($this->company !== null && $this->company->get('from_email_address')) {
             return [
-                'name' => $this->company->get('from_email_name'),
-                'address' => $this->company->get('from_email_address'),
+                'name' => $this->company->get('from_email_name') ?? config('mail.from.name'),
+                'address' => $this->company->get('from_email_address') ?? config('mail.from.address'),
             ];
         }
 

@@ -149,7 +149,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
         $fromEmail = $fromMail['address'];
         $fromName = $fromMail['name'];
-
+ 
         $mailMessage = (new MailMessage())
                 ->mailer($mailer)
                 ->from($fromEmail, $fromName)
