@@ -6,6 +6,8 @@ namespace Kanvas\Inventory\Products\Models;
 
 use Awobaz\Compoships\Compoships;
 use Baka\Traits\HasCompositePrimaryKeyTrait;
+use Baka\Traits\NoAppRelationshipTrait;
+use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Models\BaseModel;
@@ -22,10 +24,12 @@ use Kanvas\Inventory\Models\BaseModel;
 class ProductsCategories extends BaseModel
 {
     use HasCompositePrimaryKeyTrait;
+    use NoAppRelationshipTrait;
+    use NoCompanyRelationshipTrait;
     use Compoships;
 
     protected $table = 'products_categories';
-    protected $guarded = [
+    protected $fillable = [
         'products_id',
         'categories_id'
     ];
