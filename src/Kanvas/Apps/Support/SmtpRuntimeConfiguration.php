@@ -29,7 +29,7 @@ class SmtpRuntimeConfiguration
     {
         $fromAddress = $this->getFromEmail();
         $config = [
-            'driver' => $source->get('smtp_driver') ?? 'smtp',
+            'driver' => 'smtp',
             'host' => $source->get('smtp_host'),
             'port' => $source->get('smtp_port'),
             'from' => [
@@ -39,6 +39,7 @@ class SmtpRuntimeConfiguration
             'encryption' => $source->get('smtp_encryption') ?? 'tls',
             'username' => $source->get('smtp_username'),
             'password' => $source->get('smtp_password'),
+            'timeout' => null,
         ];
 
         Config::set('mail.mailers.' . $provider, $config);
@@ -54,17 +55,17 @@ class SmtpRuntimeConfiguration
     /**
      * Load SMTP settings from the app.
      */
-    protected function loadAppSettings(): void
+    protected function loadAppSettings(): string
     {
-        $this->loadSmtpSettingsFromSource($this->appSmtp, $this->app);
+        return $this->loadSmtpSettingsFromSource($this->appSmtp, $this->app);
     }
 
     /**
      * Load SMTP settings from the company config.
      */
-    protected function loadCompanySettings(): void
+    protected function loadCompanySettings(): string
     {
-        $this->loadSmtpSettingsFromSource($this->companySmtp, $this->company);
+        return $this->loadSmtpSettingsFromSource($this->companySmtp, $this->company);
     }
 
     /**
@@ -76,13 +77,9 @@ class SmtpRuntimeConfiguration
         $this->resetMailConfig();
 
         if ($this->company !== null && $this->company->get('smtp_host')) {
-            $this->loadCompanySettings();
-
-            return $this->companySmtp;
+            return $this->loadCompanySettings();
         } elseif ($this->app->get('smtp_host')) {
-            $this->loadAppSettings();
-
-            return $this->appSmtp;
+            return $this->loadAppSettings();
         }
 
         return $this->defaultSmtp;
