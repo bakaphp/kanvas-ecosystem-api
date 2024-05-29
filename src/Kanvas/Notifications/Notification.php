@@ -40,6 +40,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     protected ?UserInterface $fromUser = null;
     protected ?UserInterface $toUser = null;
     protected ?CompanyInterface $company = null;
+    public ?array $pathAttachment = null;
 
     public array $channels = [
         'mail',
@@ -149,7 +150,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
         $fromEmail = $fromMail['address'];
         $fromName = $fromMail['name'];
- 
+
         $mailMessage = (new MailMessage())
                 ->mailer($mailer)
                 ->from($fromEmail, $fromName)
