@@ -74,7 +74,7 @@ class Products extends BaseModel
     {
         return $this->belongsToMany(
             Categories::class,
-            'products_categories',
+            ProductsCategories::class,
             'products_id',
             'categories_id'
         );

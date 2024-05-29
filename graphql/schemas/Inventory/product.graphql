@@ -72,6 +72,7 @@ input ProductInputUpdate {
     status: StatusReferenceInput
     attributes: [ProductAttributesInput!]
     files: [FilesystemInputUrl!]
+    categories: [ProductCategoriesReferenceInput!]
 }
 
 extend type Mutation @guard {
