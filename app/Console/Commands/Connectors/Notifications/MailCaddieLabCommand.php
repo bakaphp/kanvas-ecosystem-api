@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Console\Commands\Notifications;
+namespace App\Console\Commands\Connectors\Notifications;
 
 use Illuminate\Console\Command;
 use Kanvas\Apps\Repositories\AppsRepository;
