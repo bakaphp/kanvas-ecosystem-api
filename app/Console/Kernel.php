@@ -10,6 +10,7 @@ use Spatie\Health\Commands\ScheduleCheckHeartbeatCommand;
 use Kanvas\Connectors\Notifications\Jobs\MailCaddieLabJob;
 use Kanvas\Apps\Repositories\AppsRepository;
 use App\Console\Commands\MailCaddieLabCommand;
+
 class Kernel extends ConsoleKernel
 {
     /**
