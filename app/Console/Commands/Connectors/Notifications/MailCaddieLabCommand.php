@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Console\Commands;
+namespace App\Console\Commands\Notifications;
 
 use Illuminate\Console\Command;
-use Kanvas\Connectors\Notifications\Jobs\MailCaddieLabJob;
 use Kanvas\Apps\Repositories\AppsRepository;
+use Kanvas\Connectors\Notifications\Jobs\MailCaddieLabJob;
 
 class MailCaddieLabCommand extends Command
 {

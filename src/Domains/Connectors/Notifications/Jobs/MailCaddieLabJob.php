@@ -45,7 +45,7 @@ class MailCaddieLabJob implements ShouldQueue
             $url = $this->app->get('billing_url') . '/' . '?email=' . $email->value . '&paid=false';
             $notification = new Blank(
                 $template,
-                ['membershipUpgradeUrl' => $url],
+                ['membershipUpgradeUrl' => $url, 'app' => $this->app],
                 ['mail'],
                 $people
             );
