@@ -25,4 +25,5 @@ class AddCategoryAction
             ]
         );
     }
+
 }

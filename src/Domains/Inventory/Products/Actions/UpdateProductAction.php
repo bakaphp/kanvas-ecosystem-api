@@ -65,10 +65,10 @@ class UpdateProductAction
             if (! empty($this->productDto->categories)) {
                 $this->product->productsCategories()->forceDelete();
 
-                foreach($this->productDto->categories as $category) {
+                foreach ($this->productDto->categories as $category) {
                     (new AddCategoryAction(
                         $this->product,
-                        CategoriesRepository::getById((int) $category['id'],$this->product->company)
+                        CategoriesRepository::getById((int) $category['id'], $this->product->company)
                     ))->execute();
                 }
             }
