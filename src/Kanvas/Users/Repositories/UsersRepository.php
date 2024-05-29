@@ -99,11 +99,11 @@ class UsersRepository
     {
         $app = $app ?? app(Apps::class);
 
-        return Users::join('users_associated_apps', 'users_associated_apps.users_id', 'users.id')
-                ->where(DB::raw('DATEDIFF(CURDATE(), users_associated_apps.created_at)'), '=', $days)
-                ->select('users.*')
-                ->groupBy('users.id')
-                ->get();
+        return Users::join('users_associated_apps', 'users_associated_apps.users_id', '=', 'users.id')
+            ->whereRaw('DATEDIFF(CURDATE(), users_associated_apps.created_at) = ?', [$days])
+            ->select('users.*')
+            ->groupBy('users.id')
+            ->get();
     }
 
     /**
