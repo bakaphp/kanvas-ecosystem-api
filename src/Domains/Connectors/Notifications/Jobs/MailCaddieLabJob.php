@@ -35,7 +35,7 @@ class MailCaddieLabJob implements ShouldQueue
         $this->sendMails($peoples, 'join-caddie');
 
         $peoples = PeoplesRepository::getByDaysCreated(28, $this->app);
-        $this->sendMails($peoples, 'join-caddie');
+        $this->sendMails($peoples, 'deal-caddie');
     }
 
     public function sendMails(Collection $peoples, string $template)
