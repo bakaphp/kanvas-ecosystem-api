@@ -13,8 +13,6 @@ class Kernel extends ConsoleKernel
     /**
      * Define the application's command schedule.
      *
-     * @param  \Illuminate\Console\Scheduling\Schedule  $schedule
-     *
      * @return void
      */
     protected function schedule(Schedule $schedule)
@@ -22,6 +20,9 @@ class Kernel extends ConsoleKernel
         $schedule->command(RunHealthChecksCommand::class)->everyMinute();
         $schedule->command(DispatchQueueCheckJobsCommand::class)->everyMinute();
         $schedule->command(ScheduleCheckHeartbeatCommand::class)->everyMinute();
+        /*         $schedule->command(MailCaddieLabCommand::class, [getenv('CADDIE_APP_KEY')])
+                        ->dailyAt('13:00')
+                        ->timezone('America/Santo_Domingo') ; */
     }
 
     /**

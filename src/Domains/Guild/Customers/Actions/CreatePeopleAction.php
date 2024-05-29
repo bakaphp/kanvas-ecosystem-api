@@ -28,6 +28,7 @@ class CreatePeopleAction
         $company = $this->peopleData->branch->company()->firstOrFail();
 
         $attributes = [
+            'apps_id' => $this->peopleData->app->getId(),
             'users_id' => $this->peopleData->user->getId(),
             'firstname' => $this->peopleData->firstname,
             'middlename' => $this->peopleData->middlename,
