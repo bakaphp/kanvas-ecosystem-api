@@ -51,9 +51,9 @@ class MailCaddieLabJob implements ShouldQueue
                 $people
             );
             $notification->setSubject($subject);
-            echo ' Sending email to ' . $email->value . "\n";
             if (! $people->get('paid_subscription')) {
                 $mail = $this->email ?? $email->value;
+                echo ' Sending email to ' . $mail . "\n";
                 Notification::route('mail', $mail)->notify($notification);
                 if ($this->email) {
                     break;
