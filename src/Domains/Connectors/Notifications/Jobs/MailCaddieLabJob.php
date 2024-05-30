@@ -25,7 +25,8 @@ class MailCaddieLabJob implements ShouldQueue
     use Queueable;
 
     public function __construct(
-        public Apps $app
+        public Apps $app,
+        public ?string $email = null
     ) {
     }
 
@@ -52,7 +53,11 @@ class MailCaddieLabJob implements ShouldQueue
             $notification->setSubject($subject);
             echo ' Sending email to ' . $email->value . "\n";
             if (! $people->get('paid_subscription')) {
-                Notification::route('mail', $email->value)->notify($notification);
+                $mail = $this->email ?? $email->value;
+                Notification::route('mail', $mail)->notify($notification);
+                if ($this->email) {
+                    break;
+                }
             }
         }
     }
