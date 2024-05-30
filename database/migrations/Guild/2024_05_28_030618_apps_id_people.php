@@ -12,7 +12,7 @@ return new class () extends Migration {
     {
         Schema::table('peoples', function (Blueprint $table) {
             //
-            $table->bigInteger('apps_id')->unsigned()->nullable()->after('companies_id');
+            $table->bigInteger('apps_id')->unsigned()->nullable()->index()->after('companies_id');
         });
     }
 
