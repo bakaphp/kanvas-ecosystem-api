@@ -42,7 +42,7 @@ class MailCaddieLabJob implements ShouldQueue
     {
         foreach ($peoples as $people) {
             $email = $people->emails()->first();
-            $url = $baseUrl. '/' . '?email=' . $email->value . '&paid=false';
+            $url = $baseUrl . '/' . '?email=' . $email->value . '&paid=false';
             $notification = new Blank(
                 $template,
                 ['membershipUpgradeUrl' => $url, 'app' => $this->app],
