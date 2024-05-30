@@ -7,8 +7,10 @@ namespace Kanvas\Guild\Customers\Repositories;
 use Baka\Contracts\CompanyInterface;
 use Baka\Traits\SearchableTrait;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
@@ -49,6 +51,13 @@ class PeoplesRepository
             ->where('p.companies_id', $company->getId())
             ->where('p.is_deleted', 0)
             ->first();
+    }
+
+    public static function getByDaysCreated(int $days, Apps $app): Collection
+    {
+        return People::whereRaw('DATEDIFF(NOW(), created_at) = ?', [$days])
+        ->where('apps_id', $app->getId())
+        ->get();
     }
 
     public static function findByEmailOrCreate(string $email, UserInterface $user, CompanyInterface $company, ?string $name): People

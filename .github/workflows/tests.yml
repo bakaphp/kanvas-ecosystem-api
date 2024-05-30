@@ -28,6 +28,9 @@ jobs:
       DB_WORKFLOW_DATABASE: workflows
       DB_WORKFLOW_USERNAME: root
       DB_WORKFLOW_PASSWORD: password
+      DB_ACTION_ENGINE_DATABASE: action_engine
+      DB_ACTION_ENGINE_USERNAME: root
+      DB_ACTION_ENGINE_PASSWORD: password
       DB_COMMERCE_DATABASE: commerce
       DB_COMMERCE_USERNAME: root
       DB_COMMERCE_PASSWORD: password
@@ -134,6 +137,10 @@ jobs:
       - name: Setup WORKFLOW DB
         run: |
           mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS workflow;'
+          
+      - name: Setup ACTION ENGINE DB
+        run: |
+          mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS action_engine;'
           
       - name: Setup COMMERCE DB
         run: |

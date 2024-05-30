@@ -1,0 +1,39 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Domains\ActionEngine\Actions\Models;
+
+use Baka\Traits\UuidTrait;
+use Kanvas\ActionEngine\Models\BaseModel;
+use Nevadskiy\Tree\AsTree;
+
+/**
+ * Class Action.
+ *
+ * @property int $id
+ * @property string $uuid
+ * @property int $apps_id
+ * @property int $companies_id
+ * @property int $users_id
+ * @property int $pipelines_id
+ * @property int $parent_id
+ * @property string path
+ * @property string $name
+ * @property string $slug
+ * @property string $description
+ * @property string $icon
+ * @property string $form_fields
+ * @property string $form_config
+ * @property int is_active
+ * @property int collects_info
+ * @property int is_published
+ */
+class Action extends BaseModel
+{
+    use UuidTrait;
+    use AsTree;
+
+    protected $table = 'actions';
+    protected $guarded = [];
+}

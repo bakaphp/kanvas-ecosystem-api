@@ -75,7 +75,10 @@ class CreateProductAction
             if ($this->productDto->categories) {
                 foreach ($this->productDto->categories as $category) {
                     $category = CategoriesRepository::getById((int) $category['id'], $this->productDto->company);
-                    $products->categories()->attach($category);
+                    (new AddCategoryAction(
+                        $products,
+                        $category
+                    ))->execute();
                 }
             }
 
