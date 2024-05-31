@@ -2,6 +2,7 @@
 
 namespace Kanvas\Notifications\Templates;
 
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Notifications\Notification;
 
 /**
@@ -14,7 +15,7 @@ class ResetPassword extends Notification
     public function getData(): array
     {
         //replace url for app link
-        $resetUrl = $this->app->url . '/reset-password';
+        $resetUrl = $this->app->get(AppSettingsEnums::RESET_LINK_URL->getValue()) ?? $this->app->url . '/reset-password';
 
         return [
            ...parent::getData(),

@@ -13,7 +13,7 @@ class MailCaddieLabCommand extends Command
     public function handle()
     {
         $this->info('Sending internal mail to Caddie Lab');
-        dump($this->argument('email'));
+        //dump($this->argument('email'));
         $app = AppsRepository::findFirstByKey($this->argument('apps_id'));
         $email = $this->argument('email');
         MailCaddieLabJob::dispatch($app, $email);
