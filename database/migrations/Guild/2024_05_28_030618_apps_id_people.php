@@ -11,10 +11,9 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('peoples', function (Blueprint $table) {
-            //
+
             $table->bigInteger('apps_id')->unsigned()->nullable()->index()->after('companies_id');
         });
-        
     }
 
     /**
@@ -23,7 +22,7 @@ return new class () extends Migration {
     public function down(): void
     {
         Schema::table('peoples', function (Blueprint $table) {
-            //
+
             $table->dropColumn('apps_id');
         });
     }
