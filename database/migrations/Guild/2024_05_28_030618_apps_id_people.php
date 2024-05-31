@@ -14,6 +14,7 @@ return new class () extends Migration {
             //
             $table->bigInteger('apps_id')->unsigned()->nullable()->index()->after('companies_id');
         });
+        
     }
 
     /**

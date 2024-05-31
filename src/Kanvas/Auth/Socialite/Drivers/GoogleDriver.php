@@ -25,7 +25,7 @@ class GoogleDriver implements DriverInterface
     {
         $payload = $this->client->verifyIdToken($token);
         if (! $payload) {
-            throw new AuthenticationException('Invalid token');
+            throw new AuthenticationException('Invalid token for google login user');
         }
         $this->client->setAccessToken(
             $token

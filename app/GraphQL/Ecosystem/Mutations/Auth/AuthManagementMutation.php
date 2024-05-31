@@ -172,7 +172,8 @@ class AuthManagementMutation
         $data = $req['data'];
         $token = $data['token'];
         $provider = $data['provider'];
-        $user = SocialManager::getDriver($provider)->getUserFromToken($token);
+        $app = app(Apps::class);
+        $user = SocialManager::getDriver($provider, $app)->getUserFromToken($token);
         $socialLogin = new SocialLoginAction($user, $provider);
 
         $loggedUser = $socialLogin->execute();
