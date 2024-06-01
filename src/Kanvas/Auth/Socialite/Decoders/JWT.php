@@ -184,7 +184,6 @@ class JWT
         }
 
         throw new DomainException('Algorithm not supported');
-
     }
 
     /**
