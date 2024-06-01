@@ -6,9 +6,9 @@ namespace Kanvas\Auth\Socialite\Drivers;
 
 use Baka\Support\Random;
 use GuzzleHttp\Client;
-use Kanvas\Auth\Socialite\ASDecoder;
 use Kanvas\Auth\Socialite\Contracts\DriverInterface;
 use Kanvas\Auth\Socialite\DataTransferObject\User;
+use Kanvas\Auth\Socialite\Decoders\ASDecoder;
 
 /**
  * @todo delegate the implementation of to a package

@@ -2,11 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Auth\Socialite;
+namespace Kanvas\Auth\Socialite\Decoders;
 
 use Exception;
 use Firebase\JWT\JWK;
-use Firebase\JWT\JWT;
 
 /**
  * Decode Sign In with Apple identity token, and produce an ASPayload for
@@ -34,7 +33,8 @@ class ASDecoder
         $alg = $publicKeyData['alg'];
 
         //$payload = JWT::decode($identityToken, $publicKey, [$alg]);
-        $payload = JWT::decode($identityToken, $publicKey);
+        //print_r($publicKeyData); die();
+        $payload = JWT::decode($identityToken, $publicKey, [$alg]);
 
         return $payload;
     }
@@ -54,14 +54,14 @@ class ASDecoder
 
         $parsedKeyData = $decodedPublicKeys['keys'][0];
         $parsedPublicKey = JWK::parseKey($parsedKeyData);
-        /*  $publicKeyDetails = openssl_pkey_get_details($parsedPublicKey);
+        $publicKeyDetails = openssl_pkey_get_details($parsedPublicKey->getKeyMaterial());
 
-         if (! isset($publicKeyDetails['key'])) {
-             throw new Exception('Invalid public key details.');
-         } */
+        if (! isset($publicKeyDetails['key'])) {
+            throw new Exception('Invalid public key details.');
+        }
 
         return [
-            'publicKey' => $parsedPublicKey->getKeyMaterial(),
+            'publicKey' => $publicKeyDetails['key'],
             'alg' => $parsedKeyData['alg'],
         ];
     }
