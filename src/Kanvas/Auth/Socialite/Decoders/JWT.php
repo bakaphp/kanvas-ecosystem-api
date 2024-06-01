@@ -22,7 +22,7 @@ use UnexpectedValueException;
  * @license  http://opensource.org/licenses/BSD-3-Clause 3-clause BSD
  *
  * @link     https://github.com/firebase/php-jwt
- * 
+ *
  * @todo HATE THIS but using old version cause it works :( , need to move to the new version
  */
 class JWT
@@ -99,12 +99,12 @@ class JWT
         if (empty(static::$supported_algs[$header->alg])) {
             throw new UnexpectedValueException('Algorithm not supported');
         }
-        if (!in_array($header->alg, $allowed_algs)) {
+        if (! in_array($header->alg, $allowed_algs)) {
             throw new UnexpectedValueException('Algorithm not allowed');
         }
         if (is_array($key) || $key instanceof \ArrayAccess) {
             if (isset($header->kid)) {
-                if (!isset($key[$header->kid])) {
+                if (! isset($key[$header->kid])) {
                     throw new UnexpectedValueException('"kid" invalid, unable to lookup correct key');
                 }
                 $key = $key[$header->kid];
@@ -164,7 +164,7 @@ class JWT
      *
      * @throws DomainException Unsupported algorithm was specified
      */
-    public static function sign($msg, $key, $alg = 'HS256')
+    public static function sign($msg, $key, $alg = 'HS256'): string
     {
         if (empty(static::$supported_algs[$alg])) {
             throw new DomainException('Algorithm not supported');
@@ -176,7 +176,7 @@ class JWT
             case 'openssl':
                 $signature = '';
                 $success = openssl_sign($msg, $signature, $key, $algorithm);
-                if (!$success) {
+                if (! $success) {
                     throw new DomainException('OpenSSL unable to sign data');
                 } else {
                     return $signature;
@@ -212,6 +212,7 @@ class JWT
                 } elseif ($success === 0) {
                     return false;
                 }
+
                 // returns 1 on success, 0 on failure, -1 on error.
                 throw new DomainException(
                     'OpenSSL error: ' . openssl_error_string()
@@ -245,7 +246,7 @@ class JWT
      */
     public static function jsonDecode($input)
     {
-        if (version_compare(PHP_VERSION, '5.4.0', '>=') && !(defined('JSON_C_VERSION') && PHP_INT_SIZE > 4)) {
+        if (version_compare(PHP_VERSION, '5.4.0', '>=') && ! (defined('JSON_C_VERSION') && PHP_INT_SIZE > 4)) {
             /** In PHP >=5.4.0, json_decode() accepts an options parameter, that allows you
              * to specify that large ints (like Steam Transaction IDs) should be treated as
              * strings, rather than the PHP default behaviour of converting them to floats.
@@ -266,6 +267,7 @@ class JWT
         } elseif ($obj === null && $input !== 'null') {
             throw new DomainException('Null result with non-null input');
         }
+
         return $obj;
     }
 
@@ -286,6 +288,7 @@ class JWT
         } elseif ($json === 'null' && $input !== null) {
             throw new DomainException('Null result with non-null input');
         }
+
         return $json;
     }
 
@@ -303,6 +306,7 @@ class JWT
             $padlen = 4 - $remainder;
             $input .= str_repeat('=', $padlen);
         }
+
         return base64_decode(strtr($input, '-_', '+/'));
     }
 
@@ -332,8 +336,9 @@ class JWT
             JSON_ERROR_STATE_MISMATCH => 'Invalid or malformed JSON',
             JSON_ERROR_CTRL_CHAR => 'Unexpected control character found',
             JSON_ERROR_SYNTAX => 'Syntax error, malformed JSON',
-            JSON_ERROR_UTF8 => 'Malformed UTF-8 characters' //PHP >= 5.3.3
+            JSON_ERROR_UTF8 => 'Malformed UTF-8 characters', //PHP >= 5.3.3
         ];
+
         throw new DomainException(
             isset($messages[$errno])
             ? $messages[$errno]
@@ -353,6 +358,7 @@ class JWT
         if (function_exists('mb_strlen')) {
             return mb_strlen($str, '8bit');
         }
+
         return strlen($str);
     }
 }
