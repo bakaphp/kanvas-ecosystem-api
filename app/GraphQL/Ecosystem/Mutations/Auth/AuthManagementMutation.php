@@ -19,6 +19,7 @@ use Kanvas\Auth\Socialite\SocialManager;
 use Kanvas\Auth\Traits\AuthTrait;
 use Kanvas\Auth\Traits\TokenTrait;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
@@ -57,7 +58,7 @@ class AuthManagementMutation
             ])
         );
 
-        return $user->createToken(name: 'kanvas-login', deviceId: $deviceId)->toArray();
+        return $user->createToken(name: AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue(), deviceId: $deviceId)->toArray();
     }
 
     /**
@@ -132,7 +133,7 @@ class AuthManagementMutation
         $request = request();
 
         $registeredUser = $user->execute();
-        $tokenResponse = $registeredUser->createToken('kanvas-login')->toArray();
+        $tokenResponse = $registeredUser->createToken(AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue())->toArray();
 
         return [
             'user' => $registeredUser,
@@ -151,7 +152,7 @@ class AuthManagementMutation
         }
         $user = UsersRepository::getByEmail($token->claims()->get('email'));
 
-        return $user->createToken('kanvas-login')->toArray();
+        return $user->createToken(AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue())->toArray();
     }
 
     /**
@@ -177,7 +178,7 @@ class AuthManagementMutation
         $socialLogin = new SocialLoginAction($user, $provider, $app);
 
         $loggedUser = $socialLogin->execute();
-        $tokenResponse = $loggedUser->createToken(name: 'kanvas-login')->toArray();
+        $tokenResponse = $loggedUser->createToken(name: AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue())->toArray();
 
         return $tokenResponse;
     }
@@ -196,7 +197,7 @@ class AuthManagementMutation
         $user = new ForgotPasswordService();
 
         $registeredUser = $user->forgot($request['data']['email']);
-        $tokenResponse = $registeredUser->createToken('kanvas-login')->toArray();
+        $tokenResponse = $registeredUser->createToken(AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue())->toArray();
 
         $request = request();
 
