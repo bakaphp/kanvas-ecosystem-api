@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\Socialite\Drivers;
 
+use Baka\Support\Random;
 use Google_Client;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Auth\Socialite\Contracts\DriverInterface;
@@ -34,7 +35,7 @@ class GoogleDriver implements DriverInterface
         return User::from([
             'id' => $payload['sub'],
             'email' => $payload['email'],
-            'nickname' => $payload['name'],
+            'nickname' => Random::generateDisplayName($payload['name']),
             'name' => $payload['name'],
             'token' => $token,
         ]);

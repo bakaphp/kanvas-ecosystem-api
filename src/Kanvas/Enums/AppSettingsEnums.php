@@ -23,6 +23,8 @@ enum AppSettingsEnums implements EnumsInterface
     case DEFAULT_SIGNUP_ROLE;
     case INVITE_EMAIL_SUBJECT;
     case RESET_LINK_URL;
+    case SOCIALITE_PROVIDER_FACEBOOK;
+    case SOCIALITE_PROVIDER_GOOGLE;
 
     /**
      * Get value.
@@ -45,6 +47,8 @@ enum AppSettingsEnums implements EnumsInterface
             self::DEFAULT_SIGNUP_ROLE => 'default_signup_role',
             self::INVITE_EMAIL_SUBJECT => 'invite_email_subject',
             self::RESET_LINK_URL => 'app_reset_link_url',
+            self::SOCIALITE_PROVIDER_FACEBOOK => 'facebook_social_config',
+            self::SOCIALITE_PROVIDER_GOOGLE => 'google_social_config',
         };
     }
 }
