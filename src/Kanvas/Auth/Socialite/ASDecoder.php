@@ -54,11 +54,11 @@ class ASDecoder
 
         $parsedKeyData = $decodedPublicKeys['keys'][0];
         $parsedPublicKey = JWK::parseKey($parsedKeyData);
-       /*  $publicKeyDetails = openssl_pkey_get_details($parsedPublicKey);
+        /*  $publicKeyDetails = openssl_pkey_get_details($parsedPublicKey);
 
-        if (! isset($publicKeyDetails['key'])) {
-            throw new Exception('Invalid public key details.');
-        } */
+         if (! isset($publicKeyDetails['key'])) {
+             throw new Exception('Invalid public key details.');
+         } */
 
         return [
             'publicKey' => $parsedPublicKey->getKeyMaterial(),
