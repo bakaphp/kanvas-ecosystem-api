@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\Socialite\Drivers;
 
+use Baka\Support\Random;
 use Google_Client;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Auth\Socialite\Contracts\DriverInterface;
@@ -25,7 +26,7 @@ class GoogleDriver implements DriverInterface
     {
         $payload = $this->client->verifyIdToken($token);
         if (! $payload) {
-            throw new AuthenticationException('Invalid token');
+            throw new AuthenticationException('Invalid token for google login user');
         }
         $this->client->setAccessToken(
             $token
@@ -34,7 +35,7 @@ class GoogleDriver implements DriverInterface
         return User::from([
             'id' => $payload['sub'],
             'email' => $payload['email'],
-            'nickname' => $payload['name'],
+            'nickname' => Random::generateDisplayName($payload['name']),
             'name' => $payload['name'],
             'token' => $token,
         ]);

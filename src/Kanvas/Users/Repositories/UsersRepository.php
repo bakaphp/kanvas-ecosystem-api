@@ -9,7 +9,6 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -59,6 +58,16 @@ class UsersRepository
     {
         return Users::where('email', $email)
                 ->firstOrFail();
+    }
+
+    public static function getUserOfAppByEmail(string $email, AppInterface $app = null): Users
+    {
+        return Users::select('users.*')
+            ->join('users_associated_apps', 'users_associated_apps.users_id', 'users.id')
+            ->where('users_associated_apps.apps_id', $app->getId())
+            ->where('users.email', $email)
+            ->where('users_associated_apps.is_deleted', StateEnums::NO->getValue())
+            ->firstOrFail();
     }
 
     /**
