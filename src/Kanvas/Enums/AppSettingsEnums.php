@@ -25,6 +25,7 @@ enum AppSettingsEnums implements EnumsInterface
     case RESET_LINK_URL;
     case SOCIALITE_PROVIDER_FACEBOOK;
     case SOCIALITE_PROVIDER_GOOGLE;
+    case SOCIALITE_PROVIDER_APPLE;
 
     /**
      * Get value.
@@ -49,6 +50,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::RESET_LINK_URL => 'app_reset_link_url',
             self::SOCIALITE_PROVIDER_FACEBOOK => 'facebook_social_config',
             self::SOCIALITE_PROVIDER_GOOGLE => 'google_social_config',
+            self::SOCIALITE_PROVIDER_APPLE => 'apple_social_config',
         };
     }
 }

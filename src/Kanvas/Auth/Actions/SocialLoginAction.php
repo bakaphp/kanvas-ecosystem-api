@@ -14,14 +14,13 @@ use Kanvas\Users\Models\Users;
 
 class SocialLoginAction
 {
-    protected Apps $app;
-
     /**
      * Construct function.
      */
     public function __construct(
         protected SocialiteUser $socialUser,
-        protected string $provider
+        protected string $provider,
+        protected Apps $app
     ) {
     }
 
@@ -48,7 +47,7 @@ class SocialLoginAction
                 ];
                 $userData = RegisterInput::fromArray($userData);
 
-                $registeredUser = new RegisterUsersAction($userData);
+                $registeredUser = new RegisterUsersAction($userData, $this->app);
                 $existedUser = $registeredUser->execute();
             }
 

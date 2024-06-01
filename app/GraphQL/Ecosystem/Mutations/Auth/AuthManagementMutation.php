@@ -174,7 +174,7 @@ class AuthManagementMutation
         $provider = $data['provider'];
         $app = app(Apps::class);
         $user = SocialManager::getDriver($provider, $app)->getUserFromToken($token);
-        $socialLogin = new SocialLoginAction($user, $provider);
+        $socialLogin = new SocialLoginAction($user, $provider, $app);
 
         $loggedUser = $socialLogin->execute();
         $tokenResponse = $loggedUser->createToken(name: 'kanvas-login')->toArray();

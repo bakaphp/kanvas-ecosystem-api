@@ -37,9 +37,10 @@ class CreateUserAction
      * Construct function.
      */
     public function __construct(
-        protected RegisterInput $data
+        protected RegisterInput $data,
+        ?Apps $app = null
     ) {
-        $this->app = app(Apps::class);
+        $this->app = $app ?? app(Apps::class);
     }
 
     /**
