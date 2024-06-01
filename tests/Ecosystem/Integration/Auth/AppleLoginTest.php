@@ -24,7 +24,7 @@ final class AppleLoginTest extends TestCase
         $socialManager = SocialManager::getDriver(SourceEnum::APPLE->value, $app);
 
         $user = $socialManager->getUserFromToken($token);
-        
+
         $socialLogin = new SocialLoginAction($user, SourceEnum::APPLE->value, $app);
         $loggedUser = $socialLogin->execute();
         $tokenResponse = $loggedUser->createToken(name: 'test-loging-apple')->toArray();
