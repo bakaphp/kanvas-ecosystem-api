@@ -164,7 +164,7 @@ class JWT
      *
      * @throws DomainException Unsupported algorithm was specified
      */
-    public static function sign($msg, $key, $alg = 'HS256'): string
+    public static function sign($msg, $key, $alg = 'HS256')
     {
         if (empty(static::$supported_algs[$alg])) {
             throw new DomainException('Algorithm not supported');
@@ -182,6 +182,9 @@ class JWT
                     return $signature;
                 }
         }
+
+        throw new DomainException('Algorithm not supported');
+
     }
 
     /**
