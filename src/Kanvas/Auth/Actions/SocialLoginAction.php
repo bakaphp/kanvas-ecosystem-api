@@ -50,7 +50,7 @@ class SocialLoginAction
                 $registeredUser = new RegisterUsersAction($userData, $this->app);
                 $existedUser = $registeredUser->execute();
             }
-            
+
             $userAppProfile = $existedUser->getAppProfile($this->app);
             //$userLinkedSource = UserLinkedSources::createSocial($this->socialUser, $existedUser, $source);
             UserLinkedSources::firstOrCreate([
