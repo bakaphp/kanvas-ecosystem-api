@@ -25,6 +25,7 @@ class CreateOrganizationAction
         return Organization::firstOrCreate([
             'name' => $this->organizationData->name,
             'companies_id' => $this->organizationData->company->getId(),
+            'apps_id' => $this->organizationData->app->getId(),
         ], [
             'address' => $this->organizationData->address,
             'users_id' => $this->organizationData->user->getId(),

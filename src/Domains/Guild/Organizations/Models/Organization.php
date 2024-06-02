@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Organizations\Models;
 
-use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Kanvas\Guild\Customers\Models\People;
@@ -15,6 +14,7 @@ use Kanvas\Guild\Models\BaseModel;
  *
  * @property int $id
  * @property string $uuid
+ * @property int|null $apps_id
  * @property int $users_id
  * @property int $companies_id
  * @property string $name
@@ -23,7 +23,6 @@ use Kanvas\Guild\Models\BaseModel;
 class Organization extends BaseModel
 {
     use UuidTrait;
-    use NoAppRelationshipTrait;
 
     protected $table = 'organizations';
     protected $guarded = [];

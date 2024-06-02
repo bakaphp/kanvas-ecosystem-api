@@ -35,7 +35,6 @@ class People extends BaseModel
 {
     use UuidTrait;
     use Searchable;
-    use NoAppRelationshipTrait;
 
     protected $table = 'peoples';
     protected $guarded = [];

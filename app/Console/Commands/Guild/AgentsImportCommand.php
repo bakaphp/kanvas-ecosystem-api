@@ -118,6 +118,7 @@ class AgentsImportCommand extends Command
                 [
                     'users_id' => $user->getId(),
                     'companies_id' => $company->getId(),
+                    'apps_id' => $app->getId(),
                 ],
                 [
                     'name' => $record['Agent Name'],

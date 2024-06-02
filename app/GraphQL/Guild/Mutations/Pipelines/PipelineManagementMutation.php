@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Guild\Mutations\Pipelines;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Pipelines\Actions\CreatePipelineAction;
 use Kanvas\Guild\Pipelines\Actions\UpdatePipelineAction;
@@ -20,11 +21,13 @@ class PipelineManagementMutation
     {
         $user = auth()->user();
         $branch = $user->getCurrentBranch();
+        $app = app(Apps::class);
 
         $pipeline = new CreatePipelineAction(
             Pipeline::viaRequest(
                 $user,
                 $branch,
+                $app,
                 $req['input']
             )
         );
@@ -38,6 +41,7 @@ class PipelineManagementMutation
         $company = $user->getCurrentCompany();
         $branch = $user->getCurrentBranch();
         $id = (int) $req['id'];
+        $app = app(Apps::class);
 
         $pipeline = ModelsPipeline::getByIdFromCompany($id, $company);
 
@@ -46,6 +50,7 @@ class PipelineManagementMutation
             Pipeline::viaRequest(
                 $user,
                 $branch,
+                $app,
                 $req['input']
             )
         );

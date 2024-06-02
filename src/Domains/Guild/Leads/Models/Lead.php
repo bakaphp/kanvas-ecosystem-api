@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Models;
 
 use Baka\Support\Str;
-use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -36,6 +35,7 @@ use Laravel\Scout\Searchable;
  * @property string $uuid
  * @property int $users_id
  * @property int $companies_id
+ * @property int|null $apps_id
  * @property int $companies_branches_id
  * @property int $leads_receivers_id
  * @property int $leads_owner_id
@@ -61,7 +61,6 @@ class Lead extends BaseModel
 {
     use UuidTrait;
     use Searchable;
-    use NoAppRelationshipTrait;
     use FollowersTrait;
     use CanUseWorkflow;
 

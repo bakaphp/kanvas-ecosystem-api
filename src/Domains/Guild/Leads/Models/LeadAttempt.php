@@ -14,6 +14,7 @@ use Kanvas\Guild\Models\BaseModel;
  *
  * @property int $id
  * @property int $companies_id
+ * @property int|null $apps_id
  * @property int|null $leads_id
  * @property string $header
  * @property string $request
@@ -27,8 +28,6 @@ use Kanvas\Guild\Models\BaseModel;
  */
 class LeadAttempt extends BaseModel
 {
-    use NoAppRelationshipTrait;
-
     protected $table = 'leads_attempt';
     protected $guarded = [];
     protected $casts = [

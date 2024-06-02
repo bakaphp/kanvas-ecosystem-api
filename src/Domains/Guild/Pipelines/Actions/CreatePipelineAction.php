@@ -26,6 +26,7 @@ class CreatePipelineAction
         $pipeline = ModelsPipeline::firstOrCreate([
             'companies_id' => $this->pipelineData->branch->companies_id,
             'system_modules_id' => $this->pipelineData->systemModule->getId(),
+            'apps_id' => $this->pipelineData->systemModule->apps_id,
             'name' => $this->pipelineData->name,
             'is_deleted' => 0,
         ], [

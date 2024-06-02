@@ -20,6 +20,7 @@ use Kanvas\Users\Models\Users;
  * @property int $id
  * @property int $users_id
  * @property int $companies_id
+ * @property int|null $apps_id
  * @property string $name
  * @property string $users_linked_source_id
  * @property string $member_id
@@ -30,8 +31,6 @@ use Kanvas\Users\Models\Users;
  */
 class Agent extends BaseModel
 {
-    use NoAppRelationshipTrait;
-
     protected $table = 'agents';
     protected $guarded = [];
 
