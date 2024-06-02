@@ -38,7 +38,7 @@ class DeleteUsersRequestedCommand extends Command
         $app = Apps::find($appsId);
         $days = $app->get('days_to_delete') ?? 30;
         $users = RequestDeletedAccount::where('apps_id', $app->getId())
-                ->where(DB::raw('DATEDIFF(request_date, CURDATE())'), '>', $days) 
+                ->where(DB::raw('DATEDIFF(request_date, CURDATE())'), '>', $days)
                 ->where('is_deleted', 0)
                 ->get();
         foreach ($users as $user) {

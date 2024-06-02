@@ -18,7 +18,6 @@ use Kanvas\Models\BaseModel;
  */
 class RequestDeletedAccount extends BaseModel
 {
-    
     protected $table = 'request_deleted_accounts';
     protected $guarded = [];
 
