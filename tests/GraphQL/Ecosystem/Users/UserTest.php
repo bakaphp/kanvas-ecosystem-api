@@ -295,7 +295,5 @@ class UserTest extends TestCase
                 'requestDeleteAccount' => true,
             ],
         ]);
-
-
     }
 }
