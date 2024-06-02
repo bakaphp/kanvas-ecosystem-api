@@ -284,39 +284,6 @@ class UserTest extends TestCase
 
     public function testRequestDeleteAccount()
     {
-        // $loginData = self::loginData();
-        // $email = $loginData->getEmail();
-        // $password = $loginData->getPassword();
-
-        // $response = $this->graphQL(/** @lang GraphQL */
-        //     '
-        //     mutation register($data: RegisterInput!) {
-        //         register(data: $data) {
-        //           user{
-        //             email
-        //           }
-        //           token{
-        //               token
-        //               refresh_token
-        //               token_expires
-        //               refresh_token_expires
-        //               time
-        //               timezone
-        //           }
-        //         }
-        //       }
-        // ',
-        //     [
-        //     'data' => [
-        //         'email' => $email,
-        //         'password' => $password,
-        //         'password_confirmation' => $password,
-        //     ],
-        // ]
-        // );
-        // $user = Users::getByEmail($email);
-        // $this->actingAs($user, 'api');
-
         $this->graphQL(/** @lang GraphQL */
             '
             mutation requestDeleteAccount {
