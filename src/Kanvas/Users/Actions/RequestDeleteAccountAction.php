@@ -26,6 +26,5 @@ class RequestDeleteAccountAction
         ]);
 
         return true;
-
     }
 }
