@@ -11,27 +11,27 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('agents', function (Blueprint $table) {
-            $table->bigInteger('apps_id')->unsigned()->nullable()->index()->before('companies_id');
+            $table->bigInteger('apps_id')->unsigned()->nullable()->index()->after('companies_id');
         });
 
         Schema::table('leads_attempt', function (Blueprint $table) {
-            $table->bigInteger('apps_id')->unsigned()->nullable()->index()->before('companies_id');
+            $table->bigInteger('apps_id')->unsigned()->nullable()->index()->after('companies_id');
         });
 
         Schema::table('leads_receivers', function (Blueprint $table) {
-            $table->bigInteger('apps_id')->unsigned()->nullable()->index()->before('companies_id');
+            $table->bigInteger('apps_id')->unsigned()->nullable()->index()->after('companies_id');
         });
 
         Schema::table('leads_rotations', function (Blueprint $table) {
-            $table->bigInteger('apps_id')->unsigned()->nullable()->index()->before('companies_id');
+            $table->bigInteger('apps_id')->unsigned()->nullable()->index()->after('companies_id');
         });
 
         Schema::table('organizations', function (Blueprint $table) {
-            $table->bigInteger('apps_id')->unsigned()->nullable()->index()->before('companies_id');
+            $table->bigInteger('apps_id')->unsigned()->nullable()->index()->after('companies_id');
         });
 
         Schema::table('pipelines', function (Blueprint $table) {
-            $table->bigInteger('apps_id')->unsigned()->nullable()->index()->before('companies_id');
+            $table->bigInteger('apps_id')->unsigned()->nullable()->index()->after('companies_id');
         });
     }
 

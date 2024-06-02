@@ -45,6 +45,7 @@ class OrganizationManagementMutation
         $organizationData = new DataTransferObjectOrganization(
             $user->getCurrentCompany(),
             $user,
+            $app,
             $data['name'],
             $data['address'] ?? null
         );
