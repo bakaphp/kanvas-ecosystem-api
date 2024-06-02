@@ -175,6 +175,7 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
 
         $agent = new Agent();
         $agent->users_id = $user->getId();
+        $agent->apps_id = $app->getId();
         $agent->companies_id = $company->getId();
         $agent->name = $user->firstname . ' ' . $user->lastname;
         $agent->member_id = Agent::getNextAgentNumber($company);

@@ -121,6 +121,7 @@ class Setup
         LeadReceiver::firstOrCreate([
             'companies_branches_id' => $this->company->defaultBranch()->firstOrFail()->getId(),
             'companies_id' => $this->company->getId(),
+            'apps_id' => $this->app->getId(),
             'is_default' => StateEnums::YES->getValue(),
         ], [
             'users_id' => $this->user->getId(),

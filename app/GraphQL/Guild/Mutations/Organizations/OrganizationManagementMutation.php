@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Guild\Mutations\Organizations;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\Actions\UpdateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization as DataTransferObjectOrganization;
@@ -18,10 +19,12 @@ class OrganizationManagementMutation
     {
         $user = auth()->user();
         $data = $req['input'];
+        $app = app(Apps::class);
 
         $organizationData = new DataTransferObjectOrganization(
             $user->getCurrentCompany(),
             $user,
+            $app,
             $data['name'],
             $data['address'] ?? null
         );
@@ -35,8 +38,9 @@ class OrganizationManagementMutation
     {
         $user = auth()->user();
         $data = $req['input'];
+        $app = app(Apps::class);
 
-        $organization = Organization::getByIdFromCompany((int) $req['id'], $user->getCurrentCompany());
+        $organization = Organization::getByIdFromCompanyApp((int) $req['id'], $user->getCurrentCompany(), $app);
 
         $organizationData = new DataTransferObjectOrganization(
             $user->getCurrentCompany(),
@@ -53,8 +57,9 @@ class OrganizationManagementMutation
     public function delete(mixed $root, array $req): bool
     {
         $user = auth()->user();
+        $app = app(Apps::class);
 
-        $organization = Organization::getByIdFromCompany((int) $req['id'], $user->getCurrentCompany());
+        $organization = Organization::getByIdFromCompanyApp((int) $req['id'], $user->getCurrentCompany(), $app);
 
         return $organization->softDelete();
     }
@@ -62,9 +67,11 @@ class OrganizationManagementMutation
     public function restore(mixed $root, array $req): bool
     {
         $user = auth()->user();
+        $app = app(Apps::class);
 
         $organization = Organization::where('id', (int) $req['id'])
-            ->where('companies_id', $user->getCurrentCompany()->getId())
+            ->fromCompany($user->getCurrentCompany())
+            ->fromApp($app)
             ->firstOrFail();
 
         return $organization->restoreRecord();

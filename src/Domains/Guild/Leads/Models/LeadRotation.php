@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
 
-use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -15,6 +14,7 @@ use RuntimeException;
  * Class LeadRotation.
  *
  * @property int $id
+ * @property int|null $apps_id
  * @property int $companies_id
  * @property string $name
  * @property string $leads_rotations_email
@@ -25,8 +25,6 @@ use RuntimeException;
  */
 class LeadRotation extends BaseModel
 {
-    use NoAppRelationshipTrait;
-
     protected $table = 'leads_rotations';
     protected $guarded = [];
 

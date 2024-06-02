@@ -27,9 +27,6 @@ class CreateLeadAction
         protected ?LeadAttempt $leadAttempt = null,
         protected ?Apps $app = null
     ) {
-        /**
-         * @psalm-suppress MixedAssignment
-         */
         $this->app = $this->app ?? app(Apps::class);
         $this->company = $this->leadData->branch->company()->firstOrFail();
     }
@@ -88,8 +85,6 @@ class CreateLeadAction
             $this->leadAttempt->processed = 1;
             $this->leadAttempt->saveOrFail();
         }
-
-        //@todo add workflow
 
         return $newLead;
     }

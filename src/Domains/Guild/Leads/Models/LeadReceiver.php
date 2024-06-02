@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
 
-use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -16,6 +15,7 @@ use Kanvas\Guild\Rotations\Models\Rotation;
  *
  * @property int $id
  * @property string $uuid
+ * @property int|null $apps_id
  * @property int $companies_id
  * @property int|null $companies_branches_id
  * @property string $name
@@ -33,7 +33,6 @@ use Kanvas\Guild\Rotations\Models\Rotation;
 class LeadReceiver extends BaseModel
 {
     use UuidTrait;
-    use NoAppRelationshipTrait;
 
     protected $table = 'leads_receivers';
     protected $guarded = [];

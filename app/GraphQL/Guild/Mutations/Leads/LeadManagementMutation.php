@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Guild\Mutations\Leads;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadAttemptAction;
 use Kanvas\Guild\Leads\Actions\UpdateLeadAction;
@@ -19,18 +20,21 @@ class LeadManagementMutation
     public function create(mixed $root, array $req): ModelsLead
     {
         $user = auth()->user();
+        $app = app(Apps::class);
         $leadAttempt = new CreateLeadAttemptAction(
             $req,
             request()->headers->all(),
             $user->getCurrentCompany(),
+            $app,
             request()->ip(),
-            'API'
+            'API - Create'
         );
         $attempt = $leadAttempt->execute();
 
         $createLead = new CreateLeadAction(
             Lead::viaRequest($user, $req['input']),
-            $attempt
+            $attempt,
+            $app
         );
         $lead = $createLead->execute();
 
@@ -40,7 +44,9 @@ class LeadManagementMutation
     public function update(mixed $root, array $req): ModelsLead
     {
         $user = auth()->user();
+        $app = app(Apps::class);
 
+        //@todo get from app
         $lead = ModelsLead::getByIdFromBranch(
             $req['id'],
             $user->getCurrentBranch()
@@ -50,6 +56,7 @@ class LeadManagementMutation
             $req,
             request()->headers->all(),
             $user->getCurrentCompany(),
+            $app,
             request()->ip(),
             'API - Update'
         );
