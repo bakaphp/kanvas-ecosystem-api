@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Domains\ActionEngine\Engagements\Models;
+namespace Kanvas\ActionEngine\Engagements\Models;
 
 use Baka\Traits\UuidTrait;
 use Domains\ActionEngine\Actions\Models\CompanyAction;

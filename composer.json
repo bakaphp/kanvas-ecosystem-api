@@ -75,6 +75,7 @@
             "Kanvas\\Souk\\": "src/Domains/Souk",
             "Kanvas\\Workflow\\": "src/Domains/Workflow",
             "Kanvas\\Connectors\\": "src/Domains/Connectors",
+            "Kanvas\\ActionEngine\\": "src/Domains/ActionEngine",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }

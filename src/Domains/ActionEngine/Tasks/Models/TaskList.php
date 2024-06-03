@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Domains\ActionEngine\Tasks\Models;
+namespace Kanvas\ActionEngine\Tasks\Models;
 
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\ActionEngine\Models\BaseModel;
 
 /**
@@ -24,4 +25,9 @@ class TaskList extends BaseModel
 
     protected $table = 'company_task_list';
     protected $guarded = [];
+
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(TaskListItem::class, 'task_list_id')->orderBy('weight');
+    }
 }

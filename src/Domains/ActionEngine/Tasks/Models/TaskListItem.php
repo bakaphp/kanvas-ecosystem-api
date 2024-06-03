@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Domains\ActionEngine\Tasks\Models;
+namespace Kanvas\ActionEngine\Tasks\Models;
 
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Models\BaseModel;
 
 /**
@@ -29,5 +30,10 @@ class TaskListItem extends BaseModel
     public function task(): BelongsTo
     {
         return $this->belongsTo(TaskList::class, 'task_list_id');
+    }
+
+    public function action(): BelongsTo
+    {
+        return $this->belongsTo(CompanyAction::class, 'companies_action_id');
     }
 }
