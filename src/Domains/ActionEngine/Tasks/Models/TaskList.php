@@ -26,7 +26,7 @@ class TaskList extends BaseModel
 
     protected $table = 'company_task_list';
     protected $guarded = [];
-    
+
     protected $casts = [
         'config' => Json::class,
     ];
