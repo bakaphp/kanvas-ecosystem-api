@@ -134,7 +134,7 @@ class Variants
         $company = auth()->user()->getCurrentCompany();
         $variant = VariantsRepository::getById((int) $req['id'], $company);
 
-        $warehouse = WarehouseRepository::getById((int) $req['input']['warehouse_id']);
+        $warehouse = WarehouseRepository::getById((int) $req['input']['id']);
         if (isset($req['input']['status'])) {
             $req['input']['status_id'] = StatusRepository::getById((int) $req['input']['status']['id'], $company)->getId();
         }
@@ -153,7 +153,7 @@ class Variants
         $company = auth()->user()->getCurrentCompany();
 
         $variant = VariantsRepository::getById((int) $req['id'], $company);
-        $warehouse = WarehouseRepository::getById((int) $req['input']['warehouse_id'], $company);
+        $warehouse = WarehouseRepository::getById((int) $req['input']['id'], $company);
 
         return VariantService::updateWarehouseVariant($variant, $warehouse, $req['input']);
     }
