@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\ActionEngine\Tasks\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\ActionEngine\Models\BaseModel;
@@ -25,6 +26,10 @@ class TaskList extends BaseModel
 
     protected $table = 'company_task_list';
     protected $guarded = [];
+    
+    protected $casts = [
+        'config' => Json::class,
+    ];
 
     public function tasks(): HasMany
     {

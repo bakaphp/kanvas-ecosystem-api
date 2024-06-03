@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\ActionEngine\Tasks\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
@@ -26,6 +27,10 @@ class TaskListItem extends BaseModel
 
     protected $table = 'company_task_list_items';
     protected $guarded = [];
+
+    protected $casts = [
+        'config' => Json::class,
+    ];
 
     public function task(): BelongsTo
     {
