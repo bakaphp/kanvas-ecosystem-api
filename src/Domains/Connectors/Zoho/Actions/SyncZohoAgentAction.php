@@ -43,6 +43,10 @@ class SyncZohoAgentAction
         try {
             $user = Users::getByEmail($this->email);
             $user->getAppProfile($this->app);
+
+            $user->firstname = $firstName;
+            $user->lastname = $lastName;
+            $user->saveOrFail();
         } catch (ModelNotFoundException $e) {
             $user = (new CreateUserAction(
                 new RegisterInput(
