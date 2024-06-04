@@ -56,6 +56,7 @@ input PeopleParticipantInput {
 
 extend type Query @guard {
     peoples(
+        search: String @search
         where: _
             @whereConditions(columns: ["id", "uuid", "companies_id", "dob"])
         hasEmails: _
@@ -72,7 +73,7 @@ extend type Query @guard {
     ): [People!]!
         @paginate(
             model: "Kanvas\\Guild\\Customers\\Models\\People"
-            scopes: ["fromCompany"]
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
             defaultCount: 25
         )
     peopleRelationships(
