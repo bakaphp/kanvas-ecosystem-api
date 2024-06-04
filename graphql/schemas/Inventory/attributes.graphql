@@ -1,6 +1,7 @@
 input AttributeInput {
     name: String!
     values: [AttributesValueInput!]
+    slug: String
     is_visible: Boolean
     is_searchable: Boolean
     is_filtrable: Boolean
@@ -8,6 +9,7 @@ input AttributeInput {
 
 input AttributeUpdateInput {
     name: String
+    slug: String
     values: [AttributesValueInput!]
     is_visible: Boolean
     is_searchable: Boolean
@@ -22,6 +24,7 @@ type Attributes {
     id: ID!
     uuid: String
     name: String
+    slug: String
     created_at: String
     updated_at: String
     companies: [Company]
