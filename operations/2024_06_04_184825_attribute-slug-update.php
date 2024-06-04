@@ -4,7 +4,7 @@ use Baka\Support\Str;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use TimoKoerber\LaravelOneTimeOperations\OneTimeOperation;
 
-return new class extends OneTimeOperation
+return new class () extends OneTimeOperation
 {
     /**
      * Determine if the operation is being processed asynchronously.
