@@ -67,6 +67,7 @@ class SyncZohoAgentAction
                 'users_linked_source_id' => $zohoId,
                 'owner_id' => $ownerAgent ? $ownerAgent->member_id : null,
                 'status_id' => 1, // Active
+                'updated_at' => date('Y-m-d H:i:s'),
                 //'apps_id' => $this->app->getId(),
             ]
         );
