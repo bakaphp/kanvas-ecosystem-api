@@ -8,7 +8,7 @@ use Baka\Support\Str;
 use Illuminate\Console\Command;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 
-class KanvasInventoryDefaultUpdate extends Command
+class KanvasInventoryDataFix extends Command
 {
     /**
      * The name and signature of the console command.
