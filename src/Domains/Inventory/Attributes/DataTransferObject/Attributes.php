@@ -19,10 +19,10 @@ class Attributes extends Data
         public AppInterface $app,
         public UserInterface $user,
         public string $name,
+        public string $slug,
         public bool $isVisible = false,
         public bool $isSearchable = false,
         public bool $isFiltrable = false,
-        public string $slug
     ) {
     }
 
@@ -33,10 +33,10 @@ class Attributes extends Data
             app(Apps::class),
             auth()->user(),
             $request['name'],
+            $request['slug'] ?? Str::slug($request['name']),
             $request['is_visible'] ?? false,
             $request['is_searchable'] ?? false,
             $request['is_filtrable'] ?? false,
-            $request['slug'] ?? Str::slug($request['name'])
         );
     }
 }
