@@ -32,7 +32,7 @@ class SyncZohoAgentAction
 
         $name = explode(' ', $record->Name);
         $firstName = $name[0];
-        $lastName = $name[1] ?? '';
+        $lastName = implode(' ', array_slice($name, 1));
         $memberNumber = $record->Member_Number;
         $zohoId = $record->id;
         $owner = $record->Owner;
