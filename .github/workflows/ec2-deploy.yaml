@@ -19,5 +19,5 @@ jobs:
         host: ${{ secrets.AWS_EC2_HOST }}
         username: ${{ secrets.AWS_EC2_USERNAME }}
         key: ${{ secrets.AWS_EC2_PRIVATE_SSH_KEY }}
-        source: ${{ github.workspace }}
+        source: .
         target: ${{secrets.AWS_EC2_TARGET_DIR}}
