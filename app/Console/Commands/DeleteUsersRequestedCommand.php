@@ -34,14 +34,14 @@ class DeleteUsersRequestedCommand extends Command
     public function handle()
     {
         $appsId = $this->argument('apps_id');
-        if($appsId){
+        if ($appsId) {
             $app = Apps::findFirstOrFail($appsId);
             $this->info('Deleting user from app: ' . $app->name);
         }
         $days = $appsId ? $app->get('days_to_delete') : 30;
         $users = RequestDeletedAccount::when($appsId, function ($query) use ($appsId) {
-                    return $query->where('apps_id', $appsId);
-                })->where(DB::raw('DATEDIFF(request_date, CURDATE())'), '>', $days)
+            return $query->where('apps_id', $appsId);
+        })->where(DB::raw('DATEDIFF(request_date, CURDATE())'), '>', $days)
                 ->where('is_deleted', 0)
                 ->get();
         foreach ($users as $user) {
