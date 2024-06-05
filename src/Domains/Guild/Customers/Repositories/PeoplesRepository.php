@@ -53,6 +53,16 @@ class PeoplesRepository
             ->first();
     }
 
+    public static function getByValue(string $value, CompanyInterface $company): ?People
+    {
+        return People::from('peoples as p')
+            ->join('contacts as c', 'p.id', '=', 'c.peoples_id')
+            ->where('c.value', $value)
+            ->where('p.companies_id', $company->getId())
+            ->where('p.is_deleted', 0)
+            ->first();
+    }
+
     public static function getByDaysCreated(int $days, Apps $app): Collection
     {
         return People::whereRaw('DATEDIFF(NOW(), created_at) = ?', [$days])

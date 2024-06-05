@@ -29,7 +29,7 @@ class People extends Data
         public readonly DataCollection $contacts,
         #[DataCollectionOf(Address::class)]
         public readonly DataCollection $address,
-        public readonly int $id = 0,
+        public int $id = 0,
         #[WithCast(DateTimeInterfaceCast::class, format: 'Y-m-d')]
         public readonly ?DateTime $dob = null,
         public readonly ?string $facebook_contact_id = null,
@@ -37,7 +37,8 @@ class People extends Data
         public readonly ?string $apple_contact_id = null,
         public readonly ?string $linkedin_contact_id = null,
         public readonly ?string $middlename = null,
-        public readonly array $custom_fields = []
+        public readonly array $custom_fields = [],
+        public readonly ?string $created_at = null
     ) {
     }
 }

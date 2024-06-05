@@ -37,6 +37,7 @@ input PeopleInput {
     contacts: [ContactInput!]
     address: [AddressInput!]
     custom_fields: [CustomFieldEntityInput!]
+    created_at: DateDateTime
 }
 
 input PeopleParticipantInput {
@@ -102,5 +103,9 @@ extend type Mutation @guard {
     restorePeople(id: ID!): Boolean
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@restore"
+        )
+    importPeople(input: [PeopleInput!]!, companyId: Int!): String!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@import"
         )
 }
