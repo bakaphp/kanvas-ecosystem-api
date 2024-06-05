@@ -1,13 +1,16 @@
 name: Push to EC2
 
 on:
-  push:
-    branches:
-      - 'development'
+    push:
+      branches:
+        - 'development'
+  
+    workflow_dispatch:
 
 jobs:
   deploy:
     name: Deploy to EC2
+    environment: ${{ github.ref_name }}
     runs-on: ubuntu-latest
 
     steps:
