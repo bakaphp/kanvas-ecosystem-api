@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Social\Tags\Actions;
@@ -11,7 +12,7 @@ class CreateTagAction
     public function __construct(private TagData $tagData)
     {
     }
-    
+
     public function execute(): Tag
     {
         return Tag::create([
