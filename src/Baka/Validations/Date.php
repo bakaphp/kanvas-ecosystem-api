@@ -10,11 +10,6 @@ class Date
 {
     /**
      * Is validate date?
-     *
-     * @param string|null $date
-     * @param string $format
-     *
-     * @return bool
      */
     public static function isValid(?string $date, string $format = 'Y-m-d'): bool
     {
@@ -22,7 +17,10 @@ class Date
             return false;
         }
 
+        $format = trim($format);
+
         $d = DateTime::createFromFormat($format, $date);
+
         return $d && $d->format($format) === $date;
     }
 }

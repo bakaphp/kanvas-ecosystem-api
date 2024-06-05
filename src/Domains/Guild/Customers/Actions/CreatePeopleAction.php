@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Actions;
 
+use Baka\Validations\Date;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDataInput;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\Contact;
@@ -39,6 +40,10 @@ class CreatePeopleAction
             'facebook_contact_id' => $this->peopleData->facebook_contact_id,
             'apple_contact_id' => $this->peopleData->apple_contact_id,
         ];
+
+        if (Date::isValid($this->peopleData->created_at, 'Y-m-d H:i:s')) {
+            $attributes['created_at'] = date('Y-m-d H:i:s', strtotime($this->peopleData->created_at));
+        }
 
         //@todo how to avoid duplicated? should it be use or frontend?
         if ($this->peopleData->id) {
