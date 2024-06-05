@@ -14,6 +14,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
@@ -22,7 +23,11 @@ use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter as ImporterDto;
+
+use function Sentry\captureException;
+
 use Spatie\LaravelData\DataCollection;
+
 use Throwable;
 
 class CustomerImporterJob implements ShouldQueue, ShouldBeUnique
@@ -101,9 +106,9 @@ class CustomerImporterJob implements ShouldQueue, ShouldBeUnique
 
                 if ($people->contacts->count()) {
                     foreach ($people->contacts as $contact) {
-                        $customer = PeoplesRepository::getByValue($contact, $company);
+                        $customer = PeoplesRepository::getByValue($contact->value, $company);
                         if ($customer) {
-                            $people->id = $customer->getId();
+                            $people->id = $customer->id;
 
                             break;
                         }
@@ -113,7 +118,8 @@ class CustomerImporterJob implements ShouldQueue, ShouldBeUnique
                 $peopleSync = new CreatePeopleAction($people);
                 $peopleSync->execute();
             } catch (Throwable $e) {
-                // Log error
+                Log::error($e->getMessage());
+                captureException($e);
             }
         }
     }

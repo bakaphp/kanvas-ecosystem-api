@@ -41,7 +41,7 @@ class CreatePeopleAction
             'apple_contact_id' => $this->peopleData->apple_contact_id,
         ];
 
-        if (Date::isValid($this->peopleData->created_at, ' Y-m-d H:i:s')) {
+        if (Date::isValid($this->peopleData->created_at, 'Y-m-d H:i:s')) {
             $attributes['created_at'] = date('Y-m-d H:i:s', strtotime($this->peopleData->created_at));
         }
 

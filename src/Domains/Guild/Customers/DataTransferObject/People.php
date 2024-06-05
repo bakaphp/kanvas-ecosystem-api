@@ -24,7 +24,7 @@ class People extends Data
         public readonly CompaniesBranches $branch,
         public readonly UserInterface $user,
         public readonly string $firstname,
-        public readonly string $lastname,
+        public readonly ?string $lastname = null,
         #[DataCollectionOf(Contact::class)]
         public readonly DataCollection $contacts,
         #[DataCollectionOf(Address::class)]

@@ -45,21 +45,23 @@ class PeoplesRepository
          * @psalm-suppress MixedReturnStatement
          */
         return People::from('peoples as p')
-            ->join('contacts as c', 'p.id', '=', 'c.peoples_id')
+            ->join('peoples_contacts as c', 'p.id', '=', 'c.peoples_id')
             ->where('c.value', $email)
             ->where('c.contacts_types_id', ContactTypeEnum::EMAIL->value) // Assuming EMAIL is a constant in ContactsTypes model
             ->where('p.companies_id', $company->getId())
             ->where('p.is_deleted', 0)
+            ->select('p.*')
             ->first();
     }
 
     public static function getByValue(string $value, CompanyInterface $company): ?People
     {
         return People::from('peoples as p')
-            ->join('contacts as c', 'p.id', '=', 'c.peoples_id')
+            ->join('peoples_contacts as c', 'p.id', '=', 'c.peoples_id')
             ->where('c.value', $value)
             ->where('p.companies_id', $company->getId())
             ->where('p.is_deleted', 0)
+            ->select('p.*')
             ->first();
     }
 

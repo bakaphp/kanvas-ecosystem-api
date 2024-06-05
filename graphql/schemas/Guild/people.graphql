@@ -10,6 +10,11 @@ type People {
     dob: Date
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
+    files: [Filesystem!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
     custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 25
@@ -28,7 +33,7 @@ input PeopleInput {
     id: ID
     firstname: String!
     middlename: String
-    lastname: String!
+    lastname: String
     facebook_contact_id: String
     twitter_contact_id: String
     linkedin_contact_id: String
@@ -36,6 +41,7 @@ input PeopleInput {
     dob: String
     contacts: [ContactInput!]
     address: [AddressInput!]
+    files: [FilesystemInputUrl!]
     custom_fields: [CustomFieldEntityInput!]
     created_at: DateTime
 }
