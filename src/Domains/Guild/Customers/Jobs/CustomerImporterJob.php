@@ -106,7 +106,7 @@ class CustomerImporterJob implements ShouldQueue, ShouldBeUnique
 
                 if ($people->contacts->count()) {
                     foreach ($people->contacts as $contact) {
-                        $customer = PeoplesRepository::getByValue($contact->value, $company);
+                        $customer = PeoplesRepository::getByValue($contact->value, $company, $this->app);
                         if ($customer) {
                             $people->id = $customer->id;
 

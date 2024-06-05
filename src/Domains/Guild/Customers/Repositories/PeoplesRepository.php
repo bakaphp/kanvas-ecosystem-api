@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Repositories;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Traits\SearchableTrait;
 use Baka\Users\Contracts\UserInterface;
@@ -54,12 +55,13 @@ class PeoplesRepository
             ->first();
     }
 
-    public static function getByValue(string $value, CompanyInterface $company): ?People
+    public static function getByValue(string $value, CompanyInterface $company, AppInterface $app): ?People
     {
         return People::from('peoples as p')
             ->join('peoples_contacts as c', 'p.id', '=', 'c.peoples_id')
             ->where('c.value', $value)
             ->where('p.companies_id', $company->getId())
+            ->where('p.apps_id', $app->getId())
             ->where('p.is_deleted', 0)
             ->select('p.*')
             ->first();
