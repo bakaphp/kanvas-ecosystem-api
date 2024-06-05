@@ -1,0 +1,26 @@
+name: Push to EC2
+
+on:
+    push:
+      branches:
+        - 'development'
+  
+    workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    environment: ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the files
+        uses: actions/checkout@v2
+
+      - name: Deploy to EC2
+        uses: easingthemes/ssh-deploy@main
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.AWS_EC2_SSH_KEY }}
+          REMOTE_HOST: ${{ secrets.AWS_EC2_HOST }}
+          REMOTE_USER: ${{ secrets.AWS_EC2_USERNAME }}
+          TARGET: ${{ secrets.AWS_EC2_TARGET_DIR }}
