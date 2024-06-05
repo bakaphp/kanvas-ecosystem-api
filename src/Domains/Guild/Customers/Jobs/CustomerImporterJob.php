@@ -79,7 +79,6 @@ class CustomerImporterJob implements ShouldQueue, ShouldBeUnique
         $company = $this->branch->company()->firstOrFail();
 
         foreach ($this->importer as $customerData) {
-
             $people = People::from([
                 'app' => $this->app,
                 'branch' => $this->branch,
@@ -110,7 +109,6 @@ class CustomerImporterJob implements ShouldQueue, ShouldBeUnique
 
             $peopleSync = new CreatePeopleAction($people);
             $peopleSync->execute();
-
         }
     }
 }
