@@ -19,6 +19,8 @@ return new class () extends Migration {
             $table->dateTime('request_date');
             $table->integer('is_deleted')->default(0);
             $table->timestamps();
+            $table->index(['apps_id', 'users_id', 'request_date']);
+
         });
     }
 
