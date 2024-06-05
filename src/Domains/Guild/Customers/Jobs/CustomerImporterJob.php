@@ -23,6 +23,7 @@ use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter as ImporterDto;
 use Spatie\LaravelData\DataCollection;
+use Throwable;
 
 class CustomerImporterJob implements ShouldQueue, ShouldBeUnique
 {
@@ -79,6 +80,7 @@ class CustomerImporterJob implements ShouldQueue, ShouldBeUnique
         $company = $this->branch->company()->firstOrFail();
 
         foreach ($this->importer as $customerData) {
+            try{
             $people = People::from([
                 'app' => $this->app,
                 'branch' => $this->branch,
@@ -100,15 +102,18 @@ class CustomerImporterJob implements ShouldQueue, ShouldBeUnique
             if ($people->contacts->count()) {
                 foreach ($people->contacts as $contact) {
                     $customer = PeoplesRepository::getByValue($contact, $company);
+                    if ($customer) {
+                        $people->id = $customer->getId();
+                        break;
+                    }
                 }
-            }
-
-            if ($customer) {
-                $people->id = $customer->getId();
             }
 
             $peopleSync = new CreatePeopleAction($people);
             $peopleSync->execute();
+            } catch (Throwable $e) {
+                // Log error
+            }
         }
     }
 }
