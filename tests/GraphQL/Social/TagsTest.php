@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Social;
 
 use Baka\Support\Str;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\SystemModules\Models\SystemModules;
 use Tests\TestCase;
 
 class TagsTest extends TestCase
@@ -14,6 +17,36 @@ class TagsTest extends TestCase
         $input = [
             'name' => fake()->name(),
             'slug' => Str::slug(fake()->name()),
+            'weight' => random_int(1, 100),
+        ];
+        $this->graphQL(/** @lang GRAPHQL */
+            '
+                mutation createTag(
+                    $input: TagInput!
+                ) 
+                {
+                    createTag(input: $input) {
+                        id
+                        name
+                        slug
+                        weight
+                    }
+                }
+            ',
+            [
+                'input' => $input,
+            ]
+        )->assertJson([
+            'data' => [
+                'createTag' => $input,
+            ],
+        ]);
+    }
+
+    public function testCreateTagWithoutSlug()
+    {
+        $input = [
+            'name' => fake()->name(),
             'weight' => random_int(1, 100),
         ];
         $this->graphQL(/** @lang GRAPHQL */
@@ -181,6 +214,84 @@ class TagsTest extends TestCase
         )->assertJson([
             'data' => [
                 'followTag' => true,
+            ],
+        ]);
+    }
+
+    public function testAttachTagToMessage()
+    {
+
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+        Message::makeAllSearchable();
+
+        $response = $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        id
+                        message
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => $message,
+                    'message_verb' => $messageType->verb,
+                    'system_modules_id' => 1,
+                    'entity_id' => '1',
+                ],
+            ]
+        );
+        $systemModule = SystemModules::find(1);
+
+        $message = $response->json('data.createMessage');
+
+        $input = [
+            'name' => fake()->name(),
+            'slug' => Str::slug(fake()->name()),
+            'weight' => random_int(1, 100),
+        ];
+
+        $response = $this->graphQL(/** @lang GRAPHQL */
+            '
+                mutation createTag(
+                    $input: TagInput!
+                ) 
+                {
+                    createTag(input: $input) {
+                        id
+                        name
+                        slug
+                        weight
+                    }
+                }
+            ',
+            [
+                'input' => $input,
+            ]
+        );
+        $tag = $response->json('data.createTag');
+        $attach = [
+            'tag_id' => $tag['id'],
+            'system_module_name' => $systemModule->name,
+            'entity_id' => $message['id'],
+        ];
+        $this->graphQL(/** @lang GRAPHQL */
+            '
+                mutation attachTagToEntity(
+                    $input: AttachTagEntityInput!
+                ) 
+                {
+                    attachTagToEntity(input: $input)
+                }
+            ',
+            [
+                'input' => $attach,
+            ]
+        )->assertJson([
+            'data' => [
+                'attachTagToEntity' => true,
             ],
         ]);
     }

@@ -1,5 +1,4 @@
 input TagInput {
-    apps_id: ID
     name: String!
     slug: String
     weight: Int
@@ -7,13 +6,18 @@ input TagInput {
 
 type Tag {
     id: ID!
-    apps: App!
-    users: User
+    users: User!
     name: String!
     slug: String
     weight: Int
     created_at: String
     updated_at: String
+}
+
+input AttachTagEntityInput {
+    entity_id: ID!
+    tag_id: ID!
+    system_module_name: String!
 }
 
 extend type Mutation @guard {
@@ -32,6 +36,10 @@ extend type Mutation @guard {
     followTag(id: ID!): Boolean
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Tags\\TagsManagement@follow"
+        )
+    attachTagToEntity(input: AttachTagEntityInput!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Tags\\TagsManagement@attachTagToEntity"
         )
 }
 

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Mutations\Tags;
 
-use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Follows\Actions\FollowAction;
 use Kanvas\Social\Follows\Actions\UnFollowAction;
@@ -12,20 +11,13 @@ use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Social\Tags\Actions\CreateTagAction;
 use Kanvas\Social\Tags\DataTransferObjects\Tag as TagData;
 use Kanvas\Social\Tags\Models\Tag;
-use Kanvas\Users\Models\UsersAssociatedApps;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 class TagsManagement
 {
     public function create(mixed $root, array $request): Tag
     {
-        $appId = key_exists('apps_id', $request['input']) ? $request['input']['apps_id'] : app(Apps::class)->getId();
-
-        $app = UsersAssociatedApps::where('users_id', auth()->user()->getId())
-                ->where('apps_id', $appId)
-                ->firstOrFail();
-
-        $request['input']['slug'] = key_exists('slug', $request['input']) ? $request['input']['slug'] : Str::slug($request['input']['name']);
-        $request['input']['app'] = $app->app;
+        $request['input']['app'] = app(Apps::class);
         $request['input']['user'] = auth()->user();
         $request['input']['company'] = auth()->user()->getCurrentCompany();
 
@@ -63,5 +55,26 @@ class TagsManagement
         } else {
             return (bool)(new FollowAction(auth()->user(), $tag))->execute();
         }
+    }
+
+    public function attachTagToEntity(mixed $root, array $request): bool
+    {
+        $tag = Tag::where('users_id', auth()->user()->getId())
+            ->where('id', $request['input']['tag_id'])
+            ->firstOrFail();
+
+        $systemModule = SystemModulesRepository::getByName($request['input']['system_module_name']);
+
+        $entity = $systemModule->model_name::find((int)$request['input']['entity_id']);
+
+        $tag->entities()->attach($entity->getId(), [
+            'entity_namespace' => $systemModule->model_name,
+            'apps_id' => $tag->apps_id,
+            'companies_id' => auth()->user()->getCurrentCompany()->getId(),
+            'users_id' => auth()->user()->getId(),
+            'taggable_type' => $systemModule->model_name,
+        ]);
+
+        return true;
     }
 }

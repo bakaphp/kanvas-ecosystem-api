@@ -16,7 +16,7 @@ class Tag extends Data
         public Users $user,
         public Companies $company,
         public string $name,
-        public string $slug,
+        public ?string $slug = null,
         public ?int $weight = null
     ) {
     }
