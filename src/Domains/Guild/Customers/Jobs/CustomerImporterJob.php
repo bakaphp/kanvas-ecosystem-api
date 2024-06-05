@@ -92,7 +92,7 @@ class CustomerImporterJob implements ShouldQueue, ShouldBeUnique
                     'user' => $this->user,
                     'firstname' => $customerData['firstname'],
                     'middlename' => $customerData['middlename'] ?? null,
-                    'lastname' => $customerData['lastname'],
+                    'lastname' => $data['lastname'] ?? null,
                     'contacts' => Contact::collect($customerData['contacts'] ?? [], DataCollection::class),
                     'address' => Address::collect($customerData['address'] ?? [], DataCollection::class),
                     'dob' => $customerData['dob'] ?? null,
