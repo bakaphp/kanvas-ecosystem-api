@@ -1,26 +1,23 @@
-name: Push to EC2
+name: SCP to Memod Elastic Indexer VM
 
 on:
-    push:
-      branches:
-        - 'development'
-  
-    workflow_dispatch:
+  workflow_dispatch:
 
 jobs:
-  deploy:
-    name: Deploy to EC2
-    environment: ${{ github.ref_name }}
+  scp-to-vm:
     runs-on: ubuntu-latest
-
+    environment: ${{ github.ref_name }}
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Checkout the files
-        uses: actions/checkout@v2
-
-      - name: Deploy to EC2
-        uses: easingthemes/ssh-deploy@main
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.AWS_EC2_SSH_KEY }}
-          REMOTE_HOST: ${{ secrets.AWS_EC2_HOST }}
-          REMOTE_USER: ${{ secrets.AWS_EC2_USERNAME }}
-          TARGET: ${{ secrets.AWS_EC2_TARGET_DIR }}
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Copy folder content recursively to remote VM    
+      uses: appleboy/scp-action@v0.1.4
+      with:
+        host: ${{ secrets.AWS_EC2_HOST }}
+        username: ${{ secrets.AWS_EC2_USERNAME }}
+        key: ${{ secrets.AWS_EC2_PRIVATE_SSH_KEY }}
+        source: ${{ github.workspace }}
+        target: ${{secrets.AWS_EC2_TARGET_DIR}}
