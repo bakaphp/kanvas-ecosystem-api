@@ -80,37 +80,38 @@ class CustomerImporterJob implements ShouldQueue, ShouldBeUnique
         $company = $this->branch->company()->firstOrFail();
 
         foreach ($this->importer as $customerData) {
-            try{
-            $people = People::from([
-                'app' => $this->app,
-                'branch' => $this->branch,
-                'user' => $this->user,
-                'firstname' => $customerData['firstname'],
-                'middlename' => $customerData['middlename'] ?? null,
-                'lastname' => $customerData['lastname'],
-                'contacts' => Contact::collect($customerData['contacts'] ?? [], DataCollection::class),
-                'address' => Address::collect($customerData['address'] ?? [], DataCollection::class),
-                'dob' => $customerData['dob'] ?? null,
-                'facebook_contact_id' => $customerData['facebook_contact_id'] ?? null,
-                'google_contact_id' => $customerData['google_contact_id'] ?? null,
-                'apple_contact_id' => $customerData['apple_contact_id'] ?? null,
-                'linkedin_contact_id' => $customerData['linkedin_contact_id'] ?? null,
-                'custom_fields' => $customerData['custom_fields'] ?? [],
-                'created_at' => $customerData['created_at'] ?? null,
-            ]);
+            try {
+                $people = People::from([
+                    'app' => $this->app,
+                    'branch' => $this->branch,
+                    'user' => $this->user,
+                    'firstname' => $customerData['firstname'],
+                    'middlename' => $customerData['middlename'] ?? null,
+                    'lastname' => $customerData['lastname'],
+                    'contacts' => Contact::collect($customerData['contacts'] ?? [], DataCollection::class),
+                    'address' => Address::collect($customerData['address'] ?? [], DataCollection::class),
+                    'dob' => $customerData['dob'] ?? null,
+                    'facebook_contact_id' => $customerData['facebook_contact_id'] ?? null,
+                    'google_contact_id' => $customerData['google_contact_id'] ?? null,
+                    'apple_contact_id' => $customerData['apple_contact_id'] ?? null,
+                    'linkedin_contact_id' => $customerData['linkedin_contact_id'] ?? null,
+                    'custom_fields' => $customerData['custom_fields'] ?? [],
+                    'created_at' => $customerData['created_at'] ?? null,
+                ]);
 
-            if ($people->contacts->count()) {
-                foreach ($people->contacts as $contact) {
-                    $customer = PeoplesRepository::getByValue($contact, $company);
-                    if ($customer) {
-                        $people->id = $customer->getId();
-                        break;
+                if ($people->contacts->count()) {
+                    foreach ($people->contacts as $contact) {
+                        $customer = PeoplesRepository::getByValue($contact, $company);
+                        if ($customer) {
+                            $people->id = $customer->getId();
+
+                            break;
+                        }
                     }
                 }
-            }
 
-            $peopleSync = new CreatePeopleAction($people);
-            $peopleSync->execute();
+                $peopleSync = new CreatePeopleAction($people);
+                $peopleSync->execute();
             } catch (Throwable $e) {
                 // Log error
             }

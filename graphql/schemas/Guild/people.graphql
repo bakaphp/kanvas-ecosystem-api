@@ -104,8 +104,8 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@restore"
         )
-    importPeople(input: [PeopleInput!]!, companyId: Int!): String!
+    importPeoples(input: [PeopleInput!]!, companyId: Int): String!
         @field(
-            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@import"
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleImportMutation@import"
         )
 }

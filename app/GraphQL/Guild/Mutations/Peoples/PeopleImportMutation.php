@@ -15,10 +15,10 @@ class PeopleImportMutation
     /**
      * Create new customer
      */
-    public function importPeople(mixed $root, array $req): string
+    public function import(mixed $root, array $req): string
     {
         $user = auth()->user();
-        $company = Companies::getById($req['companyId']);
+        $company = isset($req['companyId']) ? Companies::getById($req['companyId']) : $user->getCurrentCompany();
 
         CompaniesRepository::userAssociatedToCompany(
             $company,
