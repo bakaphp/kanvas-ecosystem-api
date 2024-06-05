@@ -1,10 +1,10 @@
-name: SCP to Memod Elastic Indexer VM
+name: Deploy to EC2
 
 on:
   workflow_dispatch:
 
 jobs:
-  scp-to-vm:
+  deploy-to-ec2:
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name }}
     permissions:
