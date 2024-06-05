@@ -37,7 +37,7 @@ input PeopleInput {
     contacts: [ContactInput!]
     address: [AddressInput!]
     custom_fields: [CustomFieldEntityInput!]
-    created_at: DateDateTime
+    created_at: DateTime
 }
 
 input PeopleParticipantInput {
