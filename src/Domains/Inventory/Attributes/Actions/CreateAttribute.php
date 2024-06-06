@@ -35,6 +35,7 @@ class CreateAttribute
             'apps_id' => $this->dto->app->getId(),
         ], [
             'users_id' => $this->user->getId(),
+            'slug' => $this->dto->slug,
             'is_visible' => $this->dto->isVisible,
             'is_searchable' => $this->dto->isSearchable,
             'is_filtrable' => $this->dto->isFiltrable,
