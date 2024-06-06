@@ -12,8 +12,8 @@ return new class () extends Migration {
     {
         Schema::create('request_deleted_accounts', function (Blueprint $table) {
             $table->id();
-            $table->bigInteger('apps_id')->unsigned();
-            $table->bigInteger('users_id')->unsigned();
+            $table->bigInteger('apps_id')->unsigned()->index('apps_id');
+            $table->bigInteger('users_id')->unsigned()->index('users_id');
             $table->string('email')->index('email');
             $table->string('reason')->nullable();
             $table->dateTime('request_date')->index('request_date');
