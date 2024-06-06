@@ -314,4 +314,98 @@ class PeopleTest extends TestCase
                 ],
             ]);
     }
+
+    public function testImportUsers()
+    {
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $firstname = fake()->firstName();
+        $middlename = fake()->firstName();
+        $lastname = fake()->lastName();
+        $name = $firstname . ' ' . $middlename . ' ' . $lastname;
+
+        $peoplesToImport = [
+            [
+                'firstname' => $firstname,
+                'middlename' => $middlename, // @todo remove this
+                'lastname' => $lastname,
+                'contacts' => [
+                    [
+                        'value' => fake()->email(),
+                        'contacts_types_id' => 1,
+                        'weight' => 0,
+                    ],
+                    [
+                        'value' => fake()->phoneNumber(),
+                        'contacts_types_id' => 2,
+                        'weight' => 0,
+                    ],
+                ],
+                'address' => [
+                    [
+                        'address' => fake()->address(),
+                        'city' => fake()->city(),
+                        'county' => fake()->city(),
+                        'state' => fake()->state(),
+                        'country' => fake()->country(),
+                        'zip' => fake()->postcode(),
+                    ],
+                ],
+                'custom_fields' => [
+                    [
+                        'name' => 'paid_subscription',
+                        'data' => 1,
+                    ],
+                    [
+                        'name' => 'position',
+                        'data' => 'developer',
+                    ],
+                ],
+            ],[
+                'firstname' => fake()->firstName(),
+                'middlename' => fake()->firstName(), // @todo remove this
+                'lastname' => fake()->lastName(),
+                'contacts' => [
+                    [
+                        'value' => fake()->email(),
+                        'contacts_types_id' => 1,
+                        'weight' => 0,
+                    ],
+                    [
+                        'value' => fake()->phoneNumber(),
+                        'contacts_types_id' => 2,
+                        'weight' => 0,
+                    ],
+                ],
+                'address' => [
+                    [
+                        'address' => fake()->address(),
+                        'city' => fake()->city(),
+                        'county' => fake()->city(),
+                        'state' => fake()->state(),
+                        'country' => fake()->country(),
+                        'zip' => fake()->postcode(),
+                    ],
+                ],
+                'custom_fields' => [
+                    [
+                        'name' => 'paid_subscription',
+                        'data' => 0,
+                    ],
+                    [
+                        'name' => 'position',
+                        'data' => 'accountant',
+                    ],
+                ],
+            ]
+        ];
+
+        $this->graphQL('
+        mutation($input: [PeopleInput!]!) {
+            importPeoples(input: $input) 
+        }
+    ', [
+            'input' => $peoplesToImport,
+        ])->assertSee('importPeoples');
+    }
 }

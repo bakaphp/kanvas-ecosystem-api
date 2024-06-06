@@ -81,7 +81,6 @@ class EventServiceProvider extends ServiceProvider
         UsersAssociatedApps::observe(UsersAssociatedAppsObserver::class);
         UserCompanyApps::observe(UsersAssociatedCompaniesObserver::class);
         ProductsCategories::observe(ProductsCategoriesObserver::class);
-        Sessions::observe(SessionObserver::class);
     }
 
     /**
