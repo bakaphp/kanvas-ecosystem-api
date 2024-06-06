@@ -220,7 +220,6 @@ class TagsTest extends TestCase
 
     public function testAttachTagToMessage()
     {
-
         $messageType = MessageType::factory()->create();
         $message = fake()->text();
         Message::makeAllSearchable();
