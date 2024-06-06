@@ -22,6 +22,10 @@ enum AppSettingsEnums implements EnumsInterface
     case PASSWORD_STRENGTH;
     case DEFAULT_SIGNUP_ROLE;
     case INVITE_EMAIL_SUBJECT;
+    case RESET_LINK_URL;
+    case SOCIALITE_PROVIDER_FACEBOOK;
+    case SOCIALITE_PROVIDER_GOOGLE;
+    case SOCIALITE_PROVIDER_APPLE;
 
     /**
      * Get value.
@@ -43,6 +47,10 @@ enum AppSettingsEnums implements EnumsInterface
             self::PASSWORD_STRENGTH => 'flag_password_strength',
             self::DEFAULT_SIGNUP_ROLE => 'default_signup_role',
             self::INVITE_EMAIL_SUBJECT => 'invite_email_subject',
+            self::RESET_LINK_URL => 'app_reset_link_url',
+            self::SOCIALITE_PROVIDER_FACEBOOK => 'facebook_social_config',
+            self::SOCIALITE_PROVIDER_GOOGLE => 'google_social_config',
+            self::SOCIALITE_PROVIDER_APPLE => 'apple_social_config',
         };
     }
 }

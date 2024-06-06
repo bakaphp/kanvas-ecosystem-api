@@ -90,6 +90,20 @@ trait KanvasModelTrait
         }
     }
 
+    public static function getByIdFromCompanyApp(mixed $id, CompanyInterface $company, AppInterface $app): self
+    {
+        try {
+            return self::where('id', $id)
+                ->notDeleted()
+                ->fromCompany($company)
+                ->fromApp($app)
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException("No record found for $id from company {$company->getId()}");
+        }
+    }
+
     public static function getByUuidFromCompanyApp(string $uuid, ?CompanyInterface $company = null, ?AppInterface $app = null): self
     {
         return self::where('uuid', $uuid)

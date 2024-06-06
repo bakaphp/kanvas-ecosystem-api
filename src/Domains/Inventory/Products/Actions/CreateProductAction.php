@@ -92,6 +92,10 @@ class CreateProductAction
                             'user' => $this->user,
                             'company' => $this->productDto->company,
                             'name' => $attribute['name'],
+                            'isVisible' => false,
+                            'isSearchable' => false,
+                            'isFiltrable' => false,
+                            'slug' => Str::slug($attribute['name'])
                         ]);
 
                         $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();

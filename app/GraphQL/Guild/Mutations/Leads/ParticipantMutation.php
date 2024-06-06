@@ -7,6 +7,7 @@ namespace App\GraphQL\Guild\Mutations\Leads;
 use Kanvas\Guild\Leads\Actions\AddLeadParticipantAction;
 use Kanvas\Guild\Leads\Actions\RemoveLeadParticipantAction;
 use Kanvas\Guild\Leads\DataTransferObject\LeadsParticipant;
+use Kanvas\Guild\Leads\Models\LeadParticipant;
 
 class ParticipantMutation
 {
@@ -19,7 +20,7 @@ class ParticipantMutation
 
         $action = new AddLeadParticipantAction($leadParticipant);
 
-        return $action->execute() instanceof LeadsParticipant;
+        return $action->execute() instanceof LeadParticipant;
     }
 
     /**

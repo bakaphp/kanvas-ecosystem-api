@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Pipelines\Models;
 
-use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\SlugTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -14,6 +13,7 @@ use Kanvas\Guild\Models\BaseModel;
  * Class Pipeline.
  *
  * @property int $id
+ * @property int|null $apps_id
  * @property int $companies_id
  * @property int $users_id
  * @property int $system_modules_id
@@ -24,7 +24,6 @@ use Kanvas\Guild\Models\BaseModel;
  */
 class Pipeline extends BaseModel
 {
-    use NoAppRelationshipTrait;
     use SlugTrait;
 
     protected $table = 'pipelines';

@@ -121,9 +121,6 @@ class UpdateLeadAction
             $this->leadAttempt->saveOrFail();
         }
 
-        /**
-         * @psalm-suppress LessSpecificReturnStatement
-         */
         return $lead;
     }
 }

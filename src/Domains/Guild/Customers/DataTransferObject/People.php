@@ -24,12 +24,12 @@ class People extends Data
         public readonly CompaniesBranches $branch,
         public readonly UserInterface $user,
         public readonly string $firstname,
-        public readonly string $lastname,
         #[DataCollectionOf(Contact::class)]
         public readonly DataCollection $contacts,
         #[DataCollectionOf(Address::class)]
         public readonly DataCollection $address,
-        public readonly int $id = 0,
+        public readonly ?string $lastname = null,
+        public int $id = 0,
         #[WithCast(DateTimeInterfaceCast::class, format: 'Y-m-d')]
         public readonly ?DateTime $dob = null,
         public readonly ?string $facebook_contact_id = null,
@@ -37,7 +37,8 @@ class People extends Data
         public readonly ?string $apple_contact_id = null,
         public readonly ?string $linkedin_contact_id = null,
         public readonly ?string $middlename = null,
-        public readonly array $custom_fields = []
+        public readonly array $custom_fields = [],
+        public readonly ?string $created_at = null
     ) {
     }
 }

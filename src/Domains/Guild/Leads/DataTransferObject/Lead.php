@@ -46,7 +46,7 @@ class Lead extends Data
     /**
      *  @psalm-suppress ArgumentTypeCoercion
      */
-    public static function viaRequest(UserInterface $user, array $request): self
+    public static function viaRequest(UserInterface $user, AppInterface $app, array $request): self
     {
         $branch = CompaniesBranches::getById($request['branch_id']);
         CompaniesRepository::userAssociatedToCompanyAndBranch(
@@ -56,13 +56,13 @@ class Lead extends Data
         );
 
         return new self(
-            app(Apps::class),
+            $app,
             $branch,
             $user,
             (string) $request['title'],
             (int) $request['pipeline_stage_id'],
             People::from([
-                'app' => app(Apps::class),
+                'app' => $app,
                 'branch' => $branch,
                 'user' => $user,
                 'firstname' => $request['people']['firstname'],
@@ -86,6 +86,7 @@ class Lead extends Data
             isset($request['organization']) ? Organization::from([
                 'company' => $branch->company,
                 'user' => $user,
+                'app' => $app,
                 ...$request['organization'],
             ]) : null,
             $request['custom_fields'] ?? [],

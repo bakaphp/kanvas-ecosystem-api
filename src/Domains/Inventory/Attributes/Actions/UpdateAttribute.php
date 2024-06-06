@@ -35,6 +35,7 @@ class UpdateAttribute
             'is_visible' => $this->dto->isVisible,
             'is_searchable' => $this->dto->isSearchable,
             'is_filtrable' => $this->dto->isFiltrable,
+            'slug' => $this->dto->slug,
         ]);
 
         return $this->attribute;

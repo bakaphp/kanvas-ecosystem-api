@@ -24,13 +24,8 @@ class CreateLeadAction
      */
     public function __construct(
         protected readonly LeadDataInput $leadData,
-        protected ?LeadAttempt $leadAttempt = null,
-        protected ?Apps $app = null
+        protected ?LeadAttempt $leadAttempt = null
     ) {
-        /**
-         * @psalm-suppress MixedAssignment
-         */
-        $this->app = $this->app ?? app(Apps::class);
         $this->company = $this->leadData->branch->company()->firstOrFail();
     }
 
@@ -48,7 +43,7 @@ class CreateLeadAction
             } catch (ModelNotFoundException $e) {
             }
         }
-        $newLead->apps_id = $this->app->getId();
+        $newLead->apps_id = $this->leadData->app->getId();
         $newLead->users_id = $this->leadData->user->getId();
         $newLead->companies_id = $this->company->getId();
         $newLead->companies_branches_id = $this->leadData->branch->getId();
@@ -88,8 +83,6 @@ class CreateLeadAction
             $this->leadAttempt->processed = 1;
             $this->leadAttempt->saveOrFail();
         }
-
-        //@todo add workflow
 
         return $newLead;
     }

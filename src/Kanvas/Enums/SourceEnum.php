@@ -10,4 +10,8 @@ enum SourceEnum: string
     case ANDROID = 'androidapp';
     case WEBAPP = 'webapp';
     case BAKA = 'baka';
+    case FACEBOOK = 'facebook';
+    case GOOGLE = 'google';
+    case APPLE = 'apple';
+    case TWITTER = 'twitter';
 }

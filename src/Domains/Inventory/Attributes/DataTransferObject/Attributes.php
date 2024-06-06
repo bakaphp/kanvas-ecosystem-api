@@ -6,6 +6,7 @@ namespace Kanvas\Inventory\Attributes\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -18,6 +19,7 @@ class Attributes extends Data
         public AppInterface $app,
         public UserInterface $user,
         public string $name,
+        public string $slug,
         public bool $isVisible = false,
         public bool $isSearchable = false,
         public bool $isFiltrable = false,
@@ -31,9 +33,10 @@ class Attributes extends Data
             app(Apps::class),
             auth()->user(),
             $request['name'],
+            $request['slug'] ?? Str::slug($request['name']),
             $request['is_visible'] ?? false,
             $request['is_searchable'] ?? false,
-            $request['is_filtrable'] ?? false
+            $request['is_filtrable'] ?? false,
         );
     }
 }

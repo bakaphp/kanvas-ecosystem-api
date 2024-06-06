@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\Actions;
 
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
@@ -11,17 +12,17 @@ use Kanvas\Auth\Socialite\DataTransferObject\User as SocialiteUser;
 use Kanvas\Users\Models\Sources;
 use Kanvas\Users\Models\UserLinkedSources;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class SocialLoginAction
 {
-    protected Apps $app;
-
     /**
      * Construct function.
      */
     public function __construct(
         protected SocialiteUser $socialUser,
-        protected string $provider
+        protected string $provider,
+        protected Apps $app
     ) {
     }
 
@@ -37,9 +38,9 @@ class SocialLoginAction
         $userLinkedSource = UserLinkedSources::where('source_users_id', $this->socialUser->id)->where('source_id', $source->id)->first();
 
         if (! $userLinkedSource) {
-            $existedUser = Users::where('email', $this->socialUser->email)->first();
-
-            if (! $existedUser) {
+            try {
+                $existedUser = UsersRepository::getUserOfAppByEmail($this->socialUser->email, $this->app);
+            } catch (ModelNotFoundException $e) {
                 $userData = [
                     'firstname' => $this->socialUser->name,
                     'email' => $this->socialUser->email,
@@ -48,10 +49,11 @@ class SocialLoginAction
                 ];
                 $userData = RegisterInput::fromArray($userData);
 
-                $registeredUser = new RegisterUsersAction($userData);
+                $registeredUser = new RegisterUsersAction($userData, $this->app);
                 $existedUser = $registeredUser->execute();
             }
 
+            //$userAppProfile = $existedUser->getAppProfile($this->app);
             //$userLinkedSource = UserLinkedSources::createSocial($this->socialUser, $existedUser, $source);
             UserLinkedSources::firstOrCreate([
                 'users_id' => $existedUser->getId(),
