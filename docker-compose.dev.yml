@@ -109,3 +109,6 @@ services:
 networks:
     sail:
         driver: bridge
+volumes:
+    sail-redis:
+        driver: local
