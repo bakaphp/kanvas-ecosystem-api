@@ -7,9 +7,9 @@ namespace Tests\GraphQL\Ecosystem\Users;
 use Illuminate\Support\Facades\Mail;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\LoginInput;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
-use Kanvas\Enums\AppEnums;
 
 class UserTest extends TestCase
 {
@@ -278,6 +278,21 @@ class UserTest extends TestCase
         )->assertJson([
             'data' => [
                 'deleteUserSetting' => true,
+            ],
+        ]);
+    }
+
+    public function testRequestDeleteAccount()
+    {
+        $this->graphQL(/** @lang GraphQL */
+            '
+            mutation requestDeleteAccount {
+                requestDeleteAccount
+            }
+        '
+        )->assertJson([
+            'data' => [
+                'requestDeleteAccount' => true,
             ],
         ]);
     }

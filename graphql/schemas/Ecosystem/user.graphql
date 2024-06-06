@@ -236,6 +236,11 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\TwoFactorAuthMutation@setToggleTwoFactorAuthIn30Days"
         )
+    requestDeleteAccount: Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@requestDeleteAccount"
+        )
 }
 
 type Query @guard {
