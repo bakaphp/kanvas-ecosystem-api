@@ -14,9 +14,9 @@ return new class () extends Migration {
             $table->id();
             $table->bigInteger('apps_id')->unsigned();
             $table->bigInteger('users_id')->unsigned();
-            $table->string('email');
+            $table->string('email')->index('email');
             $table->string('reason')->nullable();
-            $table->dateTime('request_date');
+            $table->dateTime('request_date')->index('request_date');
             $table->integer('is_deleted')->default(0);
             $table->timestamps();
             $table->index(['apps_id', 'users_id', 'request_date']);
