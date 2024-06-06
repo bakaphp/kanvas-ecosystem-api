@@ -294,5 +294,49 @@ class TagsTest extends TestCase
                 'attachTagToEntity' => true,
             ],
         ]);
+
+        $this->graphQL('
+            query tag(
+                $where: QueryTagsWhereWhereConditions
+            ){
+                tags(where: $where) {
+                    data {
+                        id
+                        name
+                        slug
+                        weight
+                        taggables {
+                            tags_id
+                            entity_id
+                        }
+                    }
+                }
+            }
+        ', [
+            'where' => [
+                'value' => $tag['id'],
+                'column' => 'ID',
+                'operator' => 'EQ',
+            ],
+        ])->assertJson([
+            'data' => [
+                'tags' => [
+                    'data' => [
+                        [
+                            'id' => $tag['id'],
+                            'name' => $input['name'],
+                            'slug' => $input['slug'],
+                            'weight' => $input['weight'],
+                            'taggables' => [
+                                [
+                                    'tags_id' => $tag['id'],
+                                    'entity_id' => $message['id'],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
     }
 }

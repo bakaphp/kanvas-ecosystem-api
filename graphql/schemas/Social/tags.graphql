@@ -12,6 +12,16 @@ type Tag {
     weight: Int
     created_at: String
     updated_at: String
+    taggables: [TagEntity!]! @hasMany(method: "taggables")
+}
+
+type TagEntity {
+    id: ID!
+    entity_id: ID!
+    tags_id: ID!
+    system_module_name: String!
+    created_at: String
+    updated_at: String
 }
 
 input AttachTagEntityInput {
@@ -51,5 +61,6 @@ extend type Query @guard {
         @paginate(
             model: "Kanvas\\Social\\Tags\\Models\\Tag"
             scopes: ["fromApp"]
+            defaultCount: 15
         )
 }

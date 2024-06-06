@@ -25,7 +25,7 @@ class Tag extends BaseModel
 
     public function taggables()
     {
-        return $this->hasMany(TagEntity::class);
+        return $this->hasMany(TagEntity::class, 'tags_id');
     }
 
     public function entities()
