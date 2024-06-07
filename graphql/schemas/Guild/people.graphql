@@ -6,7 +6,7 @@ type People {
     name: String! @method(name: "getName")
     firstname: String!
     middlename: String
-    lastname: String!
+    lastname: String
     dob: Date
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
@@ -50,7 +50,7 @@ input PeopleParticipantInput {
     id: ID
     firstname: String!
     middlename: String
-    lastname: String!
+    lastname: String
     participants_types_id: ID!
     facebook_contact_id: String
     twitter_contact_id: String
