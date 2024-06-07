@@ -34,7 +34,7 @@ class WarehouseService
             $warehouseModel = WarehouseRepository::getById((int) $warehouseData['id'], $variant->product->company);
             $variantWarehouseData = $variant->variantWarehouses()->where('warehouses_id', $warehouseModel->getId())->withTrashed()->first();
 
-            if($variantWarehouseData->trashed()) {
+            if ($variantWarehouseData->trashed()) {
                 $variantWarehouseData->restore();
             }
 
