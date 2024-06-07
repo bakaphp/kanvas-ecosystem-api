@@ -61,7 +61,7 @@ class SystemModulesRepository
     /**
      * Get the entity from the input
      */
-    public static function getEntityFromInput(SystemModuleInputInterface $entityInput, Users $user): Model
+    public static function getEntityFromInput(SystemModuleInputInterface $entityInput, Users $user, bool $useCompanyReference = true): Model
     {
         $systemModule = self::getByUuidOrModelName($entityInput->systemModuleUuid);
 
@@ -80,7 +80,7 @@ class SystemModulesRepository
         if (! $hasAppId && ! $hasCompanyId && (! $isUser && ! $isCompany)) {
             throw new InternalServerErrorException('This system module doesn\'t allow external custom fields');
         }
-        $field = $hasUuid ? 'uuid' : 'id';
+        $field = $hasUuid && Str::isUuid($entityInput->entityId) ? 'uuid' : 'id';
 
         if ($isUser || $isCompany) {
             $entity = $entityModel::where('uuid', $entityInput->entityId)
@@ -104,7 +104,7 @@ class SystemModulesRepository
                 );
             }
         } else {
-            if ($user->isAppOwner()) {
+            if ($user->isAppOwner() || ! $useCompanyReference) {
                 $entity = $entityModel::where($field, $entityInput->entityId)
                         ->fromApp()
                         ->notDeleted()

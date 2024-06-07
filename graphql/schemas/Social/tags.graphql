@@ -27,7 +27,7 @@ type TagEntity {
 input AttachTagEntityInput {
     entity_id: ID!
     tag_id: ID!
-    system_module_name: String!
+    system_module_uuid: String!
 }
 
 extend type Mutation @guard {

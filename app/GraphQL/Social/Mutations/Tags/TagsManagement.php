@@ -12,6 +12,7 @@ use Kanvas\Social\Tags\Actions\CreateTagAction;
 use Kanvas\Social\Tags\DataTransferObjects\Tag as TagData;
 use Kanvas\Social\Tags\Models\Tag;
 use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 class TagsManagement
@@ -74,7 +75,8 @@ class TagsManagement
         $tag = Tag::getById($request['input']['tag_id'], $app);
         $user = auth()->user();
 
-        $systemModule = SystemModulesRepository::getByName($request['input']['system_module_name']);
+        $systemModule = SystemModules::getByUuid($request['input']['system_module_uuid'], $app);
+
         //$entity = $systemModule->model_name::getById((int)$request['input']['entity_id'], $app);
         $entity = SystemModulesRepository::getEntityFromInput(
             new SystemModuleEntityInput(
@@ -82,7 +84,8 @@ class TagsManagement
                 $systemModule->uuid,
                 $request['input']['entity_id']
             ),
-            $user
+            $user,
+            useCompanyReference: false
         );
 
         $tag->entities()->attach($entity->getId(), [

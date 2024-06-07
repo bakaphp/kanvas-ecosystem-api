@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Social;
 
 use Baka\Support\Str;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
@@ -16,7 +18,6 @@ class TagsTest extends TestCase
     {
         $input = [
             'name' => fake()->name(),
-            'slug' => Str::slug(fake()->name()),
             'weight' => random_int(1, 100),
         ];
         $this->graphQL(/** @lang GRAPHQL */
@@ -223,6 +224,7 @@ class TagsTest extends TestCase
         $messageType = MessageType::factory()->create();
         $message = fake()->text();
         Message::makeAllSearchable();
+        $app = app(Apps::class);
 
         $response = $this->graphQL(
             '
@@ -242,13 +244,12 @@ class TagsTest extends TestCase
                 ],
             ]
         );
-        $systemModule = SystemModules::find(1);
+        $systemModule = SystemModules::fromApp($app)->where('model_name', Message::class)->first();
 
         $message = $response->json('data.createMessage');
 
         $input = [
             'name' => fake()->name(),
-            'slug' => Str::slug(fake()->name()),
             'weight' => random_int(1, 100),
         ];
 
@@ -261,7 +262,6 @@ class TagsTest extends TestCase
                     createTag(input: $input) {
                         id
                         name
-                        slug
                         weight
                     }
                 }
@@ -270,10 +270,11 @@ class TagsTest extends TestCase
                 'input' => $input,
             ]
         );
+
         $tag = $response->json('data.createTag');
         $attach = [
             'tag_id' => $tag['id'],
-            'system_module_name' => $systemModule->name,
+            'system_module_uuid' => $systemModule->uuid,
             'entity_id' => $message['id'],
         ];
         $this->graphQL(/** @lang GRAPHQL */
@@ -324,7 +325,6 @@ class TagsTest extends TestCase
                         [
                             'id' => $tag['id'],
                             'name' => $input['name'],
-                            'slug' => $input['slug'],
                             'weight' => $input['weight'],
                             'taggables' => [
                                 [
