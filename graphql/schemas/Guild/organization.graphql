@@ -5,6 +5,12 @@ type Organization {
     user: User! @belongsTo
     name: String!
     address: String
+    tags: [Tag!]
+        @paginate
+        (
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
 }
 
 input OrganizationInput {

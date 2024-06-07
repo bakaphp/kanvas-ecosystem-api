@@ -23,6 +23,12 @@ type Message {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
+    tags: [Tag!]
+        @paginate
+        (
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
 }
 
 type AppModuleMessage {

@@ -6,7 +6,6 @@ namespace Tests\GraphQL\Social;
 
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
@@ -244,7 +243,9 @@ class TagsTest extends TestCase
                 ],
             ]
         );
-        $systemModule = SystemModules::fromApp($app)->where('model_name', Message::class)->first();
+        $systemModule = SystemModules::fromApp($app)
+                        ->where('model_name', Message::class)
+                        ->first();
 
         $message = $response->json('data.createMessage');
 
@@ -337,5 +338,54 @@ class TagsTest extends TestCase
                 ],
             ],
         ]);
+
+        $this->graphQL(
+            '
+            query message(
+                $where: QueryMessagesWhereWhereConditions
+            ){
+                messages(where: $where) {
+                    data {
+                        id
+                        message
+                        tags {
+                            data {
+                                id
+                                name
+                                slug
+                                weight
+                            }
+                        }
+                    }
+                }
+            }',
+            [
+                'where' => [
+                    'value' => $message['id'],
+                    'column' => 'ID',
+                    'operator' => 'EQ',
+                ],
+            ]
+        )->assertJson([
+                'data' => [
+                    'messages' => [
+                        'data' => [
+                            [
+                                'id' => $message['id'],
+                                'message' => $message['message'],
+                                'tags' => [
+                                    'data' => [
+                                        [
+                                            'id' => $tag['id'],
+                                            'name' => $input['name'],
+                                            'weight' => $input['weight'],
+                                        ]
+                                     ],
+                                ]
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
     }
 }
