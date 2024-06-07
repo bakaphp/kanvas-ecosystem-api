@@ -6,7 +6,7 @@ services:
             dockerfile: 1.x.Dockerfile
         extra_hosts:
             - 'host.docker.internal:host-gateway'
-        command: ["sh", "-c", "php artisan lighthouse:cache && php artisan config:cache"]
+        # command: ["sh", "-c", "php artisan lighthouse:cache && php artisan config:cache"]
         environment:
             WWWUSER: '${WWWUSER}'
             LARAVEL_SAIL: 1
