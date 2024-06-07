@@ -39,9 +39,6 @@ COPY . /app
 # Install composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-RUN composer install --optimize-autoloader
-
-
 # add root to www group
 # RUN chmod -R ug+w var/www/html/storage
 
@@ -50,5 +47,7 @@ RUN cp docker/php.ini /usr/local/etc/php/conf.d/zx-app-config.ini
 # RUN cp docker/php-fpm.conf /usr/local/etc/php-fpm.d/zzz-php-fpm-production.conf
 
 WORKDIR /var/www/html/
+
+RUN composer install --optimize-autoloader
 
 EXPOSE 8080
