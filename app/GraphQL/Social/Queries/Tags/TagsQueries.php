@@ -7,12 +7,13 @@ namespace App\GraphQL\Social\Queries\Tags;
 use Baka\Enums\StateEnums;
 use Kanvas\Social\Tags\Models\Tag;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Apps\Models\Apps;
 
 class TagsQueries
 {
     public function getTagsBuilder(mixed $root, array $args): mixed
     {
-        $systemModule = SystemModulesRepository::getByModelName($root::class);
+        $systemModule = SystemModulesRepository::getByModelName($root::class, app(Apps::class));
 
         return Tag::whereHas('taggables', function ($query) use ($root, $systemModule) {
             $query->where('entity_id', $root->getKey());
