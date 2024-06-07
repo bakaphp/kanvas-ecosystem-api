@@ -20,6 +20,7 @@ type TagEntity {
     entity_id: ID!
     tags_id: ID!
     system_module_name: String!
+    system_module: SystemModule! @belongsTo(method: "systemModule")
     created_at: String
     updated_at: String
 }
