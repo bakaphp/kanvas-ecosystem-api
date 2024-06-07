@@ -12,15 +12,17 @@ return new class () extends Migration {
     {
         Schema::create('tags_entities', function (Blueprint $table) {
             $table->id();
-            $table->integer('tags_id')->index('tags_id');
-            $table->integer('entity_id')->index('entity_id');
-            $table->string('entity_namespace')->index('entity_namespace');
-            $table->integer('companies_id')->index('companies_id');
-            $table->integer('apps_id')->index('apps_id');
-            $table->integer('users_id');
+            $table->integer('tags_id')->index();
+            $table->integer('entity_id')->index();
+            $table->string('entity_namespace')->index();
+            $table->integer('companies_id')->index();
+            $table->integer('apps_id')->index();
+            $table->integer('users_id')->index();
             $table->boolean('is_deleted')->default(0);
-            $table->timestamp('created_at')->index('created_at')->useCurrent();
-            $table->datetime('updated_at')->nullable()->index('updated_at');
+            $table->timestamp('created_at')->index()->useCurrent();
+            $table->datetime('updated_at')->nullable()->index();
+            $table->index(['tags_id', 'entity_id', 'is_deleted'], 'tags_entities_index_tag');
+            $table->index(['tags_id', 'entity_id', 'apps_id', 'is_deleted'], 'tags_entities_app_index');
             $table->index(['tags_id', 'entity_id', 'companies_id', 'apps_id', 'is_deleted'], 'tags_entities_index');
         });
     }

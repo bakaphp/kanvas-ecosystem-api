@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Tags\Models;
 
-use Kanvas\Social\Models\BaseModel;
 use Baka\Traits\SlugTrait;
+use Kanvas\Social\Models\BaseModel;
 
 /**
  * @property int id

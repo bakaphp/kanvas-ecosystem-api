@@ -20,6 +20,8 @@ class TagEntity extends MorphPivot
         'is_deleted',
     ];
 
+    protected $connection = 'social';
+
     public function entity()
     {
         return $this->morphTo(null, 'entity_namespace', 'entity_id');

@@ -11,6 +11,7 @@ use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Social\Tags\Actions\CreateTagAction;
 use Kanvas\Social\Tags\DataTransferObjects\Tag as TagData;
 use Kanvas\Social\Tags\Models\Tag;
+use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 class TagsManagement
@@ -28,9 +29,12 @@ class TagsManagement
 
     public function update(mixed $root, array $request): Tag
     {
+        $app = app(Apps::class);
+
         $tag = Tag::when(! auth()->user()->isAdmin(), function ($query) {
             return $query->where('users_id', auth()->user()->getId());
         })->where('id', $request['id'])
+            ->fromApp($app)
             ->firstOrFail();
 
         $tag->update($request['input']);
@@ -40,10 +44,12 @@ class TagsManagement
 
     public function delete(mixed $root, array $request): bool
     {
+        $app = app(Apps::class);
         $tag = Tag::when(! auth()->user()->isAdmin(), function ($query) {
             return $query->where('users_id', auth()->user()->getId());
         })
             ->where('id', $request['id'])
+            ->fromApp($app)
             ->firstOrFail();
 
 
@@ -52,7 +58,8 @@ class TagsManagement
 
     public function follow(mixed $root, array $request): bool
     {
-        $tag = Tag::find($request['id']);
+        $app = app(Apps::class);
+        $tag = Tag::getById($request['id'], $app);
         $isFollowing = UsersFollowsRepository::isFollowing(auth()->user(), $tag);
         if ($isFollowing) {
             return (new UnFollowAction(auth()->user(), $tag))->execute();
@@ -63,19 +70,26 @@ class TagsManagement
 
     public function attachTagToEntity(mixed $root, array $request): bool
     {
-        $tag = Tag::where('apps_id', app(Apps::class)->getId())
-            ->where('id', $request['input']['tag_id'])
-            ->firstOrFail();
+        $app = app(Apps::class);
+        $tag = Tag::getById($request['input']['tag_id'], $app);
+        $user = auth()->user();
 
         $systemModule = SystemModulesRepository::getByName($request['input']['system_module_name']);
-
-        $entity = $systemModule->model_name::find((int)$request['input']['entity_id']);
+        //$entity = $systemModule->model_name::getById((int)$request['input']['entity_id'], $app);
+        $entity = SystemModulesRepository::getEntityFromInput(
+            new SystemModuleEntityInput(
+                $systemModule->name,
+                $systemModule->uuid,
+                $request['input']['entity_id']
+            ),
+            $user
+        );
 
         $tag->entities()->attach($entity->getId(), [
             'entity_namespace' => $systemModule->model_name,
             'apps_id' => $tag->apps_id,
-            'companies_id' => auth()->user()->getCurrentCompany()->getId(),
-            'users_id' => auth()->user()->getId(),
+            'companies_id' => $user->getCurrentCompany()->getId(),
+            'users_id' => $user->getId(),
             'taggable_type' => $systemModule->model_name,
         ]);
 

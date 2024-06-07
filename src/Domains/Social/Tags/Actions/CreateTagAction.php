@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Tags\Actions;
 
-use Kanvas\Social\Tags\Models\Tag;
 use Kanvas\Social\Tags\DataTransferObjects\Tag as TagData;
+use Kanvas\Social\Tags\Models\Tag;
 
 class CreateTagAction
 {
@@ -15,12 +15,12 @@ class CreateTagAction
 
     public function execute(): Tag
     {
-        return Tag::create([
+        return Tag::firstOrCreate([
             'apps_id' => $this->tagData->app->getId(),
-            'users_id' => $this->tagData->user?->getId(),
             'companies_id' => $this->tagData->company->getId(),
             'name' => $this->tagData->name,
-            'slug' => $this->tagData->slug,
+        ], [
+            'users_id' => $this->tagData->user?->getId(),
             'weight' => $this->tagData->weight,
         ]);
     }
