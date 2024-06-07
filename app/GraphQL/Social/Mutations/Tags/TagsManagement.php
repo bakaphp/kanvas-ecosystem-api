@@ -29,8 +29,8 @@ class TagsManagement
     public function update(mixed $root, array $request): Tag
     {
         $tag = Tag::when(! auth()->user()->isAdmin(), function ($query) {
-                return $query->where('users_id', auth()->user()->getId());
-            })->where('id', $request['id'])
+            return $query->where('users_id', auth()->user()->getId());
+        })->where('id', $request['id'])
             ->firstOrFail();
 
         $tag->update($request['input']);
@@ -41,8 +41,8 @@ class TagsManagement
     public function delete(mixed $root, array $request): bool
     {
         $tag = Tag::when(! auth()->user()->isAdmin(), function ($query) {
-                return $query->where('users_id', auth()->user()->getId());
-            })
+            return $query->where('users_id', auth()->user()->getId());
+        })
             ->where('id', $request['id'])
             ->firstOrFail();
 
@@ -63,7 +63,7 @@ class TagsManagement
 
     public function attachTagToEntity(mixed $root, array $request): bool
     {
-        $tag = Tag::where('users_id', auth()->user()->getId())
+        $tag = Tag::where('apps_id', app(Apps::class)->getId())
             ->where('id', $request['input']['tag_id'])
             ->firstOrFail();
 
