@@ -7,7 +7,9 @@ namespace Kanvas\ActionEngine\Tasks\Models;
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
+use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Models\BaseModel;
 
 /**
@@ -40,5 +42,10 @@ class TaskListItem extends BaseModel
     public function action(): BelongsTo
     {
         return $this->belongsTo(CompanyAction::class, 'companies_action_id');
+    }
+
+    public function engagementStart(): HasOne
+    {
+        return $this->hasOne(Engagement::class, 'id', 'engagement_start_id');
     }
 }
