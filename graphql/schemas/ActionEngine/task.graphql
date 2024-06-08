@@ -1,0 +1,27 @@
+type TaskList {
+    id: ID!
+    name: String!
+    company: Company!
+    config: Mixed
+    tasks: [TaskListItem!] @hasMany
+}
+
+type TaskListItem {
+    id: ID!
+    name: String!
+    status: String!
+    due_date: Date
+    completed_date: Date
+    config: Mixed
+    action: CompanyAction!
+    weight: Float!
+}
+
+extend type Query @guard {
+    leadTaskList (lead_id: ID!): [TaskList!]!
+        @paginate(
+            model: "Kanvas\\ActionEngine\\Tasks\\Models\\TaskList"
+            scopes: ["fromApp", "fromCompany"]
+            defaultCount: 25
+        )
+}

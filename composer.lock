@@ -1195,16 +1195,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.310.0",
+            "version": "3.311.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "8ac02d36c609c6507136e5996f60cfd5152b4fd7"
+                "reference": "731cd73062909594c5f7443413c4c4c40ed1c25c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/8ac02d36c609c6507136e5996f60cfd5152b4fd7",
-                "reference": "8ac02d36c609c6507136e5996f60cfd5152b4fd7",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/731cd73062909594c5f7443413c4c4c40ed1c25c",
+                "reference": "731cd73062909594c5f7443413c4c4c40ed1c25c",
                 "shasum": ""
             },
             "require": {
@@ -1284,9 +1284,9 @@
             "support": {
                 "forum": "https://forums.aws.amazon.com/forum.jspa?forumID=80",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.310.0"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.311.2"
             },
-            "time": "2024-06-04T18:05:36+00:00"
+            "time": "2024-06-07T18:05:33+00:00"
         },
         {
             "name": "berkayk/onesignal-laravel",
@@ -2607,16 +2607,16 @@
         },
         {
             "name": "google/cloud-core",
-            "version": "v1.58.2",
+            "version": "v1.59.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-core.git",
-                "reference": "56df58d70cca3c429e2cfd32270e42596f6c002f"
+                "reference": "56d31be2663780a7ed0736bee60d01f047bf15c0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-core/zipball/56df58d70cca3c429e2cfd32270e42596f6c002f",
-                "reference": "56df58d70cca3c429e2cfd32270e42596f6c002f",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-core/zipball/56d31be2663780a7ed0736bee60d01f047bf15c0",
+                "reference": "56d31be2663780a7ed0736bee60d01f047bf15c0",
                 "shasum": ""
             },
             "require": {
@@ -2667,9 +2667,9 @@
             ],
             "description": "Google Cloud PHP shared dependency, providing functionality useful to all components.",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-core/tree/v1.58.2"
+                "source": "https://github.com/googleapis/google-cloud-php-core/tree/v1.59.0"
             },
-            "time": "2024-06-01T03:14:01+00:00"
+            "time": "2024-06-07T22:33:41+00:00"
         },
         {
             "name": "google/cloud-storage",
@@ -2928,16 +2928,16 @@
         },
         {
             "name": "google/protobuf",
-            "version": "v4.27.0",
+            "version": "v4.27.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/protocolbuffers/protobuf-php.git",
-                "reference": "28cf84ac822e2c8f82edd7c84cc792cacb822faa"
+                "reference": "c471e2b3afe61bf41f22d1ca926b24e7ce96c598"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/28cf84ac822e2c8f82edd7c84cc792cacb822faa",
-                "reference": "28cf84ac822e2c8f82edd7c84cc792cacb822faa",
+                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/c471e2b3afe61bf41f22d1ca926b24e7ce96c598",
+                "reference": "c471e2b3afe61bf41f22d1ca926b24e7ce96c598",
                 "shasum": ""
             },
             "require": {
@@ -2966,9 +2966,9 @@
                 "proto"
             ],
             "support": {
-                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v4.27.0"
+                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v4.27.1"
             },
-            "time": "2024-05-22T21:40:13+00:00"
+            "time": "2024-06-05T16:59:28+00:00"
         },
         {
             "name": "graham-campbell/result-type",

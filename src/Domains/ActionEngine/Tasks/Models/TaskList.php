@@ -2,33 +2,37 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\ActionEngine\Pipelines\Models;
+namespace Kanvas\ActionEngine\Tasks\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\ActionEngine\Models\BaseModel;
 
 /**
- * Class Pipeline.
+ * Class Tasks.
  *
  * @property int $id
  * @property string $uuid
  * @property int $apps_id
  * @property int $companies_id
  * @property int $users_id
- * @property string $slug
  * @property string $name
- * @property int $weight
+ * @property string $config
  */
-class Pipeline extends BaseModel
+class TaskList extends BaseModel
 {
     use UuidTrait;
 
-    protected $table = 'engagements';
+    protected $table = 'company_task_list';
     protected $guarded = [];
 
-    public function stages(): HasMany
+    protected $casts = [
+        'config' => Json::class,
+    ];
+
+    public function tasks(): HasMany
     {
-        return $this->hasMany(PipelineStage::class, 'pipelines_id', 'id');
+        return $this->hasMany(TaskListItem::class, 'task_list_id')->orderBy('weight');
     }
 }
