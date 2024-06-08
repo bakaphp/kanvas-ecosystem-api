@@ -37,7 +37,7 @@ class UpdateVariantsAction
 
         $validator = Validator::make(
             ['sku' => $this->variantDto->sku],
-            ['sku' => new UniqueSkuRule($this->variant)]
+            ['sku' => new UniqueSkuRule($this->variant->app, $this->variant->company, $this->variant)]
         );
 
         if ($validator->fails()) {
