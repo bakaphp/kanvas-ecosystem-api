@@ -33,7 +33,8 @@ class CreateVariantsAction
         );
 
         if (Variants::where('sku', $this->variantDto->sku)
-            ->where('companies_id', $this->variantDto->product->companies_id)
+            ->fromApp($this->variantDto->product->app)
+            ->fromCompany($this->variantDto->product->company)
             ->count()
         ) {
             throw new ValidationException('Field sku ' . $this->variantDto->sku . ', already saved');

@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Variants;
 
-use Illuminate\Support\Facades\Validator;
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Repositories\ChannelRepository;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction as AddToWarehouse;
-use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
 use Kanvas\Inventory\Variants\Actions\UpdateVariantsAction;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
@@ -91,6 +89,7 @@ class Variants
                 );
             }
         }
+
         return $variantModel;
     }
 

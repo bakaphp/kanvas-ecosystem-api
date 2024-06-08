@@ -34,7 +34,8 @@ class UpdateVariantsAction
         );
 
         if (Variants::where('sku', $this->variantDto->sku)
-            ->where('companies_id', $this->variantDto->product->companies_id)
+            ->fromCompany($this->variant->company)
+            ->fromApp($this->variant->app)
             ->where('id', '!=', $this->variant->getId())
             ->count()
         ) {
@@ -57,6 +58,7 @@ class UpdateVariantsAction
 
             ]
         );
+
         return $this->variant;
     }
 }
