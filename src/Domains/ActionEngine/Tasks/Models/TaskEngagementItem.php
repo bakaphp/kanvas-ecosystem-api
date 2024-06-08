@@ -14,7 +14,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 /**
  * Class TaskEngagementItem.
  *
- * @property int $task_list_id
+ * @property int $task_list_item_id
  * @property int $lead_id
  * @property int $companies_id
  * @property int $apps_id
@@ -34,7 +34,7 @@ class TaskEngagementItem extends BaseModel
 
     public function item(): BelongsTo
     {
-        return $this->belongsTo(TaskListItem::class, 'task_list_id');
+        return $this->belongsTo(TaskListItem::class, 'task_list_item_id');
     }
 
     public function lead(): BelongsTo

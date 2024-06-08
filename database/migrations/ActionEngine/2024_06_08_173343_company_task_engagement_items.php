@@ -11,7 +11,7 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::create('company_task_engagement_items', function (Blueprint $table) {
-            $table->bigInteger('task_list_id')->index();
+            $table->bigInteger('task_list_item_id')->index();
             $table->bigInteger('lead_id')->index();
             $table->bigInteger('companies_id')->index();
             $table->bigInteger('apps_id')->index();
@@ -23,15 +23,15 @@ return new class () extends Migration {
             $table->timestamps();
             $table->tinyInteger('is_deleted')->default(0)->index();
 
-            $table->primary(['task_list_id', 'lead_id']);
-            $table->index(['task_list_id', 'lead_id', 'companies_id'], 'task_list_company_index');
-            $table->index(['task_list_id', 'lead_id', 'apps_id'], 'task_list_apps_index');
-            $table->index(['task_list_id', 'lead_id', 'users_id'], 'task_list_users_index');
-            $table->index(['task_list_id', 'lead_id', 'engagement_start_id'], 'task_list_engagement_start_index');
-            $table->index(['task_list_id', 'lead_id', 'engagement_end_id'], 'task_list_engagement_end_index');
-            $table->index(['task_list_id', 'lead_id', 'apps_id', 'companies_id'], 'task_list_apps_company_index');
-            $table->index(['task_list_id', 'lead_id', 'status'], 'task_list_status_index');
-            $table->index(['task_list_id', 'lead_id', 'is_deleted'], 'task_list_deleted_index');
+            $table->primary(['task_list_item_id', 'lead_id']);
+            $table->index(['task_list_item_id', 'lead_id', 'companies_id'], 'task_list_company_index');
+            $table->index(['task_list_item_id', 'lead_id', 'apps_id'], 'task_list_apps_index');
+            $table->index(['task_list_item_id', 'lead_id', 'users_id'], 'task_list_users_index');
+            $table->index(['task_list_item_id', 'lead_id', 'engagement_start_id'], 'task_list_engagement_start_index');
+            $table->index(['task_list_item_id', 'lead_id', 'engagement_end_id'], 'task_list_engagement_end_index');
+            $table->index(['task_list_item_id', 'lead_id', 'apps_id', 'companies_id'], 'task_list_apps_company_index');
+            $table->index(['task_list_item_id', 'lead_id', 'status'], 'task_list_status_index');
+            $table->index(['task_list_item_id', 'lead_id', 'is_deleted'], 'task_list_deleted_index');
         });
     }
 

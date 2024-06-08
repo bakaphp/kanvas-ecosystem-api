@@ -27,7 +27,7 @@ class TaskEngagementBuilder
         $leadId = $lead->getId();
 
         return TaskListItem::leftJoin('company_task_engagement_items', function ($join) use ($lead) {
-            $join->on('company_task_list_items.task_list_id', '=', 'company_task_engagement_items.task_list_id')
+            $join->on('company_task_list_items.id', '=', 'company_task_engagement_items.task_list_item_id')
                  ->where('company_task_engagement_items.lead_id', '=', $lead->getId());
         })
              ->select(
