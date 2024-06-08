@@ -34,8 +34,8 @@ class UpdateVariantsAction
         );
 
         if (Variants::where('sku', $this->variantDto->sku)
-            ->where('companies_id',$this->variantDto->product->companies_id)
-            ->where('id','!=', $this->variant->getId())
+            ->where('companies_id', $this->variantDto->product->companies_id)
+            ->where('id', '!=', $this->variant->getId())
             ->count()
         ) {
             throw new ValidationException('Field sku ' . $this->variantDto->sku . ', already saved');
