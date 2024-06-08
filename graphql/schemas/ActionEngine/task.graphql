@@ -17,11 +17,22 @@ type TaskListItem {
     weight: Float!
 }
 
+type LeadTaskItem {
+    item: TaskListItem! @belongsTo
+    lead: Lead! @belongsTo
+    status: String!
+    config: Mixed
+    engagement_start: Engagement!
+    engagement_end: Engagement
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
 extend type Query @guard {
-    leadTaskList (lead_id: ID!): [TaskList!]!
+    leadTaskItems(lead_id: ID!): [LeadTaskItem!]!
         @paginate(
-            model: "Kanvas\\ActionEngine\\Tasks\\Models\\TaskList"
-            scopes: ["fromApp", "fromCompany"]
+            builder: "App\\GraphQL\\ActionEngine\\Builders\\Engagements\\TaskEngagementBuilder@getLeadTaskItems"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
             defaultCount: 25
         )
 }
