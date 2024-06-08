@@ -17,7 +17,6 @@ class UniqueSkuRule implements ValidationRule
         protected CompanyInterface $company,
         protected ?Variants $variant = null
     ) {
-
     }
 
     public function validate(string $attribute, mixed $value, Closure $fail): void
