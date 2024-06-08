@@ -13,12 +13,13 @@ use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Validations\UniqueSkuRule;
 
-class CreateVariantsAction
+class UpdateVariantsAction
 {
     /**
      * __construct.
      */
     public function __construct(
+        protected Variants $variant,
         protected VariantsDto $variantDto,
         protected UserInterface $user
     ) {
@@ -36,25 +37,18 @@ class CreateVariantsAction
 
         $validator = Validator::make(
             ['sku' => $this->variantDto->sku],
-            ['sku' => new UniqueSkuRule($this->variantDto->product->app, $this->variantDto->product->company)]
+            ['sku' => new UniqueSkuRule($this->variant->app, $this->variant->company, $this->variant)]
         );
 
         if ($validator->fails()) {
             throw new ValidationException($validator->messages()->__toString());
         }
 
-        $search = [
-            'products_id' => $this->variantDto->product->getId(),
-            'slug' => $this->variantDto->slug ?? Str::slug($this->variantDto->name),
-            'sku' => $this->variantDto->sku,
-            'companies_id' => $this->variantDto->product->companies_id,
-            'apps_id' => $this->variantDto->product->apps_id,
-        ];
-
-        return Variants::updateOrCreate(
-            $search,
+        $this->variant->update(
             [
                 'name' => $this->variantDto->name,
+                'slug' => $this->variantDto->slug ?? Str::slug($this->variantDto->name),
+                'sku' => $this->variantDto->sku,
                 'users_id' => $this->user->getId(),
                 'description' => $this->variantDto->description,
                 'short_description' => $this->variantDto->short_description,
@@ -63,7 +57,10 @@ class CreateVariantsAction
                 'ean' => $this->variantDto->ean,
                 'barcode' => $this->variantDto->barcode,
                 'serial_number' => $this->variantDto->serial_number,
+
             ]
         );
+
+        return $this->variant;
     }
 }
