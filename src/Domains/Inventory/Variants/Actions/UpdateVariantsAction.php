@@ -6,10 +6,12 @@ namespace Kanvas\Inventory\Variants\Actions;
 
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Support\Facades\Validator;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\Validations\UniqueSkuRule;
 
 class UpdateVariantsAction
 {
@@ -33,13 +35,13 @@ class UpdateVariantsAction
             $this->user
         );
 
-        if (Variants::where('sku', $this->variantDto->sku)
-            ->fromCompany($this->variant->company)
-            ->fromApp($this->variant->app)
-            ->where('id', '!=', $this->variant->getId())
-            ->count()
-        ) {
-            throw new ValidationException('Field sku ' . $this->variantDto->sku . ', already saved');
+        $validator = Validator::make(
+            ['sku' => $this->variantDto->sku],
+            ['sku' => new UniqueSkuRule($this->variant)]
+        );
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator->messages()->__toString());
         }
 
         $this->variant->update(
