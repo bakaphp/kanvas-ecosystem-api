@@ -7,6 +7,7 @@ namespace Kanvas\Inventory\Variants\Actions;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\Models\Variants;
 
@@ -30,6 +31,13 @@ class CreateVariantsAction
             $this->variantDto->product->company()->get()->first(),
             $this->user
         );
+
+        if (Variants::where('sku', $this->variantDto->sku)
+            ->where('companies_id',$this->variantDto->product->companies_id)
+            ->count()
+        ) {
+            throw new ValidationException('Field sku ' . $this->variantDto->sku . ', already saved');
+        }
 
         $search = [
             'products_id' => $this->variantDto->product->getId(),
