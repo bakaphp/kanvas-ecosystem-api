@@ -40,6 +40,7 @@ class VariantsChannels extends BaseModel
     protected $guarded = [];
 
     protected $primaryKey = ['product_variants_warehouse_id', 'channels_id'];
+    protected $forceDeleting = true;
 
     public function channel(): BelongsTo
     {

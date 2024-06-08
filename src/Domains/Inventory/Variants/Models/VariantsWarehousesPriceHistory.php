@@ -23,6 +23,8 @@ class VariantsWarehousesPriceHistory extends BaseModel
     use NoCompanyRelationshipTrait;
 
     protected $table = 'products_variants_warehouses_price_history';
+    protected $primaryKey = 'product_variants_warehouse_id';
     public $timestamps = false;
     protected $guarded = [];
+    protected $forceDeleting = true;
 }
