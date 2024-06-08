@@ -1,0 +1,67 @@
+input TagInput {
+    name: String!
+    slug: String
+    weight: Int
+}
+
+type Tag {
+    id: ID!
+    user: User!
+    name: String!
+    slug: String
+    weight: Int
+    created_at: String
+    updated_at: String
+    taggables: [TagEntity!]! @hasMany(method: "taggables")
+}
+
+type TagEntity {
+    id: ID!
+    entity_id: ID!
+    tags_id: ID!
+    system_module_name: String!
+    system_module: SystemModule! @belongsTo(method: "systemModule")
+    created_at: String
+    updated_at: String
+}
+
+input AttachTagEntityInput {
+    entity_id: ID!
+    tag_id: ID!
+    system_module_uuid: String!
+}
+
+extend type Mutation @guard {
+    createTag(input: TagInput!): Tag
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Tags\\TagsManagement@create"
+        )
+    updateTag(id: ID!, input: TagInput!): Tag
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Tags\\TagsManagement@update"
+        )
+    deleteTag(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Tags\\TagsManagement@delete"
+        )
+    followTag(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Tags\\TagsManagement@follow"
+        )
+    attachTagToEntity(input: AttachTagEntityInput!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Tags\\TagsManagement@attachTagToEntity"
+        )
+}
+
+extend type Query @guard {
+    tags(
+        where: _ @whereConditions(columns: ["id", "name", "slug", "weight"])
+        orderBy: _ @orderBy(columns: ["id"])
+    ): [Tag!]!
+        @paginate(
+            model: "Kanvas\\Social\\Tags\\Models\\Tag"
+            scopes: ["fromApp"]
+            defaultCount: 15
+        )
+}

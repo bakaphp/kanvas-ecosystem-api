@@ -5,6 +5,11 @@ type Organization {
     user: User! @belongsTo
     name: String!
     address: String
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
 }
 
 input OrganizationInput {
@@ -19,13 +24,21 @@ input OrganizationPeopleInput {
 
 extend type Mutation @guard {
     createOrganization(input: OrganizationInput!): Organization
-        @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationManagementMutation@create")
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationManagementMutation@create"
+        )
     updateOrganization(id: ID!, input: OrganizationInput!): Organization
-        @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationManagementMutation@update")
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationManagementMutation@update"
+        )
     deleteOrganization(id: ID!): Boolean
-        @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationManagementMutation@delete")
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationManagementMutation@delete"
+        )
     restoreOrganization(id: ID!): Boolean
-        @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationManagementMutation@restore")
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationManagementMutation@restore"
+        )
     addPeopleToOrganization(input: OrganizationPeopleInput!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\PeopleOrganizationMutation@add"
@@ -38,14 +51,7 @@ extend type Mutation @guard {
 
 extend type Query @guard {
     organizations(
-        where: _
-            @whereConditions(
-                columns: [
-                    "id"
-                    "name"
-                    "uuid"
-                ]
-            )
+        where: _ @whereConditions(columns: ["id", "name", "uuid"])
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [Organization!]!
         @paginate(

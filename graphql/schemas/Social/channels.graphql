@@ -13,7 +13,7 @@ type SocialChannel {
     last_message_id: ID
     messages: [Message!]! @belongsToMany
     users: [User!]! @belongsToMany
-    systemModule: SystemModule!
+    systemModule: SystemModule! @belongsTo
 }
 
 input SocialChannelInput {
