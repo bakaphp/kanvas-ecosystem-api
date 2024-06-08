@@ -23,6 +23,12 @@ type Lead {
     participants: [LeadsParticipants!]! @hasMany
     channels: [SocialChannel]! @hasMany(relation: "socialChannels")
     systemModule: SystemModule
+    tags: [Tag!]
+        @paginate
+        (
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25

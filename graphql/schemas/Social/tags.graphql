@@ -6,7 +6,7 @@ input TagInput {
 
 type Tag {
     id: ID!
-    users: User!
+    user: User!
     name: String!
     slug: String
     weight: Int
