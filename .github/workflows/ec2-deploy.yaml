@@ -1,0 +1,23 @@
+name: Deploy to EC2
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-to-ec2:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Copy folder content recursively to remote VM    
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.AWS_EC2_HOST }}
+        username: ${{ secrets.AWS_EC2_USERNAME }}
+        key: ${{ secrets.AWS_EC2_PRIVATE_SSH_KEY }}
+        source: .
+        target: ${{secrets.AWS_EC2_TARGET_DIR}}

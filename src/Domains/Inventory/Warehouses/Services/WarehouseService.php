@@ -24,14 +24,19 @@ class WarehouseService
      */
     public static function updateWarehouseVariant(Variants $variant, UserInterface $user, array $warehouses): Variants
     {
-        $warehousesId = array_column($warehouses, 'warehouse_id');
+        $warehousesId = array_column($warehouses, 'id');
 
         $existedWarehouses = $variant->variantWarehouses->keyBy('warehouses_id');
         $existedWarehouses = $existedWarehouses->keys()->all();
         $toDelete = array_diff($existedWarehouses, $warehousesId);
 
         foreach ($warehouses as $warehouseData) {
-            $warehouseModel = WarehouseRepository::getById((int) $warehouseData['warehouse_id'], $variant->product->company);
+            $warehouseModel = WarehouseRepository::getById((int) $warehouseData['id'], $variant->product->company);
+            $variantWarehouseData = $variant->variantWarehouses()->where('warehouses_id', $warehouseModel->getId())->withTrashed()->first();
+
+            if ($variantWarehouseData && $variantWarehouseData->trashed()) {
+                $variantWarehouseData->restore();
+            }
 
             if (isset($warehouseData['status'])) {
                 $warehouseData['status_id'] = StatusRepository::getById(
@@ -97,7 +102,7 @@ class WarehouseService
             $variant->company,
             $user
         );
-        $variantWarehouse = $variant->variantWarehouses('warehouses_id', $warehouse->getId());
+        $variantWarehouse = $variant->variantWarehouses()->where('warehouses_id', $warehouse->getId());
         $variantWarehouse->first()->delete();
 
         return $variant;

@@ -26,7 +26,6 @@ RUN apt-get update && apt-get install -y \
     nginx \
     vim
 
-
 # Set working directory
 WORKDIR /app
 

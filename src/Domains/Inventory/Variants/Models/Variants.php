@@ -6,6 +6,7 @@ namespace Kanvas\Inventory\Variants\Models;
 
 use Awobaz\Compoships\Compoships;
 use Baka\Enums\StateEnums;
+use Baka\Support\Str;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
@@ -220,6 +221,10 @@ class Variants extends BaseModel
                     'company' => $this->product->company,
                     'name' => $attribute['name'],
                     'value' => $attribute['value'],
+                    'isVisible' => false,
+                    'isSearchable' => false,
+                    'isFiltrable' => false,
+                    'slug' => Str::slug($attribute['name'])
                 ]);
                 $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
             }

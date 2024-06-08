@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Actions;
 
+use Baka\Validations\Date;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDataInput;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\Contact;
@@ -40,6 +41,10 @@ class CreatePeopleAction
             'apple_contact_id' => $this->peopleData->apple_contact_id,
         ];
 
+        if (Date::isValid($this->peopleData->created_at, 'Y-m-d H:i:s')) {
+            $attributes['created_at'] = date('Y-m-d H:i:s', strtotime($this->peopleData->created_at));
+        }
+
         //@todo how to avoid duplicated? should it be use or frontend?
         if ($this->peopleData->id) {
             $people = PeoplesRepository::getById($this->peopleData->id, $company);
@@ -53,37 +58,55 @@ class CreatePeopleAction
         $people->saveCustomFields();
 
         if ($this->peopleData->contacts->count()) {
-            $contacts = [];
+            $existingContacts = $people->contacts()->pluck('value')->toArray();
+            $contactsToAdd = [];
+
             foreach ($this->peopleData->contacts as $contact) {
-                $contacts[] = new Contact([
-                    'contacts_types_id' => $contact->contacts_types_id,
-                    'value' => $contact->value,
-                    'weight' => $contact->weight,
-                ]);
+                if (! in_array($contact->value, $existingContacts)) {
+                    $contactsToAdd[] = new Contact([
+                        'contacts_types_id' => $contact->contacts_types_id,
+                        'value' => $contact->value,
+                        'weight' => $contact->weight,
+                    ]);
+                }
             }
 
-            $people->contacts()->saveMany($contacts);
+            if (! empty($contactsToAdd)) {
+                $people->contacts()->saveMany($contactsToAdd);
+            }
         }
 
         if ($this->peopleData->address->count()) {
-            $addresses = [];
+            $existingAddresses = $people->address()
+                ->select('address', 'address_2', 'city', 'county', 'state', 'zip', 'city_id', 'state_id', 'countries_id')
+                ->get()
+                ->toArray();
+
+            $addressesToAdd = [];
+
             foreach ($this->peopleData->address as $address) {
-                $addresses[] = new Address([
+                $newAddress = [
                     'address' => $address->address,
                     'address_2' => $address->address_2,
                     'city' => $address->city,
                     'county' => $address->county,
                     'state' => $address->state,
                     'zip' => $address->zipcode,
-                    //'country' => $address->country,
-                    'is_default' => $address->is_default,
                     'city_id' => $address->city_id ?? 0,
                     'state_id' => $address->state_id ?? 0,
                     'countries_id' => $address->country_id ?? 0,
-                ]);
+                ];
+
+                if (! in_array($newAddress, $existingAddresses)) {
+                    $addressesToAdd[] = new Address(array_merge($newAddress, [
+                        'is_default' => $address->is_default,
+                    ]));
+                }
             }
 
-            $people->address()->saveMany($addresses);
+            if (! empty($addressesToAdd)) {
+                $people->address()->saveMany($addressesToAdd);
+            }
         }
 
         return $people;

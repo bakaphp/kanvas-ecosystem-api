@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Zoho\Actions\SyncZohoAgentAction;
 use Kanvas\Connectors\Zoho\Workflows\ZohoLeadOwnerWorkflow;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Workflow\WorkflowStub;
@@ -30,6 +31,8 @@ class ReceiverController extends BaseController
             return response()->json(['message' => 'Receiver not found'], 404);
         }
 
+        $tempSubSystem = $uuid == $app->get('subsystem-temp-uuid');
+
         Auth::loginUsingId($receiver->users_id);
 
         /**
@@ -46,8 +49,16 @@ class ReceiverController extends BaseController
 
         $leadExternalId = $request->get('entity_id');
 
-        if ($receiver->rotation === null) {
+        if ($receiver->rotation === null && ! $tempSubSystem) {
             return response()->json(['message' => 'Rotation not found'], 404);
+        }
+
+        //temp solution until subsystem
+        if ($tempSubSystem) {
+            $syncZohoAgent = new SyncZohoAgentAction($app, $receiver->company, $request->get('email'));
+            $syncZohoAgent->execute();
+
+            return response()->json(['message' => 'Receiver processed']);
         }
 
         $workflow = WorkflowStub::make(ZohoLeadOwnerWorkflow::class);

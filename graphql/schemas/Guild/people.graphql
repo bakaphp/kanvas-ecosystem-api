@@ -6,14 +6,24 @@ type People {
     name: String! @method(name: "getName")
     firstname: String!
     middlename: String
-    lastname: String!
+    lastname: String
     dob: Date
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
+    files: [Filesystem!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
     custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
 }
 
@@ -28,7 +38,7 @@ input PeopleInput {
     id: ID
     firstname: String!
     middlename: String
-    lastname: String!
+    lastname: String
     facebook_contact_id: String
     twitter_contact_id: String
     linkedin_contact_id: String
@@ -36,14 +46,16 @@ input PeopleInput {
     dob: String
     contacts: [ContactInput!]
     address: [AddressInput!]
+    files: [FilesystemInputUrl!]
     custom_fields: [CustomFieldEntityInput!]
+    created_at: DateTime
 }
 
 input PeopleParticipantInput {
     id: ID
     firstname: String!
     middlename: String
-    lastname: String!
+    lastname: String
     participants_types_id: ID!
     facebook_contact_id: String
     twitter_contact_id: String
@@ -56,6 +68,7 @@ input PeopleParticipantInput {
 
 extend type Query @guard {
     peoples(
+        search: String @search
         where: _
             @whereConditions(columns: ["id", "uuid", "companies_id", "dob"])
         hasEmails: _
@@ -72,7 +85,7 @@ extend type Query @guard {
     ): [People!]!
         @paginate(
             model: "Kanvas\\Guild\\Customers\\Models\\People"
-            scopes: ["fromCompany"]
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
             defaultCount: 25
         )
     peopleRelationships(
@@ -101,5 +114,9 @@ extend type Mutation @guard {
     restorePeople(id: ID!): Boolean
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@restore"
+        )
+    importPeoples(input: [PeopleInput!]!, companyId: Int): String!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleImportMutation@import"
         )
 }
