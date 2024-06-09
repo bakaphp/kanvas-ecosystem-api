@@ -24,8 +24,8 @@ type LeadTaskEngagementItem {
     config: Mixed
     engagement_start: Engagement @hasOne(relation: "engagementStart")
     engagement_end: Engagement @hasOne(relation: "engagementEnd")
-    created_at: DateTime!
-    updated_at: DateTime!
+    created_at: DateTime
+    updated_at: DateTime
 }
 
 extend type Query @guard {
