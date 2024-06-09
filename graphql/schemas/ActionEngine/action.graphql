@@ -21,7 +21,7 @@ type CompanyAction {
     name: String!
     description: String
     form_config: Mixed
-    status: String!
+    status: String
     is_active: Boolean!
     is_published: Boolean!
     weight: Float!
