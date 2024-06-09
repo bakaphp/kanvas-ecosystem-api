@@ -44,8 +44,19 @@ class TaskListItem extends BaseModel
         return $this->belongsTo(CompanyAction::class, 'companies_action_id');
     }
 
+    /**
+      * temp relationship to engagement will only work on LeadTaskEngagementItem
+      */
     public function engagementStart(): HasOne
     {
         return $this->hasOne(Engagement::class, 'id', 'engagement_start_id');
+    }
+
+    /**
+     * temp relationship to engagement will only work on LeadTaskEngagementItem
+     */
+    public function engagementEnd(): HasOne
+    {
+        return $this->hasOne(Engagement::class, 'id', 'engagement_end_id');
     }
 }
