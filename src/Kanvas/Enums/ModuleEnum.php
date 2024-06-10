@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\AccessControlList\Enums;
+namespace Kanvas\Enums;
 
 enum ModuleEnum: int
 {

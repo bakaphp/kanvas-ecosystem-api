@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Console\Commands;
+namespace App\Console\Commands\AccessControl;
 
 use Illuminate\Console\Command;
 use Kanvas\AccessControlList\Actions\CreateAbilitiesByModule;

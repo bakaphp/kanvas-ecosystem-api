@@ -27,7 +27,7 @@ class RoleAbilitiesQuery
 
     public function getAllAbilitiesByRoles(mixed $root, array $request)
     {
-        $roles = Bouncer::role()->where('name', $request['role'])->first();
+        $roles = Bouncer::role()->where('name', $request['role'])->firstOrFail();
         $subQuery = DB::table('permissions')
                     ->where('entity_type', 'roles')
                     ->where('permissions.entity_id', $roles->id)

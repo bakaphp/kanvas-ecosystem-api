@@ -12,9 +12,10 @@ return new class () extends Migration {
     {
         Schema::create('abilities_modules', function (Blueprint $table) {
             $table->id();
-            $table->integer('system_modules_id');
-            $table->integer('abilities_id');
-            $table->integer('module_id');
+            $table->integer('system_modules_id')->index('system_modules_id');
+            $table->integer('apps_id')->index('apps_id');
+            $table->integer('abilities_id')->index('abilities_id');
+            $table->integer('module_id')->index('module_id');
             $table->string('scope');
             $table->integer('is_deleted')->default(0);
             $table->timestamps();

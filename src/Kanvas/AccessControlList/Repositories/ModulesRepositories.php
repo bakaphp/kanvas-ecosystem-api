@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\AccessControlList\Repositories;
 
-use Kanvas\AccessControlList\Enums\ModuleEnum;
+use Kanvas\Enums\ModuleEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Users\Models\Users;
