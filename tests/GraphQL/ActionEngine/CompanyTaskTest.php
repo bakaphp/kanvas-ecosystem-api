@@ -77,12 +77,25 @@ class CompanyTaskTest extends TestCase
             leadTaskItems(lead_id: $lead_id) {
                 data {
                     name
-                    action {
+                    company_action {
                         name
+                        action {
+                            slug
+                        }
                     }
                     status
                     config
                     engagement_start {
+                        uuid
+                        message {
+                            message
+                        }
+                        lead {
+                            title
+                        }
+                        slug
+                        entity_uuid
+                    } engagement_end {
                         uuid
                     }
                 }
