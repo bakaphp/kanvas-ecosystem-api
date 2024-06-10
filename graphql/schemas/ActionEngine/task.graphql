@@ -19,7 +19,7 @@ type TaskListItem {
 
 type LeadTaskEngagementItem {
     name: String!
-    company_action: CompanyAction! @belongsTo
+    company_action: CompanyAction! @belongsTo(relation: "companyAction")
     status: String
     config: Mixed
     engagement_start: Engagement @hasOne(relation: "engagementStart")
