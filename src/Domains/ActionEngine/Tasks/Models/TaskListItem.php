@@ -39,7 +39,7 @@ class TaskListItem extends BaseModel
         return $this->belongsTo(TaskList::class, 'task_list_id');
     }
 
-    public function action(): BelongsTo
+    public function companyAction(): BelongsTo
     {
         return $this->belongsTo(CompanyAction::class, 'companies_action_id');
     }
