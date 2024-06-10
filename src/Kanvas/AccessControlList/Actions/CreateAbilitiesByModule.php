@@ -47,7 +47,7 @@ class CreateAbilitiesByModule
                             'abilities_id' => $ability->id,
                             'scope' => $scope,
                             'module_id' => $module,
-                            'app_id' => $this->app->getId(),
+                            'apps_id' => $this->app->getId(),
                         ]
                     );
                 }
