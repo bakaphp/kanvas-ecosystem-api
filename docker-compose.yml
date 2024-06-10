@@ -1,4 +1,3 @@
-version: '3'
 services:
     php:
         container_name: php${APP_CONTAINER_NAME}
