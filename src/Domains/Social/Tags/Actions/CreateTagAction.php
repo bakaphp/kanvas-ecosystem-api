@@ -22,7 +22,7 @@ class CreateTagAction
             'name' => $this->tagData->name,
         ], [
             'users_id' => $this->tagData->user?->getId(),
-            'weight' => $this->tagData->weight,
+            'weight' => $this->tagData->weight ?? 0,
         ]);
     }
 }
