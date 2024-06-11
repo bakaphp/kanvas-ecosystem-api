@@ -9,8 +9,9 @@ use Kanvas\Social\Tags\Models\Tag;
 
 class CreateTagAction
 {
-    public function __construct(private TagData $tagData)
-    {
+    public function __construct(
+        protected TagData $tagData
+    ) {
     }
 
     public function execute(): Tag
