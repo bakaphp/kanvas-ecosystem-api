@@ -90,6 +90,8 @@ input VariantsUpdateInput {
     serial_number: String
     is_published: Boolean
     warehouses: [WarehouseReferenceInput!]
+    channels: [VariantChannelReferenceInput!]
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 extend type Mutation @guard {
