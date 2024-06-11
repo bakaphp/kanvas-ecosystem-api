@@ -20,7 +20,7 @@ class ChannelService
         $variant->variantChannels()->forcedelete();
         foreach ($variantsChannels as $variantChannel) {
             $warehouse = WarehouseRepository::getById((int) $variantChannel['warehouses_id']);
-            $channel = ChannelRepository::getById((int) $variantChannel['channels_id'],$variant->product->company()->get()->first());
+            $channel = ChannelRepository::getById((int) $variantChannel['channels_id'], $variant->product->company()->get()->first());
             $variantChannelDto = VariantChannel::from($variantChannel);
 
             VariantService::addVariantChannel(
@@ -33,5 +33,4 @@ class ChannelService
 
         return $variant;
     }
-
 }
