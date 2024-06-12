@@ -10,12 +10,11 @@ return new class () extends Migration {
      */
     public function up(): void
     {
-        //remove field entity_namespace from tags_entities
-        if (Schema::hasColumn('tags_entities', 'entity_namespace')) {
-            Schema::table('tags_entities', function (Blueprint $table) {
-                $table->dropColumn('entity_namespace');
-            });
-        }
+        Schema::table('tags_entities', function (Blueprint $table) {
+            $table->dropColumn('entity_namespace');
+            $table->dropColumn('apps_id');
+            $table->dropColumn('companies_id');
+        });
     }
 
     /**
@@ -25,6 +24,8 @@ return new class () extends Migration {
     {
         Schema::table('tags_entities', function (Blueprint $table) {
             $table->string('entity_namespace', 255)->nullable();
+            $table->integer('apps_id')->nullable();
+            $table->integer('companies_id')->nullable();
         });
     }
 };
