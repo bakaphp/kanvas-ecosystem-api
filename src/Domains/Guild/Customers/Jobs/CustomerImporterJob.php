@@ -101,6 +101,7 @@ class CustomerImporterJob implements ShouldQueue, ShouldBeUnique
                     'apple_contact_id' => $customerData['apple_contact_id'] ?? null,
                     'linkedin_contact_id' => $customerData['linkedin_contact_id'] ?? null,
                     'custom_fields' => $customerData['custom_fields'] ?? [],
+                    'tags' => $customerData['tags'] ?? [],
                     'created_at' => $customerData['created_at'] ?? null,
                 ]);
 

@@ -20,7 +20,7 @@ class SystemModuleSeeder extends Seeder
             [
                 'name' => 'Companies',
                 'slug' => 'companies',
-                'model_name' => 'Kanvas\\Models\\Companies',
+                'model_name' => 'Kanvas\\Companies\\Models\\Companies',
                 'uuid' => (string) Str::uuid(),
                 'apps_id' => '1',
                 'parents_id' => '0',

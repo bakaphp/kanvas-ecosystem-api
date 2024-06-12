@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\GraphQL\Inventory\Mutations\Variants;
 
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
-use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Repositories\ChannelRepository;
+use Kanvas\Inventory\Channels\Services\ChannelService;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction as AddToWarehouse;
-use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
+use Kanvas\Inventory\Variants\Actions\UpdateVariantsAction;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantDto;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
@@ -89,6 +89,7 @@ class Variants
                 );
             }
         }
+
         return $variantModel;
     }
 
@@ -103,17 +104,23 @@ class Variants
         }
 
         $variant = VariantsRepository::getById((int) $req['id'], $company);
-        $variant->update($req['input']);
+        $req['input']['products_id'] = $variant->product->getId();
+        $variantDto = VariantDto::viaRequest($req['input'], auth()->user());
+        $variantModel = (new UpdateVariantsAction($variant, $variantDto, auth()->user()))->execute();
 
         if (isset($req['input']['attributes'])) {
-            $variant->addAttributes(auth()->user(), $req['input']['attributes']);
+            $variantModel->addAttributes(auth()->user(), $req['input']['attributes']);
         }
 
         if (isset($req['input']['warehouses'])) {
-            WarehouseService::updateWarehouseVariant($variant, auth()->user(), $req['input']['warehouses']);
+            WarehouseService::updateWarehouseVariant($variantModel, auth()->user(), $req['input']['warehouses']);
         }
 
-        return $variant;
+        if (isset($req['input']['channels'])) {
+            ChannelService::updateChannelVariant($variantModel, $req['input']['channels']);
+        }
+
+        return $variantModel;
     }
 
     /**

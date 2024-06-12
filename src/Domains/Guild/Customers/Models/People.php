@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Models\BaseModel;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Laravel\Scout\Searchable;
 
 /**
@@ -17,6 +18,7 @@ use Laravel\Scout\Searchable;
  *
  * @property int $id
  * @property string $uuid
+ * @property int $apps_id
  * @property int $users_id
  * @property int $companies_id
  * @property string $name
@@ -35,6 +37,7 @@ class People extends BaseModel
 {
     use UuidTrait;
     use Searchable;
+    use HasTagsTrait;
 
     protected $table = 'peoples';
     protected $guarded = [];

@@ -6,7 +6,7 @@ type People {
     name: String! @method(name: "getName")
     firstname: String!
     middlename: String
-    lastname: String!
+    lastname: String
     dob: Date
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
@@ -19,6 +19,11 @@ type People {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
 }
 
@@ -43,6 +48,7 @@ input PeopleInput {
     address: [AddressInput!]
     files: [FilesystemInputUrl!]
     custom_fields: [CustomFieldEntityInput!]
+    tags: [TagInput!]
     created_at: DateTime
 }
 
@@ -50,7 +56,7 @@ input PeopleParticipantInput {
     id: ID
     firstname: String!
     middlename: String
-    lastname: String!
+    lastname: String
     participants_types_id: ID!
     facebook_contact_id: String
     twitter_contact_id: String
@@ -70,6 +76,8 @@ extend type Query @guard {
             @whereHasConditions(relation: "emails", columns: ["id", "value"])
         hasPhones: _
             @whereHasConditions(relation: "phones", columns: ["id", "value"])
+        hasTags: _
+            @whereHasConditions(relation: "tags", columns: ["name"])
         hasCustomFields: _
             @whereHasConditions(
                 relation: "customFields"

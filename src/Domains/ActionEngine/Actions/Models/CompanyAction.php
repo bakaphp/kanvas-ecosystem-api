@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Domains\ActionEngine\Actions\Models;
+namespace Kanvas\ActionEngine\Actions\Models;
 
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;

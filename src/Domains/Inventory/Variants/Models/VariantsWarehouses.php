@@ -6,6 +6,7 @@ namespace Kanvas\Inventory\Variants\Models;
 
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -44,8 +45,11 @@ class VariantsWarehouses extends BaseModel
 {
     use NoAppRelationshipTrait;
     use NoCompanyRelationshipTrait;
+    use CascadeSoftDeletes;
 
     protected $table = 'products_variants_warehouses';
+    protected $cascadeDeletes = ['variantWarehousesStatusHistory', 'pricesHistory', 'variantChannels'];
+
     protected $guarded = [];
 
     /**
@@ -98,6 +102,19 @@ class VariantsWarehouses extends BaseModel
             VariantsWarehousesPriceHistory::class,
             'product_variants_warehouse_id'
         );
+    }
+
+    public function variantWarehousesStatusHistory(): HasMany
+    {
+        return $this->hasMany(
+            VariantWarehouseStatusHistory::class,
+            'products_variants_warehouse_id'
+        );
+    }
+
+    public function variantChannels(): HasMany
+    {
+        return $this->hasMany(VariantsChannels::class, 'product_variants_warehouse_id')->where('is_published', 1);
     }
 
     /**

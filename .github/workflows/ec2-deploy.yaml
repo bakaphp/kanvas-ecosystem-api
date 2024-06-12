@@ -1,6 +1,10 @@
 name: Deploy to EC2
 
 on:
+  push:
+    branches:
+      - 'development'
+
   workflow_dispatch:
 
 jobs:

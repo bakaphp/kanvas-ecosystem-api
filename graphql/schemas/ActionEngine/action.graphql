@@ -1,0 +1,30 @@
+type Action {
+    id: ID!
+    name: String!
+    slug: String!
+    description: String
+    icon: String
+    form_fields: Mixed
+    form_config: Mixed
+    is_active: Boolean!
+    is_published: Boolean!
+    collects_info: Boolean!
+    config: Mixed
+    parent: Action
+    children: [Action!]
+}
+
+type CompanyAction {
+    id: ID!
+    action: Action!
+    company: Company!
+    name: String!
+    description: String
+    form_config: Mixed
+    status: String
+    is_active: Boolean!
+    is_published: Boolean!
+    weight: Float!
+    parent: CompanyAction
+    children: [CompanyAction!]
+}

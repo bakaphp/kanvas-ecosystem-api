@@ -1,4 +1,9 @@
-FROM unit:php8.3
+FROM --platform=linux/arm64 unit:php8.3
+
+# # Define a build argument for the target architecture
+# ARG TARGETARCH
+# # Set an environment variable to use the architecture in commands
+# ENV ARCH=$TARGETARCH
 
 COPY ./docker/unit.json /docker-entrypoint.d/
 
