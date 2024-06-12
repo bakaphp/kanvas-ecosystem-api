@@ -23,6 +23,7 @@ use Kanvas\Users\Models\Users;
 use Laravel\Scout\Searchable;
 use Baka\Traits\SoftDeletesTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 
 /**
  *  Class Message
@@ -47,6 +48,7 @@ class Message extends BaseModel
     use UuidTrait;
     use Searchable;
     use HasFactory;
+    use HasTagsTrait;
     use CascadeSoftDeletes;
     use SoftDeletesTrait;
 

@@ -8,6 +8,7 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Models\BaseModel;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 
 /**
  * Class Organization.
@@ -23,6 +24,7 @@ use Kanvas\Guild\Models\BaseModel;
 class Organization extends BaseModel
 {
     use UuidTrait;
+    use HasTagsTrait;
 
     protected $table = 'organizations';
     protected $guarded = [];

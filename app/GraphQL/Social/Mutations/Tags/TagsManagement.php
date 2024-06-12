@@ -89,7 +89,7 @@ class TagsManagement
         );
 
         $tag->entities()->attach($entity->getId(), [
-            'entity_namespace' => $systemModule->model_name,
+            //'entity_namespace' => $systemModule->model_name,
             'apps_id' => $tag->apps_id,
             'companies_id' => $user->getCurrentCompany()->getId(),
             'users_id' => $user->getId(),
