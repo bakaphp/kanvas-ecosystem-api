@@ -16,6 +16,7 @@ class TagEntity extends MorphPivot
         'tags_id',
         'entity_id',
         'entity_namespace',
+        'taggable_type',
         'companies_id',
         'apps_id',
         'users_id',

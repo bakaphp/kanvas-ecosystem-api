@@ -19,9 +19,11 @@ trait HasTagsTrait
     {
         $dbConnection = config('database.connections.social.database');
 
-        $query = $this->morphToMany(ModelsTag::class, 'taggable', $dbConnection . '.tags_entities', 'tags_id', 'entity_id')
+        $query = $this->morphToMany(ModelsTag::class, 'taggable', $dbConnection . '.tags_entities', 'entity_id', 'tags_id')
             ->using(TagEntity::class)
-            ->wherePivot('apps_id', $this->apps_id);
+            ->wherePivot('apps_id', $this->apps_id)
+            ->withPivot('entity_namespace', 'companies_id', 'apps_id', 'users_id', 'is_deleted', 'created_at', 'updated_at');
+
 
         if ($userCompany) {
             $query->wherePivot('companies_id', $this->companies_id);
@@ -49,12 +51,12 @@ trait HasTagsTrait
             )
         ))->execute();
 
-        $this->tags()->attach($tag->getId(), [
+        $this->tags()->attach($this->getId(), [
             'entity_namespace' => self::class,
             'companies_id' => $company->getId(),
             'apps_id' => $app->getId(),
+            'tags_id' => $tag->getId(),
             'users_id' => $user->getId(),
-            'taggable_type' => ModelsTag::class,
             'is_deleted' => 0,
         ]);
     }
