@@ -23,6 +23,7 @@ use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
@@ -61,6 +62,7 @@ class Lead extends BaseModel
 {
     use UuidTrait;
     use Searchable;
+    use HasTagsTrait;
     use FollowersTrait;
     use CanUseWorkflow;
 
