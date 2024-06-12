@@ -88,7 +88,7 @@ extend type Query @guard {
     ): [People!]!
         @paginate(
             model: "Kanvas\\Guild\\Customers\\Models\\People"
-            scopes: [ "notDeleted"]
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
             defaultCount: 25
         )
     peopleRelationships(
