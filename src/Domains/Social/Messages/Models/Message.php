@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,12 +20,10 @@ use Kanvas\Social\Messages\Factories\MessageFactory;
 use Kanvas\Social\MessagesComments\Models\MessageComment;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\Topics\Models\Topic;
 use Kanvas\Users\Models\Users;
 use Laravel\Scout\Searchable;
-use Baka\Traits\SoftDeletesTrait;
-use Dyrynda\Database\Support\CascadeSoftDeletes;
-use Kanvas\Social\Tags\Traits\HasTagsTrait;
 
 /**
  *  Class Message
