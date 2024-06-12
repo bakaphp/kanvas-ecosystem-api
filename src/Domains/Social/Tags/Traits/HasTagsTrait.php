@@ -15,18 +15,12 @@ use Kanvas\Social\Tags\Models\TagEntity;
 
 trait HasTagsTrait
 {
-    public function tags(bool $userCompany = true): MorphToMany
+    public function tags(): MorphToMany
     {
         $dbConnection = config('database.connections.social.database');
 
         $query = $this->morphToMany(ModelsTag::class, 'taggable', $dbConnection . '.tags_entities', 'entity_id', 'tags_id')
-            ->using(TagEntity::class)
-            ->wherePivot('apps_id', $this->apps_id);
-
-
-        if ($userCompany) {
-            $query->wherePivot('companies_id', $this->companies_id);
-        }
+            ->using(TagEntity::class);
 
         return $query;
     }
@@ -51,8 +45,6 @@ trait HasTagsTrait
         ))->execute();
 
         $this->tags()->attach($this->getId(), [
-            'companies_id' => $company->getId(),
-            'apps_id' => $app->getId(),
             'tags_id' => $tag->getId(),
             'users_id' => $user->getId(),
             'is_deleted' => 0,
