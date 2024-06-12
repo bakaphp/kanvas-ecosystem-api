@@ -58,7 +58,7 @@ class CreatePeopleAction
         $people->saveCustomFields();
 
         if (count($this->peopleData->tags)) {
-            $people->addTags(array_column($this->peopleData->tags, 'name'));
+            $people->syncTags(array_column($this->peopleData->tags, 'name'));
         }
 
         if ($this->peopleData->contacts->count()) {
