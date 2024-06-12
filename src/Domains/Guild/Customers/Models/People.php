@@ -73,6 +73,15 @@ class People extends BaseModel
         );
     }
 
+    public function peoplesEmploymentHistory(): HasMany
+    {
+        return $this->hasMany(
+            PeopleEmploymentHistory::class,
+            'peoples_id',
+            'id'
+        );
+    }
+
     public function phones(): HasMany
     {
         return $this->hasMany(
