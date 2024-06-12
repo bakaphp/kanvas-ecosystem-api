@@ -1,9 +1,4 @@
-FROM --platform=linux/arm64 unit:php8.3
-
-# # Define a build argument for the target architecture
-# ARG TARGETARCH
-# # Set an environment variable to use the architecture in commands
-# ENV ARCH=$TARGETARCH
+FROM unit:php8.3
 
 COPY ./docker/unit.json /docker-entrypoint.d/
 
@@ -31,27 +26,20 @@ RUN apt-get update && apt-get install -y \
     nginx \
     vim
 
-# Set working directory
-WORKDIR /app
 
-# RUN groupadd -g 1000 unit
-# RUN useradd -u 1000 -ms /bin/bash -g unit unit
-
-# Copy code to /var/www
-COPY . /app
-# COPY chown -R unit:unit /var/www/html/
-
-# Install composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+COPY . /var/www/html/
+# COPY chown -R unit:unit /var/www/html/
 
 # add root to www group
 # RUN chmod -R ug+w var/www/html/storage
-
-RUN cp docker/docker-php-ext-opcache-prod.ini /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
-RUN cp docker/php.ini /usr/local/etc/php/conf.d/zx-app-config.ini
 # RUN cp docker/php-fpm.conf /usr/local/etc/php-fpm.d/zzz-php-fpm-production.conf
 
 WORKDIR /var/www/html/
+
+RUN cp docker/docker-php-ext-opcache-prod.ini /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
+RUN cp docker/php.ini /usr/local/etc/php/conf.d/zx-app-config.ini
 
 RUN composer install --optimize-autoloader
 
