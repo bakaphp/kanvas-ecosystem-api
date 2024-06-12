@@ -26,8 +26,9 @@ jobs:
         source: .
         target: ${{secrets.AWS_EC2_TARGET_DIR}}
   laravel-command:
-    name: Build
+    name: Clear cache Laravel
     runs-on: ubuntu-latest
+    environment: ${{ github.ref_name }}
     steps:
     - name: executing remote ssh commands using password
       uses: appleboy/ssh-action@v1.0.3
