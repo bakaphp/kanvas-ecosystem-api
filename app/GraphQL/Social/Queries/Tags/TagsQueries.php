@@ -18,7 +18,7 @@ class TagsQueries
 
         return Tag::whereHas('taggables', function ($query) use ($root, $systemModule) {
             $query->where('entity_id', $root->getKey());
-            $query->where('entity_namespace', $systemModule->model_name);
+            $query->where('taggable_type', $systemModule->model_name);
             $query->where('apps_id', $systemModule->apps_id);
         })->where('is_deleted', StateEnums::NO->getValue());
     }
