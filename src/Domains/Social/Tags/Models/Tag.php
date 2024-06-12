@@ -40,6 +40,6 @@ class Tag extends BaseModel
     public function getTable()
     {
         $databaseName = DB::connection($this->connection)->getDatabaseName();
-        return $databaseName . '.' . $this->table;
+        return $databaseName . '.tags';
     }
 }
