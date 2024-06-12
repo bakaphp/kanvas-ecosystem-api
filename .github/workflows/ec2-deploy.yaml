@@ -25,9 +25,10 @@ jobs:
         key: ${{ secrets.AWS_EC2_PRIVATE_SSH_KEY }}
         source: .
         target: ${{secrets.AWS_EC2_TARGET_DIR}}
-  laravel-command:
-    name: Clear cache Laravel
+  docker-command:
+    name: Docker commands
     runs-on: ubuntu-latest
+    needs: deploy-to-ec2
     environment: ${{ github.ref_name }}
     steps:
     - name: executing remote ssh commands using password
