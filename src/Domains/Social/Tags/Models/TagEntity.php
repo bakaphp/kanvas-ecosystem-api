@@ -27,11 +27,11 @@ class TagEntity extends MorphPivot
 
     public function entity()
     {
-        return $this->morphTo(null, 'entity_namespace', 'entity_id');
+        return $this->morphTo(null, 'taggable_type', 'entity_id');
     }
 
     public function systemModule(): BelongsTo
     {
-        return $this->belongsTo(SystemModules::class, 'entity_namespace', 'model_name')->where('apps_id', $this->apps_id);
+        return $this->belongsTo(SystemModules::class, 'taggable_type', 'model_name')->where('apps_id', $this->apps_id);
     }
 }

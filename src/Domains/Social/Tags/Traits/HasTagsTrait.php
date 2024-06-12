@@ -21,8 +21,7 @@ trait HasTagsTrait
 
         $query = $this->morphToMany(ModelsTag::class, 'taggable', $dbConnection . '.tags_entities', 'entity_id', 'tags_id')
             ->using(TagEntity::class)
-            ->wherePivot('apps_id', $this->apps_id)
-            ->withPivot('entity_namespace', 'companies_id', 'apps_id', 'users_id', 'is_deleted', 'created_at', 'updated_at');
+            ->wherePivot('apps_id', $this->apps_id);
 
 
         if ($userCompany) {
