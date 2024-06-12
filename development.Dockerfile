@@ -44,7 +44,6 @@ COPY . /app
 # Install composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-
 # add root to www group
 # RUN chmod -R ug+w var/www/html/storage
 
