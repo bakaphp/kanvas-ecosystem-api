@@ -51,7 +51,6 @@ trait HasTagsTrait
         ))->execute();
 
         $this->tags()->attach($this->getId(), [
-            'entity_namespace' => self::class,
             'companies_id' => $company->getId(),
             'apps_id' => $app->getId(),
             'tags_id' => $tag->getId(),

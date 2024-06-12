@@ -19,6 +19,7 @@ class LeadFactory extends Factory
     {
         $company = Companies::factory()->create();
         $app = app(Apps::class);
+
         return [
             'firstname' => fake()->firstName,
             'lastname' => fake()->lastName,
