@@ -15,7 +15,6 @@ return new class () extends Migration {
             $table->dropColumn('apps_id');
             $table->dropColumn('companies_id');
         });
-
     }
 
     /**
