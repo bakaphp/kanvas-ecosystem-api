@@ -41,6 +41,10 @@ WORKDIR /var/www/html/
 RUN cp docker/docker-php-ext-opcache-prod.ini /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
 RUN cp docker/php.ini /usr/local/etc/php/conf.d/zx-app-config.ini
 
+RUN chmod -R 755 /var/www/html/
+RUN chmod -R 777 /var/www/html/storage/
+RUN chmod -R 777 /var/www/html/storage/logs/
+
 RUN composer install --optimize-autoloader
 
 EXPOSE 8080

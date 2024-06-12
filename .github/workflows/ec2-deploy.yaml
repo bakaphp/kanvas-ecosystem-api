@@ -25,3 +25,15 @@ jobs:
         key: ${{ secrets.AWS_EC2_PRIVATE_SSH_KEY }}
         source: .
         target: ${{secrets.AWS_EC2_TARGET_DIR}}
+  laravel-command:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+    - name: executing remote ssh commands using password
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.AWS_EC2_HOST }}
+        username: ${{ secrets.AWS_EC2_USERNAME }}
+        key: ${{ secrets.AWS_EC2_PRIVATE_SSH_KEY }}
+        script: |
+          docker exec -it phpkanvas-ecosystem php artisan lighthouse:cache && php artisan config:cache
