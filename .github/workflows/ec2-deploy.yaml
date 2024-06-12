@@ -37,6 +37,5 @@ jobs:
         username: ${{ secrets.AWS_EC2_USERNAME }}
         key: ${{ secrets.AWS_EC2_PRIVATE_SSH_KEY }}
         script: |
-          cd ${{secrets.AWS_EC2_TARGET_DIR}}
-          chmod +x clear_cache.sh
+          chmod +x ${{secrets.AWS_EC2_TARGET_DIR}}clear_cache.sh
           ./clear_cache.sh
