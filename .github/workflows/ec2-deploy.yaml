@@ -37,4 +37,5 @@ jobs:
         username: ${{ secrets.AWS_EC2_USERNAME }}
         key: ${{ secrets.AWS_EC2_PRIVATE_SSH_KEY }}
         script: |
-          docker exec -it phpkanvas-ecosystem php artisan lighthouse:cache && php artisan config:cache
+          docker exec -it phpkanvas-ecosystem php artisan lighthouse:cache
+          docker exec -it phpkanvas-ecosystem php artisan config:cache
