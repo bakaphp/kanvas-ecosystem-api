@@ -12,6 +12,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\ProductsCategories;
+use Kanvas\Inventory\Traits\DatabaseSearchableTrait;
 use Kanvas\Inventory\Traits\ScopesTrait;
 
 class Categories extends BaseModel
@@ -19,6 +20,7 @@ class Categories extends BaseModel
     use UuidTrait;
     use SlugTrait;
     use ScopesTrait;
+    use DatabaseSearchableTrait;
 
     protected $table = 'categories';
     protected $guarded = [];

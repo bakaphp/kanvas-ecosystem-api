@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Inventory\Traits\DatabaseSearchableTrait;
 use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 
 /**
@@ -27,6 +28,7 @@ class Attributes extends BaseModel
 {
     use UuidTrait;
     use CascadeSoftDeletes;
+    use DatabaseSearchableTrait;
 
     public $table = 'attributes';
     public $guarded = [];
