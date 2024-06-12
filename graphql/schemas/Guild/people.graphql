@@ -48,6 +48,7 @@ input PeopleInput {
     address: [AddressInput!]
     files: [FilesystemInputUrl!]
     custom_fields: [CustomFieldEntityInput!]
+    tags: [TagInput!]
     created_at: DateTime
 }
 
