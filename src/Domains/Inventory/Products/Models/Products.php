@@ -23,6 +23,7 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Laravel\Scout\Searchable;
 
 /**
@@ -50,6 +51,7 @@ class Products extends BaseModel
     use SlugTrait;
     use LikableTrait;
     use HasShopifyCustomField;
+    use HasTagsTrait;
     use Searchable {
         search as public traitSearch;
     }

@@ -38,6 +38,7 @@ class People extends Data
         public readonly ?string $linkedin_contact_id = null,
         public readonly ?string $middlename = null,
         public readonly array $custom_fields = [],
+        public readonly array $tags = [],
         public readonly ?string $created_at = null
     ) {
     }

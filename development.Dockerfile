@@ -31,6 +31,7 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 
 COPY . /var/www/html/
 # COPY chown -R unit:unit /var/www/html/
+
 # add root to www group
 # RUN chmod -R ug+w var/www/html/storage
 # RUN cp docker/php-fpm.conf /usr/local/etc/php-fpm.d/zzz-php-fpm-production.conf

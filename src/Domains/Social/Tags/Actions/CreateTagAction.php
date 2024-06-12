@@ -9,8 +9,9 @@ use Kanvas\Social\Tags\Models\Tag;
 
 class CreateTagAction
 {
-    public function __construct(private TagData $tagData)
-    {
+    public function __construct(
+        protected TagData $tagData
+    ) {
     }
 
     public function execute(): Tag
@@ -21,7 +22,7 @@ class CreateTagAction
             'name' => $this->tagData->name,
         ], [
             'users_id' => $this->tagData->user?->getId(),
-            'weight' => $this->tagData->weight,
+            'weight' => $this->tagData->weight ?? 0,
         ]);
     }
 }

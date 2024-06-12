@@ -15,7 +15,7 @@ type Message {
     parent: Message
     user: User!
     messageType: MessageType!
-    appModuleMessage: AppModuleMessage!
+    appModuleMessage: AppModuleMessage
     myInteraction: myInteraction @method(name: "getMyInteraction")
     comments: [MessageComments!]!
     custom_fields: [CustomField!]!
