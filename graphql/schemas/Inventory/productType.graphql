@@ -63,6 +63,7 @@ extend type Mutation @guard {
 }
 extend type Query {
     productTypes(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [
