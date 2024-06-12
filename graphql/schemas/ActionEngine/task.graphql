@@ -35,3 +35,10 @@ extend type Query @guard {
             defaultCount: 25
         )
 }
+
+extend type Mutation @guard {
+    changeTaskEngagementItemStatus(id: ID!, status: String!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Engagements\\TaskEngagementMutation@changeEngagementTaskItemStatus"
+        )
+}
