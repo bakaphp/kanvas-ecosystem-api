@@ -24,7 +24,7 @@ class ScreeningAction
         $client = new Client();
         $email = $this->people->getEmails()->first();
         $linkedin = $this->people->contacts()
-            ->where('contacts_types_id',  ContactType::getByName('LinkedIn')->getId())
+            ->where('contacts_types_id', ContactType::getByName('LinkedIn')->getId())
             ->first();
         $data = [
             'first_name' => $this->people->firstname,
@@ -45,10 +45,8 @@ class ScreeningAction
             ]);
 
             return json_decode($response->getBody()->getContents(), true)["person"];
-
         } catch (GuzzleException $e) {
             throw new Exception($e->getMessage());
         }
-
     }
 }
