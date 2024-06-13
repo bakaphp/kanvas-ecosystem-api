@@ -328,4 +328,36 @@ class Variants extends BaseModel
     {
         return $query->whereRelation('warehouses', 'warehouses.is_deleted', 0);
     }
+
+    /**
+     * Get the total amount of variants in all the warehouses.
+     *
+     * @return Int
+     */
+    public function getTotalQuantity(): int
+    {
+        if (! $totalVariantQuantity = $this->get('total_variant_quantity')) {
+            return (int) $this->setTotalQuantity();
+        }
+        return (int) $totalVariantQuantity;
+    }
+
+    /**
+     * Set the total amount of variants in all the warehouses.
+     *
+     * @return Int
+     */
+    public function setTotalQuantity(): int
+    {
+        $total = $this->variantWarehouses()
+                ->where('is_deleted', 0)
+                ->sum('quantity');
+
+        $this->set(
+            'total_variant_quantity',
+            $total
+        );
+
+        return (int) $total;
+    }
 }
