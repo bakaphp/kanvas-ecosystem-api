@@ -12,7 +12,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\ProductsCategories;
-use Kanvas\Inventory\Traits\DatabaseSearchableTrait;
+use Baka\Traits\DatabaseSearchableTrait;
 use Kanvas\Inventory\Traits\ScopesTrait;
 
 class Categories extends BaseModel

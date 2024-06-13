@@ -7,7 +7,7 @@ namespace Kanvas\Inventory\Status\Models;
 use Baka\Traits\SlugTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Inventory\Models\BaseModel;
-use Kanvas\Inventory\Traits\DatabaseSearchableTrait;
+use Baka\Traits\DatabaseSearchableTrait;
 use Kanvas\Inventory\Traits\DefaultTrait;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Inventory\Traits;
+namespace Baka\Traits;
 
 use Laravel\Scout\EngineManager;
 use Laravel\Scout\Engines\Engine;

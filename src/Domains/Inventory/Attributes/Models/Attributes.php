@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Models\BaseModel;
-use Kanvas\Inventory\Traits\DatabaseSearchableTrait;
+use Baka\Traits\DatabaseSearchableTrait;
 use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 
 /**

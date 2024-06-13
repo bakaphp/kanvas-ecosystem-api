@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Warehouses\Models;
 
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Regions\Models\Regions;
-use Kanvas\Inventory\Traits\DatabaseSearchableTrait;
 use Kanvas\Inventory\Traits\DefaultTrait;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 

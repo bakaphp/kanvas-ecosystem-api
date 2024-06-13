@@ -16,7 +16,7 @@ use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Factories\ProductTypeFactory;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Inventory\Traits\DatabaseSearchableTrait;
+use Baka\Traits\DatabaseSearchableTrait;
 use Kanvas\Inventory\Traits\ScopesTrait;
 
 /**
