@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Models\BaseModel;
+use Baka\Traits\DatabaseSearchableTrait;
 use Kanvas\Inventory\Traits\DefaultTrait;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
@@ -37,6 +38,7 @@ class Channels extends BaseModel
 {
     use UuidTrait;
     use SlugTrait;
+    use DatabaseSearchableTrait;
     use DefaultTrait;
 
     protected $table = 'channels';
