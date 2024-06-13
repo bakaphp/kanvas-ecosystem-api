@@ -9,6 +9,8 @@ type Variant {
     html_description: String
     sku: String
     ean: String
+    barcode: String
+    serial_number: String
     status: Status
     files: [Filesystem]
         @paginate(
