@@ -18,6 +18,7 @@ type TaskListItem {
 }
 
 type LeadTaskEngagementItem {
+    id: ID!
     name: String!
     company_action: CompanyAction! @belongsTo(relation: "companyAction")
     status: String

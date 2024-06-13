@@ -113,6 +113,7 @@ extend type Query @guard {
                     "parent_unique_id"
                     "companies_id"
                     "uuid"
+                    "users_id"
                     "message_types_id"
                     "message"
                     "reactions_count"

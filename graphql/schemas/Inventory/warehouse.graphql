@@ -62,6 +62,7 @@ extend type Mutation @guard {
 }
 extend type Query @guard {
     warehouses(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [

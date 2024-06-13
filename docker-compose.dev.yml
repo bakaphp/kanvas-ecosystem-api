@@ -24,7 +24,7 @@ services:
             dockerfile: development.Dockerfile
         extra_hosts:
             - 'host.docker.internal:host-gateway'
-        command: ["sh", "-c", "php artisan config:cache && php artisan queue:work --tries=3 --timeout=1750 --max-jobs=1000"]
+        command: ["sh", "-c", "php artisan config:cache && php artisan queue:work --tries=3 --timeout=1750"]
         environment:
             WWWUSER: '${WWWUSER}'
             LARAVEL_SAIL: 1
@@ -43,7 +43,7 @@ services:
             dockerfile: development.Dockerfile
         extra_hosts:
             - 'host.docker.internal:host-gateway'
-        command: ["sh", "-c", "php artisan config:cache && php artisan queue:work --queue kanvas-social --tries=3 --timeout=1750 --max-jobs=1000"]
+        command: ["sh", "-c", "php artisan config:cache && php artisan queue:work --queue kanvas-social --tries=3 --timeout=1750"]
         environment:
             WWWUSER: '${WWWUSER}'
             LARAVEL_SAIL: 1
@@ -62,7 +62,26 @@ services:
             dockerfile: development.Dockerfile
         extra_hosts:
             - 'host.docker.internal:host-gateway'
-        command: ["sh", "-c", "php artisan config:cache && php artisan queue:work --queue notifications --tries=3 --timeout=1750 --max-jobs=1000"]
+        command: ["sh", "-c", "php artisan config:cache && php artisan queue:work --queue notifications --tries=3 --timeout=1750"]
+        environment:
+            WWWUSER: '${WWWUSER}'
+            LARAVEL_SAIL: 1
+            XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
+            XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
+        volumes:
+            - '.:/var/www/html'
+            - ./docker/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
+            - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
+        networks:
+            - sail
+    laravel-scheduler:
+        container_name: laravel-scheduler
+        build:
+            context: .
+            dockerfile: development.Dockerfile
+        extra_hosts:
+            - 'host.docker.internal:host-gateway'
+        command: ["sh", "-c", "php artisan config:cache && php artisan schedule:work"]
         environment:
             WWWUSER: '${WWWUSER}'
             LARAVEL_SAIL: 1
