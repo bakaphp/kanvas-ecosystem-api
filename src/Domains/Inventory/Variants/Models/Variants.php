@@ -180,7 +180,7 @@ class Variants extends BaseModel
             'products_variants_id',
             'channels_id'
         )
-            ->withPivot('price', 'discounted_price', 'is_published', 'warehouses_id');
+            ->withPivot('price', 'discounted_price', 'is_published', 'warehouses_id', 'channels_id');
     }
 
     /**
