@@ -43,7 +43,7 @@ trait KanvasModelTrait
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException("No record found for $name");
+            throw new ExceptionsModelNotFoundException($e->getMessage() . "  $name");
         }
     }
 
@@ -58,7 +58,7 @@ trait KanvasModelTrait
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException("No record found for $uuid");
+            throw new ExceptionsModelNotFoundException($e->getMessage() . "  $uuid");
         }
     }
 
@@ -73,7 +73,7 @@ trait KanvasModelTrait
             ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException("No record found for $id");
+            throw new ExceptionsModelNotFoundException($e->getMessage() . " $id");
         }
     }
 
