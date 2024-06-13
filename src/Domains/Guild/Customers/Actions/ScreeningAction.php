@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\ContactType;
 use GuzzleHttp\Client;
+use Exception;
 
 class ScreeningAction
 {
@@ -46,7 +47,7 @@ class ScreeningAction
             return json_decode($response->getBody()->getContents(), true)["person"];
 
         } catch (GuzzleException $e) {
-            echo 'Error de Guzzle: ' . $e->getMessage();
+            throw new Exception($e->getMessage());
         }
 
     }
