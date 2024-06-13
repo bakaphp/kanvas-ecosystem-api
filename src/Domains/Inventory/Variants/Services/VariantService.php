@@ -15,6 +15,7 @@ use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
 use Kanvas\Inventory\Variants\Actions\UpdateToChannelAction;
 use Kanvas\Inventory\Variants\Actions\UpdateToWarehouseAction;
+use Kanvas\Inventory\Variants\Actions\UpdateVariantsAction;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel as VariantChannelDto;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
@@ -41,7 +42,14 @@ class VariantService
                 ...$variant,
             ]);
 
-            $variantModel = (new CreateVariantsAction($variantDto, $user))->execute();
+            $existVariantUpdate = Variants::fromCompany($product->company)->fromApp($product->app)->where('sku', $variantDto->sku)->first();
+
+            if (! $existVariantUpdate) {
+                $variantModel = (new CreateVariantsAction($variantDto, $user))->execute();
+            } else {
+                $variantModel = (new UpdateVariantsAction($existVariantUpdate, $variantDto, $user))->execute();
+            }
+
             $company = $variantDto->product->company;
 
             if (isset($variant['custom_fields']) && ! empty($variant['custom_fields'])) {
