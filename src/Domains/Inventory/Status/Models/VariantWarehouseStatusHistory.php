@@ -30,7 +30,6 @@ class VariantWarehouseStatusHistory extends BaseModel
     protected $primaryKey = ['products_variants_warehouse_id', 'status_id'];
     protected $forceDeleting = true;
 
-
     /**
      * Get the user that owns the Variants.
      */

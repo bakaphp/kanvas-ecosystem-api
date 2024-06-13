@@ -38,7 +38,7 @@ extend type Query @guard {
 }
 
 extend type Mutation @guard {
-    changeTaskEngagementItemStatus(id: ID!, status: String!): Boolean!
+    changeTaskEngagementItemStatus(id: ID!, lead_id: ID!, status: String!): Boolean!
         @field(
             resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Engagements\\TaskEngagementMutation@changeEngagementTaskItemStatus"
         )
