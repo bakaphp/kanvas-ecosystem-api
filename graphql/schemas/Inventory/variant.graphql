@@ -35,6 +35,7 @@ type Variant {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
+    inventory_quantity: Int @method(name: "getTotalQuantity")
 }
 
 type VariantPricingInfo{
