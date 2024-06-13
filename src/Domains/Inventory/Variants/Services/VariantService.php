@@ -42,12 +42,12 @@ class VariantService
                 ...$variant,
             ]);
 
-            $existVariantUpdate = Variants::fromCompany($product->company)->fromApp($product->app)->where('sku', $variantDto->sku)->first();
+            $existVariantUpdate = Variants::fromCompany($product->company)->fromApp($product->app)->where('sku', $variantDto->sku);
 
-            if (! $existVariantUpdate) {
+            if (! $existVariantUpdate->exists()) {
                 $variantModel = (new CreateVariantsAction($variantDto, $user))->execute();
             } else {
-                $variantModel = (new UpdateVariantsAction($existVariantUpdate, $variantDto, $user))->execute();
+                $variantModel = (new UpdateVariantsAction($existVariantUpdate->first(), $variantDto, $user))->execute();
             }
 
             $company = $variantDto->product->company;

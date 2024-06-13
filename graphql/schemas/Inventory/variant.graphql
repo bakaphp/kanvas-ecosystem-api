@@ -79,13 +79,13 @@ input VariantsInput {
 
 input VariantsUpdateInput {
     products_id: ID
-    name: String
+    name: String!
     description: String
     short_description: String
     html_description: String
     files: [FilesystemInputUrl!]
     status: StatusReferenceInput
-    sku: String
+    sku: String!
     ean: String
     barcode: String
     attributes: [VariantsAttributesInput!]
