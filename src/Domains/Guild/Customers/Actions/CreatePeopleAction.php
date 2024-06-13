@@ -10,6 +10,7 @@ use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreatePeopleAction
 {
@@ -112,6 +113,13 @@ class CreatePeopleAction
                 $people->address()->saveMany($addressesToAdd);
             }
         }
+
+        $people->fireWorkflow(
+            WorkflowEnum::CREATED->value,
+            true,
+            [
+            ]
+        );
 
         return $people;
     }

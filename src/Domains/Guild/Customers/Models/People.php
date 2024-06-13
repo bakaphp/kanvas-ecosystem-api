@@ -12,6 +12,7 @@ use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Laravel\Scout\Searchable;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
  * Class People.
@@ -38,6 +39,7 @@ class People extends BaseModel
     use UuidTrait;
     use Searchable;
     use HasTagsTrait;
+    use CanUseWorkflow;
 
     protected $table = 'peoples';
     protected $guarded = [];

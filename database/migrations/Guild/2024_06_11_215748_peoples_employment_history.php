@@ -14,12 +14,13 @@ return new class extends Migration
         Schema::create('peoples_employment_history', function (Blueprint $table) {
             $table->id();
             $table->integer('peoples_id')->unsigned();
+            $table->integer('apps_id')->unsigned();
             $table->string('position');
-            $table->decimal('income', 10, 2);
+            $table->decimal('income', 10, 2)->nullable();
             $table->date('start_date');
             $table->date('end_date')->nullable();
             $table->integer('status')->default(0);
-            $table->string('income_type');
+            $table->string('income_type')->nullable();
             $table->string('company_employer_name');
             $table->string('company_employer_address')->nullable();
             $table->string('company_employer_phone')->nullable();
@@ -28,6 +29,8 @@ return new class extends Migration
             $table->string('company_employer_state')->nullable();
             $table->string('company_employer_zip')->nullable();
             $table->boolean('is_deleted')->default(0);
+            $table->dateTime('created_at')->index('created_at');
+            $table->dateTime('updated_at')->nullable()->index('updated_at');
         });
     }
 
