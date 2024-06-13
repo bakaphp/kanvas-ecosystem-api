@@ -15,7 +15,7 @@ type Message {
     parent: Message
     user: User!
     messageType: MessageType!
-    appModuleMessage: AppModuleMessage!
+    appModuleMessage: AppModuleMessage
     myInteraction: myInteraction @method(name: "getMyInteraction")
     comments: [MessageComments!]!
     custom_fields: [CustomField!]!
@@ -113,6 +113,7 @@ extend type Query @guard {
                     "parent_unique_id"
                     "companies_id"
                     "uuid"
+                    "users_id"
                     "message_types_id"
                     "message"
                     "reactions_count"

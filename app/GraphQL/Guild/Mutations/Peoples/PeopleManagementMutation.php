@@ -39,6 +39,7 @@ class PeopleManagementMutation
             'google_contact_id' => $data['google_contact_id'] ?? null,
             'apple_contact_id' => $data['apple_contact_id'] ?? null,
             'linkedin_contact_id' => $data['linkedin_contact_id'] ?? null,
+            'tags' => $data['tags'] ?? [],
             'custom_fields' => $data['custom_fields'] ?? [],
         ]);
 
@@ -69,6 +70,7 @@ class PeopleManagementMutation
             'google_contact_id' => $data['google_contact_id'] ?? null,
             'apple_contact_id' => $data['apple_contact_id'] ?? null,
             'linkedin_contact_id' => $data['linkedin_contact_id'] ?? null,
+            'tags' => $data['tags'] ?? [],
             'custom_fields' => $data['custom_fields'] ?? [],
         ]);
 

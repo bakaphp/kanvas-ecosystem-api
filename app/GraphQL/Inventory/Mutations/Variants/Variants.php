@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\GraphQL\Inventory\Mutations\Variants;
 
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
-use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Repositories\ChannelRepository;
+use Kanvas\Inventory\Channels\Services\ChannelService;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction as AddToWarehouse;
@@ -114,6 +114,10 @@ class Variants
 
         if (isset($req['input']['warehouses'])) {
             WarehouseService::updateWarehouseVariant($variantModel, auth()->user(), $req['input']['warehouses']);
+        }
+
+        if (isset($req['input']['channels'])) {
+            ChannelService::updateChannelVariant($variantModel, $req['input']['channels']);
         }
 
         return $variantModel;

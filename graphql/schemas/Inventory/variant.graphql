@@ -9,6 +9,8 @@ type Variant {
     html_description: String
     sku: String
     ean: String
+    barcode: String
+    serial_number: String
     status: Status
     files: [Filesystem]
         @paginate(
@@ -77,19 +79,21 @@ input VariantsInput {
 
 input VariantsUpdateInput {
     products_id: ID
-    name: String
+    name: String!
     description: String
     short_description: String
     html_description: String
     files: [FilesystemInputUrl!]
     status: StatusReferenceInput
-    sku: String
+    sku: String!
     ean: String
     barcode: String
     attributes: [VariantsAttributesInput!]
     serial_number: String
     is_published: Boolean
     warehouses: [WarehouseReferenceInput!]
+    channels: [VariantChannelReferenceInput!]
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 extend type Mutation @guard {

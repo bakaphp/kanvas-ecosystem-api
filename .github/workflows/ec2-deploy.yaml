@@ -25,3 +25,20 @@ jobs:
         key: ${{ secrets.AWS_EC2_PRIVATE_SSH_KEY }}
         source: .
         target: ${{secrets.AWS_EC2_TARGET_DIR}}
+  docker-command:
+    name: Docker commands
+    runs-on: ubuntu-latest
+    needs: deploy-to-ec2
+    environment: ${{ github.ref_name }}
+    steps:
+    - name: executing remote ssh commands using password
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.AWS_EC2_HOST }}
+        username: ${{ secrets.AWS_EC2_USERNAME }}
+        key: ${{ secrets.AWS_EC2_PRIVATE_SSH_KEY }}
+        script: |
+          cd ${{secrets.AWS_EC2_TARGET_DIR}}
+          docker compose -f docker-compose.dev.yml up -d
+          docker exec -i phpkanvas-ecosystem php artisan lighthouse:cache
+          docker exec -i phpkanvas-ecosystem php artisan config:cache

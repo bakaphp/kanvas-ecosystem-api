@@ -14,7 +14,7 @@ return new class () extends Migration {
             $table->id();
             $table->integer('tags_id')->index();
             $table->integer('entity_id')->index();
-            $table->string('entity_namespace')->index();
+            $table->string('entity_namespace')->index(); //@todo remove
             $table->integer('companies_id')->index();
             $table->integer('apps_id')->index();
             $table->integer('users_id')->index();

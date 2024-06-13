@@ -48,6 +48,7 @@ input PeopleInput {
     address: [AddressInput!]
     files: [FilesystemInputUrl!]
     custom_fields: [CustomFieldEntityInput!]
+    tags: [TagInput!]
     created_at: DateTime
 }
 
@@ -75,6 +76,8 @@ extend type Query @guard {
             @whereHasConditions(relation: "emails", columns: ["id", "value"])
         hasPhones: _
             @whereHasConditions(relation: "phones", columns: ["id", "value"])
+        hasTags: _
+            @whereHasConditions(relation: "tags", columns: ["name"])
         hasCustomFields: _
             @whereHasConditions(
                 relation: "customFields"
