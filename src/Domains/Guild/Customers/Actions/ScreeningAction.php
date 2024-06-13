@@ -32,7 +32,6 @@ class ScreeningAction
             'email' => $email ? $email->value : null,
             'linkedin_url' => $linkedin ? $linkedin->value : null,
         ];
-        dump($this->app->get('apollo_api_key'));
         try {
             // Envía la solicitud POST a la API de Apollo.io
             $response = $client->post('https://api.apollo.io/v1/people/match', [
