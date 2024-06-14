@@ -1,10 +1,12 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Models;
 
-use Kanvas\Guild\Models\BaseModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Guild\Models\BaseModel;
+
 /**
  * Class PeopleEmploymentHistory
  *
@@ -26,17 +28,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property null|string $company_employer_state
  * @property null|string $company_employer_zip
  */
-class PeopleEmploymentHistory extends BaseModel 
+class PeopleEmploymentHistory extends BaseModel
 {
     protected $table = 'peoples_employment_history';
     protected $guarded = [];
 
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'foreign_key', 'other_key');
-    }
-
-    public function people()
+    public function people(): BelongsTo
     {
         return $this->belongsTo(
             People::class,
