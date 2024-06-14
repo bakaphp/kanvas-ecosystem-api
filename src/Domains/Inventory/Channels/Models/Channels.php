@@ -86,7 +86,7 @@ class Channels extends BaseModel
         );
     }
 
-    protected function isPublished(): Attribute
+    public function isPublished(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->pivot ? $this->pivot->is_published : ($this->attributes['is_published'] ?? true),
