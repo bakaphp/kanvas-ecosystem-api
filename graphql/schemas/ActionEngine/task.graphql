@@ -34,6 +34,7 @@ extend type Query @guard {
         @paginate(
             builder: "App\\GraphQL\\ActionEngine\\Builders\\Engagements\\TaskEngagementBuilder@getLeadTaskItems"
             defaultCount: 25
+            scopes: ["notDeleted"]
         )
 }
 
