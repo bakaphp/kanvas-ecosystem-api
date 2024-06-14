@@ -224,7 +224,7 @@ class Variants extends BaseModel
                     'isVisible' => false,
                     'isSearchable' => false,
                     'isFiltrable' => false,
-                    'slug' => Str::slug($attribute['name'])
+                    'slug' => Str::slug($attribute['name']),
                 ]);
                 $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
             }
@@ -331,21 +331,18 @@ class Variants extends BaseModel
 
     /**
      * Get the total amount of variants in all the warehouses.
-     *
-     * @return Int
      */
     public function getTotalQuantity(): int
     {
         if (! $totalVariantQuantity = $this->get('total_variant_quantity')) {
             return (int) $this->setTotalQuantity();
         }
+
         return (int) $totalVariantQuantity;
     }
 
     /**
      * Set the total amount of variants in all the warehouses.
-     *
-     * @return Int
      */
     public function setTotalQuantity(): int
     {

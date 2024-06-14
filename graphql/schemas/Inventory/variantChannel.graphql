@@ -33,21 +33,15 @@ type VariantChannelRelationship {
     id: ID!
     name: String
     description: String
+    price: Float
+    discounted_price: Float
+    warehouses_id: ID!
     slug: String
-    pivot: VariantChannelPivot
     is_published: Boolean
     prices_history: [ChannelsPricesHistoryRelationship!]!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantChannelBuilder@getChannelHistory"
         )
-}
-
-type VariantChannelPivot {
-    price: Float
-    channels_id: ID!
-    warehouses_id: ID!
-    discounted_price: Float
-    is_published: Boolean
 }
 
 input VariantChannelInput {
@@ -133,7 +127,8 @@ extend type Query {
         id: ID!
         attributes: Mixed
         search: String @search
-        where: _ @whereConditions(columnsEnum: ChannelVariantsFilterByAttributesEnum)
+        where: _
+            @whereConditions(columnsEnum: ChannelVariantsFilterByAttributesEnum)
         orderBy: _
             @orderBy(
                 columns: [

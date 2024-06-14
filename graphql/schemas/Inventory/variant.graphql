@@ -23,13 +23,18 @@ type Variant {
     product: Product
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
-    attributes: [VariantsAttributes!]!
+    attributes: [VariantsAttributes!]! @BelongsToMany(relation: "attributes")
     companies: Company! @belongsTo(relation: "company")
     channels: [VariantChannelRelationship!]!
+        @BelongsToMany(relation: "channels")
     channel: VariantPricingInfo
-        @field(resolver: "App\\GraphQL\\Inventory\\Types\\ChannelInfoType@price")
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Types\\ChannelInfoType@price"
+        )
     metadata: Mixed
-        @field(resolver: "App\\GraphQL\\Inventory\\Types\\MetadataType@linkedStores")
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Types\\MetadataType@linkedStores"
+        )
     custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 25
@@ -38,7 +43,7 @@ type Variant {
     inventory_quantity: Int @method(name: "getTotalQuantity")
 }
 
-type VariantPricingInfo{
+type VariantPricingInfo {
     price: Float!
     discounted_price: Float!
     quantity: Int!
