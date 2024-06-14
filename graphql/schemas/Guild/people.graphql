@@ -39,13 +39,13 @@ type PeopleEmploymentHistory {
     end_date: Date
     status: Int!
     income_type: String 
-    company_employer_name: String!
-    company_employer_phone: String
-    company_employer_address: String
-    company_employer_email: String
-    company_employer_city: String
-    company_employer_state: String
-    company_employer_zip: String
+    company_name: String!
+    company_phone: String
+    company_address: String
+    company_email: String
+    company_city: String
+    company_state: String
+    company_zip: String
 }
 
 type PeopleRelationship {

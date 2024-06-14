@@ -19,14 +19,14 @@ use Kanvas\Guild\Models\BaseModel;
  * @property null|string $end_date
  * @property int status
  * @property null|string $income_type
- * @property string $company_employer_name
- * @property null|string $company_employer_phone
- * @property null|string $company_employer_address
- * @property null|string $company_employer_phone
- * @property null|string $company_employer_email
- * @property null|string $company_employer_city
- * @property null|string $company_employer_state
- * @property null|string $company_employer_zip
+ * @property string $company_name
+ * @property null|string $company_phone
+ * @property null|string $company_address
+ * @property null|string $company_phone
+ * @property null|string $company_email
+ * @property null|string $company_city
+ * @property null|string $company_state
+ * @property null|string $company_zip
  */
 class PeopleEmploymentHistory extends BaseModel
 {

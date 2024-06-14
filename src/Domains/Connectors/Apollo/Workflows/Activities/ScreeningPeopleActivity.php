@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Guild\Customers\Workflows\Activities;
+namespace Kanvas\Connectors\Apollo\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Guild\Customers\Actions\ScreeningAction;
+use Kanvas\Connectors\Apollo\Actions\ScreeningAction;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Locations\Models\Countries;
@@ -23,11 +23,11 @@ class ScreeningPeopleActivity extends Activity
         foreach ($peopleData['employment_history'] as $employmentHistory) {
             $history[] = new PeopleEmploymentHistory([
                 'status' => (int)$employmentHistory['current'],
-                'company_employer_name' => $employmentHistory['organization_name'],
+                'company_name' => $employmentHistory['organization_name'],
                 'start_date' => $employmentHistory['start_date'],
                 'end_date' => $employmentHistory['end_date'],
                 'position' => $employmentHistory['title'],
-                'company_employer_address' => $employmentHistory['raw_address'],
+                'company_address' => $employmentHistory['raw_address'],
             ]);
         }
         $country = Countries::where('name', $peopleData['country'])->first();

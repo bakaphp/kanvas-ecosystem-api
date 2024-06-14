@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Guild\Customers\Actions;
+namespace Kanvas\Connectors\Apollo\Actions;
 
+use Exception;
+use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\ContactType;
-use GuzzleHttp\Client;
-use Exception;
+use Kanvas\Guild\Customers\Models\People;
 
 class ScreeningAction
 {
@@ -33,6 +33,7 @@ class ScreeningAction
             'email' => $email ? $email->value : null,
             'linkedin_url' => $linkedin ? $linkedin->value : null,
         ];
+
         try {
             // Envía la solicitud POST a la API de Apollo.io
             $response = $client->post('https://api.apollo.io/v1/people/match', [
@@ -44,7 +45,7 @@ class ScreeningAction
                 'json' => $data,
             ]);
 
-            return json_decode($response->getBody()->getContents(), true)["person"];
+            return json_decode($response->getBody()->getContents(), true)['person'];
         } catch (GuzzleException $e) {
             throw new Exception($e->getMessage());
         }
