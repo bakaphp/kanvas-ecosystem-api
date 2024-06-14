@@ -4,19 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Channels\Models;
 
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Models\BaseModel;
-use Baka\Traits\DatabaseSearchableTrait;
 use Kanvas\Inventory\Traits\DefaultTrait;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
-use Kanvas\Users\Models\Users;
 
 /**
  * Class Channels.
@@ -43,30 +39,6 @@ class Channels extends BaseModel
 
     protected $table = 'channels';
     protected $guarded = [];
-
-    /**
-     * Get the companies that owns the Warehouses.
-     */
-    public function companies(): BelongsTo
-    {
-        return $this->belongsTo(Companies::class, 'companies_id');
-    }
-
-    /**
-     *
-     */
-    public function apps(): BelongsTo
-    {
-        return $this->belongsTo(Apps::class, 'apps_id');
-    }
-
-    /**
-     * users.
-     */
-    public function users(): BelongsTo
-    {
-        return $this->belongsTo(Users::class, 'users_id');
-    }
 
     /**
      * Available products in this channel
@@ -97,6 +69,34 @@ class Channels extends BaseModel
         return $this->hasMany(
             VariantChannelPriceHistory::class,
             'channels_id'
+        );
+    }
+
+    public function price(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->price,
+        );
+    }
+
+    public function discountedPrice(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->discounted_price,
+        );
+    }
+
+    public function isPublished(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->is_published,
+        );
+    }
+
+    public function warehousesId(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->pivot->warehouses_id,
         );
     }
 }
