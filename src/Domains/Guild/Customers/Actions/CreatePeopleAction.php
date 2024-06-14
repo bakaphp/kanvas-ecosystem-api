@@ -118,6 +118,7 @@ class CreatePeopleAction
             WorkflowEnum::CREATED->value,
             true,
             [
+                'app' => $this->peopleData->app,
             ]
         );
 

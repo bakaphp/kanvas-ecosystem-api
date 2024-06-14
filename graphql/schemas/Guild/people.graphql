@@ -10,7 +10,7 @@ type People {
     dob: Date
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
-    peoplesEmploymentHistory: [PeopleEmploymentHistory!]!
+    peoples_employmentHistory: [PeopleEmploymentHistory!]!
         @hasMany(
             relation: "peoplesEmploymentHistory"
         )
