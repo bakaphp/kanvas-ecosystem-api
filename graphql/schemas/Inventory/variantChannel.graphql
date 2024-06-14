@@ -133,7 +133,8 @@ extend type Query {
         id: ID!
         attributes: Mixed
         search: String @search
-        where: _ @whereConditions(columnsEnum: ChannelVariantsFilterByAttributesEnum)
+        where: _
+            @whereConditions(columnsEnum: ChannelVariantsFilterByAttributesEnum)
         orderBy: _
             @orderBy(
                 columns: [
