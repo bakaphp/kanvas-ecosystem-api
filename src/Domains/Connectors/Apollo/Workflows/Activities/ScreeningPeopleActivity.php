@@ -42,6 +42,10 @@ class ScreeningPeopleActivity extends Activity
             'state_id' => 0,
             'countries_id' => $country->getId(),
         ]);
+
+        $people->peoplesEmploymentHistory()->delete();
+        $people->address()->delete();
+
         $people->peoplesEmploymentHistory()->saveMany($history);
         $people->address()->saveMany([$address]);
 
