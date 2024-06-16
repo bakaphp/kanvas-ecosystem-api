@@ -27,7 +27,9 @@ class UserCustomFieldActivity extends Activity implements WorkflowActivityInterf
 
         //set custom field to user
         foreach ($customField as $key => $value) {
-            $user->set($key, $value);
+            $value = $value['value'] ?? null;
+            $isPublic = $value['is_public'] ?? false;
+            $user->set($key, $value, $isPublic);
         }
 
         return [
