@@ -30,14 +30,16 @@ class TaskEngagementBuilder
             $join->on('company_task_list_items.id', '=', 'company_task_engagement_items.task_list_item_id')
                  ->where('company_task_engagement_items.lead_id', '=', $lead->getId());
         })
-             ->select(
-                 'company_task_list_items.*',
-                 'company_task_engagement_items.lead_id',
-                 'company_task_engagement_items.status',
-                 'company_task_engagement_items.engagement_start_id',
-                 'company_task_engagement_items.engagement_end_id',
-                 'company_task_engagement_items.created_at',
-                 'company_task_engagement_items.updated_at'
-             );
+        ->leftJoin('company_task_list', 'company_task_list.id', '=', 'company_task_list_items.task_list_id')
+        ->where('company_task_list.companies_id', '=', $lead->companies_id)
+        ->select(
+            'company_task_list_items.*',
+            'company_task_engagement_items.lead_id',
+            'company_task_engagement_items.status',
+            'company_task_engagement_items.engagement_start_id',
+            'company_task_engagement_items.engagement_end_id',
+            'company_task_engagement_items.created_at',
+            'company_task_engagement_items.updated_at'
+        );
     }
 }
