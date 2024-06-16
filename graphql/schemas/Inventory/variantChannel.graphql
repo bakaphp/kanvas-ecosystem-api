@@ -35,7 +35,7 @@ type VariantChannelRelationship {
     description: String
     price: Float
     discounted_price: Float
-    warehouses_id: ID!
+    warehouses_id: ID
     slug: String
     is_published: Boolean
     prices_history: [ChannelsPricesHistoryRelationship!]!
