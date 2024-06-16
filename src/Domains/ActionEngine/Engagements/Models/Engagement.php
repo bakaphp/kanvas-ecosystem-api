@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Domains\ActionEngine\Engagements\Models;
+namespace Kanvas\ActionEngine\Engagements\Models;
 
 use Baka\Traits\UuidTrait;
-use Domains\ActionEngine\Actions\Models\CompanyAction;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Models\BaseModel;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;

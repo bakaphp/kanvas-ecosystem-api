@@ -15,13 +15,19 @@ type Message {
     parent: Message
     user: User!
     messageType: MessageType!
-    appModuleMessage: AppModuleMessage!
+    appModuleMessage: AppModuleMessage
     myInteraction: myInteraction @method(name: "getMyInteraction")
     comments: [MessageComments!]!
     custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
+    tags: [Tag!]
+        @paginate
+        (
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
 }
 
@@ -107,6 +113,7 @@ extend type Query @guard {
                     "parent_unique_id"
                     "companies_id"
                     "uuid"
+                    "users_id"
                     "message_types_id"
                     "message"
                     "reactions_count"

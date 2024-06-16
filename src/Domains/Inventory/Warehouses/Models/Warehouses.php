@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Warehouses\Models;
 
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -35,6 +36,7 @@ class Warehouses extends BaseModel
 {
     use UuidTrait;
     use DefaultTrait;
+    use DatabaseSearchableTrait;
 
     protected $table = 'warehouses';
 

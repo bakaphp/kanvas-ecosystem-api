@@ -1,0 +1,46 @@
+type TaskList {
+    id: ID!
+    name: String!
+    company: Company!
+    config: Mixed
+    tasks: [TaskListItem!] @hasMany
+}
+
+type TaskListItem {
+    id: ID!
+    name: String!
+    status: String!
+    due_date: Date
+    completed_date: Date
+    config: Mixed
+    action: CompanyAction!
+    weight: Float!
+}
+
+type LeadTaskEngagementItem {
+    id: ID!
+    name: String!
+    company_action: CompanyAction! @belongsTo(relation: "companyAction")
+    status: String
+    config: Mixed
+    engagement_start: Engagement @hasOne(relation: "engagementStart")
+    engagement_end: Engagement @hasOne(relation: "engagementEnd")
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+extend type Query @guard {
+    leadTaskItems(lead_id: ID!): [LeadTaskEngagementItem!]!
+        @paginate(
+            builder: "App\\GraphQL\\ActionEngine\\Builders\\Engagements\\TaskEngagementBuilder@getLeadTaskItems"
+            defaultCount: 25
+            scopes: ["notDeleted"]
+        )
+}
+
+extend type Mutation @guard {
+    changeTaskEngagementItemStatus(id: ID!, lead_id: ID!, status: String!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Engagements\\TaskEngagementMutation@changeEngagementTaskItemStatus"
+        )
+}

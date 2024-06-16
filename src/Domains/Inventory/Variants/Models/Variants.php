@@ -180,7 +180,7 @@ class Variants extends BaseModel
             'products_variants_id',
             'channels_id'
         )
-            ->withPivot('price', 'discounted_price', 'is_published', 'warehouses_id');
+            ->withPivot('price', 'discounted_price', 'is_published', 'warehouses_id', 'channels_id');
     }
 
     /**
@@ -224,7 +224,7 @@ class Variants extends BaseModel
                     'isVisible' => false,
                     'isSearchable' => false,
                     'isFiltrable' => false,
-                    'slug' => Str::slug($attribute['name'])
+                    'slug' => Str::slug($attribute['name']),
                 ]);
                 $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
             }
@@ -327,5 +327,34 @@ class Variants extends BaseModel
     protected function makeAllSearchableUsing(Builder $query): Builder
     {
         return $query->whereRelation('warehouses', 'warehouses.is_deleted', 0);
+    }
+
+    /**
+     * Get the total amount of variants in all the warehouses.
+     */
+    public function getTotalQuantity(): int
+    {
+        if (! $totalVariantQuantity = $this->get('total_variant_quantity')) {
+            return (int) $this->setTotalQuantity();
+        }
+
+        return (int) $totalVariantQuantity;
+    }
+
+    /**
+     * Set the total amount of variants in all the warehouses.
+     */
+    public function setTotalQuantity(): int
+    {
+        $total = $this->variantWarehouses()
+                ->where('is_deleted', 0)
+                ->sum('quantity');
+
+        $this->set(
+            'total_variant_quantity',
+            $total
+        );
+
+        return (int) $total;
     }
 }

@@ -1,0 +1,11 @@
+type Engagement {
+    id: ID!
+    uuid: String!
+    user: User! @belongsTo
+    company_action: CompanyAction! @belongsTo
+    message: Message! @belongsTo
+    lead: Lead! @belongsTo
+    people: People @belongsTo
+    entity_uuid: String!
+    slug: String!
+}

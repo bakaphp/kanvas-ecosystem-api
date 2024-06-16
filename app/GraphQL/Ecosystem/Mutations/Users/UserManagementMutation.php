@@ -19,6 +19,7 @@ use Kanvas\Notifications\Templates\ChangeEmailUserLogged;
 use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
 use Kanvas\Users\Actions\CreateInviteAction;
 use Kanvas\Users\Actions\ProcessInviteAction;
+use Kanvas\Users\Actions\RequestDeleteAccountAction as RequestDeleteAction;
 use Kanvas\Users\DataTransferObject\CompleteInviteInput;
 use Kanvas\Users\DataTransferObject\Invite as InviteDto;
 use Kanvas\Users\Models\Users;
@@ -183,5 +184,10 @@ class UserManagementMutation
         $action->execute('photo');
 
         return $user;
+    }
+
+    public function requestDeleteAccount(mixed $rootValue, array $request): bool
+    {
+        return (new RequestDeleteAction(app(Apps::class), auth()->user()))->execute();
     }
 }
