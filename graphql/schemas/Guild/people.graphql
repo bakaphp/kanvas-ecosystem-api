@@ -10,9 +10,9 @@ type People {
     dob: Date
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
-    peoples_employmentHistory: [PeopleEmploymentHistory!]!
+    employment_history: [PeopleEmploymentHistory!]
         @hasMany(
-            relation: "peoplesEmploymentHistory"
+            relation: "employmentHistory"
         )
     files: [Filesystem!]!
         @paginate(

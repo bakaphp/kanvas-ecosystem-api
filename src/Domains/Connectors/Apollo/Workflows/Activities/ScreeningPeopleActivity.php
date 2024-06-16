@@ -21,17 +21,19 @@ class ScreeningPeopleActivity extends Activity
         $peopleData = (new ScreeningAction($people, $app))->execute();
         $history = [];
         foreach ($peopleData['employment_history'] as $employmentHistory) {
-            $history[] = new PeopleEmploymentHistory([
+            PeopleEmploymentHistory::firstOrCreate([
                 'status' => (int)$employmentHistory['current'],
                 'company_name' => $employmentHistory['organization_name'],
                 'start_date' => $employmentHistory['start_date'],
                 'end_date' => $employmentHistory['end_date'],
                 'position' => $employmentHistory['title'],
                 'company_address' => $employmentHistory['raw_address'],
+                'peoples_id' => $people->id,
             ]);
         }
         $country = Countries::where('name', $peopleData['country'])->first();
-        $address = new Address([
+        $address = Address::firstOrCreate([
+            'peoples_id' => $people->id,
             'address' => ' ',
             'address_2' => ' ',
             'city' => $peopleData['city'],
@@ -42,12 +44,6 @@ class ScreeningPeopleActivity extends Activity
             'state_id' => 0,
             'countries_id' => $country->getId(),
         ]);
-
-        $people->peoplesEmploymentHistory()->delete();
-        $people->address()->delete();
-
-        $people->peoplesEmploymentHistory()->saveMany($history);
-        $people->address()->saveMany([$address]);
 
         return [
             'status' => 'success',
