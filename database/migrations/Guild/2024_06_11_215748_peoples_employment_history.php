@@ -12,13 +12,13 @@ return new class () extends Migration {
     {
         Schema::create('peoples_employment_history', function (Blueprint $table) {
             $table->id();
-            $table->integer('peoples_id')->unsigned();
-            $table->integer('apps_id')->unsigned();
+            $table->integer('peoples_id')->unsigned()->index('peoples_id');
+            $table->integer('apps_id')->unsigned()->index('apps_id');
             $table->string('position');
             $table->decimal('income', 10, 2)->nullable();
-            $table->date('start_date');
-            $table->date('end_date')->nullable();
-            $table->integer('status')->default(0);
+            $table->date('start_date')->index();
+            $table->date('end_date')->nullable()->index();
+            $table->integer('status')->default(0)->index();
             $table->string('income_type')->nullable();
             $table->string('company_name');
             $table->string('company_address')->nullable();
