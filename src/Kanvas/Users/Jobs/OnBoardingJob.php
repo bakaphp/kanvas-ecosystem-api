@@ -17,7 +17,6 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Guild\Support\Setup as GuildSetup;
-use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter as ImporterDto;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
 
 class OnBoardingJob implements ShouldQueue

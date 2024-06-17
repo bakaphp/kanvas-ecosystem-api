@@ -22,7 +22,6 @@ use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
-use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter as ImporterDto;
 
 use function Sentry\captureException;
 
@@ -44,7 +43,6 @@ class CustomerImporterJob implements ShouldQueue, ShouldBeUnique
     * @var int
     */
     public $uniqueFor = 1800;
-
 
     public function __construct(
         public string $jobUuid,
