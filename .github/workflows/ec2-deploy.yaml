@@ -40,7 +40,7 @@ jobs:
         key: ${{ secrets.AWS_EC2_PRIVATE_SSH_KEY }}
         script: |
           cd ${{secrets.AWS_EC2_TARGET_DIR}}
-          docker compose -f docker-compose.dev.yml up -d
+          docker compose -f docker-compose.${{ github.ref_name }}.yml up -d
           docker exec -i phpkanvas-ecosystem php artisan lighthouse:cache
           docker exec -i phpkanvas-ecosystem php artisan config:cache
           docker restart queue
