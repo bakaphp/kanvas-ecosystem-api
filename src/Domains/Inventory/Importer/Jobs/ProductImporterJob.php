@@ -19,7 +19,6 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
-use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter as ImporterDto;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
 
@@ -42,11 +41,6 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
     */
     public $uniqueFor = 1800;
 
-    /**
-     * constructor.
-     *
-     * @param array<int, ImporterDto> $importer
-     */
     public function __construct(
         public string $jobUuid,
         public array $importer,

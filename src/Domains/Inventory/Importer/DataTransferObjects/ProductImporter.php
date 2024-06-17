@@ -11,11 +11,11 @@ class ProductImporter extends Data
 {
     public function __construct(
         public string $name,
-        public string $description,
         public string $slug,
         public string $sku,
         public float $price,
         public array $variants,
+        public ?string $description = null,
         public array $categories = [],
         public int $quantity = 0,
         public bool $isPublished = true,
