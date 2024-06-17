@@ -27,7 +27,7 @@ return new class () extends Migration {
             $table->foreignId('task_list_id')->constrained('company_task_list')->onDelete('cascade');
             $table->string('name');
             $table->bigInteger('companies_action_id')->index();
-            $table->enum('status', ['pending', 'in_progress', 'completed'])->default('pending')->comment('pending, in_progress, completed')->index();
+            $table->enum('status', ['pending', 'in_progress', 'completed','no_applicable'])->default('pending')->comment('pending, in_progress, completed')->index();
             $table->json('config')->nullable();
             $table->decimal('weight', 8, 2)->default(0)->index();
             $table->timestamps();
