@@ -42,11 +42,7 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
     */
     public $uniqueFor = 1800;
 
-    /**
-     * constructor.
-     *
-     * @param array<int, ImporterDto> $importer
-     */
+
     public function __construct(
         public string $jobUuid,
         public array $importer,

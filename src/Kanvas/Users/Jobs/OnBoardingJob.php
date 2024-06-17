@@ -31,11 +31,6 @@ class OnBoardingJob implements ShouldQueue
     public $failOnTimeout = false;
     public $timeout = 120000;
 
-    /**
-     * constructor.
-     *
-     * @param array<int, ImporterDto> $importer
-     */
     public function __construct(
         public UserInterface $user,
         public CompaniesBranches $branch,
