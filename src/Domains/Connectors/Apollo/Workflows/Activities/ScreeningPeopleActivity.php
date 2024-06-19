@@ -24,7 +24,6 @@ class ScreeningPeopleActivity extends Activity
 
         $history = [];
         foreach ($peopleData['employment_history'] as $employmentHistory) {
-
             $organization = new CreateOrganizationAction(
                 new Organization(
                     $people->company,

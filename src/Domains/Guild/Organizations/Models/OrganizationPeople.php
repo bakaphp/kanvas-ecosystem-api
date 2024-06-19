@@ -51,6 +51,5 @@ class OrganizationPeople extends BaseModel
             'organizations_id' => $organization->getId(),
             'peoples_id' => $people->getId(),
         ]);
-
     }
 }
