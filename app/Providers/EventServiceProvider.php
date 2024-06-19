@@ -9,8 +9,10 @@ use Kanvas\Companies\Groups\Observers\CompaniesGroupsObserver;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesGroups;
 use Kanvas\Companies\Observers\CompaniesObserver;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Guild\Customers\Observers\PeopleEmploymentHistoryObserver;
+use Kanvas\Guild\Customers\Observers\PeopleObserver;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Observers\LeadObserver;
 use Kanvas\Inventory\Categories\Observers\ProductsCategoriesObserver;
@@ -82,6 +84,7 @@ class EventServiceProvider extends ServiceProvider
         UserCompanyApps::observe(UsersAssociatedCompaniesObserver::class);
         ProductsCategories::observe(ProductsCategoriesObserver::class);
         PeopleEmploymentHistory::observe(PeopleEmploymentHistoryObserver::class);
+        People::observe(PeopleObserver::class);
     }
 
     /**

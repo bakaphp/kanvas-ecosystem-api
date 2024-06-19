@@ -113,15 +113,7 @@ class CreatePeopleAction
                 $people->address()->saveMany($addressesToAdd);
             }
         }
-
-        $people->fireWorkflow(
-            WorkflowEnum::CREATED->value,
-            true,
-            [
-                'app' => $this->peopleData->app,
-            ]
-        );
-
+        
         return $people;
     }
 }
