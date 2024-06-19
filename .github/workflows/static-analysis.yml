@@ -57,6 +57,7 @@ jobs:
       TEST_SHOPIFY_API_SECRET: ${{ secrets.TEST_SHOPIFY_API_SECRET }}
       TEST_SHOPIFY_SHOP_URL: ${{ secrets.TEST_SHOPIFY_SHOP_URL }}
       TEST_APPLE_LOGIN_TOKEN: ${{ secrets.TEST_APPLE_LOGIN_TOKEN }}
+      TEST_APOLLO_KEY: ${{ secrets.TEST_APOLLO_KEY }}
     strategy:
       fail-fast: false
       matrix:
