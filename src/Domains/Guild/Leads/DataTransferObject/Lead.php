@@ -6,7 +6,6 @@ namespace Kanvas\Guild\Leads\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
@@ -48,7 +47,7 @@ class Lead extends Data
      */
     public static function viaRequest(UserInterface $user, AppInterface $app, array $request): self
     {
-        $branch = CompaniesBranches::getById($request['branch_id']);
+        $branch = isset($request['branch_id']) ? CompaniesBranches::getById($request['branch_id']) : $user->getCurrentCompany()->branch;
         CompaniesRepository::userAssociatedToCompanyAndBranch(
             $branch->company,
             $branch,
