@@ -44,4 +44,14 @@ class OrganizationPeople extends BaseModel
     {
         return $query;
     }
+
+    public static function addPeopleToOrganization(Organization $organization, People $people): OrganizationPeople
+    {
+        return self::firstOrCreate([
+            'organizations_id' => $organization->getId(),
+            'peoples_id' => $people->getId(),
+        ], [
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+    }
 }

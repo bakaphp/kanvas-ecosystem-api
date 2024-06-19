@@ -8,6 +8,7 @@ type People {
     middlename: String
     lastname: String
     dob: Date
+    organizations: [Organization!] @belongsToMany
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
     employment_history: [PeopleEmploymentHistory!]
@@ -32,6 +33,7 @@ type People {
 }
 type PeopleEmploymentHistory {
     id: ID!
+    organization: Organization! @belongsTo
     people: People! @belongsTo
     position: String!
     income: Float
@@ -39,13 +41,6 @@ type PeopleEmploymentHistory {
     end_date: Date
     status: Int!
     income_type: String 
-    company_name: String!
-    company_phone: String
-    company_address: String
-    company_email: String
-    company_city: String
-    company_state: String
-    company_zip: String
 }
 
 type PeopleRelationship {

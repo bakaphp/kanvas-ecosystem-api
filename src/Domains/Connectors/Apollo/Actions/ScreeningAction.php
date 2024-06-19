@@ -26,6 +26,7 @@ class ScreeningAction
         $linkedin = $this->people->contacts()
             ->where('contacts_types_id', ContactType::getByName('LinkedIn')->getId())
             ->first();
+
         $data = [
             'first_name' => $this->people->firstname,
             'last_name' => $this->people->lastname,
@@ -35,7 +36,6 @@ class ScreeningAction
         ];
 
         try {
-            // Envía la solicitud POST a la API de Apollo.io
             $response = $client->post('https://api.apollo.io/v1/people/match', [
                 'headers' => [
                     'Content-Type' => 'application/json',

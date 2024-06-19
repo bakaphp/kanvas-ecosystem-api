@@ -6,11 +6,13 @@ namespace Kanvas\Guild\Customers\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Models\BaseModel;
+use Kanvas\Guild\Organizations\Models\Organization;
 
 /**
  * Class PeopleEmploymentHistory
  *
  * @property int $id
+ * @property int $organizations_id
  * @property int $peoples_id
  * @property string $apps_id
  * @property string $position
@@ -19,14 +21,6 @@ use Kanvas\Guild\Models\BaseModel;
  * @property null|string $end_date
  * @property int status
  * @property null|string $income_type
- * @property string $company_name
- * @property null|string $company_phone
- * @property null|string $company_address
- * @property null|string $company_phone
- * @property null|string $company_email
- * @property null|string $company_city
- * @property null|string $company_state
- * @property null|string $company_zip
  */
 class PeopleEmploymentHistory extends BaseModel
 {
@@ -38,6 +32,15 @@ class PeopleEmploymentHistory extends BaseModel
         return $this->belongsTo(
             People::class,
             'peoples_id',
+            'id'
+        );
+    }
+
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(
+            Organization::class,
+            'organizations_id',
             'id'
         );
     }
