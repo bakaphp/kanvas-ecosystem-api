@@ -22,12 +22,12 @@ class ScreeningPeopleActivity extends Activity
     {
         $peopleData = (new ScreeningAction($people, $app))->execute();
 
-        $history = [];
         foreach ($peopleData['employment_history'] as $employmentHistory) {
             $organization = new CreateOrganizationAction(
                 new Organization(
                     $people->company,
                     $people->user,
+                    $app,
                     $employmentHistory['organization_name'],
                     $employmentHistory['raw_address'],
                 )
@@ -42,24 +42,27 @@ class ScreeningPeopleActivity extends Activity
                 'organizations_id' => $organization->execute()->getId(),
             ]);
         }
-        $country = Countries::where('name', $peopleData['country'])->first();
-        $address = Address::firstOrCreate([
-            'peoples_id' => $people->id,
-            'address' => ' ',
-            'address_2' => ' ',
-            'city' => $peopleData['city'],
-            'state' => $peopleData['state'],
-            'county' => '',
-            'zip' => ' ',
-            'city_id' => 0,
-            'state_id' => 0,
-            'countries_id' => $country->getId(),
-        ]);
+
+        if (isset($peopleData['country']) && isset($peopleData['state']) && isset($peopleData['city'])) {
+            $country = isset($peopleData['country']) && ! empty($peopleData['country']) ? Countries::where('name', $peopleData['country'])->first() : Countries::where('name', 'United States')->first();
+            Address::firstOrCreate([
+               'peoples_id' => $people->id,
+               'address' => ' ',
+               'address_2' => ' ',
+               'city' => $peopleData['city'],
+               'state' => $peopleData['state'],
+               'county' => '',
+               'zip' => ' ',
+               'city_id' => 0,
+               'state_id' => 0,
+               'countries_id' => $country->getId(),
+            ]);
+        }
 
         return [
             'status' => 'success',
             'message' => 'People screened successfully',
-            'people' => $people->id,
+            'people_id' => $people->id,
         ];
     }
 }

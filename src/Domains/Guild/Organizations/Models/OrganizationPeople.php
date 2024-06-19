@@ -50,6 +50,8 @@ class OrganizationPeople extends BaseModel
         return self::firstOrCreate([
             'organizations_id' => $organization->getId(),
             'peoples_id' => $people->getId(),
+        ], [
+            'created_at' => date('Y-m-d H:i:s'),
         ]);
     }
 }
