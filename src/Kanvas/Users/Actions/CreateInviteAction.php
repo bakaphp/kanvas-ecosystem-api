@@ -37,10 +37,15 @@ class CreateInviteAction
         );
 
         //validate role
-        RolesRepository::getByIdFromCompany(
+        $role = RolesRepository::getByIdFromCompany(
             $this->inviteDto->role_id,
-            $company
+            $company, 
+            $this->inviteDto->app
         );
+
+        if (($role->isAdmin() || $role->isOwner()) && ! $this->user->isAdmin()) {
+            throw new \Exception('You can\'t invite an admin or owner');
+        }
 
         $invite = new UsersInvite();
         $invite->fill([
