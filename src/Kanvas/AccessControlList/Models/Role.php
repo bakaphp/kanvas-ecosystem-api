@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\AccessControlList\Models;
 
 use Illuminate\Support\Facades\Redis;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Laravel\Scout\Searchable;
 use Silber\Bouncer\Database\Role as SilberRole;
 
@@ -39,5 +40,15 @@ class Role extends SilberRole
         }
 
         return (int)$count;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->name === RolesEnums::ADMIN->value;
+    }
+
+    public function isOwner(): bool
+    {
+        return $this->name === RolesEnums::OWNER->value;
     }
 }
