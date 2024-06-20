@@ -11,7 +11,7 @@ type Interactions {
     dislike: Boolean
 }
 
-type InteractionType {
+type AooInteractionType {
     name: String!
     title: String!
     description: String
@@ -24,6 +24,15 @@ type EntityInteractions {
     interacted_entity_namespace: String!
     interactions: Interactions @method(name: "getGroupInteractions")
     entity: Mixed @method(name: "interactedEntityData")
+}
+
+type EntityInteraction {
+    interacted_entity_id: Mixed!
+    interacted_entity_namespace: String!
+    entity: Mixed! @method(name: "interactedEntityData")
+    interaction: AooInteractionType!
+    notes: Mixed
+    created_at: Date!
 }
 
 extend type Mutation @guardByAuthOrCompany {

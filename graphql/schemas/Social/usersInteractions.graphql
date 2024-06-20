@@ -18,7 +18,7 @@ type Interaction {
     count: Int
 }
 
-type EntityInteraction {
+type UserEntityInteraction {
     entity_id: ID!
     entity_namespace: String!
     interactions: JSON
@@ -61,7 +61,7 @@ extend type Query {
     getUserInteraction(
         entity_id: ID!
         entity_namespace: String!
-    ): EntityInteraction
+    ): UserEntityInteraction
         @field(
             resolver: "App\\GraphQL\\Social\\Queries\\UsersInteractions\\GetUserInteraction"
         )

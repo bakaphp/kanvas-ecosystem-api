@@ -24,7 +24,7 @@ trait LikableTrait
                 'interactions_id' => $interaction->getId(),
                 'entity_id' => $entity->getId(),
                 'entity_namespace' => $entity::class,
-                'is_deleted' => 0
+                'is_deleted' => 0,
             ], [
                 'notes' => $note,
             ]);
@@ -36,7 +36,7 @@ trait LikableTrait
             'interactions_id' => $interaction->getId(),
             'interacted_entity_id' => $entity->getId(),
             'interacted_entity_namespace' => $entity::class,
-            'is_deleted' => 0
+            'is_deleted' => 0,
         ], [
             'notes' => $note,
         ]);
