@@ -18,7 +18,6 @@ class EntityInteractionsBuilder
         GraphQLContext $context,
         ResolveInfo $resolveInfo
     ): Builder {
-
         return EntityInteractions::where('entity_id', '=', $root->uuid)
             ->where('entity_namespace', '=', $root::class)
             ->where('is_deleted', '=', StateEnums::NO->getValue());

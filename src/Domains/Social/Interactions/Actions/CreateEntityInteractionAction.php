@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Social\Interactions\Actions;
 
 use Baka\Enums\StateEnums;
-use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Interactions\DataTransferObject\EntityInteraction;
 use Kanvas\Social\Interactions\DataTransferObject\Interaction;
@@ -30,7 +29,7 @@ class CreateEntityInteractionAction
         );
 
         $interaction = $createInteractions->execute();
-  
+
         return EntityInteractions::updateOrCreate(
             [
                 'entity_id' => $this->entityInteractionData->entity->uuid,
