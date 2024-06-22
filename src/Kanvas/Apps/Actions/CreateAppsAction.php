@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Apps\Actions;
 
-use Baka\Support\Str;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\File;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\DataTransferObject\AppInput;
@@ -14,18 +12,8 @@ use Kanvas\Apps\DataTransferObject\AppKeyInput;
 use Kanvas\Apps\Jobs\CreateSystemModuleJob;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Notifications\Models\NotificationTypes;
-use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
-use Kanvas\Notifications\Templates\Invite;
-use Kanvas\Notifications\Templates\ResetPassword;
-use Kanvas\Notifications\Templates\Welcome;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
-use Kanvas\SystemModules\Repositories\SystemModulesRepository;
-use Kanvas\Templates\Actions\CreateTemplateAction;
-use Kanvas\Templates\DataTransferObject\TemplateInput;
-use Kanvas\Templates\Enums\EmailTemplateEnum;
-use Kanvas\Templates\Enums\PushNotificationTemplateEnum;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
@@ -76,8 +64,8 @@ class CreateAppsAction
             $this->user->assign(RolesEnums::OWNER->value);
 
             //@todo
-            $this->createEmailTemplate($app);
-            $this->createNotificationTypes($app);
+            $syncEmailTemplate = new SyncEmailTemplateAction($app, $this->user);
+            $syncEmailTemplate->execute();
         });
 
         return $app;
@@ -190,89 +178,6 @@ class CreateAppsAction
                 $app
             );
             $newRole->execute();
-        }
-    }
-
-    public function createEmailTemplate(Apps $app): void
-    {
-        $templates = [
-            [
-                'name' => EmailTemplateEnum::DEFAULT->value,
-                'template' => File::get(resource_path('views/emails/defaultTemplate.blade.php')),
-            ],
-            [
-                'name' => 'user-email-update',
-                'template' => File::get(resource_path('views/emails/defaultTemplate.blade.php')),
-            ],
-            [
-                'name' => EmailTemplateEnum::USER_INVITE->value,
-                'template' => File::get(resource_path('views/emails/userInvite.blade.php')),
-            ],
-            [
-                'name' => EmailTemplateEnum::CHANGE_PASSWORD->value,
-                'template' => File::get(resource_path('views/emails/passwordUpdated.blade.php')),
-            ],
-            [
-                'name' => EmailTemplateEnum::RESET_PASSWORD->value,
-                'template' => File::get(resource_path('views/emails/resetPassword.blade.php')),
-            ],
-            [
-                'name' => EmailTemplateEnum::WELCOME->value,
-                'template' => File::get(resource_path('views/emails/welcome.blade.php')),
-            ],
-            [
-                'name' => PushNotificationTemplateEnum::DEFAULT->value,
-                'template' => File::get(resource_path('views/emails/pushNotification.blade.php')),
-            ],
-        ];
-
-        $dto = new TemplateInput(
-            $app,
-            $templates[0]['name'],
-            $templates[0]['template'],
-            null,
-            $this->user
-        );
-
-        $action = new CreateTemplateAction($dto);
-        $parent = $action->execute();
-
-        //remove first
-        array_shift($templates);
-
-        foreach ($templates as $template) {
-            $dto = new TemplateInput(
-                $app,
-                $template['name'],
-                $template['template'],
-                null,
-                $this->user
-            );
-
-            $action = new CreateTemplateAction($dto);
-            $parent = $action->execute($template['name'] !== 'user-email-update' ? $parent : null);
-        }
-    }
-
-    public function createNotificationTypes(Apps $app): void
-    {
-        $types = [
-            EmailTemplateEnum::USER_INVITE->value => Invite::class,
-            EmailTemplateEnum::RESET_PASSWORD->value => ResetPassword::class,
-            EmailTemplateEnum::WELCOME->value => Welcome::class,
-            EmailTemplateEnum::CHANGE_PASSWORD->value => ChangePasswordUserLogged::class,
-        ];
-
-        foreach ($types as $type => $value) {
-            NotificationTypes::firstOrCreate([
-               'apps_id' => $app->getId(),
-               'key' => $value,
-               'name' => Str::simpleSlug($value),
-               'system_modules_id' => SystemModulesRepository::getByModelName($value, $app)->getId(),
-               'is_deleted' => 0,
-            ], [
-               'template' => $type,
-            ]);
         }
     }
 }

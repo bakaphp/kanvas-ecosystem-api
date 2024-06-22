@@ -23,7 +23,7 @@ class CreateTemplateAction
      */
     public function execute(?Templates $parent = null): Templates
     {
-        return Templates::firstOrCreate(
+        return Templates::updateOrCreate(
             [
                 'apps_id' => $this->template->app->getKey(),
                 'companies_id' => $this->template->company ? $this->template->company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue(),
