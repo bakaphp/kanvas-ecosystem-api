@@ -30,7 +30,7 @@ class Company extends Data
     public static function viaRequest(array $request, UserInterface $user): self
     {
         return new self(
-            $user,
+            user: $user,
             currency_id: ! empty($request['currency_id']) ? (int) $request['currency_id'] : null,
             name: $request['name'],
             website: $request['website'] ?? null,
