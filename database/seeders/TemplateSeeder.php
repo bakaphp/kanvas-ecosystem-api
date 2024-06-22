@@ -3,8 +3,8 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\File;
 use Kanvas\Templates\Models\Templates;
-use Kanvas\Templates\Repositories\DefaultTemplateRepository;
 
 class TemplateSeeder extends Seeder
 {
@@ -16,14 +16,14 @@ class TemplateSeeder extends Seeder
     public function run()
     {
 
-        Templates::create([
+        $defaultTemplate = Templates::create([
             'id' => 1,
             'apps_id' => 0,
             'users_id' => 1,
             'companies_id' => 0,
             'parent_template_id' => 0,
             'name' => 'Default',
-            'template' => DefaultTemplateRepository::getDefaultTemplate(),
+            'template' => File::get(resource_path('views/email/defaultTemplate.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -34,7 +34,7 @@ class TemplateSeeder extends Seeder
             'companies_id' => 0,
             'parent_template_id' => 0,
             'name' => 'user-email-update',
-            'template' => DefaultTemplateRepository::getDefaultTemplate(),
+            'template' => File::get(resource_path('views/email/defaultTemplate.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -44,8 +44,8 @@ class TemplateSeeder extends Seeder
             'users_id' => 1,
             'companies_id' => 0,
             'name' => 'users-invite',
-            'parent_template_id' => 1,
-            'template' => DefaultTemplateRepository::getUsersInvite(),
+            'parent_template_id' => $defaultTemplate->id,
+            'template' => File::get(resource_path('views/email/userInvite.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -55,8 +55,8 @@ class TemplateSeeder extends Seeder
             'users_id' => 1,
             'companies_id' => 0,
             'name' => 'change-password',
-            'parent_template_id' => 1,
-            'template' => DefaultTemplateRepository::getChangePassword(),
+            'parent_template_id' => $defaultTemplate->id,
+            'template' => File::get(resource_path('views/email/passwordUpdated.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -66,8 +66,8 @@ class TemplateSeeder extends Seeder
             'users_id' => 1,
             'companies_id' => 0,
             'name' => 'reset-password',
-            'parent_template_id' => 1,
-            'template' => DefaultTemplateRepository::getResetPassword(),
+            'parent_template_id' => $defaultTemplate->id,
+            'template' => File::get(resource_path('views/email/resetPassword.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -77,8 +77,8 @@ class TemplateSeeder extends Seeder
             'users_id' => 1,
             'companies_id' => 0,
             'name' => 'welcome',
-            'parent_template_id' => 1,
-            'template' => DefaultTemplateRepository::getWelcome(),
+            'parent_template_id' => $defaultTemplate->id,
+            'template' => File::get(resource_path('views/email/welcome.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -89,8 +89,8 @@ class TemplateSeeder extends Seeder
             'users_id' => 1,
             'companies_id' => 0,
             'name' => 'new-push-default',
-            'parent_template_id' => 1,
-            'template' => DefaultTemplateRepository::getNewPushDefault(),
+            'parent_template_id' => 0,
+            'template' => File::get(resource_path('views/email/pushNotification.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
     }

@@ -21,7 +21,7 @@ class CreateTemplateAction
     /**
      * Invoke function.
      */
-    public function execute(): Templates
+    public function execute(?Templates $parent = null): Templates
     {
         return Templates::firstOrCreate(
             [
@@ -32,6 +32,7 @@ class CreateTemplateAction
             [
                 'users_id' => $this->template->user ? $this->template->user->getKey() : AppEnums::GLOBAL_USER_ID->getValue(),
                 'template' => $this->template->template,
+                'parent_template_id' => $parent ? $parent->getId() : null,
             ]
         );
     }

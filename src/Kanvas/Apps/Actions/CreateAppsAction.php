@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Apps\Actions;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\DataTransferObject\AppInput;
@@ -16,7 +17,6 @@ use Kanvas\Roles\Models\Roles;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
 use Kanvas\Templates\Actions\CreateTemplateAction;
 use Kanvas\Templates\DataTransferObject\TemplateInput;
-use Kanvas\Templates\Repositories\DefaultTemplateRepository;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
@@ -189,33 +189,48 @@ class CreateAppsAction
         $templates = [
             [
                 'name' => 'Default',
-                'template' => DefaultTemplateRepository::getDefaultTemplate(),
+                'template' => File::get(resource_path('views/email/defaultTemplate.blade.php')),
             ],
             [
                 'name' => 'user-email-update',
-                'template' => DefaultTemplateRepository::getDefaultTemplate(),
+                'template' => File::get(resource_path('views/email/defaultTemplate.blade.php')),
             ],
             [
                 'name' => 'users-invite',
-                'template' => DefaultTemplateRepository::getUsersInvite(),
+                'template' => File::get(resource_path('views/email/userInvite.blade.php')),
             ],
             [
                 'name' => 'change-password',
-                'template' => DefaultTemplateRepository::getChangePassword(),
+                'template' => File::get(resource_path('views/email/passwordUpdated.blade.php')),
             ],
             [
                 'name' => 'reset-password',
-                'template' => DefaultTemplateRepository::getResetPassword(),
+                'template' => File::get(resource_path('views/email/resetPassword.blade.php')),
             ],
             [
                 'name' => 'welcome',
-                'template' => DefaultTemplateRepository::getWelcome(),
+                'template' => File::get(resource_path('views/email/welcome.blade.php')),
             ],
             [
                 'name' => 'new-push-default',
-                'template' => DefaultTemplateRepository::getNewPushDefault(),
+                'template' => File::get(resource_path('views/email/pushNotification.blade.php')),
             ],
         ];
+
+        $dto = new TemplateInput(
+            $app,
+            $templates[0]['name'],
+            $templates[0]['template'],
+            null,
+            $this->user
+        );
+
+        $action = new CreateTemplateAction($dto);
+        $parent = $action->execute();
+
+        //remove first
+        array_shift($templates);
+
         foreach ($templates as $template) {
             $dto = new TemplateInput(
                 $app,
@@ -224,8 +239,9 @@ class CreateAppsAction
                 null,
                 $this->user
             );
+
             $action = new CreateTemplateAction($dto);
-            $action->execute();
+            $parent = $action->execute($template['name'] !== 'user-email-update' ? $parent : null);
         }
     }
 }
