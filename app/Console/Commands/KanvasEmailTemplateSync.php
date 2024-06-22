@@ -11,7 +11,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Templates\Models\Templates;
 use Kanvas\Users\Models\Users;
 
-class KanvasVersionCommand extends Command
+class KanvasEmailTemplateSync extends Command
 {
     /**
      * The name and signature of the console command.
