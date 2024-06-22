@@ -100,7 +100,7 @@ class DefaultTemplateRepository
                 <tr>
                     <td style="padding: 0px 100px;">
                         <p style="margin: 20px auto 10px; color: #C9C9C9; font-size: 11px; text-align: center;">
-                            Copyright © {{date(\'Y\')}} mctekk, LLC. All rights reserved.
+                            Copyright © {{date(\'Y\')}} Kanvas, INC. All rights reserved.
                         </p>
                     </td>
                 </tr>
@@ -121,11 +121,11 @@ class DefaultTemplateRepository
         return '<tr>
         <td style="padding-right: 120px;">
             <p style="color: #9b9b9b; font-size: 14px; ">
-                Hi {{ $user.firstname}} {{ $user.lastname}},
+                Hi {{ $entity->firstname}} {{ $entity->lastname}},
             </h2>
 
             <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
-                You have been invited to {{ $fromUser.getCurrentBranch().name}} by {{ $fromUser.firstname}} {{ $fromUser.lastname}}. Please click the button below to create your account.
+                You have been invited to {{ $fromUser->getCurrentBranch()->name}} by {{ $fromUser->firstname}} {{ $fromUser->lastname}}. Please click the button below to create your account.
             </p>
         </td>
     </tr>
@@ -135,7 +135,7 @@ class DefaultTemplateRepository
             <table style="margin: 17px 0 0px" cellspacing="0" cellpadding="0">
                 <tr>
                     <td>
-                        <a href="{{invitationUrl}}" target="_blank" style="display: inline-block;">
+                        <a href="{{ $app->url }}/users/invite?invite={{ $entity->invite_hash }}" target="_blank" style="display: inline-block;">
                             <img style="border-radius: 4px;" src="https://cdn.salesassist.io/emails/create-account.png" alt="Join Now">
                         </a>
                     </td>

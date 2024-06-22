@@ -11,8 +11,8 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\Actions\UpdateCompaniesAction;
-use Kanvas\Companies\DataTransferObject\CompaniesPostData;
 use Kanvas\Companies\DataTransferObject\CompaniesPutData;
+use Kanvas\Companies\DataTransferObject\Company;
 use Kanvas\Companies\Jobs\DeleteCompanyJob;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -34,11 +34,10 @@ class CompanyManagementMutation
         if (auth()->user()->isAdmin() && key_exists('users_id', $request['input'])) {
             $user = Users::getById($request['input']['users_id']);
             UsersRepository::belongsToThisApp($user, app(Apps::class)) ;
-            $request['input']['users_id'] = $user->getKey();
         } else {
-            $request['input']['users_id'] = Auth::user()->getKey();
+            $user = auth()->user();
         }
-        $dto = CompaniesPostData::fromArray($request['input']);
+        $dto = Company::viaRequest($request['input'], $user);
         $action = new CreateCompaniesAction($dto);
 
         return $action->execute();
@@ -52,12 +51,10 @@ class CompanyManagementMutation
         if (auth()->user()->isAdmin() && key_exists('users_id', $request['input'])) {
             $user = Users::getById($request['input']['users_id']);
             UsersRepository::belongsToThisApp($user, app(Apps::class)) ;
-            $request['input']['users_id'] = $user->getKey();
         } else {
-            $request['input']['users_id'] = Auth::user()->getKey();
-            $user = Auth::user();
+            $user = auth()->user();
         }
-        $dto = CompaniesPutData::fromArray($request['input']);
+        $dto = Company::viaRequest($request['input'], $user);
         $action = new UpdateCompaniesAction($user, $dto);
 
         return $action->execute((int) $request['id']);

@@ -104,7 +104,8 @@ input CompanyInput {
     phone: String
     country_code: String
     users_id: Int
-    files: [FilesystemInputUrl]
+    files: [FilesystemInputUrl!]
+    custom_fields: [CustomFieldEntityInput!]
     is_active: Boolean
 }
 
@@ -120,7 +121,7 @@ input CompanyBranchInput {
     language: String
     timezone: String
     phone: String
-    files: [FilesystemInputUrl]
+    files: [FilesystemInputUrl!]
     is_active: Boolean
 }
 
