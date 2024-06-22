@@ -23,7 +23,7 @@ class TemplateSeeder extends Seeder
             'companies_id' => 0,
             'parent_template_id' => 0,
             'name' => 'Default',
-            'template' => File::get(resource_path('views/email/defaultTemplate.blade.php')),
+            'template' => File::get(resource_path('views/emails/defaultTemplate.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -34,7 +34,7 @@ class TemplateSeeder extends Seeder
             'companies_id' => 0,
             'parent_template_id' => 0,
             'name' => 'user-email-update',
-            'template' => File::get(resource_path('views/email/defaultTemplate.blade.php')),
+            'template' => File::get(resource_path('views/emails/defaultTemplate.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -45,7 +45,7 @@ class TemplateSeeder extends Seeder
             'companies_id' => 0,
             'name' => 'users-invite',
             'parent_template_id' => $defaultTemplate->id,
-            'template' => File::get(resource_path('views/email/userInvite.blade.php')),
+            'template' => File::get(resource_path('views/emails/userInvite.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -56,7 +56,7 @@ class TemplateSeeder extends Seeder
             'companies_id' => 0,
             'name' => 'change-password',
             'parent_template_id' => $defaultTemplate->id,
-            'template' => File::get(resource_path('views/email/passwordUpdated.blade.php')),
+            'template' => File::get(resource_path('views/emails/passwordUpdated.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -67,7 +67,7 @@ class TemplateSeeder extends Seeder
             'companies_id' => 0,
             'name' => 'reset-password',
             'parent_template_id' => $defaultTemplate->id,
-            'template' => File::get(resource_path('views/email/resetPassword.blade.php')),
+            'template' => File::get(resource_path('views/emails/resetPassword.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -78,7 +78,7 @@ class TemplateSeeder extends Seeder
             'companies_id' => 0,
             'name' => 'welcome',
             'parent_template_id' => $defaultTemplate->id,
-            'template' => File::get(resource_path('views/email/welcome.blade.php')),
+            'template' => File::get(resource_path('views/emails/welcome.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -90,7 +90,7 @@ class TemplateSeeder extends Seeder
             'companies_id' => 0,
             'name' => 'new-push-default',
             'parent_template_id' => 0,
-            'template' => File::get(resource_path('views/email/pushNotification.blade.php')),
+            'template' => File::get(resource_path('views/emails/pushNotification.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
     }

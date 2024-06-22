@@ -189,31 +189,31 @@ class CreateAppsAction
         $templates = [
             [
                 'name' => 'Default',
-                'template' => File::get(resource_path('views/email/defaultTemplate.blade.php')),
+                'template' => File::get(resource_path('views/emails/defaultTemplate.blade.php')),
             ],
             [
                 'name' => 'user-email-update',
-                'template' => File::get(resource_path('views/email/defaultTemplate.blade.php')),
+                'template' => File::get(resource_path('views/emails/defaultTemplate.blade.php')),
             ],
             [
                 'name' => 'users-invite',
-                'template' => File::get(resource_path('views/email/userInvite.blade.php')),
+                'template' => File::get(resource_path('views/emails/userInvite.blade.php')),
             ],
             [
                 'name' => 'change-password',
-                'template' => File::get(resource_path('views/email/passwordUpdated.blade.php')),
+                'template' => File::get(resource_path('views/emails/passwordUpdated.blade.php')),
             ],
             [
                 'name' => 'reset-password',
-                'template' => File::get(resource_path('views/email/resetPassword.blade.php')),
+                'template' => File::get(resource_path('views/emails/resetPassword.blade.php')),
             ],
             [
                 'name' => 'welcome',
-                'template' => File::get(resource_path('views/email/welcome.blade.php')),
+                'template' => File::get(resource_path('views/emails/welcome.blade.php')),
             ],
             [
                 'name' => 'new-push-default',
-                'template' => File::get(resource_path('views/email/pushNotification.blade.php')),
+                'template' => File::get(resource_path('views/emails/pushNotification.blade.php')),
             ],
         ];
 
