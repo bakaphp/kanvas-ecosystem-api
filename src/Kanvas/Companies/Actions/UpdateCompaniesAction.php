@@ -4,30 +4,21 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Actions;
 
-use Kanvas\Companies\DataTransferObject\CompaniesPutData;
+use Kanvas\Companies\DataTransferObject\Company;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Users\Models\Users;
 
 class UpdateCompaniesAction
 {
-    /**
-     * Construct function.
-     *
-     * @param CompaniesPutData $data
-     */
     public function __construct(
         protected Users $user,
-        protected CompaniesPutData $data
+        protected Company $data
     ) {
     }
 
     /**
      * Invoke function.
-     *
-     * @param int $id
-     *
-     * @return Companies
      */
     public function execute(int $id): Companies
     {
@@ -38,6 +29,10 @@ class UpdateCompaniesAction
 
         if ($this->data->files) {
             $companies->addMultipleFilesFromUrl($this->data->files);
+        }
+
+        if ($this->data->custom_fields) {
+            $companies->setAll($this->data->custom_fields);
         }
 
         return $companies;
