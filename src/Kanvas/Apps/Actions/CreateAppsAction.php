@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Apps\Actions;
 
+use Baka\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
@@ -13,8 +14,14 @@ use Kanvas\Apps\DataTransferObject\AppKeyInput;
 use Kanvas\Apps\Jobs\CreateSystemModuleJob;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Notifications\Models\NotificationTypes;
+use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
+use Kanvas\Notifications\Templates\Invite;
+use Kanvas\Notifications\Templates\ResetPassword;
+use Kanvas\Notifications\Templates\Welcome;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Templates\Actions\CreateTemplateAction;
 use Kanvas\Templates\DataTransferObject\TemplateInput;
 use Kanvas\Users\Models\Users;
@@ -68,6 +75,7 @@ class CreateAppsAction
 
             //@todo
             $this->createEmailTemplate($app);
+            $this->createNotificationTypes($app);
         });
 
         return $app;
@@ -185,7 +193,6 @@ class CreateAppsAction
 
     public function createEmailTemplate(Apps $app): void
     {
-        // @todo
         $templates = [
             [
                 'name' => 'Default',
@@ -242,6 +249,28 @@ class CreateAppsAction
 
             $action = new CreateTemplateAction($dto);
             $parent = $action->execute($template['name'] !== 'user-email-update' ? $parent : null);
+        }
+    }
+
+    public function createNotificationTypes(Apps $app): void
+    {
+        $types = [
+            'users-invite' => Invite::class,
+            'reset-password' => ResetPassword::class,
+            'welcome' => Welcome::class,
+            'change-password' => ChangePasswordUserLogged::class,
+        ];
+
+        foreach ($types as $type => $value) {
+            NotificationTypes::firstOrCreate([
+               'apps_id' => $app->getId(),
+               'key' => $value,
+               'name' => Str::simpleSlug($value),
+               'system_modules_id' => SystemModulesRepository::getByModelName($value, $app)->getId(),
+               'is_deleted' => 0,
+            ], [
+               'template' => $type,
+            ]);
         }
     }
 }
