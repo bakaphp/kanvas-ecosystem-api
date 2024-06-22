@@ -32,7 +32,7 @@ class CreateTemplateAction
             [
                 'users_id' => $this->template->user ? $this->template->user->getKey() : AppEnums::GLOBAL_USER_ID->getValue(),
                 'template' => $this->template->template,
-                'parent_template_id' => $parent ? $parent->getId() : null,
+                'parent_template_id' => $parent ? $parent->getId() : 0,
             ]
         );
     }
