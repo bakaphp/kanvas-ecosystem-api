@@ -4,6 +4,8 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\File;
+use Kanvas\Templates\Enums\EmailTemplateEnum;
+use Kanvas\Templates\Enums\PushNotificationTemplateEnum;
 use Kanvas\Templates\Models\Templates;
 
 class TemplateSeeder extends Seeder
@@ -22,7 +24,7 @@ class TemplateSeeder extends Seeder
             'users_id' => 1,
             'companies_id' => 0,
             'parent_template_id' => 0,
-            'name' => 'Default',
+            'name' => EmailTemplateEnum::DEFAULT->value,
             'template' => File::get(resource_path('views/emails/defaultTemplate.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
@@ -43,7 +45,7 @@ class TemplateSeeder extends Seeder
             'apps_id' => 0,
             'users_id' => 1,
             'companies_id' => 0,
-            'name' => 'users-invite',
+            'name' => EmailTemplateEnum::USER_INVITE->value,
             'parent_template_id' => $defaultTemplate->id,
             'template' => File::get(resource_path('views/emails/userInvite.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
@@ -54,7 +56,7 @@ class TemplateSeeder extends Seeder
             'apps_id' => 0,
             'users_id' => 1,
             'companies_id' => 0,
-            'name' => 'change-password',
+            'name' => EmailTemplateEnum::CHANGE_PASSWORD->value,
             'parent_template_id' => $defaultTemplate->id,
             'template' => File::get(resource_path('views/emails/passwordUpdated.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
@@ -65,7 +67,7 @@ class TemplateSeeder extends Seeder
             'apps_id' => 0,
             'users_id' => 1,
             'companies_id' => 0,
-            'name' => 'reset-password',
+            'name' => EmailTemplateEnum::RESET_PASSWORD->value,
             'parent_template_id' => $defaultTemplate->id,
             'template' => File::get(resource_path('views/emails/resetPassword.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
@@ -76,7 +78,7 @@ class TemplateSeeder extends Seeder
             'apps_id' => 0,
             'users_id' => 1,
             'companies_id' => 0,
-            'name' => 'welcome',
+            'name' => EmailTemplateEnum::WELCOME->value,
             'parent_template_id' => $defaultTemplate->id,
             'template' => File::get(resource_path('views/emails/welcome.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
@@ -88,7 +90,7 @@ class TemplateSeeder extends Seeder
             'apps_id' => 0,
             'users_id' => 1,
             'companies_id' => 0,
-            'name' => 'new-push-default',
+            'name' => PushNotificationTemplateEnum::DEFAULT->value,
             'parent_template_id' => 0,
             'template' => File::get(resource_path('views/emails/pushNotification.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),

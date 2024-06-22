@@ -24,6 +24,8 @@ use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Templates\Actions\CreateTemplateAction;
 use Kanvas\Templates\DataTransferObject\TemplateInput;
+use Kanvas\Templates\Enums\EmailTemplateEnum;
+use Kanvas\Templates\Enums\PushNotificationTemplateEnum;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
@@ -195,7 +197,7 @@ class CreateAppsAction
     {
         $templates = [
             [
-                'name' => 'Default',
+                'name' => EmailTemplateEnum::DEFAULT->value,
                 'template' => File::get(resource_path('views/emails/defaultTemplate.blade.php')),
             ],
             [
@@ -203,23 +205,23 @@ class CreateAppsAction
                 'template' => File::get(resource_path('views/emails/defaultTemplate.blade.php')),
             ],
             [
-                'name' => 'users-invite',
+                'name' => EmailTemplateEnum::USER_INVITE->value,
                 'template' => File::get(resource_path('views/emails/userInvite.blade.php')),
             ],
             [
-                'name' => 'change-password',
+                'name' => EmailTemplateEnum::CHANGE_PASSWORD->value,
                 'template' => File::get(resource_path('views/emails/passwordUpdated.blade.php')),
             ],
             [
-                'name' => 'reset-password',
+                'name' => EmailTemplateEnum::RESET_PASSWORD->value,
                 'template' => File::get(resource_path('views/emails/resetPassword.blade.php')),
             ],
             [
-                'name' => 'welcome',
+                'name' => EmailTemplateEnum::WELCOME->value,
                 'template' => File::get(resource_path('views/emails/welcome.blade.php')),
             ],
             [
-                'name' => 'new-push-default',
+                'name' => PushNotificationTemplateEnum::DEFAULT->value,
                 'template' => File::get(resource_path('views/emails/pushNotification.blade.php')),
             ],
         ];
@@ -255,10 +257,10 @@ class CreateAppsAction
     public function createNotificationTypes(Apps $app): void
     {
         $types = [
-            'users-invite' => Invite::class,
-            'reset-password' => ResetPassword::class,
-            'welcome' => Welcome::class,
-            'change-password' => ChangePasswordUserLogged::class,
+            EmailTemplateEnum::USER_INVITE->value => Invite::class,
+            EmailTemplateEnum::RESET_PASSWORD->value => ResetPassword::class,
+            EmailTemplateEnum::WELCOME->value => Welcome::class,
+            EmailTemplateEnum::CHANGE_PASSWORD->value => ChangePasswordUserLogged::class,
         ];
 
         foreach ($types as $type => $value) {
