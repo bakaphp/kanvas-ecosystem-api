@@ -31,11 +31,11 @@ class Company extends Data
     {
         return new self(
             $user,
-            currency_id: (int)$request['currency_id'],
+            currency_id: ! empty($request['currency_id']) ? (int) $request['currency_id'] : null,
             name: $request['name'],
             website: $request['website'] ?? null,
             address: $request['address'] ?? null,
-            zipcode: (int) $request['zipcode'],
+            zipcode: ! empty($request['zipcode']) ? (int) $request['zipcode'] : null,
             email: $request['email'] ?? null,
             language: $request['language'] ?? null,
             timezone: $request['timezone'] ?? null,
