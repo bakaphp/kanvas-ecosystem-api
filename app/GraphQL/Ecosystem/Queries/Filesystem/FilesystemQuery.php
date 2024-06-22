@@ -7,6 +7,7 @@ namespace App\GraphQL\Ecosystem\Queries\Filesystem;
 use Baka\Enums\StateEnums;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
@@ -24,6 +25,7 @@ class FilesystemQuery
         ResolveInfo $resolveInfo
     ): Builder {
         $systemModule = SystemModulesRepository::getByModelName($root::class);
+        $app = $systemModule->app;
 
         /**
          * @var Builder
@@ -44,8 +46,7 @@ class FilesystemQuery
             ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
             ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue());
 
-        //@todo allow to share media between company only of it the apps specifies it
-        $files->when(isset($root->companies_id), function ($query) use ($root) {
+        $files->when(isset($root->companies_id) && ! $app->get(AppSettingsEnums::GLOBAL_APP_IMAGES->getValue()), function ($query) use ($root) {
             $query->where('filesystem_entities.companies_id', $root->companies_id);
         });
 
