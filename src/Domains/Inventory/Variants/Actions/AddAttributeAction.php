@@ -32,7 +32,7 @@ class AddAttributeAction
         } else {
             $this->variants->attributes()->attach(
                 $this->attributes->getId(),
-                ['value' => is_array($this->value) ? json_encode($this->value) : $this->valuek]
+                ['value' => is_array($this->value) ? json_encode($this->value) : $this->value]
             );
         }
 
