@@ -30,9 +30,9 @@ class AddAttributeAction
             return $this->product;
         }
         if ($this->product->attributes()->find($this->attribute->getId())) {
-            $this->product->attributes()->syncWithoutDetaching([$this->attribute->getId() => ['value' => $this->value]]);
+            $this->product->attributes()->syncWithoutDetaching([$this->attribute->getId() => ['value' => is_array($this->value) ? json_encode($this->value) : $this->value]]);
         } else {
-            $this->product->attributes()->attach($this->attribute->getId(), ['value' => $this->value]);
+            $this->product->attributes()->attach($this->attribute->getId(), ['value' => is_array($this->value) ? json_encode($this->value) : $this->value]);
         }
 
         return $this->product;
