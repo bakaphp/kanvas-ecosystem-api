@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Products\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Inventory\Attributes\Models\Attributes;
@@ -31,7 +32,7 @@ class ProductsAttributes extends BaseModel
     ];
 
     protected $casts = [
-        'value' => 'array'
+        'value' => Json::class
     ];
 
     protected $primaryKey = ['products_id', 'attributes_id'];
