@@ -195,7 +195,9 @@ class Products extends BaseModel
 
     public function searchableAs(): string
     {
-        return config('scout.prefix') . 'product_index';
+        $indice = config('scout.prefix') . ($this->app->get('app_custom_product_indice') ?? 'product_index');
+
+        return $indice;
     }
 
     public static function search($query = '', $callback = null)
