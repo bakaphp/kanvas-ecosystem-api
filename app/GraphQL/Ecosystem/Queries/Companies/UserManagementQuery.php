@@ -24,7 +24,7 @@ class UserManagementQuery
         /**
          * @var Builder
          */
-        return Users::select('users.id', 'users.dob', 'users.sex','users_associated_apps.*')
+        return Users::select('users.id', 'users.dob', 'users.sex', 'users_associated_apps.*')
             ->join(
                 'users_associated_company',
                 'users_associated_company.users_id',
@@ -53,7 +53,7 @@ class UserManagementQuery
         /**
          * @var Builder
          */
-        return Users::select('users.id', 'users.dob', 'users.sex','users_associated_apps.*')
+        return Users::select('users.id', 'users.dob', 'users.sex', 'users_associated_apps.*')
         ->join(
             'users_associated_company',
             'users_associated_company.users_id',
