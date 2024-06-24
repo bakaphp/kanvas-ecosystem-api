@@ -39,7 +39,7 @@ class SyncZohoLeadAction
             $this->zohoLeadId,
             $this->company
         );
-        
+
         if (! $localLead) {
             return ;
         }

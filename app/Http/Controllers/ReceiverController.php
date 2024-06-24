@@ -9,7 +9,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoAgentAction;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoLeadAction;
@@ -64,9 +63,10 @@ class ReceiverController extends BaseController
             return response()->json(['message' => 'Receiver processed']);
         }
 
-        if($zohoLeadTempSubSystem) {
+        if ($zohoLeadTempSubSystem) {
             $syncLead = new SyncZohoLeadAction($app, $receiver->company, $leadExternalId);
             $syncLead->execute();
+
             return response()->json(['message' => 'Receiver processed']);
         }
 
