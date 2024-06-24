@@ -56,7 +56,7 @@ class SyncZohoLeadAction
             return ;
         }
 
-        $status = $zohoLead->Lead_Status;
+        $status = strtolower($zohoLead->Lead_Status);
 
         $leadStatus = match (true) {
             Str::contains($status, 'close') => LeadStatus::getByName('bad'),
@@ -65,6 +65,7 @@ class SyncZohoLeadAction
         };
 
         $localLead->leads_status_id = $leadStatus->getId();
+        $localLead->disableWorkflows();
         $localLead->saveOrFail();
     }
 }
