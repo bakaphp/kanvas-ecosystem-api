@@ -11,6 +11,7 @@ use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoAgentAction;
+use Kanvas\Connectors\Zoho\Actions\SyncZohoLeadAction;
 use Kanvas\Connectors\Zoho\Workflows\ZohoLeadOwnerWorkflow;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Workflow\WorkflowStub;
@@ -32,6 +33,7 @@ class ReceiverController extends BaseController
         }
 
         $tempSubSystem = $uuid == $app->get('subsystem-temp-uuid');
+        $zohoLeadTempSubSystem = $uuid == $app->get('zoho-lead-temp-uuid');
 
         Auth::loginUsingId($receiver->users_id);
 
@@ -57,6 +59,13 @@ class ReceiverController extends BaseController
         if ($tempSubSystem) {
             $syncZohoAgent = new SyncZohoAgentAction($app, $receiver->company, $request->get('email'));
             $syncZohoAgent->execute();
+
+            return response()->json(['message' => 'Receiver processed']);
+        }
+
+        if ($zohoLeadTempSubSystem) {
+            $syncLead = new SyncZohoLeadAction($app, $receiver->company, $leadExternalId);
+            $syncLead->execute();
 
             return response()->json(['message' => 'Receiver processed']);
         }

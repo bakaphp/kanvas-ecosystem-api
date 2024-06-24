@@ -27,12 +27,12 @@ class AddAttributeAction
 
         if ($this->variants->attributes()->find($this->attributes->getId())) {
             $this->variants->attributes()->syncWithoutDetaching(
-                [$this->attributes->getId() => ['value' => $this->value]]
+                [$this->attributes->getId() => ['value' => is_array($this->value) ? json_encode($this->value) : $this->value]]
             );
         } else {
             $this->variants->attributes()->attach(
                 $this->attributes->getId(),
-                ['value' => $this->value]
+                ['value' => is_array($this->value) ? json_encode($this->value) : $this->value]
             );
         }
 

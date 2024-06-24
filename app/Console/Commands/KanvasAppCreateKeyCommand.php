@@ -18,7 +18,7 @@ class KanvasAppCreateKeyCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:app-key {name} {app_uuid} {email}';
+    protected $signature = 'kanvas:app-key {name} {app_id} {email}';
 
     /**
      * The console command description.
@@ -36,9 +36,9 @@ class KanvasAppCreateKeyCommand extends Command
     {
         $name = $this->argument('name');
         $email = $this->argument('email');
-        $appUid = $this->argument('app_uuid');
+        $appId = $this->argument('app_id');
 
-        $app = Apps::getByUuid($appUid);
+        $app = Apps::getById($appId);
         $user = Users::getByEmail($email);
 
         UsersRepository::belongsToThisApp($user, $app);

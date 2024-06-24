@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Notifications\Templates\Invite as InviteTemplate;
 use Kanvas\Users\DataTransferObject\Invite as InviteDto;
 use Kanvas\Users\Models\Users;
@@ -37,10 +38,15 @@ class CreateInviteAction
         );
 
         //validate role
-        RolesRepository::getByIdFromCompany(
+        $role = RolesRepository::getByIdFromCompany(
             $this->inviteDto->role_id,
-            $company
+            $company,
+            $this->inviteDto->app
         );
+
+        if (($role->isAdmin() || $role->isOwner()) && ! $this->user->isAdmin()) {
+            throw new ValidationException('You can\'t invite an admin or owner');
+        }
 
         $invite = new UsersInvite();
         $invite->fill([

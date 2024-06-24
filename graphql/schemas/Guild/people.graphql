@@ -8,8 +8,13 @@ type People {
     middlename: String
     lastname: String
     dob: Date
+    organizations: [Organization!] @belongsToMany
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
+    employment_history: [PeopleEmploymentHistory!]
+        @hasMany(
+            relation: "employmentHistory"
+        )
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25
@@ -25,6 +30,17 @@ type People {
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
+}
+type PeopleEmploymentHistory {
+    id: ID!
+    organization: Organization! @belongsTo
+    people: People! @belongsTo
+    position: String!
+    income: Float
+    start_date: Date!
+    end_date: Date
+    status: Int!
+    income_type: String 
 }
 
 type PeopleRelationship {

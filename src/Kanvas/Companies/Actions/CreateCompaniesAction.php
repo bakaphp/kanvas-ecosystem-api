@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Companies\Actions;
 
 use Kanvas\Companies\DataTransferObject\CompaniesPostData;
+use Kanvas\Companies\DataTransferObject\Company;
 use Kanvas\Companies\Models\Companies;
 
 class CreateCompaniesAction
@@ -13,7 +14,7 @@ class CreateCompaniesAction
      * Construct function.
      */
     public function __construct(
-        protected CompaniesPostData $data
+        protected Company $data
     ) {
     }
 
@@ -26,7 +27,7 @@ class CreateCompaniesAction
     {
         $companies = new Companies();
         $companies->name = $this->data->name;
-        $companies->users_id = $this->data->users_id;
+        $companies->users_id = $this->data->user->getId();
         $companies->website = $this->data->website;
         $companies->phone = $this->data->phone;
         $companies->address = $this->data->address;
@@ -41,6 +42,10 @@ class CreateCompaniesAction
 
         if ($this->data->files) {
             $companies->addMultipleFilesFromUrl($this->data->files);
+        }
+
+        if ($this->data->custom_fields) {
+            $companies->setAll($this->data->custom_fields);
         }
 
         return $companies;

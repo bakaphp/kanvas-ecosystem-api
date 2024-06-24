@@ -6,12 +6,12 @@ namespace Kanvas\SystemModules\Models;
 
 use Baka\Support\Str;
 use Baka\Traits\SlugTrait;
+use Baka\Traits\UuidTrait;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Models\BaseModel;
-use Baka\Traits\UuidTrait;
 
 /**
  * SystemModules Model.
@@ -37,18 +37,9 @@ class SystemModules extends BaseModel
     use SlugTrait;
     use Cachable;
     use UuidTrait;
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
+
     protected $table = 'system_modules';
 
-    /**
-     * cast field.
-     *
-     * @var array
-     */
     protected $casts = [
         'browse_fields' => 'array',
     ];
@@ -71,14 +62,6 @@ class SystemModules extends BaseModel
             $model->slug = $model->slug ?? Str::slug($model->model_name);
             $model->name = $model->name ?? $model->slug;
         });
-    }
-
-    /**
-     * Apps relationship.
-     */
-    public function app(): BelongsTo
-    {
-        return $this->belongsTo(Apps::class, 'apps_id');
     }
 
     /**

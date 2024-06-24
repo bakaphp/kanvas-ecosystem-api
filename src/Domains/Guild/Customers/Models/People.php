@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Models;
 
-use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Models\BaseModel;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 
 /**
@@ -38,6 +39,7 @@ class People extends BaseModel
     use UuidTrait;
     use Searchable;
     use HasTagsTrait;
+    use CanUseWorkflow;
 
     protected $table = 'peoples';
     protected $guarded = [];
@@ -73,6 +75,26 @@ class People extends BaseModel
         )->where(
             'contacts_types_id',
             ContactType::getByName('Email')->getId()
+        );
+    }
+
+    // Define the relationship with the Organization model
+    public function organizations()
+    {
+        return $this->belongsToMany(
+            Organization::class,
+            'organizations_peoples',
+            'peoples_id',
+            'organizations_id'
+        );
+    }
+
+    public function employmentHistory(): HasMany
+    {
+        return $this->hasMany(
+            PeopleEmploymentHistory::class,
+            'peoples_id',
+            'id'
         );
     }
 
