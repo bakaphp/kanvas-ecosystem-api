@@ -11,6 +11,7 @@ use Exception;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\Lead;
+use Webleit\ZohoCrmApi\Models\Record;
 use Webleit\ZohoCrmApi\ZohoCrm;
 
 class ZohoService
@@ -78,6 +79,11 @@ class ZohoService
         }
 
         return $zohoAgent;
+    }
+
+    public function getLeadById(string $leadId): Record
+    {
+        return $this->zohoCrm->leads->get($leadId);
     }
 
     public function deleteLead(Lead $lead): void
