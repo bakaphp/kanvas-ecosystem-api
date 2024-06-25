@@ -19,7 +19,12 @@ class Organization extends Data
         public readonly UserInterface $user,
         public readonly AppInterface $app,
         public readonly string $name,
-        public readonly ?string $address = null
+        public readonly ?string $email = null,
+        public readonly ?string $phone = null,
+        public readonly ?string $address = null,
+        public readonly ?string $city = null,
+        public readonly ?string $state = null,
+        public readonly ?string $zip = null,
     ) {
     }
 }

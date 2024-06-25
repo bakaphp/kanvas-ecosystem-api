@@ -65,7 +65,7 @@ class ReceiverController extends BaseController
         }
 
         if ($zohoLeadTempSubSystem) {
-            $syncLead = new SyncZohoLeadAction($app, $receiver->company, $leadExternalId);
+            $syncLead = new SyncZohoLeadAction($app, $receiver->company, $receiver, $leadExternalId);
             $syncLead->execute();
 
             return response()->json(['message' => 'Receiver processed']);
