@@ -56,7 +56,7 @@ class SyncZohoLeadAction
             $table = (new Lead())->getTable();
             $localLead = Lead::join(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table . '.id')
                 ->where('apps_custom_fields.companies_id', $this->company->getId())
-                ->where('apps_custom_fields.model_name', 'Gewaer\\Models\\Leads')
+                ->where('apps_custom_fields.model_name', 'Gewaer\\Models\\Leads') //legacy
                 ->where('apps_custom_fields.name', CustomFieldEnum::ZOHO_LEAD_ID->value)
                 ->where('apps_custom_fields.value', $this->zohoLeadId)
                 ->select($table . '.*')
