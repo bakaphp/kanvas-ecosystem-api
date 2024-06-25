@@ -71,7 +71,7 @@ class SyncZohoLeadAction
             default => LeadStatus::getByName('active'),
         };
 
-        $user = UsersAssociatedApps::fromApp($this->app)->where('email', $zohoLead->Owner['email'])->first();
+        $user = UsersAssociatedApps::fromApp($this->app)->where('email', $zohoLead->Owner['email'])->first()->user;
 
         if (! $localLead) {
             //create lead
