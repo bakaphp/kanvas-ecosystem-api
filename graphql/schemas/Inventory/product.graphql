@@ -4,7 +4,7 @@ type Product {
     uuid: String!
     name: String!
     slug: String!
-    description: String!
+    description: String
     short_description: String
     html_description: String
     warranty_terms: String
@@ -40,7 +40,7 @@ input ProductInput {
     products_types_id: ID
     sku: String @rules(apply: ["required_without:variants"])
     name: String!
-    description: String!
+    description: String
     slug: String
     short_description: String
     html_description: String

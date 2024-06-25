@@ -34,6 +34,7 @@ class ReceiverController extends BaseController
 
         $tempSubSystem = $uuid == $app->get('subsystem-temp-uuid');
         $zohoLeadTempSubSystem = $uuid == $app->get('zoho-lead-temp-uuid');
+        $isTempSystem = $tempSubSystem || $zohoLeadTempSubSystem;
 
         Auth::loginUsingId($receiver->users_id);
 
@@ -51,7 +52,7 @@ class ReceiverController extends BaseController
 
         $leadExternalId = $request->get('entity_id');
 
-        if ($receiver->rotation === null && ! $tempSubSystem) {
+        if ($receiver->rotation === null && ! $isTempSystem) {
             return response()->json(['message' => 'Rotation not found'], 404);
         }
 
@@ -64,7 +65,7 @@ class ReceiverController extends BaseController
         }
 
         if ($zohoLeadTempSubSystem) {
-            $syncLead = new SyncZohoLeadAction($app, $receiver->company, $leadExternalId);
+            $syncLead = new SyncZohoLeadAction($app, $receiver->company, $receiver, $leadExternalId);
             $syncLead->execute();
 
             return response()->json(['message' => 'Receiver processed']);
