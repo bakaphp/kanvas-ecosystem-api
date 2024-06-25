@@ -3906,16 +3906,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v11.11.1",
+            "version": "v11.12.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "c9b52e84bd18f155e5ba59b948c7da3e7f37e87f"
+                "reference": "9a6d9cea83cfa6b9e8eda05c89741d0411d8ebe8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/c9b52e84bd18f155e5ba59b948c7da3e7f37e87f",
-                "reference": "c9b52e84bd18f155e5ba59b948c7da3e7f37e87f",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/9a6d9cea83cfa6b9e8eda05c89741d0411d8ebe8",
+                "reference": "9a6d9cea83cfa6b9e8eda05c89741d0411d8ebe8",
                 "shasum": ""
             },
             "require": {
@@ -4107,7 +4107,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2024-06-20T10:54:53+00:00"
+            "time": "2024-06-25T19:33:56+00:00"
         },
         {
             "name": "laravel/octane",
@@ -8982,16 +8982,16 @@
         },
         {
             "name": "spatie/laravel-data",
-            "version": "4.7.0",
+            "version": "4.7.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-data.git",
-                "reference": "92af136b14f57c72b1b8e36cd5f7e274fb56385a"
+                "reference": "b7e10d345c059ff1de04168ec1d75b65157ac5a1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-data/zipball/92af136b14f57c72b1b8e36cd5f7e274fb56385a",
-                "reference": "92af136b14f57c72b1b8e36cd5f7e274fb56385a",
+                "url": "https://api.github.com/repos/spatie/laravel-data/zipball/b7e10d345c059ff1de04168ec1d75b65157ac5a1",
+                "reference": "b7e10d345c059ff1de04168ec1d75b65157ac5a1",
                 "shasum": ""
             },
             "require": {
@@ -9054,7 +9054,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-data/issues",
-                "source": "https://github.com/spatie/laravel-data/tree/4.7.0"
+                "source": "https://github.com/spatie/laravel-data/tree/4.7.1"
             },
             "funding": [
                 {
@@ -9062,7 +9062,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-06-13T12:07:24+00:00"
+            "time": "2024-06-25T11:01:36+00:00"
         },
         {
             "name": "spatie/laravel-google-cloud-storage",
