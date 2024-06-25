@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Zoho\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
+use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
@@ -33,16 +34,16 @@ class SyncZohoLeadAction
     ) {
     }
 
-    public function execute(): void
+    public function execute(): ?Lead
     {
         $zohoService = new ZohoService($this->app, $this->company);
 
         try {
             $zohoLead = $zohoService->getLeadById($this->zohoLeadId);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error getting Zoho Lead', ['error' => $e->getMessage()]);
 
-            return;
+            return null;
         }
 
         $localLead = Lead::getByCustomField(
@@ -70,10 +71,10 @@ class SyncZohoLeadAction
             default => LeadStatus::getByName('active'),
         };
 
+        $user = UsersAssociatedApps::fromApp($this->app)->where('email', $zohoLead->Owner['email'])->first();
 
         if (! $localLead) {
             //create lead
-            $user = UsersAssociatedApps::fromApp($this->app)->where('email', $zohoLead->Owner['email'])->first();
             $pipelineStage = Pipeline::fromApp($this->app)->fromCompany($this->company)->where('is_default', 1)->first()->stages()->first();
 
             $contact = [
@@ -117,12 +118,21 @@ class SyncZohoLeadAction
                 true
             );
 
-            $localLead = (new CreateLeadAction($lead))->execute();
+            return (new CreateLeadAction($lead))->execute();
         }
 
-
+        if ($user) {
+            $localLead->leads_owner_id = $user->getId();
+        }
+        $localLead->people->firstname = $zohoLead->First_Name;
+        $localLead->people->lastname = $zohoLead->Last_Name;
+        $localLead->firstname = $zohoLead->First_Name;
+        $localLead->lastname = $zohoLead->Last_Name;
+        $localLead->title = $zohoLead->Full_Name . ' Opp';
         $localLead->leads_status_id = $leadStatus->getId();
         $localLead->disableWorkflows();
         $localLead->saveOrFail();
+
+        return $localLead;
     }
 }
