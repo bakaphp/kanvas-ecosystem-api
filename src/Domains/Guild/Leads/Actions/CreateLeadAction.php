@@ -62,7 +62,7 @@ class CreateLeadAction
         $newLead->saveOrFail();
 
         $newLead->setCustomFields($this->leadData->custom_fields);
-        if (!$this->leadData->runWorkflow) {
+        if (! $this->leadData->runWorkflow) {
             $newLead->disableWorkflows();
         }
         $newLead->saveCustomFields();
