@@ -11,14 +11,24 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\ZohoService;
+use Kanvas\Guild\Customers\DataTransferObject\Address;
+use Kanvas\Guild\Customers\DataTransferObject\Contact;
+use Kanvas\Guild\Customers\DataTransferObject\People;
+use Kanvas\Guild\Leads\Actions\CreateLeadAction;
+use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadStatus;
+use Kanvas\Guild\Pipelines\Models\Pipeline;
+use Kanvas\Users\Models\UsersAssociatedApps;
+use Spatie\LaravelData\DataCollection;
 
 class SyncZohoLeadAction
 {
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company,
+        protected LeadReceiver $receiver,
         protected string $zohoLeadId
     ) {
     }
@@ -52,10 +62,6 @@ class SyncZohoLeadAction
                 ->first();
         }
 
-        if (! $localLead) {
-            return ;
-        }
-
         $status = strtolower($zohoLead->Lead_Status);
 
         $leadStatus = match (true) {
@@ -63,6 +69,57 @@ class SyncZohoLeadAction
             Str::contains($status, 'won') => LeadStatus::getByName('complete'),
             default => LeadStatus::getByName('active'),
         };
+
+
+        if (! $localLead) {
+            //create lead
+            $user = UsersAssociatedApps::fromApp($this->app)->where('email', $zohoLead->Owner['email'])->first();
+            $pipelineStage = Pipeline::fromApp($this->app)->fromCompany($this->company)->where('is_default', 1)->first()->stages()->first();
+
+            $contact = [
+                [
+                    'value' => $zohoLead->Email,
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                ],[
+                    'value' => $zohoLead->Phone,
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+            ];
+            $lead = new DataTransferObjectLead(
+                $this->app,
+                $this->company->defaultBranch,
+                $user ?? $this->company->user,
+                $zohoLead->Full_Name,
+                $pipelineStage->getId(),
+                new People(
+                    $this->app,
+                    $this->company->defaultBranch,
+                    $user ?? $this->company->user,
+                    $zohoLead->First_Name,
+                    Contact::collect($contact, DataCollection::class),
+                    Address::collect([], DataCollection::class),
+                    $zohoLead->Last_Name
+                ),
+                $user ? $user->getId() : 0,
+                0,
+                $leadStatus->getId(),
+                0,
+                $this->receiver->getId(),
+                null,
+                null,
+                null,
+                [
+                    CustomFieldEnum::ZOHO_LEAD_ID->value => $this->zohoLeadId,
+                ],
+                [],
+                true
+            );
+
+            $localLead = (new CreateLeadAction($lead))->execute();
+        }
+
 
         $localLead->leads_status_id = $leadStatus->getId();
         $localLead->disableWorkflows();
