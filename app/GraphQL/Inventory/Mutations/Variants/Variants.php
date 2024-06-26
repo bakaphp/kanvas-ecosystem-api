@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Variants;
 
+use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
 use Kanvas\Inventory\Channels\Repositories\ChannelRepository;
 use Kanvas\Inventory\Channels\Services\ChannelService;
@@ -129,6 +130,11 @@ class Variants
     public function delete(mixed $root, array $req): bool
     {
         $variant = VariantsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
+
+        CompaniesRepository::userAssociatedToCompany(
+            $variant->company,
+            auth()->user()
+        );
 
         return $variant->delete();
     }
