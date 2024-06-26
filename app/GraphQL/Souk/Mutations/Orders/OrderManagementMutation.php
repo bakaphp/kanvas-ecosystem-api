@@ -10,7 +10,7 @@ use Kanvas\Social\Interactions\Actions\CreateInteraction;
 use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\UsersInteractions\Actions\CreateUserInteractionAction;
 use Kanvas\Social\UsersInteractions\DataTransferObject\UserInteraction;
-use Kanvas\Souk\Orders\DataTransferObject\Order;
+use Kanvas\Souk\Orders\DataTransferObject\DirectOrder;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
 use Kanvas\Souk\Payments\Providers\AuthorizeNetPaymentProcessor;
 
@@ -22,7 +22,7 @@ class OrderManagementMutation
         $creditCard = CreditCard::viaRequest($request['input']);
         $cart = app('cart')->session($user->getId());
 
-        $order = new Order(
+        $order = new DirectOrder(
             app(Apps::class),
             $user,
             $creditCard,
@@ -42,7 +42,7 @@ class OrderManagementMutation
         return $this->handlePaymentResponse($response, $isSubscription);
     }
 
-    private function processPayment(Order $order, bool $isSubscription): mixed
+    private function processPayment(DirectOrder $order, bool $isSubscription): mixed
     {
         $payment = new AuthorizeNetPaymentProcessor(
             app(Apps::class),

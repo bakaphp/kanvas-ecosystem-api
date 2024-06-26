@@ -28,7 +28,7 @@ class ShopifyInventorySyncCommand extends Command
      *
      * @var string|null
      */
-    protected $description = 'Set defaults entities value for inventory companies';
+    protected $description = 'Send all our local inventory to shopify';
 
     /**
      * Execute the console command.

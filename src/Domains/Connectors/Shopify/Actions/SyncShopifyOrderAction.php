@@ -28,7 +28,17 @@ class SyncShopifyOrderAction
         );
         $customer = $syncCustomer->execute();
 
-        print_R($customer->toArray());
+        foreach($this->orderData['line_items'] as $lineItem) {
+            $syncProduct = new SyncShopifyProductAction(
+                $this->app,
+                $this->company,
+                $this->region,
+                $lineItem['product_id']
+            );
+            
+            $product = $syncProduct->execute();
+        }
+
         print_r($this->orderData);
         die();
     }
