@@ -21,21 +21,21 @@ class SyncShopifyOrderAction
     public function execute()
     {
         $syncCustomer = new SyncShopifyCustomerAction(
-            $this->app, 
+            $this->app,
             $this->company,
             $this->region,
             $this->orderData['customer']
         );
         $customer = $syncCustomer->execute();
 
-        foreach($this->orderData['line_items'] as $lineItem) {
+        foreach ($this->orderData['line_items'] as $lineItem) {
             $syncProduct = new SyncShopifyProductAction(
                 $this->app,
                 $this->company,
                 $this->region,
                 $lineItem['product_id']
             );
-            
+
             $product = $syncProduct->execute();
         }
 

@@ -95,6 +95,5 @@ final class CustomerTest extends TestCase
             $shopifyCustomer->get(CustomFieldEnum::SHOPIFY_CUSTOMER_ID->value),
             $shopifyCustomerData['id']
         );
-
     }
 }

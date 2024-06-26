@@ -46,7 +46,6 @@ class DownloadAllShopifyProductsAction
             $currentShopifyProductPage = $shopifyP->get($params);
 
             foreach ($currentShopifyProductPage as $shopifyProduct) {
-
                 $shopifyProductService = new ShopifyProductService(
                     $this->app,
                     $this->warehouses->company,
