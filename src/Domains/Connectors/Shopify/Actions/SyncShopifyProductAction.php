@@ -60,6 +60,5 @@ class SyncShopifyProductAction
                 $this->region,
                 $this->app
             ))->execute();
-
     }
 }
