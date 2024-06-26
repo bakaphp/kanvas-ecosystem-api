@@ -9,11 +9,15 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Shopify\Actions\SyncShopifyOrderAction;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoAgentAction;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoLeadAction;
 use Kanvas\Connectors\Zoho\Workflows\ZohoLeadOwnerWorkflow;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
+use Kanvas\Inventory\Regions\Models\Regions;
 use Workflow\WorkflowStub;
 
 class ReceiverController extends BaseController
@@ -26,6 +30,30 @@ class ReceiverController extends BaseController
     public function store(string $uuid, Request $request): JsonResponse
     {
         $app = app(Apps::class);
+
+        if ($uuid == '83fca044-0b6e-4126-8ce3-3e37a3d0e526') {
+            //Log::info('ReceiverController:store', $request->all());
+
+            /**
+             * sync order
+             * sync product
+             * sync customer
+             * check what type of notification
+             * - fufillment
+             * - transfer order
+             * send notification
+             */
+            $syncShopifyOrder = new SyncShopifyOrderAction(
+                $app,
+                Companies::getById(436),
+                Regions::getById(1),
+                $request->all()
+            );
+            $syncShopifyOrder->execute();
+
+            return response()->json(['message' => 'Receiver processed']);
+        }
+
         $receiver = LeadReceiver::fromApp($app)->where('uuid', $uuid)->first();
 
         if (! $receiver) {
