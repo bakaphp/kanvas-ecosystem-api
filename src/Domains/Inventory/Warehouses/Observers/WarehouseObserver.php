@@ -9,10 +9,6 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 class WarehouseObserver
 {
-    /**
-     * @todo change companies to company relation
-     *
-     */
     public function creating(Warehouses $warehouse): void
     {
         $defaultWarehouse = $warehouse::getDefault($warehouse->company);
