@@ -297,7 +297,7 @@ class Variants extends BaseModel
         $attributes = $this->attributes()->get();
         foreach ($attributes as $attribute) {
             //if its over 100 characters we dont want to index it
-            if (strlen($attribute->value) > 100) {
+            if (strlen((string) $attribute->value) > 100) {
                 continue;
             }
             $variant['attributes'][$attribute->name] = $attribute->value;
