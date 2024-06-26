@@ -13,7 +13,7 @@ class VariantObserver
     {
         $totalVariant = Variants::where('companies_id', $variant->companies_id)->count();
 
-        if ($totalVariant === 1 && !$variant->is_deleted) {
+        if ($totalVariant === 1 && ! $variant->is_deleted) {
             throw new ValidationException('Can\'t delete, you need to have at least one variant on the product');
         }
     }
