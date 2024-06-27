@@ -25,6 +25,9 @@ return new class () extends Migration {
         Schema::table('orders', function (Blueprint $table) {
             $table->dropColumn('people_id');
             $table->dropColumn('region_id');
+            $table->dropColumn('fulfillment_status');
+            $table->dropColumn('estimate_shipping_date');
+            $table->dropColumn('shipped_date');
         });
     }
 };
