@@ -5,9 +5,6 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class () extends Migration {
-    /**database/migrations/Souk/2024_06_27_022809_add_customer_to_order.php 
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::table('orders', function (Blueprint $table) {
