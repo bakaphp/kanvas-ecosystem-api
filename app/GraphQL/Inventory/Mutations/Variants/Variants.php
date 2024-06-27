@@ -12,6 +12,7 @@ use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction as AddToWarehouse;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
+use Kanvas\Inventory\Variants\Actions\DeleteVariantsAction;
 use Kanvas\Inventory\Variants\Actions\UpdateVariantsAction;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantDto;
@@ -136,7 +137,7 @@ class Variants
             auth()->user()
         );
 
-        return $variant->delete();
+        return (new DeleteVariantsAction($variant, auth()->user()))->execute();
     }
 
     /**
