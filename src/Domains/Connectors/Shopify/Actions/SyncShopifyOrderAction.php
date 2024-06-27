@@ -134,6 +134,11 @@ class SyncShopifyOrderAction
                 $this->company
             );
 
+            //this shouldn't happen but just in case
+            if (! $variant) {
+                continue;
+            }
+
             $orderItems[] = new OrderItem(
                 app: $this->app,
                 variant: $variant,
