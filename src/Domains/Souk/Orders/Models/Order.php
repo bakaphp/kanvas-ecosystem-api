@@ -9,10 +9,12 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
+use Spatie\LaravelData\DataCollection;
 
 /**
  * Class Order
@@ -57,6 +59,7 @@ class Order extends BaseModel
     use UuidTrait;
     use Searchable;
     use CanUseWorkflow;
+    use HasShopifyCustomField;
 
     protected $table = 'orders';
     protected $guarded = [];
@@ -80,5 +83,26 @@ class Order extends BaseModel
         }
 
         return $query;
+    }
+
+    public function addItems(DataCollection $items): void
+    {
+        foreach ($items as $item) {
+            $orderItem = new OrderItem();
+            $orderItem->order_id = $this->getId();
+            $orderItem->apps_id = $this->apps_id;
+            $orderItem->product_name = $item->variant->product->name;
+            $orderItem->product_sku = $item->sku;
+            $orderItem->quantity = $item->quantity;
+            $orderItem->unit_price_net_amount = $item->price;
+            $orderItem->unit_price_gross_amount = $item->price;
+            $orderItem->is_shipping_required = true;
+            $orderItem->quantity_fulfilled = 0;
+            $orderItem->variant_id = $item->variant->getId();
+            $orderItem->tax_rate = 0;
+            $orderItem->currency = $item->currency->code;
+            $orderItem->variant_name = $item->variant->name;
+            $orderItem->saveOrFail();
+        }
     }
 }
