@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Baka\Traits;
 
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Exceptions\ConfigurationException;
-use Baka\Support\Str;
 
 /**
  * @todo implement redis hashtable for speed
@@ -39,6 +39,10 @@ trait HashTableTrait
     public function set(string $key, mixed $value, bool|int $isPublic = 0): bool
     {
         $this->createSettingsModel();
+
+        if ($value === null) {
+            return false;
+        }
 
         if (! is_object($this->settingsModel)) {
             throw new ConfigurationException(
