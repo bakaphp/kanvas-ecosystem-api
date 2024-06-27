@@ -936,7 +936,7 @@ class CountriesSeeder extends Seeder
                     'code' => 'zw', 'created_at' => date('Y-m-d H:i:s')],
                 [
                     'id' => 230,
-                    'name' => 'United States of America',
+                    'name' => 'United States',
                     'code' => 'us', 'created_at' => date('Y-m-d H:i:s')]
             ]
         );

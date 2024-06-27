@@ -18,7 +18,7 @@ final class SendMessageTest extends TestCase
         $company = $user->getCurrentCompany();
         $app->set(ConfigurationEnum::BEAR_TOKEN_AUTH->value, getenv('TEST_RESPOND_IO'));
 
-        $client = new Client($app, $company);
+        //$client = new Client($app, $company);
         //@todo figure out how to mock this
         //$response = $client->sendMessage(getenv('TEST_RESPOND_IO_PHONE'), 'Hello from Kanvas!');
 
