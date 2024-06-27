@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Souk\Models\BaseModel;
+use Kanvas\Souk\Orders\DataTransferObject\OrderItem as OrderItemDto;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
@@ -88,21 +89,28 @@ class Order extends BaseModel
     public function addItems(DataCollection $items): void
     {
         foreach ($items as $item) {
-            $orderItem = new OrderItem();
-            $orderItem->order_id = $this->getId();
-            $orderItem->apps_id = $this->apps_id;
-            $orderItem->product_name = $item->variant->product->name;
-            $orderItem->product_sku = $item->sku;
-            $orderItem->quantity = $item->quantity;
-            $orderItem->unit_price_net_amount = $item->price;
-            $orderItem->unit_price_gross_amount = $item->price;
-            $orderItem->is_shipping_required = true;
-            $orderItem->quantity_fulfilled = 0;
-            $orderItem->variant_id = $item->variant->getId();
-            $orderItem->tax_rate = 0;
-            $orderItem->currency = $item->currency->code;
-            $orderItem->variant_name = $item->variant->name;
-            $orderItem->saveOrFail();
+            $this->addItem($item);
         }
+    }
+
+    public function addItem(OrderItemDto $item): OrderItem
+    {
+        $orderItem = new OrderItem();
+        $orderItem->order_id = $this->getId();
+        $orderItem->apps_id = $this->apps_id;
+        $orderItem->product_name = $item->variant->product->name;
+        $orderItem->product_sku = $item->sku;
+        $orderItem->quantity = $item->quantity;
+        $orderItem->unit_price_net_amount = $item->price;
+        $orderItem->unit_price_gross_amount = $item->price;
+        $orderItem->is_shipping_required = true;
+        $orderItem->quantity_fulfilled = 0;
+        $orderItem->variant_id = $item->variant->getId();
+        $orderItem->tax_rate = 0;
+        $orderItem->currency = $item->currency->code;
+        $orderItem->variant_name = $item->variant->name;
+        $orderItem->saveOrFail();
+
+        return $orderItem;
     }
 }

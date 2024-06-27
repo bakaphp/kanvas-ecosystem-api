@@ -16,7 +16,6 @@ class CreateOrderAction
     public function __construct(
         protected Order $orderData
     ) {
-
     }
 
     public function execute(): ModelsOrder
@@ -60,6 +59,5 @@ class CreateOrderAction
 
             return $order;
         });
-
     }
 }
