@@ -40,7 +40,11 @@ class Order extends Data
         public readonly DataCollection $items,
         public readonly ?string $metadata = null,
         public readonly float $weight = 0.0,
-        public readonly ?string $phone = null
+        public readonly ?string $phone = null,
+        public readonly ?string $customerNote = null,
+        public readonly ?string $fulfillmentStatus = null,
+        public readonly ?string $shippingDate = null,
+        public readonly ?string $shippedDate = null,
     ) {
     }
 }

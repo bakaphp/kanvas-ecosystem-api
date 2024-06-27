@@ -41,6 +41,7 @@ use Spatie\LaravelData\DataCollection;
  * @property int|null $voucher_id
  * @property string|null $language_code
  * @property string $status
+ * @property string|null $fulfillment_status
  * @property string|null $shipping_method_name
  * @property int|null $shipping_method_id
  * @property bool $display_gross_prices
@@ -51,6 +52,8 @@ use Spatie\LaravelData\DataCollection;
  * @property string|null $currency
  * @property string|null $metadata
  * @property string|null $private_metadata
+ * @property string|null $estimate_shipping_date
+ * @property string|null $shipped_date
  * @property bool $is_deleted
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
@@ -88,7 +91,7 @@ class Order extends BaseModel
 
     public function getTotalAmount(): float
     {
-        return  (float) $this->total_gross_amount;
+        return (float) $this->total_gross_amount;
     }
 
     public function addItems(DataCollection $items): void
