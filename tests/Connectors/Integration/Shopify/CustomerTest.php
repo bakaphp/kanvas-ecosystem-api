@@ -17,7 +17,7 @@ final class CustomerTest extends TestCase
 {
     use HasShopifyConfiguration;
 
-    public function testCreateVariant()
+    public function testCustomerWebhook()
     {
         $app = app(Apps::class);
         $product = Products::first();

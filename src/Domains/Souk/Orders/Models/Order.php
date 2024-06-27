@@ -86,6 +86,11 @@ class Order extends BaseModel
         return $query;
     }
 
+    public function getTotalAmount(): float
+    {
+        return  (float) $this->total_gross_amount;
+    }
+
     public function addItems(DataCollection $items): void
     {
         foreach ($items as $item) {
