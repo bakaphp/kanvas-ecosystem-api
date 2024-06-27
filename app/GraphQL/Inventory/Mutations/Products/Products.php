@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\GraphQL\Inventory\Mutations\Products;
 
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Shopify\ShopifyService;
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
 use Kanvas\Inventory\Products\Actions\AddAttributeAction;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
