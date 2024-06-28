@@ -11,8 +11,12 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
+
+use function Sentry\captureException;
+
 use Throwable;
 
 abstract class ProcessWebhookJob implements ShouldQueue
@@ -49,6 +53,9 @@ abstract class ProcessWebhookJob implements ShouldQueue
 
             return $results;
         } catch (Throwable $e) {
+            //notify via sentry
+            Log::error($e->getMessage());
+            captureException($e);
             $this->webhookRequest->update([
                 'status' => 'failed',
                 'exception' => [
