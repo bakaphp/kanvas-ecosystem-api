@@ -34,13 +34,15 @@ class SyncShopifyCustomerAction
             $this->company
         );
 
-        $contact = [
-            [
-                'value' => $this->customerData['email'],
-                'contacts_types_id' => 1,
-                'weight' => 0,
-            ],
-        ];
+        if (! empty($this->customerData['email'])) {
+            $contact = [
+                [
+                    'value' => $this->customerData['email'],
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                ],
+            ];
+        }
 
         if (! empty($this->customerData['phone'])) {
             $contact[] = [
