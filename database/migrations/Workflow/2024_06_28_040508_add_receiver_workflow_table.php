@@ -25,7 +25,7 @@ return new class () extends Migration {
             $table->tinyInteger('is_deleted')->default(0)->index();
 
             //foreign keys with actions table
-            $table->foreign('action_id')->references('id')->on('actions')->onDelete('cascade');
+            //$table->foreign('action_id')->references('id')->on('actions')->onDelete('cascade');
             $table->index(['uuid', 'apps_id', 'companies_id'], 'webhooks_uuid_apps_index');
             $table->index(['uuid', 'apps_id'], 'webhooks_uuid_index');
         });
