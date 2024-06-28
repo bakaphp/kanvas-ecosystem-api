@@ -6,11 +6,13 @@ namespace Kanvas\Workflow\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ReceiverWebhookCall extends BaseModel
 {
     use UuidTrait;
+    use HasFactory;
 
     protected $table = 'receiver_webhook_calls';
 

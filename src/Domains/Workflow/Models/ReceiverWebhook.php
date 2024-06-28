@@ -6,12 +6,16 @@ namespace Kanvas\Workflow\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Workflow\Factories\ReceiverWebhookFactory;
+use Illuminate\Database\Eloquent\Factories\Factory;
 
 class ReceiverWebhook extends BaseModel
 {
     use UuidTrait;
+    use HasFactory;
 
     protected $table = 'receiver_webhooks';
 
@@ -42,5 +46,10 @@ class ReceiverWebhook extends BaseModel
     public function webhookCalls(): HasMany
     {
         return $this->hasMany(ReceiverWebhookCall::class, 'receiver_webhooks_id');
+    }
+
+    protected static function newFactory(): Factory
+    {
+        return ReceiverWebhookFactory::new();
     }
 }

@@ -46,6 +46,8 @@ abstract class ProcessWebhookJob implements ShouldQueue
                 'status' => 'success',
                 'results' => $results,
             ]);
+
+            return $results;
         } catch (Throwable $e) {
             $this->webhookRequest->update([
                 'status' => 'failed',
