@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem as OrderItemDto;
 use Kanvas\Users\Models\Users;
@@ -24,6 +26,7 @@ use Spatie\LaravelData\DataCollection;
  * @property int $id
  * @property int $apps_id
  * @property int companies_id
+ * @property int $region_id
  * @property string $uuid
  * @property string|null $tracking_client_id
  * @property string|null $user_email
@@ -32,6 +35,7 @@ use Spatie\LaravelData\DataCollection;
  * @property int|null $billing_address_id
  * @property int|null $shipping_address_id
  * @property int|null $users_id
+ * @property int|null $people_id
  * @property int $order_number
  * @property float|null $total_gross_amount
  * @property float|null $total_net_amount
@@ -79,6 +83,16 @@ class Order extends BaseModel
         'weight' => 'float',
         'payment_gateway_names' => Json::class,
     ];
+
+    public function region(): BelongsTo
+    {
+        return $this->belongsTo(Regions::class, 'region_id', 'id');
+    }
+
+    public function people(): BelongsTo
+    {
+        return $this->belongsTo(People::class, 'people_id', 'id');
+    }
 
     public function items(): HasMany
     {
