@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Shopify\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Support\Facades\Log as FacadesLog;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Notifications\NewManualPaidOrderNotification;
 use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
@@ -99,7 +100,7 @@ class SyncShopifyOrderAction
         /**
          * @todo move to workflow
          */
-        if (in_array($this->orderData['payment_gateway_names'], ['manual'])) {
+        if (in_array('manual', $this->orderData['payment_gateway_names'])) {
             $customer->notify(new NewManualPaidOrderNotification($order));
         }
 
