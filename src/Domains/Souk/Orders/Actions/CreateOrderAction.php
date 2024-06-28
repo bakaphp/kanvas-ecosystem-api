@@ -6,6 +6,7 @@ namespace Kanvas\Souk\Orders\Actions;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Kanvas\Connectors\Shopify\Notifications\NewManualPaidOrderNotification;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
@@ -53,6 +54,7 @@ class CreateOrderAction
             $order->checkout_token = $this->orderData->checkoutToken;
             $order->currency = $this->orderData->currency->code;
             $order->metadata = $this->orderData->metadata;
+            $order->payment_gateway_names = $this->orderData->paymentGatewayName;
             $order->saveOrFail();
 
             $order->addItems($this->orderData->items);

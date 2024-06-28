@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem as OrderItemDto;
 use Kanvas\Users\Models\Users;
@@ -23,6 +26,7 @@ use Spatie\LaravelData\DataCollection;
  * @property int $id
  * @property int $apps_id
  * @property int companies_id
+ * @property int $region_id
  * @property string $uuid
  * @property string|null $tracking_client_id
  * @property string|null $user_email
@@ -31,6 +35,7 @@ use Spatie\LaravelData\DataCollection;
  * @property int|null $billing_address_id
  * @property int|null $shipping_address_id
  * @property int|null $users_id
+ * @property int|null $people_id
  * @property int $order_number
  * @property float|null $total_gross_amount
  * @property float|null $total_net_amount
@@ -54,6 +59,7 @@ use Spatie\LaravelData\DataCollection;
  * @property string|null $private_metadata
  * @property string|null $estimate_shipping_date
  * @property string|null $shipped_date
+ * @property string|null $payment_gateway_names
  * @property bool $is_deleted
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
@@ -67,6 +73,26 @@ class Order extends BaseModel
 
     protected $table = 'orders';
     protected $guarded = [];
+
+    protected $casts = [
+        'total_gross_amount' => 'float',
+        'total_net_amount' => 'float',
+        'shipping_price_gross_amount' => 'float',
+        'shipping_price_net_amount' => 'float',
+        'discount_amount' => 'float',
+        'weight' => 'float',
+        'payment_gateway_names' => Json::class,
+    ];
+
+    public function region(): BelongsTo
+    {
+        return $this->belongsTo(Regions::class, 'region_id', 'id');
+    }
+
+    public function people(): BelongsTo
+    {
+        return $this->belongsTo(People::class, 'people_id', 'id');
+    }
 
     public function items(): HasMany
     {

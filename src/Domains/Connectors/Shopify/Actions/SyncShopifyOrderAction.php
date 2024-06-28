@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Shopify\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Shopify\Notifications\NewManualPaidOrderNotification;
 use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
@@ -77,7 +78,8 @@ class SyncShopifyOrderAction
             items: $this->getOrderItems(),
             metadata: json_encode($this->orderData),
             weight: $this->orderData['total_weight'],
-            checkoutToken: (string) $this->orderData['id']
+            checkoutToken: (string) $this->orderData['id'],
+            paymentGatewayName: $this->orderData['payment_gateway_names'],
         );
 
         $orderExist = ModelsOrder::getByCustomField(
@@ -92,6 +94,13 @@ class SyncShopifyOrderAction
 
         $order = (new CreateOrderAction($order))->execute();
         $order->setShopifyId($this->region, $this->orderData['id']);
+
+        /**
+         * @todo move to workflow
+         */
+        if (in_array($this->orderData['payment_gateway_names'], ['manual'])) {
+            $customer->notify(new NewManualPaidOrderNotification($order));
+        }
 
         return $order;
     }

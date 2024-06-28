@@ -9,8 +9,9 @@ type Order {
     shipping_address_id: Int
     order_number: Int
     user_id: Int
-    user: User @belongsTo
-    company: Company @belongsTo
+    user: User! @belongsTo
+    people: People! @belongsTo
+    company: Company! @belongsTo
     total_gross_amount: Float
     total_net_amount: Float
     shipping_price_gross_amount: Float
@@ -20,6 +21,7 @@ type Order {
     voucher_id: Int
     language_code: String
     status: String
+    fulfillment_status: String
     shipping_method_name: String
     shipping_method_id: Int
     display_gross_prices: Boolean
@@ -46,7 +48,6 @@ type OrderItem {
     unit_price_gross_amount: Float
     is_shipping_required: Boolean
     quantity_fulfilled: Int
-    variant_id: Int!
     variant: Variant! @belongsTo
     tax_rate: Float
     translated_product_name: String

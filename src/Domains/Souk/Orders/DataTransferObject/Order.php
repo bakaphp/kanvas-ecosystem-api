@@ -45,6 +45,7 @@ class Order extends Data
         public readonly ?string $fulfillmentStatus = null,
         public readonly ?string $shippingDate = null,
         public readonly ?string $shippedDate = null,
+        public readonly array $paymentGatewayName = [],
     ) {
     }
 }
