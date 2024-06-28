@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\Shopify\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Illuminate\Support\Facades\Log as FacadesLog;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Notifications\NewManualPaidOrderNotification;
 use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
@@ -37,23 +36,27 @@ class SyncShopifyOrderAction
         $customer = $this->syncCustomer();
         $this->syncProducts();
 
-        $shippingAddress = $customer->addAddress(new Address(
-            address: $this->orderData['shipping_address']['address1'],
-            address_2: $this->orderData['shipping_address']['address2'],
-            city: $this->orderData['shipping_address']['city'],
-            state: $this->orderData['shipping_address']['province'],
-            country: $this->orderData['shipping_address']['country'],
-            zipcode: $this->orderData['shipping_address']['zip']
-        ));
+        $shippingAddress = ! empty($this->orderData['shipping_address']['address1']) ?
+            $customer->addAddress(new Address(
+                address: $this->orderData['shipping_address']['address1'] ?? '',
+                address_2: $this->orderData['shipping_address']['address2'] ?? '',
+                city: $this->orderData['shipping_address']['city'] ?? '',
+                state: $this->orderData['shipping_address']['province'] ?? '',
+                country: $this->orderData['shipping_address']['country'] ?? '',
+                zipcode: $this->orderData['shipping_address']['zip'] ?? ''
+            ))
+            : null;
 
-        $billingAddress = $customer->addAddress(new Address(
-            address: $this->orderData['billing_address']['address1'],
-            address_2: $this->orderData['billing_address']['address2'],
-            city: $this->orderData['billing_address']['city'],
-            state: $this->orderData['billing_address']['province'],
-            country: $this->orderData['billing_address']['country'],
-            zipcode: $this->orderData['billing_address']['zip']
-        ));
+        $billingAddress = ! empty($this->orderData['billing_address']['address1']) ? 
+            $customer->addAddress(new Address(
+                address: $this->orderData['billing_address']['address1'],
+                address_2: $this->orderData['billing_address']['address2'],
+                city: $this->orderData['billing_address']['city'],
+                state: $this->orderData['billing_address']['province'],
+                country: $this->orderData['billing_address']['country'],
+                zipcode: $this->orderData['billing_address']['zip']
+            ))
+            : null;
 
         $orderHasEmail = $this->orderData['contact_email'] ?? null;
         $user = $orderHasEmail ? UsersAssociatedApps::fromApp($this->app)->where('email', $this->orderData['contact_email'])?->first()?->user : $this->company->user;

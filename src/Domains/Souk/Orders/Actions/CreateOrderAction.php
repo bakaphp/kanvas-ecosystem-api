@@ -41,8 +41,8 @@ class CreateOrderAction
             $order->user_phone = $this->orderData->phone;
             $order->token = $this->orderData->token;
             $order->order_number = $this->orderData->orderNumber;
-            $order->shipping_address_id = $this->orderData->shippingAddress->getId();
-            $order->billing_address_id = $this->orderData->billingAddress->getId();
+            $order->shipping_address_id =  $this->orderData?->shippingAddress?->getId() ?? null;
+            $order->billing_address_id = $this->orderData?->billingAddress?->getId() ?? null;
             $order->total_gross_amount = $this->orderData->total;
             $order->total_net_amount = $this->orderData->total - $this->orderData->taxes;
             $order->shipping_price_gross_amount = $this->orderData->totalShipping;
