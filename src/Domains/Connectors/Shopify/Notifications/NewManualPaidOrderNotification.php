@@ -12,7 +12,7 @@ use Kanvas\Souk\Orders\Models\Order;
 
 class NewManualPaidOrderNotification extends Notification
 {
-    //use Queueable;
+    use Queueable;
 
     public function __construct(
         protected Order $order
