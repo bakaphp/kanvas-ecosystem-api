@@ -6,6 +6,7 @@ namespace Kanvas\Souk\Orders\Actions;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Kanvas\Connectors\Shopify\Notifications\NewManualPaidOrderNotification;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;

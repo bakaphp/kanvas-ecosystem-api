@@ -6,5 +6,5 @@ namespace Kanvas\Connectors\RespondIO\Enums;
 
 enum ConfigurationEnum: string
 {
-    case BEAR_TOKEN_AUTH = 'BEAR_TOKEN_AUTH';
+    case BEAR_TOKEN_AUTH = 'RESPONDIO_BEAR_TOKEN_AUTH';
 }
