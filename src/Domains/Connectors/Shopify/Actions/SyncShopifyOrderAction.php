@@ -54,7 +54,8 @@ class SyncShopifyOrderAction
             zipcode: $this->orderData['billing_address']['zip']
         ));
 
-        $user = UsersAssociatedApps::fromApp($this->app)->where('email', $this->orderData['contact_email'])?->first()?->user;
+        $orderHasEmail = $this->orderData['contact_email'] ?? null;
+        $user = $orderHasEmail ? UsersAssociatedApps::fromApp($this->app)->where('email', $this->orderData['contact_email'])?->first()?->user : $this->company->user;
 
         $order = new Order(
             app: $this->app,
@@ -62,7 +63,7 @@ class SyncShopifyOrderAction
             company: $this->company,
             people: $customer,
             user: $user ?? $this->company->user,
-            email: $this->orderData['contact_email'],
+            email: $this->orderData['contact_email'] ?? null,
             phone: $this->orderData['phone'],
             token: $this->orderData['token'],
             shippingAddress: $shippingAddress,
