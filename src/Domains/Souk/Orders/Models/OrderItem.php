@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Models;
 
+use Baka\Traits\NoCompanyRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -39,8 +40,9 @@ use Laravel\Scout\Searchable;
 class OrderItem extends BaseModel
 {
     use UuidTrait;
-    use Searchable;
+    //use Searchable;
     use CanUseWorkflow;
+    use NoCompanyRelationshipTrait;
 
     protected $table = 'order_items';
     protected $guarded = [];

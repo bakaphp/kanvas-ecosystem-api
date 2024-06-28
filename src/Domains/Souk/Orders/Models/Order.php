@@ -4,15 +4,19 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Souk\Models\BaseModel;
+use Kanvas\Souk\Orders\DataTransferObject\OrderItem as OrderItemDto;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
+use Spatie\LaravelData\DataCollection;
 
 /**
  * Class Order
@@ -38,6 +42,7 @@ use Laravel\Scout\Searchable;
  * @property int|null $voucher_id
  * @property string|null $language_code
  * @property string $status
+ * @property string|null $fulfillment_status
  * @property string|null $shipping_method_name
  * @property int|null $shipping_method_id
  * @property bool $display_gross_prices
@@ -48,6 +53,9 @@ use Laravel\Scout\Searchable;
  * @property string|null $currency
  * @property string|null $metadata
  * @property string|null $private_metadata
+ * @property string|null $estimate_shipping_date
+ * @property string|null $shipped_date
+ * @property string|null $payment_gateway_names
  * @property bool $is_deleted
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
@@ -57,9 +65,20 @@ class Order extends BaseModel
     use UuidTrait;
     use Searchable;
     use CanUseWorkflow;
+    use HasShopifyCustomField;
 
     protected $table = 'orders';
     protected $guarded = [];
+
+    protected $casts = [
+        'total_gross_amount' => 'float',
+        'total_net_amount' => 'float',
+        'shipping_price_gross_amount' => 'float',
+        'shipping_price_net_amount' => 'float',
+        'discount_amount' => 'float',
+        'weight' => 'float',
+        'payment_gateway_names' => Json::class,
+    ];
 
     public function items(): HasMany
     {
@@ -80,5 +99,38 @@ class Order extends BaseModel
         }
 
         return $query;
+    }
+
+    public function getTotalAmount(): float
+    {
+        return (float) $this->total_gross_amount;
+    }
+
+    public function addItems(DataCollection $items): void
+    {
+        foreach ($items as $item) {
+            $this->addItem($item);
+        }
+    }
+
+    public function addItem(OrderItemDto $item): OrderItem
+    {
+        $orderItem = new OrderItem();
+        $orderItem->order_id = $this->getId();
+        $orderItem->apps_id = $this->apps_id;
+        $orderItem->product_name = $item->variant->product->name;
+        $orderItem->product_sku = $item->sku;
+        $orderItem->quantity = $item->quantity;
+        $orderItem->unit_price_net_amount = $item->price;
+        $orderItem->unit_price_gross_amount = $item->price;
+        $orderItem->is_shipping_required = true;
+        $orderItem->quantity_fulfilled = 0;
+        $orderItem->variant_id = $item->variant->getId();
+        $orderItem->tax_rate = 0;
+        $orderItem->currency = $item->currency->code;
+        $orderItem->variant_name = $item->variant->name;
+        $orderItem->saveOrFail();
+
+        return $orderItem;
     }
 }

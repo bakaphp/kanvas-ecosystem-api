@@ -7,7 +7,7 @@ namespace App\Console\Commands\Connectors\Shopify;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Connectors\Shopify\Actions\DownloadShopifyProductsAction;
+use Kanvas\Connectors\Shopify\Actions\DownloadAllShopifyProductsAction;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 class ShopifyInventoryDownloadCommand extends Command
@@ -35,9 +35,9 @@ class ShopifyInventoryDownloadCommand extends Command
     {
         $app = Apps::getById((int) $this->argument('app_id'));
         $branch = CompaniesBranches::getById((int) $this->argument('branch_id'));
-        $warehouse = Warehouses::getById((int) $this->argument('warehouse_id'));
+        $warehouse = Warehouses::fromApp($app)->where('id', $this->argument('warehouse_id'))->firstOrFail();
 
-        $downloadProduct = new DownloadShopifyProductsAction(
+        $downloadProduct = new DownloadAllShopifyProductsAction(
             $warehouse->app,
             $warehouse,
             $branch,

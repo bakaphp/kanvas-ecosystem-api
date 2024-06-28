@@ -47,4 +47,9 @@ class Currencies extends BaseModel
     {
         return $this->hasMany(Companies::class, 'currency_id');
     }
+
+    public static function getByCode(string $code): self
+    {
+        return self::where('code', $code)->firstOrFail();
+    }
 }
