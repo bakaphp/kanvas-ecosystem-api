@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Actions;
 
+use Baka\Contracts\CompanyInterface;
 use Baka\Validations\Date;
+use Kanvas\Companies\Enums\Defaults;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDataInput;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\Contact;
@@ -27,6 +29,11 @@ class CreatePeopleAction
     public function execute(): People
     {
         $company = $this->peopleData->branch->company()->firstOrFail();
+        $allowDuplicateContacts = $company->get(Defaults::ALLOW_DUPLICATE_CONTACTS->getValue()) ?? false;
+
+        if (! $allowDuplicateContacts) {
+            $this->checkIfPeopleExist($company);
+        }
 
         $attributes = [
             'apps_id' => $this->peopleData->app->getId(),
@@ -114,5 +121,21 @@ class CreatePeopleAction
         }
 
         return $people;
+    }
+
+    protected function checkIfPeopleExist(CompanyInterface $company): void
+    {
+        if ($this->peopleData->contacts->count()) {
+            foreach ($this->peopleData->contacts as $contact) {
+                $searchValue = $contact->value;
+
+                $people = PeoplesRepository::getByValue($searchValue, $company, $this->peopleData->app);
+                if ($people) {
+                    $this->peopleData->id = $people->getId();
+
+                    return ;
+                }
+            }
+        }
     }
 }
