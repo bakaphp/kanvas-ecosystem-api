@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Shopify\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Support\Facades\Log as FacadesLog;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Notifications\NewManualPaidOrderNotification;
 use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
@@ -54,7 +55,8 @@ class SyncShopifyOrderAction
             zipcode: $this->orderData['billing_address']['zip']
         ));
 
-        $user = UsersAssociatedApps::fromApp($this->app)->where('email', $this->orderData['contact_email'])?->first()?->user;
+        $orderHasEmail = $this->orderData['contact_email'] ?? null;
+        $user = $orderHasEmail ? UsersAssociatedApps::fromApp($this->app)->where('email', $this->orderData['contact_email'])?->first()?->user : $this->company->user;
 
         $order = new Order(
             app: $this->app,
@@ -62,7 +64,7 @@ class SyncShopifyOrderAction
             company: $this->company,
             people: $customer,
             user: $user ?? $this->company->user,
-            email: $this->orderData['contact_email'],
+            email: $this->orderData['contact_email'] ?? null,
             phone: $this->orderData['phone'],
             token: $this->orderData['token'],
             shippingAddress: $shippingAddress,
@@ -73,7 +75,7 @@ class SyncShopifyOrderAction
             totalShipping: (float)   $this->orderData['total_shipping_price_set']['shop_money']['amount'],
             status: 'completed',
             orderNumber: (string) $this->orderData['order_number'],
-            shippingMethod: $this->orderData['shipping_lines'][0]['title'],
+            shippingMethod: $this->orderData['shipping_lines'][0]['title'] ?? null,
             currency: Currencies::getByCode($this->orderData['currency']),
             items: $this->getOrderItems(),
             metadata: json_encode($this->orderData),
@@ -98,7 +100,7 @@ class SyncShopifyOrderAction
         /**
          * @todo move to workflow
          */
-        if (in_array($this->orderData['payment_gateway_names'], ['manual'])) {
+        if (in_array('manual', $this->orderData['payment_gateway_names'])) {
             $customer->notify(new NewManualPaidOrderNotification($order));
         }
 

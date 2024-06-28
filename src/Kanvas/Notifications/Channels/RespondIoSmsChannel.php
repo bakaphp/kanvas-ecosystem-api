@@ -17,7 +17,6 @@ class RespondIoSmsChannel
     public function send(object $notifiable, Notification $notification): void
     {
         $message = $notification->toRespondIoSms($notifiable);
-
         if (empty($message)) {
             return;
         }
