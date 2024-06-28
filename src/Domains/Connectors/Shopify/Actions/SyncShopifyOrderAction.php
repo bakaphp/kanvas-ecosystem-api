@@ -47,7 +47,7 @@ class SyncShopifyOrderAction
             ))
             : null;
 
-        $billingAddress = ! empty($this->orderData['billing_address']['address1']) ? 
+        $billingAddress = ! empty($this->orderData['billing_address']['address1']) ?
             $customer->addAddress(new Address(
                 address: $this->orderData['billing_address']['address1'],
                 address_2: $this->orderData['billing_address']['address2'],
