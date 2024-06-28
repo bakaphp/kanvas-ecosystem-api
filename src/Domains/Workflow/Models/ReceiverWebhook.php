@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ReceiverWebhook extends BaseModel
 {
+    use UuidTrait;
+
     protected $table = 'receiver_webhooks';
 
     protected $fillable = [

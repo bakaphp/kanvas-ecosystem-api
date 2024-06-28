@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Models;
 
+use Baka\Casts\Json;
+use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ReceiverWebhookCall extends BaseModel
 {
+    use UuidTrait;
+
     protected $table = 'receiver_webhook_calls';
 
     protected $fillable = [
@@ -18,12 +22,15 @@ class ReceiverWebhookCall extends BaseModel
         'payload',
         'exception',
         'status',
+        'results',
     ];
 
     protected $casts = [
-        'headers' => 'array',
-        'payload' => 'array',
+        'headers' => Json::class,
+        'payload' => Json::class,
         'status' => 'string',
+        'exception' => Json::class,
+        'results' => Json::class,
     ];
 
     public function receiverWebhook(): BelongsTo

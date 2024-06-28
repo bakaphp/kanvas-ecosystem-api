@@ -18,7 +18,7 @@ return new class () extends Migration {
             $table->unsignedBigInteger('companies_id')->index();
             $table->unsignedBigInteger('users_id')->index();
             $table->string('name');
-            $table->string('description');
+            $table->string('description')->nullable();
             $table->json('configuration')->nullable();
             $table->tinyInteger('is_active')->default(1)->index();
             $table->timestamps();
@@ -37,10 +37,11 @@ return new class () extends Migration {
             $table->string('url');
             $table->json('headers')->nullable();
             $table->json('payload')->nullable();
-            $table->text('exception')->nullable();
+            $table->json('results')->nullable();
+            $table->json('exception')->nullable();
             $table->enum('status', ['pending', 'success', 'failed'])->default('pending');
-
             $table->timestamps();
+            $table->tinyInteger('is_deleted')->default(0)->index();
 
             //foreign keys with webhooks table
             $table->foreign('receiver_webhooks_id')->references('id')->on('receiver_webhooks')->onDelete('cascade');
