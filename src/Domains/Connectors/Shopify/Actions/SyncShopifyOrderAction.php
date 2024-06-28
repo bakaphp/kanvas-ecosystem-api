@@ -73,7 +73,7 @@ class SyncShopifyOrderAction
             totalShipping: (float)   $this->orderData['total_shipping_price_set']['shop_money']['amount'],
             status: 'completed',
             orderNumber: (string) $this->orderData['order_number'],
-            shippingMethod: $this->orderData['shipping_lines'][0]['title'],
+            shippingMethod: $this->orderData['shipping_lines'][0]['title'] ?? null,
             currency: Currencies::getByCode($this->orderData['currency']),
             items: $this->getOrderItems(),
             metadata: json_encode($this->orderData),
