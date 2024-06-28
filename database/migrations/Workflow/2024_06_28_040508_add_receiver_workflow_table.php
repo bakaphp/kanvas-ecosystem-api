@@ -14,7 +14,7 @@ return new class () extends Migration {
             $table->bigIncrements('id');
             $table->string('uuid', 36)->unique()->index();
             $table->unsignedBigInteger('apps_id')->index();
-            $table->integer('action_id')->index();
+            $table->unsignedInteger('action_id')->index();
             $table->unsignedBigInteger('companies_id')->index();
             $table->unsignedBigInteger('users_id')->index();
             $table->string('name');
