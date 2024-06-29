@@ -38,7 +38,5 @@ return new class () extends Migration {
             $table->dropColumn('total_saved');
             $table->dropColumn('total_shared');
         });
-
-
     }
 };
