@@ -45,7 +45,6 @@ class MessageBuilder
         GraphQLContext $context,
         ResolveInfo $resolveInfo
     ) {
-
         return Message::select(
             DB::raw('*, CASE
                 WHEN created_at >= CURDATE() THEN "Today"
