@@ -6,7 +6,7 @@ type Message {
     companies_id: ID!
     users_id: ID!
     message_types_id: ID!
-    message: Mixed
+    message: Mixed!
     reactions_count: Int
     comment_count: Int
     total_liked: Int
@@ -18,7 +18,7 @@ type Message {
     messageType: MessageType!
     appModuleMessage: AppModuleMessage
     myInteraction: myInteraction @method(name: "getMyInteraction")
-    comments: [MessageComments!]!
+    comments: [MessageComments!]! @hasMany(type: PAGINATOR)
     custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 25

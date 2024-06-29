@@ -1,29 +1,39 @@
 input CommentInput {
     message_id: ID!
-    message: String!
+    comment: String!
     parent_id: ID
 }
+
+input CommentUpdateInput {
+    comment: String!
+    parent_id: ID
+}
+
 type MessageComments {
     id: ID!
     user: User!
     company: Company!
     parent: MessageComments
-    messages: Message! @belongsTo
-    message: String!
+    children: [MessageComments!] @hasMany(type: PAGINATOR)
+    message: Message! @belongsTo
+    comment: Mixed!
 }
+
 extend type Mutation {
-    addComment(input: CommentInput!): Message
+    addComment(input: CommentInput!): MessageComments!
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageCommentManagementMutation@addComment"
         )
-    updateComment(comment_id: ID!, input: CommentInput!): Message
+    updateComment(
+        comment_id: ID!
+        input: CommentUpdateInput!
+    ): MessageComments!
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageCommentManagementMutation@updateComment"
         )
-    deleteComment(id: ID! @whereKey): Boolean
-        @delete(
-            scopes: ["fromUser"]
-            model: "Kanvas\\Social\\MessagesComments\\Models\\MessageComment"
+    deleteComment(id: ID!): Boolean!
+       @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageCommentManagementMutation@delete"
         )
 }
 
@@ -31,18 +41,13 @@ extend type Query {
     comments(
         where: _
             @whereConditions(
-                columns: [
-                    "message_id"
-                    "apps_id"
-                    "companies_id"
-                    "users_id"
-                    "message"
-                ]
+                columns: ["message_id", "companies_id", "users_id", "parent_id"]
             )
+        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
     ): [MessageComments!]!
         @paginate(
             model: "Kanvas\\Social\\MessagesComments\\Models\\MessageComment"
             defaultCount: 15
-            scopes: ["fromApp"]
+            scopes: ["fromApp", "fromCompany"]
         )
 }
