@@ -55,7 +55,5 @@ class MessageBuilder
             END as additional_field')
         )
         ->orderBy('created_at', 'desc');
-
-
     }
 }
