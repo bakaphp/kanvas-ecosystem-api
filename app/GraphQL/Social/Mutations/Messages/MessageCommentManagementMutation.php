@@ -38,10 +38,10 @@ class MessageCommentManagementMutation
 
     public function updateComment(mixed $root, array $request): MessageComment
     {
-        $comment = MessageComment::getById($request['comment_id'], app(Apps::class));
+        $comment = MessageComment::getById($request['id'], app(Apps::class));
         $user = auth()->user();
 
-        if ($comment->canEdit($user)) {
+        if (! $comment->canEdit($user)) {
             throw new AuthenticationException('You are not allowed to update this comment');
         }
 

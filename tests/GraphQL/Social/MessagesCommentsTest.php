@@ -119,8 +119,8 @@ class MessagesCommentsTest extends TestCase
 
         $this->graphQL(
             '
-                mutation updateComment($input: CommentUpdateInput!, $comment_id: ID!) {
-                    updateComment(input: $input, comment_id: $comment_id) {
+                mutation updateComment($input: CommentUpdateInput!, $id: ID!) {
+                    updateComment(input: $input, id: $id) {
                         comment
                     }
                 }
@@ -129,7 +129,7 @@ class MessagesCommentsTest extends TestCase
                 'input' => [
                     'comment' => $comment,
                 ],
-                'comment_id' => $commentId,
+                'id' => $commentId,
             ]
         )->assertJson([
             'data' => [

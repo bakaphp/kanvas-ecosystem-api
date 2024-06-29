@@ -25,7 +25,7 @@ extend type Mutation {
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageCommentManagementMutation@addComment"
         )
     updateComment(
-        comment_id: ID!
+        id: ID!
         input: CommentUpdateInput!
     ): MessageComments!
         @field(
