@@ -24,18 +24,6 @@ use Kanvas\SystemModules\Models\SystemModules;
 
 class MessageManagementMutation
 {
-    public function interaction(mixed $root, array $request): Message
-    {
-        $message = Message::getById((int)$request['id']);
-        $action = new CreateMessageAction($message, auth()->user(), ActivityTypeEnum::from($request['type']));
-        $action->execute();
-
-        return $message;
-    }
-
-    /**
-     * create
-     */
     public function create(mixed $root, array $request): Message
     {
         $app = app(Apps::class);
@@ -152,6 +140,15 @@ class MessageManagementMutation
     {
         $message = Message::getById((int)$request['id'], app(Apps::class));
         $message->topics()->detach($request['topicId']);
+
+        return $message;
+    }
+
+    public function interaction(mixed $root, array $request): Message
+    {
+        $message = Message::getById((int)$request['id']);
+        $action = new CreateMessageAction($message, auth()->user(), ActivityTypeEnum::from($request['type']));
+        $action->execute();
 
         return $message;
     }

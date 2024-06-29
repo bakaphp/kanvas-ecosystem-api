@@ -13,7 +13,6 @@ return new class () extends Migration {
         Schema::table('messages', function (Blueprint $table) {
             $table->integer('parent_id')->nullable()->default(null)->change();
         });
-
     }
 
     /**

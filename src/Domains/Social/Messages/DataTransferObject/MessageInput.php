@@ -49,11 +49,11 @@ class MessageInput extends Data
         $validator = Validator::make($data, [
             'parent_id' => [new ValidParentMessage($app->getId())],
         ]);
-   
+
         if ($validator->fails()) {
             throw new ValidationException($validator->messages()->__toString());
         }
-        
+
         if (key_exists('parent_id', $data)) {
             $parent = Message::getById((int)$data['parent_id'], $app);
         }

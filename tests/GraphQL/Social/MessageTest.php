@@ -310,7 +310,6 @@ class MessageTest extends TestCase
                 ],
             ],
         ]);
-           
     }
 
     public function testGetMessageFilter()

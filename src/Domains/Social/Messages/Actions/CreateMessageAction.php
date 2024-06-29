@@ -40,11 +40,11 @@ class CreateMessageAction
         $validator = Validator::make($data, [
             'parent_id' => [new ValidParentMessage($this->messageInput->app->getId())],
         ]);
-        
+
         if ($validator->fails()) {
             throw new ValidationException($validator->messages()->__toString());
         }
-        
+
         if ($this->messageInput->parent_id == null || $this->messageInput->parent_id == 0) {
             $data['parent_id'] = null;
         }
