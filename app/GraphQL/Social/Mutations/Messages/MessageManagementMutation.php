@@ -50,9 +50,22 @@ class MessageManagementMutation
             ]);
             $messageType = (new CreateMessageTypeAction($messageTypeDto))->execute();
         }
-        $systemModule = key_exists('system_modules_id', $messageData) ? SystemModules::getById((int)$messageData['system_modules_id'], $app) : null;
-        $data = MessageInput::fromArray($messageData, $user, $messageType, $company, $app);
-        $action = new CreateMessageAction($data, $systemModule, $messageData['entity_id']);
+
+        $systemModuleId = $messageData['system_modules_id'] ?? null;
+        $systemModule = $systemModuleId ? SystemModules::getById((int)$systemModuleId, $app) : null;
+        $data = MessageInput::fromArray(
+            $messageData,
+            $user,
+            $messageType,
+            $company,
+            $app
+        );
+
+        $action = new CreateMessageAction(
+            $data,
+            $systemModule,
+            $messageData['entity_id']
+        );
         $message = $action->execute();
 
         if (! key_exists('distribution', $messageData)) {
@@ -86,15 +99,33 @@ class MessageManagementMutation
         return $message;
     }
 
-    public function delete(mixed $root, array $request): Message
+    public function delete(mixed $root, array $request): bool
     {
         $message = Message::getById((int)$request['id'], app(Apps::class));
-        if (! $message->canEdit(auth()->user())) {
+        if (! $message->canDelete(auth()->user())) {
             throw new AuthenticationException('You are not allowed to delete this message');
         }
-        $message->delete();
 
-        return $message;
+        return $message->delete();
+    }
+
+    public function deleteMultiple(mixed $root, array $request): bool
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $messages = Message::fromApp($app)->whereIn('id', $request['ids'])->get();
+
+        $total = 0;
+
+        foreach ($messages as $message) {
+            if (! $message->canEdit($user)) {
+                throw new AuthenticationException('You are not allowed to delete this message');
+            }
+            $message->delete();
+            $total++;
+        }
+
+        return $total > 0;
     }
 
     public function attachTopicToMessage(mixed $root, array $request): Message
