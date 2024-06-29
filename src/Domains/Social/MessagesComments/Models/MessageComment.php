@@ -25,7 +25,7 @@ class MessageComment extends BaseModel
 {
     use AsTree;
     use HasPermissions;
-    
+
     protected $table = 'message_comments';
 
     protected $guarded = [];

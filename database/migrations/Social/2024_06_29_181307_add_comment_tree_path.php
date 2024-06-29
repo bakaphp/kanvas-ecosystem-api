@@ -19,13 +19,10 @@ return new class () extends Migration {
             $table->integer('total_shared')->default(0)->after('total_saved')->index();
 
             $table->bigIncrements('id')->change();
-            $table->bigInteger('parent_id')->change();
         });
 
         Schema::table('messages', function (Blueprint $table) {
             $table->bigIncrements('id')->change();
-            $table->bigInteger('parent_id')->change();
-            $table->bigInteger('message_id')->change();
         });
     }
 
