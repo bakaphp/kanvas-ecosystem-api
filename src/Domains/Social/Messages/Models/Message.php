@@ -25,6 +25,7 @@ use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\Topics\Models\Topic;
 use Kanvas\Users\Models\Users;
 use Laravel\Scout\Searchable;
+use Nevadskiy\Tree\AsTree;
 
 /**
  *  Class Message
@@ -53,6 +54,7 @@ class Message extends BaseModel
     use CascadeSoftDeletes;
     use SoftDeletesTrait;
     use HasPermissions;
+    use AsTree;
 
     protected $table = 'messages';
 
@@ -82,14 +84,6 @@ class Message extends BaseModel
     public function searchableAs(): string
     {
         return 'messages_index_app_' . app(Apps::class)->getId();
-    }
-
-    /**
-     * parent
-     */
-    public function parent(): BelongsTo
-    {
-        return $this->belongsTo(Message::class, 'parent_id', 'id');
     }
 
     public function topics(): BelongsToMany
