@@ -10,11 +10,6 @@ use Kanvas\SystemModules\Models\SystemModules;
 
 class CreateMessageAction
 {
-    /**
-     * __construct
-     *
-     * @return void
-     */
     public function __construct(
         public MessageInput $messageInput,
         public ?SystemModules $systemModule = null,
@@ -22,12 +17,8 @@ class CreateMessageAction
     ) {
     }
 
-    /**
-     * execute
-     */
     public function execute(): Message
     {
-        /** @var Message $message */
         $message = Message::create([
             'apps_id' => $this->messageInput->app->getId(),
             'parent_id' => $this->messageInput->parent_id,

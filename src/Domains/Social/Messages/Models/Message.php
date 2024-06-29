@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Kanvas\AccessControlList\Traits\HasPermissions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Factories\MessageFactory;
@@ -51,6 +52,7 @@ class Message extends BaseModel
     use HasTagsTrait;
     use CascadeSoftDeletes;
     use SoftDeletesTrait;
+    use HasPermissions;
 
     protected $table = 'messages';
 
@@ -110,11 +112,6 @@ class Message extends BaseModel
     public function messageType(): BelongsTo
     {
         return $this->belongsTo(MessageType::class, 'message_types_id');
-    }
-
-    public function canEdit(Users $user): bool
-    {
-        return $this->users_id == $user->getId() || $user->isAdmin();
     }
 
     /**
