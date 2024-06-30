@@ -48,9 +48,7 @@ use Nevadskiy\Tree\AsTree;
 class Message extends BaseModel
 {
     use UuidTrait;
-    use Searchable {
-        search as public traitSearch;
-    }
+    use Searchable;
     use HasFactory;
     use HasTagsTrait;
     use CascadeSoftDeletes;
@@ -122,16 +120,6 @@ class Message extends BaseModel
         $customIndex = $this->app ? $this->app->get('app_custom_message_index') : null;
 
         return config('scout.prefix') . ($customIndex ?? 'message_index');
-    }
-
-    public static function search($query = '', $callback = null)
-    {
-        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
-        if (! auth()->user()->isAppOwner()) {
-           // $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
-        }
-
-        return $query;
     }
 
     protected static function newFactory(): Factory
