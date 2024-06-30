@@ -55,6 +55,7 @@ class CreateOrderAction
             $order->currency = $this->orderData->currency->code;
             $order->metadata = $this->orderData->metadata;
             $order->payment_gateway_names = $this->orderData->paymentGatewayName;
+            $order->language_code = $this->orderData->languageCode;
             $order->saveOrFail();
 
             $order->addItems($this->orderData->items);

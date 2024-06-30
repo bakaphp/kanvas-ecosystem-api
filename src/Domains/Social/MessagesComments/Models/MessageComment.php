@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\MessagesComments\Models;
 
+use Baka\Casts\Json;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\AccessControlList\Traits\HasPermissions;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Models\BaseModel;
+use Nevadskiy\Tree\AsTree;
 
 /**
  *  class MessageComment.
@@ -20,17 +23,24 @@ use Kanvas\Social\Models\BaseModel;
  */
 class MessageComment extends BaseModel
 {
+    use AsTree;
+    use HasPermissions;
+
     protected $table = 'message_comments';
 
     protected $guarded = [];
 
-    public function messages(): BelongsTo
+    protected $casts = [
+       'message' => Json::class,
+    ];
+
+    public function message(): BelongsTo
     {
         return $this->belongsTo(Message::class, 'message_id');
     }
 
-    public function parent(): BelongsTo
+    public function getCommentAttribute()
     {
-        return $this->belongsTo(self::class, 'parent_id');
+        return $this->attributes['message'];
     }
 }

@@ -85,6 +85,7 @@ class SyncShopifyOrderAction
             weight: $this->orderData['total_weight'],
             checkoutToken: (string) $this->orderData['id'],
             paymentGatewayName: $this->orderData['payment_gateway_names'],
+            languageCode: $this->orderData['customer_locale'],
         );
 
         $orderExist = ModelsOrder::getByCustomField(

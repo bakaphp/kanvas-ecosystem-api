@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Actions;
 
+use Illuminate\Support\Facades\Validator;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Validations\ValidParentMessage;
 use Kanvas\SystemModules\Models\SystemModules;
 
 class CreateMessageAction
@@ -19,7 +22,7 @@ class CreateMessageAction
 
     public function execute(): Message
     {
-        $message = Message::create([
+        $data = [
             'apps_id' => $this->messageInput->app->getId(),
             'parent_id' => $this->messageInput->parent_id,
             'parent_unique_id' => $this->messageInput->parent_unique_id,
@@ -32,7 +35,21 @@ class CreateMessageAction
             'total_liked' => $this->messageInput->total_liked,
             'total_saved' => $this->messageInput->total_saved,
             'total_shared' => $this->messageInput->total_shared,
+        ];
+
+        $validator = Validator::make($data, [
+            'parent_id' => [new ValidParentMessage($this->messageInput->app->getId())],
         ]);
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator->messages()->__toString());
+        }
+
+        if ($this->messageInput->parent_id == null || $this->messageInput->parent_id == 0) {
+            $data['parent_id'] = null;
+        }
+
+        $message = Message::create($data);
 
         if ($this->systemModule) {
             $associateMessage = new AssociateMessageToSystemModule(
