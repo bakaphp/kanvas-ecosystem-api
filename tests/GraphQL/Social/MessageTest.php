@@ -365,6 +365,46 @@ class MessageTest extends TestCase
         ]);
     }
 
+    public function testGroupMessageByDate()
+    {
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+        $response = $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        id
+                        message
+                        users {
+                            id
+                        }
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => $message,
+                    'message_verb' => $messageType->verb,
+                    'system_modules_id' => 1,
+                    'entity_id' => '1',
+                ],
+            ]
+        );
+
+        $this->graphQL(
+            '
+            query {
+                messagesGroupByDate {
+                  data {
+                    message
+                    additional_field
+                  }
+                }
+              }
+            '
+        )->assertSuccessful();
+    }
+
     public function testMessageSearch()
     {
         $messageType = MessageType::factory()->create();

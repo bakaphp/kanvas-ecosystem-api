@@ -165,7 +165,7 @@ extend type Query @guard {
             scopes: ["fromApp"]
         )
 
-    messagesGroupByDate(page: Int, count: Int): [Message!]!
+    messagesGroupByDate: [Message!]!
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getGroupByDate"

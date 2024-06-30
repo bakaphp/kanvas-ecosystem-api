@@ -48,7 +48,9 @@ use Nevadskiy\Tree\AsTree;
 class Message extends BaseModel
 {
     use UuidTrait;
-    use Searchable;
+    use Searchable {
+        search as public traitSearch;
+    }
     use HasFactory;
     use HasTagsTrait;
     use CascadeSoftDeletes;
@@ -70,47 +72,22 @@ class Message extends BaseModel
 
     public const DELETED_AT = 'is_deleted';
 
-    /**
-     * Create a new factory instance for the model.
-     */
-    protected static function newFactory(): Factory
-    {
-        return MessageFactory::new();
-    }
-
-    /**
-      * Get the name of the index associated with the model.
-      */
-    public function searchableAs(): string
-    {
-        return 'messages_index_app_' . app(Apps::class)->getId();
-    }
-
     public function topics(): BelongsToMany
     {
         return $this->belongsToMany(Topic::class, 'entity_topics', 'messages_id', 'entity_id')
                 ->where('entity_namespace', self::class);
     }
 
-    /**
-     * The roles that belong to the Message
-     */
     public function channels(): BelongsToMany
     {
         return $this->belongsToMany(Channel::class, 'channel_messages', 'messages_id', 'channel_id');
     }
 
-    /**
-     * messageType
-     */
     public function messageType(): BelongsTo
     {
         return $this->belongsTo(MessageType::class, 'message_types_id');
     }
 
-    /**
-     * appModuleMessage
-     */
     public function appModuleMessage(): HasOne
     {
         return $this->hasOne(AppModuleMessage::class, 'message_id');
@@ -138,5 +115,27 @@ class Message extends BaseModel
             'is_shared' => (int) ($userMessage?->is_shared),
             'is_reported' => (int) ($userMessage?->is_reported),
         ];
+    }
+
+    public function searchableAs(): string
+    {
+        $customIndex = $this->app ? $this->app->get('app_custom_message_index') : null;
+
+        return config('scout.prefix') . ($customIndex ?? 'message_index');
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        if (! auth()->user()->isAppOwner()) {
+            $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
+        }
+
+        return $query;
+    }
+
+    protected static function newFactory(): Factory
+    {
+        return MessageFactory::new();
     }
 }
