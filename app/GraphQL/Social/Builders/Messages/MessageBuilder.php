@@ -18,9 +18,13 @@ class MessageBuilder
         GraphQLContext $context,
         ResolveInfo $resolveInfo
     ): Builder {
-        /**
-         * @psalm-suppress MixedReturnStatement
-         */
+
+        $user = auth()->user();
+
+        if (! $user->isAppOwner()) {
+            return Message::fromApp()->fromCompany($user->getCurrentCompany());
+        }
+
         return Message::fromApp();
     }
 
