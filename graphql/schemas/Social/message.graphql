@@ -3,6 +3,7 @@ type Message {
     parent_id: ID
     parent_unique_id: Mixed
     uuid: String!
+    slug: String
     companies_id: ID!
     users_id: ID!
     message_types_id: ID!
@@ -118,6 +119,7 @@ extend type Query @guard {
                     "parent_unique_id"
                     "companies_id"
                     "uuid"
+                    "slug"
                     "users_id"
                     "message_types_id"
                     "message"
