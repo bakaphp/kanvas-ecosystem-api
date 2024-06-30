@@ -27,25 +27,29 @@ RUN apt-get update && apt-get install -y \
     vim
 
 # Set working directory
-WORKDIR /app
+COPY . /var/www/html/
+# COPY chown -R unit:unit /var/www/html/
 
-# Add user for laravel application
-# RUN addgroup -g 1000 www
-# RUN adduser -u 1000 -s /bin/sh --disabled-password -G www www 
+# add root to www group
+# RUN chmod -R ug+w var/www/html/storage
+# RUN cp docker/php-fpm.conf /usr/local/etc/php-fpm.d/zzz-php-fpm-production.conf
 
-COPY . /app
+WORKDIR /var/www/html/
 
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-RUN composer install --no-dev --optimize-autoloader
 
 # add root to www group
-RUN chmod -R ug+w /app/storage
+# RUN chmod -R ug+w /app/storage
 
 RUN cp docker/docker-php-ext-opcache-prod.ini /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
 RUN cp docker/php.ini /usr/local/etc/php/conf.d/zx-app-config.ini
 # RUN cp docker/php-fpm.conf /usr/local/etc/php-fpm.d/zzz-php-fpm-production.conf
 
-WORKDIR /var/www/html
+RUN chmod -R 755 /var/www/html/
+RUN chmod -R 777 /var/www/html/storage/
+RUN chmod -R 777 /var/www/html/storage/logs/
+
+RUN composer install --no-dev --optimize-autoloader
 
 EXPOSE 8080

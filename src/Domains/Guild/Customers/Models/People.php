@@ -7,9 +7,12 @@ namespace Kanvas\Guild\Customers\Models;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Notifications\Notifiable;
+use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Locations\Models\Countries;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
@@ -40,6 +43,7 @@ class People extends BaseModel
     use Searchable;
     use HasTagsTrait;
     use CanUseWorkflow;
+    use Notifiable;
 
     protected $table = 'peoples';
     protected $guarded = [];
@@ -149,5 +153,22 @@ class People extends BaseModel
     protected static function newFactory()
     {
         return new PeopleFactory();
+    }
+
+    public function addAddress(DataTransferObjectAddress $address): Address
+    {
+        return Address::updateOrCreate(
+            [
+                'peoples_id' => $this->id,
+                'address' => $address->address,
+                'city' => $address->city,
+                'state' => $address->state,
+                'countries_id' => $address->country ? Countries::getByName($address->country)->getId() : null,
+                'zip' => $address->zipcode,
+            ],
+            [
+                'address_2' => $address->address_2,
+            ]
+        );
     }
 }

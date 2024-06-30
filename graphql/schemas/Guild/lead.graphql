@@ -181,6 +181,8 @@ extend type Query @guard {
                     "companies_branches_id"
                     "leads_receivers_id"
                     "leads_owner_id"
+                    "leads_status_id"
+                    "title"
                     "pipeline_id"
                     "pipeline_stage_id"
                     "people_id"

@@ -6,7 +6,6 @@ namespace Kanvas\Guild\Leads\Actions;
 
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadDataInput;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -63,6 +62,9 @@ class CreateLeadAction
         $newLead->saveOrFail();
 
         $newLead->setCustomFields($this->leadData->custom_fields);
+        if (! $this->leadData->runWorkflow) {
+            $newLead->disableWorkflows();
+        }
         $newLead->saveCustomFields();
 
         if ($this->leadData->files) {

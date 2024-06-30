@@ -297,7 +297,7 @@ class Variants extends BaseModel
         $attributes = $this->attributes()->get();
         foreach ($attributes as $attribute) {
             //if its over 100 characters we dont want to index it
-            if (strlen($attribute->value) > 100) {
+            if (! is_array($attribute->value) && strlen((string) $attribute->value) > 100) {
                 continue;
             }
             $variant['attributes'][$attribute->name] = $attribute->value;
@@ -308,7 +308,9 @@ class Variants extends BaseModel
 
     public function searchableAs(): string
     {
-        return config('scout.prefix') . ($this->app->get('app_custom_product_variant_index') ?? 'product_variant_index');
+        $customIndex = $this->app ? $this->app->get('app_custom_product_variant_index') : null;
+
+        return config('scout.prefix') . ($customIndex ?? 'product_variant_index');
     }
 
     public static function search($query = '', $callback = null)

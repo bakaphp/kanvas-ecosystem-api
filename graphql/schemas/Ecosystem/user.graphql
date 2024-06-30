@@ -20,6 +20,7 @@ type User {
     abilities: Mixed! @method(name: "getAbilitiesList")
     roles: Mixed! @method(name: "getRoles")
     mainRole: String!
+    welcome: Boolean! @method(name: "getAppWelcome")
     created_at: DateTime
     systemModule: SystemModule! @belongsTo(relation: "systemModule")
     updated_at: DateTime
@@ -132,6 +133,7 @@ input UpdateUserInput {
     address_1: String
     address_2: String
     zip_code: Int
+    welcome: Boolean
     city_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Models\\Cities,id"])
     state_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Models\\States,id"])
     country_id: Int

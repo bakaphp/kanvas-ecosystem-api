@@ -14,7 +14,11 @@ type Organization {
 
 input OrganizationInput {
     name: String!
+    email: String
     address: String
+    city: String
+    state: String
+    zip: String
 }
 
 input OrganizationPeopleInput {
