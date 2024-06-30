@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Stripe\Actions\UpdatePeopleSubscription;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoAgentAction;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoLeadAction;
 use Kanvas\Connectors\Zoho\Workflows\ZohoLeadOwnerWorkflow;
@@ -25,6 +27,24 @@ class ReceiverController extends BaseController
      */
     public function store(string $uuid, Request $request): JsonResponse
     {
+        $stripeUuids = [
+            '5f5abdb9-55ed-4080-a1cb-00823dad3edb' => UpdatePeopleSubscription::class,
+            'c92ca8f1-3bac-4598-a4ef-68b7bf5aacb7' => UpdatePeopleSubscription::class,
+        ];
+
+        if (array_key_exists($uuid, $stripeUuids)) {
+            if (! in_array(
+                $request->type,
+                ['customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted']
+            )) {
+                return response()->json(['message' => 'Receiver not found']);
+            }
+            $action = new $stripeUuids[$uuid]($request->all());
+            $action->execute();
+            Log::info('Receiver processed');
+            return response()->json(['message' => 'Receiver processed']);
+        }
+
         $app = app(Apps::class);
         $receiver = LeadReceiver::fromApp($app)->where('uuid', $uuid)->first();
 
