@@ -44,5 +44,7 @@ interface UserInterface extends Authenticatable, HashTableInterface
     //@todo user a branch interface
     public function getCurrentBranch(): CompaniesBranches;
 
+    public function isAdmin(): bool;
+
     public function isAppOwner(): bool;
 }

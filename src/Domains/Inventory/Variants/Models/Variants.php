@@ -308,7 +308,9 @@ class Variants extends BaseModel
 
     public function searchableAs(): string
     {
-        return config('scout.prefix') . ($this->app->get('app_custom_product_variant_index') ?? 'product_variant_index');
+        $customIndex = $this->app ? $this->app->get('app_custom_product_variant_index') : null;
+
+        return config('scout.prefix') . ($customIndex ?? 'product_variant_index');
     }
 
     public static function search($query = '', $callback = null)

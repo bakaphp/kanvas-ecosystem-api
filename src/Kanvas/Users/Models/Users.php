@@ -131,6 +131,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     protected $casts = [
         'default_company' => 'integer',
         'default_company_branch' => 'integer',
+        'welcome' => 'boolean'
     ];
 
     protected $hidden = [
@@ -687,6 +688,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $user = $this->getAppProfile(app(Apps::class));
 
         return (bool) $user->is_active;
+    }
+
+    public function getAppWelcome(): bool
+    {
+        $user = $this->getAppProfile(app(Apps::class));
+
+        return (bool) $user->welcome;
     }
 
     public function runVerifyTwoFactorAuth(?AppInterface $app = null): bool

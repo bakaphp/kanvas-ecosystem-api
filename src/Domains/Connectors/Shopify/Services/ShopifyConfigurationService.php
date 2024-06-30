@@ -48,6 +48,11 @@ class ShopifyConfigurationService
         return self::getKey(CustomFieldEnum::SHOPIFY_VARIANT_ID->value, $variant->company, $variant->product->app, $region);
     }
 
+    public static function getOrderKey(Regions $region): string
+    {
+        return self::getKey(CustomFieldEnum::SHOPIFY_ORDER_ID->value, $region->company, $region->app, $region);
+    }
+
     public static function getVariantInventoryKey(Variants $variant, Regions $region): string
     {
         return self::getKey(CustomFieldEnum::SHOPIFY_VARIANT_INVENTORY_ID->value, $variant->company, $variant->product->app, $region);

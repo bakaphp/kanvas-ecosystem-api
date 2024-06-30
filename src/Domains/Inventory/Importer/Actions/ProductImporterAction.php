@@ -60,9 +60,8 @@ class ProductImporterAction
     /**
      * Run all method dor a specify product.
      *
-     * @throws Throwable
      */
-    public function execute(): bool
+    public function execute(): ProductsModel
     {
         try {
             DB::connection('inventory')->beginTransaction();
@@ -109,7 +108,7 @@ class ProductImporterAction
             throw $e;
         }
 
-        return true;
+        return $this->product;
     }
 
     /**
