@@ -9,7 +9,7 @@ return new class () extends Migration {
     {
         Schema::table('messages', function (Blueprint $table) {
             $table->string('path')->after('parent_unique_id')->nullable()->index();
-            $table->string('slug', 191)->after('message_types_id')->nullable()->change();
+            $table->string('slug', 191)->after('message_types_id')->nullable()->index();
 
             //make slug unique by apps_id
             $table->unique(['slug', 'apps_id'], 'messages_slug_unique');
