@@ -128,7 +128,7 @@ class Message extends BaseModel
     {
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
         if (! auth()->user()->isAppOwner()) {
-            $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
+           // $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
         }
 
         return $query;
