@@ -80,6 +80,7 @@ trait HashTableTrait
         }
 
         foreach ($settings as $setting) {
+            $isPublic = $setting['public'] ?? $isPublic;
             $this->set($setting['name'], $setting['data'], $isPublic);
         }
 
