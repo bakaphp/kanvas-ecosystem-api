@@ -63,7 +63,7 @@ class SyncZohoLeadAction
                 ->first();
         }
 
-        $status = strtolower($zohoLead->Lead_Status);
+        $status = ! empty($zohoLead->Lead_Status) ? strtolower($zohoLead->Lead_Status) : '';
 
         $leadStatus = match (true) {
             Str::contains($status, 'close') => LeadStatus::getByName('bad'),
