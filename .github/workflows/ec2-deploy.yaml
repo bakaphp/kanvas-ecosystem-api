@@ -40,11 +40,12 @@ jobs:
         key: ${{ secrets.AWS_EC2_PRIVATE_SSH_KEY }}
         script: |
           cd ${{secrets.AWS_EC2_TARGET_DIR}}
-          if ["docker-compose.${{ github.ref_name }}.yml" == "docker-compose.1.x.yml"]; then 
-            docker-compose -f docker-compose.${{ github.ref_name }}.yml up -d
+          if [ "docker-compose.${{ github.ref_name }}.yml" == "docker-compose.1.x.yml" ]; 
+          then
+            docker-compose -f docker-compose.${{ github.ref_name }}.yml up -d;
             docker exec -i phpkanvas-ecosystem composer install --no-dev --optimize-autoloader;
           else
-            docker compose -f docker-compose.${{ github.ref_name }}.yml up -d
+            docker compose -f docker-compose.${{ github.ref_name }}.yml up -d;
             docker exec -i phpkanvas-ecosystem composer install --optimize-autoloader;
           fi
           docker exec -i phpkanvas-ecosystem php artisan lighthouse:cache
