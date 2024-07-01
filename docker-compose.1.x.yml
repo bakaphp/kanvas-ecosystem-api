@@ -25,7 +25,7 @@ services:
             dockerfile: development.Dockerfile
         extra_hosts:
             - 'host.docker.internal:host-gateway'
-        command: ["sh", "-c", "php artisan config:cache && php artisan queue:work --tries=3 --timeout=3500"]
+        command: ["sh", "-c", "php artisan config:cache && php artisan queue:work --tries=3 --timeout=3750"]
         environment:
             WWWUSER: '${WWWUSER}'
             LARAVEL_SAIL: 1
@@ -45,7 +45,7 @@ services:
             dockerfile: development.Dockerfile
         extra_hosts:
             - 'host.docker.internal:host-gateway'
-        command: ["sh", "-c", "php artisan config:cache && php artisan queue:work --queue kanvas-social --tries=3 --timeout=1750"]
+        command: ["sh", "-c", "php artisan config:cache && php artisan queue:work --queue kanvas-social --tries=3 --timeout=3750"]
         environment:
             WWWUSER: '${WWWUSER}'
             LARAVEL_SAIL: 1
@@ -65,7 +65,7 @@ services:
             dockerfile: development.Dockerfile
         extra_hosts:
             - 'host.docker.internal:host-gateway'
-        command: ["sh", "-c", "php artisan config:cache && php artisan queue:work --queue notifications --tries=3 --timeout=1750"]
+        command: ["sh", "-c", "php artisan config:cache && php artisan queue:work --queue notifications --tries=3 --timeout=3750"]
         environment:
             WWWUSER: '${WWWUSER}'
             LARAVEL_SAIL: 1
