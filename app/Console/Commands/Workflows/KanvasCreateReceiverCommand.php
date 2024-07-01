@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands;
+namespace App\Console\Commands\Workflows;
 
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Users\Repositories\UsersRepository;
-use Kanvas\Workflow\Models\WorkflowAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
+use Kanvas\Workflow\Models\WorkflowAction;
 
 use function Laravel\Prompts\select;
 
