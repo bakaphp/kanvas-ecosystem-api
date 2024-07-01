@@ -10,9 +10,10 @@ return new class () extends Migration {
      */
     public function up(): void
     {
-        Schema::create('peoples_subscription', function (Blueprint $table) {
+        Schema::create('peoples_subscriptions', function (Blueprint $table) {
             $table->id();
-            $table->integer('peoples_id');
+            $table->bigInteger('apps_id')->unsigned();
+            $table->bigInteger('peoples_id')->unsigned();
             $table->string('subscription_type');
             $table->string('status');
             $table->date('first_date');
@@ -31,6 +32,6 @@ return new class () extends Migration {
      */
     public function down(): void
     {
-        Schema::dropIfExists('peoples_subscription');
+        Schema::dropIfExists('peoples_subscriptions');
     }
 };

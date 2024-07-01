@@ -18,7 +18,7 @@ use Kanvas\Guild\Models\BaseModel;
  */
 class PeopleSubscription extends BaseModel
 {
-    protected $table = 'people_subscriptions';
+    protected $table = 'peoples_subscriptions';
 
     protected $guarded = [];
 }

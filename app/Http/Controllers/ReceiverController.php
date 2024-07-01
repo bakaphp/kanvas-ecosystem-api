@@ -35,18 +35,6 @@ class ReceiverController extends BaseController
             'c92ca8f1-3bac-4598-a4ef-68b7bf5aacb7' => UpdatePeopleSubscription::class,
         ];
 
-        if (array_key_exists($uuid, $stripeUuids)) {
-            if (! in_array(
-                $request->type,
-                ['customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted']
-            )) {
-                return response()->json(['message' => 'Receiver not found']);
-            }
-            $action = new $stripeUuids[$uuid]($request->all());
-            $action->execute();
-            Log::info('Receiver processed');
-            return response()->json(['message' => 'Receiver processed']);
-        }
 
         $app = app(Apps::class);
         $receiver = ReceiverWebhook::where('uuid', $uuid)->notDeleted()->first();
