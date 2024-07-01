@@ -30,12 +30,6 @@ class ReceiverController extends BaseController
      */
     public function store(string $uuid, Request $request): JsonResponse
     {
-        $stripeUuids = [
-            '5f5abdb9-55ed-4080-a1cb-00823dad3edb' => UpdatePeopleSubscription::class,
-            'c92ca8f1-3bac-4598-a4ef-68b7bf5aacb7' => UpdatePeopleSubscription::class,
-        ];
-
-
         $app = app(Apps::class);
         $receiver = ReceiverWebhook::where('uuid', $uuid)->notDeleted()->first();
 
