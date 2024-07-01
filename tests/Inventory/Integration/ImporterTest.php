@@ -7,6 +7,7 @@ namespace Tests\Inventory\Integration;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Inventory\Status\Actions\CreateStatusAction;
 use Kanvas\Inventory\Status\DataTransferObject\Status;
@@ -148,6 +149,6 @@ final class ImporterTest extends TestCase
             $region
         );
 
-        $this->assertTrue($productImporter->execute());
+        $this->assertInstanceOf(Products::class, $productImporter->execute());
     }
 }

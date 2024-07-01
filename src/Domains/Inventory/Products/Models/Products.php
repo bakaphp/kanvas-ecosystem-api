@@ -7,6 +7,7 @@ namespace Kanvas\Inventory\Products\Models;
 use Awobaz\Compoships\Compoships;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -195,13 +196,16 @@ class Products extends BaseModel
 
     public function searchableAs(): string
     {
-        return config('scout.prefix') . ($this->app->get('app_custom_product_index') ?? 'product_index');
+        $customIndex = $this->app ? $this->app->get('app_custom_product_index') : null;
+
+        return config('scout.prefix') . ($customIndex ?? 'product_index');
     }
 
     public static function search($query = '', $callback = null)
     {
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
-        if (! auth()->user()->isAppOwner()) {
+        $user = auth()->user();
+        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
         }
 

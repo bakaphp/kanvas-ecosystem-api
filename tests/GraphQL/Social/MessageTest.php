@@ -125,9 +125,7 @@ class MessageTest extends TestCase
         $this->graphQL(
             '
                 mutation deleteMessage($id: ID!) {
-                    deleteMessage(id: $id) {
-                        id
-                    }
+                    deleteMessage(id: $id) 
                 }
             ',
             [
@@ -135,9 +133,48 @@ class MessageTest extends TestCase
             ]
         )->assertJson([
             'data' => [
-                'deleteMessage' => [
-                    'id' => $createdMessageId,
+                'deleteMessage' => true,
+            ],
+        ]);
+    }
+
+    public function testDeleteMultipleMessage()
+    {
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+        $response = $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        id
+                        message
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => $message,
+                    'message_verb' => $messageType->verb,
+                    'system_modules_id' => 1,
+                    'entity_id' => '1',
                 ],
+            ]
+        );
+
+        $createdMessageId = $response['data']['createMessage']['id'];
+
+        $this->graphQL(
+            '
+                mutation deleteMultipleMessages($ids: [ID!]!) {
+                    deleteMultipleMessages(ids: $ids)
+                }
+            ',
+            [
+                'ids' => $createdMessageId,
+            ]
+        )->assertJson([
+            'data' => [
+                'deleteMultipleMessages' => true,
             ],
         ]);
     }
@@ -183,6 +220,96 @@ class MessageTest extends TestCase
               }
             '
         )->assertSuccessful();
+    }
+
+    public function testCreateChildMessage()
+    {
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+        $response = $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        id
+                        message
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => $message,
+                    'message_verb' => $messageType->verb,
+                    'entity_id' => '1',
+                ],
+            ]
+        );
+
+        $createdMessageId = $response['data']['createMessage']['id'];
+
+        $childMessage = fake()->text();
+        $response = $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        id
+                        message
+                        children(first: 25){
+                            data {
+                                id
+                                message
+                            }
+                        }
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => $childMessage,
+                    'message_verb' => $messageType->verb,
+                    'entity_id' => '1',
+                    'parent_id' => $createdMessageId,
+                ],
+            ]
+        );
+
+        $this->graphQL(
+            '
+            query {
+                messages(
+                    where: {
+                        column: ID, operator: EQ, value: ' . $createdMessageId . '
+                        } 
+                ) {
+                  data {
+                    message
+                    message_types_id
+                    children(first: 25){
+                        data {
+                            message
+                        }
+                    }
+                  }
+                }
+              }
+            '
+        )->assertJson([
+            'data' => [
+                'messages' => [
+                    'data' => [
+                        [
+                            'message' => $message,
+                            'children' => [
+                                'data' => [
+                                    [
+                                        'message' => $childMessage,
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
     }
 
     public function testGetMessageFilter()
@@ -236,6 +363,46 @@ class MessageTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    public function testGroupMessageByDate()
+    {
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+        $response = $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        id
+                        message
+                        users {
+                            id
+                        }
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => $message,
+                    'message_verb' => $messageType->verb,
+                    'system_modules_id' => 1,
+                    'entity_id' => '1',
+                ],
+            ]
+        );
+
+        $this->graphQL(
+            '
+            query {
+                messagesGroupByDate {
+                  data {
+                    message
+                    additional_field
+                  }
+                }
+              }
+            '
+        )->assertSuccessful();
     }
 
     public function testMessageSearch()

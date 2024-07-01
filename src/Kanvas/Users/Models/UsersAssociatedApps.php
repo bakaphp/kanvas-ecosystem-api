@@ -90,6 +90,7 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
         'configuration' => 'array',
         'is_active' => 'boolean',
         'is_deleted' => 'boolean',
+        'welcome' => 'boolean'
     ];
 
     public function role(): BelongsTo

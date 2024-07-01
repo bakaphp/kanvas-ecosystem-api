@@ -75,6 +75,7 @@ class Lead extends Data
                 'google_contact_id' => $request['people']['google_contact_id'] ?? null,
                 'apple_contact_id' => $request['people']['apple_contact_id'] ?? null,
                 'linkedin_contact_id' => $request['people']['linkedin_contact_id'] ?? null,
+                'custom_fields' =>  $request['people']['custom_fields'] ?? [],
             ]),
             (int) ($request['leads_owner_id'] ?? 0),
             (int) ($request['type_id'] ?? 0),
