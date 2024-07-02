@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -122,7 +123,7 @@ class People extends BaseModel
         return $this->contacts()
                 ->where(
                     'contacts_types_id',
-                    ContactType::getByName('Email')->getId()
+                    ContactType::getById(ContactTypeEnum::EMAIL->value)->getId()
                 )
                 ->get();
     }
@@ -135,7 +136,17 @@ class People extends BaseModel
         return $this->contacts()
                 ->where(
                     'contacts_types_id',
-                    ContactType::getByName('Phone')->getId()
+                    ContactType::getById(ContactTypeEnum::PHONE->value)->getId()
+                )
+                ->get();
+    }
+
+    public function getCellPhones(): Collection
+    {
+        return $this->contacts()
+                ->where(
+                    'contacts_types_id',
+                    ContactType::getById(ContactTypeEnum::CELLPHONE->value)->getId()
                 )
                 ->get();
     }
