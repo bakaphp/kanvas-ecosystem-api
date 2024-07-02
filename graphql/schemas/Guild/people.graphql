@@ -87,7 +87,7 @@ extend type Query @guard {
     peoples(
         search: String @search
         where: _
-            @whereConditions(columns: ["id", "uuid", "companies_id", "dob"])
+            @whereConditions(columns: ["id", "uuid", "companies_id", "dob", "name", "firstname", "lastname"])
         hasEmails: _
             @whereHasConditions(relation: "emails", columns: ["id", "value"])
         hasPhones: _
