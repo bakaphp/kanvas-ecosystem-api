@@ -69,7 +69,7 @@ services:
       - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
     networks:
       - sail
-      
+
   queue3:
     container_name: queue3
     restart: always
