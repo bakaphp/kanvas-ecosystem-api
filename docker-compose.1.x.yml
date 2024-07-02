@@ -1,3 +1,28 @@
+version: '3.8'
+
+x-common-queue-settings: &common-queue-settings
+  restart: always
+  build:
+    context: .
+    dockerfile: development.Dockerfile
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  command: 
+    - "sh"
+    - "-c"
+    - "php artisan config:cache && php artisan queue:work --tries=3 --timeout=3750"
+  environment:
+    WWWUSER: "${WWWUSER}"
+    LARAVEL_SAIL: 1
+    XDEBUG_MODE: "${SAIL_XDEBUG_MODE:-off}"
+    XDEBUG_CONFIG: "${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}"
+  volumes:
+    - ".:/var/www/html"
+    - ./docker/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
+    - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
+  networks:
+    - sail
+
 services:
   php:
     container_name: php${APP_CONTAINER_NAME}
@@ -19,134 +44,44 @@ services:
       - sail
 
   queue:
+    <<: *common-queue-settings
     container_name: queue
-    restart: always
-    build:
-      context: .
-      dockerfile: development.Dockerfile
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    command:
-      [
-        "sh",
-        "-c",
-        "php artisan config:cache && php artisan queue:work --tries=3 --timeout=3750",
-      ]
-    environment:
-      WWWUSER: "${WWWUSER}"
-      LARAVEL_SAIL: 1
-      XDEBUG_MODE: "${SAIL_XDEBUG_MODE:-off}"
-      XDEBUG_CONFIG: "${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}"
-    volumes:
-      - ".:/var/www/html"
-      - ./docker/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
-      - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
-    networks:
-      - sail
 
   queue2:
+    <<: *common-queue-settings
     container_name: queue2
-    restart: always
-    build:
-      context: .
-      dockerfile: development.Dockerfile
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    command:
-      [
-        "sh",
-        "-c",
-        "php artisan config:cache && php artisan queue:work --tries=3 --timeout=3750",
-      ]
-    environment:
-      WWWUSER: "${WWWUSER}"
-      LARAVEL_SAIL: 1
-      XDEBUG_MODE: "${SAIL_XDEBUG_MODE:-off}"
-      XDEBUG_CONFIG: "${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}"
-    volumes:
-      - ".:/var/www/html"
-      - ./docker/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
-      - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
-    networks:
-      - sail
 
   queue3:
+    <<: *common-queue-settings
     container_name: queue3
-    restart: always
-    build:
-      context: .
-      dockerfile: development.Dockerfile
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    command:
-      [
-        "sh",
-        "-c",
-        "php artisan config:cache && php artisan queue:work --tries=3 --timeout=3750",
-      ]
-    environment:
-      WWWUSER: "${WWWUSER}"
-      LARAVEL_SAIL: 1
-      XDEBUG_MODE: "${SAIL_XDEBUG_MODE:-off}"
-      XDEBUG_CONFIG: "${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}"
-    volumes:
-      - ".:/var/www/html"
-      - ./docker/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
-      - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
-    networks:
-      - sail
+
+  queue4:
+    <<: *common-queue-settings
+    container_name: queue4
+
+  queue5:
+    <<: *common-queue-settings
+    container_name: queue5
+
+  queue6:
+    <<: *common-queue-settings
+    container_name: queue6
 
   queue-social:
+    <<: *common-queue-settings
     container_name: queue-social
-    restart: always
-    build:
-      context: .
-      dockerfile: development.Dockerfile
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    command:
-      [
-        "sh",
-        "-c",
-        "php artisan config:cache && php artisan queue:work --queue kanvas-social --tries=3 --timeout=3750",
-      ]
-    environment:
-      WWWUSER: "${WWWUSER}"
-      LARAVEL_SAIL: 1
-      XDEBUG_MODE: "${SAIL_XDEBUG_MODE:-off}"
-      XDEBUG_CONFIG: "${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}"
-    volumes:
-      - ".:/var/www/html"
-      - ./docker/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
-      - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
-    networks:
-      - sail
+    command: 
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue kanvas-social --tries=3 --timeout=3750"
 
   queue-notifications:
+    <<: *common-queue-settings
     container_name: queue-notifications
-    restart: always
-    build:
-      context: .
-      dockerfile: development.Dockerfile
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    command:
-      [
-        "sh",
-        "-c",
-        "php artisan config:cache && php artisan queue:work --queue notifications --tries=3 --timeout=3750",
-      ]
-    environment:
-      WWWUSER: "${WWWUSER}"
-      LARAVEL_SAIL: 1
-      XDEBUG_MODE: "${SAIL_XDEBUG_MODE:-off}"
-      XDEBUG_CONFIG: "${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}"
-    volumes:
-      - ".:/var/www/html"
-      - ./docker/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
-      - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
-    networks:
-      - sail
+    command: 
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue notifications --tries=3 --timeout=3750"
 
   laravel-scheduler:
     container_name: laravel-scheduler
@@ -157,7 +92,9 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command:
-      ["sh", "-c", "php artisan config:cache && php artisan schedule:work"]
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan schedule:work"
     environment:
       WWWUSER: "${WWWUSER}"
       LARAVEL_SAIL: 1
@@ -206,6 +143,7 @@ services:
 networks:
   sail:
     driver: bridge
+
 volumes:
   sail-redis:
     driver: local

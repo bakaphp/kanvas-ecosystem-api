@@ -2,11 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Zoho\Workflows;
+namespace Kanvas\Connectors\Notifications\Workflows;
 
 use Baka\Contracts\AppInterface;
 use Generator;
-use Kanvas\Connectors\Notifications\Workflows\SendEmailActivity;
 use Kanvas\Users\Models\Users;
 use Workflow\ActivityStub;
 use Workflow\Workflow;
