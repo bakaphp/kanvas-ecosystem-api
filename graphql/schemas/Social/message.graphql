@@ -167,7 +167,31 @@ extend type Query @guard {
             scopes: ["fromApp"]
         )
 
-    messagesGroupByDate: [Message!]!
+    messagesGroupByDate(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "parent_id"
+                    "parent_unique_id"
+                    "companies_id"
+                    "uuid"
+                    "slug"
+                    "users_id"
+                    "message_types_id"
+                    "message"
+                    "reactions_count"
+                    "comments_count"
+                    "total_liked"
+                    "total_saved"
+                    "total_shared"
+                ]
+            )
+        hasAppModuleMessage: _
+            @whereHasConditions(columns: ["entity_id", "system_modules"])
+        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
+        search: String @search
+    ): [Message!]!
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getGroupByDate"
