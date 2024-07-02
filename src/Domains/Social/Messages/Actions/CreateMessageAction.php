@@ -51,7 +51,7 @@ class CreateMessageAction
 
         $message = Message::create($data);
 
-        if ($this->systemModule) {
+        if ($this->systemModule && $this->entityId !== null) {
             $associateMessage = new AssociateMessageToSystemModule(
                 $message,
                 $this->systemModule,
