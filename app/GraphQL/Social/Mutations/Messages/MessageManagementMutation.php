@@ -6,6 +6,7 @@ namespace App\GraphQL\Social\Mutations\Messages;
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Exceptions\ValidationException;
@@ -31,6 +32,22 @@ class MessageManagementMutation
         $company = $user->getCurrentCompany();
         $messageData = $request['input'];
 
+        $rules = [
+            'system_modules_id' => 'nullable',
+            'entity_id' => [
+                'nullable',
+                Rule::requiredIf(function () use ($messageData) {
+                    return array_key_exists('system_modules_id', $messageData) && ! $messageData['system_modules_id'] !== null;
+                }),
+            ],
+        ];
+
+        $validator = Validator::make($messageData, $rules);
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator->messages()->__toString());
+        }
+
         try {
             $messageType = MessagesTypesRepository::getByVerb($messageData['message_verb'], $app);
         } catch (ModelNotFoundException $e) {
@@ -55,7 +72,7 @@ class MessageManagementMutation
         $action = new CreateMessageAction(
             $data,
             $systemModule,
-            $messageData['entity_id']
+            $messageData['entity_id'] ?? null
         );
         $message = $action->execute();
 
@@ -147,7 +164,11 @@ class MessageManagementMutation
     public function interaction(mixed $root, array $request): Message
     {
         $message = Message::getById((int)$request['id']);
-        $action = new CreateMessageAction($message, auth()->user(), ActivityTypeEnum::from($request['type']));
+        $action = new CreateMessageAction(
+            $message,
+            auth()->user(),
+            ActivityTypeEnum::from($request['type'])
+        );
         $action->execute();
 
         return $message;
