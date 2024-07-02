@@ -55,7 +55,6 @@ class MessageBuilder
                 WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) THEN "Past 30 Days"
                 ELSE DATE_FORMAT(created_at, "%M %Y")
             END as additional_field')
-        )
-        ->orderBy('created_at', 'desc');
+        );
     }
 }
