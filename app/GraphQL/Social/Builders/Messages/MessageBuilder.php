@@ -51,8 +51,8 @@ class MessageBuilder
         return Message::select(
             DB::raw('*, CASE
                 WHEN created_at >= CURDATE() THEN "Today"
-                WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) THEN "Past 7 Days"
-                WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) THEN "Past 30 Days"
+                WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) THEN "Previous 7 Days"
+                WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) THEN "Previous 30 Days"
                 ELSE DATE_FORMAT(created_at, "%M %Y")
             END as additional_field')
         );
