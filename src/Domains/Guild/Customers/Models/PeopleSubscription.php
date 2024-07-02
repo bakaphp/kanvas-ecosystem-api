@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Models;
 
+use Baka\Casts\Json;
 use Kanvas\Guild\Models\BaseModel;
 
 /**
@@ -21,4 +22,8 @@ class PeopleSubscription extends BaseModel
     protected $table = 'peoples_subscriptions';
 
     protected $guarded = [];
+
+    protected $casts = [
+        'metadata' => Json::class,
+    ];
 }
