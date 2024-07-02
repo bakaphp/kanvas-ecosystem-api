@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\Log;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Stripe\Actions\UpdatePeopleSubscription;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoAgentAction;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoLeadAction;
 use Kanvas\Connectors\Zoho\Workflows\ZohoLeadOwnerWorkflow;
@@ -32,7 +31,6 @@ class ReceiverController extends BaseController
     {
         $app = app(Apps::class);
         $receiver = ReceiverWebhook::where('uuid', $uuid)->notDeleted()->first();
-
         if ($receiver) {
             //    return response()->json(['message' => 'Receiver not found'], 404);
             if ($app->getId() != $receiver->apps_id) {

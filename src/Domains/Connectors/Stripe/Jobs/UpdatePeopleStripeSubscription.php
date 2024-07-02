@@ -9,9 +9,11 @@ use Kanvas\Guild\Customers\Models\PeopleSubscription;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Stripe\StripeClient;
+use Kanvas\Guild\Customers\DataTransferObject\PeopleSubscription as PeopleSubscriptionDTO;
+use Kanvas\Guild\Customers\Actions\CreateOrUpdatePeopleSubscription;
 
 // Maybe add action at the of the class name
-class UpdatePeopleSubscription extends ProcessWebhookJob
+class UpdatePeopleStripeSubscription extends ProcessWebhookJob
 {
     public $data;
 
@@ -46,25 +48,24 @@ class UpdatePeopleSubscription extends ProcessWebhookJob
             return [];
         }
         $subscriptions = $customer->subscriptions->data[0];
-        $dataPeopleSub = [
-                'subscription_type' => $subscriptions['plan']['nickname'],
-                'status' => '1',
-                'first_date' => date('Y-m-d H:i:s', $subscriptions['created']),
-                'start_date' => date('Y-m-d H:i:s', $subscriptions['current_period_start']),
-                'end_date' => date('Y-m-d H:i:s', $subscriptions['ended_at']),
-                'next_renewal' => date('Y-m-d H:i:s', $subscriptions['current_period_end']),
-                'metadata' => json_encode($this->data),
-                'apps_id' => $app->getId(),
-            ];
-        PeopleSubscription::updateOrCreate(
-            $dataPeopleSub,
-            [
-                'peoples_id' => $people->id,
-            ]
+
+        $dto = new PeopleSubscriptionDTO(
+            app: $app,
+            peoples_id: $people->id,
+            subscription_type: $subscriptions['plan']['nickname'],
+            status: '1',
+            first_date: date('Y-m-d H:i:s', $subscriptions['created']),
+            start_date: date('Y-m-d H:i:s', $subscriptions['current_period_start']),
+            end_date: date('Y-m-d H:i:s', $subscriptions['ended_at']),
+            next_renewal: date('Y-m-d H:i:s', $subscriptions['current_period_end']),
+            metadata: json_encode($this->data),
         );
+        $action = new CreateOrUpdatePeopleSubscription($dto);
+        $peopleSub = $action->handle();
+        
         return [
             'message' => 'People Subscription updated',
-            'data' => $dataPeopleSub,
+            'data' => $peopleSub,
         ];
     }
 }
