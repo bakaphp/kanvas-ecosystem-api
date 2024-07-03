@@ -94,6 +94,8 @@ extend type Query @guard {
             @whereHasConditions(relation: "phones", columns: ["id", "value"])
         hasTags: _
             @whereHasConditions(relation: "tags", columns: ["name"])
+        hasAddress: _
+            @whereHasConditions(relation: "address", columns: ["address", "city", "state", "zip"])
         hasCustomFields: _
             @whereHasConditions(
                 relation: "customFields"
