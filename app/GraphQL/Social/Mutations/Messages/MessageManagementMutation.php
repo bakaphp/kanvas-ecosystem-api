@@ -145,6 +145,14 @@ class MessageManagementMutation
         return $total > 0;
     }
 
+    public function deleteAll(mixed $root, array $request): bool
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        return Message::fromApp($app)->where('users_id', $user->getId())->delete() > 0;
+    }
+
     public function attachTopicToMessage(mixed $root, array $request): Message
     {
         $message = Message::getById((int)$request['id'], app(Apps::class));

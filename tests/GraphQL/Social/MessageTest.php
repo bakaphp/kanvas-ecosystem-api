@@ -179,6 +179,46 @@ class MessageTest extends TestCase
         ]);
     }
 
+    public function testDeleteAllMessage()
+    {
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+        $response = $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        id
+                        message
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => $message,
+                    'message_verb' => $messageType->verb,
+                    'system_modules_id' => 1,
+                    'entity_id' => '1',
+                ],
+            ]
+        );
+
+        $createdMessageId = $response['data']['createMessage']['id'];
+
+        $this->graphQL(
+            '
+                mutation deleteAllMessages {
+                    deleteAllMessages
+                }
+            ',
+            [
+            ]
+        )->assertJson([
+            'data' => [
+                'deleteAllMessages' => true,
+            ],
+        ]);
+    }
+
     public function testMessages()
     {
         $messageType = MessageType::factory()->create();

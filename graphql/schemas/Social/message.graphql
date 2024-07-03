@@ -95,6 +95,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@deleteMultiple"
         )
+    deleteAllMessages: Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@deleteAll"
+        )
     interactionMessage(id: ID!, type: InteractionType!): Message
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@interaction"
