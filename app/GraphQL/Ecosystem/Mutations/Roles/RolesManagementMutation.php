@@ -124,7 +124,7 @@ class RolesManagementMutation
 
         $role = new CreateRoleAction(
             $request['name'],
-            $request['title']
+            $request['title'] ?? null
         );
 
         $role = $role->execute(auth()->user()->getCurrentCompany());
