@@ -119,6 +119,6 @@ class AppUserManagementMutation
         $app = app(Apps::class);
         UsersRepository::belongsToThisApp($user, $app);
 
-        return $user->updateDisplayName($request['password'], $app);
+        return $user->updateDisplayName($request['displayname'], $app);
     }
 }
