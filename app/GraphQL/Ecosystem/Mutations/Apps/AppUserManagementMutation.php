@@ -112,4 +112,13 @@ class AppUserManagementMutation
 
         return $user->resetPassword($request['password'], $app);
     }
+
+    public function appUpdateUserDisplayname(mixed $root, array $request): bool
+    {
+        $user = Users::getById($request['user_id']);
+        $app = app(Apps::class);
+        UsersRepository::belongsToThisApp($user, $app);
+
+        return $user->updateDisplayName($request['password'], $app);
+    }
 }
