@@ -196,7 +196,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
             'apps_id' => $this->app->getId(),
             'key' => static::class,
             'name' => Str::simpleSlug(static::class),
-            'system_modules_id' => SystemModulesRepository::getByModelName(self::class, $this->app)->getId(),
+            'system_modules_id' => SystemModulesRepository::getByModelName(static::class, $this->app)->getId(),
             'is_deleted' => 0,
         ], [
             'template' => $this->templateName ?? null,

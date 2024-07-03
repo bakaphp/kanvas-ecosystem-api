@@ -101,6 +101,7 @@ class SyncEmailTemplateAction
             EmailTemplateEnum::RESET_PASSWORD->value => ResetPassword::class,
             EmailTemplateEnum::WELCOME->value => Welcome::class,
             EmailTemplateEnum::CHANGE_PASSWORD->value => ChangePasswordUserLogged::class,
+            EmailTemplateEnum::BLANK->value => EmailTemplateEnum::BLANK->value,
         ];
 
         foreach ($types as $type => $value) {
