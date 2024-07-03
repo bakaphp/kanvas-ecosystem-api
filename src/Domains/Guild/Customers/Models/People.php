@@ -183,6 +183,11 @@ class People extends BaseModel
         );
     }
 
+    public function shouldBeSearchable(): bool
+    {
+        return $this->is_deleted == 0;
+    }
+
     public function toSearchableArray(): array
     {
         $people = [
