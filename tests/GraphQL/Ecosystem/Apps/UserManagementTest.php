@@ -445,7 +445,7 @@ class UserManagementTest extends TestCase
         $user = Users::getByEmail($email);
         $this->graphQL(/** @lang GraphQL */ '
             mutation appUpdateUserDisplayname($user_id: ID!, $displayname: String!) {
-                appUpdateUserDisplayname(user_id: $user_id, displayname: $password) 
+                appUpdateUserDisplayname(user_id: $user_id, displayname: $displayname) 
             }',
             [
                 'user_id' => $user->getId(),
