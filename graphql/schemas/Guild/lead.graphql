@@ -190,6 +190,11 @@ extend type Query @guard {
                     "status"
                 ]
             )
+        hasCustomFields: _
+            @whereHasConditions(
+                relation: "customFields"
+                columns: ["name", "value"]
+            )
         orderBy: _
             @orderBy(
                 columns: [
