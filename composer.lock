@@ -7119,16 +7119,16 @@
         },
         {
             "name": "phpclassic/php-shopify",
-            "version": "v1.2.9",
+            "version": "v1.2.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpclassic/php-shopify.git",
-                "reference": "6259d8b18f85248ac367d25671498424479f262e"
+                "reference": "010a08555f7cb98ea256bf9da4d0f9bcc135dd07"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpclassic/php-shopify/zipball/6259d8b18f85248ac367d25671498424479f262e",
-                "reference": "6259d8b18f85248ac367d25671498424479f262e",
+                "url": "https://api.github.com/repos/phpclassic/php-shopify/zipball/010a08555f7cb98ea256bf9da4d0f9bcc135dd07",
+                "reference": "010a08555f7cb98ea256bf9da4d0f9bcc135dd07",
                 "shasum": ""
             },
             "require": {
@@ -7164,9 +7164,9 @@
             ],
             "support": {
                 "issues": "https://github.com/phpclassic/php-shopify/issues",
-                "source": "https://github.com/phpclassic/php-shopify/tree/v1.2.9"
+                "source": "https://github.com/phpclassic/php-shopify/tree/v1.2.10"
             },
-            "time": "2023-09-25T13:11:12+00:00"
+            "time": "2024-07-02T14:27:05+00:00"
         },
         {
             "name": "phpdocumentor/reflection-common",
