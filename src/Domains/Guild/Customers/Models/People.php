@@ -182,4 +182,65 @@ class People extends BaseModel
             ]
         );
     }
+
+    public function toSearchableArray(): array
+    {
+        $people = [
+            'objectID' => $this->uuid,
+            'id' => $this->id,
+            'name' => $this->name,
+            'files' => $this->getFiles()->take(5)->map(function ($files) { //for now limit
+                return [
+                    'uuid' => $files->uuid,
+                    'name' => $files->name,
+                    'url' => $files->url,
+                    'size' => $files->size,
+                    'field_name' => $files->field_name,
+                    'attributes' => $files->attributes,
+                ];
+            }),
+            'organizations' => $this->organizations()->get()->map(function ($organization) {
+                return [
+                    'id' => $organization->id,
+                    'name' => $organization->name,
+                    'tier' => 1,
+                ];
+            }),
+            'employment_history' => $this->employmentHistory()->get()->map(function ($employmentHistory) {
+                return [
+                    'position' => $employmentHistory->position,
+                    'start_date' => $employmentHistory->start_date,
+                    'end_date' => $employmentHistory->end_date,
+                    'organization' => $employmentHistory->organization,
+                ];
+            }),
+            'tags' => $this->tags->map(function ($tag) {
+                return $tag->name;
+            }),
+            'custom_fields' => $this->customFields()->get()->map(function ($customField) {
+                return [
+                    'name' => $customField->name,
+                    'data' => $customField->value,
+                ];
+            }),
+            'contacts' => $this->contacts()->get()->map(function ($contact) {
+                return [
+                    'type' => $contact->type->name,
+                    'value' => $contact->value,
+                ];
+            }),
+            'address' => $this->address()->get()->map(function ($address) {
+                return [
+                    'address' => $address->address,
+                    'address_2' => $address->address_2,
+                    'city' => $address->city,
+                    'state' => $address->state,
+                    'country' => $address?->country?->name,
+                    'zip' => $address->zip,
+                ];
+            }),
+        ];
+
+        return $people;
+    }
 }
