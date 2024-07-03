@@ -29,7 +29,7 @@ class ContactType extends BaseModel
         return self::firstOrCreate([
             'name' => $name,
             'companies_id' => 0,
-            'users_id' => 0
+            'users_id' => 1
         ]);
     }
 }
