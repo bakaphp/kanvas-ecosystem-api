@@ -194,6 +194,13 @@ class People extends BaseModel
             'objectID' => $this->uuid,
             'id' => $this->id,
             'name' => $this->name,
+            'firstname' => $this->firstname,
+            'middlename' => $this->middlename,
+            'lastname' => $this->lastname,
+            'companies_id' => $this->companies_id,
+            'dob' => $this->dob,
+            'apps_id' => $this->apps_id,
+            'users_id' => $this->users_id,
             'files' => $this->getFiles()->take(5)->map(function ($files) { //for now limit
                 return [
                     'uuid' => $files->uuid,
