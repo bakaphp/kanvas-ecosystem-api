@@ -30,13 +30,6 @@ class MessageInteractionService
         return $shareUrl . '/' . (! empty($this->message->slug) ? $this->message->slug : $this->message->getId());
     }
 
-    public function like(UserInterface $who): bool
-    {
-        $this->incrementInteractionCount('total_liked');
-
-        return $this->createInteraction($who, InteractionEnum::LIKE->getValue()) instanceof ModelsUserInteraction;
-    }
-
     protected function incrementInteractionCount(string $interactionType): void
     {
         $this->message->$interactionType++;

@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Interactions\Actions\CreateInteraction;
 use Kanvas\Social\Interactions\DataTransferObject\Interaction;
+use Kanvas\Social\Interactions\Models\UsersInteractions;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\Enums\ActivityTypeEnum;
 use Kanvas\Social\Messages\Models\Message;
@@ -30,12 +31,10 @@ class MessageInteractionMutation
 
     public function like(mixed $root, array $request): bool
     {
+        $user = auth()->user();
         $message = Message::getById((int)$request['id'], app(Apps::class));
-        $this->createInteraction(InteractionEnum::LIKE->getValue());
 
-        $messageInteractionService = new MessageInteractionService($message);
-
-        return $messageInteractionService->like(auth()->user());
+        return $user->like($message) instanceof UsersInteractions;
     }
 
     public function share(mixed $root, array $request): string
