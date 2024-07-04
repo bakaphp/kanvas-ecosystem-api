@@ -191,7 +191,7 @@ class RegionTest extends TestCase
 
         $response = $this->graphQL('
             query getMutation {
-                regions {
+                regions(orderBy: {column: "id", direction: "desc"}) {
                   data {
                     name,
                     id
