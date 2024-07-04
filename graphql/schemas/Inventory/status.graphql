@@ -3,6 +3,7 @@ type Status {
     name: String!
     company: Company! @belongsTo(relation: "company")
     is_default: Boolean
+    is_published: Boolean
     slug: String!
 }
 type StatusHistoryRelationship {
@@ -13,6 +14,7 @@ type StatusHistoryRelationship {
 input StatusInput {
     name: String!
     is_default: Boolean
+    is_published: Boolean
     company_id: ID
 }
 input StatusReferenceInput {
@@ -44,6 +46,8 @@ extend type Query @guard {
                     "id"
                     "name"
                     "slug"
+                    "is_default"
+                    "is_published"
                     "companies_id"
                 ]
             )
@@ -53,6 +57,8 @@ extend type Query @guard {
                     "id"
                     "created_at"
                     "updated_at"
+                    "is_default"
+                    "is_published"
                     "name"
                 ]
             )

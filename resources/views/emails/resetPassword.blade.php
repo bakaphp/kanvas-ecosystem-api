@@ -14,7 +14,7 @@
     <table style="margin: 17px 0 30px" cellspacing="0" cellpadding="0">
         <tr>
             <td>
-                <a href="{{resetUrl}}" target="_blank" style="display: inline-block;">
+                <a href="{{ $resetUrl }}" target="_blank" style="display: inline-block;">
                     <img style="border-radius: 4px;" src="https://cdn.salesassist.io/emails/reset-password.png" alt="Join Now">
                 </a>
             </td>

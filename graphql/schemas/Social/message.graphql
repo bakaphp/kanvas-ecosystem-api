@@ -3,6 +3,7 @@ type Message {
     parent_id: ID
     parent_unique_id: Mixed
     uuid: String!
+    slug: String
     companies_id: ID!
     users_id: ID!
     message_types_id: ID!
@@ -50,7 +51,7 @@ input MessageInput {
     message: Mixed!
     parent_id: ID
     system_modules_id: ID
-    entity_id: Mixed!
+    entity_id: Mixed
     distribution: DistributionInput
 }
 
@@ -94,9 +95,21 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@deleteMultiple"
         )
+    deleteAllMessages: Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@deleteAll"
+        )
     interactionMessage(id: ID!, type: InteractionType!): Message
         @field(
-            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@interaction"
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageInteractionMutation@interaction"
+        )
+    likeMessage(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageInteractionMutation@like"
+        )
+    shareMessage(id: ID!): String!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageInteractionMutation@share"
         )
     attachTopicToMessage(message_id: ID!, topic_id: ID!): Message
         @field(
@@ -118,6 +131,7 @@ extend type Query @guard {
                     "parent_unique_id"
                     "companies_id"
                     "uuid"
+                    "slug"
                     "users_id"
                     "message_types_id"
                     "message"
@@ -165,7 +179,31 @@ extend type Query @guard {
             scopes: ["fromApp"]
         )
 
-    messagesGroupByDate: [Message!]!
+    messagesGroupByDate(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "parent_id"
+                    "parent_unique_id"
+                    "companies_id"
+                    "uuid"
+                    "slug"
+                    "users_id"
+                    "message_types_id"
+                    "message"
+                    "reactions_count"
+                    "comments_count"
+                    "total_liked"
+                    "total_saved"
+                    "total_shared"
+                ]
+            )
+        hasAppModuleMessage: _
+            @whereHasConditions(columns: ["entity_id", "system_modules"])
+        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
+        search: String @search
+    ): [Message!]!
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getGroupByDate"

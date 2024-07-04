@@ -8,13 +8,13 @@ use Baka\Contracts\AppInterface;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Models\UsersFollows;
 use Kanvas\Social\Interactions\Models\Interactions;
+use Kanvas\Social\Interactions\Models\UsersInteractions;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesComments\Models\MessageComment;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Reactions\Models\Reaction;
 use Kanvas\Social\Topics\Models\EntityTopics;
 use Kanvas\Social\Topics\Models\Topic;
-use Kanvas\Social\UsersInteractions\Models\UserInteraction;
 use Kanvas\Social\UsersLists\Models\UserList;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
 
@@ -38,7 +38,7 @@ class CreateSystemModule
         $createSystemModule->execute(MessageComment::class);
         $createSystemModule->execute(Topic::class);
         $createSystemModule->execute(EntityTopics::class);
-        $createSystemModule->execute(UserInteraction::class);
+        $createSystemModule->execute(UsersInteractions::class);
         $createSystemModule->execute(UserList::class);
     }
 }

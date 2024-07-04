@@ -153,7 +153,11 @@ extend type Query @guard {
                 relation: "attributeValues"
                 columns: ["products_id", "value", "attributes_id"]
             )
-
+        hasCustomFields: _
+            @whereHasConditions(
+                relation: "customFields"
+                columns: ["name", "value"]
+            )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [Product!]!
         @paginate(

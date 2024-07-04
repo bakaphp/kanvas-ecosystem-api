@@ -51,4 +51,9 @@ class Role extends SilberRole
     {
         return $this->name === RolesEnums::OWNER->value;
     }
+
+    public function isSystemRole(): bool
+    {
+        return RolesEnums::isEnumValue($this->name);
+    }
 }

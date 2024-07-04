@@ -24,7 +24,8 @@ class Status extends Data
         public CompanyInterface $company,
         public UserInterface $user,
         public string $name,
-        public bool $is_default = false
+        public bool $is_default = false,
+        public bool $is_published = true
     ) {
     }
 
@@ -36,6 +37,7 @@ class Status extends Data
             auth()->user(),
             $request['name'],
             $request['is_default'] ?? (bool) StateEnums::NO->getValue(),
+            $request['is_published'] ?? (bool) StateEnums::YES->getValue()
         );
     }
 }

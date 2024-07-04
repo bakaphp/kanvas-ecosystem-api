@@ -7,6 +7,7 @@ namespace Kanvas\Inventory\Products\Models;
 use Awobaz\Compoships\Compoships;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -203,7 +204,8 @@ class Products extends BaseModel
     public static function search($query = '', $callback = null)
     {
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
-        if (! auth()->user()->isAppOwner()) {
+        $user = auth()->user();
+        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
         }
 
