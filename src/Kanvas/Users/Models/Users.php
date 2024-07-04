@@ -49,6 +49,7 @@ use Kanvas\Notifications\Traits\HasNotificationSettings;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Factories\UsersFactory;
@@ -133,7 +134,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     protected $casts = [
         'default_company' => 'integer',
         'default_company_branch' => 'integer',
-        'welcome' => 'boolean'
+        'welcome' => 'boolean',
     ];
 
     protected $hidden = [
@@ -718,6 +719,17 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function getPhoto(): ?FilesystemEntities
     {
         return $this->getFileByName('photo');
+    }
+
+    public function getSocialInfo(): array
+    {
+        return [
+            'total_message' => Message::fromApp(app(Apps::class))->where('users_id', $this->getId())->count(),
+            'total_like' => 0,
+            'total_followers' => 0,
+            'total_following' => 0,
+            'total_list' => 0,
+        ];
     }
 
     public static function getByIdFromCompany(mixed $id, CompanyInterface $company): self

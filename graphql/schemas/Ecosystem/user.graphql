@@ -28,6 +28,7 @@ type User {
     companies: [Company!]! @HasManyThrough
     apps: [App!]! @HasManyThrough
     photo: Filesystem @method(name: "getPhoto")
+    social: UserSocialInfo @method(name: "getSocialInfo")
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25
@@ -79,6 +80,14 @@ type UserLinkSource {
 type RegisterResponse {
     user: User!
     token: TokenResponse!
+}
+
+type UserSocialInfo {
+    total_message: Int
+    total_like: Int
+    total_followers: Int
+    total_following: Int
+    total_lists: Int
 }
 
 input LoginInput {
