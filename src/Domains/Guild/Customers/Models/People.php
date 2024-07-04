@@ -231,8 +231,7 @@ class People extends BaseModel
             }),
             'custom_fields' => $this->customFields()->get()->map(function ($customField) {
                 return [
-                    'name' => $customField->name,
-                    'data' => $customField->value,
+                    $customField->name => $customField->value,
                 ];
             }),
             'contacts' => $this->contacts()->get()->map(function ($contact) {
