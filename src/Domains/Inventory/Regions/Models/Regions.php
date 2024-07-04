@@ -7,9 +7,11 @@ namespace Kanvas\Inventory\Regions\Models;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Traits\DefaultTrait;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 /**
  * Class Regions.
@@ -40,5 +42,15 @@ class Regions extends BaseModel
     public function currencies(): BelongsTo
     {
         return $this->belongsTo(Currencies::class, 'currency_id');
+    }
+
+    public function warehouses(): HasMany
+    {
+        return $this->hasMany(Warehouses::class, 'regions_id');
+    }
+
+    public function hasDependencies(): bool
+    {
+        return $this->warehouses()->exists();
     }
 }

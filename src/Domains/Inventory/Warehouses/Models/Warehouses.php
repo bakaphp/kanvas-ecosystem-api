@@ -206,4 +206,9 @@ class Warehouses extends BaseModel
 
         return 0;
     }
+
+    public function hasDependencies(): bool
+    {
+        return $this->variantsWarehouses()->exists();
+    }
 }
