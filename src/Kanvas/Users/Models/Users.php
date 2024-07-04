@@ -48,6 +48,7 @@ use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Notifications\Traits\HasNotificationSettings;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Factories\UsersFactory;
@@ -114,6 +115,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use HasFactory;
     use HasApiTokens;
     use HasRolesAndAbilities;
+    use LikableTrait;
     use HasFilesystemTrait;
     use KanvasModelTrait;
     use HasNotificationSettings;

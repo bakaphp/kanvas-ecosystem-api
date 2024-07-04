@@ -101,7 +101,15 @@ extend type Mutation @guard {
         )
     interactionMessage(id: ID!, type: InteractionType!): Message
         @field(
-            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@interaction"
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageInteractionMutation@interaction"
+        )
+    likeMessage(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageInteractionMutation@like"
+        )
+    shareMessage(id: ID!): String!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageInteractionMutation@share"
         )
     attachTopicToMessage(message_id: ID!, topic_id: ID!): Message
         @field(

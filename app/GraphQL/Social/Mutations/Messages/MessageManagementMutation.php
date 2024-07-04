@@ -10,6 +10,9 @@ use Illuminate\Validation\Rule;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Social\Enums\InteractionEnum;
+use Kanvas\Social\Interactions\Actions\CreateInteraction;
+use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\Actions\DistributeChannelAction;
 use Kanvas\Social\Messages\Actions\DistributeToUsers;
@@ -17,6 +20,7 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Enums\ActivityTypeEnum;
 use Kanvas\Social\Messages\Enums\DistributionTypeEnum;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Services\MessageInteractionService;
 use Kanvas\Social\Messages\Validations\ValidParentMessage;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
@@ -165,19 +169,6 @@ class MessageManagementMutation
     {
         $message = Message::getById((int)$request['id'], app(Apps::class));
         $message->topics()->detach($request['topicId']);
-
-        return $message;
-    }
-
-    public function interaction(mixed $root, array $request): Message
-    {
-        $message = Message::getById((int)$request['id']);
-        $action = new CreateMessageAction(
-            $message,
-            auth()->user(),
-            ActivityTypeEnum::from($request['type'])
-        );
-        $action->execute();
 
         return $message;
     }
