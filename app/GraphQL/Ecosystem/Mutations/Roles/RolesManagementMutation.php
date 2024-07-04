@@ -13,6 +13,7 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Models\Role as KanvasRole;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Users\Repositories\UsersRepository;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Silber\Bouncer\Database\Role as SilberRole;
@@ -120,6 +121,10 @@ class RolesManagementMutation
 
         if (! $user->isAdmin()) {
             throw new AuthorizationException('You are not allowed to perform this action');
+        }
+
+        if (RolesEnums::isEnumValue($request['name'])) {
+            throw new ValidationException('You are not allowed to create system roles');
         }
 
         $role = new CreateRoleAction(
