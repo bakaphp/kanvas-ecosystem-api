@@ -7,9 +7,9 @@ namespace App\GraphQL\Social\Mutations\UsersInteractions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Interactions\Actions\CreateInteraction;
+use Kanvas\Social\Interactions\Actions\CreateUserInteractionAction;
 use Kanvas\Social\Interactions\DataTransferObject\Interaction;
-use Kanvas\Social\UsersInteractions\Actions\CreateUserInteractionAction;
-use Kanvas\Social\UsersInteractions\DataTransferObject\UserInteraction;
+use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
 use Kanvas\Social\UsersInteractions\Models\UserInteraction as UserInteractionModel;
 
 class UsersInteractionsManagement

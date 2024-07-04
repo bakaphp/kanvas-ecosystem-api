@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\UsersInteractions\Actions;
+namespace Kanvas\Social\Interactions\Actions;
 
-use Kanvas\Social\UsersInteractions\DataTransferObject\UserInteraction as UserInteractionDto;
+use Kanvas\Social\Interactions\DataTransferObject\UserInteraction as UserInteractionDto;
 use Kanvas\Social\UsersInteractions\Models\UserInteraction;
 use Kanvas\Users\Enums\UserConfigEnum;
 

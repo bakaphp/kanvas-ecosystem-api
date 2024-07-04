@@ -7,10 +7,10 @@ namespace Kanvas\Social\Messages\Services;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Social\Enums\AppEnum;
 use Kanvas\Social\Enums\InteractionEnum;
+use Kanvas\Social\Interactions\Actions\CreateUserInteractionAction;
+use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\UsersInteractions\Actions\CreateUserInteractionAction;
-use Kanvas\Social\UsersInteractions\DataTransferObject\UserInteraction;
 use Kanvas\Social\UsersInteractions\Models\UserInteraction as ModelsUserInteraction;
 
 class MessageInteractionService
