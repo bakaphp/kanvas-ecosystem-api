@@ -48,7 +48,7 @@ class RegionObserver
         if ($region->hasDependencies()) {
             throw new ValidationException('Can\'t delete, Region has warehouses associated');
         }
-        
+
         $defaultRegion = $region::getDefault($region->company);
         $hasOtherDefault = $defaultRegion = Regions::fromCompany($region->company)
                         ->where('id', '!=', $region->getId())

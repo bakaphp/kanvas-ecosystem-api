@@ -189,7 +189,7 @@ class RegionTest extends TestCase
         ])->assertJson([
             'data' => ['createRegion' => $data],
         ]);
-        
+
         $response = $this->graphQL('
             mutation($data: RegionInput!) {
                 createRegion(input: $data)

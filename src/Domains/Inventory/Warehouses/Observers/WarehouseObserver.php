@@ -48,7 +48,7 @@ class WarehouseObserver
         if ($warehouse->hasDependencies()) {
             throw new ValidationException('Can\'t delete, Warehouse has variants associated');
         }
-        
+
         $defaultWarehouse = $warehouse::getDefault($warehouse->company);
 
         if ($defaultWarehouse->getId() == $warehouse->getId()) {
