@@ -15,7 +15,7 @@ use Kanvas\Notifications\DataTransferObject\NotificationType;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Models\NotificationChannel;
 use Kanvas\Notifications\Repositories\NotificationTypesRepository;
-use Kanvas\Social\Enums\StateEnums;
+use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Follows\Actions\FollowAction;
 use Kanvas\Social\Interactions\Actions\CreateInteraction;
 use Kanvas\Social\Interactions\DataTransferObject\Interaction;
@@ -52,9 +52,9 @@ class Setup
 
         $createInteractions = new CreateInteraction(
             new Interaction(
-                (string) StateEnums::LIKE->getValue(),
+                (string) InteractionEnum::LIKE->getValue(),
                 $this->app,
-                ucfirst((string) StateEnums::LIKE->getValue()),
+                ucfirst((string) InteractionEnum::LIKE->getValue()),
             )
         );
 
@@ -62,9 +62,9 @@ class Setup
 
         $createInteractions = new CreateInteraction(
             new Interaction(
-                (string) StateEnums::DISLIKE->getValue(),
+                (string) InteractionEnum::DISLIKE->getValue(),
                 $this->app,
-                ucfirst((string) StateEnums::DISLIKE->getValue()),
+                ucfirst((string) InteractionEnum::DISLIKE->getValue()),
             )
         );
 
@@ -72,45 +72,45 @@ class Setup
 
         $createInteractions = new CreateInteraction(
             new Interaction(
-                (string) StateEnums::SAVE->getValue(),
+                (string) InteractionEnum::SAVE->getValue(),
                 $this->app,
-                ucfirst((string) StateEnums::SAVE->getValue()),
+                ucfirst((string) InteractionEnum::SAVE->getValue()),
             )
         );
 
         $defaultInteraction = $createInteractions->execute();
         $createInteractions = new CreateInteraction(
             new Interaction(
-                (string) StateEnums::REACTION->getValue(),
+                (string) InteractionEnum::REACTION->getValue(),
                 $this->app,
-                ucfirst((string) StateEnums::REACTION->getValue()),
+                ucfirst((string) InteractionEnum::REACTION->getValue()),
             )
         );
 
         $defaultInteraction = $createInteractions->execute();
         $createInteractions = new CreateInteraction(
             new Interaction(
-                (string) StateEnums::FOLLOW->getValue(),
+                (string) InteractionEnum::FOLLOW->getValue(),
                 $this->app,
-                ucfirst((string) StateEnums::FOLLOW->getValue()),
+                ucfirst((string) InteractionEnum::FOLLOW->getValue()),
             )
         );
 
         $defaultInteraction = $createInteractions->execute();
         $createInteractions = new CreateInteraction(
             new Interaction(
-                (string) StateEnums::COMMENT->getValue(),
+                (string) InteractionEnum::COMMENT->getValue(),
                 $this->app,
-                ucfirst((string) StateEnums::COMMENT->getValue()),
+                ucfirst((string) InteractionEnum::COMMENT->getValue()),
             )
         );
 
         $defaultInteraction = $createInteractions->execute();
         $createInteractions = new CreateInteraction(
             new Interaction(
-                (string) StateEnums::SHARE->getValue(),
+                (string) InteractionEnum::SHARE->getValue(),
                 $this->app,
-                ucfirst((string) StateEnums::SHARE->getValue()),
+                ucfirst((string) InteractionEnum::SHARE->getValue()),
             )
         );
 

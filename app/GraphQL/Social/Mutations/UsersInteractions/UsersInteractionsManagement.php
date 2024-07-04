@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Social\Mutations\UsersInteractions;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Social\Enums\StateEnums;
+use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Interactions\Actions\CreateInteraction;
 use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\UsersInteractions\Actions\CreateUserInteractionAction;
@@ -26,7 +26,7 @@ class UsersInteractionsManagement
 
     public function disLike($__, array $request): bool
     {
-        $interactionType = (string) StateEnums::DISLIKE->getValue();
+        $interactionType = (string) InteractionEnum::DISLIKE->getValue();
         $createInteractions = new CreateInteraction(
             new Interaction(
                 $interactionType,
@@ -47,7 +47,7 @@ class UsersInteractionsManagement
 
     protected function likeEntity(array $request): UserInteractionModel
     {
-        $interactionType = (string) StateEnums::LIKE->getValue();
+        $interactionType = (string) InteractionEnum::LIKE->getValue();
         $createInteractions = new CreateInteraction(
             new Interaction(
                 $interactionType,

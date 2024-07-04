@@ -6,7 +6,7 @@ namespace Kanvas\Social\Enums;
 
 use Baka\Contracts\EnumsInterface;
 
-enum StateEnums implements EnumsInterface
+enum InteractionEnum implements EnumsInterface
 {
     case LIKE;
     case DISLIKE;
