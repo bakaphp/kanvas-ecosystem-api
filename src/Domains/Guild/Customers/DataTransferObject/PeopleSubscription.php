@@ -7,6 +7,7 @@ namespace Kanvas\Guild\Customers\DataTransferObject;
 use Spatie\LaravelData\Data;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
+
 class PeopleSubscription extends Data
 {
     public function __construct(
