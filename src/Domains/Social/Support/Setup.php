@@ -120,6 +120,7 @@ class Setup
             $this->user,
             $this->user,
             $this->company,
+            $this->app
         );
 
         $createFollow->execute();

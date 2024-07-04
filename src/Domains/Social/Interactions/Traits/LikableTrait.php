@@ -17,7 +17,7 @@ trait LikableTrait
     public function like(Model $entity, ?string $note = null): UsersInteractions|EntityInteractions
     {
         $interaction = Interactions::fromApp()->where('name', InteractionEnum::LIKE->getValue())->firstOrFail();
-
+        
         if ($this instanceof Users) {
             return UsersInteractions::firstOrCreate([
                 'users_id' => $this->getId(),

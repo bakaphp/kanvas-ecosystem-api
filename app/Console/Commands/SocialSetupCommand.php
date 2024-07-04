@@ -17,7 +17,7 @@ class SocialSetupCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas-social:setup {user_id} {company_id}';
+    protected $signature = 'kanvas-social:setup {app_id} {user_id} {company_id}';
 
     /**
      * The console command description.
@@ -35,15 +35,16 @@ class SocialSetupCommand extends Command
     {
         $company = Companies::getById((int) $this->argument('company_id'));
         $user = Users::getById((int) $this->argument('user_id'));
+        $app = Apps::getById((int) $this->argument('app_id'));
 
         (new Setup(
-            app(Apps::class),
+            $app,
             $user,
             $company
         ))->run();
 
         $this->newLine();
-        $this->info('Social setup for Company ' . $company->name . ' completed successful');
+        $this->info('Social setup for Company ' . $company->name . ' and App ' . $app->name . ' completed successfully');
         $this->newLine();
 
         return;
