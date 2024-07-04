@@ -5,6 +5,7 @@ type Role {
     scope: String
     userCount: Int!
     abilitiesCount: Int!
+    systemRole: Boolean! @method(name: "isSystemRole")
 }
 
 extend type Query @guard {

@@ -9,13 +9,13 @@ use Bouncer;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
 use Kanvas\AccessControlList\Actions\UpdateRoleAction;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Models\Role as KanvasRole;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Repositories\UsersRepository;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Silber\Bouncer\Database\Role as SilberRole;
-use Kanvas\AccessControlList\Enums\RolesEnums;
 
 class RolesManagementMutation
 {
@@ -165,11 +165,9 @@ class RolesManagementMutation
         $role = KanvasRole::findOrFail($request['id']);
 
         if (RolesEnums::isEnumValue($role->name)) {
-            throw new AuthorizationException('You are not allowed to delete this role');
+            throw new AuthorizationException('You are not allowed to delete system roles');
         }
 
-        $role->delete();
-
-        return true;
+        return $role->delete();
     }
 }

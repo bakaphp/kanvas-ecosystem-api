@@ -115,7 +115,7 @@ class CreateAppsAction
                 'name' => 'delete_images_on_empty_files_field',
                 'value' => '1',
             ], [
-                'name' => 'public_images',
+                'name' => 'global_app_images',
                 'value' => '0',
             ], [
                 'name' => 'default_feeds_comments',
