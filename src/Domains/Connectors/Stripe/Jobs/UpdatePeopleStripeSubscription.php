@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Stripe\Jobs;
 
 use Illuminate\Support\Facades\Log;
-use Kanvas\Guild\Customers\Models\PeopleSubscription;
+use Kanvas\Guild\Customers\Actions\CreateOrUpdatePeopleSubscription;
+use Kanvas\Guild\Customers\DataTransferObject\PeopleSubscription as PeopleSubscriptionDTO;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Stripe\StripeClient;
-use Kanvas\Guild\Customers\DataTransferObject\PeopleSubscription as PeopleSubscriptionDTO;
-use Kanvas\Guild\Customers\Actions\CreateOrUpdatePeopleSubscription;
 
 // Maybe add action at the of the class name
 class UpdatePeopleStripeSubscription extends ProcessWebhookJob
@@ -39,11 +38,13 @@ class UpdatePeopleStripeSubscription extends ProcessWebhookJob
         if (! $customer->email) {
             Log::error('Customer email not found');
 
-            return [];
+            return ['error' => 'Customer email not found ' . $customer->id];
         }
         $people = PeoplesRepository::getByEmail($customer->email, $company);
         if (! $people) {
             Log::error('People not found');
+
+            return ['error' => 'People not found' . $customer->email];
 
             return [];
         }
@@ -51,7 +52,7 @@ class UpdatePeopleStripeSubscription extends ProcessWebhookJob
 
         $dto = new PeopleSubscriptionDTO(
             app: $app,
-            peoples_id: $people->id,
+            people: $people,
             subscription_type: $subscriptions['plan']['nickname'],
             status: '1',
             first_date: date('Y-m-d H:i:s', $subscriptions['created']),
@@ -62,7 +63,7 @@ class UpdatePeopleStripeSubscription extends ProcessWebhookJob
         );
         $action = new CreateOrUpdatePeopleSubscription($dto);
         $peopleSub = $action->handle();
-        
+
         return [
             'message' => 'People Subscription updated',
             'data' => $peopleSub,

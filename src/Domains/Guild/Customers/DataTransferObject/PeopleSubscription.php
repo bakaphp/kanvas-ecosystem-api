@@ -6,12 +6,12 @@ namespace Kanvas\Guild\Customers\DataTransferObject;
 
 use Spatie\LaravelData\Data;
 use Kanvas\Apps\Models\Apps;
-
+use Kanvas\Guild\Customers\Models\People;
 class PeopleSubscription extends Data
 {
     public function __construct(
         public Apps $app,
-        public int $peoples_id,
+        public People $people,
         public string $subscription_type,
         public string $status,
         public string $first_date,

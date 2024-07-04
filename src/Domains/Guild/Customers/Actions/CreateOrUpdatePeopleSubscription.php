@@ -30,7 +30,7 @@ class CreateOrUpdatePeopleSubscription
         return PeopleSubscription::updateOrCreate(
             $dataPeopleSub,
             [
-                'peoples_id' => $this->peopleSubscriptionDTO->peoples_id,
+                'peoples_id' => $this->peopleSubscriptionDTO->people->getId(),
                 'subscription_type' => $this->peopleSubscriptionDTO->subscription_type,
             ]
         );
