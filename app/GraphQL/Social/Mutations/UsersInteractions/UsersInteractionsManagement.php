@@ -10,13 +10,13 @@ use Kanvas\Social\Interactions\Actions\CreateInteraction;
 use Kanvas\Social\Interactions\Actions\CreateUserInteractionAction;
 use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
-use Kanvas\Social\UsersInteractions\Models\UserInteraction as UserInteractionModel;
+use Kanvas\Social\Interactions\Models\UsersInteractions;
 
 class UsersInteractionsManagement
 {
     public function like($__, array $request): bool
     {
-        return $this->likeEntity($request) instanceof UserInteractionModel;
+        return $this->likeEntity($request) instanceof UsersInteractions;
     }
 
     public function unLike($__, array $request): bool
@@ -42,10 +42,10 @@ class UsersInteractionsManagement
         $createUserInteraction = new CreateUserInteractionAction($data);
         $userInteraction = $createUserInteraction->execute();
 
-        return $userInteraction instanceof UserInteractionModel;
+        return $userInteraction instanceof UsersInteractions;
     }
 
-    protected function likeEntity(array $request): UserInteractionModel
+    protected function likeEntity(array $request): UsersInteractions
     {
         $interactionType = (string) InteractionEnum::LIKE->getValue();
         $createInteractions = new CreateInteraction(

@@ -10,8 +10,8 @@ use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Interactions\Actions\CreateUserInteractionAction;
 use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
 use Kanvas\Social\Interactions\Models\Interactions;
+use Kanvas\Social\Interactions\Models\UsersInteractions;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\UsersInteractions\Models\UserInteraction as ModelsUserInteraction;
 
 class MessageInteractionService
 {
@@ -36,7 +36,7 @@ class MessageInteractionService
         $this->message->saveOrFail();
     }
 
-    protected function createInteraction(UserInterface $who, string $interactionType, ?string $note = null): ModelsUserInteraction
+    protected function createInteraction(UserInterface $who, string $interactionType, ?string $note = null): UsersInteractions
     {
         $interaction = Interactions::getByName($interactionType, $this->message->app);
         $createUserInteraction = new CreateUserInteractionAction(
