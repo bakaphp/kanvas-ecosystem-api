@@ -50,5 +50,9 @@ class RegionObserver
         if ($defaultRegion->getId() == $region->getId()) {
             throw new ValidationException('Can\'t delete, you have to have at least one default Region');
         }
+
+        if ($region->hasDependencies()) {
+            throw new ValidationException('Can\'t delete, Region has warehouses associated');
+        }
     }
 }
