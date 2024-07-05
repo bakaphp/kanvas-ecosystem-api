@@ -55,6 +55,7 @@ class UserManagementMutation
         if ($user->isAdmin()) {
             $userToEdit = UsersRepository::getUserOfAppById($userId, $app);
         } else {
+            UsersRepository::belongsToThisApp($user, $app);
             $userToEdit = $user; //UsersRepository::getUserOfCompanyById($company, (int) $userId); @todo lets wait and see if still needed
         }
 
