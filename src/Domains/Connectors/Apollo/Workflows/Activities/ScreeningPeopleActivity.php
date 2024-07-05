@@ -90,7 +90,7 @@ class ScreeningPeopleActivity extends Activity
             return [];
         }
 
-        $stateId = States::getByName($peopleData['state'])->getId() ?? null;
+        $state = States::getByName($peopleData['state']);
         $countryId = Countries::getByName($peopleData['country'])->getId() ?? Countries::getByName('United States')->getId();
 
         return [
@@ -98,11 +98,11 @@ class ScreeningPeopleActivity extends Activity
                 'address' => '',
                 'address_2' => '',
                 'city' => $peopleData['city'],
-                'state' => $stateId,
+                'state' => $state ? $state->code : null,
                 'county' => '',
                 'zip' => '',
-                'city_id' => 0,
-                'state_id' => 0,
+                'city_id' => null,
+                'state_id' => $state ? $state->id : null,
                 'countries_id' => $countryId,
             ],
         ];
