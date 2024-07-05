@@ -8,6 +8,7 @@ use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Apollo\Enums\ConfigurationEnum;
 use Kanvas\Guild\Customers\Models\ContactType;
 use Kanvas\Guild\Customers\Models\People;
 
@@ -40,7 +41,7 @@ class ScreeningAction
                 'headers' => [
                     'Content-Type' => 'application/json',
                     'Cache-Control' => 'no-cache',
-                    'X-Api-Key' => $this->app->get('apollo-api-key'),
+                    'X-Api-Key' => $this->app->get(ConfigurationEnum::APOLLO_API_KEY->value),
                 ],
                 'json' => $data,
             ]);
