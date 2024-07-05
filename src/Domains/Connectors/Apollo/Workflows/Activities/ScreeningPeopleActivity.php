@@ -38,6 +38,7 @@ class ScreeningPeopleActivity extends Activity
                 'start_date' => $employmentHistory['start_date'],
                 'end_date' => $employmentHistory['end_date'],
                 'position' => $employmentHistory['title'],
+                'apps_id' => $app->getId(),
                 'peoples_id' => $people->id,
                 'organizations_id' => $organization->execute()->getId(),
             ]);
