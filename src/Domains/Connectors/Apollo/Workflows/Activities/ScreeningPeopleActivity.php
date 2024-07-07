@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Apollo\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Apollo\Actions\ScreeningAction;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
@@ -44,6 +45,11 @@ class ScreeningPeopleActivity extends Activity
             'custom_fields' => [
                 'headline' => $peopleData['headline'] ?? '',
                 'title' => $peopleData['title'] ?? '',
+            ],
+            'location' => [
+                'city' => $address[0]['city'] ?? null,
+                'state' => $address[0]['state'] ?? null,
+                'country' => $address[0]['countries_id'] ?? null,
             ],
         ]);
 
@@ -90,22 +96,27 @@ class ScreeningPeopleActivity extends Activity
             return [];
         }
 
-        $state = States::getByName($peopleData['state']);
-        $countryId = Countries::getByName($peopleData['country'])->getId() ?? Countries::getByName('United States')->getId();
+        try {
+            $state = States::getByName($peopleData['state']);
+            $country = Countries::getByName($peopleData['country']);
 
-        return [
-            [
-                'address' => '',
-                'address_2' => '',
-                'city' => $peopleData['city'],
-                'state' => $state ? $state->code : null,
-                'county' => '',
-                'zip' => '',
-                'city_id' => null,
-                'state_id' => $state ? $state->id : null,
-                'countries_id' => $countryId,
-            ],
-        ];
+            return [
+                [
+                    'address' => '',
+                    'address_2' => '',
+                    'city' => $peopleData['city'],
+                    'state' => $state ? $state->code : null,
+                    'county' => '',
+                    'zip' => '',
+                    'city_id' => null,
+                    'state_id' => $state ? $state->id : null,
+                    'countries_id' => $country->getId(),
+                    'country' => $country->name,
+                ],
+            ];
+        } catch (Exception $e) {
+            return [];
+        }
     }
 
     private function updateEmploymentHistory(Model $people, AppInterface $app, array $employmentHistory): void
