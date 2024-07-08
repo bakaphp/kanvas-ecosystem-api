@@ -37,6 +37,10 @@ extend type Mutation @guardByAppKey {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@appResetUserPassword"
         )
+    appUpdateUserDisplayname(user_id: ID, displayname: String): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@appUpdateUserDisplayname"
+        )
 }
 
 enum UserAppEnumColumn {

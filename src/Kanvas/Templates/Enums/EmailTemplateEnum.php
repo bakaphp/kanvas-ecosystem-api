@@ -11,4 +11,5 @@ enum EmailTemplateEnum: string
     case CHANGE_PASSWORD = 'change-password';
     case RESET_PASSWORD = 'reset-password';
     case WELCOME = 'welcome';
+    case BLANK = 'blank';
 }

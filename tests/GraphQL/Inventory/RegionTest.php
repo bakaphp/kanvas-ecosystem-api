@@ -35,9 +35,9 @@ class RegionTest extends TestCase
                 }
             }
         ', [
-            'data' => $data
+            'data' => $data,
         ])->assertJson([
-            'data' => ['createRegion' => $data]
+            'data' => ['createRegion' => $data],
         ]);
     }
 
@@ -68,9 +68,9 @@ class RegionTest extends TestCase
                 }
             }
         ', [
-            'data' => $data
+            'data' => $data,
         ])->assertJson([
-            'data' => ['createRegion' => $data]
+            'data' => ['createRegion' => $data],
         ]);
 
         $response = $this->graphQL('
@@ -114,9 +114,9 @@ class RegionTest extends TestCase
                 }
             }
         ', [
-            'data' => $data
+            'data' => $data,
         ])->assertJson([
-            'data' => ['createRegion' => $data]
+            'data' => ['createRegion' => $data],
         ]);
 
         $response = $this->graphQL('
@@ -151,9 +151,9 @@ class RegionTest extends TestCase
             }
         ', [
             'data' => $data,
-            'id' => $response['data']['regions']['data'][0]['id']
+            'id' => $response['data']['regions']['data'][0]['id'],
         ])->assertJson([
-            'data' => ['updateRegion' => $data]
+            'data' => ['updateRegion' => $data],
         ]);
     }
 
@@ -171,7 +171,8 @@ class RegionTest extends TestCase
             'is_default' => 1,
             'currency_id' => 1,
         ];
-        $this->graphQL('
+
+        $response = $this->graphQL('
             mutation($data: RegionInput!) {
                 createRegion(input: $data)
                 {
@@ -184,30 +185,39 @@ class RegionTest extends TestCase
                 }
             }
         ', [
-            'data' => $data
+            'data' => $data,
         ])->assertJson([
-            'data' => ['createRegion' => $data]
+            'data' => ['createRegion' => $data],
         ]);
 
         $response = $this->graphQL('
-            query getMutation {
-                regions {
-                  data {
-                    name,
+            mutation($data: RegionInput!) {
+                createRegion(input: $data)
+                {
                     id
-                  }
+                    name
+                    slug
+                    short_slug
+                    currency_id
+                    is_default
                 }
             }
-        ');
-        $response = $response->decodeResponseJson();
+        ', [
+            'data' => $data,
+        ])->assertJson([
+            'data' => ['createRegion' => $data],
+        ]);
+
+        $response = $response->json();
+
         $this->graphQL('
             mutation($id: ID!) {
                 deleteRegion(id: $id)
             }
         ', [
-            'id' => $response['data']['regions']['data'][0]['id']
+            'id' => $response['data']['createRegion']['id'],
         ])->assertJson([
-            'data' => ['deleteRegion' => true]
+            'data' => ['deleteRegion' => true],
         ]);
     }
 }
