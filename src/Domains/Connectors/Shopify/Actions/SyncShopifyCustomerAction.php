@@ -34,6 +34,7 @@ class SyncShopifyCustomerAction
             $this->company
         );
 
+        $contact = [];
         if (! empty($this->customerData['email'])) {
             $contact = [
                 [
