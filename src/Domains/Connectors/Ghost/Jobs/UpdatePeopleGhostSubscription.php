@@ -18,7 +18,6 @@ class UpdatePeopleGhostSubscription extends ProcessWebhookJob
         $member = $this->webhookRequest->payload;
         $app = $this->webhookRequest->receiverWebhook->app;
         $company = $this->webhookRequest->receiverWebhook->company;
-
         $people = PeoplesRepository::getByEmail($member['email'], $company);
         if (! $people) {
             throw new Exception('People not found');
