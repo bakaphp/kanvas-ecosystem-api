@@ -42,7 +42,7 @@ class CreateMessageFromReceiverJob extends ProcessWebhookJob
                 app: $this->receiver->app,
                 company: $this->receiver->company,
                 user: $this->receiver->user,
-                type: $this->receiver->type,
+                type: $messageType,
                 message: $payload['message']
             )
         );
