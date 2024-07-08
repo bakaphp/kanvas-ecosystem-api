@@ -29,11 +29,8 @@ final class UpdateSubscriptionTest extends TestCase
             ->withCompanyId($company->getId())
             ->has(Contact::factory()->count(1), 'contacts')
             ->create();
-        $stripeKey = $app->get('stripe_secret_key');
-        if (! $stripeKey) {
-            $app->set('stripe_secret_key', getenv('STRIPE_SECRET_KEY'));
-        }
-        $stripe = new StripeClient($stripeKey);
+
+        $stripe = new StripeClient(getenv('STRIPE_SECRET_KEY'));
         $customer = $stripe->customers->create([
             'email' => $people->getEmails()[0]->value,
             'name' => $people->getName(),
