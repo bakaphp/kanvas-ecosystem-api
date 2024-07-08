@@ -53,6 +53,11 @@ class MailCaddieLabJob implements ShouldQueue
     {
         foreach ($peoples as $people) {
             $email = $people->emails()->first();
+
+            if (! $email) {
+                continue;
+            }
+
             $url = $baseUrl . '/' . '?email=' . $email->value . '&paid=false';
             $notification = new Blank(
                 $template,
