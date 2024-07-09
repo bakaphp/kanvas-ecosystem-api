@@ -133,7 +133,12 @@ extend type Query @guard {
             model: "Kanvas\\Guild\\Customers\\Models\\People"
             scopes: ["fromApp", "fromCompany", "notDeleted"]
         )
-    
+    peopleCountByTag(tag: String!): Int @cache(maxAge: 300)
+        @count(
+            model: "Kanvas\\Guild\\Customers\\Models\\People"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            where: [["tags", "name", "=", "$tag"]]
+        )
 }
 
 extend type Mutation @guard {
