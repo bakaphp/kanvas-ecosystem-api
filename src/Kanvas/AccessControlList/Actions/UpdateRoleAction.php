@@ -50,7 +50,7 @@ class UpdateRoleAction
         $role = Role::find($this->id);
         $role->update([
             'name' => $this->name ?? $role->name,
-            'title' => $this->title ?? $role->title,
+            'title' => $this->title ?? ($role->title ?? $role->name),
         ]);
 
         return $role;

@@ -70,6 +70,7 @@ class FilesystemQuery
         $entity = SystemModulesRepository::getEntityFromInput($entityInput, auth()->user());
 
         $systemModule = SystemModulesRepository::getByUuidOrModelName($entityInput->systemModuleUuid);
+        $app = $systemModule->app;
 
         /**
          * @var Builder
@@ -91,7 +92,7 @@ class FilesystemQuery
             ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue());
 
         //@todo allow to share media between company only of it the apps specifies it
-        $files->when(isset($entity->companies_id), function ($query) use ($entity) {
+        $files->when(isset($root->companies_id) && ! $app->get(AppSettingsEnums::GLOBAL_APP_IMAGES->getValue()), function ($query) use ($entity) {
             $query->where('filesystem_entities.companies_id', $entity->companies_id);
         });
 

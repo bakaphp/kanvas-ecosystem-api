@@ -5,18 +5,18 @@ declare(strict_types=1);
 namespace App\GraphQL\Social\Mutations\UsersInteractions;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Social\Enums\StateEnums;
+use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Interactions\Actions\CreateInteraction;
+use Kanvas\Social\Interactions\Actions\CreateUserInteractionAction;
 use Kanvas\Social\Interactions\DataTransferObject\Interaction;
-use Kanvas\Social\UsersInteractions\Actions\CreateUserInteractionAction;
-use Kanvas\Social\UsersInteractions\DataTransferObject\UserInteraction;
-use Kanvas\Social\UsersInteractions\Models\UserInteraction as UserInteractionModel;
+use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
+use Kanvas\Social\Interactions\Models\UsersInteractions;
 
 class UsersInteractionsManagement
 {
     public function like($__, array $request): bool
     {
-        return $this->likeEntity($request) instanceof UserInteractionModel;
+        return $this->likeEntity($request) instanceof UsersInteractions;
     }
 
     public function unLike($__, array $request): bool
@@ -26,7 +26,7 @@ class UsersInteractionsManagement
 
     public function disLike($__, array $request): bool
     {
-        $interactionType = (string) StateEnums::DISLIKE->getValue();
+        $interactionType = (string) InteractionEnum::DISLIKE->getValue();
         $createInteractions = new CreateInteraction(
             new Interaction(
                 $interactionType,
@@ -42,12 +42,12 @@ class UsersInteractionsManagement
         $createUserInteraction = new CreateUserInteractionAction($data);
         $userInteraction = $createUserInteraction->execute();
 
-        return $userInteraction instanceof UserInteractionModel;
+        return $userInteraction instanceof UsersInteractions;
     }
 
-    protected function likeEntity(array $request): UserInteractionModel
+    protected function likeEntity(array $request): UsersInteractions
     {
-        $interactionType = (string) StateEnums::LIKE->getValue();
+        $interactionType = (string) InteractionEnum::LIKE->getValue();
         $createInteractions = new CreateInteraction(
             new Interaction(
                 $interactionType,

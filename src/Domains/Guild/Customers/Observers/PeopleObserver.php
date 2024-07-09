@@ -19,4 +19,15 @@ class PeopleObserver
             ]
         );
     }
+
+    public function updated(People $people): void
+    {
+        $people->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            true,
+            [
+                'app' => $people->app,
+            ]
+        );
+    }
 }

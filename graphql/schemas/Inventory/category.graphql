@@ -63,6 +63,7 @@ extend type Query @guard {
                     "slug"
                     "code"
                     "uuid"
+                    "is_published"
                     "position"
                 ]
             )

@@ -69,6 +69,7 @@ class RolesTest extends TestCase
                     title
                     userCount
                     abilitiesCount
+                    systemRole
                 }
             }',
             [

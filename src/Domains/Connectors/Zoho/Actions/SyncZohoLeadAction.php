@@ -77,17 +77,24 @@ class SyncZohoLeadAction
             //create lead
             $pipelineStage = Pipeline::fromApp($this->app)->fromCompany($this->company)->where('is_default', 1)->first()->stages()->first();
 
-            $contact = [
-                [
+            $contact = [];
+
+            if (! empty($zohoLead->Email)) {
+                $contact[] = [
                     'value' => $zohoLead->Email,
                     'contacts_types_id' => 1,
                     'weight' => 0,
-                ],[
+                ];
+            }
+
+            if (! empty($zohoLead->Phone)) {
+                $contact[] = [
                     'value' => $zohoLead->Phone,
                     'contacts_types_id' => 2,
                     'weight' => 0,
-                ],
-            ];
+                ];
+            }
+
             $lead = new DataTransferObjectLead(
                 $this->app,
                 $this->company->defaultBranch,

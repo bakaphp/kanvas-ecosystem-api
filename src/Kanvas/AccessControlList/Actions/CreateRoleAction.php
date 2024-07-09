@@ -21,7 +21,7 @@ class CreateRoleAction
      */
     public function __construct(
         public string $name,
-        public string $title,
+        public ?string $title = null,
         public ?Apps $app = null
     ) {
         $this->app = $app ?? app(Apps::class);
@@ -50,7 +50,7 @@ class CreateRoleAction
 
         $role = Bouncer::role()->firstOrCreate([
             'name' => $this->name,
-            'title' => $this->title,
+            'title' => $this->title ?? $this->name,
             'scope' => RolesEnums::getScope($this->app),
         ]);
 

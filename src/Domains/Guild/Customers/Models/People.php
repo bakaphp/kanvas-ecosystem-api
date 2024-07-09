@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -122,7 +123,7 @@ class People extends BaseModel
         return $this->contacts()
                 ->where(
                     'contacts_types_id',
-                    ContactType::getByName('Email')->getId()
+                    ContactType::getById(ContactTypeEnum::EMAIL->value)->getId()
                 )
                 ->get();
     }
@@ -135,7 +136,17 @@ class People extends BaseModel
         return $this->contacts()
                 ->where(
                     'contacts_types_id',
-                    ContactType::getByName('Phone')->getId()
+                    ContactType::getById(ContactTypeEnum::PHONE->value)->getId()
+                )
+                ->get();
+    }
+
+    public function getCellPhones(): Collection
+    {
+        return $this->contacts()
+                ->where(
+                    'contacts_types_id',
+                    ContactType::getById(ContactTypeEnum::CELLPHONE->value)->getId()
                 )
                 ->get();
     }
@@ -170,5 +181,77 @@ class People extends BaseModel
                 'address_2' => $address->address_2,
             ]
         );
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return $this->is_deleted == 0;
+    }
+
+    public function toSearchableArray(): array
+    {
+        $people = [
+            'objectID' => $this->uuid,
+            'id' => $this->id,
+            'name' => $this->name,
+            'firstname' => $this->firstname,
+            'middlename' => $this->middlename,
+            'lastname' => $this->lastname,
+            'companies_id' => $this->companies_id,
+            'dob' => $this->dob,
+            'apps_id' => $this->apps_id,
+            'users_id' => $this->users_id,
+            'files' => $this->getFiles()->take(5)->map(function ($files) { //for now limit
+                return [
+                    'uuid' => $files->uuid,
+                    'name' => $files->name,
+                    'url' => $files->url,
+                    'size' => $files->size,
+                    'field_name' => $files->field_name,
+                    'attributes' => $files->attributes,
+                ];
+            }),
+            'organizations' => $this->organizations()->get()->map(function ($organization) {
+                return [
+                    'id' => $organization->id,
+                    'name' => $organization->name,
+                    'tier' => 1,
+                ];
+            }),
+            'employment_history' => $this->employmentHistory()->get()->map(function ($employmentHistory) {
+                return [
+                    'position' => $employmentHistory->position,
+                    'start_date' => $employmentHistory->start_date,
+                    'end_date' => $employmentHistory->end_date,
+                    'organization' => $employmentHistory->organization,
+                ];
+            }),
+            'tags' => $this->tags->map(function ($tag) {
+                return $tag->name;
+            }),
+            'custom_fields' => $this->customFields()->get()->map(function ($customField) {
+                return [
+                    $customField->name => $customField->value,
+                ];
+            }),
+            'contacts' => $this->contacts()->get()->map(function ($contact) {
+                return [
+                    'type' => $contact->type->name,
+                    'value' => $contact->value,
+                ];
+            }),
+            'address' => $this->address()->get()->map(function ($address) {
+                return [
+                    'address' => $address->address,
+                    'address_2' => $address->address_2,
+                    'city' => $address->city,
+                    'state' => $address->state,
+                    'country' => $address?->country?->name,
+                    'zip' => $address->zip,
+                ];
+            }),
+        ];
+
+        return $people;
     }
 }
