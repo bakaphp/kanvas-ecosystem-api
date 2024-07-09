@@ -86,6 +86,7 @@ class ConvertJsonTemplateToLeadStructureAction
     {
         $parsedData = [];
         $customFields = [];
+        $processFields = [];
 
         // Initialize people structure with placeholders
         $peopleStructure = [
@@ -106,6 +107,19 @@ class ConvertJsonTemplateToLeadStructureAction
                 'function' => $this->mapFunctionType($parsedData, $request, $info, $name),
                 default => null
             };
+
+            $processFields[$name] = $value;
+        }
+
+        if (! empty($request['company']) || ! empty($request['organization'])) {
+            $parsedData['organization'] = $request['company'] ?? $request['organization'];
+        }
+
+        // Add remaining unprocessed fields to custom fields
+        foreach ($request as $key => $value) {
+            if (! array_key_exists($key, $processFields) && ! array_key_exists($key, $customFields)) {
+                $customFields[$key] = $value;
+            }
         }
 
         $parsedData['custom_fields'] = $customFields;

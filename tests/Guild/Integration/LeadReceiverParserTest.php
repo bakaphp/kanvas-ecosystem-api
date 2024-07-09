@@ -76,6 +76,77 @@ final class LeadReceiverParserTest extends TestCase
         $this->assertEquals('lpr2230', $leadStructure['custom_fields']['member']);
     }
 
+    public function testExtraLeadParser(): void
+    {
+        $leadTemplate = '
+        {
+            "Member": {
+                "name": "member",
+                "type": "customField"
+            },
+            "firstname": {
+                "name": "firstname",
+                "type": "string"
+            },
+            "lastname": {
+                "name": "lastname",
+                "type": "string"
+            },
+            "phone": {
+                "name": "phone",
+                "type": "string"
+            },
+            "email": {
+                "name": "email",
+                "type": "string"
+            }
+        }';
+
+        $name = fake()->name;
+        $phone = fake()->phoneNumber;
+        $email = fake()->email;
+        $lastname = fake()->lastName;
+        $url = fake()->url;
+        
+        $leadReceived = json_encode([
+            'firstname' => $name,
+            'lastname' => $lastname,
+            'phone' => $phone,
+            'email' => $email,
+            'Member' => 'lpr2230',
+            'URL' => $url,
+            'credit_score' => 'Poor',
+            'SMS_Opt_Out' => '1',
+            'CRE_Estimated_Property_Value' => '1',
+            'CRE_Estimated_1st_Mortgage' => '1',
+            'CRE_Loan_Purpose' => '1',
+            'CRE_Amount_of_Loan_Request' => '1',
+            'amount_requested' => '1',
+            'business_name' => '1',
+            'compay' => '1',
+        ]);
+
+        $parseTemplate = new ConvertJsonTemplateToLeadStructureAction(
+            json_decode($leadTemplate, true),
+            json_decode($leadReceived, true)
+        );
+
+        $leadStructure = $parseTemplate->execute();
+
+        $this->assertIsArray($leadStructure);
+        $this->assertArrayHasKey('custom_fields', $leadStructure);
+        $this->assertArrayHasKey('people', $leadStructure);
+        $this->assertArrayHasKey('firstname', $leadStructure['people']);
+        $this->assertArrayHasKey('lastname', $leadStructure['people']);
+        $this->assertArrayHasKey('contacts', $leadStructure['people']);
+        $this->assertEquals($name, $leadStructure['people']['firstname']);
+        $this->assertEquals($lastname, $leadStructure['people']['lastname']);
+        $this->assertEquals($phone, $leadStructure['people']['contacts'][0]['value']);
+        $this->assertEquals($email, $leadStructure['people']['contacts'][1]['value']);
+        $this->assertEquals('lpr2230', $leadStructure['custom_fields']['member']);
+        $this->assertEquals('1', $leadStructure['custom_fields']['CRE_Estimated_1st_Mortgage']);
+    }
+
     public function testComplexLearParser(): void
     {
         $leadTemplate = '
