@@ -19,6 +19,9 @@ use Throwable;
 use Webleit\ZohoCrmApi\Modules\Leads as ZohoLeadModule;
 use Workflow\Activity;
 
+/**
+ * @todo refactor move core logic to SyncLeadWithZohoAction
+ */
 class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
 {
     use KanvasJobsTrait;
