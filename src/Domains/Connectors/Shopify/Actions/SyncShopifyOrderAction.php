@@ -126,6 +126,9 @@ class SyncShopifyOrderAction
     protected function syncProducts(): void
     {
         foreach ($this->orderData['line_items'] as $lineItem) {
+            if (empty($lineItem['product_id'])) {
+                continue;
+            }
             $syncProduct = new SyncShopifyProductAction(
                 $this->app,
                 $this->company,
