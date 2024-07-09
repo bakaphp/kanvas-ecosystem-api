@@ -86,20 +86,20 @@ class ConvertJsonTemplateToLeadStructureAction
     {
         $parsedData = [];
         $customFields = [];
-    
+
         // Initialize people structure with placeholders
         $peopleStructure = [
             'firstname' => null,
             'lastname' => null,
             'contacts' => [],
         ];
-    
+
         // Iterate through the template and map values accordingly
         foreach ($template as $path => $info) {
             $value = $this->getValueFromPath($request, $path);
             $name = $info['name'];
             $type = $info['type'];
-    
+
             match ($type) {
                 'string' => $this->mapStringType($peopleStructure, $parsedData, $name, $value),
                 'customField' => $customFields[$name] = $value,
@@ -107,12 +107,13 @@ class ConvertJsonTemplateToLeadStructureAction
                 default => null
             };
         }
-    
+
         $parsedData['modelInfo']['custom_fields'] = $customFields;
         $parsedData['modelInfo']['people'] = $peopleStructure;
+
         return $parsedData;
     }
-    
+
     private function mapStringType(array &$peopleStructure, array &$parsedData, string $name, $value): void
     {
         match ($name) {
@@ -122,10 +123,10 @@ class ConvertJsonTemplateToLeadStructureAction
             'phone' => $this->addContact($peopleStructure['contacts'], ContactTypeEnum::PHONE->value, $value),
             default => null
         };
-    
+
         $parsedData['modelInfo'][$name] = $value;
     }
-    
+
     private function addContact(array &$contacts, int $contactTypeId, ?string $value): void
     {
         if ($value) {
@@ -135,7 +136,7 @@ class ConvertJsonTemplateToLeadStructureAction
             ];
         }
     }
-    
+
     private function mapFunctionType(array &$parsedData, array $request, array $info, string $name): void
     {
         $functionName = $info['function'];
