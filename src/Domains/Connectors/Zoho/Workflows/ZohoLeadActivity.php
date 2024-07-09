@@ -129,7 +129,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
             }
         }
 
-        if ($company->get(CustomFieldEnum::ZOHO_USE_AGENT_NAME->value) && !empty($agentInfo->name)) {
+        if ($company->get(CustomFieldEnum::ZOHO_USE_AGENT_NAME->value) && ! empty($agentInfo->name)) {
             $zohoData['Agent_Name'] = $agentInfo->name;
         }
 
