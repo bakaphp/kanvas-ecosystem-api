@@ -15,7 +15,7 @@ use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\WorkflowAction;
 use Stripe\StripeClient;
 use Tests\TestCase;
-
+use Throwable;
 final class UpdateSubscriptionTest extends TestCase
 {
     public function testUpdateSubscription()
@@ -91,9 +91,14 @@ final class UpdateSubscriptionTest extends TestCase
         // Fake the queue
         Queue::fake();
         $job = new UpdatePeopleStripeSubscription($webhookRequest);
+        try {
+            $job->handle();
+        } catch (Throwable $e) {
+            $this->fail($e->getMessage());
+        
+        }
         $result = $job->handle();
-        dump($result);
-        // $this->assertArrayHasKey('message', $result);
-        // $this->assertEquals('People Subscription updated', $result['message']);
+        $this->assertArrayHasKey('message', $result);
+        $this->assertEquals('People Subscription updated', $result['message']);
     }
 }
