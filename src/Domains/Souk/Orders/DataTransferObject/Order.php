@@ -23,7 +23,6 @@ class Order extends Data
         public readonly CompanyInterface $company,
         public readonly People $people,
         public readonly UserInterface $user,
-        public readonly string $email,
         public readonly string $token,
         public readonly string $orderNumber,
         public readonly ?Address $shippingAddress,
@@ -37,6 +36,7 @@ class Order extends Data
         public readonly Currencies $currency,
         #[DataCollectionOf(OrderItem::class)]
         public readonly DataCollection $items,
+        public readonly ?string $email = null,
         public readonly ?string $metadata = null,
         public readonly float $weight = 0.0,
         public readonly ?string $shippingMethod = null,
