@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -36,6 +37,10 @@ class LeadReceiver extends BaseModel
 
     protected $table = 'leads_receivers';
     protected $guarded = [];
+
+    protected $casts = [
+        'template' => Json::class
+    ];
 
     /**
      * rotation

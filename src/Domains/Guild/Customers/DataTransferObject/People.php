@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use DateTime;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Attributes\WithCast;
 use Spatie\LaravelData\Casts\DateTimeInterfaceCast;

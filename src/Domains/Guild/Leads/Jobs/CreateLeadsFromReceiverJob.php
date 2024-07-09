@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Jobs;
 
+use Kanvas\Guild\Leads\Actions\ConvertJsonTemplateToLeadStructureAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadAttemptAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead;
@@ -30,6 +31,14 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
 
         $payload = $this->webhookRequest->payload;
         $payload['branch_id'] = $leadReceiver->companies_branches_id;
+
+        if (! empty($leadReceiver->template) && is_array($leadReceiver->template)) {
+            $parseTemplate = new ConvertJsonTemplateToLeadStructureAction(
+                $leadReceiver->template,
+                $payload
+            );
+            $payload = $parseTemplate->execute();
+        }
 
         $createLead = new CreateLeadAction(
             Lead::viaRequest(
