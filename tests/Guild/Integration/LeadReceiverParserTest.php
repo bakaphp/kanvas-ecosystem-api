@@ -107,7 +107,7 @@ final class LeadReceiverParserTest extends TestCase
         $email = fake()->email;
         $lastname = fake()->lastName;
         $url = fake()->url;
-        
+
         $leadReceived = json_encode([
             'firstname' => $name,
             'lastname' => $lastname,
