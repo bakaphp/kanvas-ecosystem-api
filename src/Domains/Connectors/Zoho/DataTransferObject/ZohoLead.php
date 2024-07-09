@@ -59,8 +59,7 @@ class ZohoLead extends Data
     public function toArray(): array
     {
         $data = parent::toArray();
-
-        unset($data['additionalFields']);
+        //unset($data['additionalFields']);
 
         return $data;
     }
@@ -96,7 +95,9 @@ class ZohoLead extends Data
                 $value = $creditScore[(int) $value] ?? $value;
             }
 
-            $data[$name] = $value;
+            if ($value !== null) {
+                $data[$name] = $value;
+            }
         }
     }
 
