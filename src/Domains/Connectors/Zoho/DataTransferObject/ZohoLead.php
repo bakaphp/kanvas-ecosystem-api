@@ -95,7 +95,9 @@ class ZohoLead extends Data
                 $value = $creditScore[(int) $value] ?? $value;
             }
 
-            $data[$name] = $value;
+            if ($value !== null) {
+                $data[$name] = $value;
+            }
         }
     }
 
