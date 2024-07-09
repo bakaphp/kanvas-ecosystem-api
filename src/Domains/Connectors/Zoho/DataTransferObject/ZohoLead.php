@@ -59,8 +59,7 @@ class ZohoLead extends Data
     public function toArray(): array
     {
         $data = parent::toArray();
-
-        unset($data['additionalFields']);
+        //unset($data['additionalFields']);
 
         return $data;
     }
