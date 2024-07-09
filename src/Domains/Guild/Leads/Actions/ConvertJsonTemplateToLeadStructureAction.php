@@ -108,8 +108,8 @@ class ConvertJsonTemplateToLeadStructureAction
             };
         }
 
-        $parsedData['modelInfo']['custom_fields'] = $customFields;
-        $parsedData['modelInfo']['people'] = $peopleStructure;
+        $parsedData['custom_fields'] = $customFields;
+        $parsedData['people'] = $peopleStructure;
 
         return $parsedData;
     }
@@ -124,7 +124,7 @@ class ConvertJsonTemplateToLeadStructureAction
             default => null
         };
 
-        $parsedData['modelInfo'][$name] = $value;
+        $parsedData[$name] = $value;
     }
 
     private function addContact(array &$contacts, int $contactTypeId, ?string $value): void

@@ -64,17 +64,16 @@ final class LeadReceiverParserTest extends TestCase
         $leadStructure = $parseTemplate->execute();
 
         $this->assertIsArray($leadStructure);
-        $this->assertArrayHasKey('modelInfo', $leadStructure);
-        $this->assertArrayHasKey('custom_fields', $leadStructure['modelInfo']);
-        $this->assertArrayHasKey('people', $leadStructure['modelInfo']);
-        $this->assertArrayHasKey('firstname', $leadStructure['modelInfo']['people']);
-        $this->assertArrayHasKey('lastname', $leadStructure['modelInfo']['people']);
-        $this->assertArrayHasKey('contacts', $leadStructure['modelInfo']['people']);
-        $this->assertEquals($name, $leadStructure['modelInfo']['people']['firstname']);
-        $this->assertEquals($lastname, $leadStructure['modelInfo']['people']['lastname']);
-        $this->assertEquals($phone, $leadStructure['modelInfo']['people']['contacts'][0]['value']);
-        $this->assertEquals($email, $leadStructure['modelInfo']['people']['contacts'][1]['value']);
-        $this->assertEquals('lpr2230', $leadStructure['modelInfo']['custom_fields']['member']);
+        $this->assertArrayHasKey('custom_fields', $leadStructure);
+        $this->assertArrayHasKey('people', $leadStructure);
+        $this->assertArrayHasKey('firstname', $leadStructure['people']);
+        $this->assertArrayHasKey('lastname', $leadStructure['people']);
+        $this->assertArrayHasKey('contacts', $leadStructure['people']);
+        $this->assertEquals($name, $leadStructure['people']['firstname']);
+        $this->assertEquals($lastname, $leadStructure['people']['lastname']);
+        $this->assertEquals($phone, $leadStructure['people']['contacts'][0]['value']);
+        $this->assertEquals($email, $leadStructure['people']['contacts'][1]['value']);
+        $this->assertEquals('lpr2230', $leadStructure['custom_fields']['member']);
     }
 
     public function testComplexLearParser(): void
@@ -174,46 +173,46 @@ final class LeadReceiverParserTest extends TestCase
         }';
 
         $leadReceived = json_encode([
-            "request_header" => [
-                "request_id" => fake()->uuid,
-                "request_date" => fake()->iso8601,
-                "is_test_lead" => false
+            'request_header' => [
+                'request_id' => fake()->uuid,
+                'request_date' => fake()->iso8601,
+                'is_test_lead' => false,
             ],
-            "business" => [
-                "business_name" => fake()->company,
-                "self_reported_cash_flow" => [
-                    "annual_revenue" => fake()->numberBetween(100000, 500000)
+            'business' => [
+                'business_name' => fake()->company,
+                'self_reported_cash_flow' => [
+                    'annual_revenue' => fake()->numberBetween(100000, 500000),
                 ],
-                "address" => [
-                    "zip" => fake()->postcode
+                'address' => [
+                    'zip' => fake()->postcode,
                 ],
-                "naics" => fake()->randomNumber(6, true),
-                "business_inception" => fake()->date('m-d-Y'),
-                "use_of_proceeds" => "Purchasing equipment"
+                'naics' => fake()->randomNumber(6, true),
+                'business_inception' => fake()->date('m-d-Y'),
+                'use_of_proceeds' => 'Purchasing equipment',
             ],
-            "owners" => [
+            'owners' => [
                 [
-                    "full_name" => fake()->name,
-                    "first_name" => fake()->firstName,
-                    "last_name" => fake()->lastName,
-                    "email" => fake()->email,
-                    "home_address" => [
-                        "address_1" => fake()->streetAddress,
-                        "address_2" => null,
-                        "city" => fake()->city,
-                        "state" => fake()->state,
-                        "zip" => fake()->postcode
+                    'full_name' => fake()->name,
+                    'first_name' => fake()->firstName,
+                    'last_name' => fake()->lastName,
+                    'email' => fake()->email,
+                    'home_address' => [
+                        'address_1' => fake()->streetAddress,
+                        'address_2' => null,
+                        'city' => fake()->city,
+                        'state' => fake()->state,
+                        'zip' => fake()->postcode,
                     ],
-                    "phone_number" => fake()->phoneNumber
-                ]
+                    'phone_number' => fake()->phoneNumber,
+                ],
             ],
-            "application_data" => [
-                "loan_amount" => fake()->numberBetween(50000, 150000),
-                "credit_score" => fake()->numberBetween(1, 850),
-                "entity_type" => "LLC",
-                "filter_id" => fake()->uuid,
-                "campaign_id" => fake()->uuid
-            ]
+            'application_data' => [
+                'loan_amount' => fake()->numberBetween(50000, 150000),
+                'credit_score' => fake()->numberBetween(1, 850),
+                'entity_type' => 'LLC',
+                'filter_id' => fake()->uuid,
+                'campaign_id' => fake()->uuid,
+            ],
         ]);
 
         $parseTemplate = new ConvertJsonTemplateToLeadStructureAction(
@@ -222,23 +221,22 @@ final class LeadReceiverParserTest extends TestCase
         );
 
         $leadStructure = $parseTemplate->execute();
-     
+
         $this->assertIsArray($leadStructure);
-        $this->assertArrayHasKey('modelInfo', $leadStructure);
-        $this->assertArrayHasKey('custom_fields', $leadStructure['modelInfo']);
-        $this->assertArrayHasKey('people', $leadStructure['modelInfo']);
-        $this->assertArrayHasKey('company', $leadStructure['modelInfo']['custom_fields']);
-        $this->assertArrayHasKey('annual_revenue', $leadStructure['modelInfo']['custom_fields']);
-        $this->assertArrayHasKey('business_founded', $leadStructure['modelInfo']['custom_fields']);
-        $this->assertArrayHasKey('industry', $leadStructure['modelInfo']['custom_fields']);
-        $this->assertArrayHasKey('zip', $leadStructure['modelInfo']['custom_fields']);
-        $this->assertArrayHasKey('amount_requested', $leadStructure['modelInfo']['custom_fields']);
-        $this->assertArrayHasKey('nerdwallet_id', $leadStructure['modelInfo']['custom_fields']);
-        $this->assertArrayHasKey('credit_score', $leadStructure['modelInfo']['custom_fields']);
-        $this->assertArrayHasKey('industry', $leadStructure['modelInfo']['custom_fields']);
-        $this->assertArrayHasKey('SubID', $leadStructure['modelInfo']['custom_fields']);
-        $this->assertArrayHasKey('firstname', $leadStructure['modelInfo']['people']);
-        $this->assertArrayHasKey('lastname', $leadStructure['modelInfo']['people']);
-        $this->assertArrayHasKey('contacts', $leadStructure['modelInfo']['people']);
+        $this->assertArrayHasKey('custom_fields', $leadStructure);
+        $this->assertArrayHasKey('people', $leadStructure);
+        $this->assertArrayHasKey('company', $leadStructure['custom_fields']);
+        $this->assertArrayHasKey('annual_revenue', $leadStructure['custom_fields']);
+        $this->assertArrayHasKey('business_founded', $leadStructure['custom_fields']);
+        $this->assertArrayHasKey('industry', $leadStructure['custom_fields']);
+        $this->assertArrayHasKey('zip', $leadStructure['custom_fields']);
+        $this->assertArrayHasKey('amount_requested', $leadStructure['custom_fields']);
+        $this->assertArrayHasKey('nerdwallet_id', $leadStructure['custom_fields']);
+        $this->assertArrayHasKey('credit_score', $leadStructure['custom_fields']);
+        $this->assertArrayHasKey('industry', $leadStructure['custom_fields']);
+        $this->assertArrayHasKey('SubID', $leadStructure['custom_fields']);
+        $this->assertArrayHasKey('firstname', $leadStructure['people']);
+        $this->assertArrayHasKey('lastname', $leadStructure['people']);
+        $this->assertArrayHasKey('contacts', $leadStructure['people']);
     }
 }

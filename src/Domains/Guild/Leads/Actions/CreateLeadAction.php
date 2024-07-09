@@ -59,6 +59,8 @@ class CreateLeadAction
         //create people
         $people = (new CreatePeopleAction($this->leadData->people))->execute();
         $newLead->people_id = $people->getId();
+        $newLead->email = $people->getEmails() ? $people->getEmails()->first()->value : null;
+        $newLead->phone = $people->getPhones() ? $people->getPhones()->first()->value : null;
         $newLead->saveOrFail();
 
         $newLead->setCustomFields($this->leadData->custom_fields);
