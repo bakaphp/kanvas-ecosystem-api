@@ -39,12 +39,13 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
         $usesAgentsModule = $company->get(CustomFieldEnum::ZOHO_HAS_AGENTS_MODULE->value);
 
         $zohoCrm = Client::getInstance($app, $company);
-
-        if ($usesAgentsModule) {
-            $this->assignAgent($app, $zohoLead, $lead, $company, $zohoData);
-        }
+        $status = 'created';
 
         if (! $zohoLeadId = $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value)) {
+            if ($usesAgentsModule) {
+                $this->assignAgent($app, $zohoLead, $lead, $company, $zohoData);
+            }
+
             $zohoLead = $zohoCrm->leads->create($zohoData);
             $zohoLeadId = $zohoLead->getId();
 
@@ -57,6 +58,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
         } else {
             $zohoLeadInfo = $zohoCrm->leads->get((string) $zohoLeadId)->getData();
             if (! empty($zohoLeadInfo)) {
+                $status = 'updated';
                 $zohoLead = $zohoCrm->leads->update(
                     (string) $zohoLeadId,
                     $zohoData
@@ -68,6 +70,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
                     'zohoLeadId' => $zohoLeadId,
                     'zohoRequest' => 'Lead not found in Zoho',
                     'leadId' => $lead->getId(),
+                    'status' => 'closed',
                 ];
             }
         }
@@ -78,6 +81,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
             'zohoLeadId' => $zohoLeadId,
             'zohoRequest' => $zohoData,
             'leadId' => $lead->getId(),
+            'status' => $status,
         ];
     }
 

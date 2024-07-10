@@ -76,10 +76,11 @@ class SyncShopifyOrderAction
             taxes: (float)  $this->orderData['current_total_tax'],
             totalDiscount: (float)  $this->orderData['total_discounts'],
             totalShipping: (float)   $this->orderData['total_shipping_price_set']['shop_money']['amount'],
-            status: 'completed',
+            status: !empty($this->orderData['cancelled_at']) ? 'cancelled' : 'completed',
             orderNumber: (string) $this->orderData['order_number'],
             shippingMethod: $this->orderData['shipping_lines'][0]['title'] ?? null,
             currency: Currencies::getByCode($this->orderData['currency']),
+            fulfillmentStatus: $this->orderData['fulfillment_status'] ?? null,
             items: $this->getOrderItems(),
             metadata: json_encode($this->orderData),
             weight: $this->orderData['total_weight'],
@@ -95,6 +96,14 @@ class SyncShopifyOrderAction
         );
 
         if ($orderExist) {
+            if ($order->fulfill()) {
+                $orderExist->fulfill();
+            }
+
+            if ($order->isCancelled()) {
+                $orderExist->cancel();
+            }
+
             return $orderExist;
         }
 

@@ -48,6 +48,7 @@ use Spatie\LaravelData\DataCollection;
  * @property string $status
  * @property string|null $fulfillment_status
  * @property string|null $shipping_method_name
+ * @property string|null $fulfillment_status
  * @property int|null $shipping_method_id
  * @property bool $display_gross_prices
  * @property string|null $translated_discount_name
@@ -146,5 +147,29 @@ class Order extends BaseModel
         $orderItem->saveOrFail();
 
         return $orderItem;
+    }
+
+    public function fulfill(): void
+    {
+        $this->fulfillment_status = 'fulfilled';
+        $this->saveOrFail();
+    }
+
+    public function fulfillCancelled(): void
+    {
+        $this->fulfillment_status = 'cancelled';
+        $this->saveOrFail();
+    }
+
+    public function completed(): void
+    {
+        $this->status = 'completed';
+        $this->saveOrFail();
+    }
+
+    public function cancel(): void
+    {
+        $this->status = 'cancelled';
+        $this->saveOrFail();
     }
 }

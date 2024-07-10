@@ -68,6 +68,7 @@ class SyncZohoLeadAction
         $leadStatus = match (true) {
             Str::contains($status, 'close') => LeadStatus::getByName('bad'),
             Str::contains($status, 'won') => LeadStatus::getByName('complete'),
+            Str::contains($status, 'duplicate') => LeadStatus::getByName('complete'),
             default => LeadStatus::getByName('active'),
         };
 

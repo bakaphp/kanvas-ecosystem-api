@@ -49,4 +49,14 @@ class Order extends Data
         public readonly array $paymentGatewayName = [],
     ) {
     }
+
+    public function fulfill(): bool
+    {
+        return $this->fulfillmentStatus === 'fulfilled';
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->status === 'cancelled';
+    }
 }
