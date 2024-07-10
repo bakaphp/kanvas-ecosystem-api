@@ -96,13 +96,11 @@ class SyncShopifyOrderAction
         );
 
         if ($orderExist) {
-            if ($order->fulfill()) {
-                $orderExist->fulfill();
-            }
-
-            if ($order->isCancelled()) {
-                $orderExist->cancel();
-            }
+            match (true) {
+                $order->fulfill() => $orderExist->fulfill(),
+                $order->isCancelled() => $orderExist->cancel(),
+                default => null,
+            };
 
             return $orderExist;
         }
