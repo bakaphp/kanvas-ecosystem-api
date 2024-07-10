@@ -136,6 +136,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
             if ($agentInfo && $agentInfo->get('over_write_owner')) {
                 $zohoData['Owner'] = (int) $agentInfo->get('over_write_owner');
             }
+            $zohoData['Lead_Source'] = $agent->name;
         } elseif ($agentInfo instanceof Agent) {
             $zohoData['Owner'] = (int) $agentInfo->owner_linked_source_id;
             if (empty($defaultLeadSource)) {
