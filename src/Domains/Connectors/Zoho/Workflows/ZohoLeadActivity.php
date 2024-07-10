@@ -62,8 +62,8 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
                     $zohoData
                 );
             } else {
-
                 $lead->close();
+
                 return [
                     'zohoLeadId' => $zohoLeadId,
                     'zohoRequest' => 'Lead not found in Zoho',
