@@ -58,10 +58,11 @@ class ZohoLead extends Data
 
     public function toArray(): array
     {
-        $data = parent::toArray();
-        //unset($data['additionalFields']);
+        $data = array_merge(parent::toArray(), $this->additionalFields);
+        unset($data['additionalFields']);
 
-        return $data;
+        // Remove empty values
+        return array_filter($data, fn ($value) => ! empty($value));
     }
 
     /**
