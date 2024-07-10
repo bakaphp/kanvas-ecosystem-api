@@ -55,10 +55,21 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
                 $zohoLeadId
             );
         } else {
-            $zohoLead = $zohoCrm->leads->update(
-                (string) $zohoLeadId,
-                $zohoData
-            );
+            $zohoLeadInfo = $zohoCrm->leads->get((string) $zohoLeadId)->getData();
+            if (! empty($zohoLeadInfo)) {
+                $zohoLead = $zohoCrm->leads->update(
+                    (string) $zohoLeadId,
+                    $zohoData
+                );
+            } else {
+
+                $lead->close();
+                return [
+                    'zohoLeadId' => $zohoLeadId,
+                    'zohoRequest' => 'Lead not found in Zoho',
+                    'leadId' => $lead->getId(),
+                ];
+            }
         }
 
         $this->uploadAttachments($zohoCrm->leads, $lead);
