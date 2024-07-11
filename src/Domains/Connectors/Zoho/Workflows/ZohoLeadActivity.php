@@ -125,9 +125,11 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
         if (is_object($agent)) {
             try {
                 ///lead owner should match lead routing
-                $zohoData['Owner'] = $zohoService->getAgentByEmail($agent->Lead_Routing)->Owner['id'];
+                $leadRoutingEmailCleanUp = preg_replace('/[^a-zA-Z0-9@._-]/', '', $agent->Lead_Routing);
+                $zohoData['Owner'] = $zohoService->getAgentByEmail($leadRoutingEmailCleanUp)->Owner['id'];
             } catch (Throwable $e) {
-                $zohoData['Owner'] = (int) $agent->Owner['id'];
+                //send fail notification and assign to default lead routing email
+                $zohoData['Owner'] = (int) ($app->get(CustomFieldEnum::DEFAULT_OWNER->value) ?? $agent->Owner['id']);
             }
 
             if ($agent->Sponsor) {
