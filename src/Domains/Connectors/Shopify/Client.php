@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Shopify;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
 use Kanvas\Exceptions\ValidationException;
@@ -59,7 +60,7 @@ class Client
         $credential = $company->get($clientCredentialNaming);
 
         // its no supposed to explode with this
-        if (empty($credential)) {
+        if (empty($credential) || ! Str::isJson($credential)) {
             throw new ValidationException(
                 'Shopify keys are not set for company ' . $company->name . ' ' . $company->id . ' ' . 'on region ' . $region->name
             );
