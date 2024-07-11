@@ -123,7 +123,13 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
         }
 
         if (is_object($agent)) {
-            $zohoData['Owner'] = (int) $agent->Owner['id'];
+            try {
+                ///lead owner should match lead routing
+                $zohoData['Owner'] = $zohoService->getAgentByEmail($agent->Lead_Routing)->Owner['id'];
+            } catch (Throwable $e) {
+                $zohoData['Owner'] = (int) $agent->Owner['id'];
+            }
+
             if ($agent->Sponsor) {
                 $zohoData['Sponsor'] = (string) $agent->Sponsor;
             }
@@ -136,7 +142,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
             if ($agentInfo && $agentInfo->get('over_write_owner')) {
                 $zohoData['Owner'] = (int) $agentInfo->get('over_write_owner');
             }
-            $zohoData['Lead_Source'] = $agent->name;
+            $zohoData['Lead_Source'] = $agent->name ?? $agent->Name;
         } elseif ($agentInfo instanceof Agent) {
             $zohoData['Owner'] = (int) $agentInfo->owner_linked_source_id;
             if (empty($defaultLeadSource)) {
