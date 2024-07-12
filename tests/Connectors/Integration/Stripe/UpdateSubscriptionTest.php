@@ -7,6 +7,7 @@ namespace Test\Connectors\Integration\Stripe;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Request;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Stripe\Jobs\UpdatePeopleStripeSubscription;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
@@ -16,6 +17,7 @@ use Kanvas\Workflow\Models\WorkflowAction;
 use Stripe\StripeClient;
 use Tests\TestCase;
 use Throwable;
+
 final class UpdateSubscriptionTest extends TestCase
 {
     public function testUpdateSubscription()
@@ -30,7 +32,8 @@ final class UpdateSubscriptionTest extends TestCase
             ->has(Contact::factory()->count(1), 'contacts')
             ->create();
 
-        $stripe = new StripeClient(getenv('STRIPE_SECRET_KEY'));
+        $app->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, getenv('TEST_STRIPE_SECRET_KEY'));
+        $stripe = new StripeClient($app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
         $customer = $stripe->customers->create([
             'email' => $people->getEmails()[0]->value,
             'name' => $people->getName(),
@@ -91,13 +94,8 @@ final class UpdateSubscriptionTest extends TestCase
         // Fake the queue
         Queue::fake();
         $job = new UpdatePeopleStripeSubscription($webhookRequest);
-        try {
-            $job->handle();
-        } catch (Throwable $e) {
-            $this->fail($e->getMessage());
-        
-        }
         $result = $job->handle();
+
         $this->assertArrayHasKey('message', $result);
         $this->assertEquals('People Subscription updated', $result['message']);
     }

@@ -19,7 +19,7 @@ class PeopleSubscription extends Data
         public string $start_date,
         public ?string $end_date = null,
         public ?string $next_renewal = null,
-        public ?string $metadata = null,
+        public array $metadata = [],
     ) {
     }
 }

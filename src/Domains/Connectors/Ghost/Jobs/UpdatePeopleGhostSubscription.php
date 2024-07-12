@@ -29,7 +29,7 @@ class UpdatePeopleGhostSubscription extends ProcessWebhookJob
             status: '1',
             first_date: date('Y-m-d H:i:s', $member['created_at']),
             start_date: date('Y-m-d H:i:s', $member['created_at']),
-            metadata: json_encode($this->webhookRequest->payload)
+            metadata: $this->webhookRequest->payload
         );
         $action = new CreateOrUpdatePeopleSubscription($dto);
         $peopleSub = $action->handle();
