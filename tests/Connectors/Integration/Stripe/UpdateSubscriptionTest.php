@@ -32,7 +32,7 @@ final class UpdateSubscriptionTest extends TestCase
             ->has(Contact::factory()->count(1), 'contacts')
             ->create();
 
-        $app->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, getenv('STRIPE_SECRET_KEY'));
+        $app->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, getenv('TEST_STRIPE_SECRET_KEY'));
         $stripe = new StripeClient($app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
         $customer = $stripe->customers->create([
             'email' => $people->getEmails()[0]->value,
