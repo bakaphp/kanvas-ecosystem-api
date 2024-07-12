@@ -4,9 +4,9 @@ use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\UsersLists\Models\UserList as ModelUserList;
 use Kanvas\Users\Models\Users;
+use Silber\Bouncer\Database\Role as SilberRole;
 
 return [
-
     /*
     |--------------------------------------------------------------------------
     | Default Search Engine
@@ -146,6 +146,9 @@ return [
             Role::class => [
                 'filterableAttributes' => ['scope', 'name', 'title'],
             ],
+            SilberRole::class => [
+                'filterableAttributes' => ['scope', 'name', 'title'],
+            ],
             ModelUserList::class => [
                 'filterableAttributes' => [
                     'apps_id',
@@ -161,5 +164,4 @@ return [
             ],
         ],
     ],
-
 ];

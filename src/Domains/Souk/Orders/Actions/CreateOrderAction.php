@@ -50,6 +50,7 @@ class CreateOrderAction
             $order->discount_amount = $this->orderData->totalDiscount;
             $order->status = $this->orderData->status;
             $order->shipping_method_name = $this->orderData->shippingMethod;
+            $order->fulfillment_status = $this->orderData->fulfillmentStatus;
             $order->weight = $this->orderData->weight;
             $order->checkout_token = $this->orderData->checkoutToken;
             $order->currency = $this->orderData->currency->code;

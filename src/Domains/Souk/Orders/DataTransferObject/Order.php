@@ -23,7 +23,6 @@ class Order extends Data
         public readonly CompanyInterface $company,
         public readonly People $people,
         public readonly UserInterface $user,
-        public readonly string $email,
         public readonly string $token,
         public readonly string $orderNumber,
         public readonly ?Address $shippingAddress,
@@ -33,13 +32,14 @@ class Order extends Data
         public readonly float $totalDiscount,
         public readonly float $totalShipping,
         public readonly string $status, //enums
-        public readonly string $shippingMethod,
         public readonly string $checkoutToken,
         public readonly Currencies $currency,
         #[DataCollectionOf(OrderItem::class)]
         public readonly DataCollection $items,
+        public readonly ?string $email = null,
         public readonly ?string $metadata = null,
         public readonly float $weight = 0.0,
+        public readonly ?string $shippingMethod = null,
         public readonly ?string $phone = null,
         public readonly ?string $customerNote = null,
         public readonly ?string $fulfillmentStatus = null,
@@ -48,5 +48,15 @@ class Order extends Data
         public readonly ?string $languageCode = null,
         public readonly array $paymentGatewayName = [],
     ) {
+    }
+
+    public function fulfill(): bool
+    {
+        return $this->fulfillmentStatus === 'fulfilled';
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->status === 'cancelled';
     }
 }

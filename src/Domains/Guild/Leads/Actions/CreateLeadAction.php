@@ -59,12 +59,14 @@ class CreateLeadAction
         //create people
         $people = (new CreatePeopleAction($this->leadData->people))->execute();
         $newLead->people_id = $people->getId();
-        $newLead->saveOrFail();
-
-        $newLead->setCustomFields($this->leadData->custom_fields);
+        $newLead->email = $people->getEmails()->isNotEmpty() ? $people->getEmails()->first()?->value : null;
+        $newLead->phone = $people->getPhones()->isNotEmpty() ? $people->getPhones()->first()?->value : null;
         if (! $this->leadData->runWorkflow) {
             $newLead->disableWorkflows();
         }
+        $newLead->saveOrFail();
+
+        $newLead->setCustomFields($this->leadData->custom_fields);
         $newLead->saveCustomFields();
 
         if ($this->leadData->files) {

@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Actions;
 
 use Baka\Support\Str;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 
-class ConvertJsonTemplateToLeadAction
+class ConvertJsonTemplateToLeadStructureAction
 {
     public function __construct(
-        protected Lead $lead,
         protected array $template,
         protected array $data
     ) {
@@ -19,30 +19,23 @@ class ConvertJsonTemplateToLeadAction
     /**
      * Map to lead fields.
      */
-    public function execute(): Lead
+    public function execute(): array
     {
         $newMapping = $this->parseLead($this->data, $this->template);
 
-        if (method_exists($this->lead, 'setCustomFields')) {
-            $this->lead->setCustomFields($newMapping['customField']);
-        }
+        return $newMapping;
+    }
 
-        if (method_exists($this->lead, 'disableWorkflows')) {
-            $this->lead->disableWorkflows();
-        }
-
-        $this->lead->saveOrFail($newMapping['modelInfo']);
-
+    public function processFunctions(Lead $lead, array $newMapping): void
+    {
         if (isset($newMapping['function']) && ! empty($newMapping['function'])) {
             foreach ($newMapping['function'] as $key => $value) {
-                $this->lead->{$key}($value);
-                if (method_exists($this->lead, $key)) {
-                    $this->lead->{$key}($value);
+                $lead->{$key}($value);
+                if (method_exists($lead, $key)) {
+                    $lead->{$key}($value);
                 }
             }
         }
-
-        return $this->lead;
     }
 
     /**
@@ -92,24 +85,78 @@ class ConvertJsonTemplateToLeadAction
     public function parseLead(array $request, array $template): array
     {
         $parsedData = [];
+        $customFields = [];
+        $processFields = [];
 
-        // Iterate through the template
+        // Initialize people structure with placeholders
+        $peopleStructure = [
+            'firstname' => null,
+            'lastname' => null,
+            'contacts' => [],
+        ];
+
+        // Iterate through the template and map values accordingly
         foreach ($template as $path => $info) {
             $value = $this->getValueFromPath($request, $path);
+            $name = $info['name'];
+            $type = $info['type'];
 
-            if ($info['type'] === 'string') {
-                $parsedData['modelInfo'][$info['name']] = $value;
-            } elseif ($info['type'] === 'customField') {
-                $parsedData['customField'][$info['name']] = $value;
-            } elseif ($info['type'] === 'function') {
-                $functionName = $info['function'];
-                if (method_exists($this, $functionName) && isset($info['json'])) {
-                    $parsedData['function'][$functionName] = $this->{$functionName}($request, $info['json']);
-                }
+            match ($type) {
+                'string' => $this->mapStringType($peopleStructure, $parsedData, $name, $value),
+                'customField' => $customFields[$name] = $value,
+                'function' => $this->mapFunctionType($parsedData, $request, $info, $name),
+                default => null
+            };
+
+            $processFields[$name] = $value;
+        }
+
+        if (! empty($request['company']) || ! empty($request['organization'])) {
+            $parsedData['organization'] = $request['company'] ?? $request['organization'];
+        }
+
+        // Add remaining unprocessed fields to custom fields
+        foreach ($request as $key => $value) {
+            if (! array_key_exists($key, $processFields) && ! array_key_exists($key, $customFields)) {
+                $customFields[$key] = $value;
             }
         }
 
+        $parsedData['custom_fields'] = $customFields;
+        $parsedData['people'] = $peopleStructure;
+
         return $parsedData;
+    }
+
+    private function mapStringType(array &$peopleStructure, array &$parsedData, string $name, $value): void
+    {
+        match ($name) {
+            'firstname' => $peopleStructure['firstname'] = $value,
+            'lastname' => $peopleStructure['lastname'] = $value,
+            'email' => $this->addContact($peopleStructure['contacts'], ContactTypeEnum::EMAIL->value, $value),
+            'phone' => $this->addContact($peopleStructure['contacts'], ContactTypeEnum::PHONE->value, $value),
+            default => null
+        };
+
+        $parsedData[$name] = $value;
+    }
+
+    private function addContact(array &$contacts, int $contactTypeId, ?string $value): void
+    {
+        if ($value) {
+            $contacts[] = [
+                'contacts_types_id' => $contactTypeId,
+                'value' => $value,
+            ];
+        }
+    }
+
+    private function mapFunctionType(array &$parsedData, array $request, array $info, string $name): void
+    {
+        $functionName = $info['function'];
+        if (method_exists($this, $functionName) && isset($info['json'])) {
+            $parsedData['function'][$functionName] = $this->{$functionName}($request, $info['json']);
+        }
     }
 
     public function getValueFromPath(array $array, string $path): string
@@ -137,6 +184,9 @@ class ConvertJsonTemplateToLeadAction
         return implode(' ', $values);
     }
 
+    /**
+     * @deprecated we need to refactor
+     */
     public function setPeople(array $request, array $json): array
     {
         $person = [];

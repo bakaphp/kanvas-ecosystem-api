@@ -12,9 +12,7 @@ type People {
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
     employment_history: [PeopleEmploymentHistory!]
-        @hasMany(
-            relation: "employmentHistory"
-        )
+        @hasMany(relation: "employmentHistory")
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25
@@ -40,7 +38,7 @@ type PeopleEmploymentHistory {
     start_date: Date!
     end_date: Date
     status: Int!
-    income_type: String 
+    income_type: String
 }
 
 type PeopleRelationship {
@@ -87,15 +85,27 @@ extend type Query @guard {
     peoples(
         search: String @search
         where: _
-            @whereConditions(columns: ["id", "uuid", "companies_id", "dob", "name", "firstname", "lastname"])
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "companies_id"
+                    "dob"
+                    "name"
+                    "firstname"
+                    "lastname"
+                ]
+            )
         hasEmails: _
             @whereHasConditions(relation: "emails", columns: ["id", "value"])
         hasPhones: _
             @whereHasConditions(relation: "phones", columns: ["id", "value"])
-        hasTags: _
-            @whereHasConditions(relation: "tags", columns: ["name"])
+        hasTags: _ @whereHasConditions(relation: "tags", columns: ["name"])
         hasAddress: _
-            @whereHasConditions(relation: "address", columns: ["address", "city", "state", "zip"])
+            @whereHasConditions(
+                relation: "address"
+                columns: ["address", "city", "state", "zip"]
+            )
         hasCustomFields: _
             @whereHasConditions(
                 relation: "customFields"
@@ -116,6 +126,18 @@ extend type Query @guard {
             model: "Kanvas\\Guild\\Customers\\Models\\PeopleRelationship"
             defaultCount: 25
             scopes: ["fromApp", "fromCompany"]
+        )
+
+    peopleCount: Int
+        @count(
+            model: "Kanvas\\Guild\\Customers\\Models\\People"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+        )
+    peopleCountByTag(tag: String!): Int @cache(maxAge: 300)
+        @count(
+            model: "Kanvas\\Guild\\Customers\\Models\\People"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            where: [["tags", "name", "=", "$tag"]]
         )
 }
 
