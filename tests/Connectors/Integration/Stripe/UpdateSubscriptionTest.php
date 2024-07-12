@@ -94,12 +94,6 @@ final class UpdateSubscriptionTest extends TestCase
         // Fake the queue
         Queue::fake();
         $job = new UpdatePeopleStripeSubscription($webhookRequest);
-
-        try {
-            $job->handle();
-        } catch (Throwable $e) {
-            $this->fail($e->getMessage());
-        }
         $result = $job->handle();
 
         $this->assertArrayHasKey('message', $result);
