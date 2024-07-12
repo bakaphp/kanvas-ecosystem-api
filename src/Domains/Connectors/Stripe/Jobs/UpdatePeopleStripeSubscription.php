@@ -15,7 +15,7 @@ use Stripe\StripeClient;
 // Maybe add action at the of the class name
 class UpdatePeopleStripeSubscription extends ProcessWebhookJob
 {
-    public $data;
+    public array $data = [];
 
     public function execute(): array
     {
