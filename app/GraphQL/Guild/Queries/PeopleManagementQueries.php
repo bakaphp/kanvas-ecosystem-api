@@ -12,6 +12,7 @@ use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 class PeopleManagementQueries
 {
     use KanvasScopesTrait;
+    protected string $table = 'peoples';
 
     public function countByTag(mixed $root, array $request, GraphQLContext $context): int
     {
