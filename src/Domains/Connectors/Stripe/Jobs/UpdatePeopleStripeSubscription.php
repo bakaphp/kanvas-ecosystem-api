@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Stripe\Jobs;
 
 use Illuminate\Support\Facades\Log;
+use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Guild\Customers\Actions\CreateOrUpdatePeopleSubscription;
 use Kanvas\Guild\Customers\DataTransferObject\PeopleSubscription as PeopleSubscriptionDTO;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
@@ -23,13 +24,14 @@ class UpdatePeopleStripeSubscription extends ProcessWebhookJob
 
             return [];
         }
+
         $this->data = $this->webhookRequest->payload;
         $webhookSub = $this->data['data']['object'];
         $app = $this->webhookRequest->receiverWebhook->app;
         $company = $this->webhookRequest->receiverWebhook->company;
         $user = $this->webhookRequest->receiverWebhook->user;
 
-        $stripe = new StripeClient($app->get('stripe_secret_key'));
+        $stripe = new StripeClient($app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
         $customer = $stripe->customers->retrieve(
             $webhookSub['customer'],
             ['expand' => ['subscriptions']]
@@ -59,7 +61,7 @@ class UpdatePeopleStripeSubscription extends ProcessWebhookJob
             start_date: date('Y-m-d H:i:s', $subscriptions['current_period_start']),
             end_date: date('Y-m-d H:i:s', $subscriptions['ended_at']),
             next_renewal: date('Y-m-d H:i:s', $subscriptions['current_period_end']),
-            metadata: json_encode($this->data),
+            metadata: $this->data ?? [],
         );
         $action = new CreateOrUpdatePeopleSubscription($dto);
         $peopleSub = $action->handle();

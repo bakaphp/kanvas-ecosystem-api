@@ -23,7 +23,7 @@ class CreateOrUpdatePeopleSubscription
                  'start_date' => $this->peopleSubscriptionDTO->start_date,
                  'end_date' => $this->peopleSubscriptionDTO->end_date,
                  'next_renewal' => $this->peopleSubscriptionDTO->next_renewal,
-                 'metadata' => json_encode($this->peopleSubscriptionDTO->metadata),
+                 'metadata' => $this->peopleSubscriptionDTO->metadata,
                  'apps_id' => $this->peopleSubscriptionDTO->app->getId(),
              ];
 
