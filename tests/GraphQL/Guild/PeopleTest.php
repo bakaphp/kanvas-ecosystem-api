@@ -507,6 +507,6 @@ class PeopleTest extends TestCase
                     'peopleCountBySubscriptionType',
                 ],
             ]);
-        $this->assertTrue(is_int($response['data']['peopleCount']));
+        $this->assertTrue(is_int($response['data']['peopleCountBySubscriptionType']));
     }
 }
