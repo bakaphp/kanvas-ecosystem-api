@@ -26,4 +26,17 @@ class PeopleManagementQueries
 
         return $builder->count();
     }
+
+    public function getBySubscriptionType(mixed $root, array $request, GraphQLContext $context): int
+    {
+        $builder = People::whereHas('subscriptions', function ($query) use ($request) {
+            $query->where('peoples_subscriptions.subscription_type', $request['type']);
+        });
+
+        $builder->where('is_deleted', StateEnums::NO->getValue());
+        $builder = $this->scopeFromCompany($builder);
+        $builder = $this->scopeFromApp($builder);
+
+        return $builder->count();
+    }
 }

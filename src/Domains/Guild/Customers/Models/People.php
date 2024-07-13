@@ -115,6 +115,15 @@ class People extends BaseModel
         );
     }
 
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(
+            PeopleSubscription::class,
+            'peoples_id',
+            'id'
+        );
+    }
+
     /**
      * @psalm-suppress MixedReturnStatement
      */
