@@ -96,6 +96,9 @@ class SyncZohoLeadAction
                 ];
             }
 
+            /**
+             * @todo assign owner and user and member # if exist
+             */
             $lead = new DataTransferObjectLead(
                 app: $this->app,
                 branch: $this->company->defaultBranch,
