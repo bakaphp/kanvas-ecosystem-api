@@ -75,6 +75,7 @@ class CreateMessageFromReceiverJob extends ProcessWebhookJob
             'message' => 'Message created successfully from receiver with id ' . $message->getId(),
             'message_id' => $message->getId(),
             'message_verb' => $messageType->verb,
+            'distribution' => $payload['distribution'] ?? null
         ];
     }
 }

@@ -26,7 +26,7 @@ class ChannelsManagementMutation
             name: $request['input']['name'],
             description: $request['input']['description'],
             entity_id: $request['input']['entity_id'],
-            entity_namespace: $systemModule->uuid,
+            entity_namespace: $systemModule->model_name,
             slug: $request['input']['slug'] ?? Str::slug($request['input']['name'])
         );
 

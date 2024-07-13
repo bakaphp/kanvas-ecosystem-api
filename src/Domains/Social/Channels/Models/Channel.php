@@ -20,6 +20,8 @@ use Kanvas\Users\Models\Users;
  *  @property string $slug
  *  @property string $description
  *  @property int $last_message_id
+ *  @property int $apps_id
+ *  @property int $companies_id
  *  @property int $entity_id
  *  @property int $entity_namespace
  */
@@ -42,7 +44,7 @@ class Channel extends BaseModel
 
     public function systemModule(): BelongsTo
     {
-        return $this->belongsTo(SystemModules::class, 'entity_namespace', 'model_name');
+        return $this->belongsTo(SystemModules::class, 'entity_namespace', 'model_name')->where('apps_id', $this->apps_id);
     }
 
     public function messages(): BelongsToMany
