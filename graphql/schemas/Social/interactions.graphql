@@ -48,6 +48,7 @@ extend type Mutation @guardByAuthOrCompany {
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractionMutation@disLikeEntity"
         )
+        @deprecated(reason: "Use likeEntity instead")
     getInteractionByEntity(input: LikeEntityInput!): Interactions!
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractionMutation@getInteractionByEntity"
