@@ -50,26 +50,21 @@ class MessagesCommentsTest extends TestCase
             '
                 mutation addComment($input: CommentInput!) {
                     addComment(input: $input) {
-                        comments {
-                            message
-                        }
+                            comment
+                        
                     }
                 }
             ',
             [
                 'input' => [
                     'message_id' => $id,
-                    'message' => $comment,
+                    'comment' => $comment,
                 ],
             ]
         )->assertJson([
             'data' => [
                 'addComment' => [
-                    'comments' => [
-                        [
-                            'message' => $comment,
-                        ],
-                    ],
+                    'comment' => $comment,
                 ],
             ],
         ]);
@@ -107,49 +102,39 @@ class MessagesCommentsTest extends TestCase
             '
                 mutation addComment($input: CommentInput!) {
                     addComment(input: $input) {
-                        comments {
                             id,
-                            message
-                        }
+                            comment
                     }
                 }
             ',
             [
                 'input' => [
                     'message_id' => $messageId,
-                    'message' => $comment,
+                    'comment' => $comment,
                 ],
             ]
         );
-        $commentId = $response->json('data.addComment.comments.0.id');
-
+        $commentId = $response->json('data.addComment.id');
         $comment = fake()->text();
 
         $this->graphQL(
             '
-                mutation updateComment($input: CommentInput!, $comment_id: ID!) {
-                    updateComment(input: $input, comment_id: $comment_id) {
-                        comments {
-                            message
-                        }
+                mutation updateComment($input: CommentUpdateInput!, $id: ID!) {
+                    updateComment(input: $input, id: $id) {
+                        comment
                     }
                 }
             ',
             [
                 'input' => [
-                    'message' => $comment,
-                    'message_id' => $message->id,
+                    'comment' => $comment,
                 ],
-                'comment_id' => $commentId,
+                'id' => $commentId,
             ]
         )->assertJson([
             'data' => [
                 'updateComment' => [
-                    'comments' => [
-                        [
-                            'message' => $comment,
-                        ],
-                    ],
+                    'comment' => $comment,
                 ],
             ],
         ]);
@@ -187,21 +172,19 @@ class MessagesCommentsTest extends TestCase
             '
                 mutation addComment($input: CommentInput!) {
                     addComment(input: $input) {
-                        comments {
-                            id,
-                            message
-                        }
+                        id,
+                        comment
                     }
                 }
             ',
             [
                 'input' => [
                     'message_id' => $messageId,
-                    'message' => $comment,
+                    'comment' => $comment,
                 ],
             ]
         );
-        $commentId = $response->json('data.addComment.comments.0.id');
+        $commentId = $response->json('data.addComment.id');
 
         $this->graphQL(
             '

@@ -14,12 +14,12 @@ use Spatie\LaravelData\Data;
 class MessageComment extends Data
 {
     public function __construct(
-        public Apps $apps,
-        public Companies $companies,
-        public Users $users,
-        public Message $messages,
-        public string $message,
-        public int $parent_id = 0
+        public Apps $app,
+        public Companies $company,
+        public Users $user,
+        public Message $message,
+        public string $comment,
+        public ?int $parent_id = null
     ) {
     }
 }

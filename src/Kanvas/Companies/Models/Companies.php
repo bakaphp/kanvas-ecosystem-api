@@ -72,13 +72,7 @@ class Companies extends BaseModel implements CompanyInterface
 
     public const DELETED_AT = 'is_deleted';
 
-
-    /**
-     * The attributes that should not be mass assignable.
-     *
-     * @var array
-     */
-    protected $guarded = ['files'];
+    protected $guarded = ['files', 'users_id', 'custom_fields'];
 
     /**
      * Create a new factory instance for the model.

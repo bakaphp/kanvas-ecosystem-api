@@ -4,13 +4,14 @@ namespace Kanvas\Notifications\Templates;
 
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Notifications\Notification;
+use Kanvas\Templates\Enums\EmailTemplateEnum;
 
 /**
  * @deprecated version 2 , move to DynamicKanvasNotification
  */
 class ResetPassword extends Notification
 {
-    public ?string $templateName = 'reset-password';
+    public ?string $templateName = EmailTemplateEnum::RESET_PASSWORD->value;
 
     public function getData(): array
     {

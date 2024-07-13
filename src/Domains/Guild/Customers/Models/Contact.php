@@ -7,6 +7,7 @@ namespace Kanvas\Guild\Customers\Models;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Guild\Customers\Factories\ContactFactory;
 use Kanvas\Guild\Models\BaseModel;
 
 /**
@@ -17,7 +18,6 @@ use Kanvas\Guild\Models\BaseModel;
  * @property int $peoples_id
  * @property string $value
  * @property int $weight
- *
  */
 class Contact extends BaseModel
 {
@@ -43,5 +43,10 @@ class Contact extends BaseModel
             'contacts_types_id',
             'id'
         );
+    }
+
+    protected static function newFactory()
+    {
+        return new ContactFactory();
     }
 }

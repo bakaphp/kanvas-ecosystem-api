@@ -7,6 +7,7 @@ namespace Kanvas\Auth\Services;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Notifications\Templates\ResetPassword;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -48,12 +49,16 @@ class ForgotPassword
      */
     public function reset(string $newPassword, string $hashKey): bool
     {
-        $recoverUser = UsersAssociatedApps::fromApp($this->app)
-            ->notDeleted()
-            ->where([
-                'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
-                'user_activation_forgot' => $hashKey,
-            ])->firstOrFail();
+        try {
+            $recoverUser = UsersAssociatedApps::fromApp($this->app)
+                ->notDeleted()
+                ->where([
+                    'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
+                    'user_activation_forgot' => $hashKey,
+                ])->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            throw new ExceptionsModelNotFoundException('Password reset link has expired, request a new link.');
+        }
 
         return $recoverUser->user()->firstOrFail()->resetPassword($newPassword, $this->app);
     }

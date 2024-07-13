@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Attributes\Models;
 
+use Baka\Support\Str;
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -12,7 +14,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Models\BaseModel;
-use Baka\Traits\DatabaseSearchableTrait;
 use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 
 /**
@@ -35,14 +36,6 @@ class Attributes extends BaseModel
     protected $cascadeDeletes = ['variantAttributes', 'defaultValues'];
 
     /**
-     * companies.
-     */
-    public function companies(): BelongsTo
-    {
-        return $this->belongsTo(Companies::class, 'companies_id');
-    }
-
-    /**
      * apps.
      */
     public function apps(): BelongsTo
@@ -56,12 +49,12 @@ class Attributes extends BaseModel
     }
 
     /**
-     * attributes values
+     * attributes values from pivot
      */
     public function value(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->pivot->value,
+            get: fn () => Str::isJson($this->pivot->value) ? json_decode($this->pivot->value, true) : $this->pivot->value,
         );
     }
 

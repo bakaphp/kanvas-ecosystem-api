@@ -6,7 +6,6 @@ namespace Kanvas\Guild\Leads\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
@@ -40,6 +39,7 @@ class Lead extends Data
         public readonly Organization|null $organization = null,
         public readonly array $custom_fields = [],
         public readonly array $files = [],
+        public readonly bool $runWorkflow = true
     ) {
     }
 
@@ -48,33 +48,38 @@ class Lead extends Data
      */
     public static function viaRequest(UserInterface $user, AppInterface $app, array $request): self
     {
-        $branch = CompaniesBranches::getById($request['branch_id']);
+        $branch = isset($request['branch_id']) ? CompaniesBranches::getById($request['branch_id']) : $user->getCurrentCompany()->branch;
         CompaniesRepository::userAssociatedToCompanyAndBranch(
             $branch->company,
             $branch,
             $user
         );
 
+        $firstname = $request['people']['firstname'] ?? '';
+        $lastname = $request['people']['lastname'] ?? '';
+        $title = $request['title'] ?? $firstname . ' ' . $lastname . ' Opp';
+
         return new self(
             $app,
             $branch,
             $user,
-            (string) $request['title'],
-            (int) $request['pipeline_stage_id'],
+            (string) $title,
+            (int) ($request['pipeline_stage_id'] ?? 0),
             People::from([
                 'app' => $app,
                 'branch' => $branch,
                 'user' => $user,
-                'firstname' => $request['people']['firstname'],
-                'lastname' => $request['people']['lastname'],
+                'firstname' => $firstname,
+                'lastname' => $lastname,
                 'contacts' => Contact::collect($request['people']['contacts'], DataCollection::class),
-                'address' => Address::collect($request['people']['address'], DataCollection::class),
+                'address' => Address::collect($request['people']['address'] ?? [], DataCollection::class),
                 'id' => $request['people']['id'] ?? 0,
                 'dob' => $request['people']['dob'] ?? null,
                 'facebook_contact_id' => $request['people']['facebook_contact_id'] ?? null,
                 'google_contact_id' => $request['people']['google_contact_id'] ?? null,
                 'apple_contact_id' => $request['people']['apple_contact_id'] ?? null,
                 'linkedin_contact_id' => $request['people']['linkedin_contact_id'] ?? null,
+                'custom_fields' => $request['people']['custom_fields'] ?? [],
             ]),
             (int) ($request['leads_owner_id'] ?? 0),
             (int) ($request['type_id'] ?? 0),

@@ -7,6 +7,7 @@ namespace Kanvas\Inventory\Products\Models;
 use Awobaz\Compoships\Compoships;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -174,6 +175,13 @@ class Products extends BaseModel
                 'firstname' => $this?->company?->user?->firstname,
                 'lastname' => $this?->company?->user?->lastname,
             ],
+            'categories' => $this->categories->map(function ($category) {
+                return [
+                    'id' => $category->id,
+                    'name' => $category->name,
+                    'slug' => $category->slug,
+                  ];
+            }),
             'variants' => $this->variants->map(function ($variant) {
                 return $variant->toSearchableArray();
             }),
@@ -195,13 +203,16 @@ class Products extends BaseModel
 
     public function searchableAs(): string
     {
-        return config('scout.prefix') . 'product_index';
+        $customIndex = $this->app ? $this->app->get('app_custom_product_index') : null;
+
+        return config('scout.prefix') . ($customIndex ?? 'product_index');
     }
 
     public static function search($query = '', $callback = null)
     {
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
-        if (! auth()->user()->isAppOwner()) {
+        $user = auth()->user();
+        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
         }
 

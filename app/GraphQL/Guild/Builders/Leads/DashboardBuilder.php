@@ -35,7 +35,7 @@ class DashboardBuilder
                     COUNT(CASE WHEN leads_status.name = ? THEN 1 END) + COUNT(CASE WHEN leads_status.name = ? THEN 1 END)  as total_active_leads,
                     COUNT(CASE WHEN leads_status.name = ? THEN 1 END) as total_closed_leads,
                     (SELECT count(*) FROM agents where owner_linked_source_id = ? AND companies_id = ? and status_id = 1) as total_agents
-                ', ['active', 'created', 'closed', $agentInfo->users_linked_source_id, $company->getId()])
+                ', ['active', 'created', 'complete', $agentInfo->users_linked_source_id, $company->getId()])
                 ->join('leads_status', 'leads.leads_status_id', '=', 'leads_status.id')
                 ->fromCompany($company);
         }
@@ -47,7 +47,7 @@ class DashboardBuilder
                     COUNT(CASE WHEN leads_status.name = ? THEN 1 END) + COUNT(CASE WHEN leads_status.name = ? THEN 1 END)  as total_active_leads,
                     COUNT(CASE WHEN leads_status.name = ? THEN 1 END) as total_closed_leads,
                     (SELECT count(*) FROM agents where owner_id = ? AND companies_id = ? and status_id = 1) as total_agents
-                ', ['active', 'created', 'closed', $memberId, $company->getId()])
+                ', ['active', 'created', 'complete', $memberId, $company->getId()])
                  ->join('leads_status', 'leads.leads_status_id', '=', 'leads_status.id')
                  ->fromCompany($company);
     }

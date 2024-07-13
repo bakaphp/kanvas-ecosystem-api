@@ -5,15 +5,18 @@ declare(strict_types=1);
 namespace App\GraphQL\Social\Mutations\Messages;
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Exceptions\AuthenticationException;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\Actions\DistributeChannelAction;
 use Kanvas\Social\Messages\Actions\DistributeToUsers;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
-use Kanvas\Social\Messages\Enums\ActivityTypeEnum;
 use Kanvas\Social\Messages\Enums\DistributionTypeEnum;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Validations\ValidParentMessage;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
@@ -21,24 +24,28 @@ use Kanvas\SystemModules\Models\SystemModules;
 
 class MessageManagementMutation
 {
-    public function interaction(mixed $root, array $request): Message
-    {
-        $message = Message::getById((int)$request['id']);
-        $action = new CreateMessageAction($message, auth()->user(), ActivityTypeEnum::from($request['type']));
-        $action->execute();
-
-        return $message;
-    }
-
-    /**
-     * create
-     */
     public function create(mixed $root, array $request): Message
     {
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $messageData = $request['input'];
+
+        $rules = [
+            'system_modules_id' => 'nullable',
+            'entity_id' => [
+                'nullable',
+                Rule::requiredIf(function () use ($messageData) {
+                    return array_key_exists('system_modules_id', $messageData) && ! $messageData['system_modules_id'] !== null;
+                }),
+            ],
+        ];
+
+        $validator = Validator::make($messageData, $rules);
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator->messages()->__toString());
+        }
 
         try {
             $messageType = MessagesTypesRepository::getByVerb($messageData['message_verb'], $app);
@@ -50,9 +57,22 @@ class MessageManagementMutation
             ]);
             $messageType = (new CreateMessageTypeAction($messageTypeDto))->execute();
         }
-        $systemModule = key_exists('system_modules_id', $messageData) ? SystemModules::getById((int)$messageData['system_modules_id'], $app) : null;
-        $data = MessageInput::fromArray($messageData, $user, $messageType, $company, $app);
-        $action = new CreateMessageAction($data, $systemModule, $messageData['entity_id']);
+
+        $systemModuleId = $messageData['system_modules_id'] ?? null;
+        $systemModule = $systemModuleId ? SystemModules::getById((int)$systemModuleId, $app) : null;
+        $data = MessageInput::fromArray(
+            $messageData,
+            $user,
+            $messageType,
+            $company,
+            $app
+        );
+
+        $action = new CreateMessageAction(
+            $data,
+            $systemModule,
+            $messageData['entity_id'] ?? null
+        );
         $message = $action->execute();
 
         if (! key_exists('distribution', $messageData)) {
@@ -81,20 +101,55 @@ class MessageManagementMutation
         if (! $message->canEdit(auth()->user())) {
             throw new AuthenticationException('You are not allowed to edit this message');
         }
+
+        $validator = Validator::make($request, [
+            'parent_id' => [new ValidParentMessage($message->app->getId())],
+        ]);
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator->messages()->__toString());
+        }
+
         $message->update($request['input']);
 
         return $message;
     }
 
-    public function delete(mixed $root, array $request): Message
+    public function delete(mixed $root, array $request): bool
     {
         $message = Message::getById((int)$request['id'], app(Apps::class));
-        if (! $message->canEdit(auth()->user())) {
+        if (! $message->canDelete(auth()->user())) {
             throw new AuthenticationException('You are not allowed to delete this message');
         }
-        $message->delete();
 
-        return $message;
+        return $message->delete();
+    }
+
+    public function deleteMultiple(mixed $root, array $request): bool
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $messages = Message::fromApp($app)->whereIn('id', $request['ids'])->get();
+
+        $total = 0;
+
+        foreach ($messages as $message) {
+            if (! $message->canEdit($user)) {
+                throw new AuthenticationException('You are not allowed to delete this message');
+            }
+            $message->delete();
+            $total++;
+        }
+
+        return $total > 0;
+    }
+
+    public function deleteAll(mixed $root, array $request): bool
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        return Message::fromApp($app)->where('users_id', $user->getId())->delete() > 0;
     }
 
     public function attachTopicToMessage(mixed $root, array $request): Message

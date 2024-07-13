@@ -20,6 +20,7 @@ type User {
     abilities: Mixed! @method(name: "getAbilitiesList")
     roles: Mixed! @method(name: "getRoles")
     mainRole: String!
+    welcome: Boolean! @method(name: "getAppWelcome")
     created_at: DateTime
     systemModule: SystemModule! @belongsTo(relation: "systemModule")
     updated_at: DateTime
@@ -27,6 +28,7 @@ type User {
     companies: [Company!]! @HasManyThrough
     apps: [App!]! @HasManyThrough
     photo: Filesystem @method(name: "getPhoto")
+    social: UserSocialInfo @method(name: "getSocialInfo")
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25
@@ -78,6 +80,14 @@ type UserLinkSource {
 type RegisterResponse {
     user: User!
     token: TokenResponse!
+}
+
+type UserSocialInfo {
+    total_message: Int
+    total_like: Int
+    total_followers: Int
+    total_following: Int
+    total_lists: Int
 }
 
 input LoginInput {
@@ -132,6 +142,7 @@ input UpdateUserInput {
     address_1: String
     address_2: String
     zip_code: Int
+    welcome: Boolean
     city_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Models\\Cities,id"])
     state_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Models\\States,id"])
     country_id: Int

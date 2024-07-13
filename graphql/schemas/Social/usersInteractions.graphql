@@ -52,7 +52,7 @@ extend type Query @guard {
             )
     ): [UserInteraction!]!
         @paginate(
-            model: "Kanvas\\Social\\UsersInteractions\\Models\\UserInteraction"
+            model: "Kanvas\\Social\\Interactions\\Models\\UsersInteractions"
             defaultCount: 25
         )
 }

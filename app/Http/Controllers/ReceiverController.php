@@ -8,11 +8,16 @@ use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller as BaseController;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoAgentAction;
+use Kanvas\Connectors\Zoho\Actions\SyncZohoLeadAction;
 use Kanvas\Connectors\Zoho\Workflows\ZohoLeadOwnerWorkflow;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
+use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
+use Kanvas\Workflow\Models\ReceiverWebhook;
 use Workflow\WorkflowStub;
 
 class ReceiverController extends BaseController
@@ -25,6 +30,26 @@ class ReceiverController extends BaseController
     public function store(string $uuid, Request $request): JsonResponse
     {
         $app = app(Apps::class);
+        $receiver = ReceiverWebhook::where('uuid', $uuid)->notDeleted()->first();
+        if ($receiver) {
+            //    return response()->json(['message' => 'Receiver not found'], 404);
+            if ($app->getId() != $receiver->apps_id) {
+                $app = $receiver->app;
+                App::scoped(Apps::class, function () use ($app) {
+                    return $app;
+                });
+            }
+
+            $webhookRequest = (new ProcessWebhookAttemptAction($receiver, $request))->execute();
+            $job = new $receiver->action->model_name($webhookRequest);
+            dispatch($job);
+
+            return response()->json(['message' => 'Receiver processed']);
+        }
+
+        /**
+         * @todo move to the new system
+         */
         $receiver = LeadReceiver::fromApp($app)->where('uuid', $uuid)->first();
 
         if (! $receiver) {
@@ -32,6 +57,8 @@ class ReceiverController extends BaseController
         }
 
         $tempSubSystem = $uuid == $app->get('subsystem-temp-uuid');
+        $zohoLeadTempSubSystem = $uuid == $app->get('zoho-lead-temp-uuid');
+        $isTempSystem = $tempSubSystem || $zohoLeadTempSubSystem;
 
         Auth::loginUsingId($receiver->users_id);
 
@@ -49,7 +76,7 @@ class ReceiverController extends BaseController
 
         $leadExternalId = $request->get('entity_id');
 
-        if ($receiver->rotation === null && ! $tempSubSystem) {
+        if ($receiver->rotation === null && ! $isTempSystem) {
             return response()->json(['message' => 'Rotation not found'], 404);
         }
 
@@ -57,6 +84,13 @@ class ReceiverController extends BaseController
         if ($tempSubSystem) {
             $syncZohoAgent = new SyncZohoAgentAction($app, $receiver->company, $request->get('email'));
             $syncZohoAgent->execute();
+
+            return response()->json(['message' => 'Receiver processed']);
+        }
+
+        if ($zohoLeadTempSubSystem) {
+            $syncLead = new SyncZohoLeadAction($app, $receiver->company, $receiver, $leadExternalId);
+            $syncLead->execute();
 
             return response()->json(['message' => 'Receiver processed']);
         }

@@ -11,10 +11,15 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Notifications\Templates\Blank;
+
+use function Sentry\captureException;
+
+use Throwable;
 
 class MailCaddieLabJob implements ShouldQueue
 {
@@ -52,22 +57,32 @@ class MailCaddieLabJob implements ShouldQueue
     public function sendMails(Collection $peoples, string $template, string $baseUrl, string $subject)
     {
         foreach ($peoples as $people) {
-            $email = $people->emails()->first();
-            $url = $baseUrl . '/' . '?email=' . $email->value . '&paid=false';
-            $notification = new Blank(
-                $template,
-                ['membershipUpgradeUrl' => $url, 'app' => $this->app],
-                ['mail'],
-                $people
-            );
-            $notification->setSubject($subject);
-            if (! $people->get('paid_subscription')) {
-                $mail = $this->email ?? $email->value;
-                echo ' Sending email to ' . $mail . "\n";
-                Notification::route('mail', $mail)->notify($notification);
-                if ($this->email) {
-                    break;
+            try {
+                $email = $people->emails()->first();
+
+                if (! $email) {
+                    continue;
                 }
+
+                $url = $baseUrl . '/' . '?email=' . $email->value . '&paid=false';
+                $notification = new Blank(
+                    $template,
+                    ['membershipUpgradeUrl' => $url, 'app' => $this->app],
+                    ['mail'],
+                    $people
+                );
+                $notification->setSubject($subject);
+                if (! $people->get('paid_subscription')) {
+                    $mail = $this->email ?? $email->value;
+                    echo ' Sending email to ' . $mail . "\n";
+                    Notification::route('mail', $mail)->notify($notification);
+                    if ($this->email) {
+                        break;
+                    }
+                }
+            } catch (Throwable $e) {
+                Log::error($e->getMessage());
+                captureException($e);
             }
         }
     }

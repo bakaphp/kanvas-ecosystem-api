@@ -52,4 +52,12 @@ class VariantsWarehouseObserver
             $variantWarehouse->variant->setTotalQuantity()
         );
     }
+
+    public function deleted(VariantsWarehouses $variantWarehouse): void
+    {
+        $variantWarehouse->warehouse->set(
+            'total_products',
+            $variantWarehouse->getTotalProducts()
+        );
+    }
 }

@@ -9,10 +9,6 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 class WarehouseObserver
 {
-    /**
-     * @todo change companies to company relation
-     *
-     */
     public function creating(Warehouses $warehouse): void
     {
         $defaultWarehouse = $warehouse::getDefault($warehouse->company);
@@ -49,6 +45,10 @@ class WarehouseObserver
 
     public function deleting(Warehouses $warehouse): void
     {
+        if ($warehouse->hasDependencies()) {
+            throw new ValidationException('Can\'t delete, Warehouse has variants associated');
+        }
+
         $defaultWarehouse = $warehouse::getDefault($warehouse->company);
 
         if ($defaultWarehouse->getId() == $warehouse->getId()) {

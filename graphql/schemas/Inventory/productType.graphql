@@ -73,6 +73,7 @@ extend type Query {
                     "companies_id"
                     "uuid"
                     "description"
+                    "is_published"
                     "weight"
                 ]
             )
