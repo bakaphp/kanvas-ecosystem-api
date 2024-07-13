@@ -40,7 +40,7 @@ class ChannelsTest extends TestCase
                     'name' => $data['name'],
                     'description' => $data['description'],
                     'entity_id' => $data['entity_id'],
-                    'entity_namespace' => $data['entity_namespace_uuid'],
+                    'entity_namespace' => $systemModule->model_name
                 ],
             ],
         ]);
@@ -184,6 +184,7 @@ class ChannelsTest extends TestCase
                 ],
             ]
         );
+
         $response->assertJsonStructure([
             'data' => [
                 'attachUserToSocialChannel' => [

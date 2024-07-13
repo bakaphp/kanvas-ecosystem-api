@@ -133,11 +133,9 @@ extend type Query @guard {
             model: "Kanvas\\Guild\\Customers\\Models\\People"
             scopes: ["fromApp", "fromCompany", "notDeleted"]
         )
-    peopleCountByTag(tag: String!): Int @cache(maxAge: 300)
-        @count(
-            model: "Kanvas\\Guild\\Customers\\Models\\People"
-            scopes: ["fromApp", "fromCompany", "notDeleted"]
-            where: [["tags", "name", "=", "$tag"]]
+    peopleCountByTag(tag: String!): Int
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Queries\\PeopleManagementQueries@countByTag"
         )
 }
 
