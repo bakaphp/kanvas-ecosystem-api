@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Social\Mutations\Channels;
 
 use Baka\Support\Str;
+use Exception;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
@@ -69,7 +70,7 @@ class ChannelsManagementMutation
 
         try {
             $roles = RolesRepository::getByMixedParamFromCompany($request['input']['roles_id'], auth()->user()->getCurrentCompany());
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $roles = RolesRepository::getByMixedParamFromCompany(RolesEnums::USER->value, auth()->user()->getCurrentCompany());
         }
         $channel->users()->attach($user->id, ['roles_id' => $roles->id]);
