@@ -7,7 +7,7 @@ namespace Kanvas\Guild\Customers\Actions;
 use Kanvas\Guild\Customers\DataTransferObject\PeopleSubscription as PeopleSubscriptionDTO;
 use Kanvas\Guild\Customers\Models\PeopleSubscription;
 
-class CreateOrUpdatePeopleSubscription
+class CreateOrUpdatePeopleSubscriptionAction
 {
     public function __construct(
         private PeopleSubscriptionDTO $peopleSubscriptionDTO

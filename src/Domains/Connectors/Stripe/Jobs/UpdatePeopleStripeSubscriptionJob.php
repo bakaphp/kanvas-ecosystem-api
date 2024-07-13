@@ -6,14 +6,14 @@ namespace Kanvas\Connectors\Stripe\Jobs;
 
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
-use Kanvas\Guild\Customers\Actions\CreateOrUpdatePeopleSubscription;
+use Kanvas\Guild\Customers\Actions\CreateOrUpdatePeopleSubscriptionAction;
 use Kanvas\Guild\Customers\DataTransferObject\PeopleSubscription as PeopleSubscriptionDTO;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Stripe\StripeClient;
 
 // Maybe add action at the of the class name
-class UpdatePeopleStripeSubscription extends ProcessWebhookJob
+class UpdatePeopleStripeSubscriptionJob extends ProcessWebhookJob
 {
     public array $data = [];
 
@@ -63,7 +63,7 @@ class UpdatePeopleStripeSubscription extends ProcessWebhookJob
             next_renewal: date('Y-m-d H:i:s', $subscriptions['current_period_end']),
             metadata: $this->data ?? [],
         );
-        $action = new CreateOrUpdatePeopleSubscription($dto);
+        $action = new CreateOrUpdatePeopleSubscriptionAction($dto);
         $peopleSub = $action->handle();
 
         return [

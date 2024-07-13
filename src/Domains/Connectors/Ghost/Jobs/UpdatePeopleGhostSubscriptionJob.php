@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Ghost\Jobs;
 
 use Exception;
-use Kanvas\Guild\Customers\Actions\CreateOrUpdatePeopleSubscription;
+use Kanvas\Guild\Customers\Actions\CreateOrUpdatePeopleSubscriptionAction;
 use Kanvas\Guild\Customers\DataTransferObject\PeopleSubscription as PeopleSubscriptionDTO;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 
 // Maybe add action at the of the class name
-class UpdatePeopleGhostSubscription extends ProcessWebhookJob
+class UpdatePeopleGhostSubscriptionJob extends ProcessWebhookJob
 {
     public function execute(): array
     {
@@ -31,7 +31,7 @@ class UpdatePeopleGhostSubscription extends ProcessWebhookJob
             start_date: date('Y-m-d H:i:s', $member['created_at']),
             metadata: $this->webhookRequest->payload
         );
-        $action = new CreateOrUpdatePeopleSubscription($dto);
+        $action = new CreateOrUpdatePeopleSubscriptionAction($dto);
         $peopleSub = $action->handle();
 
         return [

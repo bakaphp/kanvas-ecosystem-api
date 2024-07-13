@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Request;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Stripe\Jobs\UpdatePeopleStripeSubscription;
+use Kanvas\Connectors\Stripe\Jobs\UpdatePeopleStripeSubscriptionJob;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
@@ -16,7 +16,6 @@ use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\WorkflowAction;
 use Stripe\StripeClient;
 use Tests\TestCase;
-use Throwable;
 
 final class UpdateSubscriptionTest extends TestCase
 {
@@ -75,7 +74,7 @@ final class UpdateSubscriptionTest extends TestCase
 
         $workflowAction = WorkflowAction::firstOrCreate([
             'name' => 'Update People Subscription',
-            'model_name' => UpdatePeopleStripeSubscription::class,
+            'model_name' => UpdatePeopleStripeSubscriptionJob::class,
         ]);
 
         $receiverWebhook = ReceiverWebhook::factory()
@@ -93,7 +92,7 @@ final class UpdateSubscriptionTest extends TestCase
 
         // Fake the queue
         Queue::fake();
-        $job = new UpdatePeopleStripeSubscription($webhookRequest);
+        $job = new UpdatePeopleStripeSubscriptionJob($webhookRequest);
         $result = $job->handle();
 
         $this->assertArrayHasKey('message', $result);

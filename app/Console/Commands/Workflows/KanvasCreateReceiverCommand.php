@@ -20,7 +20,7 @@ class KanvasCreateReceiverCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:create-receiver';
+    protected $signature = 'kanvas:create-receiver-workflow';
 
     public function handle(): void
     {
@@ -29,15 +29,19 @@ class KanvasCreateReceiverCommand extends Command
             label: 'Select the app for the receiver: ',
             options: Apps::pluck('name', 'id'),
         );
+
         $action = select(
             label: 'Select the action for the receiver: ',
             options: WorkflowAction::pluck('name', 'id'),
         );
+
         $userId = $this->ask('Enter the user ID for the receiver: ');
         $companyId = $this->ask('Enter the company ID for the receiver: ');
         $name = $this->ask('Enter the name for the receiver: ');
         $description = $this->ask('Enter the description for the receiver: ');
+
         $company = Companies::getById($companyId);
+
         $user = UsersRepository::getUserOfCompanyById($company, (int)$userId);
 
         $receiver = ReceiverWebhook::create([

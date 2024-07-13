@@ -7,7 +7,7 @@ namespace Test\Connectors\Integration\Stripe;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Request;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Ghost\Jobs\UpdatePeopleGhostSubscription;
+use Kanvas\Connectors\Ghost\Jobs\UpdatePeopleGhostSubscriptionJob;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
@@ -37,7 +37,7 @@ final class CreatePeopleSubscriptionTest extends TestCase
 
         $workflowAction = WorkflowAction::firstOrCreate([
             'name' => 'Update People Subscription',
-            'model_name' => UpdatePeopleGhostSubscription::class,
+            'model_name' => UpdatePeopleGhostSubscriptionJob::class,
         ]);
 
         $receiverWebhook = ReceiverWebhook::factory()
@@ -55,7 +55,7 @@ final class CreatePeopleSubscriptionTest extends TestCase
 
         // Fake the queue
         Queue::fake();
-        $job = new UpdatePeopleGhostSubscription($webhookRequest);
+        $job = new UpdatePeopleGhostSubscriptionJob($webhookRequest);
         $result = $job->handle();
         $this->assertArrayHasKey('success', $result);
         $this->assertArrayHasKey('data', $result);
