@@ -25,9 +25,9 @@ class Channels extends Data
         public UserInterface $user,
         public string $name,
         public ?string $description = null,
-        public ?string $slug = null,
         public bool $is_default = false,
         public bool $is_published = true,
+        public ?string $slug = null
     ) {
     }
 
