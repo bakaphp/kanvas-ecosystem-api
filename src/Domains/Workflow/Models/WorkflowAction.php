@@ -14,6 +14,8 @@ class WorkflowAction extends BaseModel
 
     protected $table = 'actions';
 
+    protected $guarded = [];
+
     protected static function newFactory(): Factory
     {
         return ActionFactory::new();

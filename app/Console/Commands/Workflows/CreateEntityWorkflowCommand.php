@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands;
+namespace App\Console\Commands\Workflows;
 
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
