@@ -21,7 +21,7 @@ type Interaction {
 type UserEntityInteraction {
     entity_id: ID!
     entity_namespace: String!
-    interactions: JSON
+    interactions: Mixed
 }
 
 input UserInteractionInput {
@@ -54,10 +54,11 @@ extend type Query @guard {
         @paginate(
             model: "Kanvas\\Social\\Interactions\\Models\\UsersInteractions"
             defaultCount: 25
+            scopes: ["fromApp", "fromUser"]
         )
 }
 
-extend type Query {
+extend type Query @guard {
     getUserInteraction(
         entity_id: ID!
         entity_namespace: String!

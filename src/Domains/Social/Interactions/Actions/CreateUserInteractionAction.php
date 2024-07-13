@@ -19,6 +19,7 @@ class CreateUserInteractionAction
     {
         $userInteraction = UsersInteractions::firstOrCreate([
             'users_id' => $this->userInteractionData->user->getId(),
+            'apps_id' => $this->userInteractionData->interaction->apps_id,
             'entity_id' => $this->userInteractionData->entity_id,
             'entity_namespace' => $this->userInteractionData->entity_namespace,
             'interactions_id' => $this->userInteractionData->interaction->getId(),
