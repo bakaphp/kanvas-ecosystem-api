@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Social\Integration;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Models\EntityInteractions;
@@ -62,6 +63,17 @@ final class InteractionsTest extends TestCase
 
         $this->assertTrue(
             $product->unLike($warehouse)
+        );
+    }
+
+    public function testEntityNewInteraction()
+    {
+        $people = People::firstOrFail();
+        $product = Products::firstOrFail();
+
+        $this->assertInstanceOf(
+            EntityInteractions::class,
+            $people->addInteraction($product, 'view', 'This is a test note')
         );
     }
 }

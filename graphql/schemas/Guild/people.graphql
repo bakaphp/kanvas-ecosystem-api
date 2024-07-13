@@ -23,6 +23,11 @@ type People {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
+    interactions: [EntityInteraction!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Builders\\Interactions\\EntityInteractionsBuilder@getAll"
+        )
     tags: [Tag!]
         @paginate(
             defaultCount: 25
