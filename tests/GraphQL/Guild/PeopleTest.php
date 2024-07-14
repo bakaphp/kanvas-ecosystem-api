@@ -457,4 +457,56 @@ class PeopleTest extends TestCase
             ]);
         $this->assertTrue(is_int($response['data']['peopleCount']));
     }
+
+    public function testPeopleCountBySubscriptionType()
+    {
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $firstname = fake()->firstName();
+        $lastname = fake()->lastName();
+
+        $input = [
+            'firstname' => $firstname,
+            'lastname' => $lastname,
+            'contacts' => [
+                [
+                    'value' => fake()->email(),
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => fake()->phoneNumber(),
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [
+                [
+                    'address' => fake()->address(),
+                    'city' => fake()->city(),
+                    'county' => fake()->city(),
+                    'state' => fake()->state(),
+                    'country' => fake()->country(),
+                    'zip' => fake()->postcode(),
+                ],
+            ],
+            'custom_fields' => [],
+        ];
+
+        $this->createPeopleAndResponse($input);
+
+        $response = $this->graphQL('
+            query {
+                peopleCountBySubscriptionType(
+                    type: "Free"
+                )
+            }
+        ');
+        $response->assertJsonStructure([
+                'data' => [
+                    'peopleCountBySubscriptionType',
+                ],
+            ]);
+        $this->assertTrue(is_int($response['data']['peopleCountBySubscriptionType']));
+    }
 }
