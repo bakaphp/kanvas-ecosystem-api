@@ -160,7 +160,7 @@ jobs:
 
       - name: Run Tests
         if: success()
-        run: php artisan test --debug
+        run: php artisan test --verbose
       
       - name: Upload artifacts
         uses: actions/upload-artifact@master
