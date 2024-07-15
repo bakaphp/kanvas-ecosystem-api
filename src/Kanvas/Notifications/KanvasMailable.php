@@ -35,7 +35,7 @@ class KanvasMailable extends Mailable
     {
         if (app()->environment('testing')) {
             // Skip setting the custom mailer configuration in testing environment
-            //return $this;
+            return $this;
         }
 
         //thanks to https://github.com/laravel/framework/issues/42602#issuecomment-1143637921
