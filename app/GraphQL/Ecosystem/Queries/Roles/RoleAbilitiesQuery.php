@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Queries\Roles;
 
 use Bouncer;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Users\Repositories\UsersRepository;
 use Silber\Bouncer\Database\Ability;
@@ -25,7 +26,7 @@ class RoleAbilitiesQuery
         return $mapAbilities->all();
     }
 
-    public function getAllAbilitiesByRoles(mixed $root, array $request)
+    public function getAllAbilitiesByRoles(mixed $root, array $request): Collection
     {
         $roles = Bouncer::role()->where('name', $request['role'])->firstOrFail();
         $subQuery = DB::table('permissions')
