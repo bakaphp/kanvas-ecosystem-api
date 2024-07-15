@@ -11,7 +11,7 @@ type Interactions {
     dislike: Boolean
 }
 
-type InteractionType {
+type SocialInteractionType {
     name: String!
     title: String!
     description: String
@@ -24,6 +24,15 @@ type EntityInteractions {
     interacted_entity_namespace: String!
     interactions: Interactions @method(name: "getGroupInteractions")
     entity: Mixed @method(name: "interactedEntityData")
+}
+
+type EntityInteraction {
+    interacted_entity_id: Mixed!
+    interacted_entity_namespace: String!
+    entity: Mixed! @method(name: "interactedEntityData")
+    interaction: SocialInteractionType!
+    notes: Mixed
+    created_at: Date!
 }
 
 extend type Mutation @guardByAuthOrCompany {
@@ -39,6 +48,7 @@ extend type Mutation @guardByAuthOrCompany {
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractionMutation@disLikeEntity"
         )
+        @deprecated(reason: "Use likeEntity instead")
     getInteractionByEntity(input: LikeEntityInput!): Interactions!
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Interactions\\EntityInteractionMutation@getInteractionByEntity"

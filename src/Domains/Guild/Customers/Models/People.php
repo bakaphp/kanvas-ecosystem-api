@@ -13,6 +13,7 @@ use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
@@ -44,6 +45,7 @@ class People extends BaseModel
     use Searchable;
     use HasTagsTrait;
     use CanUseWorkflow;
+    use SocialInteractionsTrait;
     use Notifiable;
 
     protected $table = 'peoples';
@@ -112,6 +114,15 @@ class People extends BaseModel
         )->where(
             'contacts_types_id',
             ContactType::getByName('Phone')->getId()
+        );
+    }
+
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(
+            PeopleSubscription::class,
+            'peoples_id',
+            'id'
         );
     }
 

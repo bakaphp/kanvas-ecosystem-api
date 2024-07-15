@@ -57,6 +57,7 @@ jobs:
       MEILISEARCH_KEY: masterKey
       SCOUT_QUEUE: false
       #APP_DEBUG: true
+
       #third party integration
       TEST_ZOHO_CLIENT_ID: ${{ secrets.TEST_ZOHO_CLIENT_ID }}
       TEST_ZOHO_CLIENT_SECRET: ${{ secrets.TEST_ZOHO_CLIENT_SECRET }}
@@ -66,6 +67,7 @@ jobs:
       TEST_SHOPIFY_SHOP_URL: ${{ secrets.TEST_SHOPIFY_SHOP_URL }}
       TEST_APPLE_LOGIN_TOKEN: ${{ secrets.TEST_APPLE_LOGIN_TOKEN }}
       TEST_APOLLO_KEY: ${{ secrets.TEST_APOLLO_KEY }}
+      TEST_STRIPE_SECRET_KEY: ${{ secrets.TEST_STRIPE_SECRET_KEY }}
     strategy:
       fail-fast: false
       matrix:

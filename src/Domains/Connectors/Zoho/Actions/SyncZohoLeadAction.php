@@ -68,6 +68,7 @@ class SyncZohoLeadAction
         $leadStatus = match (true) {
             Str::contains($status, 'close') => LeadStatus::getByName('bad'),
             Str::contains($status, 'won') => LeadStatus::getByName('complete'),
+            Str::contains($status, 'duplicate') => LeadStatus::getByName('complete'),
             default => LeadStatus::getByName('active'),
         };
 
@@ -95,13 +96,16 @@ class SyncZohoLeadAction
                 ];
             }
 
+            /**
+             * @todo assign owner and user and member # if exist
+             */
             $lead = new DataTransferObjectLead(
-                $this->app,
-                $this->company->defaultBranch,
-                $user ?? $this->company->user,
-                $zohoLead->Full_Name,
-                $pipelineStage->getId(),
-                new People(
+                app: $this->app,
+                branch: $this->company->defaultBranch,
+                user: $user ?? $this->company->user,
+                title: $zohoLead->Full_Name,
+                pipeline_stage_id: $pipelineStage->getId(),
+                people: new People(
                     $this->app,
                     $this->company->defaultBranch,
                     $user ?? $this->company->user,
@@ -110,19 +114,13 @@ class SyncZohoLeadAction
                     Address::collect([], DataCollection::class),
                     $zohoLead->Last_Name
                 ),
-                $user ? $user->getId() : 0,
-                0,
-                $leadStatus->getId(),
-                0,
-                $this->receiver->getId(),
-                null,
-                null,
-                null,
-                [
+                leads_owner_id: $user ? $user->getId() : 0,
+                status_id: $leadStatus->getId(),
+                receiver_id: $this->receiver->getId(),
+                custom_fields: [
                     CustomFieldEnum::ZOHO_LEAD_ID->value => $this->zohoLeadId,
                 ],
-                [],
-                true
+                runWorkflow: false
             );
 
             return (new CreateLeadAction($lead))->execute();

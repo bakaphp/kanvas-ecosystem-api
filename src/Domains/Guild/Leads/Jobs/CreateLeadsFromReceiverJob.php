@@ -40,6 +40,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
             $payload = $parseTemplate->execute();
         }
 
+        $payload['receiver_id'] = $leadReceiver->getId();
         $createLead = new CreateLeadAction(
             Lead::viaRequest(
                 $leadReceiver->user,

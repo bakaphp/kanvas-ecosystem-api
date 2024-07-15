@@ -10,6 +10,9 @@ use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\DataTransferObject\LikeEntityInput;
 use Kanvas\Social\Interactions\Models\EntityInteractions;
 
+/**
+ * @deprecated v1.0
+ */
 class CreateEntityInteraction
 {
     public function __construct(

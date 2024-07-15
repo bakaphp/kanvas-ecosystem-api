@@ -17,7 +17,7 @@ class ShopifyInventoryDownloadCommand extends Command
      *
      * @var string
      */
-    protected $signature = '343 {app_id} {branch_id} {warehouse_id}';
+    protected $signature = 'kanvas:inventory-shopify-sync {app_id} {branch_id} {warehouse_id}';
 
     /**
      * The console command description.

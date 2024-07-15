@@ -27,6 +27,7 @@ class Channels extends Data
         public ?string $description = null,
         public bool $is_default = false,
         public bool $is_published = true,
+        public ?string $slug = null
     ) {
     }
 

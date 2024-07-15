@@ -16,8 +16,6 @@ class CreateInteraction
 
     /**
      * execute.
-     *
-     * @return Interactions
      */
     public function execute(): Interactions
     {

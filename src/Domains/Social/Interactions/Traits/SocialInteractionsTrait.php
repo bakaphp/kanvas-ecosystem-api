@@ -4,13 +4,58 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Interactions\Traits;
 
+use Illuminate\Database\Eloquent\Model;
+use Kanvas\Social\Interactions\Actions\CreateEntityInteractionAction;
+use Kanvas\Social\Interactions\Actions\CreateInteraction;
+use Kanvas\Social\Interactions\DataTransferObject\EntityInteraction;
+use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\DataTransferObject\LikeEntityInput;
+use Kanvas\Social\Interactions\Models\EntityInteractions;
 use Kanvas\Social\Interactions\Models\Interactions;
+use Kanvas\Social\Interactions\Models\UsersInteractions;
 use Kanvas\Social\Interactions\Repositories\EntityInteractionsRepository;
 use Kanvas\Users\Enums\UserConfigEnum;
+use Kanvas\Users\Models\Users;
 
 trait SocialInteractionsTrait
 {
+    use LikableTrait;
+
+    public function addInteraction(Model $entity, string $interaction, ?string $note = null): UsersInteractions|EntityInteractions
+    {
+        if ($this instanceof Users) {
+            $interaction = (
+                new CreateInteraction(
+                    new Interaction(
+                        $interaction,
+                        $this->app,
+                        $interaction
+                    )
+                ))->execute();
+
+            return UsersInteractions::firstOrCreate([
+                'users_id' => $this->getId(),
+                'interactions_id' => $interaction->getId(),
+                'entity_id' => $entity->getId(),
+                'entity_namespace' => $entity::class,
+                'is_deleted' => 0,
+            ], [
+                'notes' => $note,
+            ]);
+        }
+
+        return (
+            new CreateEntityInteractionAction(
+                (new EntityInteraction(
+                    $this,
+                    $entity,
+                    $interaction,
+                    $note
+                )),
+                $this->app
+            ))->execute();
+    }
+
     /**
      * Given a visitorInput get the social interactions for the entity.
      *

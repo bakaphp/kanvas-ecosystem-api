@@ -41,6 +41,8 @@ class ZohoLead extends Data
         $people = $lead->people()->first();
         $leadStatus = $lead->status()->first();
         $owner = (string) ($lead->owner()->first() ? $company->get(CustomFieldEnum::DEFAULT_OWNER->value) : null);
+
+        //@todo get the lead status from zoho
         $newLead = 'New Lead';
         $status = $leadStatus ? ($leadStatus->get(CustomFieldEnum::ZOHO_STATUS_NAME->value) ?? $newLead) : $newLead;
 
@@ -58,10 +60,11 @@ class ZohoLead extends Data
 
     public function toArray(): array
     {
-        $data = parent::toArray();
-        //unset($data['additionalFields']);
+        $data = array_merge(parent::toArray(), $this->additionalFields);
+        unset($data['additionalFields']);
 
-        return $data;
+        // Remove empty values
+        return array_filter($data, fn ($value) => ! empty($value));
     }
 
     /**

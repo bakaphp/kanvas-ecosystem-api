@@ -33,7 +33,7 @@ return new class () extends Migration {
             $table->string('discount_name', 255)->nullable();
             $table->unsignedBigInteger('voucher_id')->nullable()->index();
             $table->string('language_code', 10)->nullable()->index();
-            $table->enum('status', ['draft', 'completed', 'canceled'])->nullable()->index();
+            $table->enum('status', ['draft', 'completed', 'canceled', 'cancelled'])->nullable()->index();
             $table->string('shipping_method_name', 255)->nullable();
             $table->unsignedBigInteger('shipping_method_id')->nullable()->index();
             $table->boolean('display_gross_prices')->default(false);

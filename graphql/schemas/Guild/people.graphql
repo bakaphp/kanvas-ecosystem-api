@@ -7,10 +7,12 @@ type People {
     firstname: String!
     middlename: String
     lastname: String
+    subscriptions: [PeopleSubscription!]! @hasMany
     dob: Date
     organizations: [Organization!] @belongsToMany
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
+
     employment_history: [PeopleEmploymentHistory!]
         @hasMany(relation: "employmentHistory")
     files: [Filesystem!]!
@@ -23,12 +25,27 @@ type People {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
+    interactions: [EntityInteraction!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Builders\\Interactions\\EntityInteractionsBuilder@getAll"
+        )
     tags: [Tag!]
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
 }
+type PeopleSubscription {
+    id: ID!
+    subscription_type: String!
+    status: String!
+    start_date: Date!
+    end_date: Date
+    first_date: Date
+    next_renewal: Date
+}
+
 type PeopleEmploymentHistory {
     id: ID!
     organization: Organization! @belongsTo
@@ -133,7 +150,14 @@ extend type Query @guard {
             model: "Kanvas\\Guild\\Customers\\Models\\People"
             scopes: ["fromApp", "fromCompany", "notDeleted"]
         )
-    
+    peopleCountByTag(tag: String!): Int
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Queries\\PeopleManagementQueries@countByTag"
+        )
+    peopleCountBySubscriptionType(type: String!): Int
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Queries\\PeopleManagementQueries@getBySubscriptionType"
+        )
 }
 
 extend type Mutation @guard {
