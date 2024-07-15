@@ -10,7 +10,7 @@ return new class () extends Migration {
         Schema::table('orders', function (Blueprint $table) {
             $table->unsignedBigInteger('region_id')->after('companies_id')->index();
             $table->unsignedBigInteger('people_id')->after('user_phone')->index();
-            $table->enum('fulfillment_status', ['pending', 'fulfilled', 'canceled'])->after('status')->default('pending')->index();
+            $table->enum('fulfillment_status', ['pending', 'fulfilled', 'canceled'])->after('status')->default('pending')->nullable()->index();
             //shipping_date
             $table->timestamp('estimate_shipping_date')->nullable()->after('private_metadata');
             $table->timestamp('shipped_date')->nullable()->after('private_metadata');
