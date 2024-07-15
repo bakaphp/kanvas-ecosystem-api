@@ -54,6 +54,7 @@ extend type Mutation @guard {
 
 extend type Query @guard {
     categories(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [
@@ -62,6 +63,7 @@ extend type Query @guard {
                     "slug"
                     "code"
                     "uuid"
+                    "is_published"
                     "position"
                 ]
             )

@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Traits;
 
+use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Orders\Models\Order;
 
 trait HasShopifyCustomField
 {
@@ -15,6 +17,7 @@ trait HasShopifyCustomField
     {
         return match (true) {
             $this instanceof Variants => $this->get(ShopifyConfigurationService::getVariantKey($this, $region)),
+            $this instanceof Order => $this->get(ShopifyConfigurationService::getOrderKey($region)),
             default => $this->get(ShopifyConfigurationService::getProductKey($this, $region)),
         };
     }
@@ -23,6 +26,7 @@ trait HasShopifyCustomField
     {
         match (true) {
             $this instanceof Variants => $this->set(ShopifyConfigurationService::getVariantKey($this, $region), $shopifyId),
+            $this instanceof Order => $this->set(ShopifyConfigurationService::getOrderKey($region), $shopifyId),
             default => $this->set(ShopifyConfigurationService::getProductKey($this, $region), $shopifyId),
         };
     }
@@ -40,6 +44,16 @@ trait HasShopifyCustomField
         return match (true) {
             $this instanceof Variants => $this->get(ShopifyConfigurationService::getVariantInventoryKey($this, $region)),
             default => null,
+        };
+    }
+
+    public function getShopifyUrl(Regions $region): ?string
+    {
+        $key = CustomFieldEnum::SHOPIFY_PRODUCT_URL->value . '-' . $region->getId();
+
+        return match (true) {
+            $this instanceof Variants => $this->product->get($key),
+            default => $this->get($key),
         };
     }
 }

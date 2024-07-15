@@ -6,15 +6,56 @@ type People {
     name: String! @method(name: "getName")
     firstname: String!
     middlename: String
-    lastname: String!
+    lastname: String
+    subscriptions: [PeopleSubscription!]! @hasMany
     dob: Date
+    organizations: [Organization!] @belongsToMany
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
+
+    employment_history: [PeopleEmploymentHistory!]
+        @hasMany(relation: "employmentHistory")
+    files: [Filesystem!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
     custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
+    interactions: [EntityInteraction!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Builders\\Interactions\\EntityInteractionsBuilder@getAll"
+        )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
+}
+type PeopleSubscription {
+    id: ID!
+    subscription_type: String!
+    status: String!
+    start_date: Date!
+    end_date: Date
+    first_date: Date
+    next_renewal: Date
+}
+
+type PeopleEmploymentHistory {
+    id: ID!
+    organization: Organization! @belongsTo
+    people: People! @belongsTo
+    position: String!
+    income: Float
+    start_date: Date!
+    end_date: Date
+    status: Int!
+    income_type: String
 }
 
 type PeopleRelationship {
@@ -28,7 +69,7 @@ input PeopleInput {
     id: ID
     firstname: String!
     middlename: String
-    lastname: String!
+    lastname: String
     facebook_contact_id: String
     twitter_contact_id: String
     linkedin_contact_id: String
@@ -36,14 +77,17 @@ input PeopleInput {
     dob: String
     contacts: [ContactInput!]
     address: [AddressInput!]
+    files: [FilesystemInputUrl!]
     custom_fields: [CustomFieldEntityInput!]
+    tags: [TagInput!]
+    created_at: DateTime
 }
 
 input PeopleParticipantInput {
     id: ID
     firstname: String!
     middlename: String
-    lastname: String!
+    lastname: String
     participants_types_id: ID!
     facebook_contact_id: String
     twitter_contact_id: String
@@ -56,6 +100,7 @@ input PeopleParticipantInput {
 
 extend type Query @guard {
     peoples(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [
@@ -63,13 +108,32 @@ extend type Query @guard {
                     "uuid"
                     "companies_id"
                     "dob"
+                    "name"
+                    "firstname"
+                    "lastname"
                 ]
             )
-        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name", "dob"])
+        hasEmails: _
+            @whereHasConditions(relation: "emails", columns: ["id", "value"])
+        hasPhones: _
+            @whereHasConditions(relation: "phones", columns: ["id", "value"])
+        hasTags: _ @whereHasConditions(relation: "tags", columns: ["name"])
+        hasAddress: _
+            @whereHasConditions(
+                relation: "address"
+                columns: ["address", "city", "state", "zip"]
+            )
+        hasCustomFields: _
+            @whereHasConditions(
+                relation: "customFields"
+                columns: ["name", "value"]
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "updated_at", "name", "dob"])
     ): [People!]!
         @paginate(
             model: "Kanvas\\Guild\\Customers\\Models\\People"
-            scopes: ["fromCompany"]
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
             defaultCount: 25
         )
     peopleRelationships(
@@ -79,6 +143,20 @@ extend type Query @guard {
             model: "Kanvas\\Guild\\Customers\\Models\\PeopleRelationship"
             defaultCount: 25
             scopes: ["fromApp", "fromCompany"]
+        )
+
+    peopleCount: Int
+        @count(
+            model: "Kanvas\\Guild\\Customers\\Models\\People"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+        )
+    peopleCountByTag(tag: String!): Int
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Queries\\PeopleManagementQueries@countByTag"
+        )
+    peopleCountBySubscriptionType(type: String!): Int
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Queries\\PeopleManagementQueries@getBySubscriptionType"
         )
 }
 
@@ -98,5 +176,9 @@ extend type Mutation @guard {
     restorePeople(id: ID!): Boolean
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@restore"
+        )
+    importPeoples(input: [PeopleInput!]!, companyId: Int): String!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleImportMutation@import"
         )
 }

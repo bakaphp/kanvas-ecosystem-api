@@ -4,7 +4,7 @@ type Product {
     uuid: String!
     name: String!
     slug: String!
-    description: String!
+    description: String
     short_description: String
     html_description: String
     warranty_terms: String
@@ -29,13 +29,18 @@ type Product {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
 }
 
 input ProductInput {
     products_types_id: ID
     sku: String @rules(apply: ["required_without:variants"])
     name: String!
-    description: String!
+    description: String
     slug: String
     short_description: String
     html_description: String
@@ -47,10 +52,17 @@ input ProductInput {
     source_id: Mixed
     variants: [VariantsInput!]
     status: StatusReferenceInput
-    attributes: [AttributeInput!]
+    attributes: [ProductAttributesInput!]
     files: [FilesystemInputUrl!]
     price: Float
     company_id: ID
+    custom_fields: [CustomFieldEntityInput!]
+}
+
+input ProductAttributesInput {
+    id: ID
+    name: String!
+    value: Mixed
 }
 
 input ProductInputUpdate {
@@ -63,7 +75,9 @@ input ProductInputUpdate {
     upc: String
     is_published: Boolean
     status: StatusReferenceInput
+    attributes: [ProductAttributesInput!]
     files: [FilesystemInputUrl!]
+    categories: [ProductCategoriesReferenceInput!]
 }
 
 extend type Mutation @guard {
@@ -139,7 +153,11 @@ extend type Query @guard {
                 relation: "attributeValues"
                 columns: ["products_id", "value", "attributes_id"]
             )
-
+        hasCustomFields: _
+            @whereHasConditions(
+                relation: "customFields"
+                columns: ["name", "value"]
+            )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [Product!]!
         @paginate(

@@ -2,8 +2,8 @@ type Notification {
     id: ID!
     users: User!
     fromUsers: User
-    companies: Company!
-    systemModule: SystemModule!
+    companies: Company
+    systemModule: SystemModule
     types(filter: NotificationTypeFilterInput): NotificationType!
     entity_id: String!
     entity(fields: JSON): Mixed @method(name: "getEntityData")
@@ -143,8 +143,8 @@ extend type Mutation @guardByAppKey {
         data: Mixed!
         via: [String!]!
         users: [Mixed!]!
-        subject: String
-        attachment: String
+        subject: String!
+        attachment: [String]
     ): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\NotificationsManagementMutation@sendNotificationBaseOnTemplate"
@@ -153,8 +153,8 @@ extend type Mutation @guardByAppKey {
         template_name: String!
         data: Mixed!
         email: Email!
-        subject: String
-        attachment: String
+        subject: String!
+        attachment: [String]
     ): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Notifications\\NotificationsManagementMutation@anonymousNotification"

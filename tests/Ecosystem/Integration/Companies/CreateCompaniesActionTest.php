@@ -6,7 +6,7 @@ namespace Tests\Ecosystem\Integration\Companies;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
-use Kanvas\Companies\DataTransferObject\CompaniesPostData;
+use Kanvas\Companies\DataTransferObject\Company;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
@@ -15,8 +15,6 @@ final class CreateCompaniesActionTest extends TestCase
 {
     /**
      * Test Create Apps Action.
-     *
-     * @return void
      */
     public function testCreateCompaniesAction(): void
     {
@@ -24,10 +22,10 @@ final class CreateCompaniesActionTest extends TestCase
         $user = Users::factory(1)->create()->first();
         $data = [
             'name' => $faker->company,
-            'users_id' => Auth::user()->id
+            'users_id' => Auth::user()->id,
         ];
 
-        $dtoData = CompaniesPostData::fromArray($data);
+        $dtoData = Company::viaRequest($data, $user);
 
         $company = new CreateCompaniesAction($dtoData);
 

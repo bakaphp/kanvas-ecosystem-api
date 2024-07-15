@@ -9,6 +9,8 @@ type Variant {
     html_description: String
     sku: String
     ean: String
+    barcode: String
+    serial_number: String
     status: Status
     files: [Filesystem]
         @paginate(
@@ -21,21 +23,27 @@ type Variant {
     product: Product
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
-    attributes: [VariantsAttributes!]!
+    attributes: [VariantsAttributes!]! @BelongsToMany(relation: "attributes")
     companies: Company! @belongsTo(relation: "company")
     channels: [VariantChannelRelationship!]!
+        @BelongsToMany(relation: "channels")
     channel: VariantPricingInfo
-        @field(resolver: "App\\GraphQL\\Inventory\\Types\\ChannelInfoType@price")
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Types\\ChannelInfoType@price"
+        )
     metadata: Mixed
-        @field(resolver: "App\\GraphQL\\Inventory\\Types\\MetadataType@linkedStores")
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Types\\MetadataType@linkedStores"
+        )
     custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
+    inventory_quantity: Int @method(name: "getTotalQuantity")
 }
 
-type VariantPricingInfo{
+type VariantPricingInfo {
     price: Float!
     discounted_price: Float!
     quantity: Int!
@@ -45,6 +53,7 @@ type VariantPricingInfo{
     is_coming_soon: Boolean
 }
 
+#@deprecated(reason: "Use the ProductAttributesInput type instead")
 input VariantsAttributesInput {
     id: ID
     name: String!
@@ -69,25 +78,28 @@ input VariantsInput {
     price: Float
     source_id: Mixed
     attributes: [VariantsAttributesInput!]
-    warehouse: WarehouseReferenceInput
+    warehouses: [WarehouseReferenceInput!]
     channels: [VariantChannelReferenceInput!]
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 input VariantsUpdateInput {
     products_id: ID
-    name: String
+    name: String!
     description: String
     short_description: String
     html_description: String
     files: [FilesystemInputUrl!]
     status: StatusReferenceInput
-    sku: String
+    sku: String!
     ean: String
     barcode: String
     attributes: [VariantsAttributesInput!]
     serial_number: String
     is_published: Boolean
-    warehouse: VariantsWarehousesInput
+    warehouses: [WarehouseReferenceInput!]
+    channels: [VariantChannelReferenceInput!]
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 extend type Mutation @guard {

@@ -17,8 +17,13 @@ class AttributesTest extends TestCase
     {
         $data = [
             'name' => fake()->name,
-            'value' => fake()->name
+            'values' => [
+                [
+                    'value' => fake()->name
+                ]
+            ]
         ];
+
         $response = $this->graphQL('
             mutation($data: AttributeInput!) {
                 createAttribute(input: $data)
@@ -42,7 +47,11 @@ class AttributesTest extends TestCase
     {
         $data = [
             'name' => fake()->name,
-            'value' => fake()->name
+            'values' => [
+                [
+                    'value' => fake()->name
+                ]
+            ]
         ];
         $response = $this->graphQL('
             mutation($data: AttributeInput!) {
@@ -80,7 +89,11 @@ class AttributesTest extends TestCase
     {
         $data = [
             'name' => fake()->name,
-            'value' => fake()->name
+            'values' => [
+                [
+                    'value' => fake()->name
+                ]
+            ]
         ];
         $response = $this->graphQL('
             mutation($data: AttributeInput!) {
@@ -125,7 +138,11 @@ class AttributesTest extends TestCase
     {
         $data = [
             'name' => fake()->name,
-            'value' => fake()->name
+            'values' => [
+                [
+                    'value' => fake()->name
+                ]
+            ]
         ];
         $response = $this->graphQL('
             mutation($data: AttributeInput!) {

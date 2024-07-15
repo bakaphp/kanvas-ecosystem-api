@@ -403,4 +403,58 @@ class UserManagementTest extends TestCase
             ],
         ]);
     }
+
+    public function testUpdateAdminDisplayname()
+    {
+        $app = app(Apps::class);
+
+        $user = $app->keys()->first()->user()->firstOrFail();
+        $user->assign(RolesEnums::OWNER->value);
+
+        $email = fake()->email();
+        $response = $this->graphQL(/** @lang GraphQL */ '
+            mutation appCreateUser($data: CreateUserInput!) {
+                appCreateUser(data: $data) {
+                    id
+                    email,
+                    uuid
+                }
+              }',
+            [
+                'data' => [
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                    'email' => $email,
+                    'custom_fields' => [],
+                ],
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        );
+
+        $response->assertJson([
+            'data' => [
+                'appCreateUser' => [
+                    'email' => $email,
+                ],
+            ],
+        ]);
+
+        $user = Users::getByEmail($email);
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation appUpdateUserDisplayname($user_id: ID!, $displayname: String!) {
+                appUpdateUserDisplayname(user_id: $user_id, displayname: $displayname) 
+            }',
+            [
+                'user_id' => $user->getId(),
+                'displayname' => fake()->userName(),
+            ]
+        )->assertJson([
+            'data' => [
+                'appUpdateUserDisplayname' => true,
+            ],
+        ]);
+    }
 }

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\CustomFields\Traits;
 
+use Baka\Enums\StateEnums;
 use Baka\Support\Str;
 use Baka\Traits\HasSchemaAccessors;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
@@ -22,6 +24,16 @@ trait HasCustomFields
     use HasSchemaAccessors;
 
     public array $customFields = [];
+
+    public function customFields(): HasMany
+    {
+        return $this->hasMany(AppsCustomFields::class, 'entity_id', 'id')
+                ->where('model_name', get_class($this))
+                ->where('is_deleted', StateEnums::NO->getValue())
+                ->when(isset($this->companies_id), function ($query) {
+                    $query->where('companies_id', $this->companies_id);
+                });
+    }
 
     /**
      * Get the custom field primary key
@@ -173,8 +185,25 @@ trait HasCustomFields
             'entity_id' => $this->getKey(),
             'label' => $name,
             'name' => $name,
-            'value' => $value
+            'value' => $value,
         ]);
+    }
+
+    /**
+     * @param array<array-key, array{name: string, data: mixed}> $data
+     * @throws ConfigurationException
+     */
+    public function setAllCustomFields(array $customFields, bool|int $isPublic = false): bool
+    {
+        if (empty($customFields)) {
+            return false;
+        }
+
+        foreach ($customFields as $data) {
+            $this->set($data['name'], $data['data']);
+        }
+
+        return true;
     }
 
     /**

@@ -4,20 +4,22 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Actions;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Guild\Leads\Models\LeadAttempt;
 
-class CreateLeadAttemptAction
+readonly class CreateLeadAttemptAction
 {
     /**
      * __construct.
      */
     public function __construct(
-        protected readonly array $request,
-        protected readonly array $headers,
-        protected readonly CompanyInterface $company,
-        protected readonly string $ip,
-        protected readonly string $source
+        protected array $request,
+        protected array $headers,
+        protected CompanyInterface $company,
+        protected AppInterface $app,
+        protected string $ip,
+        protected string $source
     ) {
     }
 
@@ -28,6 +30,7 @@ class CreateLeadAttemptAction
     {
         return LeadAttempt::create([
             'companies_id' => $this->company->getId(),
+            'apps_id' => $this->app->getId(),
             'header' => $this->headers,
             'request' => $this->request,
             'ip' => $this->ip,

@@ -11,8 +11,11 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Mail\Mailable;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification as LaravelNotification;
+use Illuminate\Support\Facades\Config;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
 use Kanvas\Exceptions\ValidationException;
@@ -40,6 +43,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     protected ?UserInterface $fromUser = null;
     protected ?UserInterface $toUser = null;
     protected ?CompanyInterface $company = null;
+    public ?array $pathAttachment = null;
 
     public array $channels = [
         'mail',
@@ -49,10 +53,13 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     {
         $this->onQueue('notifications');
         $this->entity = $entity;
-        $this->app = app(Apps::class);
+
+        $this->app = $entity->app ?? (($options['app'] ?? null) instanceof AppInterface ? $options['app'] : app(Apps::class));
+
         $this->data = [
             'entity' => $this->entity,
             'app' => $this->app,
+            'options' => $options,
         ];
 
         $this->handleFromUserOption($options);
@@ -60,6 +67,13 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
          * @psalm-suppress MixedAssignment
          */
         $this->subject = $options['subject'] ?? null;
+    }
+
+    public function setSubject(?string $subject = null): self
+    {
+        $this->subject = $subject;
+
+        return $this;
     }
 
     /**
@@ -131,26 +145,28 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      *
      * @param  mixed  $notifiable
      */
-    public function toMail($notifiable): ?MailMessage
+    public function toMail($notifiable): Mailable
     {
         $smtpConfiguration = new SmtpRuntimeConfiguration($this->app, $this->company);
-        $mailer = $smtpConfiguration->loadSmtpSettings();
+        $mailConfig = $smtpConfiguration->loadSmtpSettings();
         $fromMail = $smtpConfiguration->getFromEmail();
 
         $fromEmail = $fromMail['address'];
         $fromName = $fromMail['name'];
 
-        $mailMessage = (new MailMessage())
-                ->mailer($mailer)
+        $toEmail = $notifiable instanceof AnonymousNotifiable ? $notifiable->routes['mail'] : $notifiable->email;
+        $mailMessage = (new KanvasMailable($mailConfig, $this->getEmailContent()))
                 ->from($fromEmail, $fromName)
-                //->subject($this->app->get('name') . ' - ' . $this->getTitle()
-                ->view('emails.layout', ['html' => $this->getEmailContent()]);
+                ->to($toEmail);
+
+        $this->subject = $this->subject ?? $this->getNotificationTitle();
 
         if ($this->subject) {
             $mailMessage->subject($this->subject);
         }
-        if (isset($this->pathAttachment)) {
-            $mailMessage->attach($this->pathAttachment);
+
+        if (isset($this->pathAttachment) && $this->pathAttachment !== null) {
+            $mailMessage->attachMany($this->pathAttachment);
         }
 
         return $mailMessage;
@@ -161,7 +177,9 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      */
     public function setType(string $type): void
     {
-        $this->type = NotificationTypes::getByName($type);
+        $this->type = NotificationTypes::where('apps_id', $this->app->getId())
+            ->where('name', $type)
+            ->firstOrFail();
     }
 
     /**
@@ -180,7 +198,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
             'apps_id' => $this->app->getId(),
             'key' => static::class,
             'name' => Str::simpleSlug(static::class),
-            'system_modules_id' => SystemModulesRepository::getByModelName(self::class, $this->app)->getId(),
+            'system_modules_id' => SystemModulesRepository::getByModelName(static::class, $this->app)->getId(),
             'is_deleted' => 0,
         ], [
             'template' => $this->templateName ?? null,

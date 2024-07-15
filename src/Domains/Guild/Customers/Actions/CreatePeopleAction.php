@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Actions;
 
+use Baka\Contracts\CompanyInterface;
+use Baka\Validations\Date;
+use Kanvas\Companies\Enums\Defaults;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDataInput;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\Contact;
@@ -26,8 +29,14 @@ class CreatePeopleAction
     public function execute(): People
     {
         $company = $this->peopleData->branch->company()->firstOrFail();
+        $allowDuplicateContacts = $company->get(Defaults::ALLOW_DUPLICATE_CONTACTS->getValue()) ?? false;
+
+        if (! $allowDuplicateContacts) {
+            $this->checkIfPeopleExist($company);
+        }
 
         $attributes = [
+            'apps_id' => $this->peopleData->app->getId(),
             'users_id' => $this->peopleData->user->getId(),
             'firstname' => $this->peopleData->firstname,
             'middlename' => $this->peopleData->middlename,
@@ -38,6 +47,10 @@ class CreatePeopleAction
             'facebook_contact_id' => $this->peopleData->facebook_contact_id,
             'apple_contact_id' => $this->peopleData->apple_contact_id,
         ];
+
+        if (Date::isValid($this->peopleData->created_at, 'Y-m-d H:i:s')) {
+            $attributes['created_at'] = date('Y-m-d H:i:s', strtotime($this->peopleData->created_at));
+        }
 
         //@todo how to avoid duplicated? should it be use or frontend?
         if ($this->peopleData->id) {
@@ -51,40 +64,78 @@ class CreatePeopleAction
         $people->setCustomFields($this->peopleData->custom_fields);
         $people->saveCustomFields();
 
+        if (count($this->peopleData->tags)) {
+            $people->syncTags(array_column($this->peopleData->tags, 'name'));
+        }
+
         if ($this->peopleData->contacts->count()) {
-            $contacts = [];
+            $existingContacts = $people->contacts()->pluck('value')->toArray();
+            $contactsToAdd = [];
+
             foreach ($this->peopleData->contacts as $contact) {
-                $contacts[] = new Contact([
-                    'contacts_types_id' => $contact->contacts_types_id,
-                    'value' => $contact->value,
-                    'weight' => $contact->weight,
-                ]);
+                if (! in_array($contact->value, $existingContacts)) {
+                    $contactsToAdd[] = new Contact([
+                        'contacts_types_id' => $contact->contacts_types_id,
+                        'value' => $contact->value,
+                        'weight' => $contact->weight,
+                    ]);
+                }
             }
 
-            $people->contacts()->saveMany($contacts);
+            if (! empty($contactsToAdd)) {
+                $people->contacts()->saveMany($contactsToAdd);
+            }
         }
 
         if ($this->peopleData->address->count()) {
-            $addresses = [];
+            $existingAddresses = $people->address()
+                ->select('address', 'address_2', 'city', 'county', 'state', 'zip', 'city_id', 'state_id', 'countries_id')
+                ->get()
+                ->toArray();
+
+            $addressesToAdd = [];
+
             foreach ($this->peopleData->address as $address) {
-                $addresses[] = new Address([
+                $newAddress = [
                     'address' => $address->address,
                     'address_2' => $address->address_2,
                     'city' => $address->city,
                     'county' => $address->county,
                     'state' => $address->state,
                     'zip' => $address->zipcode,
-                    //'country' => $address->country,
-                    'is_default' => $address->is_default,
                     'city_id' => $address->city_id ?? 0,
                     'state_id' => $address->state_id ?? 0,
                     'countries_id' => $address->country_id ?? 0,
-                ]);
+                ];
+
+                if (! in_array($newAddress, $existingAddresses)) {
+                    $addressesToAdd[] = new Address(array_merge($newAddress, [
+                        'is_default' => $address->is_default,
+                    ]));
+                }
             }
 
-            $people->address()->saveMany($addresses);
+            if (! empty($addressesToAdd)) {
+                $people->address()->saveMany($addressesToAdd);
+            }
         }
 
         return $people;
+    }
+
+    protected function checkIfPeopleExist(CompanyInterface $company): void
+    {
+        if ($this->peopleData->contacts->count()) {
+            foreach ($this->peopleData->contacts as $contact) {
+                $searchValue = $contact->value;
+
+                $people = PeoplesRepository::getByValue($searchValue, $company, $this->peopleData->app);
+                if ($people) {
+                    $this->peopleData->id = $people->getId();
+
+                    return ;
+                }
+            }
+        }
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Pipelines\DataTransferObject;
 
+use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
@@ -35,6 +36,7 @@ class Pipeline extends Data
     public static function viaRequest(
         UserInterface $user,
         CompaniesBranches $branch,
+        AppInterface $app,
         array $request
     ): self {
         CompaniesRepository::userAssociatedToCompanyAndBranch(
@@ -44,7 +46,7 @@ class Pipeline extends Data
         );
 
         //for now all pipelines are for leads
-        $systemModule = SystemModulesRepository::getByModelName(Lead::class);
+        $systemModule = SystemModulesRepository::getByModelName(Lead::class, $app);
 
         return new self(
             $branch,

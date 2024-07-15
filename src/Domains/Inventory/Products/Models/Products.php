@@ -7,6 +7,7 @@ namespace Kanvas\Inventory\Products\Models;
 use Awobaz\Compoships\Compoships;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -23,6 +24,7 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Laravel\Scout\Searchable;
 
 /**
@@ -50,6 +52,7 @@ class Products extends BaseModel
     use SlugTrait;
     use LikableTrait;
     use HasShopifyCustomField;
+    use HasTagsTrait;
     use Searchable {
         search as public traitSearch;
     }
@@ -74,7 +77,7 @@ class Products extends BaseModel
     {
         return $this->belongsToMany(
             Categories::class,
-            'products_categories',
+            ProductsCategories::class,
             'products_id',
             'categories_id'
         );
@@ -154,7 +157,7 @@ class Products extends BaseModel
             'objectID' => $this->uuid,
             'id' => $this->id,
             'name' => $this->name,
-            'files' => $this->files->map(function ($files) {
+            'files' => $this->getFiles()->take(5)->map(function ($files) { //for now limit
                 return [
                     'uuid' => $files->uuid,
                     'name' => $files->name,
@@ -169,9 +172,19 @@ class Products extends BaseModel
                 'name' => $this->company->name,
             ],
             'user' => [
-                'firstname' => $this->company->user->firstname,
-                'lastname' => $this->company->user->lastname,
+                'firstname' => $this?->company?->user?->firstname,
+                'lastname' => $this?->company?->user?->lastname,
             ],
+            'categories' => $this->categories->map(function ($category) {
+                return [
+                    'id' => $category->id,
+                    'name' => $category->name,
+                    'slug' => $category->slug,
+                  ];
+            }),
+            'variants' => $this->variants->map(function ($variant) {
+                return $variant->toSearchableArray();
+            }),
             'uuid' => $this->uuid,
             'slug' => $this->slug,
             'description' => $this->description,
@@ -190,13 +203,16 @@ class Products extends BaseModel
 
     public function searchableAs(): string
     {
-        return config('scout.prefix') . 'product_index';
+        $customIndex = $this->app ? $this->app->get('app_custom_product_index') : null;
+
+        return config('scout.prefix') . ($customIndex ?? 'product_index');
     }
 
     public static function search($query = '', $callback = null)
     {
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
-        if (! auth()->user()->isAppOwner()) {
+        $user = auth()->user();
+        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
         }
 

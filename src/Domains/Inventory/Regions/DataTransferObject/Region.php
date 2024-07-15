@@ -10,8 +10,9 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Currencies\Models\Currencies;
+use Spatie\LaravelData\Data;
 
-class Region
+class Region extends Data
 {
     /**
      * __construct.
@@ -32,10 +33,6 @@ class Region
 
     /**
      * fromArray.
-     *
-     * @param  array $data
-     *
-     * @return self
      */
     public static function viaRequest(array $data): self
     {

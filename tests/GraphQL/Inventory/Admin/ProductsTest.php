@@ -32,7 +32,7 @@ class ProductsTest extends TestCase
 
         $data = [
             'name' => fake()->name,
-            'sku' => fake()->word,
+            'sku' => fake()->time,
             'description' => fake()->text,
         ];
 

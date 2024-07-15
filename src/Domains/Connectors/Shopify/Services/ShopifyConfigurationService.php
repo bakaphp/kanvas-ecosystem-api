@@ -40,16 +40,26 @@ class ShopifyConfigurationService
 
     public static function getProductKey(Products $product, Regions $region): string
     {
-        return CustomFieldEnum::SHOPIFY_PRODUCT_ID->value . '-' . $product->app->getId() . '-' . $product->company->getId() . '-' . $region->getId() . '-' . $product->getId();
+        return self::getKey(CustomFieldEnum::SHOPIFY_PRODUCT_ID->value, $product->company, $product->app, $region);
     }
 
     public static function getVariantKey(Variants $variant, Regions $region): string
     {
-        return CustomFieldEnum::SHOPIFY_VARIANT_ID->value . '-' . $variant->product->app->getId() . '-' . $variant->company->getId() . '-' . $region->getId() . '-' . $variant->getId();
+        return self::getKey(CustomFieldEnum::SHOPIFY_VARIANT_ID->value, $variant->company, $variant->product->app, $region);
+    }
+
+    public static function getOrderKey(Regions $region): string
+    {
+        return self::getKey(CustomFieldEnum::SHOPIFY_ORDER_ID->value, $region->company, $region->app, $region);
     }
 
     public static function getVariantInventoryKey(Variants $variant, Regions $region): string
     {
-        return CustomFieldEnum::SHOPIFY_VARIANT_INVENTORY_ID->value . '-' . $variant->product->app->getId() . '-' . $variant->company->getId() . '-' . $region->getId() . '-' . $variant->getId();
+        return self::getKey(CustomFieldEnum::SHOPIFY_VARIANT_INVENTORY_ID->value, $variant->company, $variant->product->app, $region);
+    }
+
+    public static function getKey(string $key, CompanyInterface $company, AppInterface $app, Regions $region): string
+    {
+        return $key . '-' . $app->getId() . '-' . $company->getId() . '-' . $region->getId();
     }
 }

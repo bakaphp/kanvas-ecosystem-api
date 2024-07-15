@@ -138,6 +138,8 @@ class KanvasInventoryDefaultUpdate extends Command
             foreach ($variants as $variant) {
                 $this->info("Working variant {$variant->getId()} warehouse assignment \n");
                 $variantWarehouseDto = DataTransferObjectVariantsWarehouses::viaRequest(
+                    $variant,
+                    $defaultWarehouses,
                     [
                         'status_id' => $defaultStatus->getId()
                     ]

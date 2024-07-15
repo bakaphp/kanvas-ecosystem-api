@@ -50,7 +50,7 @@ extend type Mutation @guard {
 }
 
 extend type Query {
-    getReactions(
+    reactions(
         where: _
             @whereConditions(
                 columns: ["id", "name", "apps_id", "companies_id", "icon"]
@@ -62,9 +62,9 @@ extend type Query {
             defaultCount: 25
             scopes: ["fromApp"]
         )
-    getReaction(id: ID! @eq): Reaction
+    reaction(id: ID! @eq): Reaction
         @find(model: "Kanvas\\Social\\Reactions\\Models\\Reaction")
-    getUserReactions(
+    userReactions(
         where: _
             @whereConditions(
                 columns: [

@@ -7,6 +7,7 @@ namespace Tests\Inventory\Integration;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Inventory\Status\Actions\CreateStatusAction;
 use Kanvas\Inventory\Status\DataTransferObject\Status;
@@ -70,7 +71,7 @@ final class ImporterTest extends TestCase
             'name' => fake()->word(),
             'description' => fake()->sentence(),
             'slug' => fake()->slug(),
-            'sku' => fake()->word(),
+            'sku' => fake()->time(),
             'price' => fake()->randomNumber(2),
             'quantity' => fake()->randomNumber(2),
             'isPublished' => true,
@@ -92,12 +93,12 @@ final class ImporterTest extends TestCase
                         'id' => $warehouseData->getId(),
                         'price' => fake()->randomNumber(2),
                         'quantity' => fake()->randomNumber(2),
-                        'sku' => fake()->word(),
+                        'sku' => fake()->time(),
                         'is_new' => fake()->boolean(),
                         'status' => $statusData,
                     ],
                     'description' => fake()->sentence(),
-                    'sku' => fake()->word(),
+                    'sku' => fake()->time(),
                     'price' => fake()->randomNumber(2),
                     'is_published' => true,
                     'slug' => fake()->slug(),
@@ -120,11 +121,11 @@ final class ImporterTest extends TestCase
                         'id' => $warehouseData->getId(),
                         'price' => fake()->randomNumber(2),
                         'quantity' => fake()->randomNumber(2),
-                        'sku' => fake()->word(),
+                        'sku' => fake()->time(),
                         'is_new' => fake()->boolean(),
                     ],
                     'description' => fake()->sentence(),
-                    'sku' => fake()->word(),
+                    'sku' => fake()->time(),
                     'price' => fake()->randomNumber(2),
                     'is_published' => true,
                     'slug' => fake()->slug(),
@@ -148,6 +149,6 @@ final class ImporterTest extends TestCase
             $region
         );
 
-        $this->assertTrue($productImporter->execute());
+        $this->assertInstanceOf(Products::class, $productImporter->execute());
     }
 }

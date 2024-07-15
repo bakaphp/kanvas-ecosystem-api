@@ -46,8 +46,10 @@ enum AppEnums implements EnumsInterface
     case KANVAS_APP_KEY_HEADER;
     case KANVAS_APP_BRANCH_HEADER;
     case KANVAS_APP_COMPANY_AUTH_HEADER;
+    case KANVAS_APP_REGION_HEADER;
     case DISPLAYNAME_LOGIN;
     case ANONYMOUS_USER_ID;
+    case DEFAULT_APP_JWT_TOKEN_NAME;
 
     /**
      * Get value.
@@ -91,10 +93,12 @@ enum AppEnums implements EnumsInterface
             self::KANVAS_APP_HEADER => 'X-Kanvas-App',
             self::KANVAS_APP_KEY_HEADER => 'X-Kanvas-Key',
             self::KANVAS_APP_BRANCH_HEADER => 'X-Kanvas-Location',
+            self::KANVAS_APP_REGION_HEADER => 'X-Kanvas-Region',
             self::KANVAS_APP_COMPANY_AUTH_HEADER => 'Company-Authorization', //@deprecated
             self::DISPLAYNAME_LOGIN => 'displayname_login',
-            self::VERSION => '1.0-BETA-28',
-            self::ANONYMOUS_USER_ID => -1
+            self::VERSION => '1.0-RC3',
+            self::ANONYMOUS_USER_ID => -1,
+            self::DEFAULT_APP_JWT_TOKEN_NAME => 'kanvas-login',
         };
     }
 

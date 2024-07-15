@@ -30,10 +30,13 @@ type ChannelsPricesHistoryRelationship {
     from_date: String!
 }
 type VariantChannelRelationship {
+    id: ID!
     name: String
+    description: String
     price: Float
-    warehouses_id: Int
     discounted_price: Float
+    warehouses_id: ID
+    slug: String
     is_published: Boolean
     prices_history: [ChannelsPricesHistoryRelationship!]!
         @field(
@@ -124,7 +127,8 @@ extend type Query {
         id: ID!
         attributes: Mixed
         search: String @search
-        where: _ @whereConditions(columnsEnum: ChannelVariantsFilterByAttributesEnum)
+        where: _
+            @whereConditions(columnsEnum: ChannelVariantsFilterByAttributesEnum)
         orderBy: _
             @orderBy(
                 columns: [

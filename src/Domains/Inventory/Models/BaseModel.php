@@ -26,14 +26,32 @@ class BaseModel extends EloquentModel
     use KanvasScopesTrait;
     use HasCustomFields;
     use HasFilesystemTrait;
-    //use Cachable;
+    use Cachable;
     use SoftDeletesTrait;
 
     protected $attributes = [
         'is_deleted' => 0,
     ];
 
+    /**
+     * Prevent laravel from cast is_deleted as date using carbon.
+     *
+     */
+    protected $casts = [
+        'is_deleted' => 'boolean',
+    ];
+
     protected $connection = 'inventory';
 
     public const DELETED_AT = 'is_deleted';
+
+    /**
+     * Determine if the model instance has been soft-deleted.
+     *
+     * @return bool
+     */
+    public function trashed()
+    {
+        return $this->{$this->getDeletedAtColumn()};
+    }
 }

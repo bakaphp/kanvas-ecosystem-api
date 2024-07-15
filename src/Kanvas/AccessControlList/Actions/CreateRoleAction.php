@@ -7,6 +7,7 @@ namespace Kanvas\AccessControlList\Actions;
 use Bouncer;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
@@ -21,7 +22,7 @@ class CreateRoleAction
      */
     public function __construct(
         public string $name,
-        public string $title,
+        public ?string $title = null,
         public ?Apps $app = null
     ) {
         $this->app = $app ?? app(Apps::class);
@@ -37,7 +38,7 @@ class CreateRoleAction
 
         $validator = Validator::make(
             [
-                'name' => $this->name
+                'name' => $this->name,
             ],
             [
                 'name' => 'required|unique:roles,name,null,id,scope,' . RolesEnums::getScope($this->app),
@@ -48,9 +49,10 @@ class CreateRoleAction
             throw new ValidationException($validator->errors()->first() . 'for roles in the current app');
         }
 
+        Bouncer::useUserModel(Role::class);
         $role = Bouncer::role()->firstOrCreate([
             'name' => $this->name,
-            'title' => $this->title,
+            'title' => $this->title ?? $this->name,
             'scope' => RolesEnums::getScope($this->app),
         ]);
 

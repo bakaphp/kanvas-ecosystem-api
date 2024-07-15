@@ -27,7 +27,8 @@ class VariantWarehouseStatusHistory extends BaseModel
 
     protected $table = 'products_variants_warehouse_status_history';
     protected $guarded = [];
-    protected $primaryKey = ['products_variants_id', 'warehouses_id'];
+    protected $primaryKey = ['products_variants_warehouse_id', 'status_id'];
+    protected $forceDeleting = true;
 
     /**
      * Get the user that owns the Variants.

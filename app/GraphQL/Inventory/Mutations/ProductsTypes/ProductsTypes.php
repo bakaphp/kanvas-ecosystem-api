@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Inventory\Mutations\ProductsTypes;
 
 use Kanvas\Inventory\ProductsTypes\Actions\CreateProductTypeAction;
+use Kanvas\Inventory\ProductsTypes\Actions\UpdateProductTypeAction;
 use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes as ProductsTypesDto;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes as ProductsTypesModel;
 use Kanvas\Inventory\ProductsTypes\Repositories\ProductsTypesRepository;
@@ -66,7 +67,14 @@ class ProductsTypes
     public function update(mixed $root, array $request): ProductsTypesModel
     {
         $productType = ProductsTypesRepository::getById((int) $request['id'], auth()->user()->getCurrentCompany());
-        $productType->update($request['input']);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        (new UpdateProductTypeAction(
+            $productType,
+            ProductsTypesDto::viaRequest($request['input'], $user, $company),
+            $user
+        ))->execute();
 
         if (isset($request['input']['products_attributes'])) {
             $productType->productsTypesAttributes()->where('to_variant', 0)->delete();

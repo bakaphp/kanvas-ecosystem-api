@@ -195,7 +195,6 @@ class PeopleTest extends TestCase
                 'updatePeople' => [
                     'id' => $peopleId,
                     'name' => $name,
-
                 ],
             ],
         ]);
@@ -313,5 +312,201 @@ class PeopleTest extends TestCase
                     'restorePeople' => true,
                 ],
             ]);
+    }
+
+    public function testImportUsers()
+    {
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $firstname = fake()->firstName();
+        $middlename = fake()->firstName();
+        $lastname = fake()->lastName();
+        $name = $firstname . ' ' . $middlename . ' ' . $lastname;
+
+        $peoplesToImport = [
+            [
+                'firstname' => $firstname,
+                'middlename' => $middlename, // @todo remove this
+                'lastname' => $lastname,
+                'contacts' => [
+                    [
+                        'value' => fake()->email(),
+                        'contacts_types_id' => 1,
+                        'weight' => 0,
+                    ],
+                    [
+                        'value' => fake()->phoneNumber(),
+                        'contacts_types_id' => 2,
+                        'weight' => 0,
+                    ],
+                ],
+                'address' => [
+                    [
+                        'address' => fake()->address(),
+                        'city' => fake()->city(),
+                        'county' => fake()->city(),
+                        'state' => fake()->state(),
+                        'country' => fake()->country(),
+                        'zip' => fake()->postcode(),
+                    ],
+                ],
+                'custom_fields' => [
+                    [
+                        'name' => 'paid_subscription',
+                        'data' => 1,
+                    ],
+                    [
+                        'name' => 'position',
+                        'data' => 'developer',
+                    ],
+                ],
+            ],[
+                'firstname' => fake()->firstName(),
+                'middlename' => fake()->firstName(), // @todo remove this
+                'lastname' => fake()->lastName(),
+                'contacts' => [
+                    [
+                        'value' => fake()->email(),
+                        'contacts_types_id' => 1,
+                        'weight' => 0,
+                    ],
+                    [
+                        'value' => fake()->phoneNumber(),
+                        'contacts_types_id' => 2,
+                        'weight' => 0,
+                    ],
+                ],
+                'address' => [
+                    [
+                        'address' => fake()->address(),
+                        'city' => fake()->city(),
+                        'county' => fake()->city(),
+                        'state' => fake()->state(),
+                        'country' => fake()->country(),
+                        'zip' => fake()->postcode(),
+                    ],
+                ],
+                'custom_fields' => [
+                    [
+                        'name' => 'paid_subscription',
+                        'data' => 0,
+                    ],
+                    [
+                        'name' => 'position',
+                        'data' => 'accountant',
+                    ],
+                ],
+            ],
+        ];
+
+        $this->graphQL('
+        mutation($input: [PeopleInput!]!) {
+            importPeoples(input: $input) 
+        }
+    ', [
+            'input' => $peoplesToImport,
+        ])->assertSee('importPeoples');
+    }
+
+    public function testCountPeople()
+    {
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $firstname = fake()->firstName();
+        $lastname = fake()->lastName();
+
+        $input = [
+            'firstname' => $firstname,
+            'lastname' => $lastname,
+            'contacts' => [
+                [
+                    'value' => fake()->email(),
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => fake()->phoneNumber(),
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [
+                [
+                    'address' => fake()->address(),
+                    'city' => fake()->city(),
+                    'county' => fake()->city(),
+                    'state' => fake()->state(),
+                    'country' => fake()->country(),
+                    'zip' => fake()->postcode(),
+                ],
+            ],
+            'custom_fields' => [],
+        ];
+
+        $this->createPeopleAndResponse($input);
+
+        $response = $this->graphQL('
+            query {
+                peopleCount
+            }
+        ');
+        $response->assertJsonStructure([
+                'data' => [
+                    'peopleCount',
+                ],
+            ]);
+        $this->assertTrue(is_int($response['data']['peopleCount']));
+    }
+
+    public function testPeopleCountBySubscriptionType()
+    {
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $firstname = fake()->firstName();
+        $lastname = fake()->lastName();
+
+        $input = [
+            'firstname' => $firstname,
+            'lastname' => $lastname,
+            'contacts' => [
+                [
+                    'value' => fake()->email(),
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => fake()->phoneNumber(),
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [
+                [
+                    'address' => fake()->address(),
+                    'city' => fake()->city(),
+                    'county' => fake()->city(),
+                    'state' => fake()->state(),
+                    'country' => fake()->country(),
+                    'zip' => fake()->postcode(),
+                ],
+            ],
+            'custom_fields' => [],
+        ];
+
+        $this->createPeopleAndResponse($input);
+
+        $response = $this->graphQL('
+            query {
+                peopleCountBySubscriptionType(
+                    type: "Free"
+                )
+            }
+        ');
+        $response->assertJsonStructure([
+                'data' => [
+                    'peopleCountBySubscriptionType',
+                ],
+            ]);
+        $this->assertTrue(is_int($response['data']['peopleCountBySubscriptionType']));
     }
 }

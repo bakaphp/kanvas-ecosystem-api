@@ -3,8 +3,10 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\File;
+use Kanvas\Templates\Enums\EmailTemplateEnum;
+use Kanvas\Templates\Enums\PushNotificationTemplateEnum;
 use Kanvas\Templates\Models\Templates;
-use Kanvas\Templates\Repositories\DefaultTemplateRepository;
 
 class TemplateSeeder extends Seeder
 {
@@ -16,14 +18,14 @@ class TemplateSeeder extends Seeder
     public function run()
     {
 
-        Templates::create([
+        $defaultTemplate = Templates::create([
             'id' => 1,
             'apps_id' => 0,
             'users_id' => 1,
             'companies_id' => 0,
             'parent_template_id' => 0,
-            'name' => 'Default',
-            'template' => DefaultTemplateRepository::getDefaultTemplate(),
+            'name' => EmailTemplateEnum::DEFAULT->value,
+            'template' => File::get(resource_path('views/emails/defaultTemplate.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -34,7 +36,7 @@ class TemplateSeeder extends Seeder
             'companies_id' => 0,
             'parent_template_id' => 0,
             'name' => 'user-email-update',
-            'template' => DefaultTemplateRepository::getDefaultTemplate(),
+            'template' => File::get(resource_path('views/emails/defaultTemplate.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -43,9 +45,9 @@ class TemplateSeeder extends Seeder
             'apps_id' => 0,
             'users_id' => 1,
             'companies_id' => 0,
-            'name' => 'users-invite',
-            'parent_template_id' => 1,
-            'template' => DefaultTemplateRepository::getUsersInvite(),
+            'name' => EmailTemplateEnum::USER_INVITE->value,
+            'parent_template_id' => $defaultTemplate->id,
+            'template' => File::get(resource_path('views/emails/userInvite.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -54,9 +56,9 @@ class TemplateSeeder extends Seeder
             'apps_id' => 0,
             'users_id' => 1,
             'companies_id' => 0,
-            'name' => 'change-password',
-            'parent_template_id' => 1,
-            'template' => DefaultTemplateRepository::getChangePassword(),
+            'name' => EmailTemplateEnum::CHANGE_PASSWORD->value,
+            'parent_template_id' => $defaultTemplate->id,
+            'template' => File::get(resource_path('views/emails/passwordUpdated.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -65,9 +67,9 @@ class TemplateSeeder extends Seeder
             'apps_id' => 0,
             'users_id' => 1,
             'companies_id' => 0,
-            'name' => 'reset-password',
-            'parent_template_id' => 1,
-            'template' => DefaultTemplateRepository::getResetPassword(),
+            'name' => EmailTemplateEnum::RESET_PASSWORD->value,
+            'parent_template_id' => $defaultTemplate->id,
+            'template' => File::get(resource_path('views/emails/resetPassword.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -76,9 +78,9 @@ class TemplateSeeder extends Seeder
             'apps_id' => 0,
             'users_id' => 1,
             'companies_id' => 0,
-            'name' => 'welcome',
-            'parent_template_id' => 1,
-            'template' => DefaultTemplateRepository::getWelcome(),
+            'name' => EmailTemplateEnum::WELCOME->value,
+            'parent_template_id' => $defaultTemplate->id,
+            'template' => File::get(resource_path('views/emails/welcome.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -88,9 +90,9 @@ class TemplateSeeder extends Seeder
             'apps_id' => 0,
             'users_id' => 1,
             'companies_id' => 0,
-            'name' => 'new-push-default',
-            'parent_template_id' => 1,
-            'template' => DefaultTemplateRepository::getNewPushDefault(),
+            'name' => PushNotificationTemplateEnum::DEFAULT->value,
+            'parent_template_id' => 0,
+            'template' => File::get(resource_path('views/emails/pushNotification.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
     }

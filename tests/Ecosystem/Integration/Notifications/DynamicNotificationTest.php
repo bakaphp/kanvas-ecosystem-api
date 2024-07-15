@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Ecosystem\Integration\Templates;
+namespace Tests\Ecosystem\Integration\Notifications;
 
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;

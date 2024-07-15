@@ -65,7 +65,14 @@ class RegisterUsersAction extends CreateUserAction
         }
 
         if ($this->runWorkflow) {
-            $user->fireWorkflow(WorkflowEnum::REGISTERED->value, true, ['company' => $company]);
+            $user->fireWorkflow(
+                WorkflowEnum::REGISTERED->value,
+                true,
+                [
+                    'company' => $company,
+                    'password' => $this->data->raw_password,
+                ]
+            );
         }
 
         return $user;

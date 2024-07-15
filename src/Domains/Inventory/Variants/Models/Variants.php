@@ -6,6 +6,7 @@ namespace Kanvas\Inventory\Variants\Models;
 
 use Awobaz\Compoships\Compoships;
 use Baka\Enums\StateEnums;
+use Baka\Support\Str;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
@@ -179,7 +180,7 @@ class Variants extends BaseModel
             'products_variants_id',
             'channels_id'
         )
-            ->withPivot('price', 'discounted_price', 'is_published', 'warehouses_id');
+            ->withPivot('price', 'discounted_price', 'is_published', 'warehouses_id', 'channels_id');
     }
 
     /**
@@ -212,7 +213,7 @@ class Variants extends BaseModel
             }
 
             if (isset($attribute['id'])) {
-                $attributeModel = Attributes::getById((int) $attribute['id']);
+                $attributeModel = Attributes::getById((int) $attribute['id'], $this->app);
             } else {
                 $attributesDto = AttributesDto::from([
                     'app' => app(Apps::class),
@@ -220,6 +221,10 @@ class Variants extends BaseModel
                     'company' => $this->product->company,
                     'name' => $attribute['name'],
                     'value' => $attribute['value'],
+                    'isVisible' => false,
+                    'isSearchable' => false,
+                    'isFiltrable' => false,
+                    'slug' => Str::slug($attribute['name']),
                 ]);
                 $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
             }
@@ -243,7 +248,7 @@ class Variants extends BaseModel
             'objectID' => $this->uuid,
             'products_id' => $this->products_id,
             'name' => $this->name,
-            'files' => $this->files->map(function ($files) {
+            'files' => $this->getFiles()->take(5)->map(function ($files) {
                 return [
                     'uuid' => $files->uuid,
                     'name' => $files->name,
@@ -254,8 +259,8 @@ class Variants extends BaseModel
                 ];
             }),
             'company' => [
-                'id' => $this->product->companies_id,
-                'name' => $this->product->company->name,
+                'id' => $this?->product?->companies_id,
+                'name' => $this?->product?->company?->name,
             ],
             'uuid' => $this->uuid,
             'slug' => $this->slug,
@@ -292,7 +297,7 @@ class Variants extends BaseModel
         $attributes = $this->attributes()->get();
         foreach ($attributes as $attribute) {
             //if its over 100 characters we dont want to index it
-            if (strlen($attribute->value) > 100) {
+            if (! is_array($attribute->value) && strlen((string) $attribute->value) > 100) {
                 continue;
             }
             $variant['attributes'][$attribute->name] = $attribute->value;
@@ -303,13 +308,16 @@ class Variants extends BaseModel
 
     public function searchableAs(): string
     {
-        return config('scout.prefix') . 'product_variant_index';
+        $customIndex = $this->app ? $this->app->get('app_custom_product_variant_index') : null;
+
+        return config('scout.prefix') . ($customIndex ?? 'product_variant_index');
     }
 
     public static function search($query = '', $callback = null)
     {
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
-        if (! auth()->user()->isAppOwner()) {
+        $user = auth()->user();
+        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
         }
 
@@ -322,5 +330,34 @@ class Variants extends BaseModel
     protected function makeAllSearchableUsing(Builder $query): Builder
     {
         return $query->whereRelation('warehouses', 'warehouses.is_deleted', 0);
+    }
+
+    /**
+     * Get the total amount of variants in all the warehouses.
+     */
+    public function getTotalQuantity(): int
+    {
+        if (! $totalVariantQuantity = $this->get('total_variant_quantity')) {
+            return (int) $this->setTotalQuantity();
+        }
+
+        return (int) $totalVariantQuantity;
+    }
+
+    /**
+     * Set the total amount of variants in all the warehouses.
+     */
+    public function setTotalQuantity(): int
+    {
+        $total = $this->variantWarehouses()
+                ->where('is_deleted', 0)
+                ->sum('quantity');
+
+        $this->set(
+            'total_variant_quantity',
+            $total
+        );
+
+        return (int) $total;
     }
 }

@@ -30,15 +30,17 @@ class PeopleManagementMutation
             'user' => $user,
             'firstname' => $data['firstname'],
             'middlename' => $data['middlename'] ?? null,
-            'lastname' => $data['lastname'],
-            'contacts' => Contact::collect($data['contacts'], DataCollection::class),
-            'address' => Address::collect($data['address'], DataCollection::class),
+            'lastname' => $data['lastname'] ?? null,
+            'contacts' => Contact::collect($data['contacts'] ?? [], DataCollection::class),
+            'address' => Address::collect($data['address'] ?? [], DataCollection::class),
             'id' => $data['id'] ?? 0,
             'dob' => $data['dob'] ?? null,
             'facebook_contact_id' => $data['facebook_contact_id'] ?? null,
             'google_contact_id' => $data['google_contact_id'] ?? null,
             'apple_contact_id' => $data['apple_contact_id'] ?? null,
             'linkedin_contact_id' => $data['linkedin_contact_id'] ?? null,
+            'tags' => $data['tags'] ?? [],
+            'custom_fields' => $data['custom_fields'] ?? [],
         ]);
 
         $createPeople = new CreatePeopleAction($people);
@@ -59,15 +61,17 @@ class PeopleManagementMutation
             'user' => $user,
             'firstname' => $data['firstname'],
             'middlename' => $data['middlename'] ?? null,
-            'lastname' => $data['lastname'],
-            'contacts' => Contact::collect($data['contacts'], DataCollection::class),
-            'address' => Address::collect($data['address'], DataCollection::class),
+            'lastname' => $data['lastname'] ?? null,
+            'contacts' => Contact::collect($data['contacts'] ?? [], DataCollection::class),
+            'address' => Address::collect($data['address'] ?? [], DataCollection::class),
             'id' => $people->getId(),
             'dob' => $data['dob'] ?? null,
             'facebook_contact_id' => $data['facebook_contact_id'] ?? null,
             'google_contact_id' => $data['google_contact_id'] ?? null,
             'apple_contact_id' => $data['apple_contact_id'] ?? null,
             'linkedin_contact_id' => $data['linkedin_contact_id'] ?? null,
+            'tags' => $data['tags'] ?? [],
+            'custom_fields' => $data['custom_fields'] ?? [],
         ]);
 
         $updatePeople = new UpdatePeopleAction($people, $peopleData);

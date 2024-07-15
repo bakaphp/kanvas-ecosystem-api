@@ -1,7 +1,62 @@
 type Order {
-    user: User!
-    cart: Cart!
-    paymentResponse: Mixed!
+    id: ID!
+    uuid: String!
+    tracking_client_id: String
+    user_email: String
+    user_phone: String
+    token: String
+    billing_address_id: Int
+    shipping_address_id: Int
+    order_number: Int
+    user_id: Int
+    user: User! @belongsTo
+    people: People! @belongsTo
+    company: Company! @belongsTo
+    total_gross_amount: Float
+    total_net_amount: Float
+    shipping_price_gross_amount: Float
+    shipping_price_net_amount: Float
+    discount_amount: Float
+    discount_name: String
+    voucher_id: Int
+    language_code: String
+    status: String
+    fulfillment_status: String
+    shipping_method_name: String
+    shipping_method_id: Int
+    display_gross_prices: Boolean
+    translated_discount_name: String
+    customer_note: String
+    weight: Float
+    checkout_token: String
+    currency: String
+    metadata: String
+    private_metadata: String
+    is_deleted: Boolean!
+    created_at: String!
+    updated_at: String
+    items: [OrderItem!]
+}
+
+type OrderItem {
+    id: ID!
+    uuid: String!
+    product_name: String!
+    product_sku: String!
+    quantity: Int!
+    unit_price_net_amount: Float
+    unit_price_gross_amount: Float
+    is_shipping_required: Boolean
+    quantity_fulfilled: Int
+    variant: Variant! @belongsTo
+    tax_rate: Float
+    translated_product_name: String
+    currency: String
+    translated_variant_name: String
+    variant_name: String!
+    is_deleted: Boolean!
+    created_at: String!
+    updated_at: String
 }
 
 input CreditCard {
@@ -31,5 +86,36 @@ extend type Mutation @guard {
     createOrder(input: OrderInput!): Mixed!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@create"
+        )
+}
+
+extend type Query @guard {
+    orders(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "companies_id"
+                    "users_id"
+                    "user_email"
+                    "user_phone"
+                    "status"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "status"
+                ]
+            )
+    ): [Order!]!
+        @paginate(
+            model: "Kanvas\\Souk\\Orders\\Models\\Order"
+            scopes: ["fromCompany", "fromApp", "notDeleted", "filterByUser"]
+            defaultCount: 25
         )
 }

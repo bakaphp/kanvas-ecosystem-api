@@ -22,17 +22,23 @@ jobs:
       DB_SOCIAL_DATABASE: social
       DB_SOCIAL_USERNAME: root
       DB_SOCIAL_PASSWORD: password
-      DB_CRM_DATABASE: social
+      DB_CRM_DATABASE: crm
       DB_CRM_USERNAME: root
       DB_CRM_PASSWORD: password
-      DB_WORKFLOW_DATABASE: social
+      DB_WORKFLOW_DATABASE: workflows
       DB_WORKFLOW_USERNAME: root
       DB_WORKFLOW_PASSWORD: password
+      DB_ACTION_ENGINE_DATABASE: action_engine
+      DB_ACTION_ENGINE_USERNAME: root
+      DB_ACTION_ENGINE_PASSWORD: password
+      DB_COMMERCE_DATABASE: commerce
+      DB_COMMERCE_USERNAME: root
+      DB_COMMERCE_PASSWORD: password
       KANVAS_APP_ID: 059ddaaf-89b5-4158-a85a-90cbd69aa34b
-      APP_KEY: base64:4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY=
-      APP_JWT_TOKEN: 4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY
+      APP_KEY: base64:Wm5KmkE4aWFjdFUzU2o3SElYNGc0QlpLcXNWR0hMME0=
+      APP_JWT_TOKEN: Wm5KmkE4aWFjdFUzU2o3SElYNGc0QlpLcXNWR0hMME0=4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjYj
+      TOKEN_PASSWORD: base64:Z1dVYk5TcEZWUVhMNHZCUllIc3JQTVg0ZEdWTTh5eDg=
       TOKEN_AUDIENCE: http://localhost
-      TOKEN_PASSWORD: base64:4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjY=
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
@@ -51,6 +57,7 @@ jobs:
       MEILISEARCH_KEY: masterKey
       SCOUT_QUEUE: false
       #APP_DEBUG: true
+
       #third party integration
       TEST_ZOHO_CLIENT_ID: ${{ secrets.TEST_ZOHO_CLIENT_ID }}
       TEST_ZOHO_CLIENT_SECRET: ${{ secrets.TEST_ZOHO_CLIENT_SECRET }}
@@ -58,6 +65,9 @@ jobs:
       TEST_SHOPIFY_API_KEY: ${{ secrets.TEST_SHOPIFY_API_KEY }}
       TEST_SHOPIFY_API_SECRET: ${{ secrets.TEST_SHOPIFY_API_SECRET }}
       TEST_SHOPIFY_SHOP_URL: ${{ secrets.TEST_SHOPIFY_SHOP_URL }}
+      TEST_APPLE_LOGIN_TOKEN: ${{ secrets.TEST_APPLE_LOGIN_TOKEN }}
+      TEST_APOLLO_KEY: ${{ secrets.TEST_APOLLO_KEY }}
+      TEST_STRIPE_SECRET_KEY: ${{ secrets.TEST_STRIPE_SECRET_KEY }}
     strategy:
       fail-fast: false
       matrix:
@@ -131,6 +141,14 @@ jobs:
       - name: Setup WORKFLOW DB
         run: |
           mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS workflow;'
+          
+      - name: Setup ACTION ENGINE DB
+        run: |
+          mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS action_engine;'
+          
+      - name: Setup COMMERCE DB
+        run: |
+          mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS commerce;'
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress

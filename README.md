@@ -31,7 +31,7 @@ Todo:
 - [x] CRM (in progress)
 - [x] Social (in progress)
 - [x] Workflow
-- [ ] Action Engine
+- [x] Action Engine
 - [x] GraphQL Documentation (in progress)
 
 ## Prerequisites
@@ -116,3 +116,12 @@ Note:
 - To install Swoole you can use the command ```pecl install swoole``` 
 - For production remove `--watch` from the command.
 - roles_kanvas_legacy will be deleted in the future.
+
+
+## Feature Labs
+
+### Run the project using FrankenPHP
+
+``` sh
+docker compose -f docker-compose.franken.yml up -d --build
+```

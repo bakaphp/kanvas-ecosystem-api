@@ -22,7 +22,12 @@ type Lead {
     stage: LeadPipelineStage @belongsTo(relation: "stage")
     participants: [LeadsParticipants!]! @hasMany
     channels: [SocialChannel]! @hasMany(relation: "socialChannels")
-    systemModule: SystemModule!
+    systemModule: SystemModule
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25
@@ -166,6 +171,7 @@ extend type Mutation @guard {
 
 extend type Query @guard {
     leads(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [
@@ -175,12 +181,19 @@ extend type Query @guard {
                     "companies_branches_id"
                     "leads_receivers_id"
                     "leads_owner_id"
+                    "leads_status_id"
+                    "title"
                     "pipeline_id"
                     "pipeline_stage_id"
                     "people_id"
                     "lead_types_id"
                     "status"
                 ]
+            )
+        hasCustomFields: _
+            @whereHasConditions(
+                relation: "customFields"
+                columns: ["name", "value"]
             )
         orderBy: _
             @orderBy(

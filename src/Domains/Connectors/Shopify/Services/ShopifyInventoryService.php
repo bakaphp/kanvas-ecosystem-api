@@ -10,16 +10,15 @@ use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Connectors\Shopify\Enums\StatusEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
-use Kanvas\Social\Channels\Models\Channel;
 use PHPShopify\ShopifySDK;
 use Throwable;
 
 class ShopifyInventoryService
 {
     protected ShopifySDK $shopifySdk;
+    protected ShopifyImageService $shopifyImageService;
 
     public function __construct(
         protected AppInterface $app,
@@ -27,12 +26,13 @@ class ShopifyInventoryService
         protected Warehouses $warehouses,
     ) {
         $this->shopifySdk = Client::getInstance($app, $company, $warehouses->regions);
+        $this->shopifyImageService = new ShopifyImageService($app, $company, $warehouses->regions);
     }
 
     /**
      * Map and create an product on shopify sdk.
      */
-    public function saveProduct(Products $product, StatusEnum $status): array
+    public function saveProduct(Products $product, StatusEnum $status, ?Channels $channel = null): array
     {
         $shopifyProductId = $product->getShopifyId($this->warehouses->regions);
 
@@ -54,15 +54,19 @@ class ShopifyInventoryService
             $response = $this->shopifySdk->Product->post($productInfo);
             $shopifyProductId = $response['id'];
             $product->setShopifyId($this->warehouses->regions, $shopifyProductId);
+
+            foreach ($response['variants'] as $shopifyVariant) {
+                $variant = $product->variants('sku', $shopifyVariant['sku'])->first();
+                if ($variant->getShopifyId($this->warehouses->regions) === null) {
+                    $variant->setShopifyId($this->warehouses->regions, $shopifyVariant['id']);
+                }
+            }
         } else {
             $shopifyProduct = $this->shopifySdk->Product($shopifyProductId);
             $response = $shopifyProduct->put($productInfo);
-        }
 
-        foreach ($response['variants'] as $shopifyVariant) {
-            $variant = $product->variants('sku', $shopifyVariant['sku'])->first();
-            if ($variant->getShopifyId($this->warehouses->regions) === null) {
-                $variant->setShopifyId($this->warehouses->regions, $shopifyVariant['id']);
+            foreach ($product->variants as $variant) {
+                $this->saveVariant($variant, $channel);
             }
         }
 
@@ -76,13 +80,15 @@ class ShopifyInventoryService
             //do nothing
         }
 
+        $this->shopifyImageService->processEntityImage($product);
+
         return $response;
     }
 
     /**
      * Map the data from the variant into the array
      */
-    public function mapVariant(Variants $variant, ?Channel $channel = null): array
+    public function mapVariant(Variants $variant, ?Channels $channel = null): array
     {
         $warehouseInfo = $variant->variantWarehouses()->where('warehouses_id', $this->warehouses->getId());
 
@@ -99,15 +105,20 @@ class ShopifyInventoryService
             $price = $warehouseInfo?->price ?? 0;
         }
 
+        $quantity = $warehouseInfo?->quantity ?? 0;
         $shopifyVariantInfo = [
             'option1' => $variant->sku ?? $variant->name,
             'sku' => $variant->sku,
             'barcode' => $variant->barcode,
             'price' => $price,
-            'quantity' => $warehouseInfo?->quantity ?? 0,
+            'quantity' => $quantity,
             'compare_at_price' => $discountedPrice ?? 0,
             'inventory_policy' => 'deny',
         ];
+
+        if ($quantity > 0) {
+            $this->setStock($variant, $channel);
+        }
 
         if ($variant->product->getShopifyId($this->warehouses->regions)) {
             $shopifyVariantInfo['product_id'] = $variant->product->getShopifyId($this->warehouses->regions);
@@ -138,6 +149,8 @@ class ShopifyInventoryService
                 $variant->setInventoryId($this->warehouses->regions, $response['inventory_item_id']);
             }
         }
+
+        $this->shopifyImageService->processEntityImage($variant);
 
         return $response;
     }
@@ -195,22 +208,5 @@ class ShopifyInventoryService
     public function publishProduct(Products $product): array
     {
         return $this->changeProductStatus($product, StatusEnum::ACTIVE);
-    }
-
-    public function addImages(Variants $variant, string $imageUrl): void
-    {
-        $shopifyProduct = $this->shopifySdk->Product($variant->product->getShopifyId($this->warehouses->regions));
-        $shopifyVariant = $shopifyProduct->Variant($variant->getShopifyId($this->warehouses->regions));
-
-        $shopifyVariantData = $shopifyVariant->get();
-
-        //product will have all the images of its variants
-        $image = $shopifyProduct->Image->post(['src' => $imageUrl]);
-
-        $shopifyVariant->put(['image_id' => $image['id']]);
-
-        if ($shopifyVariantData['image_id'] !== null) {
-            $shopifyProduct->Image($shopifyVariantData['image_id'])->delete();
-        }
     }
 }

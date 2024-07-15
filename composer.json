@@ -15,8 +15,10 @@
         "algolia/scout-extended": "^3.0",
         "awobaz/compoships": "^2.2",
         "berkayk/onesignal-laravel": "^2.0",
+        "darryldecode/cart": "dev-l11-compatibility",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
         "genealabs/laravel-model-caching": "^11.0",
+        "google/apiclient": "^2.16",
         "guzzlehttp/guzzle": "^7.6",
         "http-interop/http-factory-guzzle": "^1.0",
         "laravel-workflow/laravel-workflow": "^1.0.24",
@@ -24,7 +26,7 @@
         "laravel/octane": "^2.3",
         "laravel/sanctum": "^4.0",
         "laravel/scout": "^10.2",
-        "laravel/socialite": "^5.6",
+        "laravel/socialite": "^5.14.0",
         "laravel/tinker": "^2.7",
         "lcobucci/jwt": "^5.2",
         "league/csv": "^9.0",
@@ -32,6 +34,7 @@
         "meilisearch/meilisearch-php": "^1.4",
         "mll-lab/graphql-php-scalars": "^6.0",
         "mll-lab/laravel-graphiql": "^3.1.0",
+        "nevadskiy/laravel-tree": "^0.5.0",
         "nuwave/lighthouse": "^6.0",
         "phpclassic/php-shopify": "^1.2",
         "powersync/authorizenet-sdk-php": "^2.0",
@@ -43,15 +46,14 @@
         "spatie/laravel-health": "^1.27",
         "spatie/laravel-queueable-action": "^2.15",
         "spatie/laravel-webhook-server": "^3.8",
+        "stripe/stripe-php": "^15.0",
         "symfony/expression-language": "^7.0",
         "symfony/http-client": "^7.0",
         "symfony/mailgun-mailer": "^7.0",
-        "timokoerber/laravel-one-time-operations": "^1.4",
         "twilio/sdk": "^8.0",
         "vladimir-yuldashev/laravel-queue-rabbitmq": "^14.0",
         "vlucas/phpdotenv": "^5.5",
-        "webleit/zohocrmapi": "^5.3",
-        "darryldecode/cart": "dev-l11-compatibility"
+        "webleit/zohocrmapi": "^5.3"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",
@@ -73,6 +75,7 @@
             "Kanvas\\Souk\\": "src/Domains/Souk",
             "Kanvas\\Workflow\\": "src/Domains/Workflow",
             "Kanvas\\Connectors\\": "src/Domains/Connectors",
+            "Kanvas\\ActionEngine\\": "src/Domains/ActionEngine",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }
@@ -111,6 +114,12 @@
         ],
         "migrate-workflow": [
             "php artisan migrate --path database/migrations/Workflow/ --database workflow"
+        ],
+        "migrate-commerce": [
+            "php artisan migrate --path database/migrations/Souk/ --database commerce"
+        ],
+        "migrate-action-engine": [
+            "php artisan migrate --path database/migrations/ActionEngine/ --database action_engine"
         ],
         "migrate-laravel-workflow": [
             "php artisan migrate --path vendor/laravel-workflow/laravel-workflow/src/migrations/ --database workflow"

@@ -25,6 +25,11 @@ class VariantsWarehouseObserver
                 'total_products',
                 $variantWarehouse->getTotalProducts()
             );
+
+            $variantWarehouse->variant->set(
+                'total_variant_quantity',
+                $variantWarehouse->variant->setTotalQuantity()
+            );
         }
 
         if ($variantWarehouse->wasChanged('status_id')) {
@@ -36,6 +41,19 @@ class VariantsWarehouseObserver
     }
 
     public function created(VariantsWarehouses $variantWarehouse): void
+    {
+        $variantWarehouse->warehouse->set(
+            'total_products',
+            $variantWarehouse->getTotalProducts()
+        );
+
+        $variantWarehouse->variant->set(
+            'total_variant_quantity',
+            $variantWarehouse->variant->setTotalQuantity()
+        );
+    }
+
+    public function deleted(VariantsWarehouses $variantWarehouse): void
     {
         $variantWarehouse->warehouse->set(
             'total_products',

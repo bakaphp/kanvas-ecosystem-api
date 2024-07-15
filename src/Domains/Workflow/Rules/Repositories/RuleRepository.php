@@ -49,7 +49,6 @@ class RuleRepository
         if ($companyId !== null) {
             $bind['companies_id'] = $companyId;
         }
-
         return Rule::where('systems_modules_id', $bind['systems_module_id'])
                 ->where('rules_types_id', $bind['rules_types_id'])
                 ->whereIn('companies_id', [$bind['companies_id'], $bind['global_companies']])

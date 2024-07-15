@@ -14,6 +14,7 @@ use Kanvas\AccessControlList\Models\Role as KanvasRole;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Users\Repositories\UsersRepository;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Silber\Bouncer\Database\Role as SilberRole;
@@ -130,9 +131,13 @@ class RolesManagementMutation
             throw new AuthorizationException('You are not allowed to perform this action');
         }
 
+        if (RolesEnums::isEnumValue($request['name'])) {
+            throw new ValidationException('You are not allowed to create system roles');
+        }
+
         $role = new CreateRoleAction(
             $request['name'],
-            $request['title']
+            $request['title'] ?? null
         );
 
         $role = $role->execute(auth()->user()->getCurrentCompany());
@@ -173,11 +178,9 @@ class RolesManagementMutation
         $role = KanvasRole::findOrFail($request['id']);
 
         if (RolesEnums::isEnumValue($role->name)) {
-            throw new AuthorizationException('You are not allowed to delete this role');
+            throw new AuthorizationException('You are not allowed to delete system roles');
         }
 
-        $role->delete();
-
-        return true;
+        return $role->delete();
     }
 }

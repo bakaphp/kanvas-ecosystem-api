@@ -15,15 +15,17 @@ use Kanvas\Auth\Actions\SocialLoginAction;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Services\ForgotPassword as ForgotPasswordService;
+use Kanvas\Auth\Socialite\SocialManager;
 use Kanvas\Auth\Traits\AuthTrait;
 use Kanvas\Auth\Traits\TokenTrait;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Repositories\UsersRepository;
-use Laravel\Socialite\Facades\Socialite;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class AuthManagementMutation
@@ -44,6 +46,7 @@ class AuthManagementMutation
     ): array {
         $email = $request['data']['email'];
         $password = $request['data']['password'];
+        $deviceId = $request['data']['device_id'] ?? null;
         $request = request();
 
         $user = $this->login(
@@ -51,10 +54,11 @@ class AuthManagementMutation
                 'email' => $email,
                 'password' => $password,
                 'ip' => $request->ip(),
+                'deviceId' => $deviceId,
             ])
         );
 
-        return $user->createToken('kanvas-login')->toArray();
+        return $user->createToken(name: AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue(), deviceId: $deviceId)->toArray();
     }
 
     /**
@@ -129,7 +133,7 @@ class AuthManagementMutation
         $request = request();
 
         $registeredUser = $user->execute();
-        $tokenResponse = $registeredUser->createToken('kanvas-login')->toArray();
+        $tokenResponse = $registeredUser->createToken(AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue())->toArray();
 
         return [
             'user' => $registeredUser,
@@ -148,7 +152,7 @@ class AuthManagementMutation
         }
         $user = UsersRepository::getByEmail($token->claims()->get('email'));
 
-        return $user->createToken('kanvas-login')->toArray();
+        return $user->createToken(AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue())->toArray();
     }
 
     /**
@@ -169,12 +173,12 @@ class AuthManagementMutation
         $data = $req['data'];
         $token = $data['token'];
         $provider = $data['provider'];
-
-        $user = Socialite::driver($provider)->userFromToken($token);
-        $socialLogin = new SocialLoginAction($user, $provider);
+        $app = app(Apps::class);
+        $user = SocialManager::getDriver($provider, $app)->getUserFromToken($token);
+        $socialLogin = new SocialLoginAction($user, $provider, $app);
 
         $loggedUser = $socialLogin->execute();
-        $tokenResponse = $loggedUser->createToken('kanvas-login')->toArray();
+        $tokenResponse = $loggedUser->createToken(name: AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue())->toArray();
 
         return $tokenResponse;
     }
@@ -193,9 +197,18 @@ class AuthManagementMutation
         $user = new ForgotPasswordService();
 
         $registeredUser = $user->forgot($request['data']['email']);
-        $tokenResponse = $registeredUser->createToken('kanvas-login')->toArray();
+        $tokenResponse = $registeredUser->createToken(AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue())->toArray();
 
         $request = request();
+
+        $registeredUser->fireWorkflow(
+            WorkflowEnum::REQUEST_FORGOT_PASSWORD->value,
+            true,
+            [
+                'app' => app(Apps::class),
+                'profile' => $user,
+            ]
+        );
 
         return true;
     }

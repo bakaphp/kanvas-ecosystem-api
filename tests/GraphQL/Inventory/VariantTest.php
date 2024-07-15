@@ -66,7 +66,7 @@ class VariantTest extends TestCase
 
         $data = [
             'name' => fake()->name,
-            'sku' => fake()->word,
+            'sku' => fake()->time,
             'description' => fake()->text,
         ];
         $response = $this->graphQL('
@@ -107,9 +107,9 @@ class VariantTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->word,
+            'sku' => fake()->time,
             'products_id' => $id,
-            'warehouse' => $warehouseData
+            'warehouses' => [$warehouseData]
         ];
         $variantResponse = $this->graphQL('
         mutation($data: VariantsInput!) {
@@ -129,6 +129,7 @@ class VariantTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
+            'sku' => $data['sku']
         ];
         $this->graphQL('
         mutation($id: ID! $data: VariantsUpdateInput!) {
@@ -136,6 +137,7 @@ class VariantTest extends TestCase
             {
                 id
                 name
+                sku
                 description
             }
         }', ['id' => $id, 'data' => $data])->assertJson([
@@ -202,7 +204,7 @@ class VariantTest extends TestCase
 
         $data = [
             'name' => fake()->name,
-            'sku' => fake()->word,
+            'sku' => fake()->time,
             'description' => fake()->text,
         ];
         $response = $this->graphQL('
@@ -224,9 +226,9 @@ class VariantTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->word,
+            'sku' => fake()->time,
             'products_id' => $productId,
-            'warehouse' => $warehouseData
+            'warehouses' => [$warehouseData]
         ];
         $response = $this->graphQL('
         mutation($data: VariantsInput!) {
@@ -266,13 +268,13 @@ class VariantTest extends TestCase
             'id' => $response->json()['data']['createWarehouse']['id'],
         ];
         $data = [
-            'warehouse_id' => $warehouseData['id'],
+            'id' => $warehouseData['id'],
             'price' => rand(1, 1000),
             'quantity' => rand(1, 5),
             'position' => rand(1, 4),
         ];
         $warehouseResponse = $this->graphQL('
-        mutation($data: VariantsWarehousesInput! $id: ID!) {
+        mutation($data: WarehouseReferenceInput! $id: ID!) {
             addVariantToWarehouse(input: $data id: $id)
             {
                 id
@@ -355,7 +357,7 @@ class VariantTest extends TestCase
 
         $data = [
             'name' => fake()->name,
-            'sku' => fake()->word,
+            'sku' => fake()->time,
             'description' => fake()->text,
         ];
         $response = $this->graphQL('
@@ -378,8 +380,8 @@ class VariantTest extends TestCase
             'name' => fake()->name,
             'description' => fake()->text,
             'products_id' => $productId,
-            'sku' => fake()->word,
-            'warehouse' => $warehouseData
+            'sku' => fake()->time,
+            'warehouses' => [$warehouseData]
         ];
         $response = $this->graphQL('
         mutation($data: VariantsInput!) {
@@ -395,13 +397,13 @@ class VariantTest extends TestCase
         $variantId = $response->json()['data']['createVariant']['id'];
 
         $data = [
-            'warehouse_id' => $warehouseData['id'],
+            'id' => $warehouseData['id'],
             'price' => rand(1, 1000),
             'quantity' => rand(1, 5),
             'position' => rand(1, 4),
         ];
         $warehouseResponse = $this->graphQL('
-        mutation($data: VariantsWarehousesInput! $id: ID!) {
+        mutation($data: WarehouseReferenceInput! $id: ID!) {
             updateVariantInWarehouse(input: $data id: $id)
             {
                 id

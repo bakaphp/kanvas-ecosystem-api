@@ -19,6 +19,7 @@ enum Module {
     ECOSYSTEM @enum(value: 0)
     INVENTORY @enum(value: 1)
     CRM @enum(value: 2)
+    systemRole: Boolean! @method(name: "isSystemRole")
 }
 extend type Query @guard {
     roles(

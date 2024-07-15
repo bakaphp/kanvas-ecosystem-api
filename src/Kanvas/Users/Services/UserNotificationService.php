@@ -47,7 +47,7 @@ class UserNotificationService
             if ($app->get((string) AppSettingsEnums::SEND_WELCOME_EMAIL->getValue())) {
                 $user->notify(new Welcome(
                     $user,
-                    $company ? ['company' => $company] : []
+                    $company ? ['company' => $company, 'subject' => 'Welcome to ' . $company->name, 'app' => $app] : ['app' => $app]
                 ));
             }
         } catch (Throwable $e) {

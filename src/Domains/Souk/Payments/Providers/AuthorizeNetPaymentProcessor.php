@@ -8,7 +8,7 @@ use DateTime;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Souk\Orders\DataTransferObject\Order;
+use Kanvas\Souk\Orders\DataTransferObject\DirectOrder;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
 use net\authorize\api\constants\ANetEnvironment;
 use net\authorize\api\contract\v1\ANetApiResponseType;
@@ -51,7 +51,7 @@ class AuthorizeNetPaymentProcessor
         return $creditCard;
     }
 
-    protected function setOrder(Order $orderInput): AnetAPI\OrderType
+    protected function setOrder(DirectOrder $orderInput): AnetAPI\OrderType
     {
         $order = new AnetAPI\OrderType();
         $order->setInvoiceNumber(time() + $orderInput->user->getId());
@@ -60,7 +60,7 @@ class AuthorizeNetPaymentProcessor
         return $order;
     }
 
-    protected function setCustomerData(Order $orderInput): AnetAPI\CustomerDataType
+    protected function setCustomerData(DirectOrder $orderInput): AnetAPI\CustomerDataType
     {
         $customerData = new AnetAPI\CustomerDataType();
         $customerData->setType('individual');
@@ -70,7 +70,7 @@ class AuthorizeNetPaymentProcessor
         return $customerData;
     }
 
-    protected function setCustomerBillingAddress(Order $orderInput): AnetAPI\CustomerAddressType
+    protected function setCustomerBillingAddress(DirectOrder $orderInput): AnetAPI\CustomerAddressType
     {
         $customerAddress = new AnetAPI\CustomerAddressType();
         $customerAddress->setFirstName($orderInput->user->firstname);
@@ -89,7 +89,7 @@ class AuthorizeNetPaymentProcessor
         return $customerAddress;
     }
 
-    public function processCreditCardPayment(Order $orderInput): ANetApiResponseType
+    public function processCreditCardPayment(DirectOrder $orderInput): ANetApiResponseType
     {
         /* Create a merchantAuthenticationType object with authentication details
              retrieved from the constants file */
@@ -141,7 +141,7 @@ class AuthorizeNetPaymentProcessor
     /**
      * @todo move to its own class
      */
-    public function processSubscriptionPayment(Order $orderInput, int $intervalLength = 30): ANetApiResponseType
+    public function processSubscriptionPayment(DirectOrder $orderInput, int $intervalLength = 30): ANetApiResponseType
     {
         /* Create a merchantAuthenticationType object with authentication details
        retrieved from the constants file */

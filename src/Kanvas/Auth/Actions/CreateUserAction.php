@@ -15,7 +15,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
-use Kanvas\Companies\DataTransferObject\CompaniesPostData;
+use Kanvas\Companies\DataTransferObject\Company;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
@@ -37,9 +37,10 @@ class CreateUserAction
      * Construct function.
      */
     public function __construct(
-        protected RegisterInput $data
+        protected RegisterInput $data,
+        ?Apps $app = null
     ) {
-        $this->app = app(Apps::class);
+        $this->app = $app ?? app(Apps::class);
     }
 
     /**
@@ -87,7 +88,14 @@ class CreateUserAction
         }
 
         if ($this->runWorkflow) {
-            $user->fireWorkflow(WorkflowEnum::REGISTERED->value, true, ['company' => $company]);
+            $user->fireWorkflow(
+                WorkflowEnum::REGISTERED->value,
+                true,
+                [
+                    'company' => $company,
+                    'password' => $this->data->raw_password,
+                ]
+            );
         }
 
         return $user;
@@ -206,10 +214,10 @@ class CreateUserAction
     protected function createCompany(Users $user): CompanyInterface
     {
         $createCompany = new CreateCompaniesAction(
-            new CompaniesPostData(
-                $user->defaultCompanyName ?? $user->displayname . 'CP',
-                $user->getId(),
-                $user->email
+            new Company(
+                user: $user,
+                name: $user->defaultCompanyName ?? $user->displayname . 'CP',
+                email: $user->email
             )
         );
 

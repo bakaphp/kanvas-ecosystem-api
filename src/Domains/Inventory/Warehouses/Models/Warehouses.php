@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Warehouses\Models;
 
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -35,17 +36,29 @@ class Warehouses extends BaseModel
 {
     use UuidTrait;
     use DefaultTrait;
+    use DatabaseSearchableTrait;
 
     protected $table = 'warehouses';
 
     protected $guarded = [];
 
+    /**
+     * @deprecated use app
+     */
     public function apps(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
 
+    /**
+     * @deprecated
+     */
     public function regions(): BelongsTo
+    {
+        return $this->belongsTo(Regions::class, 'regions_id');
+    }
+
+    public function region(): BelongsTo
     {
         return $this->belongsTo(Regions::class, 'regions_id');
     }
@@ -167,21 +180,18 @@ class Warehouses extends BaseModel
 
     /**
      * Get the total amount of products of a warehouse.
-     *
-     * @return Int
      */
     public function getTotalProducts(): int
     {
         if (! $totalProducts = $this->get('total_products')) {
             return (int) $this->setTotalProducts();
         }
+
         return (int) $totalProducts;
     }
 
     /**
      * Set the total amount of products of a warehouse.
-     *
-     * @return Int
      */
     public function setTotalProducts(): int
     {
@@ -190,8 +200,15 @@ class Warehouses extends BaseModel
                 'total_products',
                 $this->variantsWarehouses()->first()->getTotalProducts()
             );
+
             return (int) $this->get('total_products');
         }
+
         return 0;
+    }
+
+    public function hasDependencies(): bool
+    {
+        return $this->variantsWarehouses()->exists();
     }
 }

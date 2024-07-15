@@ -8,7 +8,6 @@ use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDataInput;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
-use Spatie\LaravelData\DataCollection;
 
 class UpdatePeopleAction
 {
@@ -43,39 +42,58 @@ class UpdatePeopleAction
         $this->people->setCustomFields($this->peopleData->custom_fields);
         $this->people->saveCustomFields();
 
+        if (count($this->peopleData->tags)) {
+            $this->people->syncTags(array_column($this->peopleData->tags, 'name'));
+        }
+
         if ($this->peopleData->contacts->count()) {
             $contacts = [];
-            $this->people->contacts()->delete();
             foreach ($this->peopleData->contacts as $contact) {
-                $contacts[] = new Contact([
-                    'contacts_types_id' => $contact->contacts_types_id,
-                    'value' => $contact->value,
-                    'weight' => $contact->weight,
-                ]);
+                $existingContact = $this->people->contacts()->where('value', $contact->value)->first();
+
+                if (! $existingContact) {
+                    $contacts[] = new Contact([
+                        'contacts_types_id' => $contact->contacts_types_id,
+                        'value' => $contact->value,
+                        'weight' => $contact->weight,
+                    ]);
+                }
             }
 
-            $this->people->contacts()->saveMany($contacts);
+            if (count($contacts) > 0) {
+                $this->people->contacts()->saveMany($contacts);
+            }
         }
 
         if ($this->peopleData->address->count()) {
             $addresses = [];
-            $this->people->address()->delete();
+
             foreach ($this->peopleData->address as $address) {
-                $addresses[] = new Address([
-                    'address' => $address->address,
-                    'address_2' => $address->address_2,
-                    'city' => $address->city,
-                    'state' => $address->state,
-                    'zip' => $address->zipcode,
-                    //'country' => $address->country,
-                    'is_default' => $address->is_default,
-                    'city_id' => $address->city_id ?? 0,
-                    'state_id' => $address->state_id ?? 0,
-                    'countries_id' => $address->country_id ?? 0,
-                ]);
+                $existingAddress = $this->people->address()->where('address', $address->address)
+                    ->where('city', $address->city)
+                    ->where('state', $address->state)
+                    ->where('zip', $address->zipcode)
+                    ->first();
+
+                if (! $existingAddress) {
+                    $addresses[] = new Address([
+                        'address' => $address->address,
+                        'address_2' => $address->address_2,
+                        'city' => $address->city,
+                        'state' => $address->state,
+                        'zip' => $address->zipcode,
+                        //'country' => $address->country,
+                        'is_default' => $address->is_default,
+                        'city_id' => $address->city_id ?? 0,
+                        'state_id' => $address->state_id ?? 0,
+                        'countries_id' => $address->country_id ?? 0,
+                    ]);
+                }
             }
 
-            $this->people->address()->saveMany($addresses);
+            if (count($addresses) > 0) {
+                $this->people->address()->saveMany($addresses);
+            }
         }
 
         return $this->people;

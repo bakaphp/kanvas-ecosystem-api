@@ -43,7 +43,8 @@ class EntityInteractions extends BaseModel
          * @var Model
          */
         return $this->interacted_entity_namespace::notDeleted()
-            ->where('uuid', $this->interacted_entity_id)->first();
+            ->where('uuid', $this->interacted_entity_id)
+            ->first();
     }
 
     /**

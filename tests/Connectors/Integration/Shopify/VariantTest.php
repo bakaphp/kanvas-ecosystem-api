@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Shopify;
 
-use Kanvas\Connectors\Shopify\DataTransferObject\Shopify;
 use Kanvas\Connectors\Shopify\Enums\StatusEnum;
-use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
+use Kanvas\Connectors\Shopify\Services\ShopifyImageService;
 use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
-use Tests\Connectors\Traits\HasShopifyConfiguration;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Inventory\Regions\Models\Regions;
+use Tests\Connectors\Traits\HasShopifyConfiguration;
 use Tests\TestCase;
 
 final class VariantTest extends TestCase
@@ -96,17 +94,18 @@ final class VariantTest extends TestCase
             $warehouse
         );
 
+        $shopifyImageService = new ShopifyImageService(
+            $product->app,
+            $product->company,
+            $warehouse->region
+        );
 
         $shopifyProduct = $shopify->saveProduct($product, StatusEnum::ACTIVE);
+        $url = 'https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png';
 
         foreach ($product->variants as $variant) {
-            $shopify->saveVariant($variant);
-            $shopifyVariantResponse = $shopify->addImages($variant, fake()->imageUrl(640, 480, 'animals', true));
-
-            $this->assertEquals(
-                $variant->image,
-                $shopifyVariantResponse
-            );
+            $this->assertTrue($shopifyImageService->addVariantImage($variant, $url));
+            //$shopifyVariantResponse = $shopify->addImages($variant, $url);
         }
     }
 }

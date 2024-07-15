@@ -48,9 +48,13 @@ use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Notifications\Traits\HasNotificationSettings;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Interactions\Traits\LikableTrait;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Factories\UsersFactory;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
@@ -112,6 +116,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use HasFactory;
     use HasApiTokens;
     use HasRolesAndAbilities;
+    use LikableTrait;
     use HasFilesystemTrait;
     use KanvasModelTrait;
     use HasNotificationSettings;
@@ -122,12 +127,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use CanUseWorkflow;
 
     protected ?string $defaultCompanyName = null;
+    protected ?string $currentDeviceId = null;
 
     protected $guarded = [];
 
     protected $casts = [
         'default_company' => 'integer',
         'default_company_branch' => 'integer',
+        'welcome' => 'boolean',
     ];
 
     protected $hidden = [
@@ -232,6 +239,11 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             'id',
             'apps_id'
         )->where('apps.is_deleted', StateEnums::NO->getValue())->distinct();
+    }
+
+    public function systemModule(): BelongsTo
+    {
+        return $this->belongsTo(SystemModules::class, 'apps_id', 'apps_id')->where('model_name', self::class);
     }
 
     /**
@@ -554,6 +566,15 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $user->password = Hash::make($newPassword);
         $user->user_activation_forgot = '';
 
+        $this->fireWorkflow(
+            WorkflowEnum::AFTER_FORGOT_PASSWORD->value,
+            true,
+            [
+                'app' => $app,
+                'profile' => $user,
+            ]
+        );
+
         return $user->saveOrFail();
     }
 
@@ -672,24 +693,43 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return (bool) $user->is_active;
     }
 
+    public function getAppWelcome(): bool
+    {
+        $user = $this->getAppProfile(app(Apps::class));
+
+        return (bool) $user->welcome;
+    }
+
     public function runVerifyTwoFactorAuth(?AppInterface $app = null): bool
     {
         $user = $this->getAppProfile($app ?? app(Apps::class));
+        $twoFactorKey = $this->getCurrentDeviceId() ? UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value . '-' . $this->getCurrentDeviceId() : UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value;
 
-        if (! $this->get(UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value) && $user->phone_verified_at && now()->subDays(7)->lte(new Carbon($user->phone_verified_at))) {
+        if (! $this->get($twoFactorKey) && $user->phone_verified_at && now()->subDays(7)->lte(new Carbon($user->phone_verified_at))) {
             return false;
         }
 
         /**
          * @todo user config per app
          */
-        return ! ($this->get(UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value)
+        return ! ((bool) $this->get($twoFactorKey)
                 && $user->phone_verified_at && now()->subDays(30)->lte(new Carbon($user->phone_verified_at)));
     }
 
     public function getPhoto(): ?FilesystemEntities
     {
         return $this->getFileByName('photo');
+    }
+
+    public function getSocialInfo(): array
+    {
+        return [
+            'total_message' => Message::fromApp(app(Apps::class))->where('users_id', $this->getId())->count(),
+            'total_like' => 0,
+            'total_followers' => 0,
+            'total_following' => 0,
+            'total_list' => 0,
+        ];
     }
 
     public static function getByIdFromCompany(mixed $id, CompanyInterface $company): self
@@ -741,5 +781,15 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         }
 
         return $query;
+    }
+
+    public function setCurrentDeviceId(?string $deviceId = null): void
+    {
+        $this->currentDeviceId = $deviceId;
+    }
+
+    public function getCurrentDeviceId(): ?string
+    {
+        return $this->currentDeviceId;
     }
 }

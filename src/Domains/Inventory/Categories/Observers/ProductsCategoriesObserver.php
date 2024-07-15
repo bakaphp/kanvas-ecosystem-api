@@ -10,9 +10,9 @@ class ProductsCategoriesObserver
 {
     public function saved(ProductsCategories $productsCategories): void
     {
-        $productsCategories->set(
+        $productsCategories->category->set(
             'total_products',
-            $productsCategories->categories->getTotalProducts()
+            $productsCategories->category->getTotalProducts()
         );
     }
 }

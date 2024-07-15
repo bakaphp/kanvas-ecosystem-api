@@ -19,7 +19,7 @@ class ChannelRepository
     {
         $databaseSocial = config('database.connections.social.database', 'social');
         $builder = Channel::join($databaseSocial . '.channel_users', 'channel_users.channel_id', '=', 'channels.id')
-            ->where('users_id', auth()->user()->id);
+            ->where('users_id', $user->getId());
 
         return $builder;
     }

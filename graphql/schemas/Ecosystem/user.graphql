@@ -20,12 +20,15 @@ type User {
     abilities: Mixed! @method(name: "getAbilitiesList")
     roles: Mixed! @method(name: "getRoles")
     mainRole: String!
+    welcome: Boolean! @method(name: "getAppWelcome")
     created_at: DateTime
+    systemModule: SystemModule! @belongsTo(relation: "systemModule")
     updated_at: DateTime
     branches: [CompanyBranch!]! @HasManyThrough
     companies: [Company!]! @HasManyThrough
     apps: [App!]! @HasManyThrough
     photo: Filesystem @method(name: "getPhoto")
+    social: UserSocialInfo @method(name: "getSocialInfo")
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25
@@ -79,9 +82,18 @@ type RegisterResponse {
     token: TokenResponse!
 }
 
+type UserSocialInfo {
+    total_message: Int
+    total_like: Int
+    total_followers: Int
+    total_following: Int
+    total_lists: Int
+}
+
 input LoginInput {
     email: String!
     password: String!
+    device_id: String
 }
 
 input SocialLoginInput {
@@ -130,6 +142,7 @@ input UpdateUserInput {
     address_1: String
     address_2: String
     zip_code: Int
+    welcome: Boolean
     city_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Models\\Cities,id"])
     state_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Models\\States,id"])
     country_id: Int
@@ -223,6 +236,21 @@ extend type Mutation {
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\TwoFactorAuthMutation@verifyCode"
+        )
+    updatePhotoProfile(file: Upload!, user_id: ID!): User!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updatePhotoProfile"
+        )
+    setToggleTwoFactorAuthIn30Days(active: Boolean!): Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\TwoFactorAuthMutation@setToggleTwoFactorAuthIn30Days"
+        )
+    requestDeleteAccount: Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@requestDeleteAccount"
         )
 }
 

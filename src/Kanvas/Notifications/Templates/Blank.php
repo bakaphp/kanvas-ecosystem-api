@@ -7,9 +7,6 @@ namespace Kanvas\Notifications\Templates;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Notifications\Notification;
 
-/**
- * @deprecated version 2 , move to DynamicKanvasNotification
- */
 class Blank extends Notification
 {
     /**
@@ -19,10 +16,10 @@ class Blank extends Notification
         string $templateName,
         array $data,
         array $via,
-        Model $user,
-        public ?string $pathAttachment = null
+        Model $entity,
+        public ?array $pathAttachment = null
     ) {
-        parent::__construct($user);
+        parent::__construct($entity, $data);
         $this->setType('blank');
         $this->setTemplateName($templateName);
         $this->setData($data);

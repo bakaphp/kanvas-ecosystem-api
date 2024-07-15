@@ -16,7 +16,13 @@ class ProductsTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->word
+            'sku' => fake()->time,
+            'attributes' => [
+                [
+                    'name' => fake()->name,
+                    'value' => fake()->name,
+                ],
+            ],
         ];
 
         $response = $this->graphQL('
@@ -25,6 +31,10 @@ class ProductsTest extends TestCase
                 {
                     name
                     description
+                    attributes {
+                        name
+                        value
+                    }
                 }
             }', ['data' => $data]);
 
@@ -42,7 +52,7 @@ class ProductsTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->word
+            'sku' => fake()->time,
         ];
 
         $response = $this->graphQL('
@@ -80,7 +90,7 @@ class ProductsTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->word
+            'sku' => fake()->time,
         ];
         $response = $this->graphQL('
             mutation($data: ProductInput!) {
@@ -136,7 +146,7 @@ class ProductsTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->word
+            'sku' => fake()->time,
         ];
         $response = $this->graphQL('
         mutation($data: ProductInput!) {
@@ -217,7 +227,13 @@ class ProductsTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->word
+            'sku' => fake()->time,
+            'attributes' => [
+                [
+                    'name' => fake()->name,
+                    'value' => fake()->name,
+                ],
+            ],
         ];
         $response = $this->graphQL('
             mutation($data: ProductInput!) {
@@ -225,6 +241,10 @@ class ProductsTest extends TestCase
                 {
                     name
                     description
+                    attributes {
+                        name
+                        value
+                    }
                 }
             }', ['data' => $data]);
 
@@ -257,8 +277,14 @@ class ProductsTest extends TestCase
             'name' => fake()->name,
             'description' => fake()->text,
             'products_id' => $id,
-            'sku' => fake()->word,
-            'warehouse' => $warehouseData
+            'sku' => fake()->time,
+            'warehouses' => [$warehouseData],
+            'attributes' => [
+                [
+                    'name' => fake()->name,
+                    'value' => fake()->name,
+                ],
+            ],
         ];
         $variantResponse = $this->graphQL('
         mutation($data: VariantsInput!) {
@@ -270,6 +296,7 @@ class ProductsTest extends TestCase
                 products_id
             }
         }', ['data' => $data]);
+
         $this->assertArrayHasKey('id', $variantResponse->json()['data']['createVariant']);
     }
 
@@ -329,7 +356,7 @@ class ProductsTest extends TestCase
 
         $data = [
             'name' => fake()->name,
-            'sku' => fake()->word,
+            'sku' => fake()->time,
             'description' => fake()->text,
         ];
         $response = $this->graphQL('
@@ -370,8 +397,8 @@ class ProductsTest extends TestCase
             'name' => fake()->name,
             'description' => fake()->text,
             'products_id' => $id,
-            'sku' => fake()->word,
-            'warehouse' => $warehouseData
+            'sku' => fake()->time,
+            'warehouses' => [$warehouseData]
         ];
         $variantResponse = $this->graphQL('
         mutation($data: VariantsInput!) {

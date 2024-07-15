@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Social\Mutations\Interactions;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Social\Enums\StateEnums;
+use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Interactions\Actions\CreateEntityInteraction;
 use Kanvas\Social\Interactions\Actions\CreateInteraction;
 use Kanvas\Social\Interactions\DataTransferObject\Interaction;
@@ -23,8 +23,8 @@ class EntityInteractionMutation
     {
         return $this->handleInteractionEntity(
             $req,
-            (string) StateEnums::LIKE->getValue(),
-            (string) StateEnums::DISLIKE->getValue()
+            (string) InteractionEnum::LIKE->getValue(),
+            (string) InteractionEnum::DISLIKE->getValue()
         );
     }
 
@@ -40,7 +40,7 @@ class EntityInteractionMutation
         );
 
         return $createEntityInteraction->execute(
-            (string) StateEnums::LIKE->getValue()
+            (string) InteractionEnum::LIKE->getValue()
         )->softDelete();
     }
 
@@ -51,8 +51,8 @@ class EntityInteractionMutation
     {
         return $this->handleInteractionEntity(
             $req,
-            (string) StateEnums::DISLIKE->getValue(),
-            (string) StateEnums::LIKE->getValue()
+            (string) InteractionEnum::DISLIKE->getValue(),
+            (string) InteractionEnum::LIKE->getValue()
         );
     }
 

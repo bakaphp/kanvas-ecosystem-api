@@ -35,6 +35,7 @@ class UsersRepository
             })
             ->whereIn('users.id', $users)
             ->orWhereIn('users.email', $users)
+            ->groupBy('users.id')
             ->get();
     }
 
@@ -57,6 +58,16 @@ class UsersRepository
     {
         return Users::where('email', $email)
                 ->firstOrFail();
+    }
+
+    public static function getUserOfAppByEmail(string $email, AppInterface $app = null): Users
+    {
+        return Users::select('users.*')
+            ->join('users_associated_apps', 'users_associated_apps.users_id', 'users.id')
+            ->where('users_associated_apps.apps_id', $app->getId())
+            ->where('users.email', $email)
+            ->where('users_associated_apps.is_deleted', StateEnums::NO->getValue())
+            ->firstOrFail();
     }
 
     /**
@@ -93,6 +104,17 @@ class UsersRepository
             ->firstOrFail();
     }
 
+    public static function getUsersByDaysCreated(int $days, ?AppInterface $app = null): Collection
+    {
+        $app = $app ?? app(Apps::class);
+
+        return Users::join('users_associated_apps', 'users_associated_apps.users_id', '=', 'users.id')
+            ->whereRaw('DATEDIFF(CURDATE(), users_associated_apps.created_at) = ?', [$days])
+            ->select('users.*')
+            ->groupBy('users.id')
+            ->get();
+    }
+
     /**
      * getAll.
      * @psalm-suppress MixedReturnStatement
@@ -103,6 +125,7 @@ class UsersRepository
             ->join('users_associated_company', 'users_associated_company.users_id', 'users.id')
             ->where('users_associated_company.companies_id', $companiesId)
             ->whereNot('users.id', auth()->user()->id)
+            ->select('users.*')
             ->get();
     }
 

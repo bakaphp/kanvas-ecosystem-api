@@ -66,7 +66,7 @@ class RemoveVariantsToWarehouseTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->word
+            'sku' => fake()->time
         ];
         $response = $this->graphQL('
             mutation($data: ProductInput!) {
@@ -87,8 +87,8 @@ class RemoveVariantsToWarehouseTest extends TestCase
             'name' => fake()->name,
             'description' => fake()->text,
             'products_id' => $productId,
-            'sku' => fake()->word,
-            'warehouse' => $warehouseData
+            'sku' => fake()->time,
+            'warehouses' => [$warehouseData]
         ];
         $response = $this->graphQL('
         mutation($data: VariantsInput!) {
@@ -103,15 +103,40 @@ class RemoveVariantsToWarehouseTest extends TestCase
         }', ['data' => $data]);
         $variantId = $response->json()['data']['createVariant']['id'];
 
+        $warehouseDataUpdate = [
+            'regions_id' => $idRegion,
+            'name' => fake()->name,
+            'location' => 'Test Location',
+            'is_default' => true,
+            'is_published' => true,
+        ];
+        $response = $this->graphQL('
+        mutation($data: WarehouseInput!) {
+            createWarehouse(input: $data)
+            {
+                id
+                regions_id
+                name
+                location
+                is_default
+                is_published
+            }
+        }', ['data' => $warehouseDataUpdate])->assertJson([
+            'data' => ['createWarehouse' => $warehouseDataUpdate]
+        ]);
+        $warehouseData = [
+            'id' => $response->json()['data']['createWarehouse']['id'],
+        ];
 
         $data = [
+            'id' => $warehouseData['id'],
             'price' => rand(1, 1000),
             'quantity' => rand(1, 5),
             'position' => rand(1, 4),
         ];
         $warehouseResponse = $this->graphQL('
-        mutation($data: VariantsWarehousesInput! $id: ID! $warehouse_id: ID!) {
-            addVariantToWarehouse(input: $data id: $id warehouse_id: $warehouse_id)
+        mutation($data: WarehouseReferenceInput! $id: ID! $warehouse_id: ID!) {
+            addVariantToWarehouse(input: $data id: $id)
             {
                 id
                 name
@@ -126,7 +151,6 @@ class RemoveVariantsToWarehouseTest extends TestCase
         }', [
             'data' => $data,
             'id' => $variantId,
-            'warehouse_id' => $warehouseData['id']
         ]);
         $this->graphQL('
         mutation($id: ID! $warehouse_id: ID!) {

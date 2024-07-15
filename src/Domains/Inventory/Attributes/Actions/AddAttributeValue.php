@@ -11,15 +11,17 @@ class AddAttributeValue
 {
     public function __construct(
         protected Attributes $attributeModel,
-        protected mixed $value
+        protected array $values
     ) {
     }
 
-    public function execute(): AttributesValues
+    public function execute(): void
     {
-        return AttributesValues::firstOrCreate([
-            'attributes_id' => $this->attributeModel->getId(),
-            'value' => $this->value,
-        ]);
+        foreach ($this->values as $value) {
+            AttributesValues::firstOrCreate([
+                'attributes_id' => $this->attributeModel->getId(),
+                'value' => $value['value'],
+            ]);
+        }
     }
 }

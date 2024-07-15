@@ -25,6 +25,7 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserCompanyApps;
@@ -71,13 +72,7 @@ class Companies extends BaseModel implements CompanyInterface
 
     public const DELETED_AT = 'is_deleted';
 
-
-    /**
-     * The attributes that should not be mass assignable.
-     *
-     * @var array
-     */
-    protected $guarded = ['files'];
+    protected $guarded = ['files', 'users_id', 'custom_fields'];
 
     /**
      * Create a new factory instance for the model.
@@ -166,6 +161,16 @@ class Companies extends BaseModel implements CompanyInterface
     public function searchableAs(): string
     {
         return config('scout.prefix') . '_companies';
+    }
+
+    public function regions(): HasMany
+    {
+        return $this->hasMany(Regions::class, 'companies_id');
+    }
+
+    public function defaultRegion(): HasOne
+    {
+        return $this->hasOne(Regions::class, 'companies_id')->where('is_default', StateEnums::YES->getValue());
     }
 
     /**

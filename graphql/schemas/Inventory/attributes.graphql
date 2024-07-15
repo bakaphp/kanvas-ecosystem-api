@@ -1,6 +1,7 @@
 input AttributeInput {
     name: String!
-    value: Mixed!
+    values: [AttributesValueInput!]
+    slug: String
     is_visible: Boolean
     is_searchable: Boolean
     is_filtrable: Boolean
@@ -8,15 +9,22 @@ input AttributeInput {
 
 input AttributeUpdateInput {
     name: String
+    slug: String
+    values: [AttributesValueInput!]
     is_visible: Boolean
     is_searchable: Boolean
     is_filtrable: Boolean
+}
+
+input AttributesValueInput {
+    value: Mixed!
 }
 
 type Attributes {
     id: ID!
     uuid: String
     name: String
+    slug: String
     created_at: String
     updated_at: String
     companies: [Company]
@@ -59,7 +67,24 @@ extend type Mutation @guard {
 }
 extend type Query @guard {
     attributes(
-        where: _ @whereConditions(columns: ["uuid", "id", "name"])
+        search: String @search
+        where: _ 
+            @whereConditions(
+                columns: [
+                    "uuid",
+                    "id",
+                    "name"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                ]
+            )
     ): [Attributes!]!
         @paginate(
             defaultCount: 25

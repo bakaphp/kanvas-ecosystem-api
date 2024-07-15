@@ -104,7 +104,8 @@ input CompanyInput {
     phone: String
     country_code: String
     users_id: Int
-    files: [FilesystemInputUrl]
+    files: [FilesystemInputUrl!]
+    custom_fields: [CustomFieldEntityInput!]
     is_active: Boolean
 }
 
@@ -120,13 +121,36 @@ input CompanyBranchInput {
     language: String
     timezone: String
     phone: String
-    files: [FilesystemInputUrl]
+    files: [FilesystemInputUrl!]
     is_active: Boolean
 }
 
 type CompanySettings {
     name: String!
     settings: Mixed
+}
+
+enum CompanyUserColumn {
+    ID @enum(value: "users.id")
+    UUID @enum(value: "users.uuid")
+    COMPANIES_ID @enum(value: "users_associated_company.companies_id")
+    COMPANIES_BRANCHES_ID @enum(value: "users_associated_company.companies_branches_id")
+    DISPLAYNAME @enum(value: "users_associated_apps.displayname")
+    FIRSTNAME @enum(value: "users_associated_apps.firstname")
+    LASTNAME @enum(value: "users_associated_apps.lastname")
+    EMAIL @enum(value: "users_associated_apps.email")
+    USER_ACTIVE @enum(value: "users_associated_company.user_active")
+    CREATED_AT @enum(value: "users_associated_apps.created_at")
+    UPDATE_AT @enum(value: "users_associated_apps.updated_at")
+}
+
+enum CompanyOrderColumn{
+    ID @enum(value: "companies.id")
+    NAME @enum(value: "companies.name")
+    ADDRESS @enum(value: "companies.address")
+    IS_ACTIVE @enum(value: "companies.is_active")
+    CREATED_AT @enum(value: "companies.created_at")
+    UPDATED_AT @enum(value: "companies.updated_at")
 }
 
 extend type Query @guard {
@@ -151,7 +175,7 @@ extend type Query @guard {
             )
         hasUsers: _
             @whereHasConditions(columns: ["id", "uuid", "displayname", "email"])
-        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+        orderBy: _ @orderBy(columnsEnum: CompanyOrderColumn)
     ): [Company!]!
         @paginate(
             defaultCount: 25
@@ -192,22 +216,7 @@ extend type Query @guard {
         )
 
     companyUsers(
-        where: _
-            @whereConditions(
-                columns: [
-                    "id"
-                    "companies_id"
-                    "uuid"
-                    "firstname"
-                    "lastname"
-                    "displayname"
-                    "email"
-                    "phone"
-                    "user_active"
-                    "created_at"
-                    "updated_at"
-                ]
-            )
+        where: _ @whereConditions(columnsEnum: CompanyUserColumn)
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id", "name"])
     ): [User!]!
         @paginate(
@@ -216,22 +225,8 @@ extend type Query @guard {
         )
 
     companyBranchUsers(
-        where: _
-            @whereConditions(
-                columns: [
-                    "id"
-                    "uuid"
-                    "companies_id"
-                    "firstname"
-                    "lastname"
-                    "displayname"
-                    "email"
-                    "phone"
-                    "user_active"
-                    "created_at"
-                    "updated_at"
-                ]
-            )
+        where: _ @whereConditions(columnsEnum: CompanyUserColumn)
+        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id", "name"])
     ): [User!]!
         @paginate(
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagementQuery@getAllCompanyBranchUsers"

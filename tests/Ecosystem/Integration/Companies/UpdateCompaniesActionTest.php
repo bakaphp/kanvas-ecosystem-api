@@ -7,7 +7,7 @@ namespace Tests\Ecosystem\Integration\Companies;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\UpdateCompaniesAction;
-use Kanvas\Companies\DataTransferObject\CompaniesPutData;
+use Kanvas\Companies\DataTransferObject\Company;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
@@ -17,8 +17,6 @@ final class UpdateCompaniesActionTest extends TestCase
 {
     /**
      * Test Create Apps Action.
-     *
-     * @return void
      */
     public function testUpdateCompaniesAction(): void
     {
@@ -28,7 +26,7 @@ final class UpdateCompaniesActionTest extends TestCase
 
         $faker = \Faker\Factory::create();
         $data = [
-            'users_id' => $company->users_id,
+            'user' => $company->user,
             'currency_id' => $company->currency_id,
             'name' => $faker->company,
             'profile_image' => $company->profile_image,
@@ -42,7 +40,7 @@ final class UpdateCompaniesActionTest extends TestCase
             'country_code' => $company->country_code,
         ];
 
-        $dtoData = CompaniesPutData::fromArray($data);
+        $dtoData = Company::from($data);
 
         $updateCompany = new UpdateCompaniesAction(Auth::user(), $dtoData);
 

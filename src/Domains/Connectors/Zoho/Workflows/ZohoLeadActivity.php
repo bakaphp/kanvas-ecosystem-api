@@ -19,6 +19,9 @@ use Throwable;
 use Webleit\ZohoCrmApi\Modules\Leads as ZohoLeadModule;
 use Workflow\Activity;
 
+/**
+ * @todo refactor move core logic to SyncLeadWithZohoAction
+ */
 class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
 {
     use KanvasJobsTrait;
@@ -36,12 +39,13 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
         $usesAgentsModule = $company->get(CustomFieldEnum::ZOHO_HAS_AGENTS_MODULE->value);
 
         $zohoCrm = Client::getInstance($app, $company);
-
-        if ($usesAgentsModule) {
-            $this->assignAgent($app, $zohoLead, $lead, $company, $zohoData);
-        }
+        $status = 'created';
 
         if (! $zohoLeadId = $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value)) {
+            if ($usesAgentsModule) {
+                $this->assignAgent($app, $zohoLead, $lead, $company, $zohoData);
+            }
+
             $zohoLead = $zohoCrm->leads->create($zohoData);
             $zohoLeadId = $zohoLead->getId();
 
@@ -52,10 +56,23 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
                 $zohoLeadId
             );
         } else {
-            $zohoLead = $zohoCrm->leads->update(
-                (string) $zohoLeadId,
-                $zohoData
-            );
+            $zohoLeadInfo = $zohoCrm->leads->get((string) $zohoLeadId)->getData();
+            if (! empty($zohoLeadInfo)) {
+                $status = 'updated';
+                $zohoLead = $zohoCrm->leads->update(
+                    (string) $zohoLeadId,
+                    $zohoData
+                );
+            } else {
+                $lead->close();
+
+                return [
+                    'zohoLeadId' => $zohoLeadId,
+                    'zohoRequest' => 'Lead not found in Zoho',
+                    'leadId' => $lead->getId(),
+                    'status' => 'closed',
+                ];
+            }
         }
 
         $this->uploadAttachments($zohoCrm->leads, $lead);
@@ -64,6 +81,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
             'zohoLeadId' => $zohoLeadId,
             'zohoRequest' => $zohoData,
             'leadId' => $lead->getId(),
+            'status' => $status,
         ];
     }
 
@@ -105,7 +123,15 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
         }
 
         if (is_object($agent)) {
-            $zohoData['Owner'] = (int) $agent->Owner['id'];
+            try {
+                ///lead owner should match lead routing
+                $leadRoutingEmailCleanUp = preg_replace('/[^a-zA-Z0-9@._-]/', '', $agent->Lead_Routing);
+                $zohoData['Owner'] = $zohoService->getAgentByEmail($leadRoutingEmailCleanUp)->Owner['id'];
+            } catch (Throwable $e) {
+                //send fail notification and assign to default lead routing email
+                $zohoData['Owner'] = (int) ($app->get(CustomFieldEnum::DEFAULT_OWNER->value) ?? $agent->Owner['id']);
+            }
+
             if ($agent->Sponsor) {
                 $zohoData['Sponsor'] = (string) $agent->Sponsor;
             }
@@ -118,6 +144,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
             if ($agentInfo && $agentInfo->get('over_write_owner')) {
                 $zohoData['Owner'] = (int) $agentInfo->get('over_write_owner');
             }
+            $zohoData['Lead_Source'] = $agent->name ?? $agent->Name;
         } elseif ($agentInfo instanceof Agent) {
             $zohoData['Owner'] = (int) $agentInfo->owner_linked_source_id;
             if (empty($defaultLeadSource)) {
@@ -125,11 +152,11 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
             }
 
             if ($agentInfo->user && ! empty($agentInfo->user->get('sponsor'))) {
-                $zohoData['Sponsor'] = (string) $agent->user->get('sponsor');
+                $zohoData['Sponsor'] = (string) $agentInfo->user->get('sponsor');
             }
         }
 
-        if ($company->get(CustomFieldEnum::ZOHO_USE_AGENT_NAME->value)) {
+        if ($company->get(CustomFieldEnum::ZOHO_USE_AGENT_NAME->value) && ! empty($agentInfo->name)) {
             $zohoData['Agent_Name'] = $agentInfo->name;
         }
 

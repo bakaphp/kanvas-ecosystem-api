@@ -34,9 +34,12 @@ class NotificationsManagementMutation
             $userToNotify = UsersRepository::findUsersByArray($request['users'], $company);
         }
 
+        $data = Str::isJson($request['data']) ? json_decode($request['data'], true) : (array) $request['data']; // This can have more validation like validate if is array o json
+        $data['app'] = app(Apps::class);
+
         $notification = new Blank(
             $request['template_name'],
-            Str::isJson($request['data']) ? json_decode($request['data'], true) : (array) $request['data'], // This can have more validation like validate if is array o json
+            $data,
             $request['via'],
             $user,
             key_exists('attachment', $request) ? $request['attachment'] : null
@@ -50,13 +53,18 @@ class NotificationsManagementMutation
 
     public function anonymousNotification(mixed $root, array $request)
     {
+        $data = Str::isJson($request['data']) ? json_decode($request['data'], true) : (array) $request['data'];
+        $data['app'] = app(Apps::class);
+        $user = auth()->user();
+
         $notification = new Blank(
             $request['template_name'],
-            Str::isJson($request['data']) ? json_decode($request['data'], true) : (array) $request['data'], // This can have more validation like validate if is array o json
+            $data,
             ['mail'],
-            auth()->user()
+            $user
         );
-        $notification->setFromUser(auth()->user());
+        $notification->setFromUser($user);
+        $notification->setSubject($request['subject']);
         Notification::route('mail', $request['email'])->notify($notification);
 
         return true;

@@ -29,7 +29,7 @@ type WarehouseVariantRelationship {
 
 input VariantsWarehousesInput {
     warehouse_id: ID!
-    quantity: Float
+    quantity: Int
     status: StatusReferenceInput
     price: Float
     sku: String
@@ -46,11 +46,11 @@ input VariantsWarehousesInput {
 }
 
 extend type Mutation @guard {
-    addVariantToWarehouse(id: ID!, input: VariantsWarehousesInput!): Variant
+    addVariantToWarehouse(id: ID!, input: WarehouseReferenceInput!): Variant
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@addToWarehouse"
         )
-    updateVariantInWarehouse(id: ID!, input: VariantsWarehousesInput!): Variant
+    updateVariantInWarehouse(id: ID!, input: WarehouseReferenceInput!): Variant
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@updateVariantInWarehouse"
         )

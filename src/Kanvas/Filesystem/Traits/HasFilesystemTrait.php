@@ -83,6 +83,29 @@ trait HasFilesystemTrait
         return true;
     }
 
+    public function overWriteFiles(array $files): bool
+    {
+        $existingFiles = $this->getFiles();
+        $newFiles = collect($files);
+
+        // Find files to delete
+        $filesToDelete = $existingFiles->filter(function ($file) use ($newFiles) {
+            return ! $newFiles->contains('url', $file['url']);
+        });
+
+        // Soft delete the files (or handle deletion as per your logic)
+        foreach ($filesToDelete as $fileDelete) {
+            $fileDelete->delete();
+        }
+
+        // Add or update new files
+        foreach ($newFiles as $file) {
+            $this->addFileFromUrl($file['url'], $file['name']);
+        }
+
+        return true;
+    }
+
     /**
      * Attach multiple files.
      *
@@ -125,6 +148,9 @@ trait HasFilesystemTrait
      */
     public function files(): HasManyThrough
     {
+        $app = $this->app ?? app(Apps::class);
+        $systemModule = SystemModulesRepository::getByModelName(get_class($this), $app);
+
         return $this->hasManyThrough(
             Filesystem::class,
             FilesystemEntities::class,
@@ -134,7 +160,7 @@ trait HasFilesystemTrait
             'filesystem_id'
         )->where(
             'filesystem_entities.system_modules_id',
-            SystemModulesRepository::getByModelName(get_class($this))->getId()
+            $systemModule->getId()
         )
         ->where(
             'filesystem_entities.is_deleted',

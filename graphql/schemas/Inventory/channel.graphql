@@ -2,7 +2,7 @@ type Channel {
     id: ID!
     companies_id: Int!
     users_id: Int!
-    companies: Company
+    companies: Company! @belongsTo(relation: "company")
     users: User
     name: String!
     uuid: String!
@@ -48,6 +48,7 @@ extend type Mutation @guard {
 }
 extend type Query @guard {
     channels(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [

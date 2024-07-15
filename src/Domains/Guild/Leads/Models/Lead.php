@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Models;
 
 use Baka\Support\Str;
-use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -13,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
@@ -23,6 +23,7 @@ use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
@@ -35,6 +36,7 @@ use Laravel\Scout\Searchable;
  * @property string $uuid
  * @property int $users_id
  * @property int $companies_id
+ * @property int|null $apps_id
  * @property int $companies_branches_id
  * @property int $leads_receivers_id
  * @property int $leads_owner_id
@@ -60,7 +62,7 @@ class Lead extends BaseModel
 {
     use UuidTrait;
     use Searchable;
-    use NoAppRelationshipTrait;
+    use HasTagsTrait;
     use FollowersTrait;
     use CanUseWorkflow;
 
@@ -196,6 +198,11 @@ class Lead extends BaseModel
     public function attempt(): BelongsTo
     {
         return $this->belongsTo(LeadAttempt::class, 'id', 'leads_id');
+    }
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(CompaniesBranches::class, 'companies_branches_id');
     }
 
     public function isOpen(): bool
