@@ -7,27 +7,28 @@ namespace Kanvas\Apps\Support;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Contracts\HashTableInterface;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Config;
 
 class SmtpRuntimeConfiguration
 {
     protected string $appSmtp = 'appSmtp';
     protected string $companySmtp = 'companySmtp';
-    protected string $defaultSmtp;
+    protected array $defaultSmtp;
 
     public function __construct(
         protected AppInterface $app,
         protected ?CompanyInterface $company = null
     ) {
-        $this->defaultSmtp = config('mail.default');
+        $this->defaultSmtp = config('mail.mailers.smtp');
     }
 
     /**
      * Load SMTP settings from the given source.
      */
-    protected function loadSmtpSettingsFromSource(string $provider, HashTableInterface $source): string
+    protected function loadSmtpSettingsFromSource(string $provider, HashTableInterface $source): array
     {
-        $config = [
+        return [
             'transport' => 'smtp',
             'host' => $source->get('smtp_host'),
             'port' => $source->get('smtp_port'),
@@ -37,16 +38,16 @@ class SmtpRuntimeConfiguration
             'timeout' => null,
         ];
 
-        Config::set('mail.mailers.' . $provider, $config);
+        //Config::set('mail.mailers.' . $provider, $config);
 
-        return $provider;
+        //return $provider;
     }
 
 
     /**
      * Load SMTP settings from the app.
      */
-    protected function loadAppSettings(): string
+    protected function loadAppSettings(): array
     {
         return $this->loadSmtpSettingsFromSource($this->appSmtp, $this->app);
     }
@@ -54,7 +55,7 @@ class SmtpRuntimeConfiguration
     /**
      * Load SMTP settings from the company config.
      */
-    protected function loadCompanySettings(): string
+    protected function loadCompanySettings(): array
     {
         return $this->loadSmtpSettingsFromSource($this->companySmtp, $this->company);
     }
@@ -63,7 +64,7 @@ class SmtpRuntimeConfiguration
      * Determine the source of SMTP settings and load them.
      * Returns the SMTP settings source used.
      */
-    public function loadSmtpSettings(): string
+    public function loadSmtpSettings(): array
     {
         if ($this->company !== null && $this->company->get('smtp_host')) {
             return $this->loadCompanySettings();

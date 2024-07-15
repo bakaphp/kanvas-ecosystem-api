@@ -11,8 +11,11 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Mail\Mailable;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification as LaravelNotification;
+use Illuminate\Support\Facades\Config;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
 use Kanvas\Exceptions\ValidationException;
@@ -142,20 +145,19 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      *
      * @param  mixed  $notifiable
      */
-    public function toMail($notifiable): ?MailMessage
+    public function toMail($notifiable): Mailable
     {
         $smtpConfiguration = new SmtpRuntimeConfiguration($this->app, $this->company);
-        $mailer = $smtpConfiguration->loadSmtpSettings();
+        $mailConfig = $smtpConfiguration->loadSmtpSettings();
         $fromMail = $smtpConfiguration->getFromEmail();
 
         $fromEmail = $fromMail['address'];
         $fromName = $fromMail['name'];
 
-        $mailMessage = (new MailMessage())
-                ->mailer($mailer)
+        $toEmail = $notifiable instanceof AnonymousNotifiable ? $notifiable->routes['mail'] : $notifiable->email;
+        $mailMessage = (new KanvasMailable($mailConfig, $this->getEmailContent()))
                 ->from($fromEmail, $fromName)
-                //->subject($this->app->get('name') . ' - ' . $this->getTitle()
-                ->view('emails.layout', ['html' => $this->getEmailContent()]);
+                ->to($toEmail);
 
         $this->subject = $this->subject ?? $this->getNotificationTitle();
 
