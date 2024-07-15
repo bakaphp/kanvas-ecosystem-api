@@ -57,6 +57,8 @@ jobs:
       MEILISEARCH_KEY: masterKey
       SCOUT_QUEUE: false
       APP_DEBUG: true
+      MAIL_MAILER: null
+      
       #third party integration
       TEST_ZOHO_CLIENT_ID: ${{ secrets.TEST_ZOHO_CLIENT_ID }}
       TEST_ZOHO_CLIENT_SECRET: ${{ secrets.TEST_ZOHO_CLIENT_SECRET }}
