@@ -33,6 +33,11 @@ class KanvasMailable extends Mailable
 
     public function build(): self
     {
+        if (app()->environment('testing')) {
+            // Skip setting the custom mailer configuration in testing environment
+            return $this;
+        }
+
         //thanks to https://github.com/laravel/framework/issues/42602#issuecomment-1143637921
         $customConfig = Mail::createSymfonyTransport($this->mailerConfig);
         Mail::setSymfonyTransport($customConfig);
