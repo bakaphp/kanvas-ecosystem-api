@@ -17,9 +17,9 @@ type Abilities {
     roleId: ID
 }
 enum Module {
-    ECOSYSTEM @enum(value: 0)
-    INVENTORY @enum(value: 1)
-    CRM @enum(value: 2)
+    ECOSYSTEM @enum(value: 1)
+    INVENTORY @enum(value: 2)
+    CRM @enum(value: 3)
 }
 extend type Query @guard {
     roles(

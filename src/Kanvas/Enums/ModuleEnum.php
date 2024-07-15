@@ -6,7 +6,7 @@ namespace Kanvas\Enums;
 
 enum ModuleEnum: int
 {
-    case ECOSYSTEM = 0;
-    case INVENTORY = 1;
-    case CRM = 2;
+    case ECOSYSTEM = 1;
+    case INVENTORY = 2;
+    case CRM = 3;
 }
