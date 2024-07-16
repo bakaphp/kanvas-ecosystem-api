@@ -3906,16 +3906,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v11.15.0",
+            "version": "v11.16.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "ba85f1c019bed59b3c736c9c4502805efd0ba84b"
+                "reference": "bd4808aaf103ccb5cb4b00bcee46140c070c0ec4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/ba85f1c019bed59b3c736c9c4502805efd0ba84b",
-                "reference": "ba85f1c019bed59b3c736c9c4502805efd0ba84b",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/bd4808aaf103ccb5cb4b00bcee46140c070c0ec4",
+                "reference": "bd4808aaf103ccb5cb4b00bcee46140c070c0ec4",
                 "shasum": ""
             },
             "require": {
@@ -4108,7 +4108,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2024-07-09T15:38:12+00:00"
+            "time": "2024-07-16T14:33:07+00:00"
         },
         {
             "name": "laravel/octane",
@@ -6383,16 +6383,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.41.0",
+            "version": "v6.41.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "f60fb9f51397f282b7bd817aeef9391648b54f32"
+                "reference": "921981c3b95bca619f0bc637c7b33d353595f3dc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/f60fb9f51397f282b7bd817aeef9391648b54f32",
-                "reference": "f60fb9f51397f282b7bd817aeef9391648b54f32",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/921981c3b95bca619f0bc637c7b33d353595f3dc",
+                "reference": "921981c3b95bca619f0bc637c7b33d353595f3dc",
                 "shasum": ""
             },
             "require": {
@@ -6513,7 +6513,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2024-07-08T09:41:15+00:00"
+            "time": "2024-07-16T13:03:40+00:00"
         },
         {
             "name": "nyholm/psr7",
