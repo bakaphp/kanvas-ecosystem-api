@@ -39,7 +39,7 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RolePermissionQuery@can"
         )
-    getAllAbilities(userId: ID!): [String]
+    getAllAbilities(userId: ID!, companyId: ID): [String]
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleAbilitiesQuery@getAllAbilities"
         )
