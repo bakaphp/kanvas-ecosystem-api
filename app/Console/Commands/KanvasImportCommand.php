@@ -8,7 +8,7 @@ use Illuminate\Contracts\Events\Dispatcher;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Repositories\AppsRepository;
 use Laravel\Scout\Console\ImportCommand;
-
+use Kanvas\Apps\Actions\MountedAppProviderAction;
 class KanvasImportCommand extends ImportCommand
 {
     protected $signature = 'kanvas:import
@@ -19,11 +19,11 @@ class KanvasImportCommand extends ImportCommand
     public function handle(Dispatcher $events)
     {
         $appUuid = $this->option('app');
-        $app = AppsRepository::findFirstByKey($appUuid);
-        app()->scoped(Apps::class, function () use ($app) {
-            return $app;
-        });
+        if (! $appUuid) {
 
+        }
+        $app = AppsRepository::findFirstByKey($appUuid);
+        (new MountedAppProviderAction($app))->execute();
         parent::handle($events);
     }
 }
