@@ -36,8 +36,8 @@ Todo:
 
 ## Prerequisites
 
-- PHP ^8.2
-- Laravel ^10.0
+- PHP ^8.3
+- Laravel ^11.0
 
 ## Initial Setup
 
