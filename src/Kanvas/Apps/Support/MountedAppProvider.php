@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Apps\Actions;
+namespace Kanvas\Apps\Support;
 
 use Bouncer;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 
-class MountedAppProviderAction
+class MountedAppProvider
 {
     public function __construct(public Apps $app)
     {

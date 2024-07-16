@@ -15,7 +15,7 @@ use Kanvas\Apps\Repositories\AppsRepository;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Throwable;
-use Kanvas\Apps\Actions\MountedAppProviderAction;
+use Kanvas\Apps\Support\MountedAppProvider;
 class KanvasAppsProvider extends ServiceProvider
 {
     /**
@@ -38,7 +38,7 @@ class KanvasAppsProvider extends ServiceProvider
         try {
             $app = AppsRepository::findFirstByKey($appIdentifier);
 
-            (new MountedAppProviderAction($app))->execute();
+            (new MountedAppProvider($app))->execute();
         } catch (ModelNotFoundException $e) {
             throw new InternalServerErrorException(
                 'No App configure with this key: ' . $appIdentifier,
