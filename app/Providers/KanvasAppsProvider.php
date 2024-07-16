@@ -16,6 +16,7 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Throwable;
 use Kanvas\Apps\Support\MountedAppProvider;
+
 class KanvasAppsProvider extends ServiceProvider
 {
     /**

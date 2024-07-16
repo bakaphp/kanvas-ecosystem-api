@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Repositories\AppsRepository;
 use Laravel\Scout\Console\ImportCommand;
 use  Kanvas\Apps\Support\MountedAppProvider;
+
 class KanvasImportCommand extends ImportCommand
 {
     protected $signature = 'kanvas:import
@@ -20,7 +21,6 @@ class KanvasImportCommand extends ImportCommand
     {
         $appUuid = $this->option('app');
         if (! $appUuid) {
-
         }
         $app = AppsRepository::findFirstByKey($appUuid);
         (new MountedAppProvider($app))->execute();
