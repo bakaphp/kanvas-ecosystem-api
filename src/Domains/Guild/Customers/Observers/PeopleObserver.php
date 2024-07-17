@@ -18,7 +18,7 @@ class PeopleObserver
                 'app' => $people->app,
             ]
         );
-        
+
         $people->clearLightHouseCache();
     }
 

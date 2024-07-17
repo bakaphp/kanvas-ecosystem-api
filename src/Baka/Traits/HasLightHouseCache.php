@@ -9,12 +9,12 @@ use Nuwave\Lighthouse\Cache\CacheKeyAndTagsGenerator;
 
 trait HasLightHouseCache
 {
-    public abstract function getGraphTypeName(): string;
+    abstract public function getGraphTypeName(): string;
 
     public function clearLightHouseCache(): void
     {
         $graphTypeName = $this->getGraphTypeName();
-        
+
         $separator = CacheKeyAndTagsGenerator::SEPARATOR;
         $key = CacheKeyAndTagsGenerator::PREFIX . $separator . $graphTypeName . $separator . $this->getId() . '*';
         $redis = Redis::connection('graph-cache');
