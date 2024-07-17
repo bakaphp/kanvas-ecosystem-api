@@ -39,7 +39,7 @@ class KanvasAppsProvider extends ServiceProvider
         try {
             $app = AppsRepository::findFirstByKey($appIdentifier);
 
-            (new MountedAppProvider($app))->execute();
+            (new MountedAppProvider($app))->register();
         } catch (ModelNotFoundException $e) {
             throw new InternalServerErrorException(
                 'No App configure with this key: ' . $appIdentifier,

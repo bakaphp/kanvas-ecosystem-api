@@ -15,10 +15,10 @@ class MountedAppProvider
     ) {
     }
 
-    public function execute()
+    public function register()
     {
         app()->scoped(Apps::class, fn () => $this->app);
 
-        Bouncer::scope()->to(RolesEnums::getScope($app));
+        Bouncer::scope()->to(RolesEnums::getScope($this->app));
     }
 }

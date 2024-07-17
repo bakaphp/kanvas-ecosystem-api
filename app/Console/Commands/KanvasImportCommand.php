@@ -23,7 +23,7 @@ class KanvasImportCommand extends ImportCommand
         if (! $appUuid) {
         }
         $app = AppsRepository::findFirstByKey($appUuid);
-        (new MountedAppProvider($app))->execute();
+        (new MountedAppProvider($app))->register();
         parent::handle($events);
     }
 }
