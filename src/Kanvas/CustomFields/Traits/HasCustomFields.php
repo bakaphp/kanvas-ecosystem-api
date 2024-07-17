@@ -376,5 +376,4 @@ trait HasCustomFields
             $this->clearLightHouseCache();
         }
     }
-
 }
