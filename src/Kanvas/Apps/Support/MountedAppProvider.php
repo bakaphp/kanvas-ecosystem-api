@@ -10,15 +10,14 @@ use Kanvas\Apps\Models\Apps;
 
 class MountedAppProvider
 {
-    public function __construct(public Apps $app)
-    {
+    public function __construct(
+        public Apps $app
+    ) {
     }
+
     public function execute()
     {
-        $app = $this->app;
-        app()->scoped(Apps::class, function () use ($app) {
-            return $app;
-        });
+        app()->scoped(Apps::class, fn () => $this->app);
 
         Bouncer::scope()->to(RolesEnums::getScope($app));
     }
