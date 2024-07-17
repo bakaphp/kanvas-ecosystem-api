@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Queries\Roles;
 
-use Bouncer;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\DB;
-use Kanvas\Users\Repositories\UsersRepository;
-use Silber\Bouncer\Database\Ability;
+use Illuminate\Support\Facades\Redis;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Users\Repositories\UsersRepository;
+
 class RoleAbilitiesQuery
 {
     public function getAllAbilities(mixed $root, array $query): array
@@ -27,21 +26,12 @@ class RoleAbilitiesQuery
         return $mapAbilities->all();
     }
 
-    public function getAllAbilitiesByRoles(mixed $root, array $request): Collection
+    public function getAllAbilitiesByRoles(mixed $root, array $request): array
     {
-        $roles = Bouncer::role()->where('name', $request['role'])->firstOrFail();
-        $subQuery = DB::table('permissions')
-                    ->where('entity_type', 'roles')
-                    ->where('permissions.entity_id', $roles->id)
-                    ->select('permissions.*');
-        $abilities = Ability::join('abilities_modules', 'abilities.id', '=', 'abilities_modules.abilities_id')
-                        ->leftJoinSub($subQuery, 'permissions', function ($join) {
-                            $join->on('abilities.id', '=', 'permissions.ability_id');
-                        })
-                        ->orderBy('module_id')
-                        ->select('abilities.*', 'permissions.entity_id as roleId', 'abilities_modules.module_id as module')
-                        ->get();
-
-        return $abilities;
+        $roles = RolesRepository::getMapAbilityInModules($request['role']);
+        if ($map = Redis::get('roles:abilities')) {
+            return $map;
+        }
+        Redis::set('roles:abilities' , $roles);
     }
 }

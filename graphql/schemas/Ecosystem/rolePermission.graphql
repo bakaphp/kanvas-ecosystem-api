@@ -16,6 +16,18 @@ type Abilities {
     entity_type: String
     roleId: ID
 }
+type RoleAbilities {
+    module: Module!
+}
+type RoleEntity {
+    name: String
+    abilities: [Abilities!]
+}
+
+type RolesModule {
+    name: Module
+    entities: [RoleEntity!]
+}
 enum Module {
     ECOSYSTEM @enum(value: 1)
     INVENTORY @enum(value: 2)
@@ -43,7 +55,7 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleAbilitiesQuery@getAllAbilities"
         )
-    getRoleAbilities(role: String!): [Abilities]
+    getRoleAbilities(role: String!): [RolesModule]
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleAbilitiesQuery@getAllAbilitiesByRoles"
         )
@@ -82,6 +94,14 @@ extend type Mutation @guardByAdmin {
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@removePermissionToUser"
         )
     givePermissionToRole(
+        role: String!
+        permission: String!
+        systemModule: String!
+    ): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@givePermissionToRole"
+        )
+    removePermissionToRole(
         role: String!
         permission: String!
         systemModule: String!
