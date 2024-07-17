@@ -15,6 +15,7 @@ use Kanvas\Apps\Repositories\AppsRepository;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Throwable;
+use Kanvas\Apps\Support\MountedAppProvider;
 
 class KanvasAppsProvider extends ServiceProvider
 {
@@ -38,12 +39,7 @@ class KanvasAppsProvider extends ServiceProvider
         try {
             $app = AppsRepository::findFirstByKey($appIdentifier);
 
-            $this->app->scoped(Apps::class, function () use ($app) {
-                return $app;
-            });
-
-            //set app ACL scope
-            Bouncer::scope()->to(RolesEnums::getScope($app));
+            (new MountedAppProvider($app))->register();
         } catch (ModelNotFoundException $e) {
             throw new InternalServerErrorException(
                 'No App configure with this key: ' . $appIdentifier,
