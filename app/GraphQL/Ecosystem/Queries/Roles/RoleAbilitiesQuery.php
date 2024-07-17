@@ -32,5 +32,6 @@ class RoleAbilitiesQuery
             return $map;
         }
         Redis::set('roles:abilities' , $roles);
+        return $roles;
     }
 }
