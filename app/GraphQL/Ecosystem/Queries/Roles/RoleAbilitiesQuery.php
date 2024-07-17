@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Redis;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Users\Repositories\UsersRepository;
-
 class RoleAbilitiesQuery
 {
     public function getAllAbilities(mixed $root, array $query): array
