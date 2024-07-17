@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Users\Repositories\UsersRepository;
 use Silber\Bouncer\Database\Ability;
 use Kanvas\Companies\Repositories\CompaniesRepository;
+
 class RoleAbilitiesQuery
 {
     public function getAllAbilities(mixed $root, array $query): array
