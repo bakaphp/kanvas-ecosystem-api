@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Redis;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Users\Repositories\UsersRepository;
+
 class RoleAbilitiesQuery
 {
     public function getAllAbilities(mixed $root, array $query): array
@@ -31,7 +32,7 @@ class RoleAbilitiesQuery
         if ($map = Redis::get('roles:abilities')) {
             return $map;
         }
-        Redis::set('roles:abilities' , $roles);
+        Redis::set('roles:abilities', $roles);
         return $roles;
     }
 }
