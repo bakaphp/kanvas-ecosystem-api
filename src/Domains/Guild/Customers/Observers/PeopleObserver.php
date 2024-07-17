@@ -18,6 +18,8 @@ class PeopleObserver
                 'app' => $people->app,
             ]
         );
+        
+        $people->clearLightHouseCache();
     }
 
     public function updated(People $people): void
@@ -29,5 +31,7 @@ class PeopleObserver
                 'app' => $people->app,
             ]
         );
+
+        $people->clearLightHouseCache();
     }
 }

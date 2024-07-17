@@ -124,6 +124,7 @@ trait HasCustomFields
     {
         if ($field = $this->getCustomField($name)) {
             $field->delete();
+            $this->clearCustomFieldsCacheIfNeeded();
 
             Redis::hDel(
                 $this->getCustomFieldPrimaryKey(),
@@ -172,6 +173,7 @@ trait HasCustomFields
         $this->setInRedis($name, $value);
 
         $this->createCustomField($name);
+        $this->clearCustomFieldsCacheIfNeeded();
 
         return AppsCustomFields::updateOrCreate([
             'companies_id' => $companyId,
@@ -286,6 +288,7 @@ trait HasCustomFields
         $companyId = $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
 
         $this->deleteAllCustomFieldsFromRedis();
+        $this->clearCustomFieldsCacheIfNeeded();
 
         return DB::statement('
             DELETE
@@ -366,4 +369,12 @@ trait HasCustomFields
             ->select($table . '.*')
             ->first();
     }
+
+    protected function clearCustomFieldsCacheIfNeeded(): void
+    {
+        if (method_exists($this, 'clearLightHouseCache')) {
+            $this->clearLightHouseCache();
+        }
+    }
+
 }

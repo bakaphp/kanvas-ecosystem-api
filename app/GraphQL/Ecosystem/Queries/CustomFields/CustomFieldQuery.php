@@ -79,3 +79,6 @@ class CustomFieldQuery
         return [];
     }
 }
+
+//ALTER TABLE `apps_custom_fields` ADD INDEX(`companies_id`, `model_name`, `entity_id`, `is_deleted`);
+//ALTER TABLE `apps_custom_fields` ADD INDEX(`model_name`, `entity_id`, `is_deleted`);
