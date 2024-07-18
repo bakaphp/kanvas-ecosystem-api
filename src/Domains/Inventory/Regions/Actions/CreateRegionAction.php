@@ -36,7 +36,7 @@ class CreateRegionAction
 
         $validator = Validator::make(
             ['slug' => Str::slug($this->data->name)],
-            ['slug' => new UniqueSlugRule($this->data->app, $this->data->company, new RegionModel)]
+            ['slug' => new UniqueSlugRule($this->data->app, $this->data->company, new RegionModel())]
         );
 
         if ($validator->fails()) {
