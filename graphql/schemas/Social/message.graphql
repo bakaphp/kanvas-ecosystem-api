@@ -152,7 +152,7 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getAll"
-            scopes: ["fromApp"]
+            scopes: ["fromApp", "notDeleted"]
         )
 
     channelMessages(
@@ -178,7 +178,7 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getChannelMessages"
-            scopes: ["fromApp"]
+            scopes: ["fromApp", "notDeleted"]
         )
 
     messagesGroupByDate(
@@ -209,6 +209,6 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getGroupByDate"
-            scopes: ["fromApp"]
+            scopes: ["fromApp", "notDeleted"]
         )
 }

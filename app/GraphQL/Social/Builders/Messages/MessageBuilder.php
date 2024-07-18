@@ -21,10 +21,10 @@ class MessageBuilder
         $user = auth()->user();
 
         if (! $user->isAppOwner()) {
-            return Message::fromApp()->fromCompany($user->getCurrentCompany());
+            return Message::fromCompany($user->getCurrentCompany());
         }
 
-        return Message::fromApp();
+        return Message::query();
     }
 
     public function getChannelMessages(
