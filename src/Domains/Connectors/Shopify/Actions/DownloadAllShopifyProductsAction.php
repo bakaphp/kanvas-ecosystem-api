@@ -9,9 +9,9 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Connectors\Shopify\Services\ShopifyProductService;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
-use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Models\Users;
 
 class DownloadAllShopifyProductsAction
@@ -21,7 +21,7 @@ class DownloadAllShopifyProductsAction
         protected Warehouses $warehouses,
         protected CompaniesBranches $branch,
         protected Users $user,
-        protected ?Channel $channel = null
+        protected ?Channels $channel = null
     ) {
     }
 
