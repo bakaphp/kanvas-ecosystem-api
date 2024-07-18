@@ -22,6 +22,7 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\Topics\Models\Topic;
+use Kanvas\Users\Models\UserFullTableName;
 use Kanvas\Users\Models\Users;
 use Laravel\Scout\Searchable;
 use Nevadskiy\Tree\AsTree;

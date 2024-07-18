@@ -34,12 +34,4 @@ class UserConfig extends BaseModel
     protected $casts = [
         'value' => Json::class,
     ];
-
-    /**
-     * Users relationship.
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(Users::class, 'users_id');
-    }
 }

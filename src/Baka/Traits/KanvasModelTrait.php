@@ -16,6 +16,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
+use Kanvas\Users\Models\UserFullTableName;
 use Kanvas\Users\Models\Users;
 
 trait KanvasModelTrait
@@ -172,7 +173,7 @@ trait KanvasModelTrait
     public function user(): BelongsTo
     {
         return $this->belongsTo(
-            Users::class,
+            UserFullTableName::class,
             'users_id',
             'id'
         );
