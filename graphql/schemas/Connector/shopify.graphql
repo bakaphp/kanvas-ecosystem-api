@@ -2,7 +2,7 @@
 input ShopifySetupInput {
     client_id: String!
     client_secret: String!
-    shop_name: String!
+    shop_url: String!
     region_id: ID!
     company_id: ID
 }
