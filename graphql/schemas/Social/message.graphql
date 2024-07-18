@@ -142,6 +142,8 @@ extend type Query @guard {
                     "total_shared"
                 ]
             )
+        hasUser: _
+            @whereHasConditions(relation: "user", columns: ["id", "displayname"])
         hasAppModuleMessage: _
             @whereHasConditions(columns: ["entity_id", "system_modules"])
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
