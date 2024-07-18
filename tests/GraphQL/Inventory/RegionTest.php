@@ -165,9 +165,9 @@ class RegionTest extends TestCase
     public function testDeleteRegion()
     {
         $data = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
+            'name' => 'delete test',
+            'slug' => 'delete-test',
+            'short_slug' => 'delete-test',
             'is_default' => 0,
             'currency_id' => 1,
         ];
