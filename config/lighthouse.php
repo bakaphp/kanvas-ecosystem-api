@@ -83,12 +83,33 @@ return [
     | caching of the final schema to optimize performance of large schemas.
     |
     */
+    'schema_cache' => [
+        /*
+         * Setting to true enables schema caching.
+         */
+        'enable' => env('LIGHTHOUSE_SCHEMA_CACHE_ENABLE', env('APP_ENV') !== 'local'),
+
+        /*
+         * File path to store the lighthouse schema.
+         */
+        'path' => env('LIGHTHOUSE_SCHEMA_CACHE_PATH', base_path('bootstrap/cache/lighthouse-schema.php')),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cache Directive Tags
+    |--------------------------------------------------------------------------
+    |
+    | Should the `@cache` directive use a tagged cache?
+    |
+    */
+    'cache_directive_tags' => false,
 
     'cache' => [
         /*
          * Setting to true enables schema caching.
          */
-        'enable' => env('LIGHTHOUSE_CACHE_ENABLE', 'local' === env('APP_ENV')),
+        'enable' => env('LIGHTHOUSE_CACHE_ENABLE', 'local' !== env('APP_ENV')),
 
         /*
          * Allowed values:
@@ -553,8 +574,5 @@ return [
          * Location of resolver classes when resolving the `_entities` field.
          */
         'entities_resolver_namespace' => 'App\\GraphQL\\Entities',
-    ],
-    'schema_cache' => [
-        'enable' => env('LIGHTHOUSE_SCHEMA_CACHE_ENABLE', true),
     ],
 ];
