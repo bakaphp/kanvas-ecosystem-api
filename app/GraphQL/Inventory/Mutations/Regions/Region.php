@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Regions;
 
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Shopify\DataTransferObject\Shopify as ShopifyDto;
-use Kanvas\Connectors\Shopify\ShopifyService;
-use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
 use Kanvas\Inventory\Regions\DataTransferObject\Region as RegionDto;
 use Kanvas\Inventory\Regions\Models\Regions as RegionModel;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository as RegionRepository;
+use Baka\Support\Str;
+use Illuminate\Support\Facades\Validator;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Inventory\Support\Validations\UniqueSlugRule;
 
 class Region
 {
@@ -30,6 +29,15 @@ class Region
         }
 
         $regionDto = RegionDto::viaRequest($request);
+
+        $validator = Validator::make(
+            ['slug' => Str::slug($regionDto->name)],
+            ['slug' => new UniqueSlugRule($regionDto->app, $regionDto->company, new RegionModel())]
+        );
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator->messages()->__toString());
+        }
 
         return (new CreateRegionAction($regionDto, $user))->execute();
     }

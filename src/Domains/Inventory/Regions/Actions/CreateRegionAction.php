@@ -4,15 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Regions\Actions;
 
-use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
-use Illuminate\Support\Facades\Validator;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Regions\DataTransferObject\Region as RegionDto;
 use Kanvas\Inventory\Regions\Models\Regions as RegionModel;
-use Kanvas\Inventory\Support\Validations\UniqueSlugRule;
 
 class CreateRegionAction
 {
@@ -33,15 +29,6 @@ class CreateRegionAction
             Companies::getById($this->data->company->getId()),
             $this->user
         );
-
-        $validator = Validator::make(
-            ['slug' => Str::slug($this->data->name)],
-            ['slug' => new UniqueSlugRule($this->data->app, $this->data->company, new RegionModel())]
-        );
-
-        if ($validator->fails()) {
-            throw new ValidationException($validator->messages()->__toString());
-        }
 
         return RegionModel::firstOrCreate([
             'name' => $this->data->name,
