@@ -8,9 +8,9 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
-use Kanvas\Social\Channels\Models\Channel;
 
 class ShopifyProductService
 {
@@ -23,11 +23,11 @@ class ShopifyProductService
         protected string|int $productId,
         protected ?UserInterface $user = null,
         protected ?Warehouses $warehouses = null,
-        protected ?Channel $channel = null
+        protected ?Channels $channel = null
     ) {
         $this->user = $user ?? $this->company->user;
         $this->warehouses = $warehouses ?? Warehouses::fromCompany($this->company)->where('is_default', 1)->where('regions_id', $this->region->id)->firstOrFail();
-        $this->channel = $channel ?? Channel::fromCompany($this->company)->where('is_default', 1)->firstOrFail();
+        $this->channel = $channel ?? Channels::fromCompany($this->company)->where('is_default', 1)->firstOrFail();
     }
 
     public function mapProduct(array $shopifyProduct): array

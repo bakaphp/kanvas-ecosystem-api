@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Shopify\Actions\DownloadAllShopifyProductsAction;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 class ShopifyInventoryDownloadCommand extends Command
@@ -35,14 +36,15 @@ class ShopifyInventoryDownloadCommand extends Command
     {
         $app = Apps::getById((int) $this->argument('app_id'));
         $branch = CompaniesBranches::getById((int) $this->argument('branch_id'));
-        $warehouse = Warehouses::fromApp($app)->where('id', $this->argument('warehouse_id'))->firstOrFail();
-        $channel = $this->argument('channel_id') ? $warehouse->channels()->where('id', $this->argument('channel_id'))->firstOrFail() : null;
+        $warehouse = Warehouses::fromApp($app)->fromCompany($branch->company)->where('id', $this->argument('warehouse_id'))->firstOrFail();
+        $channel = $this->argument('channel_id') ? Channels::fromApp($app)->fromCompany($branch->company)->where('id', $this->argument('channel_id'))->firstOrFail() : null;
 
         $downloadProduct = new DownloadAllShopifyProductsAction(
             $warehouse->app,
             $warehouse,
             $branch,
-            $branch->company->user
+            $branch->company->user,
+            $channel
         );
 
         $total = $downloadProduct->execute();
