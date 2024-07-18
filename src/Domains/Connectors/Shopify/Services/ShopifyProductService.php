@@ -41,7 +41,7 @@ class ShopifyProductService
         $this->mapFiles($files);
 
         //attributes
-        $productTags = ! empty($shopifyProductP['tags']) ? explode($shopifyProduct['tags'], ',') : [];
+        $productTags = ! empty($shopifyProduct['tags']) ? explode($shopifyProduct['tags'], ',') : [];
         $productAttributes = [];
 
         return [
