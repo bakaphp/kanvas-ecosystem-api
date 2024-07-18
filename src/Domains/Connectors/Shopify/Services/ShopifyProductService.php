@@ -10,6 +10,7 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Social\Channels\Models\Channel;
 
 class ShopifyProductService
 {
@@ -21,10 +22,12 @@ class ShopifyProductService
         protected Regions $region,
         protected string|int $productId,
         protected ?UserInterface $user = null,
-        protected ?Warehouses $warehouses = null
+        protected ?Warehouses $warehouses = null,
+        protected ?Channel $channel = null
     ) {
         $this->user = $user ?? $this->company->user;
         $this->warehouses = $warehouses ?? Warehouses::fromCompany($this->company)->where('is_default', 1)->where('regions_id', $this->region->id)->firstOrFail();
+        $this->channel = $channel ?? Channel::fromCompany($this->company)->slug('default')->firstOrFail();
     }
 
     public function mapProduct(array $shopifyProduct): array
@@ -40,7 +43,7 @@ class ShopifyProductService
         //attributes
         $productTags = ! empty($shopifyProduct['tags']) ? explode($shopifyProduct['tags'], ',') : [];
         $productAttributes = [];
-
+  
         return [
            'name' => $name,
            'description' => $description ?? '',
@@ -64,6 +67,12 @@ class ShopifyProductService
            ],
            'attributes' => [],
            'variants' => $this->mapVariants($shopifyProduct['variants'], $shopifyProduct['options']),
+           'warehouses' => [
+                [
+                     'warehouse' => $this->warehouses->name,
+                     'channel' => $this->channel->name,
+                ]
+           ]
         ];
     }
 

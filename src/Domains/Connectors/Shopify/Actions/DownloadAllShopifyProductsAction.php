@@ -11,6 +11,7 @@ use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Connectors\Shopify\Services\ShopifyProductService;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Models\Users;
 
 class DownloadAllShopifyProductsAction
@@ -19,7 +20,8 @@ class DownloadAllShopifyProductsAction
         protected Apps $app,
         protected Warehouses $warehouses,
         protected CompaniesBranches $branch,
-        protected Users $user
+        protected Users $user,
+        protected ?Channel $channel = null
     ) {
     }
 
@@ -52,7 +54,8 @@ class DownloadAllShopifyProductsAction
                     $this->warehouses->region,
                     $shopifyProduct['id'],
                     $this->user,
-                    $this->warehouses
+                    $this->warehouses,
+                    $this->channel
                 );
                 $productsToImport[] = $shopifyProductService->mapProduct($shopifyProduct);
 

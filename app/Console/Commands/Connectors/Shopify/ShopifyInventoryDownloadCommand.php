@@ -17,7 +17,7 @@ class ShopifyInventoryDownloadCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:inventory-shopify-sync {app_id} {branch_id} {warehouse_id}';
+    protected $signature = 'kanvas:inventory-shopify-sync {app_id} {branch_id} {warehouse_id} {channel_id?}';
 
     /**
      * The console command description.
@@ -36,6 +36,7 @@ class ShopifyInventoryDownloadCommand extends Command
         $app = Apps::getById((int) $this->argument('app_id'));
         $branch = CompaniesBranches::getById((int) $this->argument('branch_id'));
         $warehouse = Warehouses::fromApp($app)->where('id', $this->argument('warehouse_id'))->firstOrFail();
+        $channel = $this->argument('channel_id') ? $warehouse->channels()->where('id', $this->argument('channel_id'))->firstOrFail() : null;
 
         $downloadProduct = new DownloadAllShopifyProductsAction(
             $warehouse->app,
