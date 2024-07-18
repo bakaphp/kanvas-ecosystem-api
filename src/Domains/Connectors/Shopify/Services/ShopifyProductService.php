@@ -57,6 +57,12 @@ class ShopifyProductService
            'files' => $this->files['files'] ?? [],
            'source' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_PRODUCT_ID->value, $this->company, $this->app, $this->region),
            'sourceId' => $productId,
+           'customFields' => [
+               [
+                   'name' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_PRODUCT_ID->value, $this->company, $this->app, $this->region),
+                   'data' => $productId,
+               ],
+           ],
            'categories' => [
                [
                    'name' => ! empty($shopifyProduct['product_type']) ? $shopifyProduct['product_type'] : 'Uncategorized',
@@ -94,6 +100,12 @@ class ShopifyProductService
                 'files' => $this->files['filesSystemVariantImages'][$variant['id']] ?? [],
                 'source' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_VARIANT_ID->value, $this->company, $this->app, $this->region),
                 'sourceId' => $variant['id'],
+                'customFields' => [
+                    [
+                        'name' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_VARIANT_ID->value, $this->company, $this->app, $this->region),
+                        'data' => $variant['id'],
+                    ],
+                ],
                 'warehouse' => [
                     'id' => $this->warehouses->id,
                     'price' => (float) $variant['price'],
