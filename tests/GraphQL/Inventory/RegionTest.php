@@ -165,30 +165,12 @@ class RegionTest extends TestCase
     public function testDeleteRegion()
     {
         $data = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
+            'name' => 'delete test',
+            'slug' => 'delete-test',
+            'short_slug' => 'delete-test',
             'is_default' => 0,
             'currency_id' => 1,
         ];
-
-        $response = $this->graphQL('
-            mutation($data: RegionInput!) {
-                createRegion(input: $data)
-                {
-                    id
-                    name
-                    slug
-                    short_slug
-                    currency_id
-                    is_default
-                }
-            }
-        ', [
-            'data' => $data,
-        ])->assertJson([
-            'data' => ['createRegion' => $data],
-        ]);
 
         $response = $this->graphQL('
             mutation($data: RegionInput!) {
