@@ -276,8 +276,8 @@ class Variants extends BaseModel
                     'price' => $variantWarehouses->price,
                     'quantity' => $variantWarehouses->quantity,
                     'status' => [
-                        'id' => $variantWarehouses->status->getId(),
-                        'name' => $variantWarehouses->status->name,
+                        'id' => $variantWarehouses?->status?->getId(),
+                        'name' => $variantWarehouses?->status?->name,
                     ],
                 ];
             }),
