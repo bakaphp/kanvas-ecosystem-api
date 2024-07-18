@@ -27,7 +27,7 @@ class ShopifyProductService
     ) {
         $this->user = $user ?? $this->company->user;
         $this->warehouses = $warehouses ?? Warehouses::fromCompany($this->company)->where('is_default', 1)->where('regions_id', $this->region->id)->firstOrFail();
-        $this->channel = $channel ?? Channel::fromCompany($this->company)->slug('default')->firstOrFail();
+        $this->channel = $channel ?? Channel::fromCompany($this->company)->where('slug', 'default')->firstOrFail();
     }
 
     public function mapProduct(array $shopifyProduct): array
