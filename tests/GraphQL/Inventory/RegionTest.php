@@ -168,7 +168,7 @@ class RegionTest extends TestCase
             'name' => 'Test Region',
             'slug' => 'test-region',
             'short_slug' => 'test-region',
-            'is_default' => 1,
+            'is_default' => 0,
             'currency_id' => 1,
         ];
 
