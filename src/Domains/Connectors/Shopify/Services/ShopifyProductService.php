@@ -41,9 +41,9 @@ class ShopifyProductService
         $this->mapFiles($files);
 
         //attributes
-        $productTags = ! empty($shopifyProduct['tags']) ? explode($shopifyProduct['tags'], ',') : [];
+        $productTags = ! empty($shopifyProductP['tags']) ? explode($shopifyProduct['tags'], ',') : [];
         $productAttributes = [];
-  
+
         return [
            'name' => $name,
            'description' => $description ?? '',
@@ -71,8 +71,8 @@ class ShopifyProductService
                 [
                      'warehouse' => $this->warehouses->name,
                      'channel' => $this->channel->name,
-                ]
-           ]
+                ],
+           ],
         ];
     }
 
