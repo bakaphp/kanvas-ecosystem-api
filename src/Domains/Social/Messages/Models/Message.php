@@ -96,6 +96,15 @@ class Message extends BaseModel
         return $this->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
     }
 
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(
+            UserFullTableName::class,
+            'users_id',
+            'id'
+        );
+    }
+
     public function comments(): HasMany
     {
         return $this->hasMany(MessageComment::class, 'message_id');
