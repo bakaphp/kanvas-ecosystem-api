@@ -393,6 +393,8 @@ class ProductImporterAction
                     $variantModel,
                     $warehouse,
                     VariantsWarehouses::from([
+                        'variant' => $variantModel,
+                        'warehouse' => $warehouse,
                         'quantity' => $variantData['quantity'] ?? 1,
                         'price' => $variantData['price'],
                         'sku' => $variantModel->sku,
