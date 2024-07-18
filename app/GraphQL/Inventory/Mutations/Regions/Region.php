@@ -24,7 +24,6 @@ class Region
     public function create(mixed $root, array $request): RegionModel
     {
         $request = $request['input'];
-        $currency = Currencies::findOrFail((int) $request['currency_id']);
         $user = auth()->user();
         if (! $user->isAppOwner()) {
             unset($request['companies_id']);
