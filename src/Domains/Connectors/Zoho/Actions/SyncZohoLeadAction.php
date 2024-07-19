@@ -129,11 +129,18 @@ class SyncZohoLeadAction
         if ($user) {
             $localLead->leads_owner_id = $user->getId();
         }
+
+        if ($user) {
+            $localLead->leads_owner_id = $user->getId();
+            $localLead->users_id = $user->getId();
+        }
+
         $localLead->people->firstname = $zohoLead->First_Name;
         $localLead->people->lastname = $zohoLead->Last_Name;
         $localLead->firstname = $zohoLead->First_Name;
         $localLead->lastname = $zohoLead->Last_Name;
         $localLead->title = $zohoLead->Full_Name;
+        $localLead->description = $zohoLead->Description;
         $localLead->leads_status_id = $leadStatus->getId();
         $localLead->disableWorkflows();
         $localLead->saveOrFail();
