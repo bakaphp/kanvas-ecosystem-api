@@ -49,13 +49,12 @@ class CreateRoleAction
             throw new ValidationException($validator->errors()->first() . 'for roles in the current app');
         }
 
-        Bouncer::useUserModel(Role::class);
+        Bouncer::useRoleModel(Role::class);
         $role = Bouncer::role()->firstOrCreate([
             'name' => $this->name,
             'title' => $this->title ?? $this->name,
             'scope' => RolesEnums::getScope($this->app),
         ]);
-
         return $role;
     }
 }

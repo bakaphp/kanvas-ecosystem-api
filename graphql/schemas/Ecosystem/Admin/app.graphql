@@ -136,7 +136,7 @@ extend type Query @guard {
     ): [App!]!
         @paginate(
             model: "Kanvas\\Apps\\Models\\Apps"
-            scopes: ["userAssociated"]
+            scopes: ["userAssociated", "notDeleted"]
         )
 }
 

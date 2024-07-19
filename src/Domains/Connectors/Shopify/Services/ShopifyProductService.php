@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
@@ -21,10 +22,12 @@ class ShopifyProductService
         protected Regions $region,
         protected string|int $productId,
         protected ?UserInterface $user = null,
-        protected ?Warehouses $warehouses = null
+        protected ?Warehouses $warehouses = null,
+        protected ?Channels $channel = null
     ) {
         $this->user = $user ?? $this->company->user;
         $this->warehouses = $warehouses ?? Warehouses::fromCompany($this->company)->where('is_default', 1)->where('regions_id', $this->region->id)->firstOrFail();
+        $this->channel = $channel ?? Channels::fromCompany($this->company)->where('is_default', 1)->firstOrFail();
     }
 
     public function mapProduct(array $shopifyProduct): array
@@ -54,6 +57,12 @@ class ShopifyProductService
            'files' => $this->files['files'] ?? [],
            'source' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_PRODUCT_ID->value, $this->company, $this->app, $this->region),
            'sourceId' => $productId,
+           'customFields' => [
+               [
+                   'name' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_PRODUCT_ID->value, $this->company, $this->app, $this->region),
+                   'data' => $productId,
+               ],
+           ],
            'categories' => [
                [
                    'name' => ! empty($shopifyProduct['product_type']) ? $shopifyProduct['product_type'] : 'Uncategorized',
@@ -64,6 +73,12 @@ class ShopifyProductService
            ],
            'attributes' => [],
            'variants' => $this->mapVariants($shopifyProduct['variants'], $shopifyProduct['options']),
+           'warehouses' => [
+                [
+                     'warehouse' => $this->warehouses->name,
+                     'channel' => $this->channel->name,
+                ],
+           ],
         ];
     }
 
@@ -85,6 +100,12 @@ class ShopifyProductService
                 'files' => $this->files['filesSystemVariantImages'][$variant['id']] ?? [],
                 'source' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_VARIANT_ID->value, $this->company, $this->app, $this->region),
                 'sourceId' => $variant['id'],
+                'custom_fields' => [
+                    [
+                        'name' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_VARIANT_ID->value, $this->company, $this->app, $this->region),
+                        'data' => $variant['id'],
+                    ],
+                ],
                 'warehouse' => [
                     'id' => $this->warehouses->id,
                     'price' => (float) $variant['price'],

@@ -54,13 +54,15 @@ trait HasFilesystemTrait
 
         if (! $fileSystem->exists) {
             $fileInfo = pathinfo($url);
+
+            $extension = $fileInfo['extension'] ?? 'unknown';
             $fileSystem->companies_id = $companyId;
             $fileSystem->apps_id = app(Apps::class)->getId();
             $fileSystem->users_id = $this->users_id ?? (auth()->check() ? auth()->user()->getKey() : 0);
             $fileSystem->path = $fileInfo['dirname'] . '/' . $fileInfo['basename'];
             $fileSystem->url = $url;
             $fileSystem->name = $fileInfo['basename'];
-            $fileSystem->file_type = $fileInfo['extension'] ?? 'unknown';
+            $fileSystem->file_type = $this->cleanExtension($extension);
             $fileSystem->size = 0;
             $fileSystem->saveOrFail();
         }
@@ -174,5 +176,13 @@ trait HasFilesystemTrait
     public function deleteFiles(): int
     {
         return FilesystemEntitiesRepository::deleteAllFilesFromEntity($this);
+    }
+
+    protected function cleanExtension(string $extension): string
+    {
+        $cleanExtension = explode('?', $extension)[0];
+        $validExtension = preg_replace('/[^a-zA-Z0-9]/', '', $cleanExtension);
+
+        return $validExtension;
     }
 }

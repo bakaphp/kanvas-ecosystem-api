@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Models;
 
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,8 +14,8 @@ use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
-use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Locations\Models\Countries;
+use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
@@ -47,6 +48,7 @@ class People extends BaseModel
     use CanUseWorkflow;
     use SocialInteractionsTrait;
     use Notifiable;
+    use HasLightHouseCache;
 
     protected $table = 'peoples';
     protected $guarded = [];
@@ -54,6 +56,11 @@ class People extends BaseModel
     protected $casts = [
         'dob' => 'datetime:Y-m-d',
     ];
+
+    public function getGraphTypeName(): string
+    {
+        return 'People';
+    }
 
     public function address(): HasMany
     {

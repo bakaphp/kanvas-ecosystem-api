@@ -36,7 +36,7 @@ class Shopify
             Regions::getById($data['region_id']),
             $data['client_id'],
             $data['client_secret'],
-            $data['shop_name'],
+            $data['shop_url'],
         );
     }
 }
