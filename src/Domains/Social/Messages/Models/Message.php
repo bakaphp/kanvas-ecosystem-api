@@ -24,6 +24,7 @@ use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\Topics\Models\Topic;
 use Kanvas\Users\Models\UserFullTableName;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 use Nevadskiy\Tree\AsTree;
 
@@ -55,6 +56,7 @@ class Message extends BaseModel
     use SoftDeletesTrait;
     use HasPermissions;
     use AsTree;
+    use CanUseWorkflow;
 
     protected $table = 'messages';
 
