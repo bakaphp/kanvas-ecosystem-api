@@ -26,7 +26,8 @@ class GenerateMessageSlugActivity extends Activity implements WorkflowActivityIn
             return ['No field configured to generate slug'];
         }
 
-        $fieldToSlug = $message->message[$slugField] ?? null;
+        $messageData = is_array($message->message) ? $message->message : (Str::isJson($message->message) ? json_decode($message->message, true) : []);
+        $fieldToSlug = $messageData[$slugField] ?? null;
 
         if ($fieldToSlug === null) {
             return ['No slug field {' . $slugField . ' found in message ' . $message->id];
