@@ -9,7 +9,7 @@ type Role {
     systemRole: Boolean! @method(name: "isSystemRole")
 }
 type Abilities {
-    id: ID!
+    id: ID
     name: String!
     title: String
     module: Module!

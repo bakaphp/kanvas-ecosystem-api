@@ -8,15 +8,13 @@ use Bouncer;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Models\Abilities;
 use Kanvas\AccessControlList\Models\AbilitiesModules;
-use Kanvas\AccessControlList\Repositories\ModulesRepositories;
+use Kanvas\AccessControlList\Templates\ModulesRepositories;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 class CreateAbilitiesByModule
 {
-    protected Apps $app;
-
-    public function __construct(?Apps $app = null)
+    public function __construct(protected ?Apps $app = null)
     {
         $this->app = $app ?? app(Apps::class);
     }

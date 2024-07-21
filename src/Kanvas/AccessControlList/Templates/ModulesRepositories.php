@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\AccessControlList\Repositories;
+namespace Kanvas\AccessControlList\Templates;
 
 use Kanvas\Enums\ModuleEnum;
 use Kanvas\Apps\Models\Apps;

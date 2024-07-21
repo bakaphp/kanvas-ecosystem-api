@@ -78,7 +78,7 @@ class RolesManagementMutation
         Bouncer::allow($request['role'])->to($request['permission'], $systemModule->model_name);
 
         $roles = RolesRepository::getMapAbilityInModules($request['role']);
-        Redis::set('roles:abilities', $roles);
+        Redis::set(RolesEnums::KEY_MAP->value, $roles);
 
         return true;
     }
@@ -89,7 +89,7 @@ class RolesManagementMutation
         Bouncer::disallow($request['role'])->to($request['permission'], $systemModule->model_name);
 
         $roles = RolesRepository::getMapAbilityInModules($request['role']);
-        Redis::set('roles:abilities', $roles);
+        Redis::set(RolesEnums::KEY_MAP->value, $roles);
 
         return true;
     }

@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Redis;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 
 class RoleAbilitiesQuery
 {
@@ -29,10 +30,10 @@ class RoleAbilitiesQuery
     public function getAllAbilitiesByRoles(mixed $root, array $request): array
     {
         $roles = RolesRepository::getMapAbilityInModules($request['role']);
-        if ($map = Redis::get('roles:abilities')) {
+        if ($map = Redis::get(RolesEnums::KEY_MAP->value)) {
             return $map;
         }
-        Redis::set('roles:abilities', $roles);
+        Redis::set(RolesEnums::KEY_MAP->value, $roles);
         return $roles;
     }
 }
