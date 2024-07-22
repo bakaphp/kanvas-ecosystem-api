@@ -17,7 +17,7 @@ enum RolesEnums: string
     case DEVELOPER = 'Developer';
     case MANAGER = 'Managers';
 
-    case KEY_MAP= "roles:abilities";
+    case KEY_MAP = "roles:abilities";
 
     /**
      * Roles are scoped by app
