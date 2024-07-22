@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Apps\Actions;
 
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
 use Kanvas\AccessControlList\Enums\RolesEnums;
@@ -66,6 +67,9 @@ class CreateAppsAction
             //@todo
             $syncEmailTemplate = new SyncEmailTemplateAction($app, $this->user);
             $syncEmailTemplate->execute();
+            Artisan::call('kanvas:update-abilities', [
+                'app' => $app->key,
+            ]);
         });
 
         return $app;
