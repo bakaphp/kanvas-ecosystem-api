@@ -54,7 +54,7 @@ class SyncShopifyCustomerAction
         }
 
         $address = [];
-        if (! empty($this->customerData['default_address'])) {
+        if (! empty($this->customerData['default_address']) && ! empty($this->customerData['default_address']['address1'])) {
             $address = [
                 [
                     'address' => $this->customerData['default_address']['address1'],

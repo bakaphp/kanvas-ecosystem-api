@@ -33,7 +33,17 @@ extend type Query @guard {
                     "total_leads"
                 ]
             )
-        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name", "member_id", "total_leads"])
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "member_id"
+                    "total_leads"
+                ]
+            )
     ): [Agent!]!
         @paginate(
             model: "Kanvas\\Guild\\Agents\\Models\\Agent"

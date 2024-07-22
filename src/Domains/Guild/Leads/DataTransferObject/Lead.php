@@ -57,7 +57,7 @@ class Lead extends Data
 
         $firstname = $request['people']['firstname'] ?? '';
         $lastname = $request['people']['lastname'] ?? '';
-        $title = $request['title'] ?? $firstname . ' ' . $lastname . ' Opp';
+        $title = $request['title'] ?? $firstname . ' ' . $lastname;
 
         return new self(
             $app,

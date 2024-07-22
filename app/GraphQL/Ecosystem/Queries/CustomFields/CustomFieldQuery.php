@@ -43,7 +43,7 @@ class CustomFieldQuery
     */
     public function get(mixed $rootValue, array $request): mixed
     {
-        $customFieldInput = new  CustomFieldInput(
+        $customFieldInput = new CustomFieldInput(
             $request['name'],
             $request['system_module_uuid'],
             $request['entity_id']
@@ -65,7 +65,7 @@ class CustomFieldQuery
      */
     public function getAll(mixed $rootValue, array $request): array
     {
-        $customFieldInput = new  CustomFieldInput(
+        $customFieldInput = new CustomFieldInput(
             $request['name'],
             $request['system_module_uuid'],
             $request['entity_id']

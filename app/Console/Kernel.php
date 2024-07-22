@@ -2,12 +2,13 @@
 
 namespace App\Console;
 
+use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
+use App\Console\Commands\DeleteUsersRequestedCommand;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 use Spatie\Health\Commands\DispatchQueueCheckJobsCommand;
 use Spatie\Health\Commands\RunHealthChecksCommand;
 use Spatie\Health\Commands\ScheduleCheckHeartbeatCommand;
-use App\Console\Commands\DeleteUsersRequestedCommand;
 
 class Kernel extends ConsoleKernel
 {
@@ -22,9 +23,15 @@ class Kernel extends ConsoleKernel
         $schedule->command(DispatchQueueCheckJobsCommand::class)->everyMinute();
         $schedule->command(ScheduleCheckHeartbeatCommand::class)->everyMinute();
         $schedule->command(DeleteUsersRequestedCommand::class)->dailyAt('00:00');
-        /*         $schedule->command(MailCaddieLabCommand::class, [getenv('CADDIE_APP_KEY')])
-                        ->dailyAt('13:00')
-                        ->timezone('America/Santo_Domingo') ; */
+
+        /**
+         * @todo move this to a cron subSystem
+         */
+        if (getenv('CADDIE_APP_KEY')) {
+            $schedule->command(MailCaddieLabCommand::class, [getenv('CADDIE_APP_KEY')])
+                ->dailyAt('13:00')
+                ->timezone('America/Santo_Domingo');
+        }
     }
 
     /**
