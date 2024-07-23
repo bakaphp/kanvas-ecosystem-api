@@ -1,18 +1,19 @@
 <?php
+
 declare(strict_types=1);
 
-namespace Kanvas\Guild\Leads\Workflows\CustomFields\Activities;
+namespace Kanvas\Social\Messages\Workflows\Activities;
 
-use Illuminate\Database\Eloquent\Model;
 use Baka\Contracts\AppInterface;
-use Workflow\Activity;
-use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Kanvas\Social\Messages\DataTransferObject\MessageInput;
-use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
-use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
+use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
+use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Workflow\Activity;
 
 class DefaultMessageActivity extends Activity implements WorkflowActivityInterface
 {
@@ -28,23 +29,23 @@ class DefaultMessageActivity extends Activity implements WorkflowActivityInterfa
             ]);
             $messageType = (new CreateMessageTypeAction($messageTypeDto))->execute();
         }
-
-        foreach($entity->getAllCustomFields() as $customField) {
-            if ($customField->name === 'message') {
-                $message = MessageInput::from(
-                    [
+        $messages = [];
+        foreach ($entity->getAllCustomFields() as $customField) {
+            $data = MessageInput::from(
+                [
                     'app' => $app,
                     'company' => $entity->company,
                     'user' => $entity->user,
                     'type' => $messageType,
-                    'message' => $customField->value
-                    ]
-                );
-                (new CreateMessageAction($message))->execute();
-            }
+                    'message' => $customField,
+                ]
+            );
+            $message[] = (new CreateMessageAction($data))->execute();
         }
+
         return [
             'message' => 'Default message activity executed',
+            'messages' => $messages,
         ];
     }
 }
