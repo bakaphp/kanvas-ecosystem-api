@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\AccessControlList\Models;
 
-use Silber\Bouncer\Database\Ability;
+use Silber\Bouncer\Database\Ability as SilberAbility;
 
-class Abilities extends Ability
+class Ability extends SilberAbility
 {
     protected $fillable = [
         'name',
