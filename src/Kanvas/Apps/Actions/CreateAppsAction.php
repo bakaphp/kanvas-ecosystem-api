@@ -67,9 +67,9 @@ class CreateAppsAction
             //@todo
             $syncEmailTemplate = new SyncEmailTemplateAction($app, $this->user);
             $syncEmailTemplate->execute();
-            Artisan::call('kanvas:update-abilities', [
-                'app' => $app->key,
-            ]);
+            // Artisan::call('kanvas:update-abilities', [
+            //     'app' => $app->key,
+            // ]);
         });
 
         return $app;
