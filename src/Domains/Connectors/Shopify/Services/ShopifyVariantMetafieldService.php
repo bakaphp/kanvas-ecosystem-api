@@ -33,7 +33,7 @@ class ShopifyVariantMetafieldService
         $this->shopifySdk = Client::getInstance($app, $company, $region);
     }
 
-    public function setMetaField(): bool
+    public function setMetaField(): int
     {
         $attributes = $this->variant->attributes;
         $shopifyProductVariantId = $this->variant->getShopifyId($this->region);
@@ -65,7 +65,7 @@ class ShopifyVariantMetafieldService
 
         $this->variant->set(CustomFieldEnum::SHOPIFY_META_FIELD_ID->value, $shopifyMetaFields);
 
-        return $attributes->count() === $i;
+        return $i;
     }
 
     protected function deleteMetaFieldIfExists(array &$shopifyMetaFields, $attribute, $shopifyProduct, $shopifyProductVariantId): void
