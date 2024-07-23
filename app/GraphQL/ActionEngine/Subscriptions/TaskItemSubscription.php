@@ -27,7 +27,7 @@ class TaskItemSubscription extends GraphQLSubscription
         } catch (Exception $e) {
             return false;
         }
-      
+
         return true;
     }
 
