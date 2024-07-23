@@ -29,6 +29,10 @@ type LeadTaskEngagementItem {
     updated_at: DateTime
 }
 
+type Subscription {
+  leadTaskItemUpdated(lead_id: ID!): LeadTaskEngagementItem @subscription(class: "App\\GraphQL\\ActionEngine\\Subscriptions\\TaskItemSubscription") @guard
+}
+
 extend type Query @guard {
     leadTaskItems(lead_id: ID!): [LeadTaskEngagementItem!]!
         @paginate(
