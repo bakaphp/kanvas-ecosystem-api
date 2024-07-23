@@ -30,7 +30,7 @@ class ShopifyProductService
         $this->channel = $channel ?? Channels::fromCompany($this->company)->where('is_default', 1)->firstOrFail();
     }
 
-    public function mapProduct(array $shopifyProduct): array
+    public function mapProductForImport(array $shopifyProduct): array
     {
         $name = $shopifyProduct['title'];
         $description = $shopifyProduct['body_html'];
@@ -38,7 +38,7 @@ class ShopifyProductService
         $productId = $shopifyProduct['id'];
 
         $files = ! empty($shopifyProduct['images']) ? $shopifyProduct['images'] : [];
-        $this->mapFiles($files);
+        $this->mapFilesForImport($files);
 
         //attributes
         $productTags = ! empty($shopifyProduct['tags']) ? explode($shopifyProduct['tags'], ',') : [];
@@ -72,7 +72,7 @@ class ShopifyProductService
                ],
            ],
            'attributes' => [],
-           'variants' => $this->mapVariants($shopifyProduct['variants'], $shopifyProduct['options']),
+           'variants' => $this->mapVariantsForImport($shopifyProduct['variants'], $shopifyProduct['options']),
            'warehouses' => [
                 [
                      'warehouse' => $this->warehouses->name,
@@ -82,7 +82,7 @@ class ShopifyProductService
         ];
     }
 
-    public function mapVariants(array $variants, array $shopifyProductOptions): array
+    public function mapVariantsForImport(array $variants, array $shopifyProductOptions): array
     {
         foreach ($variants as $variant) {
             $variantName = $variant['title'];
@@ -125,7 +125,7 @@ class ShopifyProductService
         return $productVariants;
     }
 
-    public function mapFiles(array $files): void
+    public function mapFilesForImport(array $files): void
     {
         $fileSystem = [];
         $filesSystemVariantImages = [];

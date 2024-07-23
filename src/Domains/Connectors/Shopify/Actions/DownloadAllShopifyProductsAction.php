@@ -57,7 +57,7 @@ class DownloadAllShopifyProductsAction
                     $this->warehouses,
                     $this->channel
                 );
-                $productsToImport[] = $shopifyProductService->mapProduct($shopifyProduct);
+                $productsToImport[] = $shopifyProductService->mapProductForImport($shopifyProduct);
 
                 $totalRecords++;
             }

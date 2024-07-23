@@ -130,6 +130,7 @@ class ShopifyInventoryService
     public function saveVariant(Variants $variant, Channels $channel = null): array
     {
         $shopifyProductVariantId = $variant->getShopifyId($this->warehouses->regions);
+        $shopifyVariantMetafieldService = new ShopifyVariantMetafieldService($this->app, $this->company, $this->warehouses->regions, $variant);
 
         $variantInfo = $this->mapVariant($variant, $channel);
 
@@ -151,6 +152,7 @@ class ShopifyInventoryService
         }
 
         $this->shopifyImageService->processEntityImage($variant);
+        $shopifyVariantMetafieldService->setMetaField();
 
         return $response;
     }
