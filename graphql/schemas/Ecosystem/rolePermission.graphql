@@ -5,9 +5,34 @@ type Role {
     scope: String
     userCount: Int!
     abilitiesCount: Int!
+    abilities: [Module!]
     systemRole: Boolean! @method(name: "isSystemRole")
 }
+type Abilities {
+    id: ID
+    name: String!
+    title: String
+    module: Module!
+    entity_type: String
+    roleId: ID
+}
+type RoleAbilities {
+    module: Module!
+}
+type RoleEntity {
+    name: String
+    abilities: [Abilities!]
+}
 
+type RolesModule {
+    name: Module
+    entities: [RoleEntity!]
+}
+enum Module {
+    ECOSYSTEM @enum(value: 1)
+    INVENTORY @enum(value: 2)
+    CRM @enum(value: 3)
+}
 extend type Query @guard {
     roles(
         search: String @search
@@ -26,9 +51,13 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RolePermissionQuery@can"
         )
-    getAllAbilities(userId: ID!): [String]
+    getAllAbilities(userId: ID!, companyId: ID): [String]
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleAbilitiesQuery@getAllAbilities"
+        )
+    getRoleAbilities(role: String!): [RolesModule]
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Roles\\RoleAbilitiesQuery@getAllAbilitiesByRoles"
         )
 }
 
@@ -63,5 +92,21 @@ extend type Mutation @guardByAdmin {
     removePermissionToUser(userId: ID!, permission: String!): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@removePermissionToUser"
+        )
+    givePermissionToRole(
+        role: String!
+        permission: String!
+        systemModule: String!
+    ): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@givePermissionToRole"
+        )
+    removePermissionToRole(
+        role: String!
+        permission: String!
+        systemModule: String!
+    ): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@givePermissionToRole"
         )
 }
