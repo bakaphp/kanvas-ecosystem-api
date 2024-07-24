@@ -25,7 +25,12 @@ class DefaultMessageActivityTest extends TestCase
             StoredWorkflow::make(),
             []
         );
-        $result = $activity->execute($lead, $app, ['custom_fields' => $lead->getAllCustomFields()]);
+        $customFields = [
+            'address',
+            'city',
+            'custom_comments',
+        ];
+        $result = $activity->execute($lead, $app, ['customsFields' => $customFields]);
         $this->assertArrayHasKey('message', $result);
         $this->assertStringContainsString('Default message activity executed', $result['message']);
     }
