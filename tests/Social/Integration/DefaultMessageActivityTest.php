@@ -1,14 +1,14 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Social\Integration;
 
-use Kanvas\Social\Messages\Workflows\Activities\DefaultMessageActivity;
-use PHPUnit\Event\Code\Test;
-use Tests\TestCase;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Social\Messages\Workflows\Activities\DefaultMessageActivity;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use Tests\TestCase;
 
 class DefaultMessageActivityTest extends TestCase
 {
@@ -25,7 +25,7 @@ class DefaultMessageActivityTest extends TestCase
             StoredWorkflow::make(),
             []
         );
-        $result = $activity->execute($lead, $app, []);
+        $result = $activity->execute($lead, $app, ['custom_fields' => $lead->getAllCustomFields()]);
         $this->assertArrayHasKey('message', $result);
         $this->assertStringContainsString('Default message activity executed', $result['message']);
     }
