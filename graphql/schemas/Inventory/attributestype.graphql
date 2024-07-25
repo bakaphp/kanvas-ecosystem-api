@@ -10,6 +10,11 @@ input AttributeTypeUpdateInput {
     is_default: Boolean
 }
 
+input AttributeTypeReferenceInput{
+    id: ID!,
+    name: String
+}
+
 type AttributesType {
     id: ID!
     name: String
