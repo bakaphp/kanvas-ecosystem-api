@@ -10,6 +10,8 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Inventory\Attributes\Models\AttributesTypes as AttributesTypesModel;
+use Kanvas\Inventory\Attributes\Repositories\AttributesTypesRepository;
 use Spatie\LaravelData\Data;
 
 class Attributes extends Data
@@ -20,6 +22,7 @@ class Attributes extends Data
         public UserInterface $user,
         public string $name,
         public string $slug,
+        public ?AttributesTypesModel $attributeType,
         public bool $isVisible = false,
         public bool $isSearchable = false,
         public bool $isFiltrable = false,
@@ -34,6 +37,7 @@ class Attributes extends Data
             auth()->user(),
             $request['name'],
             $request['slug'] ?? Str::slug($request['name']),
+            isset($request['attribute_type']['id']) ? AttributesTypesRepository::getById((int) $request['attribute_type']['id']) : null,
             $request['is_visible'] ?? false,
             $request['is_searchable'] ?? false,
             $request['is_filtrable'] ?? false,
