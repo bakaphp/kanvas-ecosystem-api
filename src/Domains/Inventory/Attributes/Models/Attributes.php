@@ -6,6 +6,7 @@ namespace Kanvas\Inventory\Attributes\Models;
 
 use Baka\Support\Str;
 use Baka\Traits\DatabaseSearchableTrait;
+use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -30,6 +31,7 @@ use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 class Attributes extends BaseModel
 {
     use UuidTrait;
+    use SlugTrait;
     use CascadeSoftDeletes;
     use DatabaseSearchableTrait;
 
@@ -43,6 +45,14 @@ class Attributes extends BaseModel
     public function apps(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
+    }
+
+    /**
+     * apps.
+     */
+    public function attributeType(): BelongsTo
+    {
+        return $this->belongsTo(AttributesTypes::class, 'attributes_type_id');
     }
 
     public function variantAttributes(): HasMany
