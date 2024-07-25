@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -19,6 +20,10 @@ class DefaultMessageActivity extends Activity implements WorkflowActivityInterfa
 {
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
+        if (! key_exists('customsFields', $params)) {
+            throw new Exception('Custom fields are required');
+        }
+
         try {
             $messageType = MessagesTypesRepository::getByVerb('system-message', $app);
         } catch (ModelNotFoundException $e) {
