@@ -4673,16 +4673,16 @@
         },
         {
             "name": "league/commonmark",
-            "version": "2.5.0",
+            "version": "2.5.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/commonmark.git",
-                "reference": "0026475f5c9a104410ae824cb5a4d63fa3bdb1df"
+                "reference": "ac815920de0eff6de947eac0a6a94e5ed0fb147c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/commonmark/zipball/0026475f5c9a104410ae824cb5a4d63fa3bdb1df",
-                "reference": "0026475f5c9a104410ae824cb5a4d63fa3bdb1df",
+                "url": "https://api.github.com/repos/thephpleague/commonmark/zipball/ac815920de0eff6de947eac0a6a94e5ed0fb147c",
+                "reference": "ac815920de0eff6de947eac0a6a94e5ed0fb147c",
                 "shasum": ""
             },
             "require": {
@@ -4775,7 +4775,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2024-07-22T18:18:14+00:00"
+            "time": "2024-07-24T12:52:09+00:00"
         },
         {
             "name": "league/config",
@@ -6383,16 +6383,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.42.0",
+            "version": "v6.42.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "d1c8036cee7d1bdfb3f370dc3c4bb322debdccb0"
+                "reference": "c09194823252738ee41f00af7ebe5bbeb65e6c8c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/d1c8036cee7d1bdfb3f370dc3c4bb322debdccb0",
-                "reference": "d1c8036cee7d1bdfb3f370dc3c4bb322debdccb0",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/c09194823252738ee41f00af7ebe5bbeb65e6c8c",
+                "reference": "c09194823252738ee41f00af7ebe5bbeb65e6c8c",
                 "shasum": ""
             },
             "require": {
@@ -6505,15 +6505,11 @@
                     "type": "github"
                 },
                 {
-                    "url": "https://issuehunt.io/r/nuwave/lighthouse",
-                    "type": "issuehunt"
-                },
-                {
                     "url": "https://www.patreon.com/lighthouse_php",
                     "type": "patreon"
                 }
             ],
-            "time": "2024-07-19T13:17:18+00:00"
+            "time": "2024-07-25T09:49:22+00:00"
         },
         {
             "name": "nyholm/psr7",
