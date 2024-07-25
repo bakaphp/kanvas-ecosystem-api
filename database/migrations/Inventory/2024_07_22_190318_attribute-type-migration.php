@@ -16,11 +16,14 @@ return new class () extends Migration {
             $table->string('slug')->nullable(true);
             $table->bigInteger('apps_id')->unsigned();
             $table->bigInteger('companies_id')->unsigned();
+            $table->bigInteger('users_id')->unsigned();
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
             $table->boolean('is_deleted')->default(0);
             $table->index('apps_id');
             $table->index('companies_id');
+            $table->index('is_deleted');
+            $table->index(['companies_id', 'apps_id'], 'companies_id_apps_id');
         });
     }
 
