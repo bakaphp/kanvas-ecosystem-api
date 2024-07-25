@@ -43,6 +43,14 @@ class Attributes extends BaseModel
         return $this->belongsTo(Apps::class, 'apps_id');
     }
 
+    /**
+     * apps.
+     */
+    public function attributeType(): BelongsTo
+    {
+        return $this->belongsTo(AttributesTypes::class, 'attributes_type_id');
+    }
+
     public function variantAttributes(): HasMany
     {
         return $this->hasMany(VariantsAttributes::class, 'attributes_id');
