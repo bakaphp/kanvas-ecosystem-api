@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Attributes\Models;
 
-use Baka\Traits\DatabaseSearchableTrait;
-use Baka\Traits\UuidTrait;
-use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Baka\Traits\SlugTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
@@ -24,6 +22,8 @@ use Kanvas\Inventory\Models\BaseModel;
  */
 class AttributesTypes extends BaseModel
 {
+    use SlugTrait;
+
     public $table = 'attributes_types_input';
     public $guarded = [];
 

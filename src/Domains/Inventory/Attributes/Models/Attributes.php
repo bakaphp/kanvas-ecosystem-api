@@ -6,6 +6,7 @@ namespace Kanvas\Inventory\Attributes\Models;
 
 use Baka\Support\Str;
 use Baka\Traits\DatabaseSearchableTrait;
+use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -28,6 +29,7 @@ use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 class Attributes extends BaseModel
 {
     use UuidTrait;
+    use SlugTrait;
     use CascadeSoftDeletes;
     use DatabaseSearchableTrait;
 
