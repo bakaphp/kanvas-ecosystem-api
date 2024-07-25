@@ -23,7 +23,7 @@ class AttributeTypeMutation
      */
     public function create(mixed $root, array $req): AttributesTypesModel
     {
-        $dto = AttributesType::viaRequest($req['input']);
+        $dto = AttributesType::viaRequest($req['input'], auth()->user());
         $action = new CreateAttributeType($dto, auth()->user());
         $attributeTypeModel = $action->execute();
 
@@ -41,7 +41,7 @@ class AttributeTypeMutation
     public function update(mixed $root, array $req): AttributesTypesModel
     {
         $attribute = AttributesTypesRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
-        $dto = AttributesType::viaRequest($req['input']);
+        $dto = AttributesType::viaRequest($req['input'], auth()->user());
         (new UpdateAttributeType($attribute, $dto, auth()->user()))->execute();
 
         return $attribute;

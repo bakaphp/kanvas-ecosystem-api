@@ -7,6 +7,7 @@ namespace Kanvas\Inventory\Attributes\DataTransferObject;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
+use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Spatie\LaravelData\Data;
@@ -22,10 +23,10 @@ class AttributesType extends Data
     ) {
     }
 
-    public static function viaRequest(array $request): self
+    public static function viaRequest(array $request, UserInterface $user): self
     {
         return new self(
-            isset($request['company_id']) ? Companies::getById($request['company_id']) : auth()->user()->getCurrentCompany(),
+            isset($request['company_id']) ? Companies::getById($request['company_id']) : $user->getCurrentCompany(),
             app(Apps::class),
             $request['name'],
             $request['slug'] ?? Str::slug($request['name']),
