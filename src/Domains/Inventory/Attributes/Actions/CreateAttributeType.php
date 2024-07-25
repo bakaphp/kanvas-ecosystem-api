@@ -34,6 +34,7 @@ class CreateAttributeType
             'companies_id' => $this->dto->company->getId(),
             'apps_id' => $this->dto->app->getId(),
         ], [
+            'users_id' => $this->user->getId(),
             'slug' => $this->dto->slug,
             'is_default' => $this->dto->isDefault,
         ]);
