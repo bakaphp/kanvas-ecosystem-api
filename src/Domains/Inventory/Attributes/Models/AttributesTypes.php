@@ -24,7 +24,6 @@ use Kanvas\Inventory\Models\BaseModel;
  */
 class AttributesTypes extends BaseModel
 {
-
     public $table = 'attributes_types_input';
     public $guarded = [];
 
