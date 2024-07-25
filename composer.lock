@@ -6316,16 +6316,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.42.0",
+            "version": "v6.42.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "d1c8036cee7d1bdfb3f370dc3c4bb322debdccb0"
+                "reference": "c09194823252738ee41f00af7ebe5bbeb65e6c8c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/d1c8036cee7d1bdfb3f370dc3c4bb322debdccb0",
-                "reference": "d1c8036cee7d1bdfb3f370dc3c4bb322debdccb0",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/c09194823252738ee41f00af7ebe5bbeb65e6c8c",
+                "reference": "c09194823252738ee41f00af7ebe5bbeb65e6c8c",
                 "shasum": ""
             },
             "require": {
@@ -6438,15 +6438,11 @@
                     "type": "github"
                 },
                 {
-                    "url": "https://issuehunt.io/r/nuwave/lighthouse",
-                    "type": "issuehunt"
-                },
-                {
                     "url": "https://www.patreon.com/lighthouse_php",
                     "type": "patreon"
                 }
             ],
-            "time": "2024-07-19T13:17:18+00:00"
+            "time": "2024-07-25T09:49:22+00:00"
         },
         {
             "name": "nyholm/psr7",
