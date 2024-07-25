@@ -13,7 +13,7 @@ return new class () extends Migration {
         Schema::create('attributes_types_input', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('slug')->after('name')->nullable(true);
+            $table->string('slug')->nullable(true);
             $table->bigInteger('apps_id')->unsigned();
             $table->bigInteger('companies_id')->unsigned();
             $table->timestamp('created_at')->useCurrent();
