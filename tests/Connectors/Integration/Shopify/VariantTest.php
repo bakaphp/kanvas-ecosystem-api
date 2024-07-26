@@ -75,6 +75,7 @@ final class VariantTest extends TestCase
                 user: $product->user,
                 name: 'test',
                 slug: 'test',
+                attributeType: null,
                 isVisible: true,
                 isSearchable: true,
                 isFiltrable: true
