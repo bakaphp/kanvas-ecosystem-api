@@ -6,11 +6,14 @@ namespace Kanvas\Connectors\Zoho\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Generator;
 use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 
 class DownloadAllZohoLeadAction
 {
+    protected int $totalLeadsProcessed = 0;
+
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company,
@@ -18,11 +21,9 @@ class DownloadAllZohoLeadAction
     ) {
     }
 
-    public function execute($totalPages = 50, $leadsPerPage = 200): array
+    public function execute($totalPages = 50, $leadsPerPage = 200): Generator
     {
         $zohoClient = Client::getInstance($this->app, $this->company);
-
-        $localLeadsIds = [];
 
         for ($page = 1; $page <= $totalPages; $page++) {
             $leads = $zohoClient->leads->getList(['page' => $page, 'per_page' => $leadsPerPage]);
@@ -39,10 +40,15 @@ class DownloadAllZohoLeadAction
                 if (! $localLead) {
                     continue;
                 }
-                $localLeadsIds[] = $localLead->getId();
+
+                $this->totalLeadsProcessed++;
+                yield $localLead->getId();
             }
         }
+    }
 
-        return $localLeadsIds;
+    public function getTotalLeadsProcessed(): int
+    {
+        return $this->totalLeadsProcessed;
     }
 }

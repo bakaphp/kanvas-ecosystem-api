@@ -50,7 +50,7 @@ final class LeadTest extends TestCase
 
         $leads = $downloadAllLeads->execute(totalPages: 1, leadsPerPage: 1);
 
-        $this->assertIsArray($leads);
-        $this->assertCount(1, $leads);
+        $this->assertIsArray(iterator_to_array($leads));
+        $this->assertEquals(1, $downloadAllLeads->getTotalLeadsProcessed());
     }
 }
