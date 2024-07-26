@@ -23,7 +23,7 @@ class AttributeMutation
      */
     public function create(mixed $root, array $req): AttributeModel
     {
-        $dto = AttributeDto::viaRequest($req['input']);
+        $dto = AttributeDto::viaRequest($req['input'], auth()->user());
         $action = new CreateAttribute($dto, auth()->user());
         $attributeModel = $action->execute();
 
