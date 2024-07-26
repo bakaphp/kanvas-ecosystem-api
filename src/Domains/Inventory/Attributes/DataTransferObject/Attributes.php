@@ -29,15 +29,15 @@ class Attributes extends Data
     ) {
     }
 
-    public static function viaRequest(array $request): self
+    public static function viaRequest(array $request, UserInterface $user): self
     {
         return new self(
-            isset($request['company_id']) ? Companies::getById($request['company_id']) : auth()->user()->getCurrentCompany(),
+            isset($request['company_id']) ? Companies::getById($request['company_id']) : $user->getCurrentCompany(),
             app(Apps::class),
             auth()->user(),
             $request['name'],
             $request['slug'] ?? Str::slug($request['name']),
-            isset($request['attribute_type']['id']) ? AttributesTypesRepository::getById((int) $request['attribute_type']['id']) : null,
+            isset($request['attribute_type']['id']) ? AttributesTypesRepository::getById((int) $request['attribute_type']['id'], $user->getCurrentCompany()) : null,
             $request['is_visible'] ?? false,
             $request['is_searchable'] ?? false,
             $request['is_filtrable'] ?? false,
