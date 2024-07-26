@@ -32,6 +32,7 @@ class UpdateAttribute
 
         $this->attribute->update([
             'name' => $this->dto->name,
+            'attributes_type_id' => $this->dto->attributeType?->getId(),
             'is_visible' => $this->dto->isVisible,
             'is_searchable' => $this->dto->isSearchable,
             'is_filtrable' => $this->dto->isFiltrable,

@@ -23,7 +23,7 @@ class AttributeMutation
      */
     public function create(mixed $root, array $req): AttributeModel
     {
-        $dto = AttributeDto::viaRequest($req['input']);
+        $dto = AttributeDto::viaRequest($req['input'], auth()->user());
         $action = new CreateAttribute($dto, auth()->user());
         $attributeModel = $action->execute();
 
@@ -45,7 +45,7 @@ class AttributeMutation
     public function update(mixed $root, array $req): AttributeModel
     {
         $attribute = AttributesRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
-        $dto = AttributeDto::viaRequest($req['input']);
+        $dto = AttributeDto::viaRequest($req['input'], auth()->user());
         (new UpdateAttribute($attribute, $dto, auth()->user()))->execute();
 
         if (isset($req['input']['values'])) {
