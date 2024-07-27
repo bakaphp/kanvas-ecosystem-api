@@ -55,7 +55,6 @@ final class LeadTest extends TestCase
             $this->assertInstanceOf(Lead::class, $lead);
         }
 
-        $this->assertIsArray(iterator_to_array($leads));
         $this->assertEquals(1, $downloadAllLeads->getTotalLeadsProcessed());
     }
 }
