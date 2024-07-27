@@ -11,6 +11,7 @@ use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Enums\FlagEnum;
 use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
 use Kanvas\Guild\Leads\DataTransferObject\LeadReceiver;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Support\Setup;
 use Tests\TestCase;
 
@@ -49,6 +50,10 @@ final class LeadTest extends TestCase
         );
 
         $leads = $downloadAllLeads->execute(totalPages: 1, leadsPerPage: 1);
+
+        foreach ($leads as $lead) {
+            $this->assertInstanceOf(Lead::class, $lead);
+        }
 
         $this->assertIsArray(iterator_to_array($leads));
         $this->assertEquals(1, $downloadAllLeads->getTotalLeadsProcessed());

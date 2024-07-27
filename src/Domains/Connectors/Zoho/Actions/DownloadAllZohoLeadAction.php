@@ -42,7 +42,7 @@ class DownloadAllZohoLeadAction
                 }
 
                 $this->totalLeadsProcessed++;
-                yield $localLead->getId();
+                yield $localLead;
             }
         }
     }
