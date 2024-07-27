@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Connectors\Shopify;
+namespace App\Console\Commands\Connectors\Zoho;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
@@ -11,7 +11,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Zoho\Actions\DownloadAllZohoLeadAction;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 
-class ShopifyInventoryDownloadCommand extends Command
+class ZohoLeadsDownloadCommand extends Command
 {
     use KanvasJobsTrait;
     /**
