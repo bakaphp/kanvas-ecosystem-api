@@ -23,6 +23,7 @@ use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Spatie\LaravelData\DataCollection;
+use Webleit\ZohoCrmApi\Models\Record;
 
 class SyncZohoLeadAction
 {
@@ -34,12 +35,12 @@ class SyncZohoLeadAction
     ) {
     }
 
-    public function execute(): ?Lead
+    public function execute(?Record $zohoLead = null): ?Lead
     {
         $zohoService = new ZohoService($this->app, $this->company);
 
         try {
-            $zohoLead = $zohoService->getLeadById($this->zohoLeadId);
+            $zohoLead = $zohoLead === null ? $zohoService->getLeadById($this->zohoLeadId) : $zohoLead;
         } catch (Exception $e) {
             Log::error('Error getting Zoho Lead', ['error' => $e->getMessage()]);
 
