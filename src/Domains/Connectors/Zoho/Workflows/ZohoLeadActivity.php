@@ -39,7 +39,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
             'zohoLeadId' => $zohoLead->getId(),
             'zohoRequest' => $zohoData,
             'leadId' => $lead->getId(),
-            'status' => $lead->status()->get()->name,
+            'status' => $lead->status()->first()->name,
         ];
     }
 }
