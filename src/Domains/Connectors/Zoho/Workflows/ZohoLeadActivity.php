@@ -32,7 +32,7 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
         $zohoData = $zohoLead->toArray();
         //$company = Companies::getById($lead->companies_id);
 
-        $syncLeadWithZoho = new SyncLeadToZohoAction($app, $lead->company, $lead);
+        $syncLeadWithZoho = new SyncLeadToZohoAction($app, $lead);
         $zohoLead = $syncLeadWithZoho->execute();
 
         return [
