@@ -34,6 +34,9 @@ class GenerateMessageSlugActivity extends Activity implements WorkflowActivityIn
         }
 
         $message->slug = Str::simpleSlug($fieldToSlug);
+        if (method_exists($message, 'disableWorkflows')) {
+            $message->disableWorkflows();
+        }
         $message->saveOrFail();
 
         return [
