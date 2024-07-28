@@ -6,13 +6,13 @@ namespace Kanvas\Inventory\Attributes\Models;
 
 use Baka\Support\Str;
 use Baka\Traits\DatabaseSearchableTrait;
+use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 
@@ -24,10 +24,14 @@ use Kanvas\Inventory\Variants\Models\VariantsAttributes;
  * @property int $companies_id
  * @property string uuid
  * @property string $name
+ * @property int $is_filterable
+ * @property int $is_searchable
+ * @property int $is_visible
  */
 class Attributes extends BaseModel
 {
     use UuidTrait;
+    use SlugTrait;
     use CascadeSoftDeletes;
     use DatabaseSearchableTrait;
 
@@ -41,6 +45,14 @@ class Attributes extends BaseModel
     public function apps(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
+    }
+
+    /**
+     * apps.
+     */
+    public function attributeType(): BelongsTo
+    {
+        return $this->belongsTo(AttributesTypes::class, 'attributes_type_id');
     }
 
     public function variantAttributes(): HasMany

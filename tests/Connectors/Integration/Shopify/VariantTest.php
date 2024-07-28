@@ -7,8 +7,12 @@ namespace Tests\Connectors\Integration\Shopify;
 use Kanvas\Connectors\Shopify\Enums\StatusEnum;
 use Kanvas\Connectors\Shopify\Services\ShopifyImageService;
 use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
+use Kanvas\Connectors\Shopify\Services\ShopifyVariantMetafieldService;
+use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
+use Kanvas\Inventory\Attributes\DataTransferObject\Attributes;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Tests\Connectors\Traits\HasShopifyConfiguration;
 use Tests\TestCase;
 
@@ -44,6 +48,64 @@ final class VariantTest extends TestCase
             $this->assertEquals(
                 $variant->getShopifyId($warehouse->regions),
                 $shopifyVariantResponse['id']
+            );
+        }
+    }
+
+    public function testSetMetafield()
+    {
+        $product = Products::first();
+
+        $channel = Channels::fromCompany($product->company)->first();
+        $variant = $product->variants()->first();
+        $warehouse = $variant->warehouses()->first();
+        $this->setupShopifyConfiguration($product, $warehouse);
+
+        $shopify = new ShopifyInventoryService(
+            $product->app,
+            $product->company,
+            $warehouse
+        );
+
+        $shopify->saveProduct($product, StatusEnum::ACTIVE);
+        $testAttribute = new CreateAttribute(
+            new Attributes(
+                company: $product->company,
+                app: $product->app,
+                user: $product->user,
+                name: 'test',
+                slug: 'test',
+                attributeType: null,
+                isVisible: true,
+                isSearchable: true,
+                isFiltrable: true
+            ),
+            $product->user
+        );
+        $attribute = $testAttribute->execute();
+
+        foreach ($product->variants as $variant) {
+            $shopifyVariantResponse = $shopify->saveVariant($variant);
+            $this->assertEquals(
+                $variant->sku,
+                $shopifyVariantResponse['sku']
+            );
+
+            (new AddAttributeAction($variant, $attribute, 'test'))->execute();
+
+            $shopifyMetafieldService = new ShopifyVariantMetafieldService(
+                $product->app,
+                $product->company,
+                $warehouse->region,
+                $variant
+            );
+
+            $totalSet = $shopifyMetafieldService->setMetaField();
+            $totalGet = count($shopifyMetafieldService->getMetaField());
+
+            $this->assertEquals(
+                $totalSet,
+                $totalGet
             );
         }
     }

@@ -12,6 +12,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadSource;
+use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
@@ -51,6 +52,19 @@ class Setup
         'Pending Commitment',
         'In Negotiation',
         'Won',
+    ];
+
+    public array $leadStatus = [
+        'Active',
+        'Sold',
+        'Inactive',
+        'Complete',
+        'Sold',
+        'Inactive',
+        'Close',
+        'Won',
+        'Bad',
+        'Duplicate',
     ];
 
     /**
@@ -131,10 +145,17 @@ class Setup
             'source_name' => 'Default Receiver',
         ]);
 
+        foreach ($this->leadStatus as $key => $value) {
+            LeadStatus::firstOrCreate([
+                'name' => $value,
+            ]);
+        }
+
         return LeadType::fromCompany($this->company)->count() == count($this->leadTypes) &&
             LeadReceiver::fromCompany($this->company)->count() > 0 &&
             LeadSource::fromApp($this->app)->fromCompany($this->company)->count() == count($this->leadSources) &&
             Pipeline::fromCompany($this->company)->count() > 0 &&
+            LeadStatus::count() > 0 &&
             PipelineStage::where('pipelines_id', $defaultPipeline->getId())->count() == count($this->defaultStages);
     }
 }

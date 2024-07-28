@@ -1,0 +1,69 @@
+input AttributesTypeInput{
+    name: String!
+    slug: String
+    is_default: Boolean
+}
+
+input AttributeTypeUpdateInput {
+    name: String
+    slug: String
+    is_default: Boolean
+}
+
+input AttributeTypeReferenceInput{
+    id: ID!,
+    name: String
+}
+
+type AttributesType {
+    id: ID!
+    name: String
+    slug: String
+    is_default: Boolean
+    created_at: String
+    updated_at: String
+}
+
+
+extend type Mutation @guard {
+    createAttributeType(input: AttributesTypeInput!): AttributesType!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\AttributeTypeMutation@create"
+        )
+    updateAttributeType(id: ID!, input: AttributeTypeUpdateInput!): AttributesType!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\AttributeTypeMutation@update"
+        )
+    deleteAttributeType(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\AttributeTypeMutation@delete"
+        )
+
+}
+extend type Query @guard {
+    attributestypes(
+        search: String @search
+        where: _ 
+            @whereConditions(
+                columns: [
+                    "uuid",
+                    "id",
+                    "name"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                ]
+            )
+    ): [AttributesType!]!
+        @paginate(
+            defaultCount: 25
+            model: "Kanvas\\Inventory\\Attributes\\Models\\AttributesTypes"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+        )
+}

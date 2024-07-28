@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Connectors\Shopify\Services\ShopifyProductService;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Users\Models\Users;
@@ -19,7 +20,8 @@ class DownloadAllShopifyProductsAction
         protected Apps $app,
         protected Warehouses $warehouses,
         protected CompaniesBranches $branch,
-        protected Users $user
+        protected Users $user,
+        protected ?Channels $channel = null
     ) {
     }
 
@@ -52,9 +54,10 @@ class DownloadAllShopifyProductsAction
                     $this->warehouses->region,
                     $shopifyProduct['id'],
                     $this->user,
-                    $this->warehouses
+                    $this->warehouses,
+                    $this->channel
                 );
-                $productsToImport[] = $shopifyProductService->mapProduct($shopifyProduct);
+                $productsToImport[] = $shopifyProductService->mapProductForImport($shopifyProduct);
 
                 $totalRecords++;
             }

@@ -49,6 +49,7 @@ class Client
             'ShopUrl' => $shopUrl,
             'ApiKey' => $clientKey,
             'Password' => $clientSecret,
+            'AccessToken' => $clientSecret,
         ]);
     }
 

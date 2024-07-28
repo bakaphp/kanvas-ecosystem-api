@@ -10,7 +10,10 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Currencies\Models\Currencies;
+use Kanvas\Inventory\Attributes\Actions\CreateAttributeType;
+use Kanvas\Inventory\Attributes\DataTransferObject\AttributesType;
 use Kanvas\Inventory\Attributes\Models\Attributes;
+use Kanvas\Inventory\Attributes\Models\AttributesTypes as ModelAttributesTypes;
 use Kanvas\Inventory\Categories\Actions\CreateCategory;
 use Kanvas\Inventory\Categories\DataTransferObject\Categories as Category;
 use Kanvas\Inventory\Categories\Models\Categories;
@@ -151,11 +154,36 @@ class Setup
 
         $defaultStatus = $createDefaultStatus->execute();
 
+        $createDefaultAttributeType = new CreateAttributeType(
+            new AttributesType(
+                $this->company,
+                $this->app,
+                "Input",
+                "input",
+                true
+            ),
+            $this->user
+        );
+
+        (new CreateAttributeType(
+            new AttributesType(
+                $this->company,
+                $this->app,
+                "Checkbox",
+                "checkbox",
+                false
+            ),
+            $this->user
+        ))->execute();
+
+        $defaultAttributeType = $createDefaultAttributeType->execute();
+
         return $defaultCategory instanceof Categories &&
             $defaultChannel instanceof ModelsChannels &&
             $defaultRegion instanceof Regions &&
             $defaultWarehouse instanceof ModelsWarehouses &&
             $defaultProductType instanceof ModelsProductsTypes &&
-            $defaultStatus instanceof ModelsStatus;
+            $defaultStatus instanceof ModelsStatus &&
+            $defaultAttributeType instanceof ModelAttributesTypes;
     }
 }

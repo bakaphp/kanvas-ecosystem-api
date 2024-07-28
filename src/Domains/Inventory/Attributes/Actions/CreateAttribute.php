@@ -36,6 +36,7 @@ class CreateAttribute
         ], [
             'users_id' => $this->user->getId(),
             'slug' => $this->dto->slug,
+            'attributes_type_id' => $this->dto->attributeType?->getId(),
             'is_visible' => $this->dto->isVisible,
             'is_searchable' => $this->dto->isSearchable,
             'is_filtrable' => $this->dto->isFiltrable,

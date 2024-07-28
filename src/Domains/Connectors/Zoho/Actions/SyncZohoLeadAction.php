@@ -23,6 +23,7 @@ use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Spatie\LaravelData\DataCollection;
+use Webleit\ZohoCrmApi\Models\Record;
 
 class SyncZohoLeadAction
 {
@@ -34,12 +35,12 @@ class SyncZohoLeadAction
     ) {
     }
 
-    public function execute(): ?Lead
+    public function execute(?Record $zohoLead = null): ?Lead
     {
         $zohoService = new ZohoService($this->app, $this->company);
 
         try {
-            $zohoLead = $zohoService->getLeadById($this->zohoLeadId);
+            $zohoLead = $zohoLead === null ? $zohoService->getLeadById($this->zohoLeadId) : $zohoLead;
         } catch (Exception $e) {
             Log::error('Error getting Zoho Lead', ['error' => $e->getMessage()]);
 
@@ -129,11 +130,18 @@ class SyncZohoLeadAction
         if ($user) {
             $localLead->leads_owner_id = $user->getId();
         }
+
+        if ($user) {
+            $localLead->leads_owner_id = $user->getId();
+            $localLead->users_id = $user->getId();
+        }
+
         $localLead->people->firstname = $zohoLead->First_Name;
         $localLead->people->lastname = $zohoLead->Last_Name;
         $localLead->firstname = $zohoLead->First_Name;
         $localLead->lastname = $zohoLead->Last_Name;
-        $localLead->title = $zohoLead->Full_Name . ' Opp';
+        $localLead->title = $zohoLead->Full_Name;
+        $localLead->description = $zohoLead->Description;
         $localLead->leads_status_id = $leadStatus->getId();
         $localLead->disableWorkflows();
         $localLead->saveOrFail();

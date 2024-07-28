@@ -50,17 +50,9 @@ class RegionObserver
         }
 
         $defaultRegion = $region::getDefault($region->company);
-        $hasOtherDefault = $defaultRegion = Regions::fromCompany($region->company)
-                        ->where('id', '!=', $region->getId())
-                        ->where('is_default', 0)
-                        ->first();
 
-        if ($defaultRegion->getId() == $region->getId() && $hasOtherDefault) {
+        if ($defaultRegion->getId() == $region->getId()) {
             throw new ValidationException('Can\'t delete, you have to have at least one default Region');
-        } else {
-            // change the default
-            $hasOtherDefault->is_default = true;
-            $hasOtherDefault->saveQuietly();
         }
     }
 }

@@ -50,7 +50,7 @@ class SyncShopifyProductAction
             $this->warehouses
         );
 
-        $productsToImport = $shopifyProductService->mapProduct($shopifyProduct);
+        $productsToImport = $shopifyProductService->mapProductForImport($shopifyProduct);
 
         return (
             new ProductImporterAction(

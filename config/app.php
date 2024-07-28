@@ -174,7 +174,7 @@ return [
          */
         App\Providers\AppServiceProvider::class,
         App\Providers\AuthServiceProvider::class,
-        // // App\Providers\BroadcastServiceProvider::class,
+        App\Providers\BroadcastServiceProvider::class,
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
 
@@ -186,6 +186,7 @@ return [
         // Kanvas\Providers\MigrationsServiceProvider::class,
         App\Providers\KanvasAppsProvider::class,
         Nuwave\Lighthouse\WhereConditions\WhereConditionsServiceProvider::class,
+        Nuwave\Lighthouse\Subscriptions\SubscriptionServiceProvider::class,
         Nuwave\Lighthouse\Scout\ScoutServiceProvider::class,
         App\Providers\HealthProvider::class,
         Berkayk\OneSignal\OneSignalServiceProvider::class,

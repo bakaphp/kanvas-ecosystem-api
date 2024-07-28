@@ -22,7 +22,9 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\Topics\Models\Topic;
+use Kanvas\Users\Models\UserFullTableName;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 use Nevadskiy\Tree\AsTree;
 
@@ -54,6 +56,7 @@ class Message extends BaseModel
     use SoftDeletesTrait;
     use HasPermissions;
     use AsTree;
+    use CanUseWorkflow;
 
     protected $table = 'messages';
 
@@ -93,6 +96,15 @@ class Message extends BaseModel
     public function users()
     {
         return $this->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(
+            UserFullTableName::class,
+            'users_id',
+            'id'
+        );
     }
 
     public function comments(): HasMany
