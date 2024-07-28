@@ -27,6 +27,10 @@ class MessageInteractionService
 
         $shareUrl = $this->message->app->get(AppEnum::SHAREABLE_LINK->value) ?? $this->message->app->url;
 
+        if ($this->message->app->get(AppEnum::SHAREABLE_LINK_WITH_USERNAME->value)) {
+            $shareUrl .= '/' . $this->message->user->displayname;
+        }
+
         return $shareUrl . '/' . (! empty($this->message->slug) ? $this->message->slug : $this->message->getId());
     }
 

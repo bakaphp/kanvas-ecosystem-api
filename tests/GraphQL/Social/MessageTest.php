@@ -229,7 +229,7 @@ class MessageTest extends TestCase
                     createMessage(input: $input) {
                         id
                         message
-                        users {
+                        user {
                             id
                         }
                     }
@@ -252,13 +252,53 @@ class MessageTest extends TestCase
                   data {
                     message
                     message_types_id,
-                    users {
+                    user {
                         id
                     }
                   }
                 }
               }
             '
+        )->assertSuccessful();
+    }
+
+    public function testShareMessage()
+    {
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+        $response = $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        id
+                        message
+                        user {
+                            id
+                        }
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => $message,
+                    'message_verb' => $messageType->verb,
+                    'system_modules_id' => 1,
+                    'entity_id' => '1',
+                ],
+            ]
+        );
+
+        $createdMessageId = $response['data']['createMessage']['id'];
+
+        $this->graphQL(
+            '
+                mutation shareMessage($id: ID!) {
+                    shareMessage(id: $id)
+                }
+            ',
+            [
+                'id' => $createdMessageId,
+            ]
         )->assertSuccessful();
     }
 
@@ -415,7 +455,7 @@ class MessageTest extends TestCase
                     createMessage(input: $input) {
                         id
                         message
-                        users {
+                        user {
                             id
                         }
                     }
