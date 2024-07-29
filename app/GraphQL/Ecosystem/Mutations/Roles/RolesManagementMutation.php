@@ -6,6 +6,7 @@ namespace App\GraphQL\Ecosystem\Mutations\Roles;
 
 use Baka\Support\Str;
 use Bouncer;
+use Illuminate\Support\Facades\Redis;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
 use Kanvas\AccessControlList\Actions\UpdateRoleAction;
@@ -14,6 +15,7 @@ use Kanvas\AccessControlList\Models\Role as KanvasRole;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Silber\Bouncer\Database\Role as SilberRole;
@@ -59,13 +61,35 @@ class RolesManagementMutation
 
         $role = RolesRepository::getByMixedParamFromCompany($request['role']);
 
-        if ($auth->isAppOwner()) {
+        if ($auth->isAdmin()) {
             $user = UsersRepository::getUserOfAppById($userId, $app);
         } else {
             $user = UsersRepository::getUserOfCompanyById($company, $userId);
         }
 
         $user->retract($role->name);
+
+        return true;
+    }
+
+    public function givePermissionToRole(mixed $rootValue, array $request): bool
+    {
+        $systemModule = SystemModulesRepository::getByModelName($request['systemModule'], app(Apps::class));
+        Bouncer::allow($request['role'])->to($request['permission'], $systemModule->model_name);
+
+        $roles = RolesRepository::getMapAbilityInModules($request['role']);
+        Redis::set(RolesEnums::KEY_MAP->value, $roles);
+
+        return true;
+    }
+
+    public function removePermissionToRole(mixed $rootValue, array $request): bool
+    {
+        $systemModule = SystemModulesRepository::getByModelName($request['systemModule'], app(Apps::class));
+        Bouncer::disallow($request['role'])->to($request['permission'], $systemModule->model_name);
+
+        $roles = RolesRepository::getMapAbilityInModules($request['role']);
+        Redis::set(RolesEnums::KEY_MAP->value, $roles);
 
         return true;
     }
@@ -85,8 +109,7 @@ class RolesManagementMutation
         } else {
             $user = UsersRepository::getUserOfCompanyById($company, $userId);
         }
-
-        Bouncer::allow($user)->to(Str::slug($request['permission']));
+        Bouncer::allow($user)->to(Str::simpleSlug($request['permission']));
 
         return true;
     }
