@@ -4,7 +4,7 @@ x-common-queue-settings: &common-queue-settings
   restart: always
   build:
     context: .
-    dockerfile: development.Dockerfile
+    dockerfile: franken.Dockerfile
   extra_hosts:
     - "host.docker.internal:host-gateway"
   command: 
@@ -28,7 +28,7 @@ services:
     container_name: php${APP_CONTAINER_NAME}
     build:
       context: .
-      dockerfile: development.Dockerfile
+      dockerfile: franken.Dockerfile
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
@@ -88,7 +88,7 @@ services:
     restart: always
     build:
       context: .
-      dockerfile: development.Dockerfile
+      dockerfile: franken.Dockerfile
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command:
