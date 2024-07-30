@@ -185,13 +185,18 @@ class Products extends BaseModel
             'variants' => $this->variants->map(function ($variant) {
                 return $variant->toSearchableArray();
             }),
+            'status' => [
+                'id' => $this->status->id ?? null,
+                'name' => $this->status->name ?? null,
+            ],
             'uuid' => $this->uuid,
             'slug' => $this->slug,
             'description' => $this->description,
             'short_description' => $this->short_description,
             'attributes' => [],
             'apps_id' => $this->apps_id,
-            'is_deleted' => $this->is_deleted,
+            'published_at' => $this->published_at,
+            'created_at' => $this->created_at->format('Y-m-d H:i:s'),
         ];
         $attributes = $this->attributes()->get();
         foreach ($attributes as $attribute) {
