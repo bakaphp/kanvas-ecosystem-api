@@ -1,4 +1,4 @@
-FROM dunglas/frankenphp as base
+FROM dunglas/frankenphp
 
 ENV SERVER_NAME="http://"
 

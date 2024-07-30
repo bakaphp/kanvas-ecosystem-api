@@ -25,3 +25,7 @@ service-account.json
 /tools/*
 /tools/php-cs-fixer/*
 /tools/php-cs-fixer/vendor/*
+
+/caddy
+frankenphp
+frankenphp-worker.php
