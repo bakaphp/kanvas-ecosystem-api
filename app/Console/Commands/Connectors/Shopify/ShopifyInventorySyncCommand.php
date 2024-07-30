@@ -13,6 +13,7 @@ use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Users\Models\UserCompanyApps;
+use Throwable;
 
 class ShopifyInventorySyncCommand extends Command
 {
@@ -53,11 +54,16 @@ class ShopifyInventorySyncCommand extends Command
                     ->get();
 
         foreach ($products as $product) {
-            $this->info("Checking product {$product->getId()} {$product->name} \n");
+            try {
+                $this->info("Checking product {$product->getId()} {$product->name} \n");
 
-            $shopifyService = new ShopifyInventoryService($product->app, $product->company, $warehouses);
-            $shopifyService->saveProduct($product, StatusEnum::ACTIVE, $channel);
+                $shopifyService = new ShopifyInventoryService($product->app, $product->company, $warehouses);
+                $shopifyService->saveProduct($product, StatusEnum::ACTIVE, $channel);
+            } catch (Throwable $e) {
+                $this->error("Error syncing product {$product->getId()} {$product->name} \n");
+            }
         }
+
         return;
     }
 }
