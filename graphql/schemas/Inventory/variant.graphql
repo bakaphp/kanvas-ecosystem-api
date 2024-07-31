@@ -1,5 +1,5 @@
 type Variant {
-    id: ID
+    id: ID!
     uuid: String!
     slug: String!
     products_id: Int!
@@ -21,7 +21,7 @@ type Variant {
     interactions(visitor: VisitorEntityInput!): Interactions
         @method(name: "getEntitySocialInteractions")
     user_interactions: Mixed! @method(name: "getUserSocialInteractions") @guard
-    product: Product
+    product: Product @cacheRedis
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
     attributes: [VariantsAttributes!]! @BelongsToMany(relation: "attributes")
