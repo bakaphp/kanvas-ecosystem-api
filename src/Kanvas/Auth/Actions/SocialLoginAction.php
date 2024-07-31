@@ -9,6 +9,8 @@ use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Socialite\DataTransferObject\User as SocialiteUser;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Users\Models\Sources;
 use Kanvas\Users\Models\UserLinkedSources;
 use Kanvas\Users\Models\Users;
@@ -47,7 +49,14 @@ class SocialLoginAction
                     'password' => Str::random(11),
                     'displayname' => $this->socialUser->nickname,
                 ];
-                $userData = RegisterInput::fromArray($userData);
+
+                $userRegistrationAssignToAppDefaultCompanyBranch = $this->app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
+                $branch = null;
+                if ($userRegistrationAssignToAppDefaultCompanyBranch) {
+                    $branch = CompaniesBranches::getById($userRegistrationAssignToAppDefaultCompanyBranch);
+                }
+
+                $userData = RegisterInput::fromArray($userData, $branch);
 
                 $registeredUser = new RegisterUsersAction($userData, $this->app);
                 $existedUser = $registeredUser->execute();
