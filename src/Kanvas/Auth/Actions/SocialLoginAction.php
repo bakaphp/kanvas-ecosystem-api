@@ -8,7 +8,10 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
+use Kanvas\Auth\Services\AuthenticationService;
 use Kanvas\Auth\Socialite\DataTransferObject\User as SocialiteUser;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Users\Models\Sources;
 use Kanvas\Users\Models\UserLinkedSources;
 use Kanvas\Users\Models\Users;
@@ -47,7 +50,9 @@ class SocialLoginAction
                     'password' => Str::random(11),
                     'displayname' => $this->socialUser->nickname,
                 ];
-                $userData = RegisterInput::fromArray($userData);
+
+                $branch = AuthenticationService::getAppDefaultAssignCompanyBranch($this->app);
+                $userData = RegisterInput::fromArray($userData, $branch);
 
                 $registeredUser = new RegisterUsersAction($userData, $this->app);
                 $existedUser = $registeredUser->execute();
