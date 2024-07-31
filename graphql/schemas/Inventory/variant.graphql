@@ -13,6 +13,7 @@ type Variant {
     serial_number: String
     status: Status
     files: [Filesystem]
+        @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
@@ -20,7 +21,7 @@ type Variant {
     interactions(visitor: VisitorEntityInput!): Interactions
         @method(name: "getEntitySocialInteractions")
     user_interactions: Mixed! @method(name: "getUserSocialInteractions") @guard
-    product: Product
+    product: Product @cacheRedis
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
     attributes: [VariantsAttributes!]! @BelongsToMany(relation: "attributes")
@@ -36,6 +37,7 @@ type Variant {
             resolver: "App\\GraphQL\\Inventory\\Types\\MetadataType@linkedStores"
         )
     custom_fields: [CustomField!]!
+        @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
