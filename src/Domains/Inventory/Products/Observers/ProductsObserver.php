@@ -13,9 +13,8 @@ class ProductsObserver
         if ($products->wasChanged('products_types_id') && $products->productsTypes()->exists()) {
             $products->productsTypes->setTotalProducts();
         }
-        
-        $products->clearLightHouseCache();
 
+        $products->clearLightHouseCache();
     }
 
     public function created(Products $products): void
