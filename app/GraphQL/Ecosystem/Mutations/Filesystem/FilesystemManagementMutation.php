@@ -44,27 +44,47 @@ class FilesystemManagementMutation
      */
     public function deAttachFile(mixed $rootValue, array $request): bool
     {
+        $app = app(Apps::class);
+        $user = auth()->user();
+
         $fileEntity = FilesystemEntities::where('uuid', $request['uuid'])
-            ->fromCompany(auth()->user()->getCurrentCompany())
+            ->when(! $user->isAdmin(), function ($query) use ($user) {
+                $query->fromCompany($user->getCurrentCompany());
+            })
             ->notDeleted()
             ->firstOrFail();
+
+        if ($fileEntity->filesystem->apps_id != $app->getId()) {
+            return false;
+        }
 
         return $fileEntity->softDelete();
     }
 
     public function deAttachFiles(mixed $rootValue, array $request): bool
     {
-        $company = auth()->user()->getCurrentCompany();
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $i = 0;
+
         $fileEntities = FilesystemEntities::whereIn('uuid', $request['uuids'])
-            ->fromCompany($company)
+            ->when(! $user->isAdmin(), function ($query) use ($user) {
+                $query->fromCompany($user->getCurrentCompany());
+            })
             ->notDeleted()
             ->get();
 
         foreach ($fileEntities as $fileEntity) {
-            $fileEntity->softDelete();
+            if ($fileEntity->filesystem->apps_id != $app->getId()) {
+                continue;
+            }
+
+            if($fileEntity->softDelete()) {
+                $i++;
+            }
         }
 
-        return true;
+        return $i == count($request['uuids']);
     }
 
     /**
