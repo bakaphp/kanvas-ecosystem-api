@@ -13,20 +13,22 @@ type Message {
     total_liked: Int
     total_saved: Int
     total_shared: Int
-    parent: Message
-    user: User!
+    parent: Message @cacheRedis
+    user: User! @cacheRedis
     children: [Message!] @hasMany(type: PAGINATOR)
-    messageType: MessageType!
-    appModuleMessage: AppModuleMessage
+    messageType: MessageType! @cacheRedis
+    appModuleMessage: AppModuleMessage @cacheRedis
     myInteraction: myInteraction @method(name: "getMyInteraction")
     comments: [MessageComments!]! @hasMany(type: PAGINATOR)
     additional_field: Mixed
     custom_fields: [CustomField!]!
+        @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
     tags: [Tag!]
+        @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
@@ -143,7 +145,10 @@ extend type Query @guard {
                 ]
             )
         hasUser: _
-            @whereHasConditions(relation: "user", columns: ["id", "displayname"])
+            @whereHasConditions(
+                relation: "user"
+                columns: ["id", "displayname"]
+            )
         hasAppModuleMessage: _
             @whereHasConditions(columns: ["entity_id", "system_modules"])
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
