@@ -79,7 +79,7 @@ class FilesystemManagementMutation
                 continue;
             }
 
-            if($fileEntity->softDelete()) {
+            if ($fileEntity->softDelete()) {
                 $i++;
             }
         }
