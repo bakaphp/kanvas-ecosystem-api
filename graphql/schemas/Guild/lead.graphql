@@ -1,44 +1,48 @@
 type Lead {
     id: ID!
     uuid: String!
-    company: Company! @belongsTo
-    branch: CompanyBranch! @belongsTo
+    company: Company! @belongsTo @cacheRedis
+    branch: CompanyBranch! @belongsTo @cacheRedis
     title: String!
     people: People
-    user: User @belongsTo
-    owner: User @belongsTo
-    organization: Organization @belongsTo
-    receiver: LeadReceiver @belongsTo
-    status: LeadStatus @belongsTo
-    type: LeadType @belongsTo
-    source: LeadSource @belongsTo
+    user: User @belongsTo @cacheRedis
+    owner: User @belongsTo @cacheRedis
+    organization: Organization @belongsTo @cacheRedis
+    receiver: LeadReceiver @belongsTo @cacheRedis
+    status: LeadStatus @belongsTo @cacheRedis
+    type: LeadType @belongsTo @cacheRedis
+    source: LeadSource @belongsTo @cacheRedis
     firstname: String
     lastname: String
     email: String
     phone: String
     description: String
     reason_lost: String
-    pipeline: LeadPipeline @belongsTo
+    pipeline: LeadPipeline @belongsTo @cacheRedis
     stage: LeadPipelineStage @belongsTo(relation: "stage")
     participants: [LeadsParticipants!]! @hasMany
     channels: [SocialChannel]! @hasMany(relation: "socialChannels")
     systemModule: SystemModule
     tags: [Tag!]
+        @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
     files: [Filesystem!]!
+        @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
     followers: [User!]!
+        @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Follows\\FollowBuilder@getEntityFollowers"
         )
     custom_fields: [CustomField!]!
+        @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"

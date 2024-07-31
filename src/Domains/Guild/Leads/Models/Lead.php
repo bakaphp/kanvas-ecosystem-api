@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Models;
 
 use Baka\Support\Str;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -65,6 +66,7 @@ class Lead extends BaseModel
     use HasTagsTrait;
     use FollowersTrait;
     use CanUseWorkflow;
+    use HasLightHouseCache;
 
     protected $table = 'leads';
     protected $guarded = [];
@@ -72,6 +74,11 @@ class Lead extends BaseModel
     public function people(): BelongsTo
     {
         return $this->belongsTo(People::class, 'people_id', 'id');
+    }
+
+    public function getGraphTypeName(): string
+    {
+        return 'Lead';
     }
 
     public function participants(): HasManyThrough
