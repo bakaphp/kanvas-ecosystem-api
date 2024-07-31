@@ -24,7 +24,6 @@ type Lead {
     channels: [SocialChannel]! @hasMany(relation: "socialChannels")
     systemModule: SystemModule
     tags: [Tag!]
-        @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
@@ -36,7 +35,6 @@ type Lead {
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
     followers: [User!]!
-        @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Follows\\FollowBuilder@getEntityFollowers"

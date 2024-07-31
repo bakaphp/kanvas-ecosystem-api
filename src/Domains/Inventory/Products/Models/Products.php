@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Products\Models;
 
 use Awobaz\Compoships\Compoships;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
@@ -53,6 +54,7 @@ class Products extends BaseModel
     use LikableTrait;
     use HasShopifyCustomField;
     use HasTagsTrait;
+    use HasLightHouseCache;
     use Searchable {
         search as public traitSearch;
     }
@@ -69,6 +71,11 @@ class Products extends BaseModel
     ];
 
     protected $is_deleted;
+
+    public function getGraphTypeName(): string
+    {
+        return 'Product';
+    }
 
     /**
      * categories.
