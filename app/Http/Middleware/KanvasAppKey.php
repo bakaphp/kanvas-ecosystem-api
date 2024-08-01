@@ -14,7 +14,6 @@ use Kanvas\Apps\Repositories\AppsRepository;
 use Kanvas\Apps\Support\MountedAppProvider;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
-use Kanvas\Exceptions\InternalServerErrorException;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
@@ -34,7 +33,7 @@ class KanvasAppKey
 
             (new MountedAppProvider($app))->register();
         } catch (ModelNotFoundException $e) {
-            return response()->json(['message' =>  'No App configure with this key: ' . $appIdentifier], 500);
+            return response()->json(['message' => 'No App configure with this key: ' . $appIdentifier], 500);
         }
 
         $companyBranchHeader = AppEnums::KANVAS_APP_BRANCH_HEADER->getValue();
