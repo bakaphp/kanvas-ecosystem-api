@@ -19,41 +19,52 @@ use Throwable;
 
 class KanvasAppKey
 {
-    /**
-     * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     */
     public function handle(Request $request, Closure $next): Response
     {
         $appIdentifier = $request->header(AppEnums::KANVAS_APP_HEADER->getValue(), config('kanvas.app.id'));
 
-        try {
-            $app = AppsRepository::findFirstByKey($appIdentifier);
-
-            (new MountedAppProvider($app))->register();
-        } catch (ModelNotFoundException $e) {
-            return response()->json(['message' => 'No App configure with this key: ' . $appIdentifier], 500);
+        if (! $this->registerApp($appIdentifier)) {
+            return response()->json(['message' => 'No App configured with this key: ' . $appIdentifier], 500);
         }
 
+        $this->handleCompanyBranch($request);
+        $this->handleAppKey($request);
+
+        return $next($request);
+    }
+
+    private function registerApp(string $appIdentifier): bool
+    {
+        try {
+            $app = AppsRepository::findFirstByKey($appIdentifier);
+            (new MountedAppProvider($app))->register();
+
+            return true;
+        } catch (ModelNotFoundException $e) {
+            return false;
+        }
+    }
+
+    private function handleCompanyBranch(Request $request): void
+    {
         $companyBranchHeader = AppEnums::KANVAS_APP_BRANCH_HEADER->getValue();
-        $appKeyHeader = AppEnums::KANVAS_APP_KEY_HEADER->getValue();
 
         if ($request->hasHeader($companyBranchHeader)) {
             $companyBranchKey = $request->header($companyBranchHeader);
 
             try {
                 $companyBranch = CompaniesBranches::getByUuid($companyBranchKey);
-
-                app()->scoped(CompaniesBranches::class, function () use ($companyBranch) {
-                    return $companyBranch;
-                });
+                app()->scoped(CompaniesBranches::class, fn () => $companyBranch);
             } catch (Throwable $e) {
-                $msg = 'No Company Branch configure with this key: ' . $companyBranchKey;
-
-                return response()->json(['message' => $msg], 500);
+                response()->json(['message' => 'No Company Branch configured with this key: ' . $companyBranchKey], 500)->send();
+                exit;
             }
         }
+    }
+
+    private function handleAppKey(Request $request): void
+    {
+        $appKeyHeader = AppEnums::KANVAS_APP_KEY_HEADER->getValue();
 
         if ($request->hasHeader($appKeyHeader)) {
             $appKey = $request->header($appKeyHeader);
@@ -63,30 +74,36 @@ class KanvasAppKey
                 $kanvasApp = $kanvasAppKey->app()->firstOrFail();
 
                 if ($kanvasAppKey->hasExpired()) {
-                    return response()->json(['message' => 'App Key has expired'], 500);
+                    response()->json(['message' => 'App Key has expired'], 500)->send();
+                    exit;
                 }
 
-                app()->scoped(AppKey::class, function () use ($kanvasAppKey) {
-                    return $kanvasAppKey;
-                });
-
-                app()->scoped(Apps::class, function () use ($kanvasApp) {
-                    return $kanvasApp;
-                });
-
-                if (empty($request->bearerToken())) {
-                    Auth::setUser($kanvasAppKey->user()->firstOrFail());
-                }
-
-                $kanvasAppKey->last_used_date = date('Y-m-d H:i:s');
-                $kanvasAppKey->saveOrFail();
+                $this->scopeAppKeyAndApp($kanvasAppKey, $kanvasApp);
+                $this->setUserIfNoBearerToken($request, $kanvasAppKey);
+                $this->updateLastUsedDate($kanvasAppKey);
             } catch (Throwable $e) {
-                $msg = 'No App Key configure with this key: ' . $appKey;
-
-                return response()->json(['message' => $msg], 500);
+                response()->json(['message' => 'No App Key configured with this key: ' . $appKey], 500)->send();
+                exit;
             }
         }
+    }
 
-        return $next($request);
+    private function scopeAppKeyAndApp(AppKey $kanvasAppKey, Apps $kanvasApp): void
+    {
+        app()->scoped(AppKey::class, fn () => $kanvasAppKey);
+        app()->scoped(Apps::class, fn () => $kanvasApp);
+    }
+
+    private function setUserIfNoBearerToken(Request $request, AppKey $kanvasAppKey): void
+    {
+        if (empty($request->bearerToken())) {
+            Auth::setUser($kanvasAppKey->user()->firstOrFail());
+        }
+    }
+
+    private function updateLastUsedDate(AppKey $kanvasAppKey): void
+    {
+        $kanvasAppKey->last_used_date = now();
+        $kanvasAppKey->saveOrFail();
     }
 }
