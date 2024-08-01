@@ -25,6 +25,7 @@ use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Jobs\OnBoardingJob;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Users\Services\UserNotificationService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
@@ -86,6 +87,8 @@ class CreateUserAction
         if ($newUser && $company !== null) {
             $this->onBoarding($user, $company);
         }
+
+        UserNotificationService::sendWelcomeEmail($this->app, $user, $company);
 
         if ($this->runWorkflow) {
             $user->fireWorkflow(

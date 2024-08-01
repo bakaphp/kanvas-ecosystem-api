@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
@@ -57,6 +58,7 @@ class Message extends BaseModel
     use HasPermissions;
     use AsTree;
     use CanUseWorkflow;
+    use HasLightHouseCache;
 
     protected $table = 'messages';
 
@@ -67,6 +69,11 @@ class Message extends BaseModel
     protected $casts = [
         'message' => Json::class,
     ];
+
+    public function getGraphTypeName(): string
+    {
+        return 'Message';
+    }
 
     protected $cascadeDeletes = ['comments'];
 

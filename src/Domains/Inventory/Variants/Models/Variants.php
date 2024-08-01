@@ -7,6 +7,7 @@ namespace Kanvas\Inventory\Variants\Models;
 use Awobaz\Compoships\Compoships;
 use Baka\Enums\StateEnums;
 use Baka\Support\Str;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
@@ -54,6 +55,7 @@ class Variants extends BaseModel
     use UuidTrait;
     use SocialInteractionsTrait;
     use HasShopifyCustomField;
+    use HasLightHouseCache;
     use Searchable {
         search as public traitSearch;
     }
@@ -83,8 +85,14 @@ class Variants extends BaseModel
         'ean',
         'apps_id',
     ];
+
     protected $guarded = [];
     protected static ?string $overWriteSearchIndex = null;
+
+    public function getGraphTypeName(): string
+    {
+        return 'Variant';
+    }
 
     public static function searchableIndex(): string
     {

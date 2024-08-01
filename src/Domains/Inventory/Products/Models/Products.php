@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Products\Models;
 
 use Awobaz\Compoships\Compoships;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
@@ -53,6 +54,7 @@ class Products extends BaseModel
     use LikableTrait;
     use HasShopifyCustomField;
     use HasTagsTrait;
+    use HasLightHouseCache;
     use Searchable {
         search as public traitSearch;
     }
@@ -69,6 +71,11 @@ class Products extends BaseModel
     ];
 
     protected $is_deleted;
+
+    public function getGraphTypeName(): string
+    {
+        return 'Product';
+    }
 
     /**
      * categories.
@@ -185,13 +192,18 @@ class Products extends BaseModel
             'variants' => $this->variants->map(function ($variant) {
                 return $variant->toSearchableArray();
             }),
+            'status' => [
+                'id' => $this->status->id ?? null,
+                'name' => $this->status->name ?? null,
+            ],
             'uuid' => $this->uuid,
             'slug' => $this->slug,
             'description' => $this->description,
             'short_description' => $this->short_description,
             'attributes' => [],
             'apps_id' => $this->apps_id,
-            'is_deleted' => $this->is_deleted,
+            'published_at' => $this->published_at,
+            'created_at' => $this->created_at->format('Y-m-d H:i:s'),
         ];
         $attributes = $this->attributes()->get();
         foreach ($attributes as $attribute) {

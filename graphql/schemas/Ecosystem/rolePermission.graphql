@@ -5,19 +5,19 @@ type Role {
     scope: String
     userCount: Int!
     abilitiesCount: Int!
-    abilities: [Module!]
+    abilities: [AppModule!]
     systemRole: Boolean! @method(name: "isSystemRole")
 }
 type Abilities {
     id: ID
     name: String!
     title: String
-    module: Module!
+    module: AppModule!
     entity_type: String
     roleId: ID
 }
 type RoleAbilities {
-    module: Module!
+    module: AppModule!
 }
 type RoleEntity {
     name: String
