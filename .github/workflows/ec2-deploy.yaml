@@ -60,5 +60,3 @@ jobs:
               docker restart queue5
               docker restart queue6
             fi
-
-            docker exec -i phpkanvas-ecosystem php artisan octane:start --server=swoole --host=0.0.0.0 --port=8000
