@@ -1195,16 +1195,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.316.3",
+            "version": "3.316.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "e832e594b3c213760e067e15ef2739f77505e832"
+                "reference": "eeb8df6ff6caa428e8bcd631ad2a96430900a249"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/e832e594b3c213760e067e15ef2739f77505e832",
-                "reference": "e832e594b3c213760e067e15ef2739f77505e832",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/eeb8df6ff6caa428e8bcd631ad2a96430900a249",
+                "reference": "eeb8df6ff6caa428e8bcd631ad2a96430900a249",
                 "shasum": ""
             },
             "require": {
@@ -1284,9 +1284,9 @@
             "support": {
                 "forum": "https://forums.aws.amazon.com/forum.jspa?forumID=80",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.316.3"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.316.10"
             },
-            "time": "2024-07-12T18:07:23+00:00"
+            "time": "2024-07-30T18:10:20+00:00"
         },
         {
             "name": "berkayk/onesignal-laravel",
@@ -2437,7 +2437,7 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.365.0",
+            "version": "v0.366.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
@@ -2475,7 +2475,7 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.365.0"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.366.0"
             },
             "time": "2024-07-11T01:08:44+00:00"
         },
@@ -2862,16 +2862,16 @@
         },
         {
             "name": "google/protobuf",
-            "version": "v4.27.2",
+            "version": "v4.27.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/protocolbuffers/protobuf-php.git",
-                "reference": "1b9bfead0ea8108e6ab411258fc38417b62d4bf6"
+                "reference": "ff079fe467bf86ac8f3359e2eb77a1613ebd204d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/1b9bfead0ea8108e6ab411258fc38417b62d4bf6",
-                "reference": "1b9bfead0ea8108e6ab411258fc38417b62d4bf6",
+                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/ff079fe467bf86ac8f3359e2eb77a1613ebd204d",
+                "reference": "ff079fe467bf86ac8f3359e2eb77a1613ebd204d",
                 "shasum": ""
             },
             "require": {
@@ -2900,9 +2900,9 @@
                 "proto"
             ],
             "support": {
-                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v4.27.2"
+                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v4.27.3"
             },
-            "time": "2024-06-25T19:14:44+00:00"
+            "time": "2024-07-31T13:27:16+00:00"
         },
         {
             "name": "graham-campbell/result-type",
