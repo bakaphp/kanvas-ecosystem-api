@@ -16,8 +16,6 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Kanvas\Exceptions\InternalServerErrorException;
 
 class KanvasAppKey
 {
@@ -25,17 +23,30 @@ class KanvasAppKey
     {
         $appIdentifier = $request->header(AppEnums::KANVAS_APP_HEADER->getValue(), config('kanvas.app.id'));
 
+        if (! $this->registerApp($appIdentifier)) {
+            return response()->json(['message' => 'No App configured with this key: ' . $appIdentifier], 500);
+        }
+
+        $this->handleCompanyBranch($request);
+        $this->handleAppKey($request);
+
+        return $next($request);
+    }
+
+    private function registerApp(string $appIdentifier): bool
+    {
         try {
             $app = AppsRepository::findFirstByKey($appIdentifier);
-
             (new MountedAppProvider($app))->register();
+
+            return true;
         } catch (ModelNotFoundException $e) {
-            throw new InternalServerErrorException(
-                'No App configure with this key: ' . $appIdentifier,
-                $e->getMessage()
-            );
+            return false;
         }
-      
+    }
+
+    private function handleCompanyBranch(Request $request): void
+    {
         $companyBranchHeader = AppEnums::KANVAS_APP_BRANCH_HEADER->getValue();
 
         if ($request->hasHeader($companyBranchHeader)) {
@@ -77,6 +88,22 @@ class KanvasAppKey
         }
     }
 
-        return $next($request);
+    private function scopeAppKeyAndApp(AppKey $kanvasAppKey, Apps $kanvasApp): void
+    {
+        app()->scoped(AppKey::class, fn () => $kanvasAppKey);
+        app()->scoped(Apps::class, fn () => $kanvasApp);
+    }
+
+    private function setUserIfNoBearerToken(Request $request, AppKey $kanvasAppKey): void
+    {
+        if (empty($request->bearerToken())) {
+            Auth::setUser($kanvasAppKey->user()->firstOrFail());
+        }
+    }
+
+    private function updateLastUsedDate(AppKey $kanvasAppKey): void
+    {
+        $kanvasAppKey->last_used_date = now();
+        $kanvasAppKey->saveOrFail();
     }
 }
