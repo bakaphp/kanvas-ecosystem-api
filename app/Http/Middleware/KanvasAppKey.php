@@ -9,10 +9,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Apps\Repositories\AppsRepository;
+use Kanvas\Apps\Support\MountedAppProvider;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Kanvas\Exceptions\InternalServerErrorException;
 
 class KanvasAppKey
 {
@@ -23,6 +27,19 @@ class KanvasAppKey
      */
     public function handle(Request $request, Closure $next): Response
     {
+        $appIdentifier = $request->header(AppEnums::KANVAS_APP_HEADER->getValue(), config('kanvas.app.id'));
+
+        try {
+            $app = AppsRepository::findFirstByKey($appIdentifier);
+
+            (new MountedAppProvider($app))->register();
+        } catch (ModelNotFoundException $e) {
+            throw new InternalServerErrorException(
+                'No App configure with this key: ' . $appIdentifier,
+                $e->getMessage()
+            );
+        }
+
         $companyBranchHeader = AppEnums::KANVAS_APP_BRANCH_HEADER->getValue();
         $appKeyHeader = AppEnums::KANVAS_APP_KEY_HEADER->getValue();
 
@@ -73,7 +90,6 @@ class KanvasAppKey
                 return response()->json(['message' => $msg], 500);
             }
         }
-
 
         return $next($request);
     }
