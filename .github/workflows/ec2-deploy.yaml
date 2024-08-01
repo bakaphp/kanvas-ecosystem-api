@@ -60,3 +60,4 @@ jobs:
               docker restart queue5
               docker restart queue6
             fi
+          ssh -o StrictHostKeyChecking=no ${{ secrets.AWS_EC2_USERNAME }}@${{ secrets.AWS_EC2_HOST }} "sudo supervisorctl restart octane"
