@@ -73,6 +73,11 @@ class UpdateProductAction
                 }
             }
 
+            if ($this->productDto->attributes || empty($this->productDto->attributes)) {
+                $this->product->attributeValues()->forceDelete();
+                $this->product->addAttributes($this->user, $this->productDto->attributes);
+            }
+
             DB::connection('inventory')->commit();
         } catch (Throwable $e) {
             DB::connection('inventory')->rollback();

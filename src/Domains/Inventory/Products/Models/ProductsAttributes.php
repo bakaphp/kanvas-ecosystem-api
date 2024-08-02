@@ -25,6 +25,7 @@ class ProductsAttributes extends BaseModel
     use HasCompositePrimaryKeyTrait;
 
     protected $table = 'products_attributes';
+    protected $forceDeleting = true;
     protected $guarded = [
         'products_id',
         'attributes_id',
