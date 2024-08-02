@@ -57,7 +57,7 @@ class KanvasAppKey
                 app()->scoped(CompaniesBranches::class, fn () => $companyBranch);
             } catch (Throwable $e) {
                 response()->json(['message' => 'No Company Branch configured with this key: ' . $companyBranchKey], 500)->send();
-                exit;
+                return ;
             }
         }
     }
@@ -75,7 +75,7 @@ class KanvasAppKey
 
                 if ($kanvasAppKey->hasExpired()) {
                     response()->json(['message' => 'App Key has expired'], 500)->send();
-                    exit;
+                    return ;
                 }
 
                 $this->scopeAppKeyAndApp($kanvasAppKey, $kanvasApp);
@@ -83,7 +83,7 @@ class KanvasAppKey
                 $this->updateLastUsedDate($kanvasAppKey);
             } catch (Throwable $e) {
                 response()->json(['message' => 'No App Key configured with this key: ' . $appKey], 500)->send();
-                exit;
+                return ;
             }
         }
     }
