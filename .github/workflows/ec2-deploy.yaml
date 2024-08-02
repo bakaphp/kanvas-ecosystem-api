@@ -61,4 +61,3 @@ jobs:
               docker restart queue6
             fi
             docker restart phpkanvas-ecosystem
-            sudo supervisorctl start octane
