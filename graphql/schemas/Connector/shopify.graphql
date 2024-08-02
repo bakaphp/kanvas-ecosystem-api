@@ -8,7 +8,7 @@ input ShopifySetupInput {
 }
 
 extend type Mutation @guard {
-    shopifySetup(input: ShopifySetupInput!): Boolean
+    shopifySetup(input: ShopifySetupInput!): String
         @field(
             resolver: "App\\GraphQL\\Connector\\Shopify\\Mutations\\ShopifyMutation@shopifySetup"
         )
