@@ -55,9 +55,9 @@ class Products
 
         $product = ProductsRepository::getById((int) $req['id'], $company);
         $productDto = ProductDto::viaRequest($req['input'], $product->company);
-        $action = new UpdateProductAction($product, $productDto, auth()->user());
+        $productModel = (new UpdateProductAction($product, $productDto, auth()->user()))->execute();
 
-        return $action->execute();
+        return $productModel;
     }
 
     /**
