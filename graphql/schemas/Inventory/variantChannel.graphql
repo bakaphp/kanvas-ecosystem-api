@@ -30,7 +30,7 @@ type ChannelsPricesHistoryRelationship {
     from_date: String!
 }
 type VariantChannelRelationship {
-    channels_id: ID!
+    channels_id: ID! @rename(attribute: "id")
     name: String
     description: String
     price: Float
