@@ -6,6 +6,7 @@ namespace Kanvas\Inventory\Products\Models;
 
 use Awobaz\Compoships\Compoships;
 use Baka\Traits\HasLightHouseCache;
+use Baka\Support\Str;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
@@ -16,6 +17,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Inventory\Attributes\Models\Attributes;
+use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
+use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
+use Kanvas\Inventory\Products\Actions\AddAttributeAction;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Factories\ProductFactory;
@@ -249,5 +253,39 @@ class Products extends BaseModel
     public static function newFactory()
     {
         return new ProductFactory();
+    }
+
+    /**
+     * Add/create new attributes from a product.
+     * @psalm-suppress MixedAssignment
+     * @psalm-suppress MixedArrayAccess
+     * @psalm-suppress MixedPropertyFetch
+     */
+    public function addAttributes(UserInterface $user, array $attributes): void
+    {
+        foreach ($attributes as $attribute) {
+            if (empty($attribute['value'])) {
+                continue;
+            }
+
+            if (isset($attribute['id'])) {
+                $attributeModel = Attributes::getById((int) $attribute['id'], $this->app);
+            } else {
+                $attributesDto = AttributesDto::from([
+                    'app' => app(Apps::class),
+                    'user' => $user,
+                    'company' => $this->product->company,
+                    'name' => $attribute['name'],
+                    'value' => $attribute['value'],
+                    'isVisible' => false,
+                    'isSearchable' => false,
+                    'isFiltrable' => false,
+                    'slug' => Str::slug($attribute['name']),
+                ]);
+                $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
+            }
+
+            (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
+        }
     }
 }
