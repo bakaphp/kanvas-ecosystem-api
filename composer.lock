@@ -7281,16 +7281,16 @@
         },
         {
             "name": "powersync/authorizenet-sdk-php",
-            "version": "2.0.4",
+            "version": "2.0.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PowerSync/authorizenet-sdk-php.git",
-                "reference": "3398c0fabe525257d047b756a93c8dfa499a76fd"
+                "reference": "a6602bee164c4c0ac74acef2f05f1950a21c7420"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PowerSync/authorizenet-sdk-php/zipball/3398c0fabe525257d047b756a93c8dfa499a76fd",
-                "reference": "3398c0fabe525257d047b756a93c8dfa499a76fd",
+                "url": "https://api.github.com/repos/PowerSync/authorizenet-sdk-php/zipball/a6602bee164c4c0ac74acef2f05f1950a21c7420",
+                "reference": "a6602bee164c4c0ac74acef2f05f1950a21c7420",
                 "shasum": ""
             },
             "require": {
@@ -7321,9 +7321,9 @@
                 "payment"
             ],
             "support": {
-                "source": "https://github.com/PowerSync/authorizenet-sdk-php/tree/2.0.4"
+                "source": "https://github.com/PowerSync/authorizenet-sdk-php/tree/2.0.7"
             },
-            "time": "2023-03-21T09:32:29+00:00"
+            "time": "2024-08-01T12:07:30+00:00"
         },
         {
             "name": "psr/cache",
