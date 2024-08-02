@@ -60,4 +60,8 @@ jobs:
               docker restart queue5
               docker restart queue6
             fi
+
+            supervisorctl stop octane
             docker restart phpkanvas-ecosystem
+            sleep 5
+            supervisorctl start octane
