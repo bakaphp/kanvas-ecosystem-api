@@ -272,7 +272,7 @@ class Products extends BaseModel
                 $attributeModel = Attributes::getById((int) $attribute['id'], $this->app);
             } else {
                 $attributesDto = AttributesDto::from([
-                    'app' => app(Apps::class),
+                    'app' =>$this->app,
                     'user' => $user,
                     'company' => $this->product->company,
                     'name' => $attribute['name'],
