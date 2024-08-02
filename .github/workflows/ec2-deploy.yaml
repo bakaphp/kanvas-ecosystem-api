@@ -60,4 +60,5 @@ jobs:
               docker restart queue5
               docker restart queue6
             fi
-            docker restart phpkanvas-ecosystem
+
+            docker exec -i phpkanvas-ecosystem php artisan octane:reload
