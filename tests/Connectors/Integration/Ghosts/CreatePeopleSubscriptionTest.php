@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Test\Connectors\Integration\Stripe;
+namespace Test\Connectors\Integration\Ghosts;
 
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Request;
