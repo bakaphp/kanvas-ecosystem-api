@@ -13,7 +13,7 @@ use Kanvas\Users\Repositories\UsersRepository;
 
 class ShopifyMutation
 {
-    public function shopifySetup(mixed $root, array $request): String
+    public function shopifySetup(mixed $root, array $request): bool
     {
         $user = auth()->user();
         $company = isset($request['company_id']) ? Companies::getById($request['company_id']) : $user->getCurrentCompany();
@@ -24,8 +24,7 @@ class ShopifyMutation
         $shopifyDto = ShopifyDto::viaRequest($request['input'], $app, $company);
 
         Client::getInstance($app, $company, $shopifyDto->region)->Shop->get();
-        ShopifyService::shopifySetup($shopifyDto);
 
-        return "Shopify Integration Successfully";
+        return ShopifyService::shopifySetup($shopifyDto);
     }
 }
