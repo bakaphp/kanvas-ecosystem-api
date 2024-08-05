@@ -23,6 +23,17 @@ use Laravel\Octane\Octane;
 
 return [
 
+    'host' => "0.0.0.0",
+    'port' => "8000",
+    'swoole' => [
+        'options' => [
+            'worker_num' => 8,
+            'task_worker_num' => 4,
+            'enable_coroutine' => true,
+            'max_request' => 1000,
+        ],
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Octane Server
@@ -217,5 +228,4 @@ return [
     */
 
     'max_execution_time' => 30,
-
 ];
