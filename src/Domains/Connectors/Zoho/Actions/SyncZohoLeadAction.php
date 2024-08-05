@@ -131,10 +131,10 @@ class SyncZohoLeadAction
             $localLead->leads_owner_id = $user->getId();
         }
 
-        if ($user) {
-            $localLead->leads_owner_id = $user->getId();
-            $localLead->users_id = $user->getId();
-        }
+        /*         if ($user) {
+                    $localLead->leads_owner_id = $user->getId();
+                    $localLead->users_id = $user->getId();
+                } */
 
         $localLead->people->firstname = $zohoLead->First_Name;
         $localLead->people->lastname = $zohoLead->Last_Name;
