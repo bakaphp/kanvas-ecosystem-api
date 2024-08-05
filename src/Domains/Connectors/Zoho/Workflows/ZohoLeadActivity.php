@@ -28,16 +28,16 @@ class ZohoLeadActivity extends Activity implements WorkflowActivityInterface
     public function execute(Model $lead, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
-        $zohoLead = ZohoLead::fromLead($lead);
-        $zohoData = $zohoLead->toArray();
+        //$zohoLead = ZohoLead::fromLead($lead);
+        //$zohoData = $zohoLead->toArray();
         //$company = Companies::getById($lead->companies_id);
 
         $syncLeadWithZoho = new SyncLeadToZohoAction($app, $lead);
         $zohoLead = $syncLeadWithZoho->execute();
 
         return [
-            'zohoLeadId' => $zohoLead->getId(),
-            'zohoRequest' => $zohoData,
+            'zohoLeadId' => $lead->getId(),
+            'zohoRequest' => $zohoLead,
             'leadId' => $lead->getId(),
             'status' => $lead->status()->first()->name,
         ];

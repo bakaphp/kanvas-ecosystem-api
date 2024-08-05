@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Zoho\Actions;
 
 use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Connectors\Zoho\DataTransferObject\ZohoLead;
@@ -14,7 +13,6 @@ use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\Lead;
 use Throwable;
-use Webleit\ZohoCrmApi\Models\Model;
 use Webleit\ZohoCrmApi\Modules\Leads as ZohoLeadModule;
 
 class SyncLeadToZohoAction
@@ -25,7 +23,7 @@ class SyncLeadToZohoAction
     ) {
     }
 
-    public function execute(): Model
+    public function execute(): array
     {
         $zohoLead = ZohoLead::fromLead($this->lead);
         $zohoData = $zohoLead->toArray();
@@ -63,7 +61,7 @@ class SyncLeadToZohoAction
 
         $this->uploadAttachments($zohoCrm->leads, $lead);
 
-        return $zohoLead;
+        return $zohoData;
     }
 
     protected function assignAgent(
