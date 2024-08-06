@@ -23,8 +23,8 @@ class ShopifyMutation
 
         $shopifyDto = ShopifyDto::viaRequest($request['input'], $app, $company);
 
-        Client::getInstance($app, $company, $shopifyDto->region)->Shop->get();
+        ShopifyService::shopifySetup($shopifyDto);
 
-        return ShopifyService::shopifySetup($shopifyDto);
+        return ! empty(Client::getInstance($app, $company, $shopifyDto->region)->Shop->get());
     }
 }
