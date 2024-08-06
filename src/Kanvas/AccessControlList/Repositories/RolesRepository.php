@@ -79,8 +79,7 @@ class RolesRepository
             })
             ->orderBy('module_id')
             ->select('abilities.*', 'permissions.entity_id as roleId', 'abilities_modules.module_id as module')
-            ->get();
-
+        ->get();
         return self::mapPermissionsToStructure($abilities);
     }
 
@@ -108,7 +107,7 @@ class RolesRepository
             $mappedPermissions[$module]['entities'][$entityType]['abilities'][] = [
                 'name' => $permission['name'],
                 'description' => $permission['title'],
-                'entity_id' => $permission['entity_id'],
+                'entity_id' => $permission['roleId'],
                 'module' => $permission['module'],
             ];
         }
