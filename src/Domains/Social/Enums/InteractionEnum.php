@@ -21,6 +21,7 @@ enum InteractionEnum implements EnumsInterface
     case TAG;
     case REPLY;
     case PIN;
+    case VIEW;
 
     /**
      * Get value.
@@ -43,6 +44,7 @@ enum InteractionEnum implements EnumsInterface
             self::TAG => 'tag',
             self::REPLY => 'reply',
             self::PIN => 'pin',
+            self::VIEW => 'view',
         };
     }
 }
