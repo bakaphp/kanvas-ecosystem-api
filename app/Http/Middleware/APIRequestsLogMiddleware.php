@@ -22,14 +22,13 @@ class APIRequestsLogMiddleware
     {
         $response = $next($request);
 
-        
         $pattern = '/\{\s*([\w_]+)/';
         $graphQuery = $request->str('query')->value();
         preg_match_all($pattern, $graphQuery, $matches);
     
         $requestInfo = json_encode([
             'method' => $request->method(),
-            'type_request' => str_contains($graphQuery,'mutation') ? 'mutation' : 'query',
+            'type_request' => str_contains($graphQuery, 'mutation') ? 'mutation' : 'query',
             'resource' => $matches[1][0],
             'status_code' => $response->getStatusCode(),
         ]);
