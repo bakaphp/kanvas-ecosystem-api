@@ -25,6 +25,7 @@ class APIRequestsLogMiddleware
         $pattern = '/\{\s*([\w_]+)/';
         $graphQuery = $request->str('query')->value();
         preg_match_all($pattern, $graphQuery, $matches);
+        
     
         $requestInfo = json_encode([
             'method' => $request->method(),
