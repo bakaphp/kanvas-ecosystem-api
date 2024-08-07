@@ -38,10 +38,14 @@ class SyncLeadToZohoAction
                 $this->assignAgent($this->app, $zohoLead, $lead, $company, $zohoData);
             }
 
+            $zohoData['Lead_Status'] = 'New Lead';
+            $organization = $lead->organization;
+            if ($organization) {
+                $zohoData['Company'] = $organization->name;
+            }
+
             $zohoLead = $zohoCrm->leads->create($zohoData);
             $zohoLeadId = $zohoLead->getId();
-
-            $zohoData['Lead_Status'] = 'New Lead';
 
             $lead->set(
                 CustomFieldEnum::ZOHO_LEAD_ID->value,
