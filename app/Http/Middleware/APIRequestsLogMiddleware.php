@@ -9,7 +9,6 @@ use DDTrace\Tracer;
 use DDTrace\GlobalTracer;
 use Illuminate\Support\Facades\Log;
 
-
 class APIRequestsLogMiddleware
 {
     /**
