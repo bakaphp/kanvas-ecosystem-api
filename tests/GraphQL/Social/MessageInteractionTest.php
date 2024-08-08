@@ -100,7 +100,7 @@ class MessageInteractionTest extends TestCase
             ]
         )->assertJson([
             'data' => [
-                'viewMessage' => 1,
+                'viewMessage' => 2,
             ],
         ]);
     }
