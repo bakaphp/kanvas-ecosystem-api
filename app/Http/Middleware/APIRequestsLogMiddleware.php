@@ -8,9 +8,11 @@ use Kanvas\Apps\Models\Apps;
 use DDTrace\Tracer;
 use DDTrace\GlobalTracer;
 use Illuminate\Support\Facades\Log;
+use Kanvas\Services\BatchLogger;
 
 class APIRequestsLogMiddleware
 {
+
     /**
      * Handle an incoming request.
      *
@@ -22,17 +24,22 @@ class APIRequestsLogMiddleware
     {
         $response = $next($request);
 
-        $pattern = '/\{\s*([\w_]+)/';
-        $graphQuery = $request->str('query')->value();
-        preg_match_all($pattern, $graphQuery, $matches);
+        $batchLogger = new BatchLogger();
+
+        // Extract GraphQL query details
+        $graphQuery = $request->input('query', '');
+        preg_match('/\{\s*([\w_]+)/', $graphQuery, $matches);
+
+        // Prepare request info
         $requestInfo = json_encode([
             'method' => $request->method(),
             'type_request' => str_contains($graphQuery, 'mutation') ? 'mutation' : 'query',
-            'resource' => $matches[1][0],
+            'resource' => $matches[1] ?? null,
             'status_code' => $response->getStatusCode(),
         ]);
 
-        Log::channel('api_requests')->info($requestInfo);
+        // Log request
+        $batchLogger->log($requestInfo);
 
         return $response;
     }
