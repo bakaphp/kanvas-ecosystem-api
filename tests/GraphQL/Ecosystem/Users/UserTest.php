@@ -234,7 +234,7 @@ class UserTest extends TestCase
             query userByDisplayName($displayname: String!){
                 userByDisplayName(displayname: $displayname){
                     id
-                    displayname
+                    email
                 }
             }
         ',
