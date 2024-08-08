@@ -4,9 +4,6 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Kanvas\Apps\Models\Apps;
-use DDTrace\Tracer;
-use DDTrace\GlobalTracer;
 use Illuminate\Support\Facades\Log;
 
 class APIRequestsLogMiddleware
