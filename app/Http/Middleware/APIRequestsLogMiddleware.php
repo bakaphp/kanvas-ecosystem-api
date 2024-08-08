@@ -12,7 +12,6 @@ use Kanvas\Services\BatchLogger;
 
 class APIRequestsLogMiddleware
 {
-
     /**
      * Handle an incoming request.
      *
