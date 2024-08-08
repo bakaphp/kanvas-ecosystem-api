@@ -28,7 +28,7 @@ class APIRequestsLogMiddleware
         $requestInfo = json_encode([
             'method' => $request->method(),
             'type_request' => str_contains($graphQuery, 'mutation') ? 'mutation' : 'query',
-            'resource' => $matches[1][0],
+            'resource' => $matches[1][0] ?? null,
             'status_code' => $response->getStatusCode(),
         ]);
 
