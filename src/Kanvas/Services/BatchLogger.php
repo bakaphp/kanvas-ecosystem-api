@@ -7,7 +7,6 @@ use Illuminate\Support\Facades\Redis;
 
 class BatchLogger
 {
-
     protected const MAX_LOG_BATCH_SIZE = 10;
     protected $redisKey = 'batchlogger:logs';
 
