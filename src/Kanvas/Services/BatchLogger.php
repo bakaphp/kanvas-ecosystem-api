@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Redis;
 
 class BatchLogger
 {
+
+    const MAX_LOG_BATCH_SIZE = 10;
     protected $redisKey = 'batchlogger:logs';
 
     public function log($message)
@@ -15,7 +17,7 @@ class BatchLogger
         Redis::rpush($this->redisKey, $message);
 
         // Check if the list length is 10 or more
-        if (Redis::llen($this->redisKey) >= 3) {
+        if (Redis::llen($this->redisKey) >= self::MAX_LOG_BATCH_SIZE) {
             $this->flushLogs();
         }
     }
