@@ -260,4 +260,8 @@ type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Users\\UsersListQuery@getFromCurrentCompany"
         )
+    userByDisplayName(displayname: String!): User!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Users\\UsersListQuery@getByDisplayNameFromApp"
+        )
 }
