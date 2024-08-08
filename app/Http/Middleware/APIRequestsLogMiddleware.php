@@ -4,9 +4,6 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Kanvas\Apps\Models\Apps;
-use DDTrace\Tracer;
-use DDTrace\GlobalTracer;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Services\BatchLogger;
 
@@ -33,7 +30,7 @@ class APIRequestsLogMiddleware
         $requestInfo = json_encode([
             'method' => $request->method(),
             'type_request' => str_contains($graphQuery, 'mutation') ? 'mutation' : 'query',
-            'resource' => $matches[1] ?? null,
+            'resource' => $matches[1][0] ?? null,
             'status_code' => $response->getStatusCode(),
         ]);
 
