@@ -1,0 +1,50 @@
+type ImporterTemplate {
+    id: ID!
+    apps: App
+    users: User!
+    company: Company!
+    name: String!
+    description: String
+    attributes: [AttributeImporterTemplate!]
+}
+
+type AttributeImporterTemplate {
+    id: ID!
+    parent_id: ID
+    name: String!
+    value: String!
+    importersTemplates: [ImporterTemplate!]! @belongsTo
+    parent: AttributeImporterTemplate
+    children: [AttributeImporterTemplate!]
+}
+
+input ImporterTemplateInput {
+    name: String!
+    description: String
+    attributes: [AttributeImporterTemplateInput!]
+}
+
+input AttributeImporterTemplateInput {
+    name: String
+    value: String
+    children: [AttributeImporterTemplateInput!]
+}
+
+extend type Mutation @guard {
+    createImporterTemplate(input: ImporterTemplateInput!): ImporterTemplate!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\ImporterTemplate\\ImporterTemplateManagementMutation@create"
+        )
+}
+
+extend type Query @guard {
+    importersTemplates(
+        where: _ @whereConditions(columns: ["id", "name", "description"])
+        hasAttributes: _ @whereHasConditions(columns: ["id", "parent_id", "name", "value"])
+    ): [ImporterTemplate!]
+        @paginate(
+            model: "Kanvas\\ImportersTemplates\\Models\\ImportersTemplates"
+            defaultCount: 25
+            scopes: ["fromApp", "fromCompany"]
+        )
+}
