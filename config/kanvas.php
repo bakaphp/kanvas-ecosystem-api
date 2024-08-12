@@ -18,4 +18,7 @@ return [
             'iss' => 'phalcon-jwt-auth',
         ],
     ],
+    'logger' => [
+        'max_log_batch_size' => env('MAX_LOG_BATCH_SIZE', 10)
+    ]
 ];
