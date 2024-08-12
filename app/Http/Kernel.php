@@ -25,7 +25,7 @@ class Kernel extends HttpKernel
         \App\Http\Middleware\KanvasAppKey::class,
         \App\Http\Middleware\RolesMiddleware::class,
         \App\Http\Middleware\RegionMiddleware::class,
-        // \App\Http\Middleware\APIRequestsLogMiddleware::class,
+        \App\Http\Middleware\APIRequestsLogMiddleware::class,
     ];
 
     /**

@@ -4,19 +4,21 @@ namespace Kanvas\Services;
 
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
+use Kanvas\Jobs\BatchLoggerJob;
 
 class BatchLogger
 {
-    protected const MAX_LOG_BATCH_SIZE = 10;
     protected $redisKey = 'batchlogger:logs';
 
     public function log($message)
     {
+        $maxLogBatchSize = config('kanvas.logger.max_log_batch_size');
+        
         // Push the log message onto the Redis list
         Redis::rpush($this->redisKey, $message);
 
         // Check if the list length is 10 or more
-        if (Redis::llen($this->redisKey) >= self::MAX_LOG_BATCH_SIZE) {
+        if (Redis::llen($this->redisKey) >= $maxLogBatchSize) {
             $this->flushLogs();
         }
     }
@@ -28,7 +30,7 @@ class BatchLogger
 
         // Write logs to file
         foreach ($logs as $log) {
-            Log::channel('api_requests')->info($log);
+            BatchLoggerJob::dispatch($log);
         }
 
         // Remove the logs from Redis after flushing
