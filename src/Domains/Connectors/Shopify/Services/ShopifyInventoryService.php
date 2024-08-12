@@ -44,6 +44,7 @@ class ShopifyInventoryService
             'vendor' => 'default' , //$product->categ->name , setup vendor as a attribute and add a wy to look for a attribute $product->attribute('vendor')
             'status' => $status->value,
             'published_scope' => 'web',
+            'tags' => $product->categories->pluck('name')->implode(', '),
         ];
 
         if ($shopifyProductId === null) {
