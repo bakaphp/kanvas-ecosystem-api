@@ -30,8 +30,8 @@ class DefaultMessageActivityTest extends TestCase
             'city',
             'custom_comments',
         ];
-        $result = $activity->execute($lead, $app, ['customsFields' => $customFields]);
+        $result = $activity->execute($lead->customFields()->first(), $app, ['customsFields' => $customFields]);
         $this->assertArrayHasKey('message', $result);
-        $this->assertStringContainsString('Default message activity executed', $result['message']);
+        $this->assertStringContainsString('Default message activity created', $result['message']);
     }
 }

@@ -34,23 +34,24 @@ class DefaultMessageActivity extends Activity implements WorkflowActivityInterfa
             ]);
             $messageType = (new CreateMessageTypeAction($messageTypeDto))->execute();
         }
-        $messages = [];
-        foreach ($params['customsFields'] as $customField) {
+        if(in_array($entity->name, $params['customsFields'])) {
             $data = MessageInput::from(
                 [
                     'app' => $app,
                     'company' => $entity->company,
                     'user' => $entity->user,
                     'type' => $messageType,
-                    'message' => $entity->get($customField),
+                    'message' =>  $entity->value
+,
                 ]
             );
-            $message[] = (new CreateMessageAction($data))->execute();
+            return [
+                'message' => 'Default message activity created',
+                'messages' => (new CreateMessageAction($data))->execute(),
+            ];
         }
-
         return [
-            'message' => 'Default message activity executed',
-            'messages' => $messages,
+            'message' => 'Default message activity not created',
         ];
     }
 }
