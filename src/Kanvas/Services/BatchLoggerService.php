@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Jobs\BatchLoggerJob;
 
-class BatchLogger
+class BatchLoggerService
 {
     protected $redisKey = 'batchlogger:logs';
 
