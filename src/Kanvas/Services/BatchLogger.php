@@ -13,7 +13,6 @@ class BatchLogger
     public function log($message)
     {
         $maxLogBatchSize = config('kanvas.logger.max_log_batch_size');
-        
         // Push the log message onto the Redis list
         Redis::rpush($this->redisKey, $message);
 
