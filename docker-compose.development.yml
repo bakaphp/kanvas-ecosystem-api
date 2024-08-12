@@ -71,6 +71,14 @@ services:
     <<: *common-queue-settings
     container_name: queue6
 
+  batch-logger-queue:
+    <<: *common-queue-settings
+    container_name: batch-logger-queue
+    command: 
+        - "sh"
+        - "-c"
+        - "php artisan config:cache && php artisan queue:work --queue=batch-logger --tries=3 --timeout=3750"
+
   queue-social:
     <<: *common-queue-settings
     container_name: queue-social
