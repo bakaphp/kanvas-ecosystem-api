@@ -35,6 +35,7 @@ class CreateLeadAction
     {
         $newLead = new Lead();
         $newLead->leads_owner_id = $this->leadData->leads_owner_id;
+        $organization = null;
 
         if (! $this->leadData->leads_owner_id) {
             try {
@@ -64,6 +65,11 @@ class CreateLeadAction
         if (! $this->leadData->runWorkflow) {
             $newLead->disableWorkflows();
         }
+
+        if ($this->leadData->organization instanceof Organization) {
+            $organization = (new CreateOrganizationAction($this->leadData->organization))->execute();
+            $newLead->organization_id = $organization->getId();
+        }
         $newLead->saveOrFail();
 
         $newLead->setCustomFields($this->leadData->custom_fields);
@@ -74,11 +80,7 @@ class CreateLeadAction
         }
 
         //create organization
-        if ($this->leadData->organization instanceof Organization) {
-            $organization = (new CreateOrganizationAction($this->leadData->organization))->execute();
-            $newLead->organization_id = $organization->getId();
-            $newLead->saveOrFail();
-
+        if ($organization) {
             $organization->addPeople($people);
         }
 
