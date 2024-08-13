@@ -190,11 +190,10 @@ trait HasCustomFields
             'name' => $name,
             'value' => $value,
         ]);
-        if(method_exists($this, 'fireWorkflow')) {
+        if (method_exists($this, 'fireWorkflow')) {
             $this->fireWorkflow(WorkflowEnum::CREATE_CUSTOM_FIELD->value);
         }
         return $customField;
-
     }
 
     /**
@@ -280,7 +279,7 @@ trait HasCustomFields
                 }
             }
         }
-        if(method_exists($this, 'fireWorkflow')) {
+        if (method_exists($this, 'fireWorkflow')) {
             $this->fireWorkflow(WorkflowEnum::CREATE_CUSTOM_FIELDS->value);
         }
         return true;
