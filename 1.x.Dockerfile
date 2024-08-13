@@ -52,4 +52,4 @@ RUN chmod -R 777 /var/www/html/storage/logs/
 
 RUN composer install --no-dev --optimize-autoloader
 
-EXPOSE 8080
+EXPOSE 8000
