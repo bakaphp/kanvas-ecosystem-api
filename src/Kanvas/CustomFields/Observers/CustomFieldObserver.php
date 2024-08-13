@@ -10,6 +10,6 @@ class CustomFieldObserver
 {
     public function created(CustomFields $customField): void
     {
-        $customField->fireWorkflow(WorkflowEnum::CREATED->value);
+        $customField->fireWorkflow(WorkflowEnum::CREATE_CUSTOM_FIELD->value);
     }
 }

@@ -18,6 +18,7 @@ use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\CustomFields\Models\CustomFields;
 use Kanvas\CustomFields\Models\CustomFieldsModules;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 trait HasCustomFields
 {
@@ -175,7 +176,7 @@ trait HasCustomFields
         $this->createCustomField($name);
         $this->clearCustomFieldsCacheIfNeeded();
 
-        return AppsCustomFields::updateOrCreate([
+        $customField = AppsCustomFields::updateOrCreate([
             'companies_id' => $companyId,
             'model_name' => $modelName,
             'entity_id' => $this->getKey(),
@@ -189,6 +190,11 @@ trait HasCustomFields
             'name' => $name,
             'value' => $value,
         ]);
+        if(method_exists($this, 'fireWorkflow')) {
+            $this->fireWorkflow(WorkflowEnum::CREATE_CUSTOM_FIELD->value);
+        }
+        return $customField;
+
     }
 
     /**
@@ -274,7 +280,9 @@ trait HasCustomFields
                 }
             }
         }
-
+        if(method_exists($this, 'fireWorkflow')) {
+            $this->fireWorkflow(WorkflowEnum::CREATE_CUSTOM_FIELDS->value);
+        }
         return true;
     }
 
