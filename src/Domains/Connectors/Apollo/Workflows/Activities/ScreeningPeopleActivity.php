@@ -161,7 +161,8 @@ class ScreeningPeopleActivity extends Activity
         foreach ($segments as $segment => $data) {
             foreach ($data['keywords'] as $keyword) {
                 if (Str::contains($jobTitle, strtolower($keyword))) {
-                    $tags[] = strtolower($segment);
+                    $segmentSlug = strtolower($segment);
+                    $tags[$segmentSlug] = $segmentSlug;
                 }
             }
         }
