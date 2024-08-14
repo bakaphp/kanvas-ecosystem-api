@@ -62,6 +62,7 @@ class ScreeningPeopleActivity extends Activity
             'status' => 'success',
             'message' => 'People screened successfully',
             'people_id' => $people->id,
+            'data' => $peopleData,
         ];
     }
 
