@@ -9,6 +9,7 @@ use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -60,6 +61,7 @@ class Message extends BaseModel
     use AsTree;
     use CanUseWorkflow;
     use HasLightHouseCache;
+    use Cachable;
 
     protected $table = 'messages';
 
