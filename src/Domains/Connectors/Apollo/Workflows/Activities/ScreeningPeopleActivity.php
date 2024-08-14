@@ -148,7 +148,7 @@ class ScreeningPeopleActivity extends Activity
         }
     }
 
-    private function assignAudienceSegment(Model $people, AppInterface $app,  string $jobTitle): void
+    private function assignAudienceSegment(Model $people, AppInterface $app, string $jobTitle): void
     {
         $segments = $app->get(ConfigurationEnum::APOLLO_JOB_SEGMENTS->value);
 
