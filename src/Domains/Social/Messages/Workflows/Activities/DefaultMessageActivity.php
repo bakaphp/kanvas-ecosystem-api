@@ -52,6 +52,5 @@ class DefaultMessageActivity extends Activity implements WorkflowActivityInterfa
             'message' => 'Default message activity executed',
             'messages' => $messages,
         ];
-
     }
 }

@@ -7,7 +7,6 @@ namespace Kanvas\CustomFields\Models;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
-use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
  * CustomFieldsModules Model.
@@ -27,7 +26,6 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
  */
 class CustomFields extends BaseModel
 {
-    use CanUseWorkflow;
     /**
      * The table associated with the model.
      *
