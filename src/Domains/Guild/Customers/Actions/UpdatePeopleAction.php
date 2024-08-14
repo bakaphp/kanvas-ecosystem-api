@@ -42,9 +42,7 @@ class UpdatePeopleAction
         $this->people->setCustomFields($this->peopleData->custom_fields);
         $this->people->saveCustomFields();
 
-        if (count($this->peopleData->tags)) {
-            $this->people->syncTags(array_column($this->peopleData->tags, 'name'));
-        }
+        $this->people->syncTags(array_column($this->peopleData->tags, 'name'));
 
         if ($this->peopleData->contacts->count()) {
             $contacts = [];
