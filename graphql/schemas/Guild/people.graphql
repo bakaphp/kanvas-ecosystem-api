@@ -32,6 +32,7 @@ type People {
             builder: "App\\GraphQL\\Social\\Builders\\Interactions\\EntityInteractionsBuilder@getAll"
         )
     tags: [Tag!]
+        @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
