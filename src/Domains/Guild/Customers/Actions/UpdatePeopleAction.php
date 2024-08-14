@@ -94,6 +94,7 @@ class UpdatePeopleAction
             }
         }
 
+        $this->people->clearLightHouseCache();
         return $this->people;
     }
 }
