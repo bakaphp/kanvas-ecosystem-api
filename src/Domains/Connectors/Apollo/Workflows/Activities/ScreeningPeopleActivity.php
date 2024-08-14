@@ -26,7 +26,7 @@ use Workflow\Activity;
 
 class ScreeningPeopleActivity extends Activity
 {
-    public $tries = 5;
+    public $tries = 20;
 
     public function execute(Model $people, AppInterface $app, array $params): array
     {
@@ -124,6 +124,9 @@ class ScreeningPeopleActivity extends Activity
     private function updateEmploymentHistory(Model $people, AppInterface $app, array $employmentHistory): void
     {
         foreach ($employmentHistory as $employment) {
+            if (empty($employment['organization_name'])) {
+                continue;
+            }
             $organization = new CreateOrganizationAction(
                 new Organization(
                     $people->company,
