@@ -26,7 +26,7 @@ use Workflow\Activity;
 
 class ScreeningPeopleActivity extends Activity
 {
-    public $tries = 1;
+    public $tries = 5;
 
     public function execute(Model $people, AppInterface $app, array $params): array
     {
