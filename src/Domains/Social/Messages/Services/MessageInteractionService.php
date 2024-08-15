@@ -48,6 +48,13 @@ class MessageInteractionService
         return $this->createInteraction($who, InteractionEnum::LIKE->getValue());
     }
 
+    public function dislike(UserInterface $who): UsersInteractions
+    {
+        $this->incrementInteractionCount('total_disliked');
+
+        return $this->createInteraction($who, InteractionEnum::DISLIKE->getValue());
+    }
+
     protected function incrementInteractionCount(string $interactionType): void
     {
         $this->message->$interactionType++;

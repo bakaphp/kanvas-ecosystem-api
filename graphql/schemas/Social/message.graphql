@@ -11,6 +11,7 @@ type Message {
     reactions_count: Int
     comment_count: Int
     total_liked: Int
+    total_disliked: Int
     total_saved: Int
     total_shared: Int
     parent: Message @cacheRedis
