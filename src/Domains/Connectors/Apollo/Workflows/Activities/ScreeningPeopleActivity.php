@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Apollo\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Apollo\Actions\ScreeningAction;
+use Kanvas\Connectors\Apollo\Enums\ConfigurationEnum;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
@@ -24,7 +26,7 @@ use Workflow\Activity;
 
 class ScreeningPeopleActivity extends Activity
 {
-    public $tries = 1;
+    public $tries = 20;
 
     public function execute(Model $people, AppInterface $app, array $params): array
     {
@@ -60,6 +62,7 @@ class ScreeningPeopleActivity extends Activity
             'status' => 'success',
             'message' => 'People screened successfully',
             'people_id' => $people->id,
+            'data' => $peopleData,
         ];
     }
 
@@ -122,6 +125,9 @@ class ScreeningPeopleActivity extends Activity
     private function updateEmploymentHistory(Model $people, AppInterface $app, array $employmentHistory): void
     {
         foreach ($employmentHistory as $employment) {
+            if (empty($employment['organization_name'])) {
+                continue;
+            }
             $organization = new CreateOrganizationAction(
                 new Organization(
                     $people->company,
@@ -141,6 +147,30 @@ class ScreeningPeopleActivity extends Activity
                 'peoples_id' => $people->id,
                 'organizations_id' => $organization->execute()->getId(),
             ]);
+
+            $this->assignAudienceSegment($people, $app, $employment['title']);
         }
+    }
+
+    private function assignAudienceSegment(Model $people, AppInterface $app, string $jobTitle): void
+    {
+        $segments = $app->get(ConfigurationEnum::APOLLO_JOB_SEGMENTS->value);
+
+        if (empty($segments)) {
+            return;
+        }
+
+        $jobTitle = strtolower($jobTitle);
+        $tags = [];
+        foreach ($segments as $segment => $data) {
+            foreach ($data['keywords'] as $keyword) {
+                if (Str::contains($jobTitle, strtolower($keyword))) {
+                    $segmentSlug = strtolower($segment);
+                    $tags[$segmentSlug] = $segmentSlug;
+                }
+            }
+        }
+
+        $people->addTags($tags);
     }
 }

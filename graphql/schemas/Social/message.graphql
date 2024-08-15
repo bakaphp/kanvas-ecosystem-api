@@ -113,6 +113,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageInteractionMutation@share"
         )
+    viewMessage(id: ID!): Int!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageInteractionMutation@view"
+        )
     attachTopicToMessage(message_id: ID!, topic_id: ID!): Message
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@attachTopicToMessage"

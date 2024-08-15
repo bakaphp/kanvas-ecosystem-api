@@ -224,6 +224,37 @@ class UserTest extends TestCase
         ]);
     }
 
+    public function testGetUserByDisplayNameFromApp()
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+
+        $this->graphQL(/** @lang GraphQL */
+            '
+            query userByDisplayName($displayname: String!){
+                userByDisplayName(displayname: $displayname){
+                    id
+                    email
+                }
+            }
+        ',
+            [
+            'displayname' => $user->displayname,
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        )->assertJson([
+            'data' => [
+                'userByDisplayName' => [
+                    'id' => $user->getId(),
+                    'email' => $user->email,
+                ],
+            ],
+        ]);
+    }
+
     public function testSetUserSetting()
     {
         $app = app(Apps::class);
