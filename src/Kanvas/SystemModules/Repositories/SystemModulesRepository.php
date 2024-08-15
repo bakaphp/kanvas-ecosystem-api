@@ -13,6 +13,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\SystemModules\Contracts\SystemModuleInputInterface;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Users\Models\UserFullTableName;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Ramsey\Uuid\Uuid;
@@ -35,6 +36,11 @@ class SystemModulesRepository
     {
         $app = $app === null ? app(Apps::class) : $app;
 
+        //this sucks but we need to find the solution
+        if ($modelName === UserFullTableName::class) {
+            $modelName = Users::class;
+        }
+
         return SystemModules::firstOrCreate(
             [
                 'model_name' => $modelName,
@@ -52,6 +58,11 @@ class SystemModulesRepository
     public static function getByName(string $name, ?AppInterface $app = null): SystemModules
     {
         $app = $app === null ? app(Apps::class) : $app;
+
+        //this sucks but we need to find the solution
+        if ($name === UserFullTableName::class) {
+            $name = Users::class;
+        }
 
         return SystemModules::where('name', $name)
                                     ->where('apps_id', $app->getKey())
