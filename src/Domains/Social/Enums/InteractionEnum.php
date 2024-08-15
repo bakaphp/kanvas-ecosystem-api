@@ -51,7 +51,9 @@ enum InteractionEnum implements EnumsInterface
     /**
      * Get Like/Dislike Interacition Enum Value
      * 
+     * 
      * @param bool $isDislike
+     * 
      * 
      * @return string
      */
