@@ -84,7 +84,7 @@ final class InteractionsTest extends TestCase
         $product = Products::firstOrFail();
 
         $this->assertTrue(
-            $product->unLike($warehouse, true)
+            $product->unLike($warehouse, null, true)
         );
     }
 
