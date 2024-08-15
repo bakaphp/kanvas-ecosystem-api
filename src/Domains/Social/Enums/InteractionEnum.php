@@ -48,8 +48,15 @@ enum InteractionEnum implements EnumsInterface
         };
     }
 
-    public static function getLikeInteractionEnumValue(bool $is_dislike = false): string
+    /**
+     * Get Like/Dislike Interacition Enum Value
+     * 
+     * @param bool $isDislike
+     * 
+     * @return string
+     */
+    public static function getLikeInteractionEnumValue(bool $isDislike = false): string
     {
-        return $is_dislike ? InteractionEnum::DISLIKE->getValue() : InteractionEnum::LIKE->getValue();
+        return $isDislike ? InteractionEnum::DISLIKE->getValue() : InteractionEnum::LIKE->getValue();
     }
 }
