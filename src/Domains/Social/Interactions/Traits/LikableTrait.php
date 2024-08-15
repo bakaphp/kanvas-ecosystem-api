@@ -14,9 +14,9 @@ use Kanvas\Users\Models\Users;
 
 trait LikableTrait
 {
-    public function like(Model $entity, ?string $note = null): UsersInteractions|EntityInteractions
+    public function like(Model $entity, ?string $note = null, bool $is_dislike = false): UsersInteractions|EntityInteractions
     {
-        $interaction = Interactions::fromApp()->where('name', InteractionEnum::LIKE->getValue())->firstOrFail();
+        $interaction = Interactions::fromApp()->where('name', InteractionEnum::getLikeInteractionEnumValue($is_dislike))->firstOrFail();
 
         if ($this instanceof Users) {
             return UsersInteractions::firstOrCreate([
@@ -42,9 +42,9 @@ trait LikableTrait
         ]);
     }
 
-    public function unLike(Model $entity, ?string $note = null): bool
+    public function unLike(Model $entity, ?string $note = null, bool $is_dislike = false): bool
     {
-        $interaction = Interactions::fromApp()->where('name', InteractionEnum::LIKE->getValue())->firstOrFail();
+        $interaction = Interactions::fromApp()->where('name', InteractionEnum::getLikeInteractionEnumValue($is_dislike))->firstOrFail();
 
         if ($this instanceof Users) {
             $entityInteraction = UsersInteractions::where('users_id', $this->getId())
@@ -64,9 +64,9 @@ trait LikableTrait
         return $entityInteraction ? $entityInteraction->softDelete() : false;
     }
 
-    public function hasLiked(Model $entity): bool
+    public function hasLiked(Model $entity, bool $is_dislike = false): bool
     {
-        $interaction = Interactions::fromApp()->where('name', InteractionEnum::LIKE->getValue())->firstOrFail();
+        $interaction = Interactions::fromApp()->where('name', InteractionEnum::getLikeInteractionEnumValue($is_dislike))->firstOrFail();
 
         if ($this instanceof Users) {
             return UsersInteractions::where('users_id', $this->getId())
@@ -84,9 +84,9 @@ trait LikableTrait
             ->count() > 0;
     }
 
-    public function likes(): HasMany
+    public function likes(bool $is_dislike = false): HasMany
     {
-        $interaction = Interactions::fromApp()->where('name', InteractionEnum::LIKE->getValue())->firstOrFail();
+        $interaction = Interactions::fromApp()->where('name', InteractionEnum::getLikeInteractionEnumValue($is_dislike))->firstOrFail();
 
         if ($this instanceof Users) {
             return $this->hasMany(UsersInteractions::class, 'users_id', 'id')

@@ -47,4 +47,9 @@ enum InteractionEnum implements EnumsInterface
             self::VIEW => 'view',
         };
     }
+
+    public static function getLikeInteractionEnumValue(bool $is_dislike = false): string
+    {
+        return $is_dislike ? InteractionEnum::DISLIKE->getValue() : InteractionEnum::LIKE->getValue();
+    }
 }

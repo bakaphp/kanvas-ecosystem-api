@@ -66,6 +66,28 @@ final class InteractionsTest extends TestCase
         );
     }
 
+    public function testEntityTotalDislikesOfOtherEntity(): void
+    {
+        $warehouse = Warehouses::firstOrFail();
+        $product = Products::firstOrFail();
+        $product->dislike($warehouse, 'This is a test note');
+
+        $this->assertGreaterThan(
+            0,
+            $product->dislikes()->count()
+        );
+    }
+
+    public function testEntityUnLikeDislikeOtherEntity(): void
+    {
+        $warehouse = Warehouses::firstOrFail();
+        $product = Products::firstOrFail();
+
+        $this->assertTrue(
+            $product->unLike($warehouse, true)
+        );
+    }
+
     public function testEntityNewInteraction()
     {
         $people = People::firstOrFail();
