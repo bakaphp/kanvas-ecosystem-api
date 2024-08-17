@@ -10,7 +10,7 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::create('importers_templates', function (Blueprint $table) {
+        Schema::create('mappers_importers_templates', function (Blueprint $table) {
             $table->id();
             $table->bigInteger('apps_id')->unsigned();
             $table->bigInteger('users_id')->unsigned();

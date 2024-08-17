@@ -1,20 +1,20 @@
 <?php
 declare(strict_types=1);
 
-namespace Kanvas\ImportersTemplates\Actions;
+namespace Kanvas\MappersImportersTemplates\Actions;
 
-use Kanvas\ImportersTemplates\Models\ImportersTemplates;
-use Kanvas\ImportersTemplates\DataTransferObject\ImportersTemplates as ImportersTemplatesDto;
+use Kanvas\MappersImportersTemplates\Models\MapperImportersTemplates;
+use Kanvas\MappersImportersTemplates\DataTransferObject\MapperImportersTemplates as MapperImportersTemplatesDto;
 
-class CreateImportersTemplatesAction
+class CreateMapperImportersTemplatesAction
 {
-    public function __construct(protected ImportersTemplatesDto $data)
+    public function __construct(protected MapperImportersTemplatesDto $data)
     {
     }
 
-    public function execute(): ImportersTemplates
+    public function execute(): MapperImportersTemplates
     {
-        $importersTemplates = ImportersTemplates::create([
+        $importersTemplates = MapperImportersTemplates::create([
             'apps_id' => $this->data->apps->getId(),
             'users_id' => $this->data->users->getId(),
             'companies_id' => $this->data->companies->getId(),
@@ -25,7 +25,7 @@ class CreateImportersTemplatesAction
         return $importersTemplates;
     }
 
-    protected function createAttributes(ImportersTemplates $importersTemplates, array $attributes, int $parentId = 0) : void
+    protected function createAttributes(MapperImportersTemplates $importersTemplates, array $attributes, int $parentId = 0) : void
     {
         foreach ($attributes as $attribute) {
             $model = $importersTemplates->attributes()->create([
