@@ -55,10 +55,12 @@ input MessageInput {
     system_modules_id: ID
     entity_id: Mixed
     distribution: DistributionInput
+    tags: [TagInput!]
 }
 
 input MessageUpdateInput {
     message: Mixed
+    tags: [TagInput!]
 }
 
 enum DistributionType {
