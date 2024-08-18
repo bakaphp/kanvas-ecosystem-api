@@ -102,7 +102,7 @@ class MessageTest extends TestCase
             'data' => [
                 'updateMessage' => [
                     'message' => $newMessage,
-                    'tags' => [
+                'tags' => [
                         'data' => [
                             [
                                 'name' => 'tag1',

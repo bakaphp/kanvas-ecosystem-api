@@ -155,6 +155,7 @@ extend type Query @guard {
                 relation: "user"
                 columns: ["id", "displayname"]
             )
+        hasTags: _ @whereHasConditions(relation: "tags", columns: ["name"])
         hasAppModuleMessage: _
             @whereHasConditions(columns: ["entity_id", "system_modules"])
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
