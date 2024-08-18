@@ -34,6 +34,7 @@ class MessageInput extends Data
         public ?int $total_saved = 0,
         public ?int $total_shared = 0,
         public ?string $parent_unique_id = null,
+        public array $tags = []
     ) {
     }
 
@@ -70,7 +71,8 @@ class MessageInput extends Data
             $data['total_liked'] ?? 0,
             $data['total_saved'] ?? 0,
             $data['total_shared'] ?? 0,
-            $parent ? $parent->uuid : null
+            $parent ? $parent->uuid : null,
+            $data['tags'] ?? []
         );
     }
 }

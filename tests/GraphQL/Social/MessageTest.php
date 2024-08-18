@@ -79,6 +79,11 @@ class MessageTest extends TestCase
                     updateMessage(id: $id, input: $input) {
                         id
                         message
+                        tags {
+                            data {
+                                name
+                            }
+                        }
                     }
                 }
             ',
@@ -86,12 +91,24 @@ class MessageTest extends TestCase
                 'id' => $createdMessageId,
                 'input' => [
                     'message' => $newMessage,
+                    'tags' => [
+                        [
+                            'name' => 'tag1',
+                        ]
+                    ]
                 ],
             ]
         )->assertJson([
             'data' => [
                 'updateMessage' => [
                     'message' => $newMessage,
+                'tags' => [
+                        'data' => [
+                            [
+                                'name' => 'tag1',
+                            ],
+                        ],
+                    ],
                 ],
             ],
         ]);
