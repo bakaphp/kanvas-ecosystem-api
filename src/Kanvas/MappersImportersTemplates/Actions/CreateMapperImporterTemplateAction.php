@@ -26,7 +26,7 @@ class CreateMapperImporterTemplateAction
         return $importersTemplates;
     }
 
-    protected function createAttributes(MapperImporterTemplate $importersTemplates, array $attributes, int $parentId = 0) : void
+    protected function createAttributes(MapperImporterTemplate $importersTemplates, array $attributes, int $parentId = 0): void
     {
         foreach ($attributes as $attribute) {
             $model = $importersTemplates->attributes()->create([

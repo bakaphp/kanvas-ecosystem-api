@@ -14,8 +14,8 @@ use Kanvas\Models\BaseModel;
  * @property int $importers_templates_id
  * @property int $parent_id
  * @property string $name
- * @property string $mapping_field 
- *  
+ * @property string $mapping_field
+ *
  * */
 class AttributeMapperImporterTemplate extends BaseModel
 {
