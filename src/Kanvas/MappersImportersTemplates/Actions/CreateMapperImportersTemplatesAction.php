@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\MappersImportersTemplates\Actions;
@@ -25,7 +26,7 @@ class CreateMapperImportersTemplatesAction
         return $importersTemplates;
     }
 
-    protected function createAttributes(MapperImportersTemplates $importersTemplates, array $attributes, int $parentId = 0) : void
+    protected function createAttributes(MapperImportersTemplates $importersTemplates, array $attributes, int $parentId = 0): void
     {
         foreach ($attributes as $attribute) {
             $model = $importersTemplates->attributes()->create([
