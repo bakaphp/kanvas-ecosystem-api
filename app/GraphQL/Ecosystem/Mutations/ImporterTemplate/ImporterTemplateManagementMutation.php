@@ -3,17 +3,14 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\ImporterTemplate;
 
-use Kanvas\ImportersTemplates\Actions\CreateImportersTemplatesAction;
-use Kanvas\ImportersTemplates\DataTransferObject\ImportersTemplates as ImportersTemplatesDto;
-use Kanvas\ImportersTemplates\Models\ImportersTemplates;
+use Kanvas\MappersImportersTemplates\Models\MapperImporterTemplate;
+use Kanvas\MappersImportersTemplates\DataTransferObject\MapperImporterTemplate as MapperImportersTemplatesDto;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\MappersImportersTemplates\DataTransferObject\MapperImportersTemplates as MapperImportersTemplatesDto;
-use Kanvas\MappersImportersTemplates\Models\MapperImportersTemplates;
-use Kanvas\MappersImportersTemplates\Actions\CreateMapperImportersTemplatesAction;
+use Kanvas\MappersImportersTemplates\Actions\CreateMapperImporterTemplateAction;
 
 class ImporterTemplateManagementMutation
 {
-    public function create(mixed $root, array $req): MapperImportersTemplates
+    public function create(mixed $root, array $req): MapperImporterTemplate
     {
         $req = $req['input'];
         $dto = new MapperImportersTemplatesDto(
@@ -24,6 +21,6 @@ class ImporterTemplateManagementMutation
             attributes: $req['attributes'],
             description: $req['description'] ?? null,
         );
-        return (new CreateMapperImportersTemplatesAction($dto))->execute();
+        return (new CreateMapperImporterTemplateAction($dto))->execute();
     }
 }

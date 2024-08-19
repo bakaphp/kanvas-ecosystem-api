@@ -15,7 +15,7 @@ return new class extends Migration {
             $table->bigInteger('importers_templates_id')->unsigned();
             $table->bigInteger('parent_id')->unsigned(); // This is the parent attribute id from the attributes_importers_templates table
             $table->string('name');
-            $table->string('value');
+            $table->string('mapping_field');
             $table->integer('is_deleted')->default(0);
             $table->timestamps();
         });

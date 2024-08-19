@@ -13,10 +13,10 @@ use Kanvas\Models\BaseModel;
  * @property int $importers_templates_id
  * @property int $parent_id
  * @property string $name
- * @property string $value
+ * @property string $mapping_field 
  *  
  * */
-class AttributesMapperImportersTemplates extends BaseModel
+class AttributeMapperImporterTemplate extends BaseModel
 {
 
     protected $table = 'attributes_mappers_importers_templates';
@@ -35,6 +35,6 @@ class AttributesMapperImportersTemplates extends BaseModel
 
     public function importersTemplates() : BelongsTo
     {
-        return $this->belongsTo(MapperImportersTemplates::class, 'importers_templates_id');
+        return $this->belongsTo(MapperImporterTemplate::class, 'importers_templates_id');
     }
 }

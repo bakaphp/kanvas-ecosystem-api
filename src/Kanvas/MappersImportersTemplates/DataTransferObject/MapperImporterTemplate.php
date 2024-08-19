@@ -8,7 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Companies\Models\Companies;
 
-class MapperImportersTemplates extends Data
+class MapperImporterTemplate extends Data
 {
     public function __construct(
         public Apps $apps,

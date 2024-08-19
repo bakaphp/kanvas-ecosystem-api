@@ -19,11 +19,11 @@ class MapperImporterTemplateTest extends TestCase
           'attributes' => [
               [
                   'name' => fake()->name,
-                  'value' => fake()->sentence,
+                  'mapping_field' => fake()->sentence,
                   'children' => [
                       [
                           'name' => fake()->name,
-                          'value' => fake()->sentence,
+                          'mapping_field' => fake()->sentence,
                       ],
                   ],
               ],
@@ -33,12 +33,12 @@ class MapperImporterTemplateTest extends TestCase
                 mutation(
                     $input: ImporterTemplateInput!
                 ){
-                    createImporterTemplate(input: $input) {
+                    createMapperImporterTemplate(input: $input) {
                         name,
                         description,
                         attributes {
                             name,
-                            value,
+                            mapping_field ,
                         }
                     }
                 }
@@ -55,7 +55,7 @@ class MapperImporterTemplateTest extends TestCase
                     'attributes' => [
                         [
                             'name' => $mapperImporterTemplate['attributes'][0]['name'],
-                            'value' => $mapperImporterTemplate['attributes'][0]['value'],
+                            'mapping_field' => $mapperImporterTemplate['attributes'][0]['mapping_field'],
                         ],
                     ],
                 ],
@@ -69,7 +69,7 @@ class MapperImporterTemplateTest extends TestCase
                     'attributes' => [
                         [
                             'name',
-                            'value',
+                            'mapping_field',
                         ],
                     ],
                 ],

@@ -12,7 +12,7 @@ type AttributeImporterTemplate {
     id: ID!
     parent_id: ID
     name: String!
-    value: String!
+    mapping_field: String!
     importersTemplates: [ImporterTemplate!]! @belongsTo
     parent: AttributeImporterTemplate
     children: [AttributeImporterTemplate!]
@@ -26,24 +26,24 @@ input ImporterTemplateInput {
 
 input AttributeImporterTemplateInput {
     name: String
-    value: String
+    mapping_field: String
     children: [AttributeImporterTemplateInput!]
 }
 
 extend type Mutation @guard {
-    createImporterTemplate(input: ImporterTemplateInput!): ImporterTemplate!
+    createMapperImporterTemplate(input: ImporterTemplateInput!): ImporterTemplate!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\ImporterTemplate\\ImporterTemplateManagementMutation@create"
         )
 }
 
 extend type Query @guard {
-    importersTemplates(
+    mapperImportersTemplates(
         where: _ @whereConditions(columns: ["id", "name", "description"])
         hasAttributes: _ @whereHasConditions(columns: ["id", "parent_id", "name", "value"])
     ): [ImporterTemplate!]
         @paginate(
-            model: "Kanvas\\MappersImportersTemplates\\Models\\MapperImportersTemplates"
+            model: "Kanvas\\MappersImportersTemplates\\Models\\MapperImporterTemplate"
             defaultCount: 25
             scopes: ["fromApp", "fromCompany"]
         )

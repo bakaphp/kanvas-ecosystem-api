@@ -3,18 +3,18 @@ declare(strict_types=1);
 
 namespace Kanvas\MappersImportersTemplates\Actions;
 
-use Kanvas\MappersImportersTemplates\Models\MapperImportersTemplates;
-use Kanvas\MappersImportersTemplates\DataTransferObject\MapperImportersTemplates as MapperImportersTemplatesDto;
+use Kanvas\MappersImportersTemplates\Models\MapperImporterTemplate;
+use Kanvas\MappersImportersTemplates\DataTransferObject\MapperImporterTemplate as MapperImportersTemplatesDto;
 
-class CreateMapperImportersTemplatesAction
+class CreateMapperImporterTemplateAction
 {
     public function __construct(protected MapperImportersTemplatesDto $data)
     {
     }
 
-    public function execute(): MapperImportersTemplates
+    public function execute(): MapperImporterTemplate
     {
-        $importersTemplates = MapperImportersTemplates::create([
+        $importersTemplates = MapperImporterTemplate::create([
             'apps_id' => $this->data->apps->getId(),
             'users_id' => $this->data->users->getId(),
             'companies_id' => $this->data->companies->getId(),
@@ -25,12 +25,12 @@ class CreateMapperImportersTemplatesAction
         return $importersTemplates;
     }
 
-    protected function createAttributes(MapperImportersTemplates $importersTemplates, array $attributes, int $parentId = 0) : void
+    protected function createAttributes(MapperImporterTemplate $importersTemplates, array $attributes, int $parentId = 0) : void
     {
         foreach ($attributes as $attribute) {
             $model = $importersTemplates->attributes()->create([
                 'name' => $attribute['name'],
-                'value' => $attribute['value'],
+                'mapping_field' => $attribute['mapping_field'],
                 'parent_id' => $parentId
             ]);
             if (isset($attribute['children'])) {

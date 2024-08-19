@@ -16,7 +16,7 @@ use Kanvas\Models\BaseModel;
  * @property string $name
  * @property string $description
  */
-class MapperImportersTemplates extends BaseModel
+class MapperImporterTemplate extends BaseModel
 {
     protected $table = 'mappers_importers_templates';
 
@@ -24,6 +24,6 @@ class MapperImportersTemplates extends BaseModel
 
     public function attributes(): HasMany
     {
-        return $this->hasMany(AttributesMapperImportersTemplates::class, 'importers_templates_id')->where('parent_id', 0);
+        return $this->hasMany(AttributeMapperImporterTemplate::class, 'importers_templates_id')->where('parent_id', 0);
     }
 }
