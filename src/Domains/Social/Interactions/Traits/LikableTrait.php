@@ -53,7 +53,11 @@ trait LikableTrait
      */
     public function dislike(Model $entity, ?string $note = null): UsersInteractions|EntityInteractions
     {
-        return $this->like($entity, $note, true);
+        return $this->like(
+            entity: $entity,
+            note: $note,
+            isDislike: true
+        );
     }
 
     /**
@@ -89,7 +93,11 @@ trait LikableTrait
      */
     public function unLikeDislike(Model $entity, ?string $note = null): bool
     {
-        return $this->unLike($entity, $note, true);
+        return $this->unLike(
+            entity: $entity,
+            note: $note,
+            isDislike: true
+        );
     }
 
     /**
@@ -120,7 +128,10 @@ trait LikableTrait
      */
     public function hasDisliked(Model $entity): bool
     {
-        return $this->hasDisliked($entity, true);
+        return $this->hasLiked(
+            entity: $entity,
+            isDislike: true
+        );
     }
 
     /**
