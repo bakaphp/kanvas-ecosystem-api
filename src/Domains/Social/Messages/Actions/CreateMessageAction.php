@@ -52,6 +52,10 @@ class CreateMessageAction
 
         $message = Message::create($data);
 
+        if (count($this->messageInput->tags)) {
+            $message->syncTags(array_column($this->messageInput->tags, 'name'));
+        }
+
         if ($this->systemModule && $this->entityId !== null) {
             $associateMessage = new AssociateMessageToSystemModule(
                 $message,

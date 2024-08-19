@@ -110,7 +110,12 @@ class MessageManagementMutation
             throw new ValidationException($validator->messages()->__toString());
         }
 
+        /**
+         * @todo move to action
+         */
         $message->update($request['input']);
+
+        $message->syncTags(array_column($request['input']['tags'], 'name'));
 
         return $message;
     }
