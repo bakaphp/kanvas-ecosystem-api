@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -42,6 +44,8 @@ use Nevadskiy\Tree\AsTree;
  *  @property int $reactions_count
  *  @property int $comments_count
  *  @property int $total_liked
+ *  @property int $total_disliked
+ *  @property int $total_view
  *  @property int $total_saved
  *  @property int $total_shared
  */
@@ -57,6 +61,8 @@ class Message extends BaseModel
     use HasPermissions;
     use AsTree;
     use CanUseWorkflow;
+    use HasLightHouseCache;
+    use Cachable;
 
     protected $table = 'messages';
 
@@ -67,6 +73,11 @@ class Message extends BaseModel
     protected $casts = [
         'message' => Json::class,
     ];
+
+    public function getGraphTypeName(): string
+    {
+        return 'Message';
+    }
 
     protected $cascadeDeletes = ['comments'];
 

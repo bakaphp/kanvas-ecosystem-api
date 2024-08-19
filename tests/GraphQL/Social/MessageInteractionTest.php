@@ -57,6 +57,54 @@ class MessageInteractionTest extends TestCase
         ]);
     }
 
+    public function testViewMessage()
+    {
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+
+        $response = $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        id
+                        message
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => $message,
+                    'message_verb' => $messageType->verb,
+                    'system_modules_id' => 1,
+                    'entity_id' => '1',
+                ],
+            ]
+        )->assertJson([
+            'data' => [
+                'createMessage' => [
+                    'message' => $message,
+                ],
+            ],
+        ]);
+
+        $id = $response->json('data.createMessage.id');
+
+        $response = $this->graphQL(
+            '
+                mutation viewMessage($id: ID!) {
+                    viewMessage(id: $id)
+                }
+            ',
+            [
+                'id' => $id,
+            ]
+        )->assertJson([
+            'data' => [
+                'viewMessage' => 2,
+            ],
+        ]);
+    }
+
     public function testShareMessage()
     {
         $messageType = MessageType::factory()->create();
@@ -101,6 +149,54 @@ class MessageInteractionTest extends TestCase
         )->assertJson([
             'data' => [
                 'shareMessage' => true,
+            ],
+        ]);
+    }
+
+    public function testDisLikeMessage()
+    {
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+
+        $response = $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        id
+                        message
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => $message,
+                    'message_verb' => $messageType->verb,
+                    'system_modules_id' => 1,
+                    'entity_id' => '1',
+                ],
+            ]
+        )->assertJson([
+            'data' => [
+                'createMessage' => [
+                    'message' => $message,
+                ],
+            ],
+        ]);
+
+        $id = $response->json('data.createMessage.id');
+
+        $response = $this->graphQL(
+            '
+                mutation disLikeMessage($id: ID!) {
+                    disLikeMessage(id: $id)
+                }
+            ',
+            [
+                'id' => $id,
+            ]
+        )->assertJson([
+            'data' => [
+                'disLikeMessage' => true,
             ],
         ]);
     }

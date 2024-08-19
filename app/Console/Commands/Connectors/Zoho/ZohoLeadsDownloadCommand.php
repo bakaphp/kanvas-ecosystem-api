@@ -43,7 +43,11 @@ class ZohoLeadsDownloadCommand extends Command
         $leadsPerPage = (int) $this->argument('leadsPerPage');
 
         $downloadAllLeads = new DownloadAllZohoLeadAction($app, $company, $leadReceiver);
-        $downloadAllLeads->execute($page, $leadsPerPage);
+        $leads = $downloadAllLeads->execute($page, $leadsPerPage);
+
+        foreach ($leads as $lead) {
+            echo 'Lead ' . $lead->id . ' downloaded' . PHP_EOL;
+        }
 
         $this->info($downloadAllLeads->getTotalLeadsProcessed() . ' leads downloaded from Zoho to ' . $leadReceiver->name);
 

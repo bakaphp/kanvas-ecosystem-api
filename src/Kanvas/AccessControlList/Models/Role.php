@@ -42,6 +42,18 @@ class Role extends SilberRole
         return (int)$count;
     }
 
+    public function getModules(): array
+    {
+        $modules = [];
+        foreach ($this->abilities as $ability) {
+            $module = $ability->module;
+            if (! isset($modules[$module->id])) {
+                $modules[$module->id] = $module;
+            }
+        }
+        return $modules;
+    }
+
     public function isAdmin(): bool
     {
         return $this->name === RolesEnums::ADMIN->value;

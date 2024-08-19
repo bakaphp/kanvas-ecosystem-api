@@ -56,6 +56,10 @@ class AttachFilesystemAction
             $this->entity->fireWorkflow(WorkflowEnum::ATTACH_FILE->value);
         }
 
+        if (method_exists($this->entity, 'clearLightHouseCache')) {
+            $this->entity->clearLightHouseCache();
+        }
+
         return $fileEntity;
     }
 }

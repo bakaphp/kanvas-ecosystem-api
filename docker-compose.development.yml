@@ -31,6 +31,10 @@ services:
       dockerfile: development.Dockerfile
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    command: 
+    - "sh"
+    - "-c"
+    - "php artisan octane:start --server=swoole"
     environment:
       WWWUSER: "${WWWUSER}"
       LARAVEL_SAIL: 1
@@ -66,6 +70,14 @@ services:
   queue6:
     <<: *common-queue-settings
     container_name: queue6
+
+  batch-logger-queue:
+    <<: *common-queue-settings
+    container_name: batch-logger-queue
+    command: 
+        - "sh"
+        - "-c"
+        - "php artisan config:cache && php artisan queue:work --queue=batch-logger --tries=3 --timeout=3750"
 
   queue-social:
     <<: *common-queue-settings

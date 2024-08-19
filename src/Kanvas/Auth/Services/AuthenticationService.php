@@ -9,12 +9,15 @@ use Baka\Support\Password;
 use Baka\Users\Contracts\UserAppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFoundException;
 use Illuminate\Support\Facades\Hash;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\RegisterUsersAppAction;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Enums\StatusEnums;
@@ -182,5 +185,20 @@ class AuthenticationService
         config(['services.' . $provider => $config]);
 
         return Socialite::driver($provider);
+    }
+
+    public static function getAppDefaultAssignCompanyBranch(Apps $app): ?CompaniesBranches
+    {
+        $userRegistrationAssignToAppDefaultCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
+        $branch = null;
+
+        try {
+            if ($userRegistrationAssignToAppDefaultCompanyBranch) {
+                $branch = CompaniesBranches::getById($userRegistrationAssignToAppDefaultCompanyBranch);
+            }
+        } catch (EloquentModelNotFoundException $e) {
+        }
+
+        return $branch;
     }
 }

@@ -4,7 +4,7 @@ x-common-queue-settings: &common-queue-settings
   restart: always
   build:
     context: .
-    dockerfile: development.Dockerfile
+    dockerfile: 1.x.Dockerfile
   extra_hosts:
     - "host.docker.internal:host-gateway"
   command: 
@@ -28,9 +28,13 @@ services:
     container_name: php${APP_CONTAINER_NAME}
     build:
       context: .
-      dockerfile: development.Dockerfile
+      dockerfile: 1.x.Dockerfile
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    command: 
+    - "sh"
+    - "-c"
+    - "php artisan octane:start --server=swoole"
     environment:
       WWWUSER: "${WWWUSER}"
       LARAVEL_SAIL: 1
@@ -82,13 +86,21 @@ services:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue notifications --tries=3 --timeout=3750"
+  
+  batch-logger-queue:
+    <<: *common-queue-settings
+    container_name: batch-logger-queue
+    command: 
+        - "sh"
+        - "-c"
+        - "php artisan config:cache && php artisan queue:work --queue=batch-logger --tries=3 --timeout=3750"
 
   laravel-scheduler:
     container_name: laravel-scheduler
     restart: always
     build:
       context: .
-      dockerfile: development.Dockerfile
+      dockerfile: 1.x.Dockerfile
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command:

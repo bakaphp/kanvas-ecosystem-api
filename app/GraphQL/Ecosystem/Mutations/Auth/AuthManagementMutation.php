@@ -14,6 +14,7 @@ use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\Actions\SocialLoginAction;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
+use Kanvas\Auth\Services\AuthenticationService;
 use Kanvas\Auth\Services\ForgotPassword as ForgotPasswordService;
 use Kanvas\Auth\Socialite\SocialManager;
 use Kanvas\Auth\Traits\AuthTrait;
@@ -122,12 +123,7 @@ class AuthManagementMutation
         )->validate();
         PasswordValidation::validateArray($request['data'], $app);
 
-        $userRegistrationAssignToAppDefaultCompanyBranch = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
-        $branch = null;
-        if ($userRegistrationAssignToAppDefaultCompanyBranch) {
-            $branch = CompaniesBranches::getById($userRegistrationAssignToAppDefaultCompanyBranch);
-        }
-
+        $branch = AuthenticationService::getAppDefaultAssignCompanyBranch($app);
         $data = RegisterInput::fromArray($request['data'], $branch);
         $user = new RegisterUsersAction($data);
         $request = request();

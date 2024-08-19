@@ -11,6 +11,7 @@ type Product {
     upc: String
     status: Status
     files: [Filesystem!]!
+        @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
@@ -25,6 +26,7 @@ type Product {
     productsTypes: ProductType @belongsTo
     companies: Company! @belongsTo(relation: "company")
     custom_fields: [CustomField!]!
+        @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"

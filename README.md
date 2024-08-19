@@ -101,7 +101,7 @@ DB_CRM_PASSWORD=password
 
 ## Running the project with Laravel Octane
 
-After doing all the steps above, you could run the project with Laravel Octane by using the command ```php artisan octane:start --port 8080 --host=0.0.0.0```. 
+After doing all the steps above, you could run the project with Laravel Octane by using the command ```php artisan octane:start --server=swoole --host=0.0.0.0 --port=8000```. 
 
 Use `--watch` in development allowing you to refresh modified files, this works assuming to have `npm install chokidar` installed in the project.
 ****
@@ -116,12 +116,3 @@ Note:
 - To install Swoole you can use the command ```pecl install swoole``` 
 - For production remove `--watch` from the command.
 - roles_kanvas_legacy will be deleted in the future.
-
-
-## Feature Labs
-
-### Run the project using FrankenPHP
-
-``` sh
-docker compose -f docker-compose.franken.yml up -d --build
-```

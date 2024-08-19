@@ -20,6 +20,8 @@ use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadStatus;
+use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
+use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Spatie\LaravelData\DataCollection;
@@ -131,9 +133,21 @@ class SyncZohoLeadAction
             $localLead->leads_owner_id = $user->getId();
         }
 
-        if ($user) {
-            $localLead->leads_owner_id = $user->getId();
-            $localLead->users_id = $user->getId();
+        /*         if ($user) {
+                    $localLead->leads_owner_id = $user->getId();
+                    $localLead->users_id = $user->getId();
+                } */
+
+        if (! empty($zohoLead->Company)) {
+            $organization = (new CreateOrganizationAction(
+                new Organization(
+                    name: $zohoLead->Company,
+                    company: $this->company,
+                    app: $this->app,
+                    user: $user ?? $this->company->user
+                )
+            ))->execute();
+            $localLead->organization_id = $organization->getId();
         }
 
         $localLead->people->firstname = $zohoLead->First_Name;

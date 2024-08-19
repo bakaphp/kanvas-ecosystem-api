@@ -55,8 +55,11 @@ jobs:
             docker restart queue-notifications
             docker restart queue-social
             docker restart laravel-scheduler
+            docker restart batch-logger-queue
             if [ "docker-compose.${{ github.ref_name }}.yml" == "docker-compose.1.x.yml" ]; then
               docker restart queue4
               docker restart queue5
               docker restart queue6
             fi
+
+            docker exec -i phpkanvas-ecosystem php artisan octane:reload
