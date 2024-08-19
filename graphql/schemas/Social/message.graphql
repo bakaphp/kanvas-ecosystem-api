@@ -112,6 +112,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageInteractionMutation@like"
         )
+    disLikeMessage(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageInteractionMutation@dislike"
+        )
     shareMessage(id: ID!): String!
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageInteractionMutation@share"

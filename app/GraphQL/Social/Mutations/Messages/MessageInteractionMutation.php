@@ -49,7 +49,7 @@ class MessageInteractionMutation
         $messageInteractionService = new MessageInteractionService($message);
         $messageInteractionService->dislike($user);
 
-        return $user->like($message, true) instanceof UsersInteractions;
+        return $user->dislike($message) instanceof UsersInteractions;
     }
 
     public function share(mixed $root, array $request): string
