@@ -14,9 +14,13 @@ use Kanvas\Users\Models\Users;
 
 trait LikableTrait
 {
-    public function like(Model $entity, ?string $note = null): UsersInteractions|EntityInteractions
+    /**
+     * Like an entity.
+     * @param ?string $note
+     */
+    public function like(Model $entity, ?string $note = null, bool $isDislike = false): UsersInteractions|EntityInteractions
     {
-        $interaction = Interactions::fromApp()->where('name', InteractionEnum::LIKE->getValue())->firstOrFail();
+        $interaction = Interactions::fromApp()->where('name', InteractionEnum::getLikeInteractionEnumValue($isDislike))->firstOrFail();
 
         if ($this instanceof Users) {
             return UsersInteractions::firstOrCreate([
@@ -42,9 +46,27 @@ trait LikableTrait
         ]);
     }
 
-    public function unLike(Model $entity, ?string $note = null): bool
+    /**
+     * Dislike an entity.
+     * @param ?string $note
+     * @param bool $isDislike
+     */
+    public function dislike(Model $entity, ?string $note = null): UsersInteractions|EntityInteractions
     {
-        $interaction = Interactions::fromApp()->where('name', InteractionEnum::LIKE->getValue())->firstOrFail();
+        return $this->like(
+            entity: $entity,
+            note: $note,
+            isDislike: true
+        );
+    }
+
+    /**
+     * Unlike an entity.
+     * @param ?string $note
+     */
+    public function unLike(Model $entity, ?string $note = null, bool $isDislike = false): bool
+    {
+        $interaction = Interactions::fromApp()->where('name', InteractionEnum::getLikeInteractionEnumValue($isDislike))->firstOrFail();
 
         if ($this instanceof Users) {
             $entityInteraction = UsersInteractions::where('users_id', $this->getId())
@@ -64,9 +86,26 @@ trait LikableTrait
         return $entityInteraction ? $entityInteraction->softDelete() : false;
     }
 
-    public function hasLiked(Model $entity): bool
+    /**
+     * Unlike a dislike of an entity.
+     * @param ?string $note
+     * @param bool $isDislike
+     */
+    public function unLikeDislike(Model $entity, ?string $note = null): bool
     {
-        $interaction = Interactions::fromApp()->where('name', InteractionEnum::LIKE->getValue())->firstOrFail();
+        return $this->unLike(
+            entity: $entity,
+            note: $note,
+            isDislike: true
+        );
+    }
+
+    /**
+     * Check if an entity has a like.
+     */
+    public function hasLiked(Model $entity, bool $isDislike = false): bool
+    {
+        $interaction = Interactions::fromApp()->where('name', InteractionEnum::getLikeInteractionEnumValue($isDislike))->firstOrFail();
 
         if ($this instanceof Users) {
             return UsersInteractions::where('users_id', $this->getId())
@@ -84,9 +123,23 @@ trait LikableTrait
             ->count() > 0;
     }
 
-    public function likes(): HasMany
+    /**
+     * Check if an entity has a dislike.
+     */
+    public function hasDisliked(Model $entity): bool
     {
-        $interaction = Interactions::fromApp()->where('name', InteractionEnum::LIKE->getValue())->firstOrFail();
+        return $this->hasLiked(
+            entity: $entity,
+            isDislike: true
+        );
+    }
+
+    /**
+     * Retrieve likes of entity.
+     */
+    public function likes(bool $isDislike = false): HasMany
+    {
+        $interaction = Interactions::fromApp()->where('name', InteractionEnum::getLikeInteractionEnumValue($isDislike))->firstOrFail();
 
         if ($this instanceof Users) {
             return $this->hasMany(UsersInteractions::class, 'users_id', 'id')
@@ -96,5 +149,13 @@ trait LikableTrait
         return $this->hasMany(EntityInteractions::class, 'entity_id', 'id')
             ->where('entity_namespace', $this::class)
             ->where('interactions_id', $interaction->getId());
+    }
+
+    /**
+    * Retrieve dislikes of entity.
+    */
+    public function dislikes(): HasMany
+    {
+        return $this->likes(true);
     }
 }

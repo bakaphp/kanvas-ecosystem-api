@@ -41,6 +41,17 @@ class MessageInteractionMutation
         return $user->like($message) instanceof UsersInteractions;
     }
 
+    public function dislike(mixed $root, array $request): bool
+    {
+        $user = auth()->user();
+        $message = Message::getById((int)$request['id'], app(Apps::class));
+
+        $messageInteractionService = new MessageInteractionService($message);
+        $messageInteractionService->dislike($user);
+
+        return $user->dislike($message) instanceof UsersInteractions;
+    }
+
     public function share(mixed $root, array $request): string
     {
         $message = Message::getById((int)$request['id'], app(Apps::class));

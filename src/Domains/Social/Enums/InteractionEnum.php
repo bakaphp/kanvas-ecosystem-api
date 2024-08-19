@@ -25,8 +25,6 @@ enum InteractionEnum implements EnumsInterface
 
     /**
      * Get value.
-     *
-     * @return mixed
      */
     public function getValue(): mixed
     {
@@ -46,5 +44,13 @@ enum InteractionEnum implements EnumsInterface
             self::PIN => 'pin',
             self::VIEW => 'view',
         };
+    }
+
+    /**
+     * Get Like/Dislike Interaction Enum Value
+     */
+    public static function getLikeInteractionEnumValue(bool $isDislike = false): string
+    {
+        return $isDislike ? InteractionEnum::DISLIKE->getValue() : InteractionEnum::LIKE->getValue();
     }
 }

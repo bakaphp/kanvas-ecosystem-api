@@ -33,6 +33,7 @@ class CreateMessageAction
             'reactions_count' => $this->messageInput->reactions_count,
             'comments_count' => $this->messageInput->comments_count,
             'total_liked' => $this->messageInput->total_liked,
+            'total_disliked' => $this->messageInput->total_disliked,
             'total_saved' => $this->messageInput->total_saved,
             'total_shared' => $this->messageInput->total_shared,
         ];
