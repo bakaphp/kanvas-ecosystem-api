@@ -70,6 +70,7 @@ class MessageInput extends Data
             $data['reactions_count'] ?? 0,
             $data['comments_count'] ?? 0,
             $data['total_liked'] ?? 0,
+            $data['total_disliked'] ?? 0,
             $data['total_saved'] ?? 0,
             $data['total_shared'] ?? 0,
             $parent ? $parent->uuid : null,
