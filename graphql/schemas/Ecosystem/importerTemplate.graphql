@@ -43,7 +43,7 @@ extend type Query @guard {
         hasAttributes: _ @whereHasConditions(columns: ["id", "parent_id", "name", "value"])
     ): [ImporterTemplate!]
         @paginate(
-            model: "Kanvas\\ImportersTemplates\\Models\\ImportersTemplates"
+            model: "Kanvas\\MappersImportersTemplates\\Models\\MapperImportersTemplates"
             defaultCount: 25
             scopes: ["fromApp", "fromCompany"]
         )

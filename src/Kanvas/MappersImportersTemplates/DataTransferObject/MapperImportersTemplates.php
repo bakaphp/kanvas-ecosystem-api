@@ -1,15 +1,14 @@
 <?php
 declare(strict_types=1);
 
-namespace Kanvas\ImportersTemplates\DataTransferObject;
+namespace Kanvas\MappersImportersTemplates\DataTransferObject;
 
 use Spatie\LaravelData\Data;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\ImportersTemplates\Models\AttributesImportersTemplates;
 
-class ImportersTemplates extends Data
+class MapperImportersTemplates extends Data
 {
     public function __construct(
         public Apps $apps,

@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Kanvas\ImportersTemplates\Models;
+namespace Kanvas\MappersImportersTemplates\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -16,10 +16,10 @@ use Kanvas\Models\BaseModel;
  * @property string $value
  *  
  * */
-class AttributesImportersTemplates extends BaseModel
+class AttributesMapperImportersTemplates extends BaseModel
 {
 
-    protected $table = 'attributes_importers_templates';
+    protected $table = 'attributes_mappers_importers_templates';
 
     protected $guarded = [];
 
@@ -35,6 +35,6 @@ class AttributesImportersTemplates extends BaseModel
 
     public function importersTemplates() : BelongsTo
     {
-        return $this->belongsTo(ImportersTemplates::class, 'importers_templates_id');
+        return $this->belongsTo(MapperImportersTemplates::class, 'importers_templates_id');
     }
 }

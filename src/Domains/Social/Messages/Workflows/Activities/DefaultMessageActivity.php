@@ -36,13 +36,17 @@ class DefaultMessageActivity extends Activity implements WorkflowActivityInterfa
         }
         $messages = [];
         foreach ($params['customsFields'] as $customField) {
+            $messageContent = $entity->get($customField);
+            if (empty($messageContent)) {
+                continue;
+            }
             $data = MessageInput::from(
                 [
                     'app' => $app,
                     'company' => $entity->company,
                     'user' => $entity->user,
                     'type' => $messageType,
-                    'message' => $entity->get($customField),
+                    'message' => $messageContent,
                 ]
             );
             $message[] = (new CreateMessageAction($data))->execute();

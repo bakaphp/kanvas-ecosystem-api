@@ -10,7 +10,7 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::create('attributes_importers_templates', function (Blueprint $table) {
+        Schema::create('attributes_mappers_importers_templates', function (Blueprint $table) {
             $table->id();
             $table->bigInteger('importers_templates_id')->unsigned();
             $table->bigInteger('parent_id')->unsigned(); // This is the parent attribute id from the attributes_importers_templates table
