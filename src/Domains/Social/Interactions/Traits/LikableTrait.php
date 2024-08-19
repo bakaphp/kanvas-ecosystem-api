@@ -16,10 +16,7 @@ trait LikableTrait
 {
     /**
      * Like an entity.
-     * @param Model $entity
      * @param ?string $note
-     * @param bool $isDislike
-     * @return UsersInteractions|EntityInteractions
      */
     public function like(Model $entity, ?string $note = null, bool $isDislike = false): UsersInteractions|EntityInteractions
     {
@@ -51,10 +48,8 @@ trait LikableTrait
 
     /**
      * Dislike an entity.
-     * @param Model $entity
      * @param ?string $note
      * @param bool $isDislike
-     * @return UsersInteractions|EntityInteractions
      */
     public function dislike(Model $entity, ?string $note = null): UsersInteractions|EntityInteractions
     {
@@ -63,10 +58,7 @@ trait LikableTrait
 
     /**
      * Unlike an entity.
-     * @param Model $entity
      * @param ?string $note
-     * @param bool $isDislike
-     * @return bool
      */
     public function unLike(Model $entity, ?string $note = null, bool $isDislike = false): bool
     {
@@ -92,10 +84,8 @@ trait LikableTrait
 
     /**
      * Unlike a dislike of an entity.
-     * @param Model $entity
      * @param ?string $note
      * @param bool $isDislike
-     * @return bool
      */
     public function unLikeDislike(Model $entity, ?string $note = null): bool
     {
@@ -104,9 +94,6 @@ trait LikableTrait
 
     /**
      * Check if an entity has a like.
-     * @param Model $entity
-     * @param bool $isDislike
-     * @return bool
      */
     public function hasLiked(Model $entity, bool $isDislike = false): bool
     {
@@ -130,8 +117,6 @@ trait LikableTrait
 
     /**
      * Check if an entity has a dislike.
-     * @param Model $entity
-     * @return bool
      */
     public function hasDisliked(Model $entity): bool
     {
@@ -140,8 +125,6 @@ trait LikableTrait
 
     /**
      * Retrieve likes of entity.
-     * @param bool $isDislike
-     * @return HasMany
      */
     public function likes(bool $isDislike = false): HasMany
     {
@@ -159,7 +142,6 @@ trait LikableTrait
 
     /**
     * Retrieve dislikes of entity.
-    * @return HasMany
     */
     public function dislikes(): HasMany
     {
