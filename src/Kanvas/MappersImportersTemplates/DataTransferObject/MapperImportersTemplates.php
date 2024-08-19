@@ -15,8 +15,8 @@ class MapperImportersTemplates extends Data
         public Users $users,
         public Companies $companies,
         public string $name,
+        public array $attributes,
         public ?string $description = null,
-        public array $attributes
     ) {
         
     }
