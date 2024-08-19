@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\MappersImportersTemplates\Models;
@@ -14,26 +15,25 @@ use Kanvas\Models\BaseModel;
  * @property int $parent_id
  * @property string $name
  * @property string $value
- *  
+ *
  * */
 class AttributesMapperImportersTemplates extends BaseModel
 {
-
     protected $table = 'attributes_mappers_importers_templates';
 
     protected $guarded = [];
 
-    public function parent() : BelongsTo
+    public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_id');
     }
 
-    public function children() : HasMany
+    public function children(): HasMany
     {
         return $this->hasMany(self::class, 'parent_id');
     }
 
-    public function importersTemplates() : BelongsTo
+    public function importersTemplates(): BelongsTo
     {
         return $this->belongsTo(MapperImportersTemplates::class, 'importers_templates_id');
     }

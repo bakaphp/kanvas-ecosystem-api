@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\MappersImportersTemplates\DataTransferObject;
@@ -18,6 +19,5 @@ class MapperImportersTemplates extends Data
         public array $attributes,
         public ?string $description = null,
     ) {
-        
     }
 }
