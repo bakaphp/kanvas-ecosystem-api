@@ -8,6 +8,9 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributeDto;
 use Kanvas\Inventory\Attributes\Models\Attributes;
+use Kanvas\Inventory\Support\Validations\UniqueSlugRule;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class UpdateAttribute
 {
@@ -24,10 +27,19 @@ class UpdateAttribute
      * @return Attributes
      */
     public function execute(): Attributes
-    {
-        CompaniesRepository::userAssociatedToCompany(
-            $this->dto->company,
-            $this->user
+    {   
+        $validator = Validator::make(
+            ['slug' => $this->dto->slug],
+            ['slug' => [new UniqueSlugRule($this->dto->app, $this->dto->company, $this->attribute)]]
+        );
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
+
+            CompaniesRepository::userAssociatedToCompany(
+                $this->dto->company,
+                $this->user
         );
 
         $this->attribute->update([
