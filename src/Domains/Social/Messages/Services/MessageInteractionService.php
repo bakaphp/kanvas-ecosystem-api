@@ -30,7 +30,7 @@ class MessageInteractionService
         $userMessage = $this->addToUserMessage($who);
         $userMessage->is_shared = 1;
         $userMessage->saveOrFail();
-        
+
         $shareUrl = $this->message->app->get(AppEnum::SHAREABLE_LINK->value) ?? $this->message->app->url;
 
         if ($this->message->app->get(AppEnum::SHAREABLE_LINK_WITH_USERNAME->value)) {
