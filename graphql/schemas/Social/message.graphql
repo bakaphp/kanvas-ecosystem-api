@@ -12,6 +12,7 @@ type Message {
     comment_count: Int
     total_liked: Int
     total_disliked: Int
+    is_public: Int
     total_saved: Int
     total_shared: Int
     parent: Message @cacheRedis
