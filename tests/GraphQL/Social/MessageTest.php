@@ -346,23 +346,23 @@ class MessageTest extends TestCase
             ]
         );
 
+        $childMessageId = $response['data']['createMessage']['id'];
+
         $this->graphQL(
             '
             query {
                 messages(
                     where: {
-                        column: ID, operator: EQ, value: ' . $createdMessageId . '
+                        column: ID, operator: EQ, value: ' . $childMessageId . '
                         } 
                 ) {
                   data {
                     id
                     message
                     message_types_id
-                    children(first: 25){
-                        data {
-                            id
-                        }
-                    }
+                    parent: {
+                    id
+        }           }
                   }
                 }
               }
@@ -372,14 +372,10 @@ class MessageTest extends TestCase
                 'messages' => [
                     'data' => [
                         [
-                            'id' => $createdMessageId,
+                            'id' => $childMessageId,
                             'message' => $message,
-                            'children' => [
-                                'data' => [
-                                    [
-                                        'message'
-                                    ],
-                                ],
+                            'parent' => [
+                                'id' => $createdMessageId
                             ],
                         ],
                     ],
