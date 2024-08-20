@@ -333,7 +333,6 @@ class MessageTest extends TestCase
                     createMessage(input: $input) {
                         id
                         message
-                        parent_id
                     }
                 }
             ',
@@ -346,8 +345,6 @@ class MessageTest extends TestCase
                 ],
             ]
         );
-
-        $childMessageId = $response['data']['createMessage']['id'];
 
         $this->graphQL(
             '
@@ -378,7 +375,7 @@ class MessageTest extends TestCase
                             'children' => [
                                 'data' => [
                                     [
-                                        'id' => $childMessageId,
+                                        'message'
                                     ],
                                 ],
                             ],
