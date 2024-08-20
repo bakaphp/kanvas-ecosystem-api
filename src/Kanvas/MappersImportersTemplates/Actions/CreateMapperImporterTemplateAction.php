@@ -29,7 +29,7 @@ class CreateMapperImporterTemplateAction
     protected function createAttributes(MapperImporterTemplate $importersTemplates, array $attributes, int $parentId = 0) : void
     {
         foreach ($attributes as $attribute) {
-            $model = $importersTemplates->attributes()->create([
+            $model = $importersTemplates->attributes()->firstOrCreate([
                 'name' => $attribute['name'],
                 'mapping_field' => $attribute['mapping_field'],
                 'parent_id' => $parentId

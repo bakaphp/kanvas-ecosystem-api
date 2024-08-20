@@ -45,6 +45,6 @@ extend type Query @guard {
         @paginate(
             model: "Kanvas\\MappersImportersTemplates\\Models\\MapperImporterTemplate"
             defaultCount: 25
-            scopes: ["fromApp", "fromCompany"]
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
         )
 }
