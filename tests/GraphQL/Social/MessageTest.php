@@ -380,9 +380,7 @@ class MessageTest extends TestCase
                             'message' => $message,
                             'children' => [
                                 'data' => [
-                                    [
-                                        'message' => $childMessage,
-                                    ],
+                                    'message' => $childMessage,
                                 ],
                             ],
                         ],
