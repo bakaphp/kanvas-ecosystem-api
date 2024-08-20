@@ -30,8 +30,8 @@ class CreateUserMessageAction
     public function execute(): UserMessage
     {
         $userMessage = UserMessage::firstOrCreate([
-            'messages_id' => $this->message->id,
-            'users_id' => $this->user->id,
+            'messages_id' => $this->message->getId(),
+            'users_id' => $this->user->getId(),
         ]);
 
         if ($this->message->appModuleMessage) {
