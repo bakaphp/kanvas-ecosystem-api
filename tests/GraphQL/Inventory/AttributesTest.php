@@ -102,15 +102,14 @@ class AttributesTest extends TestCase
         $slug = 'unique-slug-test-' . fake()->uuid;
 
         $response = $this->createAttribute($slug);
-
-        if (isset($response['errors'])) {
-            $this->fail('Unexpected error: ' . json_encode($response['errors']));
-        }
+        $firstAttributeId = $response['data']['createAttribute']['id'];
 
         $response2 = $this->createAttribute($slug);
 
-        $this->assertArrayHasKey('errors', $response2, 'Expected error not found.');
-        $this->assertStringContainsString('slug', json_encode($response2['errors']), 'Error does not mention slug.');
+        $this->assertEquals(
+            $firstAttributeId,
+            $response2['data']['createAttribute']['id']
+        );
     }
 
     /**
@@ -128,8 +127,7 @@ class AttributesTest extends TestCase
 
         $response3 = $this->graphQL('
             mutation($id: ID!, $data: AttributeUpdateInput!) {
-                updateAttribute(id: $id, input: $data)
-                {
+                updateAttribute(id: $id, input: $data) {
                     id
                     name
                     slug
@@ -142,13 +140,12 @@ class AttributesTest extends TestCase
             ]
         ])->json();
 
-        $this->assertArrayHasKey('errors', $response3);
         $this->assertEquals(
-            'The slug has already been taken.',
-            $response3['errors'][0]['message']
+            $slug2,
+            $response3['data']['updateAttribute']['slug']
         );
     }
-    
+
     /**
      * Helper function createAttribute.
      * 

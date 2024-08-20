@@ -9,7 +9,6 @@ use Baka\Contracts\CompanyInterface;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Kanvas\Inventory\Models\BaseModel;
-use Kanvas\Inventory\Attributes\Models\Attributes;
 
 class UniqueSlugRule implements ValidationRule
 {
@@ -22,7 +21,7 @@ class UniqueSlugRule implements ValidationRule
 
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        $query = $this->model ? $this->model::where('slug', $value) : Attributes::where('slug', $value)
+        $query = $this->model::where('slug', $value)
             ->fromCompany($this->company)
             ->fromApp($this->app);
 

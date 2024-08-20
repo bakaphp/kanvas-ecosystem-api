@@ -8,9 +8,6 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributeDto;
 use Kanvas\Inventory\Attributes\Models\Attributes;
-use Kanvas\Inventory\Support\Validations\UniqueSlugRule;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\ValidationException;
 
 class UpdateAttribute
 {
@@ -28,27 +25,27 @@ class UpdateAttribute
      */
     public function execute(): Attributes
     {   
-        $validator = Validator::make(
-            ['slug' => $this->dto->slug],
-            ['slug' => [new UniqueSlugRule($this->dto->app, $this->dto->company, $this->attribute)]]
+        CompaniesRepository::userAssociatedToCompany(
+            $this->dto->company,
+            $this->user
         );
+        
+        $existingAttribute = Attributes::where('slug', $this->dto->slug)
+            ->fromCompany($this->dto->company)
+            ->fromApp($this->dto->app)
+            ->first();
 
-        if ($validator->fails()) {
-            throw new ValidationException($validator);
-        }
-
-            CompaniesRepository::userAssociatedToCompany(
-                $this->dto->company,
-                $this->user
-        );
+        $slug = ($existingAttribute && $existingAttribute->id !== $this->attribute->id)
+            ? $this->attribute->slug
+            : $this->dto->slug;
 
         $this->attribute->update([
+            'slug' => $slug,
             'name' => $this->dto->name,
             'attributes_type_id' => $this->dto->attributeType?->getId(),
             'is_visible' => $this->dto->isVisible,
             'is_searchable' => $this->dto->isSearchable,
             'is_filtrable' => $this->dto->isFiltrable,
-            'slug' => $this->dto->slug,
         ]);
 
         return $this->attribute;
