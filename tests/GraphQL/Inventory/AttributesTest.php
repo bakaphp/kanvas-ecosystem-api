@@ -15,27 +15,9 @@ class AttributesTest extends TestCase
      */
     public function testCreate(): void
     {
-        $data = [
-            'name' => fake()->name,
-            'values' => [
-                [
-                    'value' => fake()->name
-                ]
-            ]
-        ];
+        $response = $this->createAttribute();
 
-        $response = $this->graphQL('
-            mutation($data: AttributeInput!) {
-                createAttribute(input: $data)
-                {
-                    name
-                    values {
-                        value
-                    }
-                }
-            }', ['data' => $data]);
-
-        $this->assertArrayHasKey('name', $response->json()['data']['createAttribute']);
+        $this->assertArrayHasKey('name', $response['data']['createAttribute']);
     }
 
     /**
@@ -45,26 +27,9 @@ class AttributesTest extends TestCase
      */
     public function testSearch(): void
     {
-        $data = [
-            'name' => fake()->name,
-            'values' => [
-                [
-                    'value' => fake()->name
-                ]
-            ]
-        ];
-        $response = $this->graphQL('
-            mutation($data: AttributeInput!) {
-                createAttribute(input: $data)
-                {
-                    name
-                    values {
-                        value
-                    }
-                }
-            }', ['data' => $data]);
+        $response = $this->createAttribute();
 
-        $this->assertArrayHasKey('name', $response->json()['data']['createAttribute']);
+        $this->assertArrayHasKey('name', $response['data']['createAttribute']);
 
         $response = $this->graphQL('
             query {
@@ -77,6 +42,7 @@ class AttributesTest extends TestCase
                     }
                 }
             }');
+
         $this->assertArrayHasKey('name', $response->json()['data']['attributes']['data'][0]);
     }
 
@@ -87,30 +53,9 @@ class AttributesTest extends TestCase
      */
     public function testUpdate(): void
     {
-        $data = [
-            'name' => fake()->name,
-            'values' => [
-                [
-                    'value' => fake()->name
-                ]
-            ]
-        ];
-        $response = $this->graphQL('
-            mutation($data: AttributeInput!) {
-                createAttribute(input: $data)
-                {
-                    id
-                    name
-                    values {
-                        value
-                    }
-                }
-            }', ['data' => $data])->json()['data']['createAttribute'];
+        $response = $this->createAttribute();
+        $id = $response['data']['createAttribute']['id'];
 
-        $this->assertArrayHasKey('name', $response);
-
-
-        $id = $response['id'];
         $dataUpdate = [
             'name' => fake()->name
         ];
@@ -136,35 +81,105 @@ class AttributesTest extends TestCase
      */
     public function testDelete(): void
     {
-        $data = [
-            'name' => fake()->name,
-            'values' => [
-                [
-                    'value' => fake()->name
-                ]
-            ]
-        ];
-        $response = $this->graphQL('
-            mutation($data: AttributeInput!) {
-                createAttribute(input: $data)
-                {
-                    id
-                    name
-                    values {
-                        value
-                    }
-                }
-            }', ['data' => $data])->json()['data']['createAttribute'];
+        $response = $this->createAttribute();
+        $id = $response['data']['createAttribute']['id'];
 
-        $this->assertArrayHasKey('name', $response);
-
-
-        $id = $response['id'];
         $this->graphQL('
             mutation($id: ID!) {
                 deleteAttribute(id: $id)
             }', ['id' => $id])->assertJson([
             'data' => ['deleteAttribute' => true]
         ]);
+    }
+
+    /**
+     * testCreateDuplicatedSlug.
+     *
+     * @return void
+     */
+    public function testCreateDuplicatedSlug(): void
+    {
+        $slug = 'unique-slug-test-' . fake()->uuid;
+
+        $response = $this->createAttribute($slug);
+
+        if (isset($response['errors'])) {
+            $this->fail('Unexpected error: ' . json_encode($response['errors']));
+        }
+
+        $response2 = $this->createAttribute($slug);
+
+        $this->assertArrayHasKey('errors', $response2, 'Expected error not found.');
+        $this->assertStringContainsString('slug', json_encode($response2['errors']), 'Error does not mention slug.');
+    }
+
+    /**
+     * testUpdateDuplicatedSlug.
+     *
+     * @return void
+     */
+    public function testUpdateDuplicatedSlug(): void
+    {
+        $slug = 'unique-slug-update-test-' . fake()->uuid;
+        $response = $this->createAttribute($slug);
+
+        $slug2 = 'another-unique-slug-' . fake()->uuid;
+        $response2 = $this->createAttribute($slug2);
+
+        $response3 = $this->graphQL('
+            mutation($id: ID!, $data: AttributeUpdateInput!) {
+                updateAttribute(id: $id, input: $data)
+                {
+                    id
+                    name
+                    slug
+                }
+            }', [
+            'id' => $response2['data']['createAttribute']['id'],
+            'data' => [
+                'name' => 'Updated Name',
+                'slug' => $slug,
+            ]
+        ])->json();
+
+        $this->assertArrayHasKey('errors', $response3);
+        $this->assertEquals(
+            'The slug has already been taken.',
+            $response3['errors'][0]['message']
+        );
+    }
+    
+    /**
+     * Helper function createAttribute.
+     * 
+     * @param string|null $slug
+     * 
+     * @return array
+     */
+    private function createAttribute(?string $slug = null): array
+    {
+        $data = [
+            'name' => fake()->name,
+            'values' => [
+                ['value' => fake()->name],
+            ],
+        ];
+
+        if ($slug) {
+            $data['slug'] = $slug;
+        }
+
+        return $this->graphQL('
+            mutation($data: AttributeInput!) {
+                createAttribute(input: $data)
+                {
+                    id
+                    name
+                    slug
+                    values {
+                        value
+                    }
+                }
+            }', ['data' => $data])->json();
     }
 }
