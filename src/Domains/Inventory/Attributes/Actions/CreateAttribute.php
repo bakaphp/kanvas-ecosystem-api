@@ -8,9 +8,6 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributeDto;
 use Kanvas\Inventory\Attributes\Models\Attributes;
-use Kanvas\Inventory\Support\Validations\UniqueSlugRule;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\ValidationException;
 
 class CreateAttribute
 {
@@ -27,27 +24,18 @@ class CreateAttribute
      */
     public function execute(): Attributes
     {   
-        $validator = Validator::make(
-            ['slug' => $this->dto->slug],
-            ['slug' => [new UniqueSlugRule($this->dto->app, $this->dto->company, null)]]
-        );
-
-        if ($validator->fails()) {
-            throw new ValidationException($validator);
-        }
-        
         CompaniesRepository::userAssociatedToCompany(
             $this->dto->company,
             $this->user
         );
 
         return Attributes::firstOrCreate([
-            'name' => $this->dto->name,
+            'slug' => $this->dto->slug,
             'companies_id' => $this->dto->company->getId(),
             'apps_id' => $this->dto->app->getId(),
         ], [
+            'name' => $this->dto->name,
             'users_id' => $this->user->getId(),
-            'slug' => $this->dto->slug,
             'attributes_type_id' => $this->dto->attributeType?->getId(),
             'is_visible' => $this->dto->isVisible,
             'is_searchable' => $this->dto->isSearchable,
