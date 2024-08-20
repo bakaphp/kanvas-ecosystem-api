@@ -333,8 +333,12 @@ class MessageTest extends TestCase
                     createMessage(input: $input) {
                         id
                         message
-                        parent_id
-                        entity_id
+                        children(first: 25){
+                            data {
+                                id
+                                message
+                            }
+                        }
                     }
                 }
             ',
@@ -374,7 +378,6 @@ class MessageTest extends TestCase
                     'data' => [
                         [
                             'message' => $message,
-                            'message_types_id' => $createdMessageId,
                             'children' => [
                                 'data' => [
                                     [
