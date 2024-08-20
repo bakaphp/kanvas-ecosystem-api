@@ -333,6 +333,8 @@ class MessageTest extends TestCase
                     createMessage(input: $input) {
                         id
                         message
+                        parent_id
+                        entity_id
                     }
                 }
             ',
