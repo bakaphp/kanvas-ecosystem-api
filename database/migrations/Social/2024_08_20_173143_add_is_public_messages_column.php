@@ -11,7 +11,7 @@ return new class() extends Migration {
     public function up(): void
     {
         Schema::table('messages', function (Blueprint $table) {
-            $table->integer('is_public')->after('total_disliked')->nullable()->default(0)->index('is_public');
+            $table->integer('is_public')->after('total_disliked')->nullable()->default(1)->index('is_public');
         });
     }
 

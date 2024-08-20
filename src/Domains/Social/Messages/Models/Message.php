@@ -45,6 +45,7 @@ use Nevadskiy\Tree\AsTree;
  *  @property int $comments_count
  *  @property int $total_liked
  *  @property int $total_disliked
+ *  @property int $is_public
  *  @property int $total_view
  *  @property int $total_saved
  *  @property int $total_shared
