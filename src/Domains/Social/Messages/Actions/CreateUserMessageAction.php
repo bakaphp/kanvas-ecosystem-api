@@ -33,14 +33,17 @@ class CreateUserMessageAction
             'messages_id' => $this->message->id,
             'users_id' => $this->user->id,
         ]);
-        $userMessageActivity = UserMessageActivity::firstOrCreate([
-            'user_messages_id' => $userMessage->id,
-            'from_entity_id' => $this->message->appModuleMessage->entity_id,
-            'entity_namespace' => $this->activity['entity_namespace'],
-            'username' => $this->activity['username'],
-            'type' => $this->activity['type'],
-            'text' => $this->activity['text'],
-        ]);
+
+        if ($this->message->appModuleMessage) {
+            UserMessageActivity::firstOrCreate([
+                 'user_messages_id' => $userMessage->id,
+                 'from_entity_id' => $this->message->appModuleMessage->entity_id,
+                 'entity_namespace' => $this->activity['entity_namespace'],
+                 'username' => $this->activity['username'],
+                 'type' => $this->activity['type'],
+                 'text' => $this->activity['text'],
+             ]);
+        }
 
         return $userMessage;
     }

@@ -131,6 +131,7 @@ class Message extends BaseModel
 
         return [
             'is_liked' => (int) ($userMessage?->is_liked),
+            'is_disliked' => (int) ($userMessage?->is_disliked),
             'is_saved' => (int) ($userMessage?->is_saved),
             'is_shared' => (int) ($userMessage?->is_shared),
             'is_reported' => (int) ($userMessage?->is_reported),
