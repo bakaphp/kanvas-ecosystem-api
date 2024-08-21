@@ -27,7 +27,7 @@ class CreateMapperImporterTemplateAction
         return $importersTemplates;
     }
 
-    protected function createAttributes(MapperImporterTemplate $importersTemplates, array $attributes) : void
+    protected function createAttributes(MapperImporterTemplate $importersTemplates, array $attributes): void
     {
         foreach ($attributes as $attribute) {
             $root = new AttributeMapperImporterTemplate();
@@ -37,7 +37,7 @@ class CreateMapperImporterTemplateAction
             $root->save();
 
             if (isset($attribute['children'])) {
-                foreach($attribute['children'] as $child) {
+                foreach ($attribute['children'] as $child) {
                     $childModel = new AttributeMapperImporterTemplate();
                     $childModel->importers_templates_id = $importersTemplates->id;
                     $childModel->name = $child['name'];
@@ -46,7 +46,6 @@ class CreateMapperImporterTemplateAction
                     $childModel->save();
                 }
             }
-
         }
     }
 }
