@@ -15,6 +15,7 @@ type Message {
     is_public: Int
     total_saved: Int
     total_shared: Int
+    total_view: Int
     parent: Message @cacheRedis
     user: User! @cacheRedis
     children: [Message!] @hasMany(type: PAGINATOR)
@@ -23,6 +24,7 @@ type Message {
     myInteraction: myInteraction @method(name: "getMyInteraction")
     comments: [MessageComments!]! @hasMany(type: PAGINATOR)
     additional_field: Mixed
+    created_at: DateTime!
     custom_fields: [CustomField!]!
         @cacheRedis
         @paginate(
@@ -57,10 +59,12 @@ input MessageInput {
     system_modules_id: ID
     entity_id: Mixed
     distribution: DistributionInput
+    tags: [TagInput!]
 }
 
 input MessageUpdateInput {
     message: Mixed
+    tags: [TagInput!]
 }
 
 enum DistributionType {
@@ -111,6 +115,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageInteractionMutation@like"
         )
+    disLikeMessage(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageInteractionMutation@dislike"
+        )
     shareMessage(id: ID!): String!
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageInteractionMutation@share"
@@ -155,6 +163,7 @@ extend type Query @guard {
                 relation: "user"
                 columns: ["id", "displayname"]
             )
+        hasTags: _ @whereHasConditions(relation: "tags", columns: ["name"])
         hasAppModuleMessage: _
             @whereHasConditions(columns: ["entity_id", "system_modules"])
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])

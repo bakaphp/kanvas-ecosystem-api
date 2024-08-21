@@ -25,8 +25,6 @@ enum InteractionEnum implements EnumsInterface
 
     /**
      * Get value.
-     *
-     * @return mixed
      */
     public function getValue(): mixed
     {
@@ -49,9 +47,7 @@ enum InteractionEnum implements EnumsInterface
     }
 
     /**
-     * Get Like/Dislike Interacition Enum Value
-     * @param bool $isDislike
-     * @return string
+     * Get Like/Dislike Interaction Enum Value
      */
     public static function getLikeInteractionEnumValue(bool $isDislike = false): string
     {

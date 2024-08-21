@@ -9,6 +9,20 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 
+/**
+ *  Class UserMessage
+ *  @property int $message_id
+ *  @property int $users_id
+ *  @property int $is_liked
+ *  @property int $is_disliked
+ *  @property int $is_saved
+ *  @property int $is_shared
+ *  @property int $is_reported
+ *  @property string $notes
+ *  @property string $reactions
+ *  @property string $saved_lists
+ *  @property string $activities
+ */
 class UserMessage extends BaseModel
 {
     protected $table = 'user_messages';
