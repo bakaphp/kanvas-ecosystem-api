@@ -41,29 +41,33 @@ Todo:
 
 ## Initial Setup
 
-1. Use the ``docker compose up --build -d`` to bring up the containers.Make sure to have Docker Desktop active and have no other containers running that may cause conflict with this project's containers(There may be conflicts port wise if more than one container uses the same ports).
+1. Use the ``docker compose up --build -d`` to bring up the containers. Make sure to have Docker Desktop active and have no other containers running that may cause conflict with this project's containers(There may be conflicts port wise if more than one container uses the same ports).
 
 2. Check the status of containers using the command ```docker-compose ps```. Make sure they are running and services are healthy.
 
-3. Get inside the php container using ```docker exec -it php bash```.
+3. Get inside the database container using ```docker exec -it mysqlLaravel /bin/bash```. Then, create 4 databases: `inventory`, `social`, `crm`, `workflow`.
 
-4. Create 4 databases `inventory`, `social`, `crm`, `workflow` update your .env with the connection info
+4. Set up your .env: You can start by copying the `.env.example setup`. Next, update it with the database and Redis connection info, making sure that the host values match your container's name.
 
-5. Check the .env and setup correctly the `REDIS` parameters and your database connections before running the setup-ecosystem
+5. Get inside the php container using ```docker exec -it phpLaravel bash```.
 
-6. Use the command ```php artisan kanvas:setup-ecosystem``` to run the kanvas setup
+6. Generate app keys with `php artisan key:generate`.
+**Note:** Confirm that your app key is correctly registered in the `apps` table within the `kanvas_laravel` database.
 
-7. If you're presenting some errors after running the command from before, drop all the tables from the schema `kanvas_laravel` and run it again
+7. Update the app variables in your .env `APP_JWT_TOKEN`, `APP_KEY`, `KANVAS_APP_ID` before running the setup-ecosystem.
+**Note:** You can use the default values provided in `tests.yml`.
 
-8. Generate app keys `php artisan key:generate` 
+8. Use the command ```php artisan kanvas:setup-ecosystem``` to run the kanvas setup.
 
-9. To check if the API is working just make a GET request to  ```http://localhost:80/v1/``` and see if the response returns ```"Woot Kanvas"```
+9. If you're presenting some errors after running the command from before, drop all the tables from the schema `kanvas_laravel` and run it again.
+
+10. To check if the API is working just make a GET request to  ```http://localhost:80/v1/``` and see if the response returns ```"Woot Kanvas"```.
 
 ### Setup Inventory
 1. composer migrate-inventory
 2. Set env var in .env
 ```
-DB_INVENTORY_HOST=mysql
+DB_INVENTORY_HOST=mysqlLaravel
 DB_INVENTORY_PORT=3306
 DB_INVENTORY_DATABASE=inventory
 DB_INVENTORY_USERNAME=root
@@ -76,7 +80,7 @@ DB_INVENTORY_PASSWORD=password
 1. composer migrate-social
 2. Set env var in .env
 ```
-DB_SOCIAL_HOST=mysql
+DB_SOCIAL_HOST=mysqlLaravel
 DB_SOCIAL_PORT=3306
 DB_SOCIAL_DATABASE=social
 DB_SOCIAL_USERNAME=root
@@ -89,7 +93,7 @@ DB_SOCIAL_PASSWORD=password
 1. composer migrate-crm
 2. Set env var in .env
 ```
-DB_CRM_HOST=mysql
+DB_CRM_HOST=mysqlLaravel
 DB_CRM_PORT=3306
 DB_CRM_DATABASE=cr
 DB_CRM_USERNAME=root
