@@ -46,6 +46,7 @@ type AppModuleMessage {
 
 type myInteraction {
     is_liked: Boolean
+    is_disliked: Boolean
     is_saved: Boolean
     is_shared: Boolean
     is_reported: Boolean
