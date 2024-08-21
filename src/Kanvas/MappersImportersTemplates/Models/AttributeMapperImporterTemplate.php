@@ -21,7 +21,7 @@ use Nevadskiy\Tree\AsTree;
 class AttributeMapperImporterTemplate extends BaseModel
 {
     use AsTree;
-    
+
     protected $table = 'attributes_mappers_importers_templates';
 
     protected $guarded = [];
