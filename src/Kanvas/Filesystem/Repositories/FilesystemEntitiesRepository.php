@@ -94,6 +94,25 @@ class FilesystemEntitiesRepository
                     ->first();
     }
 
+    public static function getFileFromEntityById(int $id): ?FilesystemEntities
+    {
+        return FilesystemEntities::join('filesystem', 'filesystem.id', '=', 'filesystem_entities.filesystem_id')
+                    ->where('filesystem_entities.id', '=', $id)
+                    ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
+                    ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue())
+                    ->select(
+                        'filesystem_entities.*',
+                        'filesystem.url',
+                        'filesystem.path',
+                        'filesystem.name',
+                        'filesystem.apps_id',
+                        'filesystem.users_id',
+                        'filesystem.size',
+                        'filesystem.file_type'
+                    )
+                    ->first();
+    }
+
     /**
      * Given the entity delete all related files.
      * @psalm-suppress MixedReturnStatement
