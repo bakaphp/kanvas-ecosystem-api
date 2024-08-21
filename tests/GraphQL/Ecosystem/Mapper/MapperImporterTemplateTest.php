@@ -47,7 +47,6 @@ class MapperImporterTemplateTest extends TestCase
                 'input' => $mapperImporterTemplate,
             ],
         );
-        dump($response->json());
         $response->assertJson([
             'data' => [
                 'createMapperImporterTemplate' => [
