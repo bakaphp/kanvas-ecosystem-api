@@ -41,6 +41,7 @@ use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Filesystem\Models\FilesystemEntities;
+use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Locations\Models\Cities;
 use Kanvas\Locations\Models\Countries;
@@ -722,7 +723,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $app = app(Apps::class);
         $defaultAvatarId = $app->get(AppSettingsEnums::DEFAULT_USER_AVATAR->getValue());
 
-        return $this->getFileByName('photo') ?: ($defaultAvatarId ? FilesystemEntities::find($defaultAvatarId) : null);
+        return $this->getFileByName('photo') ?: ($defaultAvatarId ? FilesystemEntitiesRepository::getFileFromEntityById($defaultAvatarId) : null);
     }
 
     public function getSocialInfo(): array
