@@ -23,6 +23,7 @@ type Message {
     myInteraction: myInteraction @method(name: "getMyInteraction")
     comments: [MessageComments!]! @hasMany(type: PAGINATOR)
     additional_field: Mixed
+    created_at: DateTime!
     custom_fields: [CustomField!]!
         @cacheRedis
         @paginate(
