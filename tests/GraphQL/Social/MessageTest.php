@@ -327,12 +327,18 @@ class MessageTest extends TestCase
     //     $createdMessageId = $response['data']['createMessage']['id'];
 
     //     $childMessage = fake()->text();
-    //     $childMessageCreate = $this->graphQL(
+    //     $response = $this->graphQL(
     //         '
     //             mutation createMessage($input: MessageInput!) {
     //                 createMessage(input: $input) {
     //                     id
     //                     message
+    //                     children(first: 25){
+    //                         data {
+    //                             id
+    //                             message
+    //                         }
+    //                     }
     //                 }
     //             }
     //         ',
@@ -346,23 +352,22 @@ class MessageTest extends TestCase
     //         ]
     //     );
 
-    //     $childMessageId = $childMessageCreate['data']['createMessage']['id'];
-
     //     $this->graphQL(
     //         '
     //         query {
     //             messages(
     //                 where: {
-    //                     column: ID, operator: EQ, value: ' . $childMessageId . '
+    //                     column: ID, operator: EQ, value: ' . $createdMessageId . '
     //                     } 
     //             ) {
     //               data {
-    //                 id
     //                 message
     //                 message_types_id
-    //                 parent: {
-    //                 id
-    //     }           }
+    //                 children(first: 25){
+    //                     data {
+    //                         message
+    //                     }
+    //                 }
     //               }
     //             }
     //           }
@@ -372,10 +377,13 @@ class MessageTest extends TestCase
     //             'messages' => [
     //                 'data' => [
     //                     [
-    //                         'id' => $childMessageId,
     //                         'message' => $message,
-    //                         'parent' => [
-    //                             'id' => $createdMessageId
+    //                         'children' => [
+    //                             'data' => [
+    //                                 [
+    //                                     'message' => $childMessage,
+    //                                 ],
+    //                             ],
     //                         ],
     //                     ],
     //                 ],
