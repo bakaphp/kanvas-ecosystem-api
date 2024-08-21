@@ -55,6 +55,7 @@ class MessageInteractionService
 
         $userMessage = $this->addToUserMessage($who);
         $userMessage->is_liked = 1;
+        $userMessage->is_disliked = 0;
         $userMessage->saveOrFail();
 
         return $userInteraction;
