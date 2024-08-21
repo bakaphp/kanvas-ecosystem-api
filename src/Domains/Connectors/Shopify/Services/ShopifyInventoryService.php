@@ -211,7 +211,7 @@ class ShopifyInventoryService
     {
         return $this->changeProductStatus($product, StatusEnum::ACTIVE);
     }
-   
+
     public function attachToCollection(Products $product, string $collectionId): void
     {
 
@@ -232,5 +232,4 @@ class ShopifyInventoryService
 
         $response = $this->shopifySdk->Collect->post($collectData);
     }
-
 }
