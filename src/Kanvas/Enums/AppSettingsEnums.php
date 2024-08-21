@@ -28,6 +28,7 @@ enum AppSettingsEnums implements EnumsInterface
     case SOCIALITE_PROVIDER_FACEBOOK;
     case SOCIALITE_PROVIDER_GOOGLE;
     case SOCIALITE_PROVIDER_APPLE;
+    case DEFAULT_USER_AVATAR;
 
     /**
      * Get value.
@@ -55,6 +56,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::SOCIALITE_PROVIDER_FACEBOOK => 'facebook_social_config',
             self::SOCIALITE_PROVIDER_GOOGLE => 'google_social_config',
             self::SOCIALITE_PROVIDER_APPLE => 'apple_social_config',
+            SELF::DEFAULT_USER_AVATAR => 'default_user_avatar',
         };
     }
 }
