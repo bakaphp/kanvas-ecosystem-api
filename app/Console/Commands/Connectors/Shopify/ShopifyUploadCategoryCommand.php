@@ -18,8 +18,8 @@ class ShopifyUploadCategoryCommand extends Command
     public function handle()
     {
         $app = Apps::getById((int) $this->argument('app_id'));
-        $categories = Categories::getById((int) $this->argument('categories_id'));
-        $warehouses = Warehouses::getById((int) $this->argument('warehouse_id'));
+        $categories = Categories::getById((int) $this->argument('categories_id'), $app);
+        $warehouses = Warehouses::getById((int) $this->argument('warehouse_id'), $app);
         $shopifyId = $this->argument('shopify_id');
         (new UploadCategoriesToCollectionAction($categories, $app, $warehouses, $shopifyId))->execute();
     }

@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use PHPShopify\ShopifySDK;
 use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
+use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 
 class UploadCategoriesToCollectionAction
 {
@@ -31,7 +32,7 @@ class UploadCategoriesToCollectionAction
             ->get();
         
         foreach($products as $product) {
-            $collection = $this->collectionId ?? $this->categories->get("shopify_collection_id");
+            $collection = $this->collectionId ?? $this->categories->get(CustomFieldEnum::SHOPIFY_COLLECTION_ID->value);
             $this->shopifyService->attachToCollection($product, $collection);
         }
  
