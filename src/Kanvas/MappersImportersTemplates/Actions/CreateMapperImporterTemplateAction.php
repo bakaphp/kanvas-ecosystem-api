@@ -6,6 +6,7 @@ namespace Kanvas\MappersImportersTemplates\Actions;
 
 use Kanvas\MappersImportersTemplates\Models\MapperImporterTemplate;
 use Kanvas\MappersImportersTemplates\DataTransferObject\MapperImporterTemplate as MapperImportersTemplatesDto;
+use Kanvas\MappersImportersTemplates\Models\AttributeMapperImporterTemplate;
 
 class CreateMapperImporterTemplateAction
 {
@@ -26,17 +27,26 @@ class CreateMapperImporterTemplateAction
         return $importersTemplates;
     }
 
-    protected function createAttributes(MapperImporterTemplate $importersTemplates, array $attributes, int $parentId = 0) : void
+    protected function createAttributes(MapperImporterTemplate $importersTemplates, array $attributes) : void
     {
         foreach ($attributes as $attribute) {
-            $model = $importersTemplates->attributes()->firstOrCreate([
-                'name' => $attribute['name'],
-                'mapping_field' => $attribute['mapping_field'],
-                'parent_id' => $parentId
-            ]);
+            $root = new AttributeMapperImporterTemplate();
+            $root->importers_templates_id = $importersTemplates->id;
+            $root->name = $attribute['name'];
+            $root->mapping_field = $attribute['mapping_field'];
+            $root->save();
+
             if (isset($attribute['children'])) {
-                $this->createAttributes($importersTemplates, $attribute['children'], $model->id);
+                foreach($attribute['children'] as $child) {
+                    $childModel = new AttributeMapperImporterTemplate();
+                    $childModel->importers_templates_id = $importersTemplates->id;
+                    $childModel->name = $child['name'];
+                    $childModel->mapping_field = $child['mapping_field'];
+                    $childModel->parent()->associate($root);
+                    $childModel->save();
+                }
             }
+
         }
     }
 }

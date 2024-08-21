@@ -7,6 +7,7 @@ namespace Kanvas\MappersImportersTemplates\Models;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Models\BaseModel;
+use Nevadskiy\Tree\AsTree;
 
 /**
  * class AttributesImportersTemplates
@@ -19,6 +20,8 @@ use Kanvas\Models\BaseModel;
  * */
 class AttributeMapperImporterTemplate extends BaseModel
 {
+    use AsTree;
+    
     protected $table = 'attributes_mappers_importers_templates';
 
     protected $guarded = [];

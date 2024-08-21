@@ -24,6 +24,6 @@ class MapperImporterTemplate extends BaseModel
 
     public function attributes(): HasMany
     {
-        return $this->hasMany(AttributeMapperImporterTemplate::class, 'importers_templates_id')->where('parent_id', 0);
+        return $this->hasMany(AttributeMapperImporterTemplate::class, 'importers_templates_id')->whereNull("parent_id");
     }
 }

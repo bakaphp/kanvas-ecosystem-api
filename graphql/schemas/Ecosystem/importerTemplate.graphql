@@ -5,7 +5,7 @@ type ImporterTemplate {
     company: Company!
     name: String!
     description: String
-    attributes: [AttributeImporterTemplate!]
+    attributes: [AttributeImporterTemplate!] @belongsTo(method: "attributes")
 }
 
 type AttributeImporterTemplate {
