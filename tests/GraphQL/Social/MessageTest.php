@@ -551,5 +551,4 @@ class MessageTest extends TestCase
             ],
         ]);
     }
-
 }
