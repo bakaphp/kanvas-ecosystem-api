@@ -211,4 +211,17 @@ class ShopifyInventoryService
     {
         return $this->changeProductStatus($product, StatusEnum::ACTIVE);
     }
+   
+    public function attachToCollection(Products $product, string $collectionId): void
+    {
+        $shopifyProductId = $product->getShopifyId($this->warehouses->regions);
+
+        $collectData = [
+           'collection_id' => $collectionId,
+           'product_id' => $shopifyProductId
+        ];
+
+        $response = $this->shopifySdk->Collect->post($collectData);
+    }
+    
 }
