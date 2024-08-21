@@ -6320,16 +6320,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.42.2",
+            "version": "v6.43.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "b7ba38c959e8f1200f679ddb55ec6192bd1f6223"
+                "reference": "45044d71cda645bc121776b1197518b2e3501394"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/b7ba38c959e8f1200f679ddb55ec6192bd1f6223",
-                "reference": "b7ba38c959e8f1200f679ddb55ec6192bd1f6223",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/45044d71cda645bc121776b1197518b2e3501394",
+                "reference": "45044d71cda645bc121776b1197518b2e3501394",
                 "shasum": ""
             },
             "require": {
@@ -6350,7 +6350,7 @@
                 "webonyx/graphql-php": "^15"
             },
             "require-dev": {
-                "algolia/algoliasearch-client-php": "^3 || ^4",
+                "algolia/algoliasearch-client-php": "^3",
                 "bensampo/laravel-enum": "^5 || ^6",
                 "dms/phpunit-arraysubset-asserts": "^0.4 || ^0.5",
                 "ergebnis/composer-normalize": "^2.2.2",
@@ -6446,7 +6446,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2024-08-05T17:35:49+00:00"
+            "time": "2024-08-20T10:08:27+00:00"
         },
         {
             "name": "nyholm/psr7",
