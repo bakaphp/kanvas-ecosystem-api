@@ -214,7 +214,6 @@ class ShopifyInventoryService
 
     public function attachToCollection(Products $product, string $collectionId): void
     {
-
         $shopifyProductId = $product->getShopifyId($this->warehouses->regions);
 
         $collectData = [
@@ -226,7 +225,7 @@ class ShopifyInventoryService
             'product_id' => $shopifyProductId,
             'limit' => 1
         ]);
-        if($collects) {
+        if ($collects) {
             return;
         }
 
