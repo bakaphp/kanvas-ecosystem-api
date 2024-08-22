@@ -30,10 +30,11 @@ class UpdateAttribute
             $this->user
         );
         
-        $existingAttribute = Attributes::where('slug', $this->dto->slug)
-            ->fromCompany($this->dto->company)
-            ->fromApp($this->dto->app)
-            ->first();
+        $existingAttribute = Attributes::getBySlug(
+            $this->dto->slug,
+            $this->dto->company,
+            $this->dto->app->getId()
+        );
 
         $slug = ($existingAttribute && $existingAttribute->id !== $this->attribute->id)
             ? $this->attribute->slug

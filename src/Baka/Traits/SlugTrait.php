@@ -29,11 +29,13 @@ trait SlugTrait
     /**
      * Get Model.
      */
-    public static function getBySlug(string $slug, CompanyInterface $company): self
+    public static function getBySlug(string $slug, CompanyInterface $company, int $appId, bool $fail = false): ?self
     {
-        return self::where('slug', $slug)
+        $query = self::where('slug', $slug)
             ->where('companies_id', $company->getId())
-            ->where('is_deleted', StateEnums::NO->getValue())
-            ->firstOrFail();
+            ->where('apps_id', $appId)
+            ->where('is_deleted', StateEnums::NO->getValue());
+
+        return $fail ? $query->firstOrFail() : $query->first();
     }
 }

@@ -29,17 +29,16 @@ class CreateAttribute
             $this->user
         );
 
-        if ($this->dto->slug) {
-            $existingAttribute = Attributes::where('slug', $this->dto->slug)
-                ->fromCompany($this->dto->company)
-                ->fromApp($this->dto->app)
-                ->first();
-
+        $existingAttribute = Attributes::getBySlug(
+            $this->dto->slug,
+            $this->dto->company,
+            $this->dto->app->getId()
+        );
+        
             if ($existingAttribute) {
                 return $existingAttribute;
             }
-        }
-
+        
         return Attributes::firstOrCreate([
             'slug' => $this->dto->slug,
             'companies_id' => $this->dto->company->getId(),
