@@ -57,7 +57,8 @@ extend type Mutation @guard {
 extend type Query @guard {
     tags(
         where: _ @whereConditions(columns: ["id", "name", "slug", "weight"])
-        orderBy: _ @orderBy(columns: ["id"])
+        orderBy: _
+            @orderBy(columns: ["id", "name", "slug", "weight", "created_at"])
     ): [Tag!]!
         @paginate(
             model: "Kanvas\\Social\\Tags\\Models\\Tag"
