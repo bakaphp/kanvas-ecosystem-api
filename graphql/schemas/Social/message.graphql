@@ -157,6 +157,7 @@ extend type Query @guard {
                     "total_liked"
                     "total_saved"
                     "total_shared"
+                    "is_public"
                 ]
             )
         hasUser: _
