@@ -284,6 +284,11 @@ class Companies extends BaseModel implements CompanyInterface
         return $this->users_id === $user->getKey();
     }
 
+    public function isActive(): bool
+    {
+        return (bool) $this->is_active;
+    }
+
     /**
      * Not deleted scope.
      */
