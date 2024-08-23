@@ -12,11 +12,18 @@ class SetDefaultDashboardFieldAction
 {
     public function __construct(
         public Companies $company,
+        public string $field,
+        public string $value
     ) {
     }
 
     public function execute()
     {
+        if($this->field){
+            $fields = $this->company->get(DashboardEnum::DEFAULT_ENUM->value);
+            $fields[$this->field] = $this->value;
+            $this->company->set(DashboardEnum::DEFAULT_ENUM->value, $fields);
+        }
         if ($fields = $this->company->get(DashboardEnum::DEFAULT_ENUM->value)) {
             $defaultFields = DashboardRepositories::getDefaultFields();
             $fields = array_merge($defaultFields, $fields);

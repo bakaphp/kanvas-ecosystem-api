@@ -12,7 +12,7 @@ use Kanvas\Dashboard\Actions\SetDefaultDashboardFieldAction;
 
 class KanvasDashboardDefaultFieldCommand extends Command
 {
-    protected $signature = "kanvas:dashboard-default-field {app_id}";
+    protected $signature = "kanvas:dashboard-default-field {app_id} {field} {value}";
 
     protected $description = "Set default dashboard field";
 
@@ -20,8 +20,10 @@ class KanvasDashboardDefaultFieldCommand extends Command
     {
         $this->info("Setting default dashboard field...");
         $app = Apps::findOrFail($this->argument('app_id'));
+        $field = $this->argument('field');
+        $value = $this->argument('value');
         foreach ($app->companies as $company) {
-            (new SetDefaultDashboardFieldAction($company))->execute();
+            (new SetDefaultDashboardFieldAction($company, $field, $value))->execute();
         }
     }
 }
