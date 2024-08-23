@@ -44,12 +44,14 @@ type AttributesValue {
 type ProductAttribute {
     id: ID!
     name: String!
+    slug: String!
     value: Mixed
 }
 
 type VariantsAttributes {
     id: ID!
     name: String!
+    slug: String!
     value: Mixed
 }
 
