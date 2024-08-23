@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Console\Commands;
@@ -19,7 +20,7 @@ class KanvasDashboardDefaultFieldCommand extends Command
     {
         $this->info("Setting default dashboard field...");
         $app = Apps::findOrFail($this->argument('app_id'));
-        foreach($app->companies as $company) {
+        foreach ($app->companies as $company) {
             (new SetDefaultDashboardFieldAction($company))->execute();
         }
     }

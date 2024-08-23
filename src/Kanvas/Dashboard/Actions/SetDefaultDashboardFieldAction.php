@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Dashboard\Actions;
@@ -16,7 +17,7 @@ class SetDefaultDashboardFieldAction
 
     public function execute()
     {
-        if($fields = $this->company->get(DashboardEnum::DEFAULT_ENUM->value)) {
+        if ($fields = $this->company->get(DashboardEnum::DEFAULT_ENUM->value)) {
             $defaultFields = DashboardRepositories::getDefaultFields();
             $fields = array_merge($defaultFields, $fields);
             $this->company->set(DashboardEnum::DEFAULT_ENUM->value, $fields);
