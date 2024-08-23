@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types= 1);
+declare(strict_types=1);
 
 namespace Kanvas\Dashboard\Workflows\Activities;
 
@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class DefaultFieldsDashboardActivities extends Activity implements WorkflowActivityInterface
 {
-
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
         (new SetDefaultDashboardFieldAction($params['company']))->execute();
@@ -20,5 +19,4 @@ class DefaultFieldsDashboardActivities extends Activity implements WorkflowActiv
             'message' => 'Default fields dashboard activity executed',
         ];
     }
-
 }
