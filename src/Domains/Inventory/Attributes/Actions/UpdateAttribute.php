@@ -33,7 +33,6 @@ class UpdateAttribute
         $existingAttribute = Attributes::getBySlug(
             $this->dto->slug,
             $this->dto->company,
-            $this->dto->app->getId()
         );
 
         $slug = ($existingAttribute && $existingAttribute->id !== $this->attribute->id)
