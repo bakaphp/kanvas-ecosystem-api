@@ -27,15 +27,24 @@ trait SlugTrait
     }
 
     /**
-     * Get Model.
+     * Get Model by Slug firstOrFail.
      */
-    public static function getBySlug(string $slug, CompanyInterface $company, int $appId, bool $fail = false): ?self
+    public static function getBySlugOrFail(string $slug, CompanyInterface $company): self
     {
-        $query = self::where('slug', $slug)
+        return self::where('slug', $slug)
             ->where('companies_id', $company->getId())
-            ->where('apps_id', $appId)
-            ->where('is_deleted', StateEnums::NO->getValue());
-
-        return $fail ? $query->firstOrFail() : $query->first();
+            ->where('is_deleted', StateEnums::NO->getValue())
+            ->firstOrFail();
     }
+    /**
+     * Get Model by Slug.
+     */
+    public static function getBySlug(string $slug, CompanyInterface $company): ?self
+    {
+        return self::where('slug', $slug)
+            ->where('companies_id', $company->getId())
+            ->where('is_deleted', StateEnums::NO->getValue())
+            ->first();
+    }
+
 }

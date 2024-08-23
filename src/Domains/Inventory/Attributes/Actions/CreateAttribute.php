@@ -32,7 +32,6 @@ class CreateAttribute
         $existingAttribute = Attributes::getBySlug(
             $this->dto->slug,
             $this->dto->company,
-            $this->dto->app->getId()
         );
         
             if ($existingAttribute) {
