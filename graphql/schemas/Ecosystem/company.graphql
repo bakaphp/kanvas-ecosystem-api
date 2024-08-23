@@ -152,7 +152,10 @@ enum CompanyOrderColumn{
     CREATED_AT @enum(value: "companies.created_at")
     UPDATED_AT @enum(value: "companies.updated_at")
 }
-
+type Dashboard {
+    name: String!
+    fields: JSON!
+}
 extend type Query @guard {
     companies(
         search: String @search
@@ -236,6 +239,11 @@ extend type Query @guard {
     companySettings: CompanySettings!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\CompanySettingQuery@getAllSettings"
+        )
+    
+    dashboard: Dashboard!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\DashboardQuery@getDashboard"
         )
 }
 
