@@ -19,7 +19,7 @@ class SetDefaultDashboardFieldAction
 
     public function execute()
     {
-        if($this->field){
+        if ($this->field) {
             $fields = $this->company->get(DashboardEnum::DEFAULT_ENUM->value);
             $fields[$this->field] = $this->value;
             $this->company->set(DashboardEnum::DEFAULT_ENUM->value, $fields);
