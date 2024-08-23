@@ -7,6 +7,7 @@ namespace Kanvas\Auth\Services;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Notifications\Templates\ResetPassword;
 use Kanvas\Users\Models\Users;
@@ -30,10 +31,12 @@ class ForgotPassword
         $recoverUser->generateForgotHash($this->app);
 
         try {
+            $resetPasswordTitle = $this->app->get((string) AppSettingsEnums::RESET_PASSWORD_EMAIL_SUBJECT->getValue()) ?? $this->app->name . ' - Reset your password';
+
             $recoverUser->notify(new ResetPassword(
                 $recoverUser,
                 [
-                    'subject' => $this->app->name . ' - Reset your password',
+                    'subject' => $resetPasswordTitle,
                     'app' => $this->app,
                 ]
             ));

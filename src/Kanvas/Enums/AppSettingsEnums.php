@@ -32,6 +32,7 @@ enum AppSettingsEnums implements EnumsInterface
     case DEFAULT_COMPANY_AVATAR;
     case INACTIVE_ACCOUNT_ERROR_MESSAGE;
     case INACTIVE_COMPANY_ACCOUNT_ERROR_MESSAGE;
+    case RESET_PASSWORD_EMAIL_SUBJECT;
 
     /**
      * Get value.
@@ -63,6 +64,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::DEFAULT_COMPANY_AVATAR => 'default_company_avatar',
             self::INACTIVE_ACCOUNT_ERROR_MESSAGE => 'inactive_account_error_message',
             self::INACTIVE_COMPANY_ACCOUNT_ERROR_MESSAGE => 'inactive_company_account_error_message',
+            self::RESET_PASSWORD_EMAIL_SUBJECT => 'reset_password_email_subject',
         };
     }
 }
