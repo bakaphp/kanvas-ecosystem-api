@@ -33,7 +33,7 @@ trait SlugTrait
      */
     public static function getBySlugOrFail(string $slug, CompanyInterface $company): Model
     {
-        return self::query($slug, $company)->firstOrFail();
+        return self::queryBySlug($slug, $company)->firstOrFail();
     }
 
     /**
@@ -41,13 +41,13 @@ trait SlugTrait
      */
     public static function getBySlug(string $slug, CompanyInterface $company): ?self
     {
-        return self::query($slug, $company)->first();
+        return self::queryBySlug($slug, $company)->first();
     }
 
     /**
      * Query by Slug.
      */
-    public static function query(string $slug, CompanyInterface $company): Builder
+    public static function queryBySlug(string $slug, CompanyInterface $company): Builder
     {
         return static::where('slug', $slug)
             ->where('companies_id', $company->getId())
