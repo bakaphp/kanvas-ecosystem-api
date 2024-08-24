@@ -60,6 +60,7 @@ class MessageManagementMutation
 
         $systemModuleId = $messageData['system_modules_id'] ?? null;
         $systemModule = $systemModuleId ? SystemModules::getById((int)$systemModuleId, $app) : null;
+        $messageData['ip_address'] = request()->ip();
         $data = MessageInput::fromArray(
             $messageData,
             $user,

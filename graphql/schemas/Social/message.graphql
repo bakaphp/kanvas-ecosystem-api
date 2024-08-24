@@ -155,7 +155,9 @@ extend type Query @guard {
                     "reactions_count"
                     "comments_count"
                     "total_liked"
+                    "total_disliked"
                     "total_saved"
+                    "total_view"
                     "total_shared"
                     "is_public"
                 ]
@@ -166,6 +168,8 @@ extend type Query @guard {
                 columns: ["id", "displayname"]
             )
         hasTags: _ @whereHasConditions(relation: "tags", columns: ["name"])
+        hasType: _
+            @whereHasConditions(relation: "messageType", columns: ["name"])
         hasAppModuleMessage: _
             @whereHasConditions(columns: ["entity_id", "system_modules"])
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
