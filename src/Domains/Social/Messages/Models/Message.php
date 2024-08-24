@@ -49,6 +49,7 @@ use Nevadskiy\Tree\AsTree;
  *  @property int $total_view
  *  @property int $total_saved
  *  @property int $total_shared
+ *  @property string|null ip_address
  */
 // Company, User and App Relationship is defined in KanvasModelTrait,
 class Message extends BaseModel
