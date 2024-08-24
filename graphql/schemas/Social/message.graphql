@@ -155,7 +155,9 @@ extend type Query @guard {
                     "reactions_count"
                     "comments_count"
                     "total_liked"
+                    "total_disliked"
                     "total_saved"
+                    "total_view"
                     "total_shared"
                     "is_public"
                 ]
