@@ -103,7 +103,7 @@ class ScreeningPeopleActivity extends Activity
             'total' => $todayReport[$today]['total'] + 1 ?? 1,
             'success' => $successExtraction ? ($todayReport[$today]['success'] + 1 ?? 1) : ($todayReport[$today]['success'] ?? 0),
             'processed' => $todayReport[$today]['processed'] + 1 ?? 1,
-            'failed' => $todayReport[$today]['failed'] ?? 0,
+            'failed' => !$successExtraction ? ($todayReport[$today]['failed'] + 1 ?? 1) : ($todayReport[$today]['failed'] ?? 0),
         ];
 
         $company->set(ConfigurationEnum::APOLLO_COMPANY_REPORTS->value, $todayReport);
@@ -233,7 +233,13 @@ class ScreeningPeopleActivity extends Activity
 
     private function getTodayReport(Model $people): array
     {
-        return $people->company->get(ConfigurationEnum::APOLLO_COMPANY_REPORTS->value);
+        $report = $people->company->get(ConfigurationEnum::APOLLO_COMPANY_REPORTS->value) ?? [];
+
+        if(!isset($report[date('Y-m-d')])) {
+            $report[date('Y-m-d')] = ['total' => 0, 'success' => 0, 'processed' => 0, 'failed' => 0];
+        }
+
+        return $report;
     }
 
     private function limitReachedResponse(Model $people): array
