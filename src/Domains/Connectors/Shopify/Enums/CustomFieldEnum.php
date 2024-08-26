@@ -19,4 +19,8 @@ enum CustomFieldEnum: string
     case SHOPIFY_ORDER_ID = 'SHOPIFY_ORDER_ID';
     case USER_SHOPIFY_ID = 'shopify_id';
     case SHOPIFY_MANUEL_ORDER_NOTIFICATION_MSG = 'SHOPIFY_MANUEL_ORDER_NOTIFICATION_MSG';
+
+    case SHOPIFY_COLLECTION_ID = 'shopify_collection_id';
+
+    case SHOPIFY_COLLECTION_IS_SYNCED = 'shopify_collection_is_synced';
 }

@@ -11,7 +11,9 @@ use Kanvas\Social\Interactions\Actions\CreateUserInteractionAction;
 use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Interactions\Models\UsersInteractions;
+use Kanvas\Social\Messages\Actions\CreateUserMessageAction;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Models\UserMessage;
 
 class MessageInteractionService
 {
@@ -24,6 +26,10 @@ class MessageInteractionService
     {
         $this->incrementInteractionCount('total_shared');
         $this->createInteraction($who, InteractionEnum::SHARE->getValue());
+
+        $userMessage = $this->addToUserMessage($who);
+        $userMessage->is_shared = 1;
+        $userMessage->saveOrFail();
 
         $shareUrl = $this->message->app->get(AppEnum::SHAREABLE_LINK->value) ?? $this->message->app->url;
 
@@ -45,14 +51,28 @@ class MessageInteractionService
     {
         $this->incrementInteractionCount('total_liked');
 
-        return $this->createInteraction($who, InteractionEnum::LIKE->getValue());
+        $userInteraction = $this->createInteraction($who, InteractionEnum::LIKE->getValue());
+
+        $userMessage = $this->addToUserMessage($who);
+        $userMessage->is_liked = 1;
+        $userMessage->is_disliked = 0;
+        $userMessage->saveOrFail();
+
+        return $userInteraction;
     }
 
     public function dislike(UserInterface $who): UsersInteractions
     {
         $this->incrementInteractionCount('total_disliked');
 
-        return $this->createInteraction($who, InteractionEnum::DISLIKE->getValue());
+        $userInteraction = $this->createInteraction($who, InteractionEnum::DISLIKE->getValue());
+
+        $userMessage = $this->addToUserMessage($who);
+        $userMessage->is_disliked = 1;
+        $userMessage->is_liked = 0;
+        $userMessage->saveOrFail();
+
+        return $userInteraction;
     }
 
     protected function incrementInteractionCount(string $interactionType): void
@@ -75,5 +95,17 @@ class MessageInteractionService
         );
 
         return $createUserInteraction->execute();
+    }
+
+    protected function addToUserMessage(UserInterface $user): UserMessage
+    {
+        $createUserMessage = new CreateUserMessageAction(
+            $this->message,
+            $user,
+            [
+            ]
+        );
+
+        return $createUserMessage->execute();
     }
 }

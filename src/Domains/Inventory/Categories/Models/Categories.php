@@ -14,6 +14,8 @@ use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\ProductsCategories;
 use Baka\Traits\DatabaseSearchableTrait;
 use Kanvas\Inventory\Traits\ScopesTrait;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Kanvas\Inventory\Products\Models\Products;
 
 class Categories extends BaseModel
 {
@@ -47,6 +49,11 @@ class Categories extends BaseModel
     public function productsCategories(): HasMany
     {
         return $this->hasMany(ProductsCategories::class, 'categories_id');
+    }
+
+    public function products(): BelongsToMany
+    {
+        return $this->belongsToMany(Products::class, 'products_categories', 'categories_id', 'products_id');
     }
 
     /**

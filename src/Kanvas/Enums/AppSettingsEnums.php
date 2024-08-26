@@ -28,6 +28,11 @@ enum AppSettingsEnums implements EnumsInterface
     case SOCIALITE_PROVIDER_FACEBOOK;
     case SOCIALITE_PROVIDER_GOOGLE;
     case SOCIALITE_PROVIDER_APPLE;
+    case DEFAULT_USER_AVATAR;
+    case DEFAULT_COMPANY_AVATAR;
+    case INACTIVE_ACCOUNT_ERROR_MESSAGE;
+    case INACTIVE_COMPANY_ACCOUNT_ERROR_MESSAGE;
+    case RESET_PASSWORD_EMAIL_SUBJECT;
 
     /**
      * Get value.
@@ -55,6 +60,11 @@ enum AppSettingsEnums implements EnumsInterface
             self::SOCIALITE_PROVIDER_FACEBOOK => 'facebook_social_config',
             self::SOCIALITE_PROVIDER_GOOGLE => 'google_social_config',
             self::SOCIALITE_PROVIDER_APPLE => 'apple_social_config',
+            self::DEFAULT_USER_AVATAR => 'default_user_avatar',
+            self::DEFAULT_COMPANY_AVATAR => 'default_company_avatar',
+            self::INACTIVE_ACCOUNT_ERROR_MESSAGE => 'inactive_account_error_message',
+            self::INACTIVE_COMPANY_ACCOUNT_ERROR_MESSAGE => 'inactive_company_account_error_message',
+            self::RESET_PASSWORD_EMAIL_SUBJECT => 'reset_password_email_subject',
         };
     }
 }

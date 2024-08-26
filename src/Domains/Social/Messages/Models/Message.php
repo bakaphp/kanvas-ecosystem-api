@@ -45,9 +45,11 @@ use Nevadskiy\Tree\AsTree;
  *  @property int $comments_count
  *  @property int $total_liked
  *  @property int $total_disliked
+ *  @property int $is_public
  *  @property int $total_view
  *  @property int $total_saved
  *  @property int $total_shared
+ *  @property string|null ip_address
  */
 // Company, User and App Relationship is defined in KanvasModelTrait,
 class Message extends BaseModel
@@ -131,6 +133,7 @@ class Message extends BaseModel
 
         return [
             'is_liked' => (int) ($userMessage?->is_liked),
+            'is_disliked' => (int) ($userMessage?->is_disliked),
             'is_saved' => (int) ($userMessage?->is_saved),
             'is_shared' => (int) ($userMessage?->is_shared),
             'is_reported' => (int) ($userMessage?->is_reported),
