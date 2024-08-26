@@ -31,12 +31,12 @@ class GuildDailyReportCommand extends Command
     public function handle(): void
     {
         //@todo make this run for multiple apps by looking for them at apps settings flag
-        $app = Apps::getById($this->argument('app_id') );
+        $app = Apps::getById($this->argument('app_id'));
         $company = Companies::getById($this->argument('company_id'));
-        $this->overwriteAppService($app); 
+        $this->overwriteAppService($app);
 
         //for now just apollo, but this should be for sending all the different reports
-        $this->info('Sending Apollo Daily Report - '. date('Y-m-d'));
+        $this->info('Sending Apollo Daily Report - ' . date('Y-m-d'));
         $apolloDailyReport = new DailyUsageReportAction($app, $company);
         $result = $apolloDailyReport->execute();
         $this->info('Total report send ' . count($result));
