@@ -202,6 +202,7 @@ class Products extends BaseModel
             ],
             'uuid' => $this->uuid,
             'slug' => $this->slug,
+            'is_published' => $this->is_published,
             'description' => $this->description,
             'short_description' => $this->short_description,
             'attributes' => [],
