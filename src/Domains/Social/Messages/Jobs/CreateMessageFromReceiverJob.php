@@ -41,6 +41,7 @@ class CreateMessageFromReceiverJob extends ProcessWebhookJob
         }
 
         $user = $this->receiver->user;
+        $payload['message']['ip_address'] = $this->webhookRequest->headers['x-real-ip'] ?? null;
         $createMessage = new CreateMessageAction(
             new MessageInput(
                 app: $this->receiver->app,
