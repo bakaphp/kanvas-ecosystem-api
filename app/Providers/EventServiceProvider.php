@@ -15,6 +15,8 @@ use Kanvas\Guild\Customers\Observers\PeopleEmploymentHistoryObserver;
 use Kanvas\Guild\Customers\Observers\PeopleObserver;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Observers\LeadObserver;
+use Kanvas\Inventory\Attributes\Models\Attributes;
+use Kanvas\Inventory\Attributes\Observers\AttributeObserver;
 use Kanvas\Inventory\Categories\Observers\ProductsCategoriesObserver;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Observers\ChannelObserver;
@@ -89,6 +91,7 @@ class EventServiceProvider extends ServiceProvider
         ProductsTypes::observe(ProductsTypesObserver::class);
         Variants::observe(VariantObserver::class);
         VariantsChannels::observe(VariantsChannelObserver::class);
+        Attributes::observe(AttributeObserver::class);
         UsersAssociatedApps::observe(UsersAssociatedAppsObserver::class);
         UserCompanyApps::observe(UsersAssociatedCompaniesObserver::class);
         ProductsCategories::observe(ProductsCategoriesObserver::class);

@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Variants\Models\VariantsAttributes;
+use Kanvas\Inventory\Products\Models\ProductsAttributes;
 
 /**
  * Class Attributes.
@@ -37,7 +38,7 @@ class Attributes extends BaseModel
 
     public $table = 'attributes';
     public $guarded = [];
-    protected $cascadeDeletes = ['variantAttributes', 'defaultValues'];
+    protected $cascadeDeletes = ['defaultValues'];
 
     /**
      * apps.
@@ -60,6 +61,11 @@ class Attributes extends BaseModel
         return $this->hasMany(VariantsAttributes::class, 'attributes_id');
     }
 
+    public function productsAttributes(): HasMany
+    {
+        return $this->hasMany(ProductsAttributes::class, 'attributes_id');
+    }
+
     /**
      * attributes values from pivot
      */
@@ -76,5 +82,10 @@ class Attributes extends BaseModel
     public function defaultValues(): HasMany
     {
         return $this->hasMany(AttributesValues::class, 'attributes_id');
+    }
+    
+    public function hasDependencies(): bool
+    {
+        return $this->productsAttributes()->exists() || $this->variantAttributes()->exists();
     }
 }
