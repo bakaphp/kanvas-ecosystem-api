@@ -39,6 +39,14 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Workflow\\Mutations\\Integrations\\IntegrationsMutation@createIntegrationCompany"
         )
+    # integrationCompany(integration_company_id: ID!, config: JSON!): IntegrationsCompanies!
+    #     @field(
+    #         resolver: "App\\GraphQL\\Workflow\\Mutations\\Integrations\\IntegrationsMutation@updateIntegrationCompany"
+    #     )
+    removeIntegrationCompany(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Workflow\\Mutations\\Integrations\\IntegrationsMutation@removeIntegrationCompany"
+        )
 }
 
 extend type Query @guard {
