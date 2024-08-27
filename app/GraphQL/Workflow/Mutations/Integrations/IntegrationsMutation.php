@@ -43,4 +43,25 @@ class IntegrationsMutation
         
         return $integrationCompany;
     }
+
+    // The edit must only validate the config and re-setup the integration.
+    // public function updateIntegrationCompany(mixed $rootValue, array $request): ModelsIntegrationsCompany
+    // {
+    //     $integration = ModelsIntegrationsCompany::getById((int) $request['integration_company_id']);
+
+    //     (new ConfigValidation($integration->config, $request))->validate();
+
+    // }
+
+    public function removeIntegrationCompany(mixed $root, array $request): bool
+    {
+        $integrationCompany = ModelsIntegrationsCompany::getById((int) $request['id']);
+
+        CompaniesRepository::userAssociatedToCompany(
+            $integrationCompany->company,
+            auth()->user()
+        );
+
+        return $integrationCompany->delete();
+    }
 }

@@ -6,7 +6,6 @@ namespace Kanvas\Workflow\Integrations\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Repositories\CompaniesRepository;
-use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Workflow\Integrations\DataTransferObject\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany as IntegrationsCompanyModel;
 
