@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Workflows\Integrations;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException;
@@ -17,6 +18,8 @@ use Symfony\Component\Console\Exception\InvalidArgumentException;
 
 class CreateIntegrationWorkflowCommand extends Command
 {
+    use KanvasJobsTrait;
+
     /**
      * The name and signature of the console command.
      *
@@ -43,6 +46,8 @@ class CreateIntegrationWorkflowCommand extends Command
     {
         $app = Apps::getById($this->argument('app_id'));
         $name = $this->argument('name');
+        $this->overwriteAppService($app);
+
         if($config = $this->option('config')) {
             $config = json_decode($this->option('config'), true);
         }
