@@ -148,9 +148,9 @@ class AttributesTest extends TestCase
 
     /**
      * Helper function createAttribute.
-     * 
+     *
      * @param string|null $slug
-     * 
+     *
      * @return array
      */
     private function createAttribute(?string $slug = null): array

@@ -34,9 +34,9 @@ class CreateAttribute
             $this->dto->company,
         );
         
-            if ($existingAttribute) {
-                return $existingAttribute;
-            }
+        if ($existingAttribute) {
+            return $existingAttribute;
+        }    
         
         return Attributes::firstOrCreate([
             'slug' => $this->dto->slug,
@@ -51,4 +51,5 @@ class CreateAttribute
             'is_filtrable' => $this->dto->isFiltrable,
         ]);
     }
+
 }

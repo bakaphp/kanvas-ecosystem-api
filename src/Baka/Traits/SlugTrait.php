@@ -53,5 +53,4 @@ trait SlugTrait
             ->where('companies_id', $company->getId())
             ->where('is_deleted', StateEnums::NO->getValue());
     }
-
 }
