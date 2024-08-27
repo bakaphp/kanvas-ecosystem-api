@@ -29,7 +29,7 @@ class UpdateAttribute
             $this->dto->company,
             $this->user
         );
-       
+
         $existingAttribute = Attributes::getBySlug(
             $this->dto->slug,
             $this->dto->company,
