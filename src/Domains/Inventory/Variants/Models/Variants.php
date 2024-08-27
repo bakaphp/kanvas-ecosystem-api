@@ -368,4 +368,15 @@ class Variants extends BaseModel
 
         return (int) $total;
     }
+
+    /**
+     * Determine if this is the last variant for the product.
+     */
+    public function isLastVariant(): bool
+    {
+        return self::where('products_id', $this->product_id)
+            ->where('companies_id', $this->company_id)
+            ->where('is_deleted', 0)
+            ->count() === 1;
+    }
 }
