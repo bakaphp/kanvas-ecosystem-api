@@ -20,6 +20,7 @@ return new class () extends Migration {
             $table->boolean('is_deleted')->default(false);
 
             $table->index(['uuid', 'apps_id'], 'integrations_uuid_apps_index');
+            $table->index('apps_id', 'apps_id_index');
         });
 
         // Create the status table
@@ -30,6 +31,7 @@ return new class () extends Migration {
             $table->unsignedBigInteger('apps_id');
             $table->timestamps();
             $table->boolean('is_deleted')->default(false);
+            $table->index('apps_id', 'apps_id_index');
 
             // You can add a foreign key constraint here if you have an apps table
             // $table->foreign('apps_id')->references('id')->on('apps');
