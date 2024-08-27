@@ -22,7 +22,7 @@ class SetDefaultDashboardFieldAction
         $defaultEnumValue = DashboardEnum::DEFAULT_ENUM->value;
         $fields = $this->company->get($defaultEnumValue) ?? [];
 
-        if (!is_null($this->field)) {
+        if (! is_null($this->field)) {
             $fields[$this->field] = $this->value;
             $this->company->set($defaultEnumValue, $fields);
         }
