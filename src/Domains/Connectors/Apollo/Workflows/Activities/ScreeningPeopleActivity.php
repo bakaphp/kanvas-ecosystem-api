@@ -54,8 +54,9 @@ class ScreeningPeopleActivity extends Activity
     private function hasBeenScreenedRecently(Model $people): bool
     {
         $key = ConfigurationEnum::APOLLO_DATA_ENRICHMENT_CUSTOM_FIELDS->value;
+        $apolloRevalidationThreshold = $people->company->get(ConfigurationEnum::APOLLO_REVALIDATION->value) ?? '-2 months';
 
-        return $people->get($key) && $people->get($key) > strtotime('-30 days');
+        return $people->get($key) && $people->get($key) > strtotime($apolloRevalidationThreshold);
     }
 
     private function processPeopleData(Model $people, AppInterface $app, array $peopleData): void
@@ -136,6 +137,10 @@ class ScreeningPeopleActivity extends Activity
                 'peoples_id' => $people->id,
                 'organizations_id' => $organization->getId(),
             ]);
+
+            if ((int) $employment['current'] === 1) {
+                $people->set('company', $employment['organization_name']);
+            }
 
             $this->assignAudienceSegment($people, $app, $employment['title']);
         }
