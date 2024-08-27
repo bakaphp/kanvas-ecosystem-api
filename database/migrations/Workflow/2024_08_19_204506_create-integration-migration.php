@@ -19,6 +19,8 @@ return new class extends Migration
             $table->text('config')->nullable();
             $table->timestamps();
             $table->boolean('is_deleted')->default(false);
+
+            $table->index(['uuid', 'apps_id', 'companies_id'], 'integrations_uuid_apps_index');
         });
 
         // Create the status table
