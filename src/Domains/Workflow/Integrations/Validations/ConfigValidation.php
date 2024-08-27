@@ -37,7 +37,7 @@ class ConfigValidation
         }
 
         $validator = Validator::make(
-            json_decode(json_encode($this->request['config']), true),
+            collect($this->request['config'])->toArray(),
             $validationRules
         );
 
