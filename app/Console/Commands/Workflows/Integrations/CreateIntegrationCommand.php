@@ -16,7 +16,7 @@ use function Laravel\Prompts\info;
 use RuntimeException;
 use Symfony\Component\Console\Exception\InvalidArgumentException;
 
-class CreateIntegrationWorkflowCommand extends Command
+class CreateIntegrationCommand extends Command
 {
     use KanvasJobsTrait;
 
