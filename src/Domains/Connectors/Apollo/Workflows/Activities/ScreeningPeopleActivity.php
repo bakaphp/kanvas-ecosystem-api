@@ -67,7 +67,9 @@ class ScreeningPeopleActivity extends Activity
         $peopleDto = $this->buildPeopleDto($people, $app, $peopleData, $contacts, $address);
 
         (new UpdatePeopleAction($people, $peopleDto))->execute();
-        $this->setOrganization($people, $app, $peopleData['organization']);
+        if (! empty($peopleData['organization'])) {
+            $this->setOrganization($people, $app, $peopleData['organization']);
+        }
         $this->updateEmploymentHistory($people, $app, $peopleData['employment_history']);
         $this->updateTodayReport($people, ! empty($peopleData['employment_history']));
     }
