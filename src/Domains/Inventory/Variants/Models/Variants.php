@@ -374,9 +374,11 @@ class Variants extends BaseModel
      */
     public function isLastVariant(): bool
     {
-        return self::where('products_id', $this->product_id)
-            ->where('companies_id', $this->company_id)
-            ->where('is_deleted', 0)
-            ->count() === 1;
+        $otherVariantExists = self::where('products_id', $this->products_id)
+            ->where('companies_id', $this->companies_id)
+            ->where('id', '!=', $this->id) 
+            ->exists();
+
+        return !$otherVariantExists;
     }
 }
