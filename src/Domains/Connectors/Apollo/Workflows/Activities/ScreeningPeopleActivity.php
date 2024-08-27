@@ -19,6 +19,7 @@ use Kanvas\Guild\Customers\Models\ContactType;
 use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
+use Kanvas\Guild\Organizations\Models\OrganizationPeople;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Locations\Models\States;
 use Spatie\LaravelData\DataCollection;
@@ -66,6 +67,9 @@ class ScreeningPeopleActivity extends Activity
         $peopleDto = $this->buildPeopleDto($people, $app, $peopleData, $contacts, $address);
 
         (new UpdatePeopleAction($people, $peopleDto))->execute();
+        if (! empty($peopleData['organization'])) {
+            $this->setOrganization($people, $app, $peopleData['organization']);
+        }
         $this->updateEmploymentHistory($people, $app, $peopleData['employment_history']);
         $this->updateTodayReport($people, ! empty($peopleData['employment_history']));
     }
@@ -109,6 +113,26 @@ class ScreeningPeopleActivity extends Activity
 
         $company->set(ConfigurationEnum::APOLLO_COMPANY_REPORTS->value, $todayReport);
         $people->set(ConfigurationEnum::APOLLO_DATA_ENRICHMENT_CUSTOM_FIELDS->value, time());
+    }
+
+    private function setOrganization(Model $people, AppInterface $app, array $organization): void
+    {
+        if (empty($organization['name'])) {
+            return;
+        }
+
+        $organization = (new CreateOrganizationAction(
+            new Organization(
+                $people->company,
+                $people->user,
+                $app,
+                $organization['name']
+            )
+        ))->execute();
+
+        OrganizationPeople::addPeopleToOrganization($organization, $people);
+
+        $people->set('company', $organization['name']);
     }
 
     private function updateEmploymentHistory(Model $people, AppInterface $app, array $employmentHistory): void
