@@ -138,6 +138,10 @@ class ScreeningPeopleActivity extends Activity
                 'organizations_id' => $organization->getId(),
             ]);
 
+            if ((int) $employment['current'] === 1) {
+                $people->set('company', $employment['organization_name']);
+            }
+
             $this->assignAudienceSegment($people, $app, $employment['title']);
         }
     }
