@@ -23,6 +23,7 @@ return new class () extends Migration {
             // Foreign key constraints
             $table->foreign('integrations_id')->references('id')->on('integrations');
             $table->foreign('status_id')->references('id')->on('status');
+            $table->index(['companies_id', 'integrations_id', 'region_id'], 'integrations_companies_regions_index');
 
             // Check how can we get the ecosystem database name to make a reference
             //$table->foreign('companies_id')->references('id')->on('ecosystem_db.companies');

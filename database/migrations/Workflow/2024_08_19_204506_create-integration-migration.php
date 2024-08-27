@@ -19,7 +19,7 @@ return new class () extends Migration {
             $table->timestamps();
             $table->boolean('is_deleted')->default(false);
 
-            $table->index(['uuid', 'apps_id', 'companies_id'], 'integrations_uuid_apps_index');
+            $table->index(['uuid', 'apps_id'], 'integrations_uuid_apps_index');
         });
 
         // Create the status table
