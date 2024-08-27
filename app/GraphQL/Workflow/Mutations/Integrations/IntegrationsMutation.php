@@ -40,7 +40,7 @@ class IntegrationsMutation
         );
 
         $integrationCompany = (new CreateIntegrationCompanyAction($integrationDto, auth()->user()))->execute();
-        
+
         return $integrationCompany;
     }
 

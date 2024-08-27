@@ -48,7 +48,7 @@ class CreateIntegrationWorkflowCommand extends Command
         $name = $this->argument('name');
         $this->overwriteAppService($app);
 
-        if($config = $this->option('config')) {
+        if ($config = $this->option('config')) {
             $config = json_decode($this->option('config'), true);
         }
 

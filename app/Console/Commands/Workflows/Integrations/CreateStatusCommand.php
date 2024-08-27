@@ -44,8 +44,7 @@ class CreateStatusCommand extends Command
     public function handle(): void
     {
         $app = Apps::getById($this->argument('app_id'));
-        
-        
+
         Status::firstOrCreate([
             'name' => StatusEnum::ACTIVE->value,
             'apps_id' => $app->getId(),
@@ -74,6 +73,6 @@ class CreateStatusCommand extends Command
             'slug' => Str::slug(StatusEnum::OFFLINE->value)
         ]);
 
-        info('Integration status created successfully for app - '. $app->getId());
+        info('Integration status created successfully for app - ' . $app->getId());
     }
 }
