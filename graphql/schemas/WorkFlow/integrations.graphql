@@ -1,0 +1,69 @@
+type Integrations {
+    id: ID!
+    name: String!
+    uuid: String!
+    companies: [IntegrationsCompanies!]
+    config: String
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type Status {
+    id: ID!
+    name: String!
+    slug: String!
+}
+
+type IntegrationsCompanies {
+    id: ID!
+    company: String
+    integration: Integrations
+    status: Status
+    region: Region
+}
+
+input IntegrationsCompaniesInput {
+    integration: IntegrationsReferenceInput!
+    region: RegionReferenceInput!
+    company_id: ID!
+    config: JSON!
+}
+
+input IntegrationsReferenceInput {
+    id: ID!
+    name: String
+}
+
+extend type Mutation @guard {
+    integrationCompany(input: IntegrationsCompaniesInput!): IntegrationsCompanies!
+        @field(
+            resolver: "App\\GraphQL\\Workflow\\Mutations\\Integrations\\IntegrationsMutation@createIntegrationCompany"
+        )
+}
+
+extend type Query @guard {
+    integrations(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "name"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+    ): [Integrations!]!
+        @paginate(
+            model: "Kanvas\\Workflow\\Models\\Integrations"
+            scopes: ["fromApp", "notDeleted"]
+            defaultCount: 25
+        )
+}
