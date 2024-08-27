@@ -376,9 +376,9 @@ class Variants extends BaseModel
     {
         $otherVariantExists = self::where('products_id', $this->products_id)
             ->where('companies_id', $this->companies_id)
-            ->where('id', '!=', $this->id) 
+            ->where('id', '!=', $this->id)
             ->exists();
 
-        return !$otherVariantExists;
+        return ! $otherVariantExists;
     }
 }

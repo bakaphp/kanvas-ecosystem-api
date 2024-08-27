@@ -48,7 +48,7 @@ class StatusObserver
         if ($status->hasDependencies()) {
             throw new ValidationException('Can\'t delete, Status has products associated');
         }
-        
+
         $defaultStatus = $status::getDefault($status->company);
 
         if ($defaultStatus->getId() == $status->getId()) {

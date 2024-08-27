@@ -44,7 +44,7 @@ class Status extends BaseModel
         return $this->hasMany(VariantsWarehouses::class, 'products_variants_id');
     }
 
-    public function hasDependencies():bool
+    public function hasDependencies(): bool
     {
         return $this->products()->exists();
     }

@@ -83,7 +83,7 @@ class Attributes extends BaseModel
     {
         return $this->hasMany(AttributesValues::class, 'attributes_id');
     }
-    
+
     public function hasDependencies(): bool
     {
         return $this->productsAttributes()->exists() || $this->variantAttributes()->exists();

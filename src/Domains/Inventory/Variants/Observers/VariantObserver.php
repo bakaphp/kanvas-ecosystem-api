@@ -8,7 +8,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Variants\Models\Variants;
 
 class VariantObserver
-{   
+{
     public function saved(Variants $variant): void
     {
         $variant->clearLightHouseCache();
