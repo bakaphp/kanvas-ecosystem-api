@@ -30,13 +30,22 @@ class UpdateAttribute
             $this->user
         );
 
+        $existingAttribute = Attributes::getBySlug(
+            $this->dto->slug,
+            $this->dto->company,
+        );
+
+        $slug = ($existingAttribute && $existingAttribute->id !== $this->attribute->id)
+            ? $this->attribute->slug
+            : $this->dto->slug;
+
         $this->attribute->update([
+            'slug' => $slug,
             'name' => $this->dto->name,
             'attributes_type_id' => $this->dto->attributeType?->getId(),
             'is_visible' => $this->dto->isVisible,
             'is_searchable' => $this->dto->isSearchable,
             'is_filtrable' => $this->dto->isFiltrable,
-            'slug' => $this->dto->slug,
         ]);
 
         return $this->attribute;
