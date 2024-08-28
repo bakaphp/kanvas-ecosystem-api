@@ -24,7 +24,7 @@ class CreateStatusCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:create-workflow-status {app_id}';
+    protected $signature = 'kanvas:create-workflow-status {--app_id=}';
 
     /**
      * The console command description.
@@ -43,36 +43,42 @@ class CreateStatusCommand extends Command
      */
     public function handle(): void
     {
-        $app = Apps::getById($this->argument('app_id'));
+        $appId = 0;
+
+        if($this->option('app_id')) {
+            $app = Apps::getById($this->option('app_id'));
+            $this->overwriteAppService($app);
+            $appId = $app->getId();
+        }
 
         Status::firstOrCreate([
             'name' => StatusEnum::ACTIVE->value,
-            'apps_id' => $app->getId(),
+            'apps_id' => $appId,
         ], [
             'slug' => Str::slug(StatusEnum::ACTIVE->value)
         ]);
 
         Status::firstOrCreate([
             'name' => StatusEnum::CONNECTED->value,
-            'apps_id' => $app->getId(),
+            'apps_id' => $appId,
         ], [
             'slug' => Str::slug(StatusEnum::CONNECTED->value)
         ]);
 
         Status::firstOrCreate([
             'name' => StatusEnum::FAILED->value,
-            'apps_id' => $app->getId(),
+            'apps_id' => $appId,
         ], [
             'slug' => Str::slug(StatusEnum::FAILED->value)
         ]);
 
         Status::firstOrCreate([
             'name' => StatusEnum::OFFLINE->value,
-            'apps_id' => $app->getId(),
+            'apps_id' => $appId,
         ], [
             'slug' => Str::slug(StatusEnum::OFFLINE->value)
         ]);
 
-        info('Integration status created successfully for app - ' . $app->getId());
+        info('Integration status created successfully for app - ' . $appId);
     }
 }

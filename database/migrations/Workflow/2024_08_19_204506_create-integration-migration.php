@@ -14,7 +14,7 @@ return new class () extends Migration {
             $table->id();
             $table->string('name', 255);
             $table->uuid('uuid');
-            $table->unsignedBigInteger('apps_id');
+            $table->unsignedBigInteger('apps_id')->default(0);
             $table->text('config')->nullable();
             $table->timestamps();
             $table->boolean('is_deleted')->default(false);
