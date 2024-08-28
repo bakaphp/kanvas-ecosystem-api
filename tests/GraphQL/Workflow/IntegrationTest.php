@@ -156,5 +156,4 @@ class IntegrationTest extends TestCase
             'data' => ['removeIntegrationCompany' => true],
         ]);
     }
-
 }
