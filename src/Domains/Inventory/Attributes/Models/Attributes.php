@@ -38,7 +38,7 @@ class Attributes extends BaseModel
 
     public $table = 'attributes';
     public $guarded = [];
-    protected $cascadeDeletes = ['defaultValues'];
+    protected $cascadeDeletes = ['variantAttributes','defaultValues'];
 
     /**
      * apps.
