@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\MappersImportersTemplates\Models;
 
+use Awobaz\Compoships\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Models\BaseModel;
+use Kanvas\SystemModules\Models\SystemModules;
 
 /**
  * MapperImportersTemplates Model
@@ -25,5 +27,10 @@ class MapperImporterTemplate extends BaseModel
     public function attributes(): HasMany
     {
         return $this->hasMany(AttributeMapperImporterTemplate::class, 'importers_templates_id')->whereNull("parent_id");
+    }
+
+    public function systemModules(): BelongsTo
+    {
+        return $this->belongsTo(SystemModules::class, 'system_modules_id');
     }
 }

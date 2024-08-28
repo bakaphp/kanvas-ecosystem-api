@@ -32,14 +32,18 @@ class FilesystemServices
     public function upload(UploadedFile $file, Users $user): ModelsFilesystem
     {
         $path = $this->app->get('cloud-bucket-path') ?? '/';
-        $uploadedFile = $this->storage->put(
-            $path,
-            $file,
-            [
-                'visibility' => 'public',
-            ]
-        );
-
+        try {
+            $uploadedFile = $this->storage->put(
+                $path,
+                $file,
+                [
+                    'visibility' => 'public',
+                ]
+            );
+        } catch (\Aws\S3\Exception\S3Exception $e) {
+            dd($e->getMessage());
+        }
+        dd($uploadedFile);
         $createFileSystem = new CreateFilesystemAction($file, $user);
 
         return $createFileSystem->execute(
@@ -101,7 +105,8 @@ class FilesystemServices
             'bucket' => $this->app->get('cloud-bucket'),
             'url' => $this->app->get('cloud-cdn'),
             'path' => $this->app->get('cloud-bucket-path') ?? '/',
-            'use_path_style_endpoint' => false,
+            'use_path_style_endpoint' => true,
+            'endpoint' => $aws['endpoint'] ?? null,
         ]);
     }
 

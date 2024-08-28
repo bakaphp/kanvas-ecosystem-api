@@ -1,0 +1,8 @@
+
+
+# extend type Mutation @guard {
+#     importToEcosystem(input: JSON, companyId: Int!, regionId: Int, mapperId: String)
+#         @field(
+#             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Import\\ImportManagementMutation@import"
+#         )
+# }

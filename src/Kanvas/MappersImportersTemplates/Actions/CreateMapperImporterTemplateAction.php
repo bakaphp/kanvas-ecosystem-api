@@ -33,7 +33,7 @@ class CreateMapperImporterTemplateAction
             $root = new AttributeMapperImporterTemplate();
             $root->importers_templates_id = $importersTemplates->id;
             $root->name = $attribute['name'];
-            $root->mapping_field = $attribute['mapping_field'];
+            $root->mapping_field = key_exists("mapping_field", $attribute) ? $attribute['mapping_field'] : $attribute['name'];
             $root->save();
 
             if (isset($attribute['children'])) {
@@ -41,7 +41,7 @@ class CreateMapperImporterTemplateAction
                     $childModel = new AttributeMapperImporterTemplate();
                     $childModel->importers_templates_id = $importersTemplates->id;
                     $childModel->name = $child['name'];
-                    $childModel->mapping_field = $child['mapping_field'];
+                    $childModel->mapping_field = key_exists("mapping_field", $child) ? $child['mapping_field'] : $child['name'];
                     $childModel->parent()->associate($root);
                     $childModel->save();
                 }

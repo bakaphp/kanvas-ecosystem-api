@@ -99,6 +99,16 @@ class FilesystemManagementMutation
         return $filesystem->upload($file, auth()->user());
     }
 
+    public function uploadCsv(mixed $rootValue, array $request): array
+    {
+        $file = $this->singleFile($rootValue, $request);
+        $csv = fopen($file->url, 'r');
+        for ($i = 0; $i < 2; $i++) {
+            $line = fgetcsv($csv);
+        }
+        return $line;
+    }
+
     /**
      * Multiple Upload a file, store it on the server and return the path.
      */
