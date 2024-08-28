@@ -375,7 +375,7 @@ class Variants extends BaseModel
     public function isLastVariant(): bool
     {
         $product = $this->product;
-   
+
         // Check if the product is being deleted
         if ($product && $product->is_deleted) {
             return false;
