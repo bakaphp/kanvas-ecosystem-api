@@ -46,7 +46,7 @@ class StatusObserver
     public function deleting(Status $status): void
     {
         if ($status->hasDependencies()) {
-            throw new ValidationException('Can\'t delete, Status has products associated');
+            throw new ValidationException('Can\'t delete, Attribute has products or variants associated');
         }
 
         $defaultStatus = $status::getDefault($status->company);

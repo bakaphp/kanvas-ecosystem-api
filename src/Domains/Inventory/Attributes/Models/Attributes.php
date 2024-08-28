@@ -86,6 +86,8 @@ class Attributes extends BaseModel
 
     public function hasDependencies(): bool
     {
-        return $this->productsAttributes()->exists() || $this->variantAttributes()->exists();
+        return $this->productsAttributes()->exists() 
+        || $this->variantAttributes()->exists()
+        || $this->productType()->exists();
     }
 }

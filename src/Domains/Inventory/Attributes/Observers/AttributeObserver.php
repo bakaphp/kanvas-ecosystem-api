@@ -12,7 +12,7 @@ class AttributeObserver
     public function deleting(Attributes $attribute): void
     {
         if ($attribute->hasDependencies()) {
-            throw new ValidationException('Can\'t delete, Attribute has products or variants associated');
+            throw new ValidationException('Can\'t delete, Attribute has associated items');
         }
     }
 }
