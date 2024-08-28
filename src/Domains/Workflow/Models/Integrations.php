@@ -6,10 +6,12 @@ namespace Kanvas\Workflow\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
+use Kanvas\Workflow\Traits\PublicAppScopeTrait;
 
 class Integrations extends BaseModel
 {
     use UuidTrait;
+    use PublicAppScopeTrait;
 
     protected $table = 'integrations';
 

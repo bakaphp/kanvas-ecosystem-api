@@ -71,7 +71,7 @@ extend type Query @guard {
     ): [Integrations!]!
         @paginate(
             model: "Kanvas\\Workflow\\Models\\Integrations"
-            scopes: ["fromApp", "notDeleted"]
+            scopes: ["fromApp", "notDeleted", "fromPublicApp"]
             defaultCount: 25
         )
 }
