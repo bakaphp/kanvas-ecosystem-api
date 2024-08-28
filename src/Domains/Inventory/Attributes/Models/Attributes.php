@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Variants\Models\VariantsAttributes;
+use Kanvas\Inventory\ProductsTypes\Models\ProductsTypesAttributes;
 use Kanvas\Inventory\Products\Models\ProductsAttributes;
 
 /**
@@ -66,6 +67,11 @@ class Attributes extends BaseModel
         return $this->hasMany(ProductsAttributes::class, 'attributes_id');
     }
 
+    public function productsTypesAttributes(): HasMany
+    {
+        return $this->hasMany(ProductsTypesAttributes::class, 'attributes_id');
+    }
+
     /**
      * attributes values from pivot
      */
@@ -88,6 +94,6 @@ class Attributes extends BaseModel
     {
         return $this->productsAttributes()->exists()
         || $this->variantAttributes()->exists()
-        || $this->productType()->exists();
+        || $this->productsTypesAttributes()->exists();
     }
 }
