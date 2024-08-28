@@ -53,7 +53,6 @@ class IntegrationTest extends TestCase
         ]);
         $regionResponse = $regionResponse->decodeResponseJson();
 
-    
         $integration = $response->json()['data']['integrations']['data'][0];
         $company = auth()->user()->getCurrentCompany();
 
@@ -77,7 +76,6 @@ class IntegrationTest extends TestCase
         }', ['data' => $data]);
 
         $this->assertArrayHasKey('id', $integrationCompanyResponse->json()['data']['integrationCompany']);
-
     }
 
     /**
@@ -125,7 +123,6 @@ class IntegrationTest extends TestCase
         ]);
         $regionResponse = $regionResponse->decodeResponseJson();
 
-    
         $integration = $response->json()['data']['integrations']['data'][0];
         $company = auth()->user()->getCurrentCompany();
 

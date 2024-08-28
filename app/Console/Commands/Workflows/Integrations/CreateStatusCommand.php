@@ -45,7 +45,7 @@ class CreateStatusCommand extends Command
     {
         $appId = 0;
 
-        if($this->option('app_id')) {
+        if ($this->option('app_id')) {
             $app = Apps::getById($this->option('app_id'));
             $this->overwriteAppService($app);
             $appId = $app->getId();
