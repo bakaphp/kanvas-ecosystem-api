@@ -12,6 +12,8 @@ type People {
     organizations: [Organization!] @belongsToMany
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
+    created_at: DateTime!
+    updated_at: DateTime
     employment_history: [PeopleEmploymentHistory!]
         @hasMany(relation: "employmentHistory")
     files: [Filesystem!]!
