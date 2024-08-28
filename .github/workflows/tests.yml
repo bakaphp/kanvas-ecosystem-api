@@ -160,7 +160,7 @@ jobs:
         run: php artisan kanvas:create-integration kanvas --config='{"url":{"type":"text","required":true}}'
 
       - name: Setup Kanvas Integrations Status
-        run: php artisan kanvas:kanvas:create-workflow-status
+        run: php artisan kanvas:create-workflow-status
 
       - name: create .env file
         run: echo '' > .env
