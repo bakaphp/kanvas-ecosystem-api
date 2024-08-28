@@ -156,6 +156,9 @@ jobs:
       - name: Setup Kanvas Ecosystem
         run: php artisan kanvas:setup-ecosystem
 
+      - name: Setup Kanvas Integrations
+        run: php artisan kanvas:create-integration kanvas --config='{"url":{"type":"text","required":true}}'
+
       - name: create .env file
         run: echo '' > .env
 

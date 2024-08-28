@@ -52,7 +52,6 @@ class KanvasSetupCommand extends Command
             'kanvas:create-role Agents',
             'kanvas:filesystem-setup',
             'kanvas:create-workflow-status',
-            'kanvas:create-integration kanvas --config="{"url":{"type":"text","required":true}}"',
         ];
 
         foreach ($commands as $command) {
