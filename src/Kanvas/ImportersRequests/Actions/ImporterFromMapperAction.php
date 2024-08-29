@@ -27,17 +27,19 @@ class ImporterFromMapperAction
         $reader = Reader::createFromPath($path, 'r');
         $reader->setHeaderOffset(0);
         $records = $reader->getRecords();
+        $data=[];
         foreach ($records as $record) {
-            $data = $this->mapper($this->mapperImporterTemplate->mapper, $record);
-            $systemModuleImportDto = $this->mapperImporterTemplate->systemModules->importer_job::dispatchSync(
-                $this->importerRequest->uuid,
-                [$data],
-                $this->importerRequest->branches,
-                $this->importerRequest->user,
-                $this->importerRequest->region,
-                app(Apps::class)
-            );
+            $data[] = $this->mapper($this->mapperImporterTemplate->mapper, $record);
         }
+        $systemModuleImportDto = $this->mapperImporterTemplate->systemModules->importer_job::dispatchSync(
+            $this->importerRequest->uuid,
+            $data,
+            $this->importerRequest->branches,
+            $this->importerRequest->user,
+            $this->importerRequest->region,
+            app(Apps::class)
+        );
+
     }
 
     private function mapper(array $template, array $data)

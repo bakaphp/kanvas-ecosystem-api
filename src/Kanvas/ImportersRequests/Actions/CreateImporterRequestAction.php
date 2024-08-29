@@ -5,7 +5,7 @@ namespace Kanvas\ImportersRequests\Actions;
 
 use Kanvas\ImportersRequests\Models\ImporterRequest;
 use Kanvas\ImportersRequests\DataTransferObject\ImporterRequest as ImporterRequestDto;
-
+use Baka\Enums\StateEnums;
 class CreateImporterRequestAction
 {
 
@@ -14,7 +14,7 @@ class CreateImporterRequestAction
     ) {
     }
 
-    public function executer(): ImporterRequest
+    public function execute(): ImporterRequest
     {
         return ImporterRequest::create([
             'apps_id' => $this->dto->app->getId(),
@@ -23,7 +23,7 @@ class CreateImporterRequestAction
             'users_id' => $this->dto->user->getId(),
             'regions_id' => $this->dto->region->getId(),
             'filesystem_id' => $this->dto->filesystem->id,
-            'status' => 0
+            'status' => StateEnums::OFF->value   
         ]);
     }
 }
