@@ -7,18 +7,19 @@ use Kanvas\Models\BaseModel;
 use Baka\Traits\UuidTrait;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Filesystem\Models\Filesystem;
 
 /**
  * Class ImporterRequest.
  *
  * @package Kanvas\ImportersRequests\Models
  * @property string $uuid
- * @property string $app_id
- * @property string $companies_id
- * @property string $companies_branches_id
- * @property string $users_id
- * @property string $regions_id
- * @property string $data
+ * @property int $app_id
+ * @property int $companies_id
+ * @property int $companies_branches_id
+ * @property int $users_id
+ * @property int $regions_id
+ * @property int $filesystem_id
  * @property string $status
  * @property string $created_at
  * @property string $updated_at
@@ -46,6 +47,11 @@ class ImporterRequest extends BaseModel
     public function branches()
     {
         return $this->belongsTo(CompaniesBranches::class, 'companies_branches_id', 'id');
+    }
+
+    public function filesystem()
+    {
+        return $this->belongsTo(Filesystem::class, 'filesystem_id', 'id');
     }
 
 }

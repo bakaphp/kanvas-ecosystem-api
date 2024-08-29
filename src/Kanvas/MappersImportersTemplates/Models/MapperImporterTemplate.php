@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\MappersImportersTemplates\Models;
 
-use Awobaz\Compoships\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * MapperImportersTemplates Model
@@ -17,6 +17,7 @@ use Kanvas\SystemModules\Models\SystemModules;
  * @property int $companies_id
  * @property string $name
  * @property string $description
+ * @property array $mapper
  */
 class MapperImporterTemplate extends BaseModel
 {
@@ -32,5 +33,12 @@ class MapperImporterTemplate extends BaseModel
     public function systemModules(): BelongsTo
     {
         return $this->belongsTo(SystemModules::class, 'system_modules_id');
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'mapper' => 'array',
+        ];
     }
 }

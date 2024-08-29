@@ -21,6 +21,7 @@ type AttributeImporterTemplate {
 input ImporterTemplateInput {
     name: String!
     description: String
+    mapper: JSON
     attributes: [AttributeImporterTemplateInput!]
 }
 

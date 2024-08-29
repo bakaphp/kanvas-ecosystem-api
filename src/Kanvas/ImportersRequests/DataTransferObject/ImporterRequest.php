@@ -9,7 +9,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Users\Models\Users;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Companies\Models\Companies;
-
+use Kanvas\Filesystem\Models\Filesystem;
 class ImporterRequest extends Data
 {
     public function __construct(
@@ -18,7 +18,7 @@ class ImporterRequest extends Data
         public Users $user,
         public Regions $region,
         public Companies $company,
-        public array $data,
+        public Filesystem $filesystem
     ) {
     }
 }

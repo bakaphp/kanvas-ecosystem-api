@@ -15,6 +15,7 @@ use Kanvas\ImportersRequests\DataTransferObject\ImporterRequest as ImporterReque
 use Kanvas\ImportersRequests\Actions\CreateImporterRequestAction;
 use Kanvas\ImportersRequests\Actions\ImporterFromMapperAction;
 use Kanvas\MappersImportersTemplates\Models\MapperImporterTemplate;
+use Kanvas\Filesystem\Models\Filesystem;
 
 class ImportManagementMutation
 {
@@ -29,17 +30,18 @@ class ImportManagementMutation
         );
 
         $region = ! isset($req['regionId']) ? Regions::getDefault($company) : RegionRepository::getById($req['regionId'], $company);
+        $filesystem = Filesystem::getByIdFromCompanyApp($req['filesystemId'], $company, app(Apps::class));
         $importRequestDto = new ImporterRequest(
             app(Apps::class),
             $company->branch,
             auth()->user(),
             $region,
             $company,
-            $req['input'],
+            $filesystem
         );
         $importerRequest = (new CreateImporterRequestAction($importRequestDto))->executer();
         $mapper = MapperImporterTemplate::getById($req['mapperId']);
         (new ImporterFromMapperAction($importerRequest, $mapper))->execute();
-        return $importerRequest->uuid;
+        return $importerRequest->uuid->toString();
     }
 }

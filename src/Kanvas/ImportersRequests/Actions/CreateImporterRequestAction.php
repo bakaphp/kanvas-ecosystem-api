@@ -17,12 +17,12 @@ class CreateImporterRequestAction
     public function executer(): ImporterRequest
     {
         return ImporterRequest::create([
-            'app_id' => $this->dto->app->getId(),
+            'apps_id' => $this->dto->app->getId(),
             'companies_id' => $this->dto->company->getId(),
             'companies_branches_id' => $this->dto->branch->getId(),
             'users_id' => $this->dto->user->getId(),
             'regions_id' => $this->dto->region->getId(),
-            'data' => $this->dto->data,
+            'filesystem_id' => $this->dto->filesystem->id,
             'status' => 0
         ]);
     }

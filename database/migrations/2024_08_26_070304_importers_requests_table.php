@@ -17,8 +17,8 @@ return new class extends Migration {
             $table->bigInteger('companies_id')->unsigned();
             $table->bigInteger('regions_id')->unsigned();
             $table->bigInteger('companies_branches_id')->unsigned();
+            $table->bigInteger('filesystem_id')->unsigned();
             $table->string('uuid');
-            $table->text('data')->nullable();
             $table->integer('status')->default(0);
             $table->integer('is_deleted')->default(0);
             $table->timestamps();
