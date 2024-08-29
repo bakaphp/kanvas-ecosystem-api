@@ -41,9 +41,7 @@ class FilesystemServices
                 ]
             );
         } catch (\Aws\S3\Exception\S3Exception $e) {
-            dd($e->getMessage());
         }
-        dd($uploadedFile);
         $createFileSystem = new CreateFilesystemAction($file, $user);
 
         return $createFileSystem->execute(
@@ -105,7 +103,7 @@ class FilesystemServices
             'bucket' => $this->app->get('cloud-bucket'),
             'url' => $this->app->get('cloud-cdn'),
             'path' => $this->app->get('cloud-bucket-path') ?? '/',
-            'use_path_style_endpoint' => true,
+            'use_path_style_endpoint' => $this->app->get('use_path_style_endpoint') ?? false,
             'endpoint' => $aws['endpoint'] ?? null,
         ]);
     }
