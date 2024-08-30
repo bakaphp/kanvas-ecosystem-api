@@ -66,7 +66,7 @@ class CompanyManagementMutation
     public function updatePhotoProfile(mixed $root, array $request): Companies
     {
         $company = Companies::getById($request['id']);
-        if(!auth()->user()->isAdmin()) {
+        if (! auth()->user()->isAdmin()) {
             $company = Companies::getById($request['id']);
             CompaniesRepository::userAssociatedToCompany(
                 $company,
