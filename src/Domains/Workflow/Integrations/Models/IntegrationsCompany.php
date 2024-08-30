@@ -40,4 +40,10 @@ class IntegrationsCompany extends BaseModel
     {
         return $this->belongsTo(Status::class, 'status_id');
     }
+
+    public function setStatus(Status $status): void
+    {
+        $this->status_id = $status->getId();
+        $this->saveOrFail();
+    }
 }
