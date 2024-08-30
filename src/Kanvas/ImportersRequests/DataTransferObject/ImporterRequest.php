@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\ImportersRequests\DataTransferObject;
@@ -10,6 +11,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Models\Filesystem;
+
 class ImporterRequest extends Data
 {
     public function __construct(

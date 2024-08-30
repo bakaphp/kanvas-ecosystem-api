@@ -106,7 +106,7 @@ class FilesystemManagementMutation
         for ($i = 0; $i < 2; $i++) {
             $line = fgetcsv($csv);
         }
-        return ['filesystem_id'=> $file->id, 'first_line' => $line];
+        return ['filesystem_id' => $file->id, 'first_line' => $line];
     }
 
     /**

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\ImportersRequests\Actions;
@@ -6,9 +7,9 @@ namespace Kanvas\ImportersRequests\Actions;
 use Kanvas\ImportersRequests\Models\ImporterRequest;
 use Kanvas\ImportersRequests\DataTransferObject\ImporterRequest as ImporterRequestDto;
 use Baka\Enums\StateEnums;
+
 class CreateImporterRequestAction
 {
-
     public function __construct(
         private ImporterRequestDto $dto
     ) {
@@ -23,7 +24,7 @@ class CreateImporterRequestAction
             'users_id' => $this->dto->user->getId(),
             'regions_id' => $this->dto->region->getId(),
             'filesystem_id' => $this->dto->filesystem->id,
-            'status' => StateEnums::OFF->value   
+            'status' => StateEnums::OFF->value
         ]);
     }
 }

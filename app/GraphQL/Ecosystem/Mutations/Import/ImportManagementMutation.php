@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Import;
@@ -19,7 +20,6 @@ use Kanvas\Filesystem\Models\Filesystem;
 
 class ImportManagementMutation
 {
-
     public function import(mixed $root, array $req): string
     {
         $company = Companies::getById($req['companyId']);

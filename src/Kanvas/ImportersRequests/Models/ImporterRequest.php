@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\ImportersRequests\Models;
@@ -53,5 +54,4 @@ class ImporterRequest extends BaseModel
     {
         return $this->belongsTo(Filesystem::class, 'filesystem_id', 'id');
     }
-
 }
