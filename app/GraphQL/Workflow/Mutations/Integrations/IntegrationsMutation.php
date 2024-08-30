@@ -47,7 +47,7 @@ class IntegrationsMutation
             app: app(Apps::class)
         );
 
-        if (!class_exists($handler = $integration->handler)) {
+        if (! class_exists($handler = $integration->handler)) {
             throw new InternalServerErrorException('Handler Class not found.');
         }
         $handler = $integration->handler;
