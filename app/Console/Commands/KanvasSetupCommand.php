@@ -52,6 +52,7 @@ class KanvasSetupCommand extends Command
             'kanvas:create-role Agents',
             'kanvas:filesystem-setup',
             'kanvas:create-workflow-status',
+            "kanvas:create-integration shopify --config='{\"client_id\": {\"type\": \"text\",\"required\": true},\"client_secret\": {\"type\": \"text\",\"required\": true},\"shop_url\": {\"type\": \"text\",\"required\": true}}' --handler='Kanvas\\Connectors\\Shopify\\Handlers\\ShopifyHandler'"
         ];
 
         foreach ($commands as $command) {
