@@ -157,7 +157,7 @@ jobs:
         run: php artisan kanvas:setup-ecosystem
 
       - name: Setup Kanvas Integrations
-        run: php artisan kanvas:create-integration kanvas --config='{"client_id":{"type":"text","required":true},"client_secret":{"type":"text","required":true},"shop_url":{"type":"text","required":true}}' --handler='Kanvas\Connectors\Shopify\Handlers'
+        run: php artisan kanvas:create-integration kanvas --config='{"client_id":{"type":"text","required":true},"client_secret":{"type":"text","required":true},"shop_url":{"type":"text","required":true}}' --handler='Kanvas\Connectors\Shopify\Handlers\ShopifyHandler'
 
       - name: create .env file
         run: echo '' > .env
