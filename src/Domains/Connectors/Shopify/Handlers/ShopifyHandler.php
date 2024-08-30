@@ -20,7 +20,6 @@ class ShopifyHandler implements IntegrationInterfaces
         public Regions $region,
         public array $data
     ) {
-
     }
 
     public function setup(): bool

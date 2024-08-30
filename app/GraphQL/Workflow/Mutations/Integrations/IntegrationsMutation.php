@@ -55,7 +55,7 @@ class IntegrationsMutation
             $integrationDto->config
         );
 
-        if($handlerInstance->setup()) {
+        if ($handlerInstance->setup()) {
             $status = Status::where('slug', StatusEnum::ACTIVE->value)
                             ->where('apps_id', 0)
                             ->first();
