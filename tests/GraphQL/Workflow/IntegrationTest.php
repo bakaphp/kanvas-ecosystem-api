@@ -55,6 +55,11 @@ class IntegrationTest extends TestCase
 
         $integration = $response->json()['data']['integrations']['data'][0];
         $company = auth()->user()->getCurrentCompany();
+        $credentials = [
+            'client_id' => getenv('TEST_SHOPIFY_API_KEY'),
+            'client_secret' => getenv('TEST_SHOPIFY_API_SECRET'),
+            'shop_url' => getenv('TEST_SHOPIFY_SHOP_URL'),
+        ];
 
         $data = [
             'integration' => [
@@ -64,7 +69,7 @@ class IntegrationTest extends TestCase
             'region' => [
                 'id' => $regionResponse['data']['createRegion']['id']
             ],
-            'config' => "{ \"url\": \"facebook.com\" }"
+            'config' => "{ \"client_id\": \"{$credentials['client_id']}\",\"client_secret\": \"{$credentials['client_secret']}\",\"shop_url\": \"{$credentials['shop_url']}\"}"
         ];
 
         $integrationCompanyResponse = $this->graphQL('
@@ -126,6 +131,12 @@ class IntegrationTest extends TestCase
         $integration = $response->json()['data']['integrations']['data'][0];
         $company = auth()->user()->getCurrentCompany();
 
+        $credentials = [
+            'client_id' => getenv('TEST_SHOPIFY_API_KEY'),
+            'client_secret' => getenv('TEST_SHOPIFY_API_SECRET'),
+            'shop_url' => getenv('TEST_SHOPIFY_SHOP_URL'),
+        ];
+
         $data = [
             'integration' => [
                 'id' => $integration['id']
@@ -134,7 +145,7 @@ class IntegrationTest extends TestCase
             'region' => [
                 'id' => $regionResponse['data']['createRegion']['id']
             ],
-            'config' => "{ \"url\": \"facebook.com\" }"
+            'config' => "{ \"client_id\": \"{$credentials['client_id']}\",\"client_secret\": \"{$credentials['client_secret']}\",\"shop_url\": \"{$credentials['shop_url']}\"}"
         ];
 
         $integrationCompanyResponse = $this->graphQL('
