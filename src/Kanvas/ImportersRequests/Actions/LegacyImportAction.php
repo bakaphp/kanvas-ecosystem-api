@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\ImportersRequests\Actions;
@@ -11,7 +12,6 @@ use Kanvas\Apps\Models\Apps;
 
 class LegacyImportAction
 {
-
     public function __construct(
         private ImporterRequest $importerRequest
     ) {
@@ -31,6 +31,5 @@ class LegacyImportAction
             $this->importerRequest->region,
             app(Apps::class)
         );
-
     }
 }

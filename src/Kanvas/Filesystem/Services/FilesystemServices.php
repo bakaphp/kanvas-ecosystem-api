@@ -39,7 +39,7 @@ class FilesystemServices
                 'visibility' => 'public',
             ]
         );
-       
+
         $createFileSystem = new CreateFilesystemAction($file, $user);
 
         return $createFileSystem->execute(
