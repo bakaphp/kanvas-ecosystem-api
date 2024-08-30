@@ -20,6 +20,7 @@ class Integrations extends BaseModel
         'apps_id',
         'name',
         'config',
+        'handler'
     ];
 
     protected $casts = [

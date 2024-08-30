@@ -25,7 +25,7 @@ class CreateIntegrationCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:create-integration {name} {--app_id=} {--config=}';
+    protected $signature = 'kanvas:create-integration {name} {--app_id=} {--config=} {--handler=}';
 
     /**
      * The console command description.
@@ -57,11 +57,14 @@ class CreateIntegrationCommand extends Command
             $config = json_decode($this->option('config'), true);
         }
 
+        $handler = $this->option('handler') ?? null;
+
         $integration = Integrations::firstOrCreate([
             'name' => $name,
             'apps_id' => $appId,
         ], [
-            'config' => $config
+            'config' => $config,
+            'handler' => $handler
         ]);
 
         info('Integration created successfully - ' . $integration->getId() . ' - ' . $integration->name);

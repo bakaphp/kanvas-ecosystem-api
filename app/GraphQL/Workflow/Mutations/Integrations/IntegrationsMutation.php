@@ -8,10 +8,13 @@ use Kanvas\Inventory\Status\Models\Status as StatusModel;
 use Kanvas\Workflow\Models\Integrations;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
+use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Actions\CreateIntegrationCompanyAction;
 use Kanvas\Workflow\Integrations\DataTransferObject\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany as ModelsIntegrationsCompany;
+use Kanvas\Workflow\Integrations\Models\Status;
 use Kanvas\Workflow\Integrations\Validations\ConfigValidation;
 
 class IntegrationsMutation
@@ -30,6 +33,11 @@ class IntegrationsMutation
         $company = CompaniesRepository::getById((int) $request['input']['company_id']);
         $region = RegionRepository::getById((int) $request['input']['region']['id'], $company);
 
+        CompaniesRepository::userAssociatedToCompany(
+            $company,
+            auth()->user()
+        );
+
         (new ConfigValidation($integration->config, $request['input']))->validate();
         $integrationDto = new IntegrationsCompany(
             integration: $integration,
@@ -39,7 +47,29 @@ class IntegrationsMutation
             app: app(Apps::class)
         );
 
-        $integrationCompany = (new CreateIntegrationCompanyAction($integrationDto, auth()->user()))->execute();
+        if (! class_exists($handler = $integration->handler)) {
+            throw new InternalServerErrorException('Handler Class not found.');
+        }
+        $handler = $integration->handler;
+
+        $handlerInstance = new $handler(
+            $integrationDto->app,
+            $integrationDto->company,
+            $integrationDto->region,
+            $integrationDto->config
+        );
+
+        if ($handlerInstance->setup()) {
+            $status = Status::where('slug', StatusEnum::ACTIVE->value)
+                            ->where('apps_id', 0)
+                            ->first();
+        } else {
+            $status = Status::where('slug', StatusEnum::FAILED->value)
+                            ->where('apps_id', 0)
+                            ->first();
+        }
+
+        $integrationCompany = (new CreateIntegrationCompanyAction($integrationDto, auth()->user(), $status))->execute();
 
         return $integrationCompany;
     }
