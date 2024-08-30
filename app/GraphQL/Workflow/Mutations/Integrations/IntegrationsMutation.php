@@ -8,6 +8,7 @@ use Kanvas\Inventory\Status\Models\Status as StatusModel;
 use Kanvas\Workflow\Models\Integrations;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Actions\CreateIntegrationCompanyAction;
@@ -46,6 +47,9 @@ class IntegrationsMutation
             app: app(Apps::class)
         );
 
+        if (!class_exists($handler = $integration->handler)) {
+            throw new InternalServerErrorException('Handler Class not found.');
+        }
         $handler = $integration->handler;
 
         $handlerInstance = new $handler(
