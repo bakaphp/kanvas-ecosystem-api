@@ -29,13 +29,22 @@ class CreateAttribute
             $this->user
         );
 
+        $existingAttribute = Attributes::getBySlug(
+            $this->dto->slug,
+            $this->dto->company,
+        );
+
+        if ($existingAttribute) {
+            return $existingAttribute;
+        }
+
         return Attributes::firstOrCreate([
-            'name' => $this->dto->name,
+            'slug' => $this->dto->slug,
             'companies_id' => $this->dto->company->getId(),
             'apps_id' => $this->dto->app->getId(),
         ], [
             'users_id' => $this->user->getId(),
-            'slug' => $this->dto->slug,
+            'name' => $this->dto->name,
             'attributes_type_id' => $this->dto->attributeType?->getId(),
             'is_visible' => $this->dto->isVisible,
             'is_searchable' => $this->dto->isSearchable,

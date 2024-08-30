@@ -63,7 +63,6 @@ class RegisterUsersAction extends CreateUserAction
         if ($newUser) {
             $this->onBoarding($user, $company);
         }
-
         if ($this->runWorkflow) {
             $user->fireWorkflow(
                 WorkflowEnum::REGISTERED->value,
