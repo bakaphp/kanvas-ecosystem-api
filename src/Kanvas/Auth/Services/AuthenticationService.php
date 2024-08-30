@@ -80,15 +80,24 @@ class AuthenticationService
             Password::rehash($loginInput->getPassword(), $authentically);
             $this->resetLoginTries($authentically);
 
+            $company = $user->getCurrentCompany();
+            if (! $company->isActive()) {
+                $authMessage = $this->app->get(AppSettingsEnums::INACTIVE_COMPANY_ACCOUNT_ERROR_MESSAGE->getValue()) ?? 'Company is not active, please contact support.';
+
+                throw new AuthenticationException($authMessage);
+            }
+
             $user->fireWorkflow(
                 WorkflowEnum::USER_LOGIN->value,
                 true,
-                ['company' => $user->getCurrentCompany()]
+                ['company' => $company]
             );
 
             return $user;
         } elseif (! $authentically->isActive()) {
-            throw new AuthenticationException('User is not active, please contact support.');
+            $authMessage = $this->app->get(AppSettingsEnums::INACTIVE_ACCOUNT_ERROR_MESSAGE->getValue()) ?? 'User is not active, please contact support.';
+
+            throw new AuthenticationException($authMessage);
         } elseif ($authentically->isBanned()) {
             throw new AuthenticationException('User has been banned, please contact support.');
         } else {

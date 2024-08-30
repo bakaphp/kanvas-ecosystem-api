@@ -36,6 +36,7 @@ class CreateMessageAction
             'total_disliked' => $this->messageInput->total_disliked,
             'total_saved' => $this->messageInput->total_saved,
             'total_shared' => $this->messageInput->total_shared,
+            'ip_address' => $this->messageInput->ip_address,
         ];
 
         $validator = Validator::make($data, [

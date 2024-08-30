@@ -45,3 +45,15 @@ input AddressInput {
     country_id: ID
     is_default: Boolean
 }
+
+extend type Query @guard {
+    contactType(
+        where: _ @whereConditions(columns: ["name"])
+        orderBy: _ @orderBy(columns: ["name", "created_at"])
+    ): [ContactType!]!
+        @paginate(
+            model: "Kanvas\\Guild\\Customers\\Models\\ContactType"
+            defaultCount: 25
+            scopes: ["notDeleted"]
+        )
+}

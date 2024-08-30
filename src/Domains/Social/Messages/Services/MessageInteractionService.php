@@ -11,7 +11,9 @@ use Kanvas\Social\Interactions\Actions\CreateUserInteractionAction;
 use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Interactions\Models\UsersInteractions;
+use Kanvas\Social\Messages\Actions\CreateUserMessageAction;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Models\UserMessage;
 
 class MessageInteractionService
 {
@@ -24,6 +26,10 @@ class MessageInteractionService
     {
         $this->incrementInteractionCount('total_shared');
         $this->createInteraction($who, InteractionEnum::SHARE->getValue());
+
+        $userMessage = $this->addToUserMessage($who);
+        $userMessage->is_shared = 1;
+        $userMessage->saveOrFail();
 
         $shareUrl = $this->message->app->get(AppEnum::SHAREABLE_LINK->value) ?? $this->message->app->url;
 
@@ -43,21 +49,49 @@ class MessageInteractionService
 
     public function like(UserInterface $who): UsersInteractions
     {
-        $this->incrementInteractionCount('total_liked');
+        $userInteraction = $this->createInteraction($who, InteractionEnum::LIKE->getValue());
 
-        return $this->createInteraction($who, InteractionEnum::LIKE->getValue());
+        $userMessage = $this->addToUserMessage($who);
+        $userMessage->is_liked = $userMessage->is_liked == 1 ? 0 : 1; //turn off the like if it was already liked
+        $userMessage->is_disliked = 0;
+        $userMessage->saveOrFail();
+
+        if ($userMessage->is_liked == 1) {
+            $this->incrementInteractionCount('total_liked');
+        } else {
+            $this->decrementInteractionCount('total_liked');
+        }
+
+        return $userInteraction;
     }
 
     public function dislike(UserInterface $who): UsersInteractions
     {
-        $this->incrementInteractionCount('total_disliked');
+        $userInteraction = $this->createInteraction($who, InteractionEnum::DISLIKE->getValue());
 
-        return $this->createInteraction($who, InteractionEnum::DISLIKE->getValue());
+        $userMessage = $this->addToUserMessage($who);
+        $userMessage->is_disliked = $userMessage->is_disliked == 1 ? 0 : 1; //turn off the dislike if it was already disliked
+        $userMessage->is_liked = 0;
+        $userMessage->saveOrFail();
+
+        if ($userMessage->is_disliked == 1) {
+            $this->incrementInteractionCount('total_disliked');
+        } else {
+            $this->decrementInteractionCount('total_disliked');
+        }
+
+        return $userInteraction;
     }
 
     protected function incrementInteractionCount(string $interactionType): void
     {
         $this->message->$interactionType++;
+        $this->message->saveOrFail();
+    }
+
+    protected function decrementInteractionCount(string $interactionType): void
+    {
+        $this->message->$interactionType--;
         $this->message->saveOrFail();
     }
 
@@ -75,5 +109,17 @@ class MessageInteractionService
         );
 
         return $createUserInteraction->execute();
+    }
+
+    protected function addToUserMessage(UserInterface $user): UserMessage
+    {
+        $createUserMessage = new CreateUserMessageAction(
+            $this->message,
+            $user,
+            [
+            ]
+        );
+
+        return $createUserMessage->execute();
     }
 }

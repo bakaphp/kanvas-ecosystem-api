@@ -126,4 +126,9 @@ class ProductsTypes extends BaseModel
     {
         return new ProductTypeFactory();
     }
+
+    public function hasDependencies(): bool
+    {
+        return $this->products()->exists();
+    }
 }

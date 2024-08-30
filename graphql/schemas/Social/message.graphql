@@ -12,6 +12,7 @@ type Message {
     comment_count: Int
     total_liked: Int
     total_disliked: Int
+    is_public: Int
     total_saved: Int
     total_shared: Int
     total_view: Int
@@ -23,6 +24,7 @@ type Message {
     myInteraction: myInteraction @method(name: "getMyInteraction")
     comments: [MessageComments!]! @hasMany(type: PAGINATOR)
     additional_field: Mixed
+    created_at: DateTime!
     custom_fields: [CustomField!]!
         @cacheRedis
         @paginate(
@@ -45,6 +47,7 @@ type AppModuleMessage {
 
 type myInteraction {
     is_liked: Boolean
+    is_disliked: Boolean
     is_saved: Boolean
     is_shared: Boolean
     is_reported: Boolean
@@ -152,8 +155,11 @@ extend type Query @guard {
                     "reactions_count"
                     "comments_count"
                     "total_liked"
+                    "total_disliked"
                     "total_saved"
+                    "total_view"
                     "total_shared"
+                    "is_public"
                 ]
             )
         hasUser: _
@@ -161,7 +167,16 @@ extend type Query @guard {
                 relation: "user"
                 columns: ["id", "displayname"]
             )
-        hasTags: _ @whereHasConditions(relation: "tags", columns: ["name"])
+        hasTags: _
+            @whereHasConditions(
+                relation: "tags"
+                columns: ["id", "name", "slug"]
+            )
+        hasType: _
+            @whereHasConditions(
+                relation: "messageType"
+                columns: ["id", "name", "verb"]
+            )
         hasAppModuleMessage: _
             @whereHasConditions(columns: ["entity_id", "system_modules"])
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
@@ -218,6 +233,21 @@ extend type Query @guard {
                     "total_saved"
                     "total_shared"
                 ]
+            )
+        hasUser: _
+            @whereHasConditions(
+                relation: "user"
+                columns: ["id", "displayname"]
+            )
+        hasTags: _
+            @whereHasConditions(
+                relation: "tags"
+                columns: ["id", "name", "slug"]
+            )
+        hasType: _
+            @whereHasConditions(
+                relation: "messageType"
+                columns: ["id", "name", "verb"]
             )
         hasAppModuleMessage: _
             @whereHasConditions(columns: ["entity_id", "system_modules"])

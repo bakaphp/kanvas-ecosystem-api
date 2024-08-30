@@ -30,7 +30,7 @@ class Kernel extends ConsoleKernel
         if (getenv('CADDIE_APP_KEY')) {
             $schedule->command(MailCaddieLabCommand::class, [getenv('CADDIE_APP_KEY')])
                 ->dailyAt('13:00')
-                ->timezone('America/Santo_Domingo');
+                ->timezone('America/New_York');
         }
     }
 

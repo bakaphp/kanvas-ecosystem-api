@@ -206,6 +206,13 @@ class People extends BaseModel
         return $this->is_deleted == 0;
     }
 
+    public function searchableAs(): string
+    {
+        $customIndex = $this->app ? $this->app->get('app_custom_people_index') : null;
+
+        return config('scout.prefix') . ($customIndex ?? 'peoples');
+    }
+
     public function toSearchableArray(): array
     {
         $people = [
@@ -219,6 +226,8 @@ class People extends BaseModel
             'dob' => $this->dob,
             'apps_id' => $this->apps_id,
             'users_id' => $this->users_id,
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
             'files' => $this->getFiles()->take(5)->map(function ($files) { //for now limit
                 return [
                     'uuid' => $files->uuid,
