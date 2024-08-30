@@ -8,14 +8,15 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Regions\Models\Regions;
 
-interface IntegrationInterfaces
+abstract class IntegrationInterfaces
 {
     public function __construct(
         Apps $app,
         Companies $company,
         Regions $region,
         array $data
-    );
+    ) {
+    }
 
-    public function setup(): bool;
+    abstract public function setup(): bool;
 }

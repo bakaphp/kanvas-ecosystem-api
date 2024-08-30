@@ -12,7 +12,7 @@ use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Connectors\Shopify\ShopifyService;
 use Kanvas\Connectors\Shopify\DataTransferObject\Shopify as ShopifyDto;
 
-class ShopifyHandler implements IntegrationInterfaces
+class ShopifyHandler extends IntegrationInterfaces
 {
     public function __construct(
         public Apps $app,
