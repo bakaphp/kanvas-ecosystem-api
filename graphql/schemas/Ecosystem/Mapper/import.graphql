@@ -1,5 +1,11 @@
+type ImportCsvData {
+    filesystemId: ID!
+    regionId: ID
+    mapperId: ID!
+}
+
 extend type Mutation @guard {
-    importToEcosystem(filesystemId:ID, companyId: Int!, regionId: Int, mapperId: Int): String
+    importCsvToMapper(data: ImportCsvData): String!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Import\\ImportManagementMutation@import"
         )

@@ -4,16 +4,18 @@ declare(strict_types=1);
 
 namespace Kanvas\ImportersRequests\Actions;
 
+use Baka\Contracts\AppInterface;
+use Baka\Users\Contracts\UserInterface;
 use Kanvas\ImportersRequests\Models\ImporterRequest;
-use Kanvas\ImportersRequests\DataTransferObject\ImporterRequest as ImporterRequestDto;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob as ImporterJob;
-use Kanvas\Apps\Models\Apps;
 
 class LegacyImportAction
 {
     public function __construct(
-        private ImporterRequest $importerRequest
+        protected UserInterface $user,
+        protected AppInterface $app,
+        protected ImporterRequest $importerRequest
     ) {
     }
 
@@ -27,9 +29,9 @@ class LegacyImportAction
             $this->importerRequest->uuid,
             $this->importerRequest->data,
             $this->importerRequest,
-            auth()->user(),
+            $this->user,
             $this->importerRequest->region,
-            app(Apps::class)
+            $this->app
         );
     }
 }

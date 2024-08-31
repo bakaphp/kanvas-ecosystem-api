@@ -4,19 +4,18 @@ declare(strict_types=1);
 
 namespace Kanvas\ImportersRequests\Actions;
 
+use Baka\Support\Str;
+use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\ImportersRequests\Models\ImporterRequest;
 use Kanvas\MappersImportersTemplates\Models\MapperImporterTemplate;
-use Kanvas\Filesystem\Models\Filesystem;
 use League\Csv\Reader;
-use Illuminate\Support\Facades\Storage;
-use Kanvas\Filesystem\Services\FilesystemServices;
-use Kanvas\Apps\Models\Apps;
 
 class ImporterFromMapperAction
 {
     public function __construct(
-        private ImporterRequest $importerRequest,
-        private MapperImporterTemplate $mapperImporterTemplate
+        protected ImporterRequest $importerRequest,
+        protected MapperImporterTemplate $mapperImporterTemplate
     ) {
     }
 
@@ -30,37 +29,44 @@ class ImporterFromMapperAction
         foreach ($records as $record) {
             $data[] = $this->mapper($this->mapperImporterTemplate->mapper, $record);
         }
-        $systemModuleImportDto = $this->mapperImporterTemplate->systemModules->importer_job::dispatchSync(
+
+        $this->mapperImporterTemplate->systemModules->importer_job::dispatchSync(
             $this->importerRequest->uuid,
             $data,
             $this->importerRequest->branches,
             $this->importerRequest->user,
             $this->importerRequest->region,
-            app(Apps::class)
+            $this->importerRequest->app
         );
     }
 
-    private function mapper(array $template, array $data)
+    protected function mapper(array $template, array $data): array
     {
         $result = [];
+
         foreach ($template as $key => $value) {
-            if (is_array($value)) {
-                $result[$key] = $this->mapper($value, $data);
-            } elseif (is_string($value)) {
-                if (strpos($value, "_") === 0) {
-                    $value = ltrim($value, "_");
+            switch (true) {
+                case is_array($value):
+                    $result[$key] = $this->mapper($value, $data);
+
+                    break;
+                case is_string($value) && Str::startsWith($value, '_'):
+                    $result[$key] = Str::after($value, '_');
+
+                    break;
+                case is_string($value):
+                    $result[$key] = $data[$value] ?? null;
+
+                    break;
+                default:
                     $result[$key] = $value;
-                } else {
-                    $result[$key] = $data[$value];
-                }
-            } else {
-                $result[$key] = $value;
             }
         }
+
         return $result;
     }
 
-    private function getFilePath(Filesystem $filesystem): string
+    protected function getFilePath(Filesystem $filesystem): string
     {
         $path = $filesystem->path;
         $filesystem = Filesystem::getById($this->importerRequest->filesystem_id);
@@ -69,6 +75,7 @@ class ImporterFromMapperAction
         $filename = basename($path);
         $path = storage_path('app/public/' . $filename);
         file_put_contents($path, $fileContent);
+
         return $path;
     }
 }

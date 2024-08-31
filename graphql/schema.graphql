@@ -20,6 +20,7 @@ scalar Null  @scalar(class: "MLL\\GraphQLScalars\\NullScalar")
 
 #import hello.graphql
 #import schemas/Ecosystem/*.graphql
+#import schemas/Ecosystem/Mapper/*.graphql
 #import schemas/*.graphql
 #import schemas/Inventory/*.graphql
 #import schemas/Connector/*.graphql

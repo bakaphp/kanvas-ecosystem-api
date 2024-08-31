@@ -22,6 +22,7 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Laravel\Socialite\Facades\Socialite;
@@ -42,15 +43,21 @@ class AuthenticationService
     ): UserInterface {
         $app = $this->app;
 
-        /**
-         * @todo use email per app from userAssociatedApp
-         */
-        $user = Users::notDeleted()
-        ->where('email', $loginInput->getEmail())
-        ->when($app->get(AppEnums::DISPLAYNAME_LOGIN->getValue()), function ($query) use ($loginInput) {
-            return $query->orWhere('displayname', $loginInput->getEmail());
-        })
-        ->first();
+        $appId = $app->getId();
+        $displayNameLogin = $app->get(AppEnums::DISPLAYNAME_LOGIN->getValue());
+        $email = $loginInput->getEmail();
+
+        $userAssociatedAppQuery = UsersAssociatedApps::notDeleted()
+            ->where('email', $email)
+            ->where('apps_id',  $app->getId());
+
+        if ($displayNameLogin) {
+            $userAssociatedAppQuery->orWhere('displayname', $email);
+        }
+
+        $userAssociatedApp = $userAssociatedAppQuery->first();
+
+        $user = $userAssociatedApp?->user;
 
         if (! $user) {
             throw new AuthenticationException('Invalid email or password.');
