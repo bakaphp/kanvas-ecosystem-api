@@ -257,7 +257,7 @@ extend type Mutation @guardByAdmin {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@updateCompany"
         )
-    updateCompanyPhotoProfile(file: Upload!, id: ID!): User!
+    updateCompanyPhotoProfile(file: Upload!, id: ID!): Company!
         @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@updatePhotoProfile"
