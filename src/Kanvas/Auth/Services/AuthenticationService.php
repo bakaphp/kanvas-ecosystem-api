@@ -48,6 +48,7 @@ class AuthenticationService
 
         $userAssociatedAppQuery = UsersAssociatedApps::notDeleted()
             ->where('email', $email)
+            ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
             ->where('apps_id', $app->getId());
 
         if ($displayNameLogin) {
