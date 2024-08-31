@@ -23,6 +23,8 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Filesystem\Actions\AttachFilesystemAction;
+use Kanvas\Filesystem\Services\FilesystemServices;
 
 class CompanyManagementMutation
 {
@@ -58,6 +60,31 @@ class CompanyManagementMutation
         $action = new UpdateCompaniesAction($user, $dto);
 
         return $action->execute((int) $request['id']);
+    }
+
+
+    public function updatePhotoProfile(mixed $root, array $request): Companies
+    {
+        $company = Companies::getById($request['id']);
+        if (! auth()->user()->isAdmin()) {
+            $company = Companies::getById($request['id']);
+            CompaniesRepository::userAssociatedToCompany(
+                $company,
+                auth()->user()
+            );
+        }
+        $filesystem = new FilesystemServices(app(Apps::class));
+        $file = $request['file'];
+        in_array($file->extension(), ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp']) ?: throw new Exception('Invalid file format');
+
+        $filesystemEntity = $filesystem->upload($file, auth()->user());
+        $action = new AttachFilesystemAction(
+            $filesystemEntity,
+            $company
+        );
+        $action->execute('photo');
+
+        return $company;
     }
 
     /**
