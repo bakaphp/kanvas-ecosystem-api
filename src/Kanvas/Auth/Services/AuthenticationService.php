@@ -43,13 +43,12 @@ class AuthenticationService
     ): UserInterface {
         $app = $this->app;
 
-        $appId = $app->getId();
         $displayNameLogin = $app->get(AppEnums::DISPLAYNAME_LOGIN->getValue());
         $email = $loginInput->getEmail();
 
         $userAssociatedAppQuery = UsersAssociatedApps::notDeleted()
             ->where('email', $email)
-            ->where('apps_id',  $app->getId());
+            ->where('apps_id', $app->getId());
 
         if ($displayNameLogin) {
             $userAssociatedAppQuery->orWhere('displayname', $email);
