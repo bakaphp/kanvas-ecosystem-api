@@ -12,7 +12,7 @@ return new class () extends Migration {
     {
         Schema::create('attributes_mappers_importers_templates', function (Blueprint $table) {
             $table->id();
-            $table->bigInteger('importers_templates_id')->unsigned()->index();
+            $table->bigInteger('importers_templates_id')->unsigned()->index('importers_templates_id');
             $table->bigInteger('parent_id')->unsigned()->index(); // This is the parent attribute id from the attributes_importers_templates table
             $table->string('name');
             $table->string('mapping_field');
