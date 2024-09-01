@@ -1,0 +1,50 @@
+type FilesystemMapper {
+    id: ID!
+    users: User!
+    company: Company!
+    name: String!
+    file_header: Mixed!
+    mapping: Mixed!
+    configuration: Mixed
+    system_module: SystemModule! @belongsTo
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+input FilesystemMapperInput {
+    name: String!
+    system_module_id: ID!
+    file_header: Mixed!
+    mapping: Mixed!
+    configuration: Mixed
+}
+
+type Mutation @guard {
+    createFilesystemMapper(input: FilesystemMapperInput!): FilesystemMapper!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemMapperMutation@create"
+        )
+}
+
+extend type Query @guard {
+    filesystemMappers(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "companies_id"
+                    "system_modules_id"
+                    "companies_branches_id"
+                    "name"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [FilesystemMapper!]!
+        @paginate(
+            model: "Kanvas\\Filesystem\\Models\\FilesystemMapper"
+            scopes: ["fromCompany", "notDeleted", "fromApp"]
+            defaultCount: 25
+        )
+}

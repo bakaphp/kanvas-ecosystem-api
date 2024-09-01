@@ -19,10 +19,6 @@ return new class () extends Migration {
             $table->string('description')->nullable();
             $table->integer('is_deleted')->default(0)->index();
             $table->timestamps();
-
-            $table->index(['apps_id', 'users_id', 'companies_id']);
-            $table->index(['apps_id', 'companies_id']);
-            $table->index(['apps_id', 'companies_id', 'is_deleted']);
         });
     }
 

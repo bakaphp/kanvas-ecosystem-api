@@ -22,20 +22,6 @@ return new class () extends Migration {
             $table->integer('status')->default(0)->index();
             $table->integer('is_deleted')->default(0)->index();
             $table->timestamps();
-
-            $table->index(['apps_id', 'users_id', 'companies_id']);
-            $table->index(['apps_id', 'companies_id']);
-            $table->index(['apps_id', 'companies_id', 'is_deleted']);
-            $table->index(['apps_id', 'companies_id', 'status']);
-            $table->index(['apps_id', 'companies_id', 'regions_id']);
-            $table->index(['apps_id', 'companies_id', 'regions_id', 'is_deleted']);
-            $table->index(['apps_id', 'companies_id', 'regions_id', 'status']);
-            $table->index(['apps_id', 'companies_id', 'regions_id', 'companies_branches_id']);
-            $table->index(['apps_id', 'companies_id', 'regions_id', 'companies_branches_id', 'is_deleted']);
-            $table->index(['apps_id', 'companies_id', 'regions_id', 'companies_branches_id', 'status']);
-            $table->index(['apps_id', 'companies_id', 'regions_id', 'companies_branches_id', 'filesystem_id']);
-            $table->index(['apps_id', 'companies_id', 'regions_id', 'companies_branches_id', 'filesystem_id', 'is_deleted']);
-            $table->index(['apps_id', 'companies_id', 'regions_id', 'companies_branches_id', 'filesystem_id', 'status']);
         });
     }
 

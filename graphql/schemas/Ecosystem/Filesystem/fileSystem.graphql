@@ -33,7 +33,7 @@ extend type Query @guard {
         )
 }
 
-type Mutation @guard {
+extend type Mutation @guard {
     "Upload a file that is publicly available."
     upload(file: Upload!): Filesystem!
         @field(
