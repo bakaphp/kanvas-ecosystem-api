@@ -32,7 +32,7 @@ return new class () extends Migration {
             $table->dateTime('updated_at')->nullable()->index();
             $table->tinyInteger('is_deleted')->index();
 
-            $table->index(['apps_id', 'companies_id', 'companies_branches_id', 'system_modules_id'],'filesystem_mapping_index');
+            $table->index(['apps_id', 'companies_id', 'companies_branches_id', 'system_modules_id'], 'filesystem_mapping_index');
             $table->index(['apps_id', 'companies_id', 'system_modules_id']);
             $table->index(['apps_id', 'uuid']);
             $table->index(['apps_id', 'uuid', 'system_modules_id']);

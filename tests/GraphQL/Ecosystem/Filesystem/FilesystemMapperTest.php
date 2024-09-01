@@ -41,11 +41,11 @@ class FilesystemMapperTest extends TestCase
                 'attributes' => [
                     [
                         'name' => '_Property Type',
-                        'value' => 'Property Type'
+                        'value' => 'Property Type',
                     ],
                     [
                         'name' => '_Card Format',
-                        'value' => 'Card Format'
+                        'value' => 'Card Format',
                     ],
                     // Add more attributes here as needed
                 ],
@@ -83,6 +83,5 @@ class FilesystemMapperTest extends TestCase
                 ],
             ],
         ]);
-
     }
 }
