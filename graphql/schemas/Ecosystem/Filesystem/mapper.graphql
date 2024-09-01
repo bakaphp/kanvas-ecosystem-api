@@ -39,15 +39,7 @@ extend type Query @guard {
                     "name"
                 ]
             )
-        orderBy: _
-            @orderBy(
-                columns: [
-                    "id"
-                    "created_at"
-                    "updated_at"
-                    "name"
-                ]
-            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [FilesystemMapper!]!
         @paginate(
             model: "Kanvas\\Filesystem\\Models\\FilesystemMapper"
