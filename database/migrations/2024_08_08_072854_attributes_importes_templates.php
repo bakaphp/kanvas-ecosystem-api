@@ -19,7 +19,7 @@ return new class () extends Migration {
             $table->integer('is_deleted')->default(0);
             $table->timestamps();
 
-            $table->index(['importers_templates_id', 'parent_id']);
+            //$table->index(['importers_templates_id', 'parent_id']);
         });
     }
 
