@@ -35,6 +35,7 @@ extend type Query @guard {
                     "id"
                     "uuid"
                     "companies_id"
+                    "system_modules_id"
                     "companies_branches_id"
                     "name"
                 ]
