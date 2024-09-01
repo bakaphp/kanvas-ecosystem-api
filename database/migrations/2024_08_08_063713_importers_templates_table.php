@@ -19,7 +19,6 @@ return new class () extends Migration {
             $table->string('description')->nullable();
             $table->integer('is_deleted')->default(0)->index();
             $table->timestamps();
-
         });
     }
 
