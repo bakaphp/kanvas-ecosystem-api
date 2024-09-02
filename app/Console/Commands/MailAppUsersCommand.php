@@ -18,7 +18,7 @@ class MailAppUsersCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'notifications:SentMailToAll {apps_id} {email_template_name} {subject}';
+    protected $signature = 'kanvas:mail-notification-to-all-app-users {apps_id} {email_template_name} {subject}';
 
     /**
      * The console command description.
