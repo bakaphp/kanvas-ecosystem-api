@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Guild;
+namespace App\Console\Commands\Ecosystem;
 
 use Baka\Enums\StateEnums;
 use Baka\Traits\KanvasJobsTrait;
