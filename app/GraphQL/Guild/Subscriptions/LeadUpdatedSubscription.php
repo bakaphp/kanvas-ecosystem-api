@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\ActionEngine\Subscriptions;
+namespace App\GraphQL\Guild\Subscriptions;
 
 use Exception;
 use Illuminate\Http\Request;
-use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Repositories\UsersRepository;
 use Nuwave\Lighthouse\Execution\ResolveInfo;
 use Nuwave\Lighthouse\Schema\Types\GraphQLSubscription;
 use Nuwave\Lighthouse\Subscriptions\Subscriber;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
-class LeadTaskUpdatedSubscription extends GraphQLSubscription
+class LeadUpdatedSubscription extends GraphQLSubscription
 {
     public function authorize(Subscriber $subscriber, Request $request): bool
     {
@@ -23,7 +23,7 @@ class LeadTaskUpdatedSubscription extends GraphQLSubscription
     public function filter(Subscriber $subscriber, mixed $root): bool
     {
         try {
-            UsersRepository::belongsToCompany($subscriber->context->user, $root->companyAction->company);
+            UsersRepository::belongsToThisApp($subscriber->context->user, $root->app, $root->company);
         } catch (Exception $e) {
             return true;
         }
@@ -36,7 +36,7 @@ class LeadTaskUpdatedSubscription extends GraphQLSubscription
         array $args,
         GraphQLContext $context,
         ResolveInfo $resolveInfo
-    ): TaskListItem {
+    ): Lead {
         return $root;
     }
 }

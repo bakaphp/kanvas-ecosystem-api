@@ -12,6 +12,6 @@ class TaskEngagementItemObserver
     public function saved(TaskEngagementItem $taskEngagementItem): void
     {
         // broadcast graphql subscription
-        Subscription::broadcast('leadTaskUpdated', $taskEngagementItem->item, true);
+        Subscription::broadcast('leadUpdate', $taskEngagementItem->lead, true);
     }
 }

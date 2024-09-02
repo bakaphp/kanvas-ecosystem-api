@@ -105,22 +105,4 @@ class CompanyTaskTest extends TestCase
         'lead_id' => $leadId, // Passing the lead ID to the GraphQL query
     ])->assertOk();
     }
-
-    public function testSubscribeToLeadTask()
-    {
-        $lead = $this->createLeadAndGetResponse();
-        $leadId = $lead['data']['createLead']['id'];
-
-        $this->graphQL('
-        subscription leadTaskUpdated($lead_id: ID!) {
-            leadTaskUpdated(lead_id: $lead_id) {
-                id
-                status
-            }
-        }
-
-    ', [
-        'lead_id' => $leadId, // Passing the lead ID to the GraphQL query
-    ])->assertOk();
-    }
 }
