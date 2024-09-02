@@ -26,7 +26,7 @@ class LeadTaskUpdatedSubscription extends GraphQLSubscription
             UsersRepository::belongsToCompany($subscriber->context->user, $root->companyAction->company);
         } catch (Exception $e) {
             return true;
-        }   
+        }
 
         return true;
     }
