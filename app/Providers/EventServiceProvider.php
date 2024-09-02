@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
+use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
+use Kanvas\ActionEngine\Tasks\Observers\TaskListItemObserver;
 use Kanvas\Companies\Groups\Observers\CompaniesGroupsObserver;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesGroups;
@@ -97,6 +99,7 @@ class EventServiceProvider extends ServiceProvider
         ProductsCategories::observe(ProductsCategoriesObserver::class);
         PeopleEmploymentHistory::observe(PeopleEmploymentHistoryObserver::class);
         People::observe(PeopleObserver::class);
+        TaskListItem::observe(TaskListItemObserver::class);
     }
 
     /**
