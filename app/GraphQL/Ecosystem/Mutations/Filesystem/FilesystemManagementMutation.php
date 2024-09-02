@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Filesystem;
 
+use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\DataTransferObject\FilesystemAttachInput;
@@ -11,7 +12,9 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use League\Csv\Reader;
 
 class FilesystemManagementMutation
 {
@@ -101,12 +104,21 @@ class FilesystemManagementMutation
 
     public function uploadCsv(mixed $rootValue, array $request): array
     {
-        $file = $this->singleFile($rootValue, $request);
-        $csv = fopen($file->url, 'r');
-        for ($i = 0; $i < 2; $i++) {
-            $line = fgetcsv($csv);
+        $file = $request['file'];
+        $path = $file->store('public/' . $file->getClientOriginalName() . uniqid(), 'local');
+        $path = storage_path('app/' . $path);
+        $csv = Reader::createFromPath($path, 'r');
+        $systemModules = SystemModules::getById($request['system_module_id'], app(Apps::class));
+
+        $csv->setHeaderOffset(0);
+        $header = $csv->getHeader();
+        $missingColumns = array_diff($systemModules->browse_fields, $header);
+        if ($missingColumns) {
+            throw new Exception('Missing columns: ' . implode(', ', $missingColumns));
         }
-        return ['filesystem_id' => $file->id, 'first_line' => $line];
+        $fileSystems = $this->singleFile($rootValue, $request);
+        $fileSystems->set('first_row', $csv->fetchOne(0));
+        return [];
     }
 
     /**
