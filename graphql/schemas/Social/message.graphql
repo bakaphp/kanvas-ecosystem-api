@@ -58,6 +58,7 @@ input MessageInput {
     message: Mixed!
     parent_id: ID
     system_modules_id: ID
+    is_public: Int
     entity_id: Mixed
     distribution: DistributionInput
     tags: [TagInput!]

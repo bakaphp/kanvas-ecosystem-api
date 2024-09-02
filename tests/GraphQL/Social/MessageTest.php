@@ -27,6 +27,7 @@ class MessageTest extends TestCase
                     createMessage(input: $input) {
                         id
                         message
+                        is_public
                     }
                 }
             ',
@@ -42,6 +43,42 @@ class MessageTest extends TestCase
             'data' => [
                 'createMessage' => [
                     'message' => $message,
+                    'is_public' => 1,
+                ],
+            ],
+        ]);
+    }
+
+    public function testCreatePrivateMessage()
+    {
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+        Message::makeAllSearchable();
+
+        $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        id
+                        message
+                        is_public
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => $message,
+                    'message_verb' => $messageType->verb,
+                    'system_modules_id' => 1,
+                    'entity_id' => '1',
+                    'is_public' => 0,
+                ],
+            ]
+        )->assertJson([
+            'data' => [
+                'createMessage' => [
+                    'message' => $message,
+                    'is_public' => 0,
                 ],
             ],
         ]);
