@@ -18,7 +18,7 @@ class MailAppUsersCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'notifications:SentMailToAll {apps_id} {email_template_name}';
+    protected $signature = 'notifications:SentMailToAll {apps_id} {email_template_name} {subject}';
 
     /**
      * The console command description.
@@ -48,7 +48,7 @@ class MailAppUsersCommand extends Command
                 $user
             );
 
-            $notification->setSubject('New on Prompt Mine: Explore, Create, and Share');
+            $notification->setSubject($this->argument('subject'));
             Notification::route('mail', $user->email)->notify($notification);
             $this->info('Email Succesfully sent to: ' . $user->getId() . " on app: " . $app->getId());
             $this->newLine();
