@@ -29,8 +29,11 @@ type LeadTaskEngagementItem {
     updated_at: DateTime
 }
 
-type Subscription {
-  leadTaskItemUpdated(lead_id: ID!): LeadTaskEngagementItem @subscription(class: "App\\GraphQL\\ActionEngine\\Subscriptions\\TaskItemSubscription") @guard
+type Subscription @guard {
+    leadTaskUpdated(lead_id: ID!): LeadTaskEngagementItem
+        @subscription(
+            class: "App\\GraphQL\\ActionEngine\\Subscriptions\\LeadTaskUpdatedSubscription"
+        )
 }
 
 extend type Query @guard {
@@ -43,7 +46,11 @@ extend type Query @guard {
 }
 
 extend type Mutation @guard {
-    changeTaskEngagementItemStatus(id: ID!, lead_id: ID!, status: String!): Boolean!
+    changeTaskEngagementItemStatus(
+        id: ID!
+        lead_id: ID!
+        status: String!
+    ): Boolean!
         @field(
             resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Engagements\\TaskEngagementMutation@changeEngagementTaskItemStatus"
         )

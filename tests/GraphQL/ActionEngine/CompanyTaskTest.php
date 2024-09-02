@@ -112,8 +112,8 @@ class CompanyTaskTest extends TestCase
         $leadId = $lead['data']['createLead']['id'];
 
         $this->graphQL('
-        subscription leadTaskItemUpdated($lead_id: ID!) {
-            leadTaskItemUpdated(lead_id: $lead_id) {
+        subscription leadTaskUpdated($lead_id: ID!) {
+            leadTaskUpdated(lead_id: $lead_id) {
                 id
                 status
             }

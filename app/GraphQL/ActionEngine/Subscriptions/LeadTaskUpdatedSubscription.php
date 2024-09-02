@@ -13,7 +13,7 @@ use Nuwave\Lighthouse\Schema\Types\GraphQLSubscription;
 use Nuwave\Lighthouse\Subscriptions\Subscriber;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
-class TaskItemSubscription extends GraphQLSubscription
+class LeadTaskUpdatedSubscription extends GraphQLSubscription
 {
     public function authorize(Subscriber $subscriber, Request $request): bool
     {
@@ -25,8 +25,8 @@ class TaskItemSubscription extends GraphQLSubscription
         try {
             UsersRepository::belongsToCompany($subscriber->context->user, $root->companyAction->company);
         } catch (Exception $e) {
-            return false;
-        }
+            return true;
+        }   
 
         return true;
     }
