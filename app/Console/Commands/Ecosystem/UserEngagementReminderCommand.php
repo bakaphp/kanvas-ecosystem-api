@@ -81,6 +81,7 @@ class UserEngagementReminderCommand extends Command
         );
 
         Notification::route('mail', $user->email)->notify($notification);
+        //@todo save it in user activity log on social?
         $this->info('Email sent to ' . $user->email);
     }
 }
