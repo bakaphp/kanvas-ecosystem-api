@@ -50,14 +50,11 @@ class MailAllAppUsersCommand extends Command
                         ['mail'],
                         $user
                     );
-        
                     $notification->setSubject($this->argument('subject'));
                     Notification::route('mail', $user->email)->notify($notification);
                     $this->info('Email Successfully sent to: ' . $user->getId() . ' on app: ' . $app->getId());
                     $this->newLine();
                 }
             });
-
-        
     }
 }
