@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Connectors\Apollo;
 
 use Baka\Traits\KanvasJobsTrait;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
@@ -44,8 +45,6 @@ class SyncAllPeopleInCompanyCommand extends Command
         $this->overwriteAppService($app);
         $company = Companies::getById((int) $this->argument('company_id'));
 
-        $this->line('Syncing all people in company ' . $company->name . ' from app ' . $app->name . ' total ' . $total . ' per page ' . $perPage);
-
         $rateLimit = 400; // Maximum API calls per hour
         $batchSize = 100; // Number of people to process per batch
         $cacheKey = 'api_rate_limit';
@@ -54,15 +53,22 @@ class SyncAllPeopleInCompanyCommand extends Command
 
         // Check the current count of API calls
         $currentCount = Cache::get($cacheKey, 0);
-        $resetTime = Cache::get($resetKey);
-        echo $currentCount; 
+        $resetTimestamp = Cache::get($resetKey);
 
-        if ($currentCount >= $rateLimit) {
-            // If the limit is reached, calculate the remaining cooldown period
-            $waitTime = $resetTime->diffInSeconds(now());
-            echo "Rate limit reached. Please wait $waitTime seconds to run the process again.";
+        $this->line('Syncing ' . $currentCount . ' all people in company ' . $company->name . ' from app ' . $app->name . ' total ' . $total . ' per page ' . $perPage);
 
-            return;
+        if ($resetTimestamp) {
+            // Ensure $resetTimestamp is a Carbon instance
+            $resetTime = Carbon::parse($resetTimestamp);
+            $currentTimestamp = now()->timestamp;
+            $waitTime = $resetTime->timestamp - $currentTimestamp;
+
+            if ($currentCount >= $rateLimit && $waitTime > 0) {
+                // If the limit is reached, calculate the remaining cooldown period
+                $this->line("Rate limit reached. Please wait $waitTime seconds to run the process again.");
+
+                return;
+            }
         }
 
         People::fromApp($app)
@@ -89,16 +95,15 @@ class SyncAllPeopleInCompanyCommand extends Command
 
                     $this->line('Syncing people ' . $people->id . ' ' . $people->firstname . ' ' . $people->lastname);
 
-                   
                     //sync people
-                  /*   $people->fireWorkflow(
+                    $people->fireWorkflow(
                         WorkflowEnum::UPDATED->value,
                         true,
                         [
-                                'app' => $people->app,
-                            ]
+                            'app' => $people->app,
+                        ]
                     );
-                    $people->clearLightHouseCache(); */
+                    $people->clearLightHouseCache();
 
                     // Increment the API call counter for each person processed
                     $currentCount++;
