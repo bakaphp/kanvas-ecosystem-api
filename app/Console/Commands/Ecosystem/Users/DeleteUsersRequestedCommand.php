@@ -2,13 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands;
+namespace App\Console\Commands\Ecosystem\Users;
 
 use Illuminate\Console\Command;
-use Kanvas\Apps\Repositories\AppsRepository;
-use Kanvas\Users\Models\RequestDeletedAccount;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Users\Models\RequestDeletedAccount;
 
 class DeleteUsersRequestedCommand extends Command
 {
