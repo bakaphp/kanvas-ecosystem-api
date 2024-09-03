@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands;
+namespace App\Console\Commands\Ecosystem;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Console\Command;
