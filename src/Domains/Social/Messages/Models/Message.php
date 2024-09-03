@@ -157,7 +157,7 @@ class Message extends BaseModel
 
         $filterByMessageType = $this->app->get('index_message_by_type');
 
-        return ! $filterByMessageType || $this->messageType->name === $filterByMessageType;
+        return ! $filterByMessageType || $this->messageType->verb === $filterByMessageType;
     }
 
     protected static function newFactory(): Factory
