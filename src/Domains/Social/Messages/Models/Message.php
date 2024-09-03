@@ -142,7 +142,9 @@ class Message extends BaseModel
 
     public function searchableAs(): string
     {
-        $customIndex = $this->app ? $this->app->get('app_custom_message_index') : null;
+        $message = ! $this->searchableDeleteRecord() ? $this : $this->find($this->id);
+
+        $customIndex = $message->app ? $message->app->get('app_custom_message_index') : null;
 
         return config('scout.prefix') . ($customIndex ?? 'message_index');
     }
