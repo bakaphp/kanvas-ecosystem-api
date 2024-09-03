@@ -5,6 +5,7 @@ input AttributeInput {
     is_visible: Boolean
     is_searchable: Boolean
     is_filtrable: Boolean
+    is_required: Boolean
     attribute_type: AttributeTypeReferenceInput
 }
 
@@ -15,6 +16,7 @@ input AttributeUpdateInput {
     is_visible: Boolean
     is_searchable: Boolean
     is_filtrable: Boolean
+    is_required: Boolean
 }
 
 input AttributesValueInput {
@@ -32,6 +34,7 @@ type Attributes {
     is_visible: Boolean
     is_searchable: Boolean
     is_filtrable: Boolean
+    is_required: Boolean
     values: [AttributesValue!] @hasMany(relation: "defaultValues")
     attribute_type: AttributesType @belongsTo(relation: "attributeType")
 }
