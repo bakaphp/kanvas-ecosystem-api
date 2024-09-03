@@ -49,11 +49,13 @@ class DeleteUsersRequestedCommand extends Command
         }
 
         $days = $appsId ? $app->get('days_to_delete') : 30;
+        
         $users = RequestDeletedAccount::when($appsId, function ($query) use ($appsId) {
             return $query->where('apps_id', $appsId);
         })->where(DB::raw('DATEDIFF(request_date, CURDATE())'), '>', $days)
                 ->where('is_deleted', 0)
                 ->get();
+
         foreach ($users as $user) {
             echo 'Deleting user: ' . $user->email . PHP_EOL;
             $user->associateUsers()->deActive();
