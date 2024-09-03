@@ -26,6 +26,7 @@ class Attributes extends Data
         public bool $isVisible = false,
         public bool $isSearchable = false,
         public bool $isFiltrable = false,
+        public bool $isRequired = false,
     ) {
     }
 
@@ -41,6 +42,7 @@ class Attributes extends Data
             $request['is_visible'] ?? false,
             $request['is_searchable'] ?? false,
             $request['is_filtrable'] ?? false,
+            $request['is_required'] ?? false,
         );
     }
 }
