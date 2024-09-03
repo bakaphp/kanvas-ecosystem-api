@@ -23,7 +23,7 @@ class SyncAllPeopleInCompanyCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:guild-apollo-people-sync {app_id} {company_id} {total=2000} {perPage=200}';
+    protected $signature = 'kanvas:guild-apollo-people-sync {app_id} {company_id} {total=400} {perPage=200}';
 
     /**
      * The console command description.
