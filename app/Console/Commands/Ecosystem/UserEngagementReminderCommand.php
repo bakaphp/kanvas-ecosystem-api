@@ -73,9 +73,20 @@ class UserEngagementReminderCommand extends Command
         }
 
         $emailTemplate = $engagementEmailTemplateConfiguration[$lastVisitInDays];
+
+        if (! isset($emailTemplate['template'])) {
+            $this->info('No email template found for ' . $lastVisitInDays . ' days');
+
+            return;
+        }
+
         $notification = new Blank(
-            $emailTemplate,
-            ['app' => $app, 'user' => $user->user],
+            $emailTemplate['template'],
+            [
+                'app' => $app,
+                'user' => $user->user,
+                'config' => $emailTemplate,
+            ],
             ['mail'],
             $user
         );

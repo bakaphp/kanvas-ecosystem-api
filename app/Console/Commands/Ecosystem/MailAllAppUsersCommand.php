@@ -1,18 +1,22 @@
 <?php
 
-namespace App\Console\Commands;
+declare(strict_types=1);
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
+namespace App\Console\Commands\Ecosystem;
+
 use Baka\Enums\StateEnums;
-use Kanvas\Users\Models\Users;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Notifications\Templates\PromptMine\ExploreFeed;
-use Kanvas\Notifications\Templates\Blank;
+use Baka\Traits\KanvasJobsTrait;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Notification;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppEnums;
+use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Users\Models\UsersAssociatedApps;
 
-class MailAppUsersCommand extends Command
+class MailAllAppUsersCommand extends Command
 {
+    use KanvasJobsTrait;
+
     /**
      * The name and signature of the console command.
      *
@@ -33,12 +37,17 @@ class MailAppUsersCommand extends Command
     public function handle()
     {
         $app = Apps::getById((int) $this->argument('apps_id'));
-        $users = Users::select('users.id,users.firstname, users.email')
-        ->join('users_associated_apps', 'users_associated_apps.users_id', '=', 'users.id')
-        ->where('users.is_deleted', StateEnums::NO->getValue())
-        ->where('users_associated_apps.apps_id', $app->getId())
-        ->where('users_associated_apps.is_deleted', StateEnums::NO->getValue())
-        ->get();
+        $this->overwriteAppService($app);
+
+        $users = UsersAssociatedApps::fromApp($app)
+            ->where('is_delete', StateEnums::NO)
+            ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+            ->chunk(100, function ($users) use ($app) {
+                foreach ($users as $user) {
+                    //send email to user
+                    $this->sendEmail($user, $app);
+                }
+            });
 
         foreach ($users as $user) {
             $notification = new Blank(
@@ -50,7 +59,7 @@ class MailAppUsersCommand extends Command
 
             $notification->setSubject($this->argument('subject'));
             Notification::route('mail', $user->email)->notify($notification);
-            $this->info('Email Succesfully sent to: ' . $user->getId() . " on app: " . $app->getId());
+            $this->info('Email Successfully sent to: ' . $user->getId() . ' on app: ' . $app->getId());
             $this->newLine();
         }
     }
