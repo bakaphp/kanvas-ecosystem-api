@@ -619,4 +619,22 @@ class LeadTest extends TestCase
         ],
         ]);
     }
+
+    public function testLeadSubscription()
+    {
+        $lead = $this->createLeadAndGetResponse();
+        $leadId = $lead['data']['createLead']['id'];
+
+        $this->graphQL('
+        subscription leadUpdate($lead_id: ID!) {
+            leadUpdate(id: $lead_id) {
+                id
+                title
+            }
+        }
+
+    ', [
+        'lead_id' => $leadId, // Passing the lead ID to the GraphQL query
+    ])->assertOk();
+    }
 }
