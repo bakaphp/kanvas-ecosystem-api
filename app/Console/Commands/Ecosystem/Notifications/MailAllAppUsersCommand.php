@@ -70,4 +70,5 @@ class MailAllAppUsersCommand extends Command
         $this->info('Email Successfully sent to: ' . $user->getId() . ' on app: ' . $app->getId());
         $this->newLine();
     }
+    
 }
