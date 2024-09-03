@@ -50,11 +50,6 @@ class Tag extends BaseModel
         return $databaseName . '.tags';
     }
 
-    public function shouldBeSearchable(): bool
-    {
-        return $this->is_deleted == 0;
-    }
-
     public function searchableAs(): string
     {
         $tag = ! $this->searchableDeleteRecord() ? $this : $this->find($this->id);

@@ -273,4 +273,14 @@ trait KanvasModelTrait
     {
         return isset($this->id) && isset($this->is_deleted) && ! isset($this->companies_id);
     }
+
+    /**
+     * for scout don't index the record if is deleted.
+     * cant use return type because of laravel scout class
+     * @return bool
+     */
+    public function shouldBeSearchable()
+    {
+        return ! $this->isDeleted();
+    }
 }
