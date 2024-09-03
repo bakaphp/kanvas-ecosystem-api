@@ -19,10 +19,27 @@ input FilesystemMapperInput {
     configuration: Mixed
 }
 
+input FilesystemImportInput {
+    regions_id: ID!
+    filesystem_mapper_id: ID!
+    filesystem_id: ID!
+}
+
+type FileSystemImport {
+    id: ID!
+    filesystemMapper: FilesystemMapper!
+    filesystem: Filesystem!
+    results: Mixed
+}
+
 type Mutation @guard {
     createFilesystemMapper(input: FilesystemMapperInput!): FilesystemMapper!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemMapperMutation@create"
+        )
+    filesystemImport(input: FilesystemImportInput!): FileSystemImport!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemMapperMutation@process"
         )
 }
 
