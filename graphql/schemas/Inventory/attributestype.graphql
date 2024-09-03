@@ -25,7 +25,7 @@ type AttributesType {
 }
 
 
-extend type Mutation @guard {
+extend type Mutation @guardByAdmin {
     createAttributeType(input: AttributesTypeInput!): AttributesType!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Attributes\\AttributeTypeMutation@create"
@@ -41,7 +41,7 @@ extend type Mutation @guard {
 
 }
 extend type Query @guard {
-    attributestypes(
+    attributesTypes(
         search: String @search
         where: _ 
             @whereConditions(
@@ -64,6 +64,6 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             model: "Kanvas\\Inventory\\Attributes\\Models\\AttributesTypes"
-            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            scopes: ["fromApp", "notDeleted"]
         )
 }

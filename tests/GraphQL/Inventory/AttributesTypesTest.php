@@ -52,13 +52,13 @@ class AttributesTypesTest extends TestCase
 
         $response = $this->graphQL('
             query {
-                attributestypes {
+                attributesTypes {
                     data {
                         name
                     }
                 }
             }');
-        $this->assertArrayHasKey('name', $response->json()['data']['attributestypes']['data'][0]);
+        $this->assertArrayHasKey('name', $response->json()['data']['attributesTypes']['data'][0]);
     }
 
     /**
