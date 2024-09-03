@@ -273,4 +273,12 @@ trait KanvasModelTrait
     {
         return isset($this->id) && isset($this->is_deleted) && ! isset($this->companies_id);
     }
+
+    /**
+     * for scout don't index the record if is deleted.
+     */
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted();
+    }
 }

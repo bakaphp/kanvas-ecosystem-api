@@ -149,6 +149,17 @@ class Message extends BaseModel
         return config('scout.prefix') . ($customIndex ?? 'message_index');
     }
 
+    public function shouldBeSearchable(): bool
+    {
+        if ($this->isDeleted()) {
+            return false;
+        }
+
+        $filterByMessageType = $this->app->get('index_message_by_type');
+
+        return ! $filterByMessageType || $this->messageType->name === $filterByMessageType;
+    }
+
     protected static function newFactory(): Factory
     {
         return MessageFactory::new();
