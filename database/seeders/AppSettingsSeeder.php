@@ -125,6 +125,12 @@ class AppSettingsSeeder extends Seeder
             ],
             [
                 'apps_id' => 1,
+                'name' => 'global_app_images',
+                'value' => '0',
+                'created_at' => date('Y-m-d H:m:s'),
+            ],
+            [
+                'apps_id' => 1,
                 'name' => 'default_admin_role',
                 'value' => 'Admins',
                 'created_at' => date('Y-m-d H:m:s'),

@@ -77,10 +77,6 @@ class CreateAppsAction
 
     protected function settings(Apps $app): void
     {
-        if ($app->settings()->count()) {
-            return ;
-        }
-
         $settings = [
             [
                 'name' => 'language',
@@ -92,41 +88,14 @@ class CreateAppsAction
                 'name' => 'currency',
                 'value' => 'USD',
             ], [
-                'name' => 'filesystem',
-                'value' => 's3',
-            ], [
                 'name' => 'allow_user_registration',
                 'value' => '1',
-            ], [
-                'name' => 'registered',
-                'value' => 1,
-            ], [
-                'name' => 'titles',
-                'value' => $app->name,
-            ], [
-                'name' => 'base_color',
-                'value' => '#61c2cc',
-            ], [
-                'name' => 'secondary_color',
-                'value' => '#9ee5b5',
-            ], [
-                'name' => 'allow_social_auth',
-                'value' => '0',
             ], [
                 'name' => 'show_notifications',
                 'value' => '1',
             ], [
-                'name' => 'delete_images_on_empty_files_field',
-                'value' => '1',
-            ], [
                 'name' => 'global_app_images',
-                'value' => '0',
-            ], [
-                'name' => 'default_feeds_comments',
-                'value' => '3',
-            ], [
-                'name' => 'notification_from_user_id',
-                'value' => $this->user->getId(),
+                'value' => '1',
             ],
         ];
 
