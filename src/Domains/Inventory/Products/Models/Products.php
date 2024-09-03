@@ -223,13 +223,6 @@ class Products extends BaseModel
         $product = ! $this->searchableDeleteRecord() ? $this : $this->find($this->id);
         $customIndex = $product->app ? $product->app->get('app_custom_product_index') : null;
 
-        //log info
-        logger('searchableAs', [
-            'prefix' => config('scout.prefix'),
-            'customIndex' => $customIndex,
-            'info' => $this->toArray(),
-        ]);
-
         return config('scout.prefix') . ($customIndex ?? 'product_index');
     }
 
