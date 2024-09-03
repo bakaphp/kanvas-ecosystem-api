@@ -140,6 +140,7 @@ return [
 
     'warm' => [
         ...Octane::defaultServicesToWarm(),
+        Nuwave\Lighthouse\Subscriptions\SubscriptionRegistry::class,
     ],
 
     'flush' => [
