@@ -12,6 +12,7 @@ return new class () extends Migration {
     {
         Schema::table('attributes', function (Blueprint $table) {
             $table->boolean('is_required')->after('attributes_type_id')->default(false);
+            $table->index('is_required');
         });
     }
 
