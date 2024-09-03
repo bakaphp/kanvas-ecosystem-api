@@ -276,8 +276,10 @@ trait KanvasModelTrait
 
     /**
      * for scout don't index the record if is deleted.
+     * cant use return type because of laravel scout class  
+     * @return bool
      */
-    public function shouldBeSearchable(): bool
+    public function shouldBeSearchable()
     {
         return ! $this->isDeleted();
     }
