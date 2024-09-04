@@ -1,6 +1,8 @@
 <?php
 
-namespace App\Console\Commands;
+declare(strict_types=1);
+
+namespace App\Console\Commands\Ecosystem\Users;
 
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;

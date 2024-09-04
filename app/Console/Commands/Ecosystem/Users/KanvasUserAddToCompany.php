@@ -1,13 +1,14 @@
 <?php
 
-namespace App\Console\Commands;
+declare(strict_types=1);
+
+namespace App\Console\Commands\Ecosystem\Users;
 
 use Baka\Traits\KanvasJobsTrait;
 use Bouncer;
 use Illuminate\Console\Command;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
-use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Users\Actions\AssignCompanyAction;
