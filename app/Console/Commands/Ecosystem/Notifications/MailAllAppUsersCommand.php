@@ -12,6 +12,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\UsersAssociatedApps;
+use Kanvas\Users\Models\Users;
 
 class MailAllAppUsersCommand extends Command
 {
