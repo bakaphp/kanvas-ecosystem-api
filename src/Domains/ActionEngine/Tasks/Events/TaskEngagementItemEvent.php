@@ -35,7 +35,7 @@ class TaskEngagementItemEvent implements ShouldBroadcast
     }
 
     public function broadcastAs(): string
-{
-    return 'lead.tasks';
-}
+    {
+        return 'lead.tasks';
+    }
 }
