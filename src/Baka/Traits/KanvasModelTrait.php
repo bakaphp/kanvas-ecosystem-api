@@ -271,7 +271,7 @@ trait KanvasModelTrait
      */
     public function searchableDeleteRecord(): bool
     {
-        return isset($this->id) && isset($this->is_deleted) && ! isset($this->companies_id);
+        return ! isset($this->app);
     }
 
     /**

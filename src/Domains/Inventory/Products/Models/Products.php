@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Products\Models;
 
 use Awobaz\Compoships\Compoships;
+use Baka\Search\DeleteInAlgoliaSearchJob;
 use Baka\Support\Str;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
@@ -164,6 +165,16 @@ class Products extends BaseModel
 
     public function toSearchableArray(): array
     {
+        $this->load([
+            'company',              // Load the company relationship
+            'company.user',         // Load the user through the company
+            'categories',           // Load categories
+            'variants',             // Load variants
+            'status',               // Load status
+            'files',                // Load files (if it's a relationship)
+            'attributes',           // Load attributes
+        ]);
+
         $product = [
             'objectID' => $this->uuid,
             'id' => $this->id,
@@ -221,9 +232,16 @@ class Products extends BaseModel
     public function searchableAs(): string
     {
         $product = ! $this->searchableDeleteRecord() ? $this : $this->find($this->id);
-        $customIndex = $product->app ? $product->app->get('app_custom_product_index') : null;
+        $customIndex = isset($product->app) ? $product->app->get('app_custom_product_index') : null;
+
+        logger('searchableAs', ['customIndex' => $customIndex, 'searchble' => (int) $this->shouldBeSearchable(), 'rpooduct' => $this->toArray()]);
 
         return config('scout.prefix') . ($customIndex ?? 'product_index');
+    }
+
+    public function searchableSoftDelete(): void
+    {
+        DeleteInAlgoliaSearchJob::dispatch($this);
     }
 
     public static function search($query = '', $callback = null)
