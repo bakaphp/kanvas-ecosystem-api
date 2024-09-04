@@ -8,6 +8,7 @@ use Baka\Enums\StateEnums;
 use Baka\Traits\KanvasJobsTrait;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
@@ -39,12 +40,14 @@ class UserEngagementReminderCommand extends Command
 
         $this->info('Sending User Engagement Reminder for app ' . $app->name . ' - ' . date('Y-m-d'));
         //get the list of user form UsersAssociatedApps chuck by 100 records
-        $users = UsersAssociatedApps::fromApp($app)
-            ->where('is_deleted', StateEnums::NO)
+        DB::table('users_associated_apps')
+            ->where('apps_id', $app->id) // Assuming 'app_id' is the foreign key
+            ->where('is_deleted', StateEnums::NO->getValue())
             ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+            ->orderBy('users_id') // Order by primary or unique key for consistency
             ->chunk(100, function ($users) use ($app) {
+                $users = UsersAssociatedApps::hydrate($users->toArray());
                 foreach ($users as $user) {
-                    //send email to user
                     $this->sendEmail($user, $app);
                 }
             });

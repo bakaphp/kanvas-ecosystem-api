@@ -152,6 +152,10 @@ class ScreeningPeopleActivity extends Activity
                 )
             ))->execute();
 
+            if (empty($employment['title'])) {
+                continue;
+            }
+
             PeopleEmploymentHistory::firstOrCreate([
                 'status' => (int)$employment['current'],
                 'start_date' => $employment['start_date'],
