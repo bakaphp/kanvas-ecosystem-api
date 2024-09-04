@@ -16,9 +16,11 @@ class TaskEngagementItemObserver
         // broadcast graphql subscription
         Subscription::broadcast('leadUpdate', $taskEngagementItem->lead, true);
 
-        TaskEngagementItemEvent::dispatch(DataTransferObjectTaskEngagementItem::from([
+        TaskEngagementItemEvent::dispatch(
+            DataTransferObjectTaskEngagementItem::from([
             'leadId' => $taskEngagementItem->lead_id,
             'taskListItemId' => $taskEngagementItem->task_list_item_id,
-        ]));
+        ])
+        );
     }
 }
