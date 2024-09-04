@@ -316,7 +316,7 @@ class Variants extends BaseModel
 
     public function searchableAs(): string
     {
-        $variant = ! $this->searchableDeleteRecord() ? $this : $this->find($this->id);
+        $variant = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
 
         $customIndex = isset($variant->app) ? $variant->app->get('app_custom_product_variant_index') : null;
 
