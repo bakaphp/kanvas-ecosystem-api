@@ -52,7 +52,6 @@ class MailunregisteredUsersCampaignCommand extends Command
         ->orderBy('id')
         ->chunk(100, function ($memodUsers) use ($app) {
             foreach ($memodUsers as $memodUser) {
-
                 $user = UsersAssociatedApps::fromApp($app)
                 ->select('email', 'user_active', 'is_deleted')
                 ->where('email', $memodUser->email)
@@ -73,7 +72,6 @@ class MailunregisteredUsersCampaignCommand extends Command
                     $this->newLine();
                 }
             }
-
         });
     }
 }
