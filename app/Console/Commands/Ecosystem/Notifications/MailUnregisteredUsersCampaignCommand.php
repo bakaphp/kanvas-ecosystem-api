@@ -36,8 +36,7 @@ class MailunregisteredUsersCampaignCommand extends Command
 
     /**
      * Execute the console command.
-     * 
-     * @todo This should be a cron
+     *
      */
     public function handle()
     {
@@ -61,7 +60,7 @@ class MailunregisteredUsersCampaignCommand extends Command
                 ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
                 ->first();
 
-                if (!$user) {
+                if (! $user) {
                     $notification = new Blank(
                         $this->argument('email_template_name'),
                         ['userFirstname' => $user->firstname],
