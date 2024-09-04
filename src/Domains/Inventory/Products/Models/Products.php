@@ -164,6 +164,17 @@ class Products extends BaseModel
 
     public function toSearchableArray(): array
     {
+        $this->refresh();
+        $this->load([
+            'company',              // Load the company relationship
+            'company.user',         // Load the user through the company
+            'categories',           // Load categories
+            'variants',             // Load variants
+            'status',               // Load status
+            'files',                // Load files (if it's a relationship)
+            'attributes',           // Load attributes
+        ]);
+
         $product = [
             'objectID' => $this->uuid,
             'id' => $this->id,
@@ -220,8 +231,8 @@ class Products extends BaseModel
 
     public function searchableAs(): string
     {
-        $product = ! $this->searchableDeleteRecord() ? $this : $this->find($this->id);
-        $customIndex = $product->app ? $product->app->get('app_custom_product_index') : null;
+        $product = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
+        $customIndex = isset($product->app) ? $product->app->get('app_custom_product_index') : null;
 
         return config('scout.prefix') . ($customIndex ?? 'product_index');
     }
