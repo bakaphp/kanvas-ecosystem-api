@@ -14,6 +14,7 @@ use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
+use Kanvas\Inventory\Products\Jobs\IndexProductJob;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Services\VariantService;
 use Throwable;
@@ -111,6 +112,8 @@ class CreateProductAction
             }
 
             DB::connection('inventory')->commit();
+
+            IndexProductJob::dispatch($products)->delay(now()->addSeconds(2));
         } catch (Throwable $e) {
             DB::connection('inventory')->rollback();
 
