@@ -25,14 +25,14 @@ class MailunregisteredUsersCampaignCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'promptmine:campaign-mail {apps_id} {email_template_name} {subject}';
+    protected $signature = 'kanvas:unregistered-users-campaign-mail {apps_id} {email_template_name} {subject}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'send specific email to all users of an app';
+    protected $description = 'send specific email to unregistered users from third parties';
 
     /**
      * Execute the console command.
