@@ -34,7 +34,7 @@ class Integrations extends BaseModel
 
     public function integrationCompany(): HasMany
     {
-        return $this->hasMany(IntegrationsCompany::class, 'integrations_id',);
+        return $this->hasMany(IntegrationsCompany::class, 'integrations_id');
     }
 
     public function getIntegrationsByCompany(): Collection
