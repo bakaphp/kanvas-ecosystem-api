@@ -50,14 +50,11 @@ class Tag extends BaseModel
         return $databaseName . '.tags';
     }
 
-    public function shouldBeSearchable(): bool
-    {
-        return $this->is_deleted == 0;
-    }
-
     public function searchableAs(): string
     {
-        $customIndex = $this->app ? $this->app->get('app_custom_tag_index') : null;
+        $tag = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
+
+        $customIndex = isset($tag->app) ? $tag->app->get('app_custom_tag_index') : null;
 
         return config('scout.prefix') . ($customIndex ?? 'tag_index');
     }

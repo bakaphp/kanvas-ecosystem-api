@@ -208,7 +208,9 @@ class People extends BaseModel
 
     public function searchableAs(): string
     {
-        $customIndex = $this->app ? $this->app->get('app_custom_people_index') : null;
+        $people = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
+
+        $customIndex = isset($people->app) ? $people->app->get('app_custom_people_index') : null;
 
         return config('scout.prefix') . ($customIndex ?? 'peoples');
     }

@@ -316,7 +316,9 @@ class Variants extends BaseModel
 
     public function searchableAs(): string
     {
-        $customIndex = $this->app ? $this->app->get('app_custom_product_variant_index') : null;
+        $variant = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
+
+        $customIndex = isset($variant->app) ? $variant->app->get('app_custom_product_variant_index') : null;
 
         return config('scout.prefix') . ($customIndex ?? 'product_variant_index');
     }

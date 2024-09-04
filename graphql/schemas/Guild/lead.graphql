@@ -171,6 +171,13 @@ extend type Mutation @guard {
         )
 }
 
+type Subscription @guard {
+    leadUpdate(id: ID!): Lead
+        @subscription(
+            class: "App\\GraphQL\\Guild\\Subscriptions\\LeadUpdatedSubscription"
+        )
+}
+
 extend type Query @guard {
     leads(
         search: String @search

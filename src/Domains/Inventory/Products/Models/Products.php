@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Products\Models;
 
 use Awobaz\Compoships\Compoships;
-use Baka\Traits\HasLightHouseCache;
 use Baka\Support\Str;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
@@ -16,12 +16,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
-use Kanvas\Inventory\Attributes\Models\Attributes;
-use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
-use Kanvas\Inventory\Products\Actions\AddAttributeAction;
+use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
+use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Inventory\Products\Actions\AddAttributeAction;
 use Kanvas\Inventory\Products\Factories\ProductFactory;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Status\Models\Status;
@@ -164,6 +164,17 @@ class Products extends BaseModel
 
     public function toSearchableArray(): array
     {
+        $this->refresh();
+        $this->load([
+            'company',              // Load the company relationship
+            'company.user',         // Load the user through the company
+            'categories',           // Load categories
+            'variants',             // Load variants
+            'status',               // Load status
+            'files',                // Load files (if it's a relationship)
+            'attributes',           // Load attributes
+        ]);
+
         $product = [
             'objectID' => $this->uuid,
             'id' => $this->id,
@@ -220,7 +231,8 @@ class Products extends BaseModel
 
     public function searchableAs(): string
     {
-        $customIndex = $this->app ? $this->app->get('app_custom_product_index') : null;
+        $product = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
+        $customIndex = isset($product->app) ? $product->app->get('app_custom_product_index') : null;
 
         return config('scout.prefix') . ($customIndex ?? 'product_index');
     }

@@ -134,7 +134,8 @@ enum CompanyUserColumn {
     ID @enum(value: "users.id")
     UUID @enum(value: "users.uuid")
     COMPANIES_ID @enum(value: "users_associated_company.companies_id")
-    COMPANIES_BRANCHES_ID @enum(value: "users_associated_company.companies_branches_id")
+    COMPANIES_BRANCHES_ID
+        @enum(value: "users_associated_company.companies_branches_id")
     DISPLAYNAME @enum(value: "users_associated_apps.displayname")
     FIRSTNAME @enum(value: "users_associated_apps.firstname")
     LASTNAME @enum(value: "users_associated_apps.lastname")
@@ -144,7 +145,7 @@ enum CompanyUserColumn {
     UPDATE_AT @enum(value: "users_associated_apps.updated_at")
 }
 
-enum CompanyOrderColumn{
+enum CompanyOrderColumn {
     ID @enum(value: "companies.id")
     NAME @enum(value: "companies.name")
     ADDRESS @enum(value: "companies.address")
@@ -240,7 +241,7 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\CompanySettingQuery@getAllSettings"
         )
-    
+
     dashboard: Dashboard!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\DashboardQuery@getDashboard"
@@ -255,6 +256,11 @@ extend type Mutation @guardByAdmin {
     updateCompany(id: ID!, input: CompanyInput): Company!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@updateCompany"
+        )
+    updateCompanyPhotoProfile(file: Upload!, id: ID!): Company!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@updatePhotoProfile"
         )
     deleteCompany(id: ID!): Boolean!
         @field(

@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\AccessControlList\Traits\HasPermissions;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Factories\MessageFactory;
 use Kanvas\Social\MessagesComments\Models\MessageComment;
@@ -142,9 +143,32 @@ class Message extends BaseModel
 
     public function searchableAs(): string
     {
-        $customIndex = $this->app ? $this->app->get('app_custom_message_index') : null;
+        $message = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
+        $app = $message->app ?? null;
+
+        /**
+         * @todo move this to a global behavior
+         * in normal search , id is not set, so we need to use global app
+         * [null,{"is_deleted":"1970-01-01T00:00:00.000000Z","app":null}] where null is the id record
+         */
+        if (! isset($this->id)) {
+            $app = app(Apps::class);
+        }
+
+        $customIndex = $app ? $app->get('app_custom_message_index') : null;
 
         return config('scout.prefix') . ($customIndex ?? 'message_index');
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        if ($this->isDeleted()) {
+            return false;
+        }
+
+        $filterByMessageType = $this->app->get('index_message_by_type');
+
+        return ! $filterByMessageType || $this->messageType->verb === $filterByMessageType;
     }
 
     protected static function newFactory(): Factory

@@ -95,7 +95,7 @@ class CreateProductAction
                             'isVisible' => false,
                             'isSearchable' => false,
                             'isFiltrable' => false,
-                            'slug' => Str::slug($attribute['name'])
+                            'slug' => Str::slug($attribute['name']),
                         ]);
 
                         $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
