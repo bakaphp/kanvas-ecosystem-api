@@ -39,6 +39,5 @@ final class TaskEngagementItemTaskTest extends TestCase
 
         $this->assertInstanceOf(Builder::class, $leadTaskItems);
         $this->assertIsArray($leadTaskItems->get()->toArray());
-       
     }
 }
