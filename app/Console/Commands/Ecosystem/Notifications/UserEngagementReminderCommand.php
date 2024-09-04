@@ -40,7 +40,7 @@ class UserEngagementReminderCommand extends Command
         $this->info('Sending User Engagement Reminder for app ' . $app->name . ' - ' . date('Y-m-d'));
         //get the list of user form UsersAssociatedApps chuck by 100 records
         $users = UsersAssociatedApps::fromApp($app)
-            ->where('is_delete', StateEnums::NO)
+            ->where('is_deleted', StateEnums::NO)
             ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
             ->chunk(100, function ($users) use ($app) {
                 foreach ($users as $user) {
