@@ -24,5 +24,18 @@ class ProductsObserver
         }
 
         $products->clearLightHouseCache();
+
+        $products->load([
+            'company',              // Load the company relationship
+            'company.user',         // Load the user through the company
+            'categories',           // Load categories
+            'variants',             // Load variants
+            'status',               // Load status
+            'files',                // Load files (if it's a relationship)
+            'attributes',           // Load attributes
+        ]);
+        
+        // Call searchable after loading relationships
+        $products->searchable();
     }
 }
