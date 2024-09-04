@@ -208,7 +208,7 @@ class People extends BaseModel
 
     public function searchableAs(): string
     {
-        $people = ! $this->searchableDeleteRecord() ? $this : $this->find($this->id);
+        $people = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
 
         $customIndex = isset($people->app) ? $people->app->get('app_custom_people_index') : null;
 
