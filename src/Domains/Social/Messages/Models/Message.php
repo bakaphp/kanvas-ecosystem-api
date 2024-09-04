@@ -157,8 +157,6 @@ class Message extends BaseModel
 
         $customIndex = $app ? $app->get('app_custom_message_index') : null;
 
-        logger('customIndex', [$customIndex, $message->toArray(), $this->toArray(), $this->id]);
-
         return config('scout.prefix') . ($customIndex ?? 'message_index');
     }
 
