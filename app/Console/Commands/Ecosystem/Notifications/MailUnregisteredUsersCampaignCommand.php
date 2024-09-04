@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands;
+namespace App\Console\Commands\Ecosystem\Notifications;
 
 use Baka\Enums\StateEnums;
 use Baka\Traits\KanvasJobsTrait;
@@ -16,7 +16,7 @@ use Kanvas\Users\Models\Users;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Builder;
 
-class MemodMailCampaignPromptMineCommand extends Command
+class MailunregisteredUsersCampaignCommand extends Command
 {
     use KanvasJobsTrait;
 
@@ -45,7 +45,7 @@ class MemodMailCampaignPromptMineCommand extends Command
         $this->overwriteAppService($app);
 
         // Run your raw SQL query with LIMIT and OFFSET
-        $memodUsers = DB::connection('memod')
+        $memodUsers = DB::connection('third_party')
         ->table('users')
         ->select('email', 'user_active', 'is_deleted')
         ->where('user_active', StateEnums::YES->getValue())
