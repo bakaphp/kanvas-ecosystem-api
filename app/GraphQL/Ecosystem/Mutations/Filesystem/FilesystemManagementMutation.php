@@ -103,7 +103,7 @@ class FilesystemManagementMutation
     public function uploadCsv(mixed $rootValue, array $request): array
     {
         $file = $request['file'];
-        $path = $file->store('public/' . $file->getClientOriginalName() . uniqid(), 'local');
+        $path = $file->store('csv/' . $file->getClientOriginalName() . uniqid(), 'local');
         $path = storage_path('app/' . $path);
         $csv = Reader::createFromPath($path, 'r');
 

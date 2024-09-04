@@ -18,8 +18,9 @@ class CreateFilesystemMapperAction
     public function execute(): ModelsFilesystemMapper
     {
         $mapperKeys = array_keys($this->filesystemMapping->mapping);
-        if (array_diff($mapperKeys, $this->filesystemMapping->systemModule->browse_fields)) {
-            throw new Exception('The mapping keys are not the same as the header');
+        $requiredFields = $this->filesystemMapping->systemModule->browse_fields;
+        if ($requiredFields && array_diff($requiredFields, $mapperKeys)) {
+            throw new Exception('Missing fields in mapping');
         }
 
         return ModelsFilesystemMapper::firstOrCreate([

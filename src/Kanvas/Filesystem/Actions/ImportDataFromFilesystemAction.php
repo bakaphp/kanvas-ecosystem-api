@@ -75,7 +75,7 @@ class ImportDataFromFilesystemAction
 
         $fileContent = $diskS3->get($path);
         $filename = basename($path);
-        $path = storage_path('app/public/' . $filename);
+        $path = storage_path('app/csv/' . $filename);
         file_put_contents($path, $fileContent);
 
         return $path;
