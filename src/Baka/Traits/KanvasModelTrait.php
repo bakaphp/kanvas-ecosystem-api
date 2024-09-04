@@ -264,4 +264,23 @@ trait KanvasModelTrait
     {
         return method_exists($this, 'fireWorkflow');
     }
+
+    /**
+     * When you delete records and send it to searchable, you will only get id and is_deleted info, no relationship
+     * we need this method to do special delete on the searchable side.
+     */
+    public function searchableDeleteRecord(): bool
+    {
+        return isset($this->id) && isset($this->is_deleted) && ! isset($this->companies_id);
+    }
+
+    /**
+     * for scout don't index the record if is deleted.
+     * cant use return type because of laravel scout class
+     * @return bool
+     */
+    public function shouldBeSearchable()
+    {
+        return ! $this->isDeleted();
+    }
 }

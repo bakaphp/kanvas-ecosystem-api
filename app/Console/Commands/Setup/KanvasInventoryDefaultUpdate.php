@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands;
+namespace App\Console\Commands\Setup;
 
 use Baka\Support\Str;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Regions\Models\Regions;
@@ -63,17 +62,18 @@ class KanvasInventoryDefaultUpdate extends Command
 
             if (! $defaultRegion) {
                 $this->info("Working company {$companyData->getId()} default region \n");
+
                 try {
                     $defaultRegion = Regions::firstOrCreate([
                         'apps_id' => $app->getId(),
                         'companies_id' => $companyData->getId(),
-                        'slug' => Str::slug("Default"),
+                        'slug' => Str::slug('Default'),
                     ], [
-                        'name' => "Default",
+                        'name' => 'Default',
                         'is_default' => true,
                         'currency_id' => Currencies::where('code', 'USD')->firstOrFail()->getId(),
                         'users_id' => $companyData->users_id,
-                        'short_slug' => Str::slug("Default")
+                        'short_slug' => Str::slug('Default'),
                     ]);
                 } catch (Throwable $e) {
                     $this->error('Error creating default region for : ' . $companyData->getId() . ' ' . $e->getMessage());
@@ -82,16 +82,17 @@ class KanvasInventoryDefaultUpdate extends Command
 
             if (! $defaultWarehouses) {
                 $this->info("Working company {$companyData->getId()} default warehouse \n");
+
                 try {
                     $defaultWarehouses = Warehouses::firstOrCreate([
-                        'name' => "Default",
+                        'name' => 'Default',
                         'companies_id' => $companyData->getId(),
                         'apps_id' => $app->getId(),
                         'regions_id' => $defaultRegion->getId(),
                     ], [
                         'is_default' => true,
                         'users_id' => $companyData->users_id,
-                        'is_published' => true
+                        'is_published' => true,
                     ]);
                 } catch (Throwable $e) {
                     $this->error('Error creating default warehouse for : ' . $companyData->getId() . ' ' . $e->getMessage());
@@ -100,13 +101,14 @@ class KanvasInventoryDefaultUpdate extends Command
 
             if (! $defaultStatus) {
                 $this->info("Working company {$companyData->getId()} default status \n");
+
                 try {
                     $defaultStatus = Status::firstOrCreate([
                         'apps_id' => $app->getId(),
                         'companies_id' => $companyData->getId(),
-                        'slug' => Str::slug("Default"),
+                        'slug' => Str::slug('Default'),
                     ], [
-                        'name' => "Default",
+                        'name' => 'Default',
                         'is_default' => true,
                     ]);
                 } catch (Throwable $e) {
@@ -116,13 +118,14 @@ class KanvasInventoryDefaultUpdate extends Command
 
             if (! $defaultChannel) {
                 $this->info("Working company {$companyData->getId()} default channel \n");
+
                 try {
                     $defaultChannel = Channels::firstOrCreate([
                         'companies_id' => $companyData->getId(),
                         'apps_id' => $app->getId(),
-                        'slug' => Str::slug("Default"),
+                        'slug' => Str::slug('Default'),
                     ], [
-                        'name' => "Default",
+                        'name' => 'Default',
                         'users_id' => $companyData->users_id,
                         'is_default' => true,
                     ]);
@@ -141,7 +144,7 @@ class KanvasInventoryDefaultUpdate extends Command
                     $variant,
                     $defaultWarehouses,
                     [
-                        'status_id' => $defaultStatus->getId()
+                        'status_id' => $defaultStatus->getId(),
                     ]
                 );
                 (new AddToWarehouseAction($variant, $defaultWarehouses, $variantWarehouseDto))->execute();

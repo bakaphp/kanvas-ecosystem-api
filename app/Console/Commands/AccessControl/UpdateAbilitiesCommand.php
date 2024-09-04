@@ -1,13 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Console\Commands\AccessControl;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Redis;
 use Kanvas\AccessControlList\Actions\CreateAbilitiesByModule;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\AccessControlList\Enums\ModuleEnum;
-use Kanvas\AccessControlList\Repositories\RolesRepository;
 
 class UpdateAbilitiesCommand extends Command
 {

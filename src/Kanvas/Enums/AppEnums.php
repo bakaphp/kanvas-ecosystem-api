@@ -96,7 +96,7 @@ enum AppEnums implements EnumsInterface
             self::KANVAS_APP_REGION_HEADER => 'X-Kanvas-Region',
             self::KANVAS_APP_COMPANY_AUTH_HEADER => 'Company-Authorization', //@deprecated
             self::DISPLAYNAME_LOGIN => 'displayname_login',
-            self::VERSION => '1.0-RC3',
+            self::VERSION => '1.2',
             self::ANONYMOUS_USER_ID => -1,
             self::DEFAULT_APP_JWT_TOKEN_NAME => 'kanvas-login',
         };
