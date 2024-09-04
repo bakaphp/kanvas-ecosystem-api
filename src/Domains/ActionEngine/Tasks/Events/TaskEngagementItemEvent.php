@@ -33,4 +33,9 @@ class TaskEngagementItemEvent implements ShouldBroadcast
     {
         return new Channel('lead-tasks-' . $this->taskEngagementItem->leadId);
     }
+
+    public function broadcastAs(): string
+    {
+        return 'lead.tasks';
+    }
 }
