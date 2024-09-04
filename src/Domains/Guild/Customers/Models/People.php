@@ -210,7 +210,7 @@ class People extends BaseModel
     {
         $people = ! $this->searchableDeleteRecord() ? $this : $this->find($this->id);
 
-        $customIndex = $people->app ? $people->app->get('app_custom_people_index') : null;
+        $customIndex = isset($people->app) ? $people->app->get('app_custom_people_index') : null;
 
         return config('scout.prefix') . ($customIndex ?? 'peoples');
     }

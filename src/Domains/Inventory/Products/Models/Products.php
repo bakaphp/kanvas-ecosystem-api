@@ -232,7 +232,7 @@ class Products extends BaseModel
     public function searchableAs(): string
     {
         $product = ! $this->searchableDeleteRecord() ? $this : $this->find($this->id);
-        $customIndex = $product->app ? $product->app->get('app_custom_product_index') : null;
+        $customIndex = isset($product->app) ? $product->app->get('app_custom_product_index') : null;
 
         logger('searchableAs', ['customIndex' => $customIndex, 'searchble' => (int) $this->shouldBeSearchable(), 'rpooduct' => $this->toArray()]);
 
