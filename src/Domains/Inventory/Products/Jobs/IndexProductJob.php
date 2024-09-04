@@ -18,14 +18,12 @@ class IndexProductJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    protected Products $product;
-
     /**
      * Create a new job instance.
      */
-    public function __construct(Products $product)
-    {
-        $this->product = $product;
+    public function __construct(
+        protected Products $product
+    ) {
     }
 
     /**
