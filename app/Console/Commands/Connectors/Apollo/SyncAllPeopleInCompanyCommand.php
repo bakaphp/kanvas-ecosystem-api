@@ -45,27 +45,43 @@ class SyncAllPeopleInCompanyCommand extends Command
         $this->overwriteAppService($app);
         $company = Companies::getById((int) $this->argument('company_id'));
 
-        $rateLimit = 400; // Maximum API calls per hour
+        $hourlyRateLimit = 400; // Maximum API calls per hour
+        $dailyRateLimit = 2000; // Maximum API calls per day
         $batchSize = 100; // Number of people to process per batch
-        $cacheKey = 'api_rate_limit';
-        $resetKey = 'api_rate_limit_reset';
-        $timeWindow = 60 * 60; // 1 hour in seconds
+        $hourlyCacheKey = 'api_hourly_rate_limit_' . $app->getId();
+        $dailyCacheKey = 'api_daily_rate_limit_' . $app->getId();
+        $resetHourlyKey = 'api_hourly_rate_limit_reset_' . $app->getId();
+        $resetDailyKey = 'api_daily_rate_limit_reset_' . $app->getId();
+        $hourlyTimeWindow = 60 * 60; // 1 hour in seconds
+        $dailyTimeWindow = 24 * 60 * 60; // 24 hours in seconds
 
         // Check the current count of API calls
-        $currentCount = Cache::get($cacheKey, 0);
-        $resetTimestamp = Cache::get($resetKey);
+        $currentHourlyCount = Cache::get($hourlyCacheKey, 0);
+        $currentDailyCount = Cache::get($dailyCacheKey, 0);
+        $resetHourlyTimestamp = Cache::get($resetHourlyKey);
+        $resetDailyTimestamp = Cache::get($resetDailyKey);
 
-        $this->line('Syncing ' . $currentCount . ' all people in company ' . $company->name . ' from app ' . $app->name . ' total ' . $total . ' per page ' . $perPage);
+        $this->line('Syncing ' . $currentHourlyCount . ' people in company ' . $company->name . ' from app ' . $app->name . ' total ' . $total . ' per page ' . $perPage);
 
-        if ($resetTimestamp) {
-            // Ensure $resetTimestamp is a Carbon instance
-            $resetTime = Carbon::parse($resetTimestamp);
+        if ($resetHourlyTimestamp) {
+            $resetHourlyTime = Carbon::parse($resetHourlyTimestamp);
             $currentTimestamp = now()->timestamp;
-            $waitTime = $resetTime->timestamp - $currentTimestamp;
+            $hourlyWaitTime = $resetHourlyTime->timestamp - $currentTimestamp;
 
-            if ($currentCount >= $rateLimit && $waitTime > 0) {
-                // If the limit is reached, calculate the remaining cooldown period
-                $this->line("Rate limit reached. Please wait $waitTime seconds to run the process again.");
+            if ($currentHourlyCount >= $hourlyRateLimit && $hourlyWaitTime > 0) {
+                $this->line("Hourly rate limit reached. Please wait $hourlyWaitTime seconds to run the process again.");
+
+                return;
+            }
+        }
+
+        if ($resetDailyTimestamp) {
+            $resetDailyTime = Carbon::parse($resetDailyTimestamp);
+            $currentTimestamp = now()->timestamp;
+            $dailyWaitTime = $resetDailyTime->timestamp - $currentTimestamp;
+
+            if ($currentDailyCount >= $dailyRateLimit && $dailyWaitTime > 0) {
+                $this->line("Daily rate limit reached. Please wait $dailyWaitTime seconds to run the process again.");
 
                 return;
             }
@@ -81,21 +97,26 @@ class SyncAllPeopleInCompanyCommand extends Command
                 '=',
                 'acf.entity_id'
             )
-            ->whereNull('acf.entity_id') // Ensure only people without the custom field are listed
+            ->whereNull('acf.entity_id')
             ->orderBy('peoples.id', 'asc')
-            ->chunk($batchSize, function ($peoples) use (&$currentCount, $rateLimit, $cacheKey, $resetKey, $timeWindow) {
+            ->chunk($batchSize, function ($peoples) use (&$currentHourlyCount, &$currentDailyCount, $hourlyRateLimit, $dailyRateLimit, $hourlyCacheKey, $dailyCacheKey, $resetHourlyKey, $resetDailyKey, $hourlyTimeWindow, $dailyTimeWindow) {
                 foreach ($peoples as $people) {
-                    if ($currentCount >= $rateLimit) {
-                        // If the rate limit is reached, stop the operation and set the cooldown period
-                        Cache::put($resetKey, now()->addSeconds($timeWindow), $timeWindow);
-                        echo "Rate limit reached. Please wait $timeWindow seconds to run the process again.";
+                    if ($currentHourlyCount >= $hourlyRateLimit) {
+                        Cache::put($resetHourlyKey, now()->addSeconds($hourlyTimeWindow), $hourlyTimeWindow);
+                        $this->line("Hourly rate limit reached. Please wait $hourlyTimeWindow seconds to run the process again.");
 
-                        return false; // Stop chunk processing
+                        return false;
+                    }
+
+                    if ($currentDailyCount >= $dailyRateLimit) {
+                        Cache::put($resetDailyKey, now()->addSeconds($dailyTimeWindow), $dailyTimeWindow);
+                        $this->line("Daily rate limit reached. Please wait $dailyTimeWindow seconds to run the process again.");
+
+                        return false;
                     }
 
                     $this->line('Syncing people ' . $people->id . ' ' . $people->firstname . ' ' . $people->lastname);
 
-                    //sync people
                     $people->fireWorkflow(
                         WorkflowEnum::UPDATED->value,
                         true,
@@ -105,11 +126,11 @@ class SyncAllPeopleInCompanyCommand extends Command
                     );
                     $people->clearLightHouseCache();
 
-                    // Increment the API call counter for each person processed
-                    $currentCount++;
-                    Cache::put($cacheKey, $currentCount, $timeWindow);
+                    $currentHourlyCount++;
+                    $currentDailyCount++;
+                    Cache::put($hourlyCacheKey, $currentHourlyCount, $hourlyTimeWindow);
+                    Cache::put($dailyCacheKey, $currentDailyCount, $dailyTimeWindow);
 
-                    // Optional: Add a small delay between requests to avoid bursts
                     usleep(100000); // 100ms delay between each request
                 }
             });
