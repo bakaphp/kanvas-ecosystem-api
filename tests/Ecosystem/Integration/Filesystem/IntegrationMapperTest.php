@@ -81,7 +81,7 @@ final class IntegrationMapperTest extends TestCase
                     'position' => 'Position',
                 ],
             ],
-            'options' => [] // validate optional params is enable
+            'options' => [], // validate optional params is enable
         ];
 
         $filesystemMapperName = 'Products' . uniqid();
@@ -118,30 +118,25 @@ final class IntegrationMapperTest extends TestCase
             true,
         );
         $warehouse = (new CreateWarehouseAction($warehouseDto, auth()->user()))->execute();
-        $values =
-[
-    'List Number' => fake()->numerify('LIST-####'),
-    'Features' => fake()->sentence,
-    'regionId' => fake()->numerify('REG###'),
-    'Original List Price' => fake()->randomFloat(2, 100, 1000),
-    'Discount Price' => fake()->randomFloat(2, 50, 900),
-    'Quantity' => fake()->numberBetween(1, 100),
-    'Is Published' => fake()->boolean,
-
-            'File URL' => fake()->url,
-                        'File Name' => fake()->word . '.jpg',
-
-                        'Property Type' => fake()->word,
-                        'Weight' => fake()->randomFloat(2, 0.5, 5),
-
-    'customFields' => [],
-    'Status' => fake()->boolean,
-    'Warehouse ID' => fake()->numerify('WH-###'),
-     'is_new' => fake()->boolean,
-
-    'Style' => fake()->word,
-            'Position' => fake()->numberBetween(1, 10),
-];
+        $values = [
+                    'List Number' => fake()->numerify('LIST-####'),
+                    'Features' => fake()->sentence,
+                    'regionId' => $region->getId(),
+                    'Original List Price' => fake()->randomFloat(2, 100, 1000),
+                    'Discount Price' => fake()->randomFloat(2, 50, 900),
+                    'Quantity' => fake()->numberBetween(1, 100),
+                    'Is Published' => fake()->boolean,
+                    'File URL' => fake()->imageUrl(),
+                    'File Name' => fake()->word . '.jpg',
+                    'Property Type' => fake()->word,
+                    'Weight' => fake()->randomFloat(2, 0.5, 5),
+                    'customFields' => [],
+                    'Status' => fake()->boolean,
+                    'Warehouse ID' => $warehouse->getId(),
+                    'is_new' => fake()->boolean,
+                    'Style' => fake()->word,
+                    'Position' => fake()->numberBetween(1, 10),
+            ];
 
         $dataMapper = ImportDataFromFilesystemAction::mapper($filesystemMapper->mapping, $values);
         $productDto = ProductImporter::from($dataMapper);
