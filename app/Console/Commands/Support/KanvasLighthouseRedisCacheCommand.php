@@ -53,12 +53,18 @@ class KanvasLighthouseRedisCacheCommand extends Command
         }
 
         $entities->fromApp($app)
-            ->orderBy('id', 'asc')
-            ->chunk(100, function ($entitiesChunk, $class) {
+            ->notDeleted()
+            ->orderBy('created_at', 'DESC')
+            ->chunk(100, function ($entitiesChunk) use ($class) {
                 foreach ($entitiesChunk as $entity) {
-                    $this->info('Generating cache for ' . $class . ' ' . $entity->getId());
+                    $start = microtime(true);
 
                     $entity->clearLightHouseCache();
+
+                    $end = microtime(true);
+                    $executionTime = round($end - $start, 4);
+
+                    $this->info("Generating cache for {$class} {$entity->getId()} - Execution time: {$executionTime} seconds");
                 }
             });
     }
