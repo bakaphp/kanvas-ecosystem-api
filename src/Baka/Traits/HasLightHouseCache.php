@@ -13,13 +13,13 @@ trait HasLightHouseCache
 
     public function clearLightHouseCache(): void
     {
-        $graphTypeName = $this->getGraphTypeName();
-
-        $separator = CacheKeyAndTagsGenerator::SEPARATOR;
-        $key = CacheKeyAndTagsGenerator::PREFIX . $separator . $graphTypeName . $separator . $this->getId() . '*';
+        $key = $this->generateLighthouseCacheKey() . '*';
         $redis = Redis::connection('graph-cache');
         $keys = $redis->keys($key);
         if (empty($keys)) {
+            $this->generateCustomFieldsLighthouseCache();
+            $this->generateFilesLighthouseCache();
+
             return;
         }
 
@@ -33,11 +33,10 @@ trait HasLightHouseCache
 
     public function generateRelationshipLighthouseCache(string $relationship, int $items = 25): void
     {
-        $graphTypeName = $this->getGraphTypeName();
         $separator = CacheKeyAndTagsGenerator::SEPARATOR;
-        $key = CacheKeyAndTagsGenerator::PREFIX . $separator . $graphTypeName . $separator . $this->getId() . ':' . $relationship . ':first:' . $items;
+        $key = $this->generateLighthouseCacheKey() . $separator . $relationship . $separator . 'first' . $separator . $items;
         $redis = Redis::connection('graph-cache');
-        $result = $this->customFields()->paginate($items);
+        $result = $this->getRelationshipQueryBuilder($relationship)->paginate($items);
         $redis->set($key, $result);
     }
 
@@ -49,5 +48,22 @@ trait HasLightHouseCache
     public function generateFilesLighthouseCache(int $items = 25): void
     {
         $this->generateRelationshipLighthouseCache('files', $items);
+    }
+
+    protected function generateLighthouseCacheKey(): string
+    {
+        $graphTypeName = $this->getGraphTypeName();
+        $separator = CacheKeyAndTagsGenerator::SEPARATOR;
+
+        return CacheKeyAndTagsGenerator::PREFIX . $separator . $graphTypeName . $separator . $this->getId();
+    }
+
+    protected function getRelationshipQueryBuilder(string $relationship)
+    {
+        return match ($relationship) {
+            'custom_fields' => $this->getCustomFieldsQueryBuilder(),
+            'files' => $this->getFilesQueryBuilder(),
+            default => $this->$relationship(),
+        };
     }
 }
