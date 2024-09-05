@@ -28,10 +28,10 @@ class ImportDataFromFilesystemAction
         $records = $reader->getRecords();
         $dataImport = [];
         foreach ($records as $record) {
-            $data = $this->mapper($this->filesystemImports->filesystemMapper->mapping, $record);
+            $data = self::mapper($this->filesystemImports->filesystemMapper->mapping, $record);
             $dataImport[] = $data;
         }
-        $job = $this->getJob($this->filesystemImports->filesystemMapper->systemModule->model_name);
+        $job = self::getJob($this->filesystemImports->filesystemMapper->systemModule->model_name);
         $job::dispatch(
             Str::uuid()->toString(),
             $dataImport,
@@ -42,14 +42,14 @@ class ImportDataFromFilesystemAction
         );
     }
 
-    private function mapper(array $template, array $data): array
+    public static function mapper(array $template, array $data): array
     {
         $result = [];
 
         foreach ($template as $key => $value) {
             switch (true) {
                 case is_array($value):
-                    $result[$key] = $this->mapper($value, $data);
+                    $result[$key] = self::mapper($value, $data);
 
                     break;
                 case is_string($value) && Str::startsWith($value, '_'):
@@ -81,7 +81,7 @@ class ImportDataFromFilesystemAction
         return $path;
     }
 
-    private function getJob($className): string
+    public static function getJob($className): string
     {
         $job = '';
         switch ($className) {

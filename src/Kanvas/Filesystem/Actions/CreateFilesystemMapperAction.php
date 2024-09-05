@@ -19,8 +19,9 @@ class CreateFilesystemMapperAction
     {
         $mapperKeys = array_keys($this->filesystemMapping->mapping);
         $requiredFields = $this->filesystemMapping->systemModule->browse_fields;
-        if ($requiredFields && array_diff($requiredFields, $mapperKeys)) {
-            throw new Exception('Missing fields in mapping');
+        $arrayDiff = array_diff($requiredFields, $mapperKeys);
+        if ($requiredFields && $arrayDiff) {
+            throw new Exception('Missing fields in mapping, fields required: ' . implode(', ', $arrayDiff));
         }
 
         return ModelsFilesystemMapper::firstOrCreate([
