@@ -47,22 +47,12 @@ class ImportDataFromFilesystemAction
         $result = [];
 
         foreach ($template as $key => $value) {
-            switch (true) {
-                case is_array($value):
-                    $result[$key] = self::mapper($value, $data);
-
-                    break;
-                case is_string($value) && Str::startsWith($value, '_'):
-                    $result[$key] = Str::after($value, '_');
-
-                    break;
-                case is_string($value):
-                    $result[$key] = $data[$value] ?? null;
-
-                    break;
-                default:
-                    $result[$key] = $value;
-            }
+            $result[$key] = match (true) {
+                is_array($value) => self::mapper($value, $data),
+                is_string($value) && Str::startsWith($value, '_') => Str::after($value, '_'),
+                is_string($value) => $data[$value] ?? null,
+                default => $value,
+            };
         }
 
         return $result;
