@@ -248,7 +248,7 @@ extend type Query @guard {
         )
 }
 
-extend type Mutation @guardByAdmin {
+extend type Mutation @guard {
     createCompany(input: CompanyInput): Company!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@createCompany"
