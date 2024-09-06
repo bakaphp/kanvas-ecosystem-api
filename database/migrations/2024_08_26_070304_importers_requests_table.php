@@ -10,19 +10,19 @@ return new class () extends Migration {
      */
     public function up(): void
     {
-        Schema::create('importers_requests', function (Blueprint $table) {
-            $table->id();
-            $table->bigInteger('apps_id')->unsigned()->index();
-            $table->bigInteger('users_id')->unsigned()->index();
-            $table->bigInteger('companies_id')->unsigned()->index();
-            $table->bigInteger('regions_id')->unsigned()->index();
-            $table->bigInteger('companies_branches_id')->unsigned()->index();
-            $table->bigInteger('filesystem_id')->unsigned()->index();
-            $table->string('uuid');
-            $table->integer('status')->default(0)->index();
-            $table->integer('is_deleted')->default(0)->index();
-            $table->timestamps();
-        });
+        /*  Schema::create('importers_requests', function (Blueprint $table) {
+             $table->id();
+             $table->bigInteger('apps_id')->unsigned()->index();
+             $table->bigInteger('users_id')->unsigned()->index();
+             $table->bigInteger('companies_id')->unsigned()->index();
+             $table->bigInteger('regions_id')->unsigned()->index();
+             $table->bigInteger('companies_branches_id')->unsigned()->index();
+             $table->bigInteger('filesystem_id')->unsigned()->index();
+             $table->string('uuid');
+             $table->integer('status')->default(0)->index();
+             $table->integer('is_deleted')->default(0)->index();
+             $table->timestamps();
+         }); */
     }
 
     /**
@@ -30,6 +30,6 @@ return new class () extends Migration {
      */
     public function down(): void
     {
-        Schema::dropIfExists('importers_requests');
+        //Schema::dropIfExists('importers_requests');
     }
 };
