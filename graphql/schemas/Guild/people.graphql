@@ -62,6 +62,17 @@ type PeopleEmploymentHistory {
     income_type: String
 }
 
+input EmploymentPeopleHistoryInput {
+    peoples_id: ID
+    organizations_id: ID!
+    position: String!
+    income: Float
+    start_date: Date!
+    end_date: Date
+    status: Int!
+    income_type: String
+}
+
 type PeopleRelationship {
     id: ID!
     name: String!
@@ -84,6 +95,7 @@ input PeopleInput {
     files: [FilesystemInputUrl!]
     custom_fields: [CustomFieldEntityInput!]
     tags: [TagInput!]
+    peopleEmploymentHistory: [EmploymentPeopleHistoryInput!]
     created_at: DateTime
 }
 

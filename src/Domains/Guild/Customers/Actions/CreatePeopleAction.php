@@ -11,6 +11,7 @@ use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDataInput;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 
 class CreatePeopleAction
@@ -115,10 +116,26 @@ class CreatePeopleAction
                 }
             }
 
+            if ($this->peopleData->peopleEmploymentHistory) {
+                foreach ($this->peopleData->peopleEmploymentHistory as $employmentHistory) {
+                    $people->employmentHistory()->save(new PeopleEmploymentHistory([
+                        'organizations_id' => $employmentHistory['organizations_id'],
+                        'apps_id' => $this->peopleData->app->getId(),
+                        'position' => $employmentHistory['position'],
+                        'income' => $employmentHistory['income'],
+                        'start_date' => $employmentHistory['start_date'],
+                        'end_date' => $employmentHistory['end_date'],
+                        'status' => $employmentHistory['status'],
+                        'income_type' => $employmentHistory['income_type'] ?? null,
+                    ]));
+                }
+            }
+
             if (! empty($addressesToAdd)) {
                 $people->address()->saveMany($addressesToAdd);
             }
         }
+        $people->refresh();
 
         return $people;
     }

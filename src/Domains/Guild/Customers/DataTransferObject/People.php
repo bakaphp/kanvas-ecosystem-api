@@ -8,7 +8,6 @@ use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use DateTime;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Attributes\WithCast;
 use Spatie\LaravelData\Casts\DateTimeInterfaceCast;
@@ -40,6 +39,7 @@ class People extends Data
         public readonly ?string $middlename = null,
         public readonly array $custom_fields = [],
         public readonly array $tags = [],
+        public readonly array $peopleEmploymentHistory = [],
         public readonly ?string $created_at = null
     ) {
     }
