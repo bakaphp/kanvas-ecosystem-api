@@ -50,21 +50,19 @@ class MailunregisteredUsersCampaignCommand extends Command
             case 1:
                 $emailTemplateName = 'introducing_prompt_mine';
                 $emailSubject = 'Discover Your New Creative Tool: Introducing Prompt Mine';
-
-                // no break
+                break;
             case 2:
                 $emailTemplateName = 'get_inspired_with_prompt_mine';
                 $emailSubject = 'Get Inspired with Prompt Mine';
-
-                // no break
+                break;
             case 3:
                 $emailTemplateName = 'see_what_trending_on_prompt_mine';
                 $emailSubject = '{userFirstname}, See What’s Trending on Prompt Mine!';
-
-                // no break
+                break;
             case 4:
                 $emailTemplateName = 'elevate_your_ai_experience';
                 $emailSubject = 'Elevate Your AI Experience with Prompt Mine';
+                break;
         }
 
         $this->sendMailToUnregistered($app, $emailTemplateName, $emailSubject);
