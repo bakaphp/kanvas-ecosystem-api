@@ -1,0 +1,35 @@
+input SubscriptionItemInput {
+    subscription_id: Int!
+    plan_id: Int!
+    quantity: Int!
+}
+
+input SubscriptionItemUpdateInput {
+    subscription_id: Int
+    plan_id: Int
+    quantity: Int
+}
+
+type SubscriptionItem {
+    id: ID!
+    subscription_id: Int!
+    plan_id: Int!
+    quantity: Int!
+    created_at: String
+    updated_at: String
+}
+
+extend type Mutation @guard {
+    createSubscriptionItem(input: SubscriptionItemInput!): SubscriptionItem!
+        @field(
+            resolver: "App\\GraphQL\\Subscriptions\\Mutations\\SubscriptionItems\\SubscriptionItemMutation@create"
+        )
+    updateSubscriptionItem(id: ID!, input: SubscriptionItemUpdateInput!): SubscriptionItem!
+        @field(
+            resolver: "App\\GraphQL\\Subscriptions\\Mutations\\SubscriptionItems\\SubscriptionItemMutation@update"
+        )
+    deleteSubscriptionItem(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Subscriptions\\Mutations\\SubscriptionItems\\SubscriptionItemMutation@delete"
+        )
+}

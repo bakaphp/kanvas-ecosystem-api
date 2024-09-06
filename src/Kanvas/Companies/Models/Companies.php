@@ -35,6 +35,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
 use Laravel\Scout\Searchable;
+use Laravel\Cashier\Billable;
 
 /**
  * Companies Model.
@@ -65,6 +66,7 @@ class Companies extends BaseModel implements CompanyInterface
     }
     use CascadeSoftDeletes;
     use SoftDeletesTrait;
+    use Billable;
 
     protected $table = 'companies';
 

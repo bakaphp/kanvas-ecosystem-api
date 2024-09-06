@@ -1,0 +1,38 @@
+input PlanInput {
+    name: String!
+    price: Float!
+    interval: String!
+    description: String
+}
+
+input PlanUpdateInput {
+    name: String
+    price: Float
+    interval: String
+    description: String
+}
+
+type Plan {
+    id: ID!
+    name: String!
+    price: Float!
+    interval: String!
+    description: String
+    created_at: String
+    updated_at: String
+}
+
+extend type Mutation @guard {
+    createPlan(input: PlanInput!): Plan!
+        @field(
+            resolver: "App\\GraphQL\\Subscriptions\\Mutations\\Plans\\PlanMutation@create"
+        )
+    updatePlan(id: ID!, input: PlanUpdateInput!): Plan!
+        @field(
+            resolver: "App\\GraphQL\\Subscriptions\\Mutations\\Plans\\PlanMutation@update"
+        )
+    deletePlan(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Subscriptions\\Mutations\\Plans\\PlanMutation@delete"
+        )
+}

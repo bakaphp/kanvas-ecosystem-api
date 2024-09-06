@@ -55,6 +55,8 @@ use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Observers\UsersAssociatedAppsObserver;
 use Kanvas\Users\Observers\UsersAssociatedCompaniesObserver;
 use Kanvas\Users\Observers\UsersObserver;
+//use Kanvas\Subscriptions\Subscription\Models\Subscription;
+//use Kanvas\Subscriptions\Subscription\Observers\SubscriptionObserver;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -100,6 +102,7 @@ class EventServiceProvider extends ServiceProvider
         PeopleEmploymentHistory::observe(PeopleEmploymentHistoryObserver::class);
         People::observe(PeopleObserver::class);
         TaskEngagementItem::observe(TaskEngagementItemObserver::class);
+        //Subscription::observe(SubscriptionObserver::class);
     }
 
     /**

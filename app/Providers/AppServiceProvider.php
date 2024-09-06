@@ -8,6 +8,8 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Sessions\Models\Sessions;
 use Laravel\Sanctum\Sanctum;
+use Laravel\Cashier\Cashier;
+use Kanvas\Companies\Models\Companies;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -29,5 +31,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot()
     {
         Sanctum::usePersonalAccessTokenModel(Sessions::class);
+        Cashier::useCustomerModel(Companies::class);
     }
 }
