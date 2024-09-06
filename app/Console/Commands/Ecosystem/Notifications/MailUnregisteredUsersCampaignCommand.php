@@ -96,8 +96,6 @@ class MailunregisteredUsersCampaignCommand extends Command
                     if (strpos($emailSubject, '{userFirstname}')) {
                         $emailSubject = str_replace('{userFirstname}', $user->firstname, $emailSubject);
                     }
-                    
-    
                     $notification->setSubject($emailSubject);
                     Notification::route('mail', $user->email)->notify($notification);
                     $this->info('Email Successfully sent to: ' . $user->getId() . ' on app: ' . $app->getId());
