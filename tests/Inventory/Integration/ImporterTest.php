@@ -77,11 +77,11 @@ final class ImporterTest extends TestCase
             'isPublished' => true,
             'files' => [
                 [
-                    'url' => 'https://kanvas.dev/images/Products.png',
+                    'url' => fake()->imageUrl(),
                     'name' => fake()->word(),
                 ],
                 [
-                    'url' => 'https://kanvas.dev/images/Products.png',
+                    'url' => fake()->imageUrl(),
                     'name' => fake()->word(),
                 ],
             ],
@@ -105,11 +105,11 @@ final class ImporterTest extends TestCase
                     ...$attributes,
                     'files' => [
                         [
-                            'url' => 'https://kanvas.dev/images/Products.png',
+                            'url' => fake()->imageUrl(),
                             'name' => fake()->word(),
                         ],
                         [
-                            'url' => 'https://kanvas.dev/images/Products.png',
+                            'url' => fake()->imageUrl(),
                             'name' => fake()->word(),
                         ],
                     ],

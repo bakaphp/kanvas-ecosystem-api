@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Shopify\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Exception;
 use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Inventory\Products\Models\Products;
@@ -63,6 +64,7 @@ class ShopifyImageService
 
             // Add the image if it does not exist
             $response = $shopifyProduct->Image->post(['src' => $imageUrl, 'alt' => $fileName]);
+
             return $response;
         } catch (Exception $e) {
             throw new Exception('Failed to add image to Shopify product: ' . $e->getMessage());
@@ -101,6 +103,11 @@ class ShopifyImageService
 
             return false;
         } catch (Exception $e) {
+            //stupid , but for now we return false if the image is not found
+            if (Str::contains($e->getMessage(), 'Could not download image')) {
+                return false;
+            }
+
             throw new Exception('Failed to add image to Shopify variant: ' . $e->getMessage());
         }
     }
