@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Baka\Traits;
 
+use Baka\Jobs\LightHouseCacheCleanUpJob;
 use Illuminate\Support\Facades\Redis;
 use Nuwave\Lighthouse\Cache\CacheKeyAndTagsGenerator;
 
@@ -29,6 +30,11 @@ trait HasLightHouseCache
 
         $this->generateCustomFieldsLighthouseCache();
         $this->generateFilesLighthouseCache();
+    }
+
+    public function clearLightHouseCacheJob(): void
+    {
+        LightHouseCacheCleanUpJob::dispatch($this);
     }
 
     public function generateRelationshipLighthouseCache(string $relationship, int $items = 25): void

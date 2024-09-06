@@ -293,7 +293,7 @@ trait HasCustomFields
         }
 
         if (method_exists($this, 'generateCustomFieldsLighthouseCache')) {
-            $this->generateCustomFieldsLighthouseCache();
+            $this->clearLightHouseCacheJob();
         }
 
         return true;
@@ -394,7 +394,7 @@ trait HasCustomFields
     protected function clearCustomFieldsCacheIfNeeded(): void
     {
         if (method_exists($this, 'clearLightHouseCache')) {
-            $this->clearLightHouseCache();
+            $this->clearLightHouseCacheJob();
         }
     }
 }
