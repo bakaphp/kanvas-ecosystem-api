@@ -10,7 +10,7 @@ return new class () extends Migration {
      */
     public function up(): void
     {
-        Schema::create('importers_requests', function (Blueprint $table) {
+       /*  Schema::create('importers_requests', function (Blueprint $table) {
             $table->id();
             $table->bigInteger('apps_id')->unsigned()->index();
             $table->bigInteger('users_id')->unsigned()->index();
@@ -22,7 +22,7 @@ return new class () extends Migration {
             $table->integer('status')->default(0)->index();
             $table->integer('is_deleted')->default(0)->index();
             $table->timestamps();
-        });
+        }); */
     }
 
     /**
@@ -30,6 +30,6 @@ return new class () extends Migration {
      */
     public function down(): void
     {
-        Schema::dropIfExists('importers_requests');
+        //Schema::dropIfExists('importers_requests');
     }
 };
