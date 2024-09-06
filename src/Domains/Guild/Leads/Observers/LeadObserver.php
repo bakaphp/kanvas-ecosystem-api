@@ -14,6 +14,7 @@ use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Nuwave\Lighthouse\Execution\Utils\Subscription;
 
 class LeadObserver
 {
@@ -84,12 +85,13 @@ class LeadObserver
             )->execute();
         }
 
-        $lead->clearLightHouseCache();
+        $lead->clearLightHouseCacheJob();
     }
 
     public function updated(Lead $lead): void
     {
         $lead->fireWorkflow(WorkflowEnum::UPDATED->value);
-        $lead->clearLightHouseCache();
+        Subscription::broadcast('leadUpdate', $lead, true);
+        $lead->clearLightHouseCacheJob();
     }
 }

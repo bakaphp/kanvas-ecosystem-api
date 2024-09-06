@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
+use Kanvas\ActionEngine\Tasks\Models\TaskEngagementItem;
+use Kanvas\ActionEngine\Tasks\Observers\TaskEngagementItemObserver;
 use Kanvas\Companies\Groups\Observers\CompaniesGroupsObserver;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesGroups;
@@ -15,6 +17,8 @@ use Kanvas\Guild\Customers\Observers\PeopleEmploymentHistoryObserver;
 use Kanvas\Guild\Customers\Observers\PeopleObserver;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Observers\LeadObserver;
+use Kanvas\Inventory\Attributes\Models\Attributes;
+use Kanvas\Inventory\Attributes\Observers\AttributeObserver;
 use Kanvas\Inventory\Categories\Observers\ProductsCategoriesObserver;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Observers\ChannelObserver;
@@ -22,6 +26,8 @@ use Kanvas\Inventory\Channels\Observers\VariantsChannelObserver;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Products\Models\ProductsCategories;
 use Kanvas\Inventory\Products\Observers\ProductsObserver;
+use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
+use Kanvas\Inventory\ProductsTypes\Observers\ProductsTypesObserver;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Regions\Observers\RegionObserver;
 use Kanvas\Inventory\Status\Models\Status;
@@ -84,13 +90,16 @@ class EventServiceProvider extends ServiceProvider
         VariantsWarehouses::observe(VariantsWarehouseObserver::class);
         Channels::observe(ChannelObserver::class);
         Products::observe(ProductsObserver::class);
+        ProductsTypes::observe(ProductsTypesObserver::class);
         Variants::observe(VariantObserver::class);
         VariantsChannels::observe(VariantsChannelObserver::class);
+        Attributes::observe(AttributeObserver::class);
         UsersAssociatedApps::observe(UsersAssociatedAppsObserver::class);
         UserCompanyApps::observe(UsersAssociatedCompaniesObserver::class);
         ProductsCategories::observe(ProductsCategoriesObserver::class);
         PeopleEmploymentHistory::observe(PeopleEmploymentHistoryObserver::class);
         People::observe(PeopleObserver::class);
+        TaskEngagementItem::observe(TaskEngagementItemObserver::class);
     }
 
     /**

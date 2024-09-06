@@ -37,6 +37,7 @@ class CreateMessageAction
             'total_saved' => $this->messageInput->total_saved,
             'total_shared' => $this->messageInput->total_shared,
             'ip_address' => $this->messageInput->ip_address,
+            'is_public' => $this->messageInput->is_public,
         ];
 
         $validator = Validator::make($data, [

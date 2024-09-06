@@ -7,6 +7,7 @@ namespace Kanvas\CustomFields\Traits;
 use Baka\Enums\StateEnums;
 use Baka\Support\Str;
 use Baka\Traits\HasSchemaAccessors;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Auth;
@@ -84,6 +85,13 @@ trait HasCustomFields
         }
 
         return $listOfCustomFields;
+    }
+
+    public function getCustomFieldsQueryBuilder(): Builder
+    {
+        return AppsCustomFields::where('entity_id', '=', $this->getKey())
+            ->where('model_name', '=', static::class)
+            ->where('is_deleted', '=', StateEnums::NO->getValue());
     }
 
     /**
@@ -193,6 +201,7 @@ trait HasCustomFields
         if (method_exists($this, 'fireWorkflow')) {
             $this->fireWorkflow(WorkflowEnum::CREATE_CUSTOM_FIELD->value);
         }
+
         return $customField;
     }
 
@@ -282,6 +291,11 @@ trait HasCustomFields
         if (method_exists($this, 'fireWorkflow')) {
             $this->fireWorkflow(WorkflowEnum::CREATE_CUSTOM_FIELDS->value);
         }
+
+        if (method_exists($this, 'generateCustomFieldsLighthouseCache')) {
+            $this->clearLightHouseCacheJob();
+        }
+
         return true;
     }
 
@@ -380,7 +394,7 @@ trait HasCustomFields
     protected function clearCustomFieldsCacheIfNeeded(): void
     {
         if (method_exists($this, 'clearLightHouseCache')) {
-            $this->clearLightHouseCache();
+            $this->clearLightHouseCacheJob();
         }
     }
 }

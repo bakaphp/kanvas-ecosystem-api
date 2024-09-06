@@ -58,6 +58,7 @@ input MessageInput {
     message: Mixed!
     parent_id: ID
     system_modules_id: ID
+    is_public: Int
     entity_id: Mixed
     distribution: DistributionInput
     tags: [TagInput!]
@@ -167,9 +168,16 @@ extend type Query @guard {
                 relation: "user"
                 columns: ["id", "displayname"]
             )
-        hasTags: _ @whereHasConditions(relation: "tags", columns: ["name"])
+        hasTags: _
+            @whereHasConditions(
+                relation: "tags"
+                columns: ["id", "name", "slug"]
+            )
         hasType: _
-            @whereHasConditions(relation: "messageType", columns: ["name"])
+            @whereHasConditions(
+                relation: "messageType"
+                columns: ["id", "name", "verb"]
+            )
         hasAppModuleMessage: _
             @whereHasConditions(columns: ["entity_id", "system_modules"])
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
@@ -226,6 +234,21 @@ extend type Query @guard {
                     "total_saved"
                     "total_shared"
                 ]
+            )
+        hasUser: _
+            @whereHasConditions(
+                relation: "user"
+                columns: ["id", "displayname"]
+            )
+        hasTags: _
+            @whereHasConditions(
+                relation: "tags"
+                columns: ["id", "name", "slug"]
+            )
+        hasType: _
+            @whereHasConditions(
+                relation: "messageType"
+                columns: ["id", "name", "verb"]
             )
         hasAppModuleMessage: _
             @whereHasConditions(columns: ["entity_id", "system_modules"])

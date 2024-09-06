@@ -3,7 +3,7 @@
 namespace App\Console;
 
 use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
-use App\Console\Commands\DeleteUsersRequestedCommand;
+use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 use Spatie\Health\Commands\DispatchQueueCheckJobsCommand;

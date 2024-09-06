@@ -24,7 +24,7 @@ class CustomFieldQuery
         ResolveInfo $resolveInfo
     ): Builder {
         /**
-         * @var Builder
+         * @todo move to use the entity queryBuilder
          */
         $customFields = AppsCustomFields::where('entity_id', '=', $root->getKey())
             ->where('model_name', '=', $root::class)
