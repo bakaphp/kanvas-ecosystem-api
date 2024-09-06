@@ -12,6 +12,7 @@ use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use League\Csv\Reader;
 
 class FilesystemManagementMutation
 {
@@ -97,6 +98,21 @@ class FilesystemManagementMutation
         $filesystem = new FilesystemServices(app(Apps::class));
 
         return $filesystem->upload($file, auth()->user());
+    }
+
+    public function uploadCsv(mixed $rootValue, array $request): array
+    {
+        $file = $request['file'];
+        $path = $file->store('csv/' . $file->getClientOriginalName() . uniqid(), 'local');
+        $path = storage_path('app/' . $path);
+        $csv = Reader::createFromPath($path, 'r');
+
+        $csv->setHeaderOffset(0);
+        $header = $csv->getHeader();
+
+        $fileSystems = $this->singleFile($rootValue, $request);
+
+        return ['filesystem_id' => $fileSystems->id, 'row' => $csv->fetchOne(0), 'header' => $header];
     }
 
     /**

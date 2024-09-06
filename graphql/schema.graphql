@@ -19,8 +19,9 @@ scalar JSON  @scalar(class: "MLL\\GraphQLScalars\\JSON")
 scalar Null  @scalar(class: "MLL\\GraphQLScalars\\NullScalar")
 
 #import hello.graphql
-#import schemas/Ecosystem/*.graphql
 #import schemas/*.graphql
+#import schemas/Ecosystem/*.graphql
+#import schemas/Ecosystem/Filesystem/*.graphql
 #import schemas/Inventory/*.graphql
 #import schemas/Connector/*.graphql
 #import schemas/Inventory/Admin/*.graphql
