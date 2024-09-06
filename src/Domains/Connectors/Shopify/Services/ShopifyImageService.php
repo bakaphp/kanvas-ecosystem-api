@@ -33,19 +33,10 @@ class ShopifyImageService
             return $totalUploaded;
         }
 
-        foreach ($entity->files as $file) {
-            if ($entity instanceof Products) {
-                if ($this->addImage($entity, $file->url)) {
-                    $totalUploaded++;
-                }
-            } else {
-                if ($this->addVariantImage($entity, $file->url)) {
-                    $totalUploaded++;
-                }
-            }
-        }
-
-        return $totalUploaded;
+        return $entity->files->reduce(function ($totalUploaded, $file) use ($entity) {
+            $method = $entity instanceof Products ? 'addImage' : 'addVariantImage';
+            return $totalUploaded + ($this->$method($entity, $file->url) ? 1 : 0);
+        }, 0);
     }
 
     public function addImage(Products $product, string $imageUrl): ?array
@@ -67,6 +58,11 @@ class ShopifyImageService
 
             return $response;
         } catch (Exception $e) {
+            //stupid , but for now we return false if the image is not found
+            if (Str::contains($e->getMessage(), 'Could not download image')) {
+                return [];
+            }
+
             throw new Exception('Failed to add image to Shopify product: ' . $e->getMessage());
         }
     }
