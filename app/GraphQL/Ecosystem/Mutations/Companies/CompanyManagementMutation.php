@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Companies;
 
+use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Auth;
@@ -50,15 +51,23 @@ class CompanyManagementMutation
     }
 
     /**
+     * @todo move to service ?
+     */
+    protected function hasCompanyPermission(Companies $company, UserInterface $user): void
+    {
+        if (! $user->isAdmin() && $company->users_id != $user->getId()) {
+            throw new AuthorizationException('Your are not allowed to perform this action for company ' . $company->name);
+        }
+    }
+
+    /**
      * updateCompany
      */
     public function updateCompany(mixed $root, array $request): Companies
     {
         $company = Companies::getById((int) $request['id']);
 
-        if (! auth()->user()->isAdmin() || $company->users_id != auth()->user()->getId()) {
-            throw new AuthorizationException('Your are not allowed to update this company');
-        }
+        $this->hasCompanyPermission($company, auth()->user());
 
         if (auth()->user()->isAdmin() && key_exists('users_id', $request['input'])) {
             $user = Users::getById($request['input']['users_id']);
@@ -77,9 +86,7 @@ class CompanyManagementMutation
     {
         $company = Companies::getById($request['id']);
 
-        if (! auth()->user()->isAdmin() || $company->users_id != auth()->user()->getId()) {
-            throw new AuthorizationException('Your are not allowed to update this company');
-        }
+        $this->hasCompanyPermission($company, auth()->user());
 
         if (! auth()->user()->isAdmin()) {
             $company = Companies::getById($request['id']);
@@ -134,9 +141,7 @@ class CompanyManagementMutation
             auth()->user()
         );
 
-        if (! auth()->user()->isAdmin() || $company->users_id != auth()->user()->getId()) {
-            throw new AuthorizationException('Your are not allowed to update this company');
-        }
+        $this->hasCompanyPermission($company, auth()->user());
 
         $branch = app(CompaniesBranches::class);
 
@@ -197,9 +202,7 @@ class CompanyManagementMutation
             auth()->user()
         );
 
-        if (! auth()->user()->isAdmin() || $company->users_id != auth()->user()->getId()) {
-            throw new AuthorizationException('Your are not allowed to update this company');
-        }
+        $this->hasCompanyPermission($company, auth()->user());
 
         $branch = app(CompaniesBranches::class);
 
