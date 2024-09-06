@@ -57,11 +57,7 @@ class AttachFilesystemAction
         }
 
         if (method_exists($this->entity, 'clearLightHouseCache')) {
-            $this->entity->clearLightHouseCache();
-        }
-
-        if (method_exists($this->entity, 'generateFilesLighthouseCache')) {
-            $this->entity->generateFilesLighthouseCache();
+            $this->entity->clearLightHouseCacheJob();
         }
 
         return $fileEntity;
