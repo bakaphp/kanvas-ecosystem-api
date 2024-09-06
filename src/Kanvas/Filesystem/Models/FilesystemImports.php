@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Models;
 
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 use function Illuminate\Events\queueable;
 
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Filesystem\Actions\ImportDataFromFilesystemAction;
+use Kanvas\Filesystem\Observers\FilesystemImportObserver;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Models\BaseModel;
 
@@ -27,7 +28,7 @@ use Kanvas\Models\BaseModel;
  * @property string $created_at
  * @property string $updated_at
  */
-
+#[ObservedBy([FilesystemImportObserver::class])]
 class FilesystemImports extends BaseModel
 {
     public $table = 'filesystem_imports';
@@ -39,13 +40,6 @@ class FilesystemImports extends BaseModel
             'results' => 'array',
             'exception' => 'array',
         ];
-    }
-
-    protected static function booted(): void
-    {
-        static::created(queueable(function (FilesystemImports $import) {
-            (new ImportDataFromFilesystemAction($import))->execute();
-        }));
     }
 
     public function regions(): BelongsTo
