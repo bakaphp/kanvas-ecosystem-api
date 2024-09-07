@@ -143,7 +143,8 @@ class Message extends BaseModel
 
     public function searchableAs(): string
     {
-        $message = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
+        //$message = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
+        $message = ! $this->searchableDeleteRecord() ? $this : $this->find($this->id);
         $app = $message->app ?? null;
 
         /**
