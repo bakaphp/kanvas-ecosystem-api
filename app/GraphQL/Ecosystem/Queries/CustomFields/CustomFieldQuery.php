@@ -6,7 +6,7 @@ namespace App\GraphQL\Ecosystem\Queries\CustomFields;
 
 use Baka\Enums\StateEnums;
 use GraphQL\Type\Definition\ResolveInfo;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Kanvas\CustomFields\DataTransferObject\CustomFieldInput;
 use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
@@ -22,20 +22,32 @@ class CustomFieldQuery
         array $args,
         GraphQLContext $context,
         ResolveInfo $resolveInfo
-    ): Builder {
+    ): LengthAwarePaginator {
+        $limit = $args['first'] ?? 25;
+        $page = $args['page'] ?? 1;
+        $results = $root->getAllCustomFieldsFromRedisPaginated($limit, $page);
+
+        //...apply your logic
+        return new LengthAwarePaginator(
+            $results['results'],
+            $results['total'],
+            $results['per_page'],
+            25
+        );
+
         /**
-         * @todo move to use the entity queryBuilder
+         * @todo remove when we validate its performance
          */
-        $customFields = AppsCustomFields::where('entity_id', '=', $root->getKey())
-            ->where('model_name', '=', $root::class)
-            ->where('is_deleted', '=', StateEnums::NO->getValue());
+        /*         $customFields = AppsCustomFields::where('entity_id', '=', $root->getKey())
+                    ->where('model_name', '=', $root::class)
+                    ->where('is_deleted', '=', StateEnums::NO->getValue());
 
-        //@todo allow to share media between company only of it the apps specifies it
-        $customFields->when(isset($root->companies_id), function ($query) use ($root) {
-            $query->where('companies_id', $root->companies_id);
-        });
+                //@todo allow to share media between company only of it the apps specifies it
+                $customFields->when(isset($root->companies_id), function ($query) use ($root) {
+                    $query->where('companies_id', $root->companies_id);
+                });
 
-        return $customFields;
+                return $customFields; */
     }
 
     /**
