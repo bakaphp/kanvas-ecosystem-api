@@ -56,7 +56,7 @@ type PeopleEmploymentHistory {
     people: People! @belongsTo
     position: String!
     income: Float
-    start_date: Date!
+    start_date: Date
     end_date: Date
     status: Int!
     income_type: String
