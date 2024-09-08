@@ -26,15 +26,50 @@ class ImportDataFromFilesystemAction
         $reader = Reader::createFromPath($path, 'r');
         $reader->setHeaderOffset(0);
         $records = $reader->getRecords();
-        $dataImport = [];
+        $listOfVariants = [];
+        $listOfProducts = [];
+
         foreach ($records as $record) {
-            $data = self::mapper($this->filesystemImports->filesystemMapper->mapping, $record);
-            $dataImport[] = $data;
+            $variant = $this->mapper(
+                $this->filesystemImports->filesystemMapper->mapping,
+                $record
+            );
+            $listOfVariants[$variant['productSlug']][] = $variant;
         }
-        $job = self::getJob($this->filesystemImports->filesystemMapper->systemModule->model_name);
+
+        foreach ($listOfVariants as $key => $variants) {
+            $listOfProducts[] = [
+                'name' => $variants[0]['name'],
+                'description' => $variants[0]['description'],
+                'slug' => $variants[0]['productSlug'],
+                'sku' => $variants[0]['sku'],
+                'regionId' => $variants[0]['regionId'],
+                'price' => $variants[0]['price'],
+                'discountPrice' => $variants[0]['discountPrice'],
+                'quantity' => 1,
+                'isPublished' => $variants[0]['isPublished'],
+                'files' => $variants[0]['files'],
+                'productType' => [
+                    'name' => $variants[0]['productType'] ?? 'Default',
+                    'description' => null,
+                    'is_published' => true,
+                    'weight' => 1,
+                ],
+                'categories' => [
+                    'name' => $variants[0]['categories'],
+                    'code' => strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '',  $variants[0]['categories']))),
+                    'is_published' => true,
+                    'position' => 1,
+                ],
+                'customFields' => [],
+                'variants' => $variants,
+            ];
+        }
+
+        $job = $this->getJob($this->filesystemImports->filesystemMapper->systemModule->model_name);
         $job::dispatch(
             Str::uuid()->toString(),
-            $dataImport,
+            $listOfProducts,
             $this->filesystemImports->companiesBranches,
             $this->filesystemImports->user,
             $this->filesystemImports->regions,
@@ -42,13 +77,13 @@ class ImportDataFromFilesystemAction
         );
     }
 
-    public static function mapper(array $template, array $data): array
+    public function mapper(array $template, array $data): array
     {
         $result = [];
 
         foreach ($template as $key => $value) {
             $result[$key] = match (true) {
-                is_array($value) => self::mapper($value, $data),
+                is_array($value) => $this->mapper($value, $data),
                 is_string($value) && Str::startsWith($value, '_') => Str::after($value, '_'),
                 is_string($value) => $data[$value] ?? null,
                 default => $value,
@@ -71,7 +106,7 @@ class ImportDataFromFilesystemAction
         return $path;
     }
 
-    public static function getJob($className): string
+    public function getJob(string $className): string
     {
         $job = '';
         switch ($className) {
