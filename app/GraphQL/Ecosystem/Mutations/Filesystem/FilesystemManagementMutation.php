@@ -112,7 +112,11 @@ class FilesystemManagementMutation
 
         $fileSystems = $this->singleFile($rootValue, $request);
 
-        return ['filesystem_id' => $fileSystems->id, 'row' => $csv->fetchOne(0), 'header' => $header];
+        return [
+            'filesystem_id' => $fileSystems->id,
+            'row' => $csv->nth(0),
+            'header' => $header,
+        ];
     }
 
     /**

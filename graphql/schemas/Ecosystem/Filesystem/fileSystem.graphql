@@ -55,7 +55,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@deAttachFiles"
         )
-    uploadCsv(file: Upload!): JSON!
+    uploadCsv(file: Upload!): Mixed!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@uploadCsv"
         )
