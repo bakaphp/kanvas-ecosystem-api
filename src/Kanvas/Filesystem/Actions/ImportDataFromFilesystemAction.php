@@ -63,7 +63,7 @@ class ImportDataFromFilesystemAction
                 'categories' => [
                    [
                         'name' => $variants[0]['categories'],
-                        'code' => strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '',  $variants[0]['categories']))),
+                        'code' => strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '', $variants[0]['categories']))),
                         'is_published' => true,
                         'position' => 1,
                    ],
