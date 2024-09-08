@@ -38,6 +38,10 @@ class ImportDataFromFilesystemAction
             $listOfVariants[$variant['productSlug']][] = $variant;
         }
 
+        /**
+         * @todo this structure is just for product so we need to encapsulate this in a method
+         * when we are just importing product type
+         */
         foreach ($listOfVariants as $key => $variants) {
             $listOfProducts[] = [
                 'name' => $variants[0]['name'],
@@ -57,7 +61,7 @@ class ImportDataFromFilesystemAction
                     'weight' => 1,
                 ],
                 'categories' => [
-                   [ 
+                   [
                         'name' => $variants[0]['categories'],
                         'code' => strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '',  $variants[0]['categories']))),
                         'is_published' => true,
