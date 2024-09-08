@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Actions;
 
+use Baka\Enums\StateEnums;
 use Illuminate\Support\Str;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemImports;
@@ -44,22 +45,24 @@ class ImportDataFromFilesystemAction
                 'slug' => $variants[0]['productSlug'],
                 'sku' => $variants[0]['sku'],
                 'regionId' => $variants[0]['regionId'],
-                'price' => $variants[0]['price'],
-                'discountPrice' => $variants[0]['discountPrice'],
-                'quantity' => 1,
-                'isPublished' => $variants[0]['isPublished'],
-                'files' => $variants[0]['files'],
+                'price' => (float) ($variants[0]['price'] ?? 0),
+                'discountPrice' => (float) ($variants[0]['discountPrice'] ?? 0),
+                'quantity' => $variants[0]['quantity'] ?? 1,
+                'isPublished' => (bool) ($variants[0]['isPublished'] ?? true),
+                'files' => (array) ($variants[0]['files'] ?? []),
                 'productType' => [
-                    'name' => $variants[0]['productType'] ?? 'Default',
+                    'name' => $variants[0]['productType'] ?? StateEnums::DEFAULT_NAME->getValue(),
                     'description' => null,
                     'is_published' => true,
                     'weight' => 1,
                 ],
                 'categories' => [
-                    'name' => $variants[0]['categories'],
-                    'code' => strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '',  $variants[0]['categories']))),
-                    'is_published' => true,
-                    'position' => 1,
+                   [ 
+                        'name' => $variants[0]['categories'],
+                        'code' => strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '',  $variants[0]['categories']))),
+                        'is_published' => true,
+                        'position' => 1,
+                   ],
                 ],
                 'customFields' => [],
                 'variants' => $variants,
@@ -81,6 +84,11 @@ class ImportDataFromFilesystemAction
     {
         $result = [];
 
+        /**
+         * @todo
+         * - assign type to attributes
+         * - assign type to fields , so we can say files has to be array , x is INT and so on
+         */
         foreach ($template as $key => $value) {
             $result[$key] = match (true) {
                 is_array($value) => $this->mapper($value, $data),

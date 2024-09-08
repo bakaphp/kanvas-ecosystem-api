@@ -36,6 +36,13 @@ class VariantService
         $variantsData = [];
 
         foreach ($variants as $variant) {
+            /**
+             * @todo file upload mapper set type
+             */
+            if (empty($variant['files'])) {
+                $variant['files'] = [];
+            }
+
             $variantDto = VariantsDto::from([
                 'product' => $product,
                 'products_id' => $product->getId(),
