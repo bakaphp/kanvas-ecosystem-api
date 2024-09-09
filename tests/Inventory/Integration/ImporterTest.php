@@ -142,6 +142,7 @@ final class ImporterTest extends TestCase
             ...$attributes,
         ]);
 
+        print_r($productData);
         $productImporter = new ProductImporterAction(
             $productData,
             $company,
