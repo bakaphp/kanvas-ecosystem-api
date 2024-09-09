@@ -105,11 +105,11 @@ final class ImporterTest extends TestCase
                     ...$attributes,
                     'files' => [
                         [
-                            'url' => fake()->imageUrl,
+                            'url' => fake()->imageUrl ?? 'https://via.placeholder.com/150',
                             'name' => fake()->word(),
                         ],
                         [
-                            'url' => fake()->imageUrl,
+                            'url' => fake()->imageUrl ?? 'https://via.placeholder.com/150',
                             'name' => fake()->word(),
                         ],
                     ],
