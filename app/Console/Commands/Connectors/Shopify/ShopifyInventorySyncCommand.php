@@ -44,8 +44,8 @@ class ShopifyInventorySyncCommand extends Command
         $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
         $company = Companies::getById((int) $this->argument('company_id'));
-        $channel = Channels::getByIdFromCompany((int) $this->argument('channel_id'), $company);
-        $warehouses = Warehouses::getByIdFromCompany((int) $this->argument('warehouse_id'), $company);
+        $channel = Channels::getByIdFromCompanyApp((int) $this->argument('channel_id'), $company, $app);
+        $warehouses = Warehouses::getByIdFromCompanyApp((int) $this->argument('warehouse_id'), $company, $app);
 
         $associatedApps = UserCompanyApps::where('apps_id', $app->getId())
                                 ->where('companies_id', $company->getId())->first();
