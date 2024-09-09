@@ -146,7 +146,7 @@ extend type Query {
         key: String! @eq
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id", "name"])
     ): AppSettings
-        @deprecated(reason: "Use getAppSetting instead")
+        @deprecated(reason: "Use adminAppSettings instead")
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\AppsListQuery@getAppSettings"
         )
