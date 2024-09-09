@@ -77,11 +77,11 @@ final class ImporterTest extends TestCase
             'isPublished' => true,
             'files' => [
                 [
-                    'url' => fake()->imageUrl,
+                    'url' => fake()->imageUrl ?? 'https://via.placeholder.com/150',
                     'name' => fake()->word(),
                 ],
                 [
-                    'url' => fake()->imageUrl,
+                    'url' => fake()->imageUrl ?? 'https://via.placeholder.com/150',,
                     'name' => fake()->word(),
                 ],
             ],
