@@ -22,8 +22,8 @@ use Kanvas\SystemModules\Models\SystemModules;
  * @property int $companies_branches_id
  * @property int $system_modules_id
  * @property int $name
- * @property string $file_header
- * @property string $mapping
+ * @property array $file_header
+ * @property array $mapping
  * @property string $created_at
  * @property string $updated_at
  * @property int $is_deleted
