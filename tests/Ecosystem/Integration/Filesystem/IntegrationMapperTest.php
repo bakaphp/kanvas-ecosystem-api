@@ -90,7 +90,7 @@ final class IntegrationMapperTest extends TestCase
 
         $filesystemMapperName = 'Products' . uniqid();
         $dto = new FilesystemMapper(
-            $apps,
+            $app,
             $user->getCurrentBranch(),
             $user,
             SystemModulesRepository::getByModelName(Products::class),
