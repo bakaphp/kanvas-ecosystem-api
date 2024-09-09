@@ -7,7 +7,6 @@ namespace Tests\GraphQL\Ecosystem\Apps;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
-use Kanvas\Enums\StateEnums;
 use Tests\TestCase;
 
 class AppsTest extends TestCase
@@ -106,12 +105,12 @@ class AppsTest extends TestCase
             [
                 AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
             ]
-            )
+        )
             ->assertSuccessful()
             ->assertJsonStructure([
                 'data' => [
-                    'adminAppSetting'
-                ]
+                    'adminAppSetting',
+                ],
             ]);
     }
 }
