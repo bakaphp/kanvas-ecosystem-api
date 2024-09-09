@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Models;
 
+use Baka\Casts\Json;
+use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-
-use function Illuminate\Events\queueable;
-
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Observers\FilesystemImportObserver;
 use Kanvas\Inventory\Regions\Models\Regions;
@@ -16,6 +15,7 @@ use Kanvas\Models\BaseModel;
 
 /**
  * @property int $id
+ * @property string $uuid
  * @property int $apps_id
  * @property int $users_id
  * @property int $regions_id
@@ -31,14 +31,16 @@ use Kanvas\Models\BaseModel;
 #[ObservedBy([FilesystemImportObserver::class])]
 class FilesystemImports extends BaseModel
 {
+    use UuidTrait;
+
     public $table = 'filesystem_imports';
     protected $guarded = [];
 
     public function casts(): array
     {
         return [
-            'results' => 'array',
-            'exception' => 'array',
+            'results' => Json::class,
+            'exception' => Json::class,
         ];
     }
 

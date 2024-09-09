@@ -9,6 +9,7 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Filesystem\Actions\CreateFilesystemMapperAction;
 use Kanvas\Filesystem\Actions\ImportDataFromFilesystemAction;
 use Kanvas\Filesystem\DataTransferObject\FilesystemMapper;
+use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Products\Models\Products;
@@ -23,6 +24,9 @@ final class IntegrationMapperTest extends TestCase
 {
     public function testImportDataFromFilesystemAction(): void
     {
+        $user = auth()->user();
+        $app = app(Apps::class);
+
         $mapper = [
             'name' => 'List Number',
             'description' => 'Features',
@@ -38,7 +42,7 @@ final class IntegrationMapperTest extends TestCase
                     'url' => 'File URL',
                     'name' => 'File Name',
                 ],
-                ],
+            ],
             'productType' => [
                 'name' => 'Property Type',
                 'description' => 'Property Type',
@@ -86,9 +90,9 @@ final class IntegrationMapperTest extends TestCase
 
         $filesystemMapperName = 'Products' . uniqid();
         $dto = new FilesystemMapper(
-            app(Apps::class),
-            auth()->user()->getCurrentBranch(),
-            auth()->user(),
+            $app,
+            $user->getCurrentBranch(),
+            $user,
             SystemModulesRepository::getByModelName(Products::class),
             $filesystemMapperName,
             [],
@@ -97,27 +101,27 @@ final class IntegrationMapperTest extends TestCase
         $filesystemMapper = (new CreateFilesystemMapperAction($dto))->execute();
 
         $regionDto = new Region(
-            auth()->user()->getCurrentCompany(),
-            app(Apps::class),
-            auth()->user(),
+            $user->getCurrentCompany(),
+            $app,
+            $user,
             Currencies::getById(1),
             'Region Name',
             'Region Short Slug',
             null,
             1,
         );
-        $region = (new CreateRegionAction($regionDto, auth()->user()))->execute();
+        $region = (new CreateRegionAction($regionDto, $user))->execute();
         $warehouseDto = new Warehouses(
-            auth()->user()->getCurrentCompany(),
-            app(Apps::class),
-            auth()->user(),
+            $user->getCurrentCompany(),
+            $app,
+            $user,
             $region,
             'Warehouse Name',
             'Warehouse Location',
             true,
             true,
         );
-        $warehouse = (new CreateWarehouseAction($warehouseDto, auth()->user()))->execute();
+        $warehouse = (new CreateWarehouseAction($warehouseDto, $user))->execute();
         $values = [
                     'List Number' => fake()->numerify('LIST-####'),
                     'Features' => fake()->sentence,
@@ -126,7 +130,7 @@ final class IntegrationMapperTest extends TestCase
                     'Discount Price' => fake()->randomFloat(2, 50, 900),
                     'Quantity' => fake()->numberBetween(1, 100),
                     'Is Published' => fake()->boolean,
-                    'File URL' => fake()->imageUrl(),
+                    'File URL' => fake()->imageUrl,
                     'File Name' => fake()->word . '.jpg',
                     'Property Type' => fake()->word,
                     'Weight' => fake()->randomFloat(2, 0.5, 5),
@@ -138,13 +142,14 @@ final class IntegrationMapperTest extends TestCase
                     'Position' => fake()->numberBetween(1, 10),
             ];
 
-        $dataMapper = ImportDataFromFilesystemAction::mapper($filesystemMapper->mapping, $values);
+        $importDataFromFilesystemAction = new ImportDataFromFilesystemAction(new FilesystemImports());
+        $dataMapper = $importDataFromFilesystemAction->mapper($filesystemMapper->mapping, $values);
         $productDto = ProductImporter::from($dataMapper);
 
         $productImporter = new ProductImporterAction(
             $productDto,
-            auth()->user()->getCurrentCompany(),
-            auth()->user(),
+            $user->getCurrentCompany(),
+            $user,
             $region
         );
 

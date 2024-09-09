@@ -39,17 +39,20 @@ class FilesystemMapperMutation
     public function process(mixed $root, array $req): FilesystemImports
     {
         $input = $req['input'];
-        $company = auth()->user()->getCurrentCompany();
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
         $app = app(Apps::class);
+
         $filesystem = Filesystem::getByIdFromCompanyApp($input['filesystem_id'], $company, $app);
         $mapper = ModelsFilesystemMapper::getByIdFromCompanyApp($input['filesystem_mapper_id'], $company, $app);
         $regions = Regions::getByIdFromCompanyApp($input['regions_id'], $company, $app);
+
         $dto = FilesystemImport::from([
-            'app' => app(Apps::class),
-            'users' => auth()->user(),
-            'companies' => auth()->user()->getCurrentCompany(),
+            'app' => $app,
+            'users' => $user,
+            'companies' => $company,
             'regions' => $regions,
-            'companiesBranches' => auth()->user()->getCurrentBranch(),
+            'companiesBranches' => $user->getCurrentBranch(),
             'filesystem' => $filesystem,
             'filesystemMapper' => $mapper,
         ]);

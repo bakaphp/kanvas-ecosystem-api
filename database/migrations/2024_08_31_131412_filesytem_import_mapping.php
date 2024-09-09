@@ -51,10 +51,10 @@ return new class () extends Migration {
             $table->foreign('filesystem_mapper_id')->references('id')->on('filesystem_mappers');
             $table->longText('results')->nullable();
             $table->longText('exception')->nullable();
-            $table->enum('status', ['pending', 'processing', 'finished', 'failed'])->default('pending');
+            $table->enum('status', ['pending', 'processing', 'completed', 'failed'])->default('pending');
             $table->dateTime('created_at')->index();
             $table->dateTime('updated_at')->nullable()->index();
-            $table->bigInteger('finished_at')->nullable()->index();
+            $table->dateTime('finished_at')->nullable()->index();
             $table->tinyInteger('is_deleted')->index();
 
             $table->index(['apps_id', 'companies_id', 'companies_branches_id', 'filesystem_id'], 'filesystem_imports_index');
