@@ -77,11 +77,11 @@ final class ImporterTest extends TestCase
             'isPublished' => true,
             'files' => [
                 [
-                    'url' => fake()->imageUrl ?? 'https://via.placeholder.com/150',
+                    'url' => fake()->imageUrl,
                     'name' => fake()->word(),
                 ],
                 [
-                    'url' => fake()->imageUrl ?? 'https://via.placeholder.com/150',
+                    'url' => fake()->imageUrl,
                     'name' => fake()->word(),
                 ],
             ],
@@ -105,11 +105,11 @@ final class ImporterTest extends TestCase
                     ...$attributes,
                     'files' => [
                         [
-                            'url' => fake()->imageUrl ?? 'https://via.placeholder.com/150',
+                            'url' => fake()->imageUrl,
                             'name' => fake()->word(),
                         ],
                         [
-                            'url' => fake()->imageUrl ?? 'https://via.placeholder.com/150',
+                            'url' => fake()->imageUrl,
                             'name' => fake()->word(),
                         ],
                     ],
@@ -142,7 +142,6 @@ final class ImporterTest extends TestCase
             ...$attributes,
         ]);
 
-        print_r($productData);
         $productImporter = new ProductImporterAction(
             $productData,
             $company,
