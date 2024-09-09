@@ -19,6 +19,13 @@ class ConfigManagement
         return $this->parseSettings(app(Apps::class)->getAll(false, true), $user);
     }
 
+    public function getAppSettingByKey(mixed $root, array $request): mixed
+    {
+        //$user = auth()->user();
+
+        return app(Apps::class)->get($request['key']);
+    }
+
     public function getCompanySetting(mixed $root, array $request): array
     {
         $user = auth()->user();
