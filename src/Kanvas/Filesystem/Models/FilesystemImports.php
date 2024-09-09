@@ -15,6 +15,7 @@ use Kanvas\Models\BaseModel;
 
 /**
  * @property int $id
+ * @property string $uuid
  * @property int $apps_id
  * @property int $users_id
  * @property int $regions_id

@@ -75,12 +75,13 @@ class ImportDataFromFilesystemAction
 
         $job = $this->getJob($this->filesystemImports->filesystemMapper->systemModule->model_name);
         $job::dispatch(
-            Str::uuid()->toString(),
+            $this->filesystemImports->uuid,
             $listOfProducts,
             $this->filesystemImports->companiesBranches,
             $this->filesystemImports->user,
             $this->filesystemImports->regions,
-            $this->filesystemImports->app
+            $this->filesystemImports->app,
+            $this->filesystemImports
         );
     }
 
