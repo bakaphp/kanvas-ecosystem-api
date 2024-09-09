@@ -21,6 +21,9 @@ use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Filesystem\Actions\AttachFilesystemAction;
+use Kanvas\Filesystem\Services\FilesystemServices;
+use Exception;
 
 class MessageManagementMutation
 {
@@ -170,6 +173,24 @@ class MessageManagementMutation
     {
         $message = Message::getById((int)$request['id'], app(Apps::class));
         $message->topics()->detach($request['topicId']);
+
+        return $message;
+    }
+
+    public function attachFileToMessage(mixed $root, array $request): Message
+    {
+        $message = Message::getById((int)$request['message_id'], app(Apps::class));
+
+        $filesystem = new FilesystemServices(app(Apps::class));
+        $file = $request['file'];
+        in_array($file->extension(), ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp']) ?: throw new Exception('Invalid file format');
+
+        $filesystemEntity = $filesystem->upload($file, auth()->user());
+        $action = new AttachFilesystemAction(
+            $filesystemEntity,
+            $message
+        );
+        $action->execute('photo');
 
         return $message;
     }
