@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Connectors\Shopify;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -17,6 +18,8 @@ use Throwable;
 
 class ShopifyInventorySyncCommand extends Command
 {
+    use KanvasJobsTrait;
+
     /**
      * The name and signature of the console command.
      *
@@ -39,6 +42,7 @@ class ShopifyInventorySyncCommand extends Command
     public function handle()
     {
         $app = Apps::getById((int) $this->argument('app_id'));
+        $this->overwriteAppService($app);
         $company = Companies::getById((int) $this->argument('company_id'));
         $channel = Channels::getByIdFromCompany((int) $this->argument('channel_id'), $company);
         $warehouses = Warehouses::getByIdFromCompany((int) $this->argument('warehouse_id'), $company);
