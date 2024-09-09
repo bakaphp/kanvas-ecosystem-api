@@ -81,7 +81,7 @@ final class ImporterTest extends TestCase
                     'name' => fake()->word(),
                 ],
                 [
-                    'url' => fake()->imageUrl ?? 'https://via.placeholder.com/150',,
+                    'url' => fake()->imageUrl ?? 'https://via.placeholder.com/150',
                     'name' => fake()->word(),
                 ],
             ],
