@@ -44,7 +44,7 @@ trait HasTagsTrait
             )
         ))->execute();
 
-        $this->tags()->attach($this->getId(), [
+        $this->tags()->syncWithoutDetaching($this->getId(), [
             'tags_id' => $tag->getId(),
             'users_id' => $user->getId(),
             'is_deleted' => 0,
