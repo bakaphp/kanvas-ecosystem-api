@@ -181,6 +181,10 @@ class MessageManagementMutation
     {
         $message = Message::getById((int)$request['message_id'], app(Apps::class));
 
+        if (($message->user->getId() !== auth()->user()->getId()) && !auth()->user()->isAdmin()) {
+            throw new Exception('The message does not belong to the authenticated user');
+        }
+
         $filesystem = new FilesystemServices(app(Apps::class));
         $file = $request['file'];
         in_array($file->extension(), ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp']) ?: throw new Exception('Invalid file format');
