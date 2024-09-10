@@ -9,7 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Tests\TestCase;
 
-class AppsTest extends TestCase
+class AppSettingsTest extends TestCase
 {
     public function testAppSettings()
     {
@@ -30,6 +30,65 @@ class AppsTest extends TestCase
         ->assertSee('name')
         ->assertSee('description')
         ->assertSee('settings');
+    }
+
+    public function testSetAppSetting()
+    {
+        $app = app(Apps::class);
+        $input = [
+            'key' => 'test',
+            'value' => 'test',
+            'entity_uuid' => $app->uuid,
+        ];
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation(
+                $input: ModuleConfigInput!
+            ){
+                setAppSetting(
+                    input: $input
+                ) 
+            }',
+            [
+                'input' => $input,
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        )->assertJson([
+            'data' => [
+                'setAppSetting' => true,
+            ],
+        ]);
+    }
+
+    public function testDeleteAppSetting()
+    {
+        $app = app(Apps::class);
+        $input =  'test';
+
+        $app->set('test', 'test');
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation(
+                $key: String!
+            ){
+                deleteAppSetting(
+                    key: $key
+                ) 
+            }',
+            [
+                'key' => $input,
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        )->assertJson([
+            'data' => [
+                'deleteAppSetting' => true,
+            ],
+        ]);
     }
 
     public function testDeprecatedAdminAppSettings()
