@@ -38,7 +38,7 @@ class LightHouseCacheCleanUpJob implements ShouldQueue
     {
         return Str::simpleSlug(get_class($this->model) . '-' . $this->model->getKey());
     }
-    
+
     public function middleware(): array
     {
         return [
