@@ -30,3 +30,4 @@ scalar Null  @scalar(class: "MLL\\GraphQLScalars\\NullScalar")
 #import schemas/Souk/*.graphql
 #import schemas/ActionEngine/*.graphql
 #import schemas/Ecosystem/Admin/*.graphql
+#import schemas/Subscription/*.graphql

@@ -10,6 +10,7 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Spatie\LaravelData\Data;
+use Stripe\Subscription as StripeSubscription;
 
 class Subscription extends Data
 {
@@ -19,7 +20,8 @@ class Subscription extends Data
         public UserInterface $user,
         public string $name,
         public string $stripe_id,
-        public int $plan_id,
+        public string $stripe_plan,
+        public ?string $payment_method_id,
         public bool $is_active = true,
         public bool $is_cancelled = false,
         public bool $paid = false,
@@ -27,19 +29,25 @@ class Subscription extends Data
     ) {
     }
 
-    public static function viaRequest(array $request, UserInterface $user): self
+    public static function viaRequest(array $request, UserInterface $user, StripeSubscription $stripeSubscription = null): self
     {
+        $stripe_id = $stripeSubscription ? $stripeSubscription->id : ($request['stripe_id'] ?? '');
+        $is_active = $stripeSubscription ? $stripeSubscription->status === 'active' : ($request['is_active'] ?? true);
+        $is_cancelled = $stripeSubscription ? $stripeSubscription->status === 'canceled' : ($request['is_cancelled'] ?? false);
+        $charge_date = $stripeSubscription ? date('Y-m-d H:i:s', $stripeSubscription->current_period_end) : ($request['charge_date'] ?? null);
+
         return new self(
-            isset($request['company_id']) ? Companies::getById($request['company_id']) : $user->getCurrentCompany(),
+            Companies::getById($request['companies_id']) ?? $user->getCurrentCompany(),
             app(Apps::class),
-            auth()->user,
+            $user,
             $request['name'],
-            $request['stripe_id'],
-            $request['plan_id'],
-            $request['is_active'] ?? true,
-            $request['is_cancelled'] ?? false,
+            $stripe_id,
+            $request['stripe_plan'],
+            $request['payment_method_id'],
+            $is_active,
+            $is_cancelled,
             $request['paid'] ?? false,
-            $request['charge_date'] ?? null,
+            $charge_date,
         );
     }
 }

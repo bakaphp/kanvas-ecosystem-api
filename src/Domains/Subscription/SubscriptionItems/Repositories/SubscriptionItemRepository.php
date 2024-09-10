@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Subscription\SubscriptionItems\Repositories;
 
 use Kanvas\Subscription\SubscriptionItems\Models\SubscriptionItem;
+use Kanvas\Subscription\Subscriptions\DataTransferObject\Subscription as SubscriptionDto;
 use Illuminate\Database\Eloquent\Model;
 
 class SubscriptionItemRepository

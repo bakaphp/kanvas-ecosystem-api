@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Subscription\Subscriptions\Repositories;
 
 use Kanvas\Subscription\Subscriptions\Models\Subscription;
-use Illuminate\Database\Eloquent\Model;
-
+use Kanvas\Subscription\Subscriptions\DataTransferObject\Subscription as SubscriptionDto;
 class SubscriptionRepository
 {
     public static function create(array $data): Subscription

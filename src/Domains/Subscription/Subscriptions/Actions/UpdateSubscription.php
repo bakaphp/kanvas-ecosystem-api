@@ -18,7 +18,7 @@ class UpdateSubscription
     public function execute(): Subscription
     {
         $this->subscription->update([
-            'plan_id' => $this->subscriptionDto->plan_id,
+            'stripe_plan' => $this->subscriptionDto->stripe_plan,
             'name' => $this->subscriptionDto->name,
             'stripe_id' => $this->subscriptionDto->stripe_id,
             'is_active' => $this->subscriptionDto->is_active,

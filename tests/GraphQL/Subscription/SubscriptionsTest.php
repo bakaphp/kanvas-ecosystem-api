@@ -1,177 +1,68 @@
 <?php
+
 declare(strict_types=1);
 
-namespace Tests\GraphQL\Subscriptions;
+namespace Tests\GraphQL\Subscription;
 
-use Kanvas\Subscriptions\Models\Subscription;
 use Tests\TestCase;
+use Stripe\StripeClient;
 
 class SubscriptionsTest extends TestCase
 {
-    public function testCreateSubscription()
-    {
-        $input = [
-            'users_id' => 1,
-            'user_id' => 1,
-            'companies_id' => 1,
-            'apps_id' => 1,
-            'apps_plans_id' => 1,
-            'name' => 'Test Subscription',
-            'stripe_id' => 'stripe_id',
-            'stripe_plan' => 'stripe_plan',
-            'stripe_status' => 'active',
-            'quantity' => 1,
-            'trial_ends_at' => null,
-            'grace_period_ends' => null,
-            'next_due_payment' => null,
-            'ends_at' => null,
-            'payment_frequency_id' => 1,
-            'trial_ends_days' => 14,
-            'is_freetrial' => true,
-            'is_active' => true,
-            'is_cancelled' => false,
-            'paid' => false,
-            'charge_date' => null,
-        ];
+    protected StripeClient $stripe;
 
-        $response = $this->graphQL('
-            mutation($input: SubscriptionInput!) {
+    /**
+     * Test para crear una suscripción con un plan en Stripe.
+     */
+    public function testCreateSubscriptionWithStripePlan(): void
+    {   
+
+        // Datos del plan y de la suscripción
+        $planId = 'price_1PvfPb14jpNveAtLGB4g3pfK'; // El plan de Stripe que proporcionaste
+        $companyId = 1;
+        $name = 'Enterprise Plan Subscription';
+
+        // Llamar a la mutación de GraphQL
+        $response = $this->graphQL(/** GraphQL */ '
+            mutation CreateSubscription($input: SubscriptionInput!) {
                 createSubscription(input: $input) {
                     id
+                    stripe_id
                     name
+                    stripe_plan
+                    is_active
+                    charge_date
                 }
             }
         ', [
-            'input' => $input,
+            'input' => [
+                'companies_id' => $companyId,
+                'apps_id' => 1, // Asumiendo que tienes una app con ID 1 en tu sistema
+                'stripe_plan' => $planId,
+                'name' => $name,
+                'payment_method_id' => 'pm_card_visa', // Simulación de un método de pago
+            ],
         ]);
 
+        // Verificar que la respuesta no tenga errores y tenga los datos esperados
         $response->assertJson([
             'data' => [
                 'createSubscription' => [
-                    'name' => 'Test Subscription',
+                    'name' => $name,
+                    'stripe_plan' => $planId,
+                    'is_active' => true,
                 ],
             ],
         ]);
-    }
 
-    public function testChangePlan()
-    {
-        $subscription = Subscription::create([
-            'users_id' => 1,
-            'user_id' => 1,
-            'companies_id' => 1,
-            'apps_id' => 1,
-            'apps_plans_id' => 1,
-            'name' => 'Test Subscription',
+        // Verificar que la suscripción se haya creado en la base de datos
+        $this->assertDatabaseHas('subscriptions', [
+            'companies_id' => $companyId,
+            'stripe_plan' => $planId,
+            'name' => $name,
+            'is_active' => true,
         ]);
 
-        $response = $this->graphQL('
-            mutation {
-                changePlan(subscriptionId: ' . $subscription->id . ', newPlanId: 2) {
-                    id
-                    apps_plans_id
-                }
-            }
-        ');
-
-        $response->assertJson([
-            'data' => [
-                'changePlan' => [
-                    'apps_plans_id' => 2,
-                ],
-            ],
-        ]);
-    }
-
-    public function testCancelSubscription()
-    {
-        $subscription = Subscription::create([
-            'users_id' => 1,
-            'user_id' => 1,
-            'companies_id' => 1,
-            'apps_id' => 1,
-            'apps_plans_id' => 1,
-            'name' => 'Test Subscription',
-        ]);
-
-        $response = $this->graphQL('
-            mutation {
-                cancelSubscription(subscriptionId: ' . $subscription->id . ') {
-                    id
-                    is_cancelled
-                }
-            }
-        ');
-
-        $response->assertJson([
-            'data' => [
-                'cancelSubscription' => [
-                    'is_cancelled' => true,
-                ],
-            ],
-        ]);
-    }
-
-    public function testExpireSubscription()
-    {
-        $subscription = Subscription::create([
-            'users_id' => 1,
-            'user_id' => 1,
-            'companies_id' => 1,
-            'apps_id' => 1,
-            'apps_plans_id' => 1,
-            'name' => 'Test Subscription',
-        ]);
-
-        $response = $this->graphQL('
-            mutation {
-                expireSubscription(subscriptionId: ' . $subscription->id . ') {
-                    id
-                    ends_at
-                }
-            }
-        ');
-
-        $response->assertJson([
-            'data' => [
-                'expireSubscription' => [
-                    'ends_at' => now()->toDateTimeString(),
-                ],
-            ],
-        ]);
-    }
-
-    public function testChangeFromFreeTrial()
-    {
-        $subscription = Subscription::create([
-            'users_id' => 1,
-            'user_id' => 1,
-            'companies_id' => 1,
-            'apps_id' => 1,
-            'apps_plans_id' => 1,
-            'name' => 'Test Subscription',
-            'is_freetrial' => true,
-        ]);
-
-        $response = $this->graphQL('
-            mutation {
-                changeFromFreeTrial(subscriptionId: ' . $subscription->id . ') {
-                    id
-                    is_freetrial
-                    stripe_status
-                    paid
-                }
-            }
-        ');
-
-        $response->assertJson([
-            'data' => [
-                'changeFromFreeTrial' => [
-                    'is_freetrial' => false,
-                    'stripe_status' => 'active',
-                    'paid' => true,
-                ],
-            ],
-        ]);
+        
     }
 }

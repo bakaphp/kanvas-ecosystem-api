@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Subscriptions\Models;
+namespace Kanvas\Subscription\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
@@ -29,7 +29,7 @@ class BaseModel extends EloquentModel
         'is_deleted' => 'boolean',
     ];
 
-    protected $connection = 'subscriptions';
+    protected $connection = 'mysql';
 
     public const DELETED_AT = 'is_deleted';
 

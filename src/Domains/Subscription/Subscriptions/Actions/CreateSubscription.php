@@ -17,16 +17,17 @@ class CreateSubscription
     public function execute(): Subscription
     {
         return Subscription::create([
-            'user_id' => $this->subscriptionDto->user->getId(),
-            'company_id' => $this->subscriptionDto->company->getId(),
-            'app_id' => $this->subscriptionDto->app->getId(),
-            'plan_id' => $this->subscriptionDto->plan_id,
+            'users_id' => $this->subscriptionDto->user->getId(),
+            'companies_id' => $this->subscriptionDto->company->getId(),
+            'apps_id' => $this->subscriptionDto->app->getId(),
+            'stripe_plan' => $this->subscriptionDto->stripe_plan,
             'name' => $this->subscriptionDto->name,
             'stripe_id' => $this->subscriptionDto->stripe_id,
             'is_active' => $this->subscriptionDto->is_active,
             'is_cancelled' => $this->subscriptionDto->is_cancelled,
             'paid' => $this->subscriptionDto->paid,
             'charge_date' => $this->subscriptionDto->charge_date,
+            'payment_method_id' => $this->subscriptionDto->payment_method_id,
         ]);
     }
 }
