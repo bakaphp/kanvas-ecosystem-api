@@ -44,13 +44,14 @@ trait HasTagsTrait
             )
         ))->execute();
 
-        $this->tags()->syncWithoutDetaching([
-            $this->getId() => [
+        // Check if the tag is already attached before syncing
+        if (! $this->tags()->wherePivot('tags_id', $tag->getId())->exists()) {
+            $this->tags()->attach($this->getId(), [
                 'tags_id' => $tag->getId(),
                 'users_id' => $user->getId(),
                 'is_deleted' => 0,
-            ],
-        ]);
+            ]);
+        }
     }
 
     public function addTags(
