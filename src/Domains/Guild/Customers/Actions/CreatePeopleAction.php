@@ -115,10 +115,31 @@ class CreatePeopleAction
                 }
             }
 
+            if ($this->peopleData->peopleEmploymentHistory) {
+                foreach ($this->peopleData->peopleEmploymentHistory as $employmentHistory) {
+                    $people->employmentHistory()->updateOrCreate(
+                        [
+                            'organizations_id' => $employmentHistory['organizations_id'],
+                            'apps_id' => $this->peopleData->app->getId(),
+                            'position' => $employmentHistory['position'],
+                        ],
+                        [
+                            'position' => $employmentHistory['position'],
+                            'income' => $employmentHistory['income'],
+                            'start_date' => $employmentHistory['start_date'],
+                            'end_date' => $employmentHistory['end_date'],
+                            'status' => $employmentHistory['status'],
+                            'income_type' => $employmentHistory['income_type'] ?? null,
+                        ]
+                    );
+                }
+            }
+
             if (! empty($addressesToAdd)) {
                 $people->address()->saveMany($addressesToAdd);
             }
         }
+        $people->refresh();
 
         return $people;
     }

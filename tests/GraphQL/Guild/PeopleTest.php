@@ -132,6 +132,93 @@ class PeopleTest extends TestCase
         ]);
     }
 
+    public function testCreatePeopleWithHistory()
+    {
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $firstname = fake()->firstName();
+        $middlename = fake()->firstName();
+        $lastname = fake()->lastName();
+        $name = $firstname . ' ' . $middlename . ' ' . $lastname;
+
+        $organizationInput = [
+            'name' => fake()->company(),
+            'address' => fake()->address(),
+        ];
+
+        $response = $this->graphQL('
+            mutation($input: OrganizationInput!) {
+                createOrganization(input: $input) {                
+                    id
+                    name
+                }
+            }
+        ', [
+           'input' => $organizationInput,
+        ])->json();
+
+        $input = [
+            'firstname' => $firstname,
+            'middlename' => $middlename, // @todo remove this
+            'lastname' => $lastname,
+            'contacts' => [
+                [
+                    'value' => fake()->email(),
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => fake()->phoneNumber(),
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [
+                [
+                    'address' => fake()->address(),
+                    'city' => fake()->city(),
+                    'county' => fake()->city(),
+                    'state' => fake()->state(),
+                    'country' => fake()->country(),
+                    'zip' => fake()->postcode(),
+                ],
+            ],
+            'custom_fields' => [],
+            'peopleEmploymentHistory' => [
+                [
+                    'organizations_id' => $response['data']['createOrganization']['id'],
+                    'position' => 'developer',
+                    'start_date' => fake()->date(),
+                    'end_date' => fake()->date(),
+                    'income' => 1000,
+                    'status' => 1,
+                ],
+            ],
+        ];
+
+        $this->graphQL('
+        mutation($input: PeopleInput!) {
+            createPeople(input: $input) {                
+                employment_history {
+                    id
+                }
+            }
+        }
+    ', [
+             'input' => $input,
+    ])->assertJsonStructure([
+                 'data' => [
+                     'createPeople' => [
+                         'employment_history' => [
+                             [
+                                 'id',
+                             ],
+                         ],
+                     ],
+                 ],
+             ]);
+    }
+
     public function testUpdatePeople()
     {
         $user = auth()->user();
