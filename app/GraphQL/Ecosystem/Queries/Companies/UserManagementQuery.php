@@ -21,7 +21,7 @@ class UserManagementQuery
         $companiesId = auth()->user()->isAdmin() && ! empty($args['companies_id']) ? $args['companies_id'] : auth()->user()->currentCompanyId();
         $app = app(Apps::class);
 
-        return Users::select('users.id', 'users.uuid', 'users.dob', 'users.sex', 'users_associated_apps.*')
+        return Users::select('users.id', 'users.uuid', 'users.dob', 'users.sex', 'users_associated_apps.*', 'users.phone_number', 'users.cell_phone_number')
             ->join(
                 'users_associated_company',
                 'users_associated_company.users_id',
@@ -47,7 +47,7 @@ class UserManagementQuery
         $branchId = auth()->user()->isAdmin() && ! empty($args['getCurrentBranch']) ? $args['getCurrentBranch'] : auth()->user()->currentBranchId();
         $app = app(Apps::class);
 
-        return Users::select('users.id', 'users.uuid', 'users.dob', 'users.sex', 'users_associated_apps.*')
+        return Users::select('users.id', 'users.uuid', 'users.dob', 'users.sex', 'users_associated_apps.*', 'users.phone_number', 'users.cell_phone_number')
         ->join(
             'users_associated_company',
             'users_associated_company.users_id',
