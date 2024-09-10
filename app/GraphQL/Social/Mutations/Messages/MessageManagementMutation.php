@@ -181,7 +181,7 @@ class MessageManagementMutation
     {
         $message = Message::getById((int)$request['message_id'], app(Apps::class));
 
-        if (($message->user->getId() !== auth()->user()->getId()) && !auth()->user()->isAdmin()) {
+        if (($message->user->getId() !== auth()->user()->getId()) && ! auth()->user()->isAdmin()) {
             throw new Exception('The message does not belong to the authenticated user');
         }
 
