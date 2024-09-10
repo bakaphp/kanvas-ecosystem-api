@@ -221,7 +221,7 @@ extend type Query @guard {
 
     companyUsers(
         where: _ @whereConditions(columnsEnum: CompanyUserColumn)
-        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id", "name"])
+        orderBy: _ @orderBy(columnsEnum: CompanyUserColumn)
     ): [User!]!
         @paginate(
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagementQuery@getAllCompanyUsers"
