@@ -12,6 +12,7 @@ use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -56,7 +57,17 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
      */
     public function uniqueId(): string
     {
-        return $this->jobUuid . $this->app->getId() . $this->region->getId() . $this->branch->getId();
+        // Create a unique hash of the importer array
+        $importerHash = md5(json_encode($this->importer));
+
+        return $this->app->getId() . $this->branch->getId() . $this->region->getId() . $importerHash;
+    }
+
+    public function middleware(): array
+    {
+        return [
+            (new WithoutOverlapping($this->uniqueId()))->expireAfter($this->uniqueFor),
+        ];
     }
 
     /**
