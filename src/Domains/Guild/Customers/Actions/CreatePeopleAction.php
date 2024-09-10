@@ -121,6 +121,7 @@ class CreatePeopleAction
                         [
                             'organizations_id' => $employmentHistory['organizations_id'],
                             'apps_id' => $this->peopleData->app->getId(),
+                            'position' => $employmentHistory['position'],
                         ],
                         [
                             'position' => $employmentHistory['position'],
