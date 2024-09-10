@@ -137,6 +137,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@detachTopicToMessage"
         )
+    attachFileToMessage(message_id: ID!, file: Upload!): Message
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@attachFileToMessage"
+        )
 }
 
 extend type Query @guard {
