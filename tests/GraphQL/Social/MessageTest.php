@@ -417,6 +417,7 @@ class MessageTest extends TestCase
                   data {
                     message
                     message_types_id
+                    total_children
                     children(first: 25){
                         data {
                             message
@@ -431,6 +432,7 @@ class MessageTest extends TestCase
                 'messages' => [
                     'data' => [
                         [
+                            'total_children' => 1,
                             'message' => $message,
                             'children' => [
                                 'data' => [
