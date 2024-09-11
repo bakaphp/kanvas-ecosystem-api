@@ -6,10 +6,12 @@ namespace Kanvas\ActionEngine\Tasks\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\HasCompositePrimaryKeyTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Models\BaseModel;
+use Kanvas\ActionEngine\Tasks\Observers\TaskEngagementItemObserver;
 use Kanvas\Guild\Leads\Models\Lead;
 
 /**
@@ -24,6 +26,7 @@ use Kanvas\Guild\Leads\Models\Lead;
  * @property int $engagement_end_id
  * @property string $config
  */
+#[ObservedBy([TaskEngagementItemObserver::class])]
 class TaskEngagementItem extends BaseModel
 {
     use HasCompositePrimaryKeyTrait;

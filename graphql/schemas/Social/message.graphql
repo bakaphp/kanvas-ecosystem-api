@@ -16,6 +16,7 @@ type Message {
     total_saved: Int
     total_shared: Int
     total_view: Int
+    total_children: Int
     parent: Message @cacheRedis
     user: User! @cacheRedis
     children: [Message!] @hasMany(type: PAGINATOR)

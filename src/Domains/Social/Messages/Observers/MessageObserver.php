@@ -13,6 +13,12 @@ class MessageObserver
     {
         $message->fireWorkflow(WorkflowEnum::CREATED->value, true, ['app' => $message->app]);
         $message->clearLightHouseCacheJob();
+
+        // check if it has a parent, update parent total children
+        if ($message->parent_id) {
+            $message->parent->total_children += 1;
+            $message->parent->save();
+        }
     }
 
     public function updated(Message $message): void
