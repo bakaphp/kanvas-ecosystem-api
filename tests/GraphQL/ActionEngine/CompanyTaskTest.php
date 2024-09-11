@@ -67,6 +67,29 @@ class CompanyTaskTest extends TestCase
         ])->json();
     }
 
+    public function testGetLeadTaskList()
+    {
+        $lead = $this->createLeadAndGetResponse();
+
+        $this->graphQL('
+        query taskLists {
+            taskLists {
+                data {
+                        id
+                        name
+                        config
+                        tasks{
+                            id
+                            name
+                        }       
+                        }
+                    }
+            }
+        }
+    ', [
+    ])->assertOk();
+    }
+
     public function testGetLeadTaskEngagement()
     {
         $lead = $this->createLeadAndGetResponse();

@@ -30,6 +30,12 @@ type LeadTaskEngagementItem {
 }
 
 extend type Query @guard {
+    taskLists: [TaskList!]!
+        @paginate(
+            model: "Kanvas\\ActionEngine\\Tasks\\Models\\TaskList"
+            scopes: ["fromCompany", "notDeleted", "fromApp"]
+            defaultCount: 25
+        )
     leadTaskItems(lead_id: ID!, task_list_id: ID): [LeadTaskEngagementItem!]!
         @paginate(
             builder: "App\\GraphQL\\ActionEngine\\Builders\\Engagements\\TaskEngagementBuilder@getLeadTaskItems"
