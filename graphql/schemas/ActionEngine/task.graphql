@@ -30,7 +30,7 @@ type LeadTaskEngagementItem {
 }
 
 extend type Query @guard {
-    leadTaskItems(lead_id: ID!): [LeadTaskEngagementItem!]!
+    leadTaskItems(lead_id: ID!, task_list_id: ID): [LeadTaskEngagementItem!]!
         @paginate(
             builder: "App\\GraphQL\\ActionEngine\\Builders\\Engagements\\TaskEngagementBuilder@getLeadTaskItems"
             defaultCount: 25
