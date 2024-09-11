@@ -38,6 +38,11 @@ type Message {
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
+    files: [Filesystem!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
 }
 
 type AppModuleMessage {
