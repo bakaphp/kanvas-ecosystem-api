@@ -30,6 +30,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 use Nevadskiy\Tree\AsTree;
+use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 
 /**
  *  Class Message
@@ -66,6 +67,7 @@ class Message extends BaseModel
     use CanUseWorkflow;
     use HasLightHouseCache;
     use Cachable;
+    use HasFilesystemTrait;
 
     protected $table = 'messages';
 
