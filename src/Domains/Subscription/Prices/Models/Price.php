@@ -2,53 +2,36 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Subscription\SubscriptionItems\Models;
+namespace Kanvas\Subscription\Prices\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Subscription\Models\BaseModel;
-use Kanvas\Subscription\Subscriptions\Models\Subscription;
 use Kanvas\Subscription\Plans\Models\Plan;
-use Kanvas\Subscription\Prices\Models\Price;
 
 /**
- * Class SubscriptionItem.
+ * Class Price.
  *
  * @property int $id
- * @property int $subscription_id
  * @property int $apps_plans_id
- * @property int $price_id
- * @property int $quantity
+ * @property string $stripe_id
+ * @property float $amount
+ * @property string $currency
+ * @property string $interval
  * @property string $created_at
  * @property string $updated_at
  * @property bool $is_deleted
  */
-class SubscriptionItem extends BaseModel
+class Price extends BaseModel
 {
-    protected $table = 'subscription_items';
+    protected $table = 'prices';
     protected $guarded = [];
-    
-    /**
-     * subscription.
-     */
-    public function subscription(): BelongsTo
-    {
-        return $this->belongsTo(Subscription::class, 'subscription_id');
-    }
 
     /**
-     * plan.
+     * Plan relationship.
      */
     public function plan(): BelongsTo
     {
         return $this->belongsTo(Plan::class, 'apps_plans_id');
-    }
-
-    /**
-     * price.
-     */
-    public function price(): BelongsTo
-    {
-        return $this->belongsTo(Price::class, 'price_id');
     }
 
     /**

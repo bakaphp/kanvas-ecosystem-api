@@ -1,22 +1,18 @@
-input SubscriptionItemInput {
-    subscription_id: Int!
-    plan_id: Int!
-    quantity: Int!
-}
-
-input SubscriptionItemUpdateInput {
-    subscription_id: Int
-    plan_id: Int
-    quantity: Int
-}
-
 type SubscriptionItem {
     id: ID!
-    subscription_id: Int!
-    plan_id: Int!
-    quantity: Int!
+    subscription_id:Int! @belongsTo(relation: "subscription")
+    price_id: Int! @belongsTo(relation: "price")
+    apps_plans_id: ID! @belongsTo(relation: "plan")
+    quantity: Int
     created_at: String
     updated_at: String
+}
+
+input SubscriptionItemInput {
+    subscription_id: ID
+    apps_plans_id: ID
+    price_id: ID!
+    quantity: Int
 }
 
 extend type Mutation @guard {
@@ -24,10 +20,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Subscriptions\\Mutations\\SubscriptionItems\\SubscriptionItemMutation@create"
         )
-    updateSubscriptionItem(id: ID!, input: SubscriptionItemUpdateInput!): SubscriptionItem!
-        @field(
-            resolver: "App\\GraphQL\\Subscriptions\\Mutations\\SubscriptionItems\\SubscriptionItemMutation@update"
-        )
+
     deleteSubscriptionItem(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Subscriptions\\Mutations\\SubscriptionItems\\SubscriptionItemMutation@delete"

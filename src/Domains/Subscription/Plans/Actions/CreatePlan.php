@@ -10,19 +10,22 @@ use Kanvas\Subscription\Plans\DataTransferObject\Plan as PlanDto;
 class CreatePlan
 {
     public function __construct(
-        protected PlanDto $planDto
+        protected PlanDto $dto
     ) {
     }
 
     public function execute(): Plan
     {
-        return Plan::create([
-            'name' => $this->planDto->name,
-            'price' => $this->planDto->price,
-            'interval' => $this->planDto->interval,
-            'description' => $this->planDto->description,
-            'companies_id' => $this->planDto->company->getId(),
-            'apps_id' => $this->planDto->app->getId(),
+        return Plan::firstOrCreate([
+            'stripe_id' => $this->dto->stripe_id,
+            'apps_id' => $this->dto->app->getId(),
+            'companies_id' => $this->dto->company->getId(),
+        ], [
+            'name' => $this->dto->name,
+            'description' => $this->dto->description,
+            'is_default' => $this->dto->is_default,
+            'is_deleted' => $this->dto->is_deleted,
+            'users_id' => $this->dto->user->getId(),
         ]);
     }
 }

@@ -6,25 +6,24 @@ namespace Kanvas\Subscription\Subscriptions\Actions;
 
 use Kanvas\Subscription\Subscriptions\Models\Subscription;
 use Kanvas\Subscription\Subscriptions\DataTransferObject\Subscription as SubscriptionDto;
+use Kanvas\Subscription\SubscriptionItems\Actions\UpdateSubscriptionItem;
+use Kanvas\Subscription\SubscriptionItems\Actions\CreateSubscriptionItem;
 
 class UpdateSubscription
 {
     public function __construct(
-        protected Subscription $subscription,
+        protected Subscription $subscription, 
         protected SubscriptionDto $subscriptionDto
     ) {
     }
 
     public function execute(): Subscription
     {
+
         $this->subscription->update([
-            'stripe_plan' => $this->subscriptionDto->stripe_plan,
-            'name' => $this->subscriptionDto->name,
-            'stripe_id' => $this->subscriptionDto->stripe_id,
-            'is_active' => $this->subscriptionDto->is_active,
-            'is_cancelled' => $this->subscriptionDto->is_cancelled,
-            'paid' => $this->subscriptionDto->paid,
-            'charge_date' => $this->subscriptionDto->charge_date,
+            'name' => $this->subscriptionDto->name ?? $this->subscription->name,
+            'payment_method_id' => $this->subscriptionDto->payment_method_id ?? $this->subscription->payment_method_id,
+            'trial_days' => $this->subscriptionDto->trial_days ?? $this->subscription->trial_days,
         ]);
 
         return $this->subscription;

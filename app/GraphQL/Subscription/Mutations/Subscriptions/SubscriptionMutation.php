@@ -11,14 +11,17 @@ use Kanvas\Subscription\Subscriptions\Models\Subscription as SubscriptionModel;
 use Kanvas\Subscription\Subscriptions\Repositories\SubscriptionRepository;
 use Illuminate\Support\Facades\Auth;
 use Stripe\Stripe;
-use Stripe\StripeClient;
 use Stripe\Subscription as StripeSubscription;
 use Stripe\Customer;
 use Kanvas\Companies\Models\Companies;
-use Stripe\PaymentMethod;
 
 class SubscriptionMutation
-{
+{   
+    public function __construct()
+    {
+        Stripe::setApiKey(env('STRIPE_SECRET'));
+    }
+
     /**
      * create.
      *
@@ -27,9 +30,8 @@ class SubscriptionMutation
      *
      * @return SubscriptionModel
      */
-    public function create(mixed $root, array $req): SubscriptionModel
+    public function create(array $req): SubscriptionModel
     {
-        Stripe::setApiKey(env('STRIPE_SECRET'));
 
         $company = Companies::findOrFail($req['input']['companies_id']);
         
@@ -39,10 +41,11 @@ class SubscriptionMutation
 
         $stripeSubscription = StripeSubscription::create([
             'customer' => $customer_id,
-            'items' => [
-                ['price' => $req['input']['price_id']],
-            ],
+            'items' => array_map(function ($item) {
+                return ['price' => $item['price_id']];
+            }, $req['input']['items']),
             'default_payment_method' => $paymentMethodId,
+            'trial_period_days' => $req['input']['trial_days'] ?? null, // Manejo de trial_days opcional
         ]);
 
         $dto = SubscriptionDto::viaRequest($req['input'], Auth::user(), $stripeSubscription);
@@ -53,23 +56,25 @@ class SubscriptionMutation
         return $subscriptionModel;
     }
 
-    public function update(mixed $root, array $req): SubscriptionModel
+    public function update(array $req): SubscriptionModel
     {
-        new StripeClient(env('STRIPE_SECRET'));
 
-        $subscription = SubscriptionModel::findOrFail($req['id']);
+        $subscription = SubscriptionModel::findOrFail($req['input']['id']);
+
         $stripeSubscription = StripeSubscription::update($subscription->stripe_id, [
-            'items' => [
-                ['id' => $subscription->stripe_item_id, 'price' => $req['input']['price_id']],
-            ],
-        ]);
+            'items' => array_map(function ($item) use ($subscription) {
+                return [
+                    'id' => $subscription->stripe_item_id, // Id del item de suscripción existente
+                    'price' => $item['price_id'], // Nuevo price_id
+                ];
+            }, $req['input']['items']),
+        ]);;
 
         $dto = SubscriptionDto::viaRequest($req['input'], Auth::user(), $stripeSubscription);
 
-        $action = new UpdateSubscription($subscription, $dto);
-        $subscriptionModel = $action->execute();
-
-        return $subscriptionModel;
+        (new UpdateSubscription($subscription, $dto))->execute();
+        
+        return $subscription;
     }
 
     /**
@@ -80,7 +85,7 @@ class SubscriptionMutation
      *
      * @return SubscriptionModel
      */
-    public function cancel(mixed $root, array $req): SubscriptionModel
+    public function cancel(array $req): SubscriptionModel
     {
         $subscription = SubscriptionRepository::cancel($req['id']);
         return $subscription;

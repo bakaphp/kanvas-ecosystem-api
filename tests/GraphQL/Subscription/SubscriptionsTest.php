@@ -2,67 +2,101 @@
 
 declare(strict_types=1);
 
-namespace Tests\GraphQL\Subscription;
+namespace Tests\GraphQL\Subscriptions;
 
 use Tests\TestCase;
-use Stripe\StripeClient;
 
 class SubscriptionsTest extends TestCase
 {
-    protected StripeClient $stripe;
-
-    /**
-     * Test para crear una suscripción con un plan en Stripe.
-     */
-    public function testCreateSubscriptionWithStripePlan(): void
-    {   
-
-        // Datos del plan y de la suscripción
-        $planId = 'price_1PvfPb14jpNveAtLGB4g3pfK'; // El plan de Stripe que proporcionaste
-        $companyId = 1;
-        $name = 'Enterprise Plan Subscription';
-
-        // Llamar a la mutación de GraphQL
-        $response = $this->graphQL(/** GraphQL */ '
-            mutation CreateSubscription($input: SubscriptionInput!) {
-                createSubscription(input: $input) {
+    public function testCreateSubscription(): void
+    {
+        $response = $this->graphQL('
+            mutation {
+                createSubscription(input: {
+                    app_plan_id: 1,
+                    items: [
+                        { stripe_price_id: "price_1JXXXXXXXXXXXX", quantity: 2 }
+                    ],
+                    name: "Test Subscription",
+                    payment_method_id: "pm_card_visa",
+                    trial_days: 14
+                }) {
                     id
-                    stripe_id
                     name
-                    stripe_plan
+                    items {
+                        id
+                        stripe_price_id
+                        quantity
+                    }
+                    payment_method_id
                     is_active
-                    charge_date
                 }
             }
-        ', [
-            'input' => [
-                'companies_id' => $companyId,
-                'apps_id' => 1, // Asumiendo que tienes una app con ID 1 en tu sistema
-                'stripe_plan' => $planId,
-                'name' => $name,
-                'payment_method_id' => 'pm_card_visa', // Simulación de un método de pago
-            ],
-        ]);
+        ');
 
-        // Verificar que la respuesta no tenga errores y tenga los datos esperados
         $response->assertJson([
             'data' => [
                 'createSubscription' => [
-                    'name' => $name,
-                    'stripe_plan' => $planId,
+                    'name' => 'Test Subscription',
+                    'payment_method_id' => 'pm_card_visa',
                     'is_active' => true,
                 ],
             ],
         ]);
+    }
 
-        // Verificar que la suscripción se haya creado en la base de datos
-        $this->assertDatabaseHas('subscriptions', [
-            'companies_id' => $companyId,
-            'stripe_plan' => $planId,
-            'name' => $name,
-            'is_active' => true,
+    public function testUpdateSubscription(): void
+    {
+        $response = $this->graphQL('
+            mutation {
+                updateSubscription(id: 1, input: {
+                    app_plan_id: 1,
+                    items: [
+                        { stripe_price_id: "price_1JXXXXXXXXXXXX", quantity: 3 }
+                    ],
+                    name: "Updated Subscription",
+                    payment_method_id: "pm_card_mastercard"
+                }) {
+                    id
+                    name
+                    items {
+                        id
+                        stripe_price_id
+                        quantity
+                    }
+                    payment_method_id
+                }
+            }
+        ');
+
+        $response->assertJson([
+            'data' => [
+                'updateSubscription' => [
+                    'name' => 'Updated Subscription',
+                    'payment_method_id' => 'pm_card_mastercard',
+                    'items' => [
+                        [
+                            'stripe_price_id' => 'price_1JXXXXXXXXXXXX',
+                            'quantity' => 3,
+                        ],
+                    ],
+                ],
+            ],
         ]);
+    }
 
-        
+    public function testDeleteSubscription(): void
+    {
+        $response = $this->graphQL('
+            mutation {
+                deleteSubscription(id: 1)
+            }
+        ');
+
+        $response->assertJson([
+            'data' => [
+                'deleteSubscription' => true,
+            ],
+        ]);
     }
 }

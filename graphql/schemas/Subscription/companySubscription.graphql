@@ -1,27 +1,9 @@
-input SubscriptionInput {
-    companies_id: Int!
-    apps_id: Int!
-    stripe_plan: String!
-    price_id: String
-    name: String
-    stripe_id: String!
-    payment_method_id: String!
-}
-
-input SubscriptionUpdateInput {
-    stripe_plan: Int
-    name: String
-    stripe_id: String
-}
-
 type CompanySubscription {
     id: ID!
-    users_id: Int!
-    companies_id: Int
-    apps_id: Int
-    stripe_plan: String
     name: String
-    stripe_id: String
+    payment_method_id: String!
+    trial_days: Int
+    items: [SubscriptionItem!] @hasMany(relation: "subscriptionItem")
     is_active: Boolean
     is_cancelled: Boolean
     paid: Boolean
@@ -30,11 +12,25 @@ type CompanySubscription {
     updated_at: String
 }
 
+input SubscriptionInput {
+    items: [SubscriptionItemInput!]! 
+    name: String
+    payment_method_id: String!
+    trial_days: Int
+}
+
+input SubscriptionUpdateInput {
+    items: [SubscriptionItemInput!]
+    name: String
+    payment_method_id: String
+    trial_days: Int
+}
+
 extend type Mutation @guard {
     createSubscription(input: SubscriptionInput!): CompanySubscription! 
     @field(resolver: "App\\GraphQL\\Subscription\\Mutations\\Subscriptions\\SubscriptionMutation@create")
     
-    updateSubscription(id: ID!, input: SubscriptionUpdateInput!): CompanySubscription!
+    updateSubscription(input: SubscriptionUpdateInput!): CompanySubscription!
         @field(
             resolver: "App\\GraphQL\\Subscription\\Mutations\\Subscriptions\\SubscriptionMutation@update"
         )

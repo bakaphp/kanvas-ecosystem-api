@@ -7,6 +7,7 @@ namespace Kanvas\Subscription\Subscriptions\Models;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Subscription\Models\BaseModel;
 use Kanvas\Subscription\SubscriptionItems\Models\SubscriptionItem;
 
@@ -15,24 +16,15 @@ use Kanvas\Subscription\SubscriptionItems\Models\SubscriptionItem;
  *
  * @property int $id
  * @property int $users_id
- * @property int $user_id
  * @property int $companies_id
- * @property int $companies_branches_id
- * @property int $companies_groups_id
  * @property int $apps_id
- * @property int $subscription_types_if
- * @property int $apps_plans_id
  * @property string $name
  * @property string $stripe_id
- * @property string $stripe_plan
  * @property string $payment_method_id
  * @property string $stripe_status
- * @property int $quantity
  * @property string $trial_ends_at
- * @property string $grace_period_ends
  * @property string $next_due_payment
  * @property string $ends_at
- * @property int $payment_frequency_id
  * @property int $trial_ends_days
  * @property bool $is_freetrial
  * @property bool $is_active
@@ -55,6 +47,14 @@ class Subscription extends BaseModel
     public function apps(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
+    }
+
+    /**
+     * companies.
+     */
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Companies::class, 'companies_id');
     }
 
     /**

@@ -19,8 +19,6 @@ class UpdatePlan
     {
         $this->plan->update([
             'name' => $this->planDto->name,
-            'price' => $this->planDto->price,
-            'interval' => $this->planDto->interval,
             'description' => $this->planDto->description,
         ]);
 

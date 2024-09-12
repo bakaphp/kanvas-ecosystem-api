@@ -17,7 +17,7 @@ class BaseModel extends EloquentModel
     use KanvasScopesTrait;
     use SoftDeletesTrait;
 
-    protected $attributes = [
+    protected $subscriptions = [
         'is_deleted' => 0,
     ];
 

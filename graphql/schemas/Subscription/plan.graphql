@@ -1,25 +1,24 @@
+type Plan {
+    id: ID!
+    name: String!
+    description: String
+    prices: [Price!] @hasMany(relation: "price")
+    is_default: Boolean
+    created_at: String
+    updated_at: String
+}
+
 input PlanInput {
     name: String!
-    price: Float!
-    interval: String!
     description: String
+    prices: [PriceInput!]!
+    is_default: Boolean
 }
 
 input PlanUpdateInput {
     name: String
-    price: Float
-    interval: String
     description: String
-}
-
-type Plan {
-    id: ID!
-    name: String!
-    price: Float!
-    interval: String!
-    description: String
-    created_at: String
-    updated_at: String
+    prices: [PriceInput!]
 }
 
 extend type Mutation @guard {

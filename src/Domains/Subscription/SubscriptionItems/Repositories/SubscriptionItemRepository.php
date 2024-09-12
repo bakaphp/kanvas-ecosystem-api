@@ -4,23 +4,40 @@ declare(strict_types=1);
 
 namespace Kanvas\Subscription\SubscriptionItems\Repositories;
 
-use Kanvas\Subscription\SubscriptionItems\Models\SubscriptionItem;
-use Kanvas\Subscription\Subscriptions\DataTransferObject\Subscription as SubscriptionDto;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Subscription\SubscriptionItems\Models\SubscriptionItem;
 
 class SubscriptionItemRepository
 {
-    public static function create(int $subscriptionId, int $planId): SubscriptionItem
+    /**
+     * Get the model instance for SubscriptionItem.
+     *
+     * @return Model
+     */
+    public static function getModel(): Model
     {
-        return SubscriptionItem::create([
-            'subscription_id' => $subscriptionId,
-            'plan_id' => $planId,
-        ]);
+        return new SubscriptionItem();
     }
 
-    public static function delete(int $id): bool
+    /**
+     * Get a subscriptionItem by its ID.
+     *
+     * @param int $id
+     * @return SubscriptionItem
+     */
+    public static function getById(int $id): SubscriptionItem
     {
-        $subscriptionItem = SubscriptionItem::findOrFail($id);
-        return $subscriptionItem->delete();
+        return SubscriptionItem::findOrFail($id);
+    }
+
+    /**
+     * Get a subscriptionItem by its Subscription ID.
+     *
+     * @param int $subscriptionId
+     * @return SubscriptionItem
+     */
+    public static function getBySubscriptionId(int $subscriptionId): SubscriptionItem
+    {
+        return SubscriptionItem::where('subscription_id', $subscriptionId)->firstOrFail();
     }
 }

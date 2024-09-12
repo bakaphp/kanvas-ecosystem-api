@@ -18,7 +18,7 @@ class CreateSubscriptionItem
     {
         return SubscriptionItem::create([
             'subscription_id' => $this->subscriptionItemDto->subscription_id,
-            'plan_id' => $this->subscriptionItemDto->plan_id,
+            'plan_id' => $this->subscriptionItemDto->apps_plans_id,
             'quantity' => $this->subscriptionItemDto->quantity,
         ]);
     }

@@ -4,26 +4,51 @@ declare(strict_types=1);
 
 namespace Kanvas\Subscription\Plans\Repositories;
 
-use Kanvas\Subscription\Plans\Models\Plan;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Subscription\Plans\Models\Plan;
 
 class PlanRepository
 {
-    public static function create(array $data): Plan
+    /**
+     * Get the model instance for Plan.
+     *
+     * @return Model
+     */
+    public static function getModel(): Model
     {
-        return Plan::create($data);
+        return new Plan();
     }
 
-    public static function update(int $id, array $data): Plan
+    /**
+     * Get a plan by its ID.
+     *
+     * @param int $id
+     * @return Plan
+     */
+    public static function getById(int $id): Plan
     {
-        $plan = Plan::findOrFail($id);
-        $plan->update($data);
-        return $plan;
+        return Plan::findOrFail($id);
     }
 
-    public static function delete(int $id): bool
+    /**
+     * Get a plan by its name.
+     *
+     * @param string $name
+     * @return Plan
+     */
+    public static function getByName(string $name): Plan
     {
-        $plan = Plan::findOrFail($id);
-        return $plan->delete();
+        return Plan::where('name', $name)->firstOrFail();
+    }
+
+    /**
+     * Get a plan by its Stripe ID.
+     *
+     * @param string $stripeId
+     * @return Plan
+     */
+    public static function getByStripeId(string $stripeId): Plan
+    {
+        return Plan::where('stripe_id', $stripeId)->firstOrFail();
     }
 }

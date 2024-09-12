@@ -18,8 +18,9 @@ class SubscriptionItem extends Data
         public AppInterface $app,
         public UserInterface $user,
         public int $subscription_id,
-        public int $plan_id,
-        public int $quantity,
+        public int $apps_plans_id,
+        public string $stripe_price_id,
+        public ?int $quantity = 1, 
     ) {
     }
 
@@ -30,8 +31,9 @@ class SubscriptionItem extends Data
             app(Apps::class),
             auth()->user,
             $request['subscription_id'],
-            $request['plan_id'],
-            $request['quantity'],
+            $request['apps_plans_id'],
+            $request['stripe_price_id'],
+            $request['quantity'] ?? 1, 
         );
     }
 }
