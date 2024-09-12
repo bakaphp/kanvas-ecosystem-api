@@ -22,10 +22,11 @@ class CreateIntegrationCommand extends Command
 
     /**
      * The name and signature of the console command.
+     * Specify as option workflow and receiver for future use.
      *
      * @var string
      */
-    protected $signature = 'kanvas:create-integration {name} {--app_id=} {--config=} {--handler=}';
+    protected $signature = 'kanvas:create-integration {name} {--app_id=} {--config=} {--handler=} {--workflow_id=} {--receiver_id=}';
 
     /**
      * The console command description.
