@@ -27,7 +27,6 @@ class ExportProductToShopifyActivity extends Activity
 
 
         foreach ($product->variants as $variant) {
-
             foreach ($variant->warehouses as $warehouse) {
                 $integrationCompany = IntegrationsCompany::getByIntegration(
                     company: $product->company,
@@ -55,5 +54,4 @@ class ExportProductToShopifyActivity extends Activity
             'shopify_response' => $response,
         ];
     }
-
 }
