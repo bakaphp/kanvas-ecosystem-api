@@ -11,13 +11,13 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('integrations', function (Blueprint $table) {
-            $table->unsignedBigInteger('workflows_id')->after('handler')->nullable(true);
-            $table->unsignedBigInteger('receivers_id')->after('workflows_id')->nullable(true);
+            $table->unsignedBigInteger('actions_id')->after('handler')->nullable(true);
+            $table->unsignedBigInteger('receivers_id')->after('actions_id')->nullable(true);
 
-            $table->foreign('workflows_id')->references('id')->on('workflows');
+            $table->foreign('actions_id')->references('id')->on('actions');
             $table->foreign('receivers_id')->references('id')->on('receiver_webhooks');
 
-            $table->index('workflows_id', 'workflows_id_index');
+            $table->index('actions_id', 'actions_id_index');
             $table->index('receivers_id', 'receivers_id_index');
         });
     }
