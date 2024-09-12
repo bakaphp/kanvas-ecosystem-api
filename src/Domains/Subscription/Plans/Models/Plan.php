@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Subscription\Models\BaseModel;
 use Kanvas\Subscription\SubscriptionItems\Models\SubscriptionItem;
+
 /**
  * Class Plan.
  *
@@ -26,7 +27,7 @@ class Plan extends BaseModel
 {
     protected $table = 'apps_plans';
     protected $guarded = [];
-    
+
     /**
      * apps.
      */
@@ -34,7 +35,7 @@ class Plan extends BaseModel
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
-    
+
     /**
      * subscriptionItem.
      */

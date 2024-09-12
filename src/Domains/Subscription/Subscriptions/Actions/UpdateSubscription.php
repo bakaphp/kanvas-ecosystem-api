@@ -12,14 +12,13 @@ use Kanvas\Subscription\SubscriptionItems\Actions\CreateSubscriptionItem;
 class UpdateSubscription
 {
     public function __construct(
-        protected Subscription $subscription, 
+        protected Subscription $subscription,
         protected SubscriptionDto $subscriptionDto
     ) {
     }
 
     public function execute(): Subscription
     {
-
         $this->subscription->update([
             'name' => $this->subscriptionDto->name ?? $this->subscription->name,
             'payment_method_id' => $this->subscriptionDto->payment_method_id ?? $this->subscription->payment_method_id,

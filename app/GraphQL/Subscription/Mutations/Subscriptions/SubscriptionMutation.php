@@ -16,7 +16,7 @@ use Stripe\Customer;
 use Kanvas\Companies\Models\Companies;
 
 class SubscriptionMutation
-{   
+{
     public function __construct()
     {
         Stripe::setApiKey(env('STRIPE_SECRET'));
@@ -32,9 +32,8 @@ class SubscriptionMutation
      */
     public function create(array $req): SubscriptionModel
     {
-
         $company = Companies::findOrFail($req['input']['companies_id']);
-        
+
         $paymentMethodId = $req['input']['payment_method_id'];
 
         $customer_id = $company->stripe_id ?? $this->createStripeCustomer($company, $paymentMethodId);
@@ -58,7 +57,6 @@ class SubscriptionMutation
 
     public function update(array $req): SubscriptionModel
     {
-
         $subscription = SubscriptionModel::findOrFail($req['input']['id']);
 
         $stripeSubscription = StripeSubscription::update($subscription->stripe_id, [
@@ -68,12 +66,13 @@ class SubscriptionMutation
                     'price' => $item['price_id'], // Nuevo price_id
                 ];
             }, $req['input']['items']),
-        ]);;
+        ]);
+        ;
 
         $dto = SubscriptionDto::viaRequest($req['input'], Auth::user(), $stripeSubscription);
 
         (new UpdateSubscription($subscription, $dto))->execute();
-        
+
         return $subscription;
     }
 

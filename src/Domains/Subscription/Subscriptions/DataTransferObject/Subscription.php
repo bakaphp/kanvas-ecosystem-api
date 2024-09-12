@@ -26,7 +26,6 @@ class Subscription extends Data
         public bool $is_cancelled = false,
         public bool $paid = false,
         public ?string $charge_date = null,
-        
     ) {
     }
 

@@ -37,7 +37,6 @@ use Kanvas\Subscription\SubscriptionItems\Models\SubscriptionItem;
  */
 class Subscription extends BaseModel
 {
-
     protected $table = 'subscriptions';
     protected $guarded = [];
 
