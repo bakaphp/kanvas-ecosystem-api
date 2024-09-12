@@ -16,8 +16,7 @@ class MessageObserver
 
         // check if it has a parent, update parent total children
         if ($message->parent_id) {
-            $message->parent->total_children += 1;
-            $message->parent->save();
+            $message->parent->increment('total_children');
         }
     }
 
