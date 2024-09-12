@@ -60,7 +60,7 @@ class IntegrationsCompany extends BaseModel
      */
     public static function getByIntegration(Companies $company, Status $status, string $name, Regions $region): ?IntegrationsCompany
     {
-        $integration = Integrations::where('name', $name)->first();
+        $integration = Integrations::where('name', $name)->firstOrFail();
 
         return IntegrationsCompany::fromCompany($company)
                                 ->where('integrations_id', $integration->getId())
