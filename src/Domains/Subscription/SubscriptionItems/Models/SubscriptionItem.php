@@ -26,7 +26,7 @@ class SubscriptionItem extends BaseModel
 {
     protected $table = 'subscription_items';
     protected $guarded = [];
-    
+
     /**
      * subscription.
      */

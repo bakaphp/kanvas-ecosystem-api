@@ -29,7 +29,6 @@ class SubscriptionItemMutation
      */
     public function create(array $req): SubscriptionItemModel
     {
-
         StripeSubscriptionItem::create([
             'subscription' => $req['input']['subscription_id'],
             'price' => $req['input']['stripe_price_id'],
@@ -53,7 +52,6 @@ class SubscriptionItemMutation
      */
     public function update(array $req): SubscriptionItemModel
     {
-
         $subscriptionItem = SubscriptionItemRepository::getById($req['id']);
 
         StripeSubscriptionItem::update($subscriptionItem->stripe_id, [

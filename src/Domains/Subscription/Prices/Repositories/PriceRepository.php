@@ -19,7 +19,7 @@ class PriceRepository
     {
         return new Price();
     }
-    
+
     /**
      * Get a price by its Stripe ID.
      *
@@ -30,5 +30,4 @@ class PriceRepository
     {
         return Price::where('stripe_id', $stripeId)->firstOrFail();
     }
-
 }

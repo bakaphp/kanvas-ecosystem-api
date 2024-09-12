@@ -20,7 +20,7 @@ class Plan extends Data
         public string $name,
         public ?string $description = null,
         public string $stripe_id,
-        public bool $is_default =false,
+        public bool $is_default = false,
         public bool $is_deleted = false,
     ) {
     }
@@ -32,7 +32,7 @@ class Plan extends Data
             app(Apps::class),
             auth()->user,
             $request['name'],
-            $request['stripe_id'], 
+            $request['stripe_id'],
             $request['description'] ?? null,
             $request['is_default'] ?? false,
             $request['is_deleted'] ?? false

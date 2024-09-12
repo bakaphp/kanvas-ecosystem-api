@@ -6,6 +6,7 @@ namespace Kanvas\Subscription\Subscriptions\Repositories;
 
 use Kanvas\Subscription\Subscriptions\Models\Subscription;
 use Kanvas\Subscription\Subscriptions\DataTransferObject\Subscription as SubscriptionDto;
+
 class SubscriptionRepository
 {
     public static function create(array $data): Subscription
