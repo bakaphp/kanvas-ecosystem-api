@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Mutations\Messages;
 
+use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Filesystem\Actions\AttachFilesystemAction;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\Actions\DistributeChannelAction;
 use Kanvas\Social\Messages\Actions\DistributeToUsers;
@@ -21,9 +24,6 @@ use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\SystemModules\Models\SystemModules;
-use Kanvas\Filesystem\Actions\AttachFilesystemAction;
-use Kanvas\Filesystem\Services\FilesystemServices;
-use Exception;
 
 class MessageManagementMutation
 {
@@ -119,7 +119,7 @@ class MessageManagementMutation
          */
         $message->update($request['input']);
 
-        if(array_key_exists('tags', $request['input']) && ! empty($request['input']['tags'])) {
+        if (array_key_exists('tags', $request['input']) && ! empty($request['input']['tags'])) {
             $message->syncTags(array_column($request['input']['tags'], 'name'));
         }
 
