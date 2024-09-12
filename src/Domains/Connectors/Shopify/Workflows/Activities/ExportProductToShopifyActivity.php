@@ -26,7 +26,7 @@ class ExportProductToShopifyActivity extends Activity
         ->first();
 
 
-        foreach($product->variants as $variant) {
+        foreach ($product->variants as $variant) {
 
             foreach ($variant->warehouses as $warehouse) {
                 $integrationCompany = IntegrationsCompany::getByIntegration(
