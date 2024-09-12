@@ -13,6 +13,7 @@ use Kanvas\Apps\DataTransferObject\AppKeyInput;
 use Kanvas\Apps\Jobs\CreateSystemModuleJob;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
 use Kanvas\Users\Models\Users;
@@ -83,32 +84,8 @@ class CreateAppsAction
 
         $settings = [
             [
-                'name' => 'language',
-                'value' => 'EN',
-            ], [
-                'name' => 'timezone',
-                'value' => 'America/New_York',
-            ], [
-                'name' => 'currency',
-                'value' => 'USD',
-            ], [
-                'name' => 'filesystem',
-                'value' => 's3',
-            ], [
                 'name' => 'allow_user_registration',
                 'value' => '1',
-            ], [
-                'name' => 'registered',
-                'value' => 1,
-            ], [
-                'name' => 'titles',
-                'value' => $app->name,
-            ], [
-                'name' => 'base_color',
-                'value' => '#61c2cc',
-            ], [
-                'name' => 'secondary_color',
-                'value' => '#9ee5b5',
             ], [
                 'name' => 'allow_social_auth',
                 'value' => '0',
@@ -119,8 +96,11 @@ class CreateAppsAction
                 'name' => 'delete_images_on_empty_files_field',
                 'value' => '1',
             ], [
-                'name' => 'global_app_images',
-                'value' => '0',
+                'name' => AppSettingsEnums::GLOBAL_APP_IMAGES->value,
+                'value' => 1,
+            ], [
+                'name' => AppSettingsEnums::DEFAULT_SIGNUP_ROLE->value,
+                'value' => RolesEnums::USER->value,
             ], [
                 'name' => 'default_feeds_comments',
                 'value' => '3',

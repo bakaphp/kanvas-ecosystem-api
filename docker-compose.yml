@@ -157,6 +157,8 @@ services:
       environment:
         MINIO_ACCESS_KEY: minio
         MINIO_SECRET_KEY: ${AWS_SECRET_ACCESS_KEY}
+        MINIO_ROOT_USER: minio
+        MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD}
       command: server /data --console-address ":9001"
       ports:
         - "9002:9000"

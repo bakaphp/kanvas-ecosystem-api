@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Mutations\Messages;
 
+use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Filesystem\Actions\AttachFilesystemAction;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\Actions\DistributeChannelAction;
 use Kanvas\Social\Messages\Actions\DistributeToUsers;
@@ -116,7 +119,9 @@ class MessageManagementMutation
          */
         $message->update($request['input']);
 
-        $message->syncTags(array_column($request['input']['tags'], 'name'));
+        if (array_key_exists('tags', $request['input']) && ! empty($request['input']['tags'])) {
+            $message->syncTags(array_column($request['input']['tags'], 'name'));
+        }
 
         return $message;
     }
@@ -170,6 +175,28 @@ class MessageManagementMutation
     {
         $message = Message::getById((int)$request['id'], app(Apps::class));
         $message->topics()->detach($request['topicId']);
+
+        return $message;
+    }
+
+    public function attachFileToMessage(mixed $root, array $request): Message
+    {
+        $message = Message::getById((int)$request['message_id'], app(Apps::class));
+
+        if (($message->user->getId() !== auth()->user()->getId()) && ! auth()->user()->isAdmin()) {
+            throw new Exception('The message does not belong to the authenticated user');
+        }
+
+        $filesystem = new FilesystemServices(app(Apps::class));
+        $file = $request['file'];
+        in_array($file->extension(), ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp']) ?: throw new Exception('Invalid file format');
+
+        $filesystemEntity = $filesystem->upload($file, auth()->user());
+        $action = new AttachFilesystemAction(
+            $filesystemEntity,
+            $message
+        );
+        $action->execute('photo');
 
         return $message;
     }

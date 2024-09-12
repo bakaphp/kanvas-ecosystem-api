@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Baka\Search;
 
 use Illuminate\Database\Eloquent\Model;

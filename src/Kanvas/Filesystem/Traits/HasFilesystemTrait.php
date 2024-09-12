@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Traits;
 
 use Baka\Enums\StateEnums;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -184,5 +186,33 @@ trait HasFilesystemTrait
         $validExtension = preg_replace('/[^a-zA-Z0-9]/', '', $cleanExtension);
 
         return $validExtension;
+    }
+
+    public function getFilesQueryBuilder(): Builder
+    {
+        $app = $this->app ?? app(Apps::class);
+        $systemModule = SystemModulesRepository::getByModelName(static::class, $app);
+
+        $files = Filesystem::select(
+            'filesystem_entities.uuid',
+            'filesystem_entities.field_name',
+            'filesystem.name',
+            'filesystem.url',
+            'filesystem.size',
+            'filesystem.file_type',
+            'filesystem.file_type as type',
+            'filesystem_entities.id',
+        )
+            ->join('filesystem_entities', 'filesystem_entities.filesystem_id', '=', 'filesystem.id')
+            ->where('filesystem_entities.entity_id', '=', $this->getKey())
+            ->where('filesystem_entities.system_modules_id', '=', $systemModule->getKey())
+            ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
+            ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue());
+
+        $files->when(isset($this->companies_id) && ! $app->get(AppSettingsEnums::GLOBAL_APP_IMAGES->getValue()), function ($query) {
+            $query->where('filesystem_entities.companies_id', $this->companies_id);
+        });
+
+        return $files;
     }
 }

@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Shopify\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Exception;
 use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Inventory\Products\Models\Products;
@@ -32,19 +33,10 @@ class ShopifyImageService
             return $totalUploaded;
         }
 
-        foreach ($entity->files as $file) {
-            if ($entity instanceof Products) {
-                if ($this->addImage($entity, $file->url)) {
-                    $totalUploaded++;
-                }
-            } else {
-                if ($this->addVariantImage($entity, $file->url)) {
-                    $totalUploaded++;
-                }
-            }
-        }
-
-        return $totalUploaded;
+        return $entity->files->reduce(function ($totalUploaded, $file) use ($entity) {
+            $method = $entity instanceof Products ? 'addImage' : 'addVariantImage';
+            return $totalUploaded + ($this->$method($entity, $file->url) ? 1 : 0);
+        }, 0);
     }
 
     public function addImage(Products $product, string $imageUrl): ?array
@@ -63,8 +55,14 @@ class ShopifyImageService
 
             // Add the image if it does not exist
             $response = $shopifyProduct->Image->post(['src' => $imageUrl, 'alt' => $fileName]);
+
             return $response;
         } catch (Exception $e) {
+            //stupid , but for now we return false if the image is not found
+            if (Str::contains($e->getMessage(), 'Could not download image')) {
+                return [];
+            }
+
             throw new Exception('Failed to add image to Shopify product: ' . $e->getMessage());
         }
     }
@@ -101,6 +99,11 @@ class ShopifyImageService
 
             return false;
         } catch (Exception $e) {
+            //stupid , but for now we return false if the image is not found
+            if (Str::contains($e->getMessage(), 'Could not download image')) {
+                return false;
+            }
+
             throw new Exception('Failed to add image to Shopify variant: ' . $e->getMessage());
         }
     }

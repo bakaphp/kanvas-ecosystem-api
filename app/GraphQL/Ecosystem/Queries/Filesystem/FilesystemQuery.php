@@ -28,7 +28,7 @@ class FilesystemQuery
         $app = $systemModule->app;
 
         /**
-         * @var Builder
+         * @todo use directly from the entity via fileQueryBuilder
          */
         $files = Filesystem::select(
             'filesystem_entities.uuid',

@@ -26,7 +26,7 @@ type People {
         @cacheRedis
         @paginate(
             defaultCount: 25
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
     interactions: [EntityInteraction!]!
         @paginate(
@@ -54,6 +54,17 @@ type PeopleEmploymentHistory {
     id: ID!
     organization: Organization! @belongsTo
     people: People! @belongsTo
+    position: String!
+    income: Float
+    start_date: Date
+    end_date: Date
+    status: Int!
+    income_type: String
+}
+
+input EmploymentPeopleHistoryInput {
+    peoples_id: ID
+    organizations_id: ID!
     position: String!
     income: Float
     start_date: Date!
@@ -84,6 +95,7 @@ input PeopleInput {
     files: [FilesystemInputUrl!]
     custom_fields: [CustomFieldEntityInput!]
     tags: [TagInput!]
+    peopleEmploymentHistory: [EmploymentPeopleHistoryInput!]
     created_at: DateTime
 }
 

@@ -220,8 +220,8 @@ class Products extends BaseModel
 
     public function searchableAs(): string
     {
-        $product = ! $this->searchableDeleteRecord() ? $this : $this->find($this->id);
-        $customIndex = $product->app ? $product->app->get('app_custom_product_index') : null;
+        $product = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
+        $customIndex = isset($product->app) ? $product->app->get('app_custom_product_index') : null;
 
         return config('scout.prefix') . ($customIndex ?? 'product_index');
     }
@@ -239,6 +239,10 @@ class Products extends BaseModel
 
     public function isPublished(): bool
     {
+        if (isset($this->app) && $this->app->get('allow_unpublished_products')) {
+            return ! $this->is_deleted;
+        }
+
         return ! $this->is_deleted && $this->is_published;
     }
 

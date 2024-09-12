@@ -11,7 +11,7 @@ class VariantObserver
 {
     public function saved(Variants $variant): void
     {
-        $variant->clearLightHouseCache();
+        $variant->clearLightHouseCacheJob();
     }
 
     public function deleting(Variants $variant): void

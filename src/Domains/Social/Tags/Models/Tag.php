@@ -52,9 +52,10 @@ class Tag extends BaseModel
 
     public function searchableAs(): string
     {
+        //$tag = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
         $tag = ! $this->searchableDeleteRecord() ? $this : $this->find($this->id);
 
-        $customIndex = $tag->app ? $tag->app->get('app_custom_tag_index') : null;
+        $customIndex = isset($tag->app) ? $tag->app->get('app_custom_tag_index') : null;
 
         return config('scout.prefix') . ($customIndex ?? 'tag_index');
     }

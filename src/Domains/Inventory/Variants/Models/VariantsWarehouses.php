@@ -114,7 +114,7 @@ class VariantsWarehouses extends BaseModel
 
     public function variantChannels(): HasMany
     {
-        return $this->hasMany(VariantsChannels::class, 'product_variants_warehouse_id')->where('is_published', 1);
+        return $this->hasMany(VariantsChannels::class, 'product_variants_warehouse_id');
     }
 
     /**

@@ -32,6 +32,7 @@ class FilesystemServices
     public function upload(UploadedFile $file, Users $user): ModelsFilesystem
     {
         $path = $this->app->get('cloud-bucket-path') ?? '/';
+
         $uploadedFile = $this->storage->put(
             $path,
             $file,
@@ -92,7 +93,6 @@ class FilesystemServices
         if (empty($aws['key']) || empty($aws['secret']) || empty($aws['region'])) {
             throw new ValidationException('Missing AWS credentials');
         }
-
         return Storage::build([
             'driver' => 's3',
             'key' => $aws['key'],
@@ -101,7 +101,8 @@ class FilesystemServices
             'bucket' => $this->app->get('cloud-bucket'),
             'url' => $this->app->get('cloud-cdn'),
             'path' => $this->app->get('cloud-bucket-path') ?? '/',
-            'use_path_style_endpoint' => false,
+            'use_path_style_endpoint' => (bool)$this->app->get('use_path_style_endpoint') ?? false,
+            'endpoint' => $aws['endpoint'] ?? null,
         ]);
     }
 
