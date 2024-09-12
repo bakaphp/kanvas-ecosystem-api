@@ -32,7 +32,7 @@ class TaskEngagementItemEvent implements ShouldBroadcast
             'lead_id' => $this->taskEngagementItem->leadId,
             'task_list_item_id' => $this->taskEngagementItem->taskListItemId,
             //'tasks' => $taskEngagementItem->task->toArray(),
-            'status' => $taskEngagementItem->status,
+            //'status' => $taskEngagementItem->status,
         ];
     }
 
