@@ -75,15 +75,15 @@ class CompanyTaskTest extends TestCase
         query taskLists {
             taskLists {
                 data {
+                    id
+                    name
+                    config
+                    tasks {
                         id
                         name
-                        config
-                        tasks{
-                            id
-                            name
                         }       
-                        }
                     }
+                }
             }
         }
     ', [
