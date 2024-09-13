@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Integrations\Actions;
 
 use Baka\Users\Contracts\UserInterface;
-use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Workflow\Integrations\DataTransferObject\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany as IntegrationsCompanyModel;
 use Kanvas\Workflow\Integrations\Models\Status;
@@ -31,11 +30,6 @@ class CreateIntegrationCompanyAction
      */
     public function execute(): IntegrationsCompanyModel
     {
-        CompaniesRepository::userAssociatedToCompany(
-            $this->dto->company,
-            $this->user
-        );
-
         return IntegrationsCompanyModel::firstOrCreate([
             'companies_id' => $this->dto->company->getId(),
             'integrations_id' => $this->dto->integration->getId(),
