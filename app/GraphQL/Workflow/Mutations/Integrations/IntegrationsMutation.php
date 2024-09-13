@@ -32,11 +32,14 @@ class IntegrationsMutation
         $integration = Integrations::getById((int) $request['input']['integration']['id']);
         $company = CompaniesRepository::getById((int) $request['input']['company_id']);
         $region = RegionRepository::getById((int) $request['input']['region']['id'], $company);
+        $user = auth()->user();
 
-        CompaniesRepository::userAssociatedToCompany(
-            $company,
-            auth()->user()
-        );
+        if (! $user->isAppOwner()) {
+            CompaniesRepository::userAssociatedToCompany(
+                $company,
+                $user
+            );
+        }
 
         (new ConfigValidation($integration->config, $request['input']))->validate();
         $integrationDto = new IntegrationsCompany(
@@ -69,7 +72,7 @@ class IntegrationsMutation
                             ->first();
         }
 
-        $integrationCompany = (new CreateIntegrationCompanyAction($integrationDto, auth()->user(), $status))->execute();
+        $integrationCompany = (new CreateIntegrationCompanyAction($integrationDto, $user, $status))->execute();
 
         return $integrationCompany;
     }

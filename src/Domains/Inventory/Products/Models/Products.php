@@ -30,6 +30,7 @@ use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 
 /**
@@ -65,6 +66,7 @@ class Products extends BaseModel
 
     use CascadeSoftDeletes;
     use Compoships;
+    use CanUseWorkflow;
 
     protected $table = 'products';
     protected $guarded = [];
