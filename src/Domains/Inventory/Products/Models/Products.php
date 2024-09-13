@@ -166,17 +166,6 @@ class Products extends BaseModel
 
     public function toSearchableArray(): array
     {
-        $this->refresh();
-        $this->load([
-            'company',              // Load the company relationship
-            'company.user',         // Load the user through the company
-            'categories',           // Load categories
-            'variants',             // Load variants
-            'status',               // Load status
-            'files',                // Load files (if it's a relationship)
-            'attributes',           // Load attributes
-        ]);
-
         $product = [
             'objectID' => $this->uuid,
             'id' => $this->id,
@@ -252,6 +241,10 @@ class Products extends BaseModel
 
     public function isPublished(): bool
     {
+        if (isset($this->app) && $this->app->get('allow_unpublished_products')) {
+            return ! $this->is_deleted;
+        }
+
         return ! $this->is_deleted && $this->is_published;
     }
 

@@ -10,7 +10,7 @@ return new class () extends Migration {
      */
     public function up(): void
     {
-        Schema::table('attributes_mappers_importers_templates', function (Blueprint $table) {
+        /* Schema::table('attributes_mappers_importers_templates', function (Blueprint $table) {
             //
             $table->bigInteger('parent_id')->unsigned()->nullable()->change();
         });
@@ -24,7 +24,7 @@ return new class () extends Migration {
                 ->references('id')
                 ->on('attributes_mappers_importers_templates')
                 ->cascadeOnDelete();
-        });
+        }); */
     }
 
     /**
@@ -32,8 +32,5 @@ return new class () extends Migration {
      */
     public function down(): void
     {
-        Schema::table('attributes_mappers_importers_templates', function (Blueprint $table) {
-            //
-        });
     }
 };

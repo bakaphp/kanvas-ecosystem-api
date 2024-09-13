@@ -24,10 +24,7 @@ class ConfigManagement
     public function deleteAppSetting(mixed $root, array $request): bool
     {
         $app = app(Apps::class);
-        $app->set($request['input']['key'], $request['input']['value']);
-        $app->delete($request['input']['key']);
-
-        return true;
+        return $app->del($request['key']);
     }
 
     public function setCompanySetting(mixed $root, array $request): bool

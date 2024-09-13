@@ -165,6 +165,30 @@ class CompanyTest extends TestCase
         ->assertSee('public');
     }
 
+    public function testGetAdminCompanySetting()
+    {
+        $usr = auth()->user();
+        $company = $usr->getCurrentCompany();
+        $app = app(Apps::class);
+        $key = 'testName';
+        $company->set($key, 'testValue');
+
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            {
+                adminCompanySetting(entity_uuid: "' . $company->uuid . '", key: "' . $key . '") 
+            }
+            ',
+            [],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        )
+        ->assertSuccessful()
+        ->assertSee('testValue');
+    }
+
     public function testDeleteCompany(): void
     {
         $companyData = $this->companyInputData();

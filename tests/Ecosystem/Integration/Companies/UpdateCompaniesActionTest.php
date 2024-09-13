@@ -42,11 +42,11 @@ final class UpdateCompaniesActionTest extends TestCase
 
         $dtoData = Company::from($data);
 
-        $updateCompany = new UpdateCompaniesAction(Auth::user(), $dtoData);
+        $updateCompany = new UpdateCompaniesAction($company, Auth::user(), $dtoData);
 
         $this->assertInstanceOf(
             Companies::class,
-            $updateCompany->execute($company->id)
+            $updateCompany->execute()
         );
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Attributes;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Attributes\Actions\AddAttributeValue;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Inventory\Attributes\Actions\UpdateAttribute;
@@ -23,7 +24,8 @@ class AttributeMutation
      */
     public function create(mixed $root, array $req): AttributeModel
     {
-        $dto = AttributeDto::viaRequest($req['input'], auth()->user());
+        $app = app(Apps::class);
+        $dto = AttributeDto::viaRequest($req['input'], auth()->user(), $app);
         $action = new CreateAttribute($dto, auth()->user());
         $attributeModel = $action->execute();
 
@@ -44,8 +46,9 @@ class AttributeMutation
      */
     public function update(mixed $root, array $req): AttributeModel
     {
+        $app = app(Apps::class);
         $attribute = AttributesRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
-        $dto = AttributeDto::viaRequest($req['input'], auth()->user());
+        $dto = AttributeDto::viaRequest($req['input'], auth()->user(), $app);
         (new UpdateAttribute($attribute, $dto, auth()->user()))->execute();
 
         if (isset($req['input']['values'])) {

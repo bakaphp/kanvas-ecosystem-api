@@ -12,11 +12,13 @@ use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Regions\Models\Regions;
@@ -47,7 +49,8 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
         public CompaniesBranches $branch,
         public UserInterface $user,
         public Regions $region,
-        public AppInterface $app
+        public AppInterface $app,
+        public ?FilesystemImports $filesystemImport = null
     ) {
     }
 
@@ -56,7 +59,17 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
      */
     public function uniqueId(): string
     {
-        return $this->jobUuid . $this->app->getId() . $this->region->getId() . $this->branch->getId();
+        // Create a unique hash of the importer array
+        $importerHash = md5(json_encode($this->importer));
+
+        return $this->app->getId() . $this->branch->getId() . $this->region->getId() . $importerHash;
+    }
+
+    public function middleware(): array
+    {
+        return [
+            (new WithoutOverlapping($this->uniqueId()))->expireAfter($this->uniqueFor),
+        ];
     }
 
     /**
@@ -75,11 +88,21 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
          * @var Companies
          */
         $company = $this->branch->company()->firstOrFail();
+        $totalItems = count($this->importer);
+        $totalProcessSuccessfully = 0;
+        $totalProcessFailed = 0;
+        $errors = [];
 
         //mark all variants as unsearchable for this company before running the import
         /*         Variants::fromCompany($company)->chunkById(100, function ($variants) {
                     $variants->unsearchable();
                 }, $column = 'id'); */
+
+        if ($this->filesystemImport) {
+            $this->filesystemImport->update([
+                'status' => 'processing', //move to enums
+            ]);
+        }
 
         foreach ($this->importer as $request) {
             try {
@@ -90,10 +113,30 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                     $this->region,
                     $this->app
                 ))->execute();
+                $totalProcessSuccessfully++;
             } catch (Throwable $e) {
+                $errors[] = [
+                    'message' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                    'request' => $request,
+                ];
                 Log::error($e->getMessage());
                 captureException($e);
+                $totalProcessFailed++;
             }
+        }
+
+        if ($this->filesystemImport) {
+            $this->filesystemImport->update([
+                'results' => [
+                    'total_items' => $totalItems,
+                    'total_process_successfully' => $totalProcessSuccessfully,
+                    'total_process_failed' => $totalProcessFailed,
+                ],
+                'exception' => $errors,
+                'status' => 'completed',
+                'finished_at' => now(),
+            ]);
         }
 
         //handle failed jobs

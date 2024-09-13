@@ -24,13 +24,25 @@ class TaskEngagementItemEvent implements ShouldBroadcast
 
     public function broadcastWith(): array
     {
-        return TaskEngagementItemRepository::getLeadsTaskItems(
+        $taskEngagementItem = TaskEngagementItemRepository::getLeadsTaskItems(
             Lead::getById($this->taskEngagementItem->leadId)
-        )->get()?->toArray();
+        )->get();
+
+        return [
+            'lead_id' => $this->taskEngagementItem->leadId,
+            'task_list_item_id' => $this->taskEngagementItem->taskListItemId,
+            //'tasks' => $taskEngagementItem->task->toArray(),
+            //'status' => $taskEngagementItem->status,
+        ];
     }
 
     public function broadcastOn(): Channel
     {
         return new Channel('lead-tasks-' . $this->taskEngagementItem->leadId);
+    }
+
+    public function broadcastAs(): string
+    {
+        return 'lead.tasks';
     }
 }

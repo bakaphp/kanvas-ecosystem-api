@@ -30,6 +30,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 use Nevadskiy\Tree\AsTree;
+use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 
 /**
  *  Class Message
@@ -46,8 +47,9 @@ use Nevadskiy\Tree\AsTree;
  *  @property int $comments_count
  *  @property int $total_liked
  *  @property int $total_disliked
- *  @property int $is_public
  *  @property int $total_view
+ *  @property int $is_public
+ *  @property int $total_children
  *  @property int $total_saved
  *  @property int $total_shared
  *  @property string|null ip_address
@@ -66,6 +68,7 @@ class Message extends BaseModel
     use CanUseWorkflow;
     use HasLightHouseCache;
     use Cachable;
+    use HasFilesystemTrait;
 
     protected $table = 'messages';
 
@@ -143,7 +146,8 @@ class Message extends BaseModel
 
     public function searchableAs(): string
     {
-        $message = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
+        //$message = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
+        $message = ! $this->searchableDeleteRecord() ? $this : $this->find($this->id);
         $app = $message->app ?? null;
 
         /**

@@ -35,10 +35,10 @@ class VariantsWarehouses extends Data
         return new self(
             $variant,
             $warehouse,
-            isset($request['quantity']) ? $request['quantity'] : 0,
-            isset($request['price']) ? $request['price'] : 0.00,
+            isset($request['quantity']) ? (float) $request['quantity'] : 0,
+            isset($request['price']) ? (float) $request['price'] : 0.00,
             $request['sku'] ?? $variant->sku,
-            $request['position'] ?? 0,
+            (int) ($request['position'] ?? 0),
             $request['serial_number'] ?? null,
             $request['status_id'] ?? null,
             $request['is_oversellable'] ?? false,

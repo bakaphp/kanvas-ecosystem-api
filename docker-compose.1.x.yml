@@ -70,6 +70,30 @@ services:
   queue6:
     <<: *common-queue-settings
     container_name: queue6
+  
+  queue7:
+    <<: *common-queue-settings
+    container_name: queue7
+  
+  queue8:
+    <<: *common-queue-settings
+    container_name: queue8
+  
+  queue9:
+    <<: *common-queue-settings
+    container_name: queue9
+  
+  queue10:
+    <<: *common-queue-settings
+    container_name: queue10
+  
+  queue11:
+    <<: *common-queue-settings
+    container_name: queue11
+  
+  queue12:
+    <<: *common-queue-settings
+    container_name: queue12
 
   queue-social:
     <<: *common-queue-settings

@@ -36,13 +36,14 @@ class DeleteUsersRequestedCommand extends Command
     public function handle()
     {
         $appsId = $this->argument('apps_id');
+
         if ($appsId) {
             $app = Apps::findFirstOrFail($appsId);
             $this->overwriteAppService($app);
             $this->info('Deleting user from app: ' . $app->name);
         }
 
-        if (! $app->get('delete_users_request_process')) {
+        if ($app && ! $app->get('delete_users_request_process')) {
             $this->info('Delete users request process is disabled');
 
             return;

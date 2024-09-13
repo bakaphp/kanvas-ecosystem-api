@@ -7,6 +7,7 @@ namespace Kanvas\CustomFields\Traits;
 use Baka\Enums\StateEnums;
 use Baka\Support\Str;
 use Baka\Traits\HasSchemaAccessors;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Auth;
@@ -56,9 +57,9 @@ trait HasCustomFields
     /**
      * Get all the custom fields.
      */
-    public function getAll(): array
+    public function getAll(bool $fromRedis = true): array
     {
-        if (! empty($listOfCustomFields = $this->getAllFromRedis())) {
+        if ($fromRedis && ! empty($listOfCustomFields = $this->getAllFromRedis())) {
             return $listOfCustomFields;
         }
 
@@ -84,6 +85,54 @@ trait HasCustomFields
         }
 
         return $listOfCustomFields;
+    }
+
+    public function getCustomFieldsQueryBuilder(): Builder
+    {
+        return AppsCustomFields::where('entity_id', '=', $this->getKey())
+            ->where('model_name', '=', static::class)
+            ->where('is_deleted', '=', StateEnums::NO->getValue());
+    }
+
+    public function getAllCustomFieldsFromRedisPaginated(int $limit = 25, int $page = 1): array
+    {
+        $keys = Redis::hKeys($this->getCustomFieldPrimaryKey());
+
+        if (empty($keys)) {
+            return [
+                'results' => [],
+                'total' => 0,
+                'per_page' => $limit,
+            ];
+        }
+
+        $perPage = $limit;
+        $total = count($keys);
+
+        // Calculate start and end indexes for slicing
+        $start = ($page - 1) * $perPage;
+        $end = $start + $perPage - 1;
+
+        // Slice the keys to get the current page's keys
+        $paginatedKeys = array_slice($keys, $start, $perPage);
+
+        // Fetch the values for the paginated keys using hMGet
+        $values = Redis::hMGet($this->getCustomFieldPrimaryKey(), $paginatedKeys);
+
+        // Combine keys and values into the final paginated result
+        $paginatedResult = [];
+        foreach ($paginatedKeys as $index => $key) {
+            $paginatedResult[] = [
+                'name' => $key,
+                'value' => $values[$index],
+            ];
+        }
+
+        return [
+            'results' => $paginatedResult,
+            'total' => $total,
+            'per_page' => $perPage,
+        ];
     }
 
     /**
@@ -190,9 +239,11 @@ trait HasCustomFields
             'name' => $name,
             'value' => $value,
         ]);
+
         if (method_exists($this, 'fireWorkflow')) {
             $this->fireWorkflow(WorkflowEnum::CREATE_CUSTOM_FIELD->value);
         }
+
         return $customField;
     }
 
@@ -282,6 +333,11 @@ trait HasCustomFields
         if (method_exists($this, 'fireWorkflow')) {
             $this->fireWorkflow(WorkflowEnum::CREATE_CUSTOM_FIELDS->value);
         }
+
+        if (method_exists($this, 'generateCustomFieldsLighthouseCache')) {
+            $this->clearLightHouseCacheJob();
+        }
+
         return true;
     }
 
@@ -355,7 +411,7 @@ trait HasCustomFields
      */
     public function reCacheCustomFields(): void
     {
-        foreach ($this->getAll() as $key => $value) {
+        foreach ($this->getAll(fromRedis: false) as $key => $value) {
             $this->setInRedis($key, $value);
         }
     }
@@ -380,7 +436,7 @@ trait HasCustomFields
     protected function clearCustomFieldsCacheIfNeeded(): void
     {
         if (method_exists($this, 'clearLightHouseCache')) {
-            $this->clearLightHouseCache();
+            $this->clearLightHouseCacheJob();
         }
     }
 }
