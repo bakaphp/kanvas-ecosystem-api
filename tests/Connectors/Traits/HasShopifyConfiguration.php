@@ -57,6 +57,8 @@ trait HasShopifyConfiguration
         ->where('apps_id', 0)
         ->first();
 
+        // for the time being this can only work with shopify integration.
+        // we need to figure out how to standard is it.
         (new CreateIntegrationCompanyAction($integrationDto, auth()->user(), $status))->execute();
     }
 }
