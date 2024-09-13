@@ -11,8 +11,7 @@ use Illuminate\Validation\Rule;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Filesystem\Actions\AttachFilesystemAction;
-use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\Actions\DistributeChannelAction;
 use Kanvas\Social\Messages\Actions\DistributeToUsers;
@@ -27,6 +26,8 @@ use Kanvas\SystemModules\Models\SystemModules;
 
 class MessageManagementMutation
 {
+    use HasMutationUploadFiles;
+
     public function create(mixed $root, array $request): Message
     {
         $app = app(Apps::class);
@@ -181,23 +182,18 @@ class MessageManagementMutation
 
     public function attachFileToMessage(mixed $root, array $request): Message
     {
-        $message = Message::getById((int)$request['message_id'], app(Apps::class));
+        $app = app(Apps::class);
+        $message = Message::getById((int)$request['message_id'], $app);
 
         if (($message->user->getId() !== auth()->user()->getId()) && ! auth()->user()->isAdmin()) {
             throw new Exception('The message does not belong to the authenticated user');
         }
 
-        $filesystem = new FilesystemServices(app(Apps::class));
-        $file = $request['file'];
-        in_array($file->extension(), ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp']) ?: throw new Exception('Invalid file format');
-
-        $filesystemEntity = $filesystem->upload($file, auth()->user());
-        $action = new AttachFilesystemAction(
-            $filesystemEntity,
-            $message
+        return $this->uploadFileToEntity(
+            model: $message,
+            app: $app,
+            user: auth()->user(),
+            request: $request
         );
-        $action->execute('photo');
-
-        return $message;
     }
 }
