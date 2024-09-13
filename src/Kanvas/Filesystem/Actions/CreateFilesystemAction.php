@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Actions;
 
+use Baka\Contracts\AppInterface;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Log;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Users\Models\Users;
@@ -18,7 +17,8 @@ class CreateFilesystemAction
      */
     public function __construct(
         protected UploadedFile $file,
-        protected Users $user
+        protected Users $user,
+        protected AppInterface $app
     ) {
     }
 
@@ -27,7 +27,7 @@ class CreateFilesystemAction
      */
     public function execute(string $uploadUrl, string $uploadPath): Filesystem
     {
-        $app = app(Apps::class);
+        $app = $this->app;
 
         $fileSystem = new Filesystem();
         $fileSystem->name = $this->file->getClientOriginalName();
