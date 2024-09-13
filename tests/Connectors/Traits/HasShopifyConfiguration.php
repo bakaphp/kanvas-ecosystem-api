@@ -42,7 +42,7 @@ trait HasShopifyConfiguration
             'client_secret' => getenv('TEST_SHOPIFY_API_SECRET'),
             'shop_url' => getenv('TEST_SHOPIFY_SHOP_URL'),
         ];
-    
+
         $integration = Integrations::where('name', 'kanvas')->firstOrFail();
 
         $integrationDto = new IntegrationsCompany(

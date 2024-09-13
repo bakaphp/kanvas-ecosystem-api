@@ -34,11 +34,11 @@ class IntegrationsMutation
         $region = RegionRepository::getById((int) $request['input']['region']['id'], $company);
         $user = auth()->user();
     
-        if(! $user->isAppOwner()) {
+        if (! $user->isAppOwner()) {
             CompaniesRepository::userAssociatedToCompany(
                 $company,
                 $user
-            );    
+            );
         }
 
         (new ConfigValidation($integration->config, $request['input']))->validate();
