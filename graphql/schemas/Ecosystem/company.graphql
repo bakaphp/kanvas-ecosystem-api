@@ -262,6 +262,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@updatePhotoProfile"
         )
+    uploadFileToCompany(id: ID!, file: Upload!): Company!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@attachFileToCompany"
+        )
     deleteCompany(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@deleteCompany"
@@ -273,6 +277,10 @@ extend type Mutation @guard {
     updateCompanyBranch(id: ID!, input: CompanyBranchInput): CompanyBranch!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@updateCompanyBranch"
+        )
+    uploadFileToCompanyBranch(id: ID!, file: Upload!): Message
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@attachFileToCompany"
         )
     deleteCompanyBranch(id: ID!): Boolean!
         @field(

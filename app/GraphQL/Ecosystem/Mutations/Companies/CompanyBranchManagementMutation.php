@@ -6,6 +6,7 @@ namespace App\GraphQL\Ecosystem\Mutations\Companies;
 
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Auth;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Branches\Actions\CreateCompanyBranchActions;
 use Kanvas\Companies\Branches\Actions\DeleteCompanyBranchActions;
 use Kanvas\Companies\Branches\Actions\UpdateCompanyBranchActions;
@@ -14,10 +15,13 @@ use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPutData;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Users\Models\Users;
 
 class CompanyBranchManagementMutation
 {
+    use HasMutationUploadFiles;
+
     /**
      * createCompaniesBranch
      *
@@ -27,7 +31,7 @@ class CompanyBranchManagementMutation
     {
         $request['input']['users_id'] = Auth::user()->getKey();
         $dto = CompaniesBranchPostData::fromArray($request['input']);
-        $action = new  CreateCompanyBranchActions(Auth::user(), $dto);
+        $action = new CreateCompanyBranchActions(Auth::user(), $dto);
 
         return $action->execute();
     }
@@ -40,9 +44,27 @@ class CompanyBranchManagementMutation
     public function updateCompanyBranch(mixed $root, array $request): CompaniesBranches
     {
         $dto = CompaniesBranchPutData::fromArray($request['input']);
-        $action = new  UpdateCompanyBranchActions(Auth::user(), $dto);
+        $action = new UpdateCompanyBranchActions(Auth::user(), $dto);
 
         return $action->execute((int) $request['id']);
+    }
+
+    public function attachFileToCompany(mixed $root, array $request): CompaniesBranches
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $companyBranch = CompaniesBranches::getById((int) $request['id']);
+
+        $company = $companyBranch->company()->first();
+
+        CompaniesRepository::userAssociatedToCompanyAndBranch($company, $companyBranch, $user);
+
+        return $this->uploadFileToEntity(
+            model: $companyBranch,
+            app: $app,
+            user: $user,
+            request: $request
+        );
     }
 
     /**

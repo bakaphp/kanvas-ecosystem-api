@@ -15,6 +15,7 @@ use Kanvas\Auth\Services\UserManagement as UserManagementService;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Notifications\Templates\ChangeEmailUserLogged;
 use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
 use Kanvas\Users\Actions\CreateInviteAction;
@@ -29,6 +30,8 @@ use Kanvas\Users\Repositories\UsersRepository;
 
 class UserManagementMutation
 {
+    use HasMutationUploadFiles;
+
     /**
      * changePassword.
      */
@@ -170,8 +173,8 @@ class UserManagementMutation
         if ($request['user_id'] != $loggedUser->getId() && ! $loggedUser->isAdmin()) {
             throw new Exception('You are not allowed to update this photo user');
         }
-        $user = UsersRepository::getUserOfAppById((int)$request['user_id']);
         $app = app(Apps::class);
+        $user = UsersRepository::getUserOfAppById((int)$request['user_id'], $app);
 
         $filesystem = new FilesystemServices(app(Apps::class));
         $file = $request['file'];
@@ -185,6 +188,24 @@ class UserManagementMutation
         $action->execute('photo');
 
         return $user;
+    }
+
+    public function attachFileToUser(mixed $root, array $request): Users
+    {
+        $app = app(Apps::class);
+        $loggedUser = auth()->user();
+
+        if ($request['id'] != $loggedUser->getId() && ! $loggedUser->isAdmin()) {
+            throw new Exception('You are not allowed to update this photo user');
+        }
+        $user = UsersRepository::getUserOfAppById((int)$request['id'], $app);
+
+        return $this->uploadFileToEntity(
+            model: $user,
+            app: $app,
+            user: $user,
+            request: $request
+        );
     }
 
     public function requestDeleteAccount(mixed $rootValue, array $request): bool
