@@ -33,7 +33,7 @@ class IntegrationsMutation
         $company = CompaniesRepository::getById((int) $request['input']['company_id']);
         $region = RegionRepository::getById((int) $request['input']['region']['id'], $company);
         $user = auth()->user();
-    
+
         if (! $user->isAppOwner()) {
             CompaniesRepository::userAssociatedToCompany(
                 $company,
