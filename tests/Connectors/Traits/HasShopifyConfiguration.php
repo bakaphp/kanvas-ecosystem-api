@@ -43,7 +43,7 @@ trait HasShopifyConfiguration
             'shop_url' => getenv('TEST_SHOPIFY_SHOP_URL'),
         ];
 
-        $integration = Integrations::where('name', 'kanvas')->firstOrFail();
+        $integration = Integrations::first();
 
         $integrationDto = new IntegrationsCompany(
             integration: $integration,
