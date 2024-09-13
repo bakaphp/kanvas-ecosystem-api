@@ -198,7 +198,9 @@ class UserManagementMutation
         if ($request['id'] != $loggedUser->getId() && ! $loggedUser->isAdmin()) {
             throw new Exception('You are not allowed to update this photo user');
         }
-        $user = UsersRepository::getUserOfAppById((int)$request['id'], $app);
+
+        $userId = $request['id'] > 0 && $loggedUser->isAdmin() ? (int) $request['id'] : $loggedUser->getId();
+        $user = UsersRepository::getUserOfAppById($userId, $app);
 
         return $this->uploadFileToEntity(
             model: $user,
