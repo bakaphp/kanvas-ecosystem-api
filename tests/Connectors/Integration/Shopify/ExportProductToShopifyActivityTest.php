@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Integration\Zoho;
+namespace Tests\Connectors\Integration\Shopify;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Workflows\Activities\ExportProductToShopifyActivity;
