@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Companies;
 
+use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Auth;
@@ -11,28 +12,35 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\Actions\UpdateCompaniesAction;
-use Kanvas\Companies\DataTransferObject\CompaniesPutData;
 use Kanvas\Companies\DataTransferObject\Company;
 use Kanvas\Companies\Jobs\DeleteCompanyJob;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Filesystem\Actions\AttachFilesystemAction;
+use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Users\Actions\AssignRoleAction;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
 use Kanvas\Users\Repositories\UsersRepository;
-use Kanvas\Filesystem\Actions\AttachFilesystemAction;
-use Kanvas\Filesystem\Services\FilesystemServices;
+use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 
 class CompanyManagementMutation
 {
+    use HasMutationUploadFiles;
+
     /**
      * createCompany
      */
     public function createCompany(mixed $root, array $request): Companies
     {
+        if (! auth()->user()->isAdmin()) {
+            throw new AuthorizationException('Only admin can create companies, please contact your admin');
+        }
+
         if (auth()->user()->isAdmin() && key_exists('users_id', $request['input'])) {
             $user = Users::getById($request['input']['users_id']);
             UsersRepository::belongsToThisApp($user, app(Apps::class)) ;
@@ -46,26 +54,58 @@ class CompanyManagementMutation
     }
 
     /**
+     * @todo move to service ?
+     */
+    protected function hasCompanyPermission(Companies $company, UserInterface $user): void
+    {
+        if (! $user->isAdmin() && $company->users_id != $user->getId()) {
+            throw new AuthorizationException('Your are not allowed to perform this action for company ' . $company->name);
+        }
+    }
+
+    /**
      * updateCompany
      */
     public function updateCompany(mixed $root, array $request): Companies
     {
+        $company = Companies::getById((int) $request['id']);
+
+        $this->hasCompanyPermission($company, auth()->user());
+
         if (auth()->user()->isAdmin() && key_exists('users_id', $request['input'])) {
             $user = Users::getById($request['input']['users_id']);
-            UsersRepository::belongsToThisApp($user, app(Apps::class)) ;
+            UsersRepository::belongsToThisApp($user, app(Apps::class), $company) ;
         } else {
             $user = auth()->user();
         }
-        $dto = Company::viaRequest($request['input'], $user);
-        $action = new UpdateCompaniesAction($user, $dto);
 
-        return $action->execute((int) $request['id']);
+        $dto = Company::viaRequest($request['input'], $user);
+        $action = new UpdateCompaniesAction($company, $user, $dto);
+
+        return $action->execute();
     }
 
+    public function attachFileToCompany(mixed $root, array $request): Companies
+    {
+        $app = app(Apps::class);
+        $company = Companies::getById((int) $request['id']);
+
+        $this->hasCompanyPermission($company, auth()->user());
+
+        return $this->uploadFileToEntity(
+            model: $company,
+            app: $app,
+            user: auth()->user(),
+            request: $request
+        );
+    }
 
     public function updatePhotoProfile(mixed $root, array $request): Companies
     {
         $company = Companies::getById($request['id']);
+
+        $this->hasCompanyPermission($company, auth()->user());
+
         if (! auth()->user()->isAdmin()) {
             $company = Companies::getById($request['id']);
             CompaniesRepository::userAssociatedToCompany(
@@ -98,6 +138,11 @@ class CompanyManagementMutation
         if (Users::where('default_company', $request['id'])->count()) {
             throw new Exception('You can not delete a company that has users associated');
         }
+
+        if (! auth()->user()->isAdmin()) {
+            throw new AuthorizationException('Only admin can delete companies, please contact your admin');
+        }
+
         DeleteCompanyJob::dispatch((int) $request['id'], Auth::user(), app(Apps::class));
 
         return true;
@@ -113,6 +158,8 @@ class CompanyManagementMutation
             $company,
             auth()->user()
         );
+
+        $this->hasCompanyPermission($company, auth()->user());
 
         $branch = app(CompaniesBranches::class);
 
@@ -172,6 +219,8 @@ class CompanyManagementMutation
             $company,
             auth()->user()
         );
+
+        $this->hasCompanyPermission($company, auth()->user());
 
         $branch = app(CompaniesBranches::class);
 

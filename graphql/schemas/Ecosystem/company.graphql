@@ -221,7 +221,7 @@ extend type Query @guard {
 
     companyUsers(
         where: _ @whereConditions(columnsEnum: CompanyUserColumn)
-        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id", "name"])
+        orderBy: _ @orderBy(columnsEnum: CompanyUserColumn)
     ): [User!]!
         @paginate(
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagementQuery@getAllCompanyUsers"
@@ -248,7 +248,7 @@ extend type Query @guard {
         )
 }
 
-extend type Mutation @guardByAdmin {
+extend type Mutation @guard {
     createCompany(input: CompanyInput): Company!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@createCompany"
@@ -262,6 +262,10 @@ extend type Mutation @guardByAdmin {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@updatePhotoProfile"
         )
+    uploadFileToCompany(id: ID!, file: Upload!): Company!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@attachFileToCompany"
+        )
     deleteCompany(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@deleteCompany"
@@ -273,6 +277,10 @@ extend type Mutation @guardByAdmin {
     updateCompanyBranch(id: ID!, input: CompanyBranchInput): CompanyBranch!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@updateCompanyBranch"
+        )
+    uploadFileToCompanyBranch(id: ID!, file: Upload!): CompanyBranch!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@attachFileToCompany"
         )
     deleteCompanyBranch(id: ID!): Boolean!
         @field(

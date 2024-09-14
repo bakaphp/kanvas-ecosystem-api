@@ -12,6 +12,7 @@ use Kanvas\Users\Models\Users;
 class UpdateCompaniesAction
 {
     public function __construct(
+        protected Companies $companies,
         protected Users $user,
         protected Company $data
     ) {
@@ -20,21 +21,19 @@ class UpdateCompaniesAction
     /**
      * Invoke function.
      */
-    public function execute(int $id): Companies
+    public function execute(): Companies
     {
-        $companies = Companies::findOrFail($id);
-
-        CompaniesRepository::userAssociatedToCompany($companies, $this->user);
-        $companies->updateOrFail($this->data->toArray());
+        CompaniesRepository::userAssociatedToCompany($this->companies, $this->user);
+        $this->companies->updateOrFail($this->data->toArray());
 
         if ($this->data->files) {
-            $companies->addMultipleFilesFromUrl($this->data->files);
+            $this->companies->addMultipleFilesFromUrl($this->data->files);
         }
 
         if ($this->data->custom_fields) {
-            $companies->setAll($this->data->custom_fields);
+            $this->companies->setAll($this->data->custom_fields);
         }
 
-        return $companies;
+        return $this->companies;
     }
 }

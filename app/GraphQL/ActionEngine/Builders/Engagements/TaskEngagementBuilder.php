@@ -26,6 +26,6 @@ class TaskEngagementBuilder
         $lead = Lead::getByIdFromCompanyApp($args['lead_id'], $company, $app);
         $leadId = $lead->getId();
 
-        return TaskEngagementItemRepository::getLeadsTaskItems($lead);
+        return TaskEngagementItemRepository::getLeadsTaskItems($lead, (int) ($args['task_list_id'] ?? null));
     }
 }

@@ -35,11 +35,14 @@ class CreateUserInteractionAction
     protected function addToCache(UsersInteractions $userInteraction): void
     {
         $currentData = $this->userInteractionData->user->get(UserConfigEnum::USER_INTERACTIONS->value) ?? [];
-        $currentData[$userInteraction->getCacheKey()][$this->userInteractionData->interaction->name] = true;
 
-        $this->userInteractionData->user->set(
-            UserConfigEnum::USER_INTERACTIONS->value,
-            $currentData
-        );
+        if (is_array($currentData)) {
+            $currentData[$userInteraction->getCacheKey()][$this->userInteractionData->interaction->name] = true;
+
+            $this->userInteractionData->user->set(
+                UserConfigEnum::USER_INTERACTIONS->value,
+                $currentData
+            );
+        }
     }
 }

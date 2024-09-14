@@ -29,7 +29,7 @@ class Attributes extends Data
     ) {
     }
 
-    public static function viaRequest(array $request, UserInterface $user): self
+    public static function viaRequest(array $request, UserInterface $user, AppInterface $app): self
     {
         return new self(
             isset($request['company_id']) ? Companies::getById($request['company_id']) : $user->getCurrentCompany(),
@@ -37,7 +37,7 @@ class Attributes extends Data
             auth()->user(),
             $request['name'],
             $request['slug'] ?? Str::slug($request['name']),
-            isset($request['attribute_type']['id']) ? AttributesTypesRepository::getById((int) $request['attribute_type']['id'], $user->getCurrentCompany()) : null,
+            isset($request['attribute_type']['id']) ? AttributesTypesModel::getById((int) $request['attribute_type']['id'], $app) : null,
             $request['is_visible'] ?? false,
             $request['is_searchable'] ?? false,
             $request['is_filtrable'] ?? false,

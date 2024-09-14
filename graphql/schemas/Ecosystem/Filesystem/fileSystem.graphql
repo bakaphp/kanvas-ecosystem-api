@@ -33,7 +33,7 @@ extend type Query @guard {
         )
 }
 
-type Mutation @guard {
+extend type Mutation @guard {
     "Upload a file that is publicly available."
     upload(file: Upload!): Filesystem!
         @field(
@@ -54,5 +54,9 @@ type Mutation @guard {
     deAttachFiles(uuids: [String!]!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@deAttachFiles"
+        )
+    uploadCsv(file: Upload!): Mixed!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@uploadCsv"
         )
 }

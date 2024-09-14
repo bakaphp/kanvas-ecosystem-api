@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Companies;
 
+use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Tests\TestCase;
@@ -165,6 +166,30 @@ class CompanyTest extends TestCase
         ->assertSee('public');
     }
 
+    public function testGetAdminCompanySetting()
+    {
+        $usr = auth()->user();
+        $company = $usr->getCurrentCompany();
+        $app = app(Apps::class);
+        $key = 'testName';
+        $company->set($key, 'testValue');
+
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            {
+                adminCompanySetting(entity_uuid: "' . $company->uuid . '", key: "' . $key . '") 
+            }
+            ',
+            [],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        )
+        ->assertSuccessful()
+        ->assertSee('testValue');
+    }
+
     public function testDeleteCompany(): void
     {
         $companyData = $this->companyInputData();
@@ -199,5 +224,45 @@ class CompanyTest extends TestCase
         )
         ->assertSuccessful()
         ->assertSee('deleteCompany', true);
+    }
+
+    public function testUploadFileToCompany()
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $operations = [
+            'query' => /** @lang GraphQL */ '
+            mutation uploadFileToCompany($id: ID!, $file: Upload!) {
+                uploadFileToCompany(id: $id, file: $file)
+                    { 
+                        id
+                        name
+                        files{
+                            data {
+                                name
+                                url
+                            }
+                        }
+                    } 
+                }
+            ',
+            'variables' => [
+                'id' => $company->getId(),
+                'file' => null,
+            ],
+        ];
+
+        $map = [
+            '0' => ['variables.file'],
+        ];
+
+        $file = [
+            '0' => UploadedFile::fake()->create('company.jpg'),
+        ];
+
+        $this->multipartGraphQL($operations, $map, $file)->assertSee('id')
+            ->assertSee('name')
+            ->assertSee('files')
+            ->assertSee('company.jpg');
     }
 }
