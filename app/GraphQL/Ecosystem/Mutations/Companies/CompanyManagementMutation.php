@@ -20,6 +20,7 @@ use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Users\Actions\AssignRoleAction;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -29,6 +30,8 @@ use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 
 class CompanyManagementMutation
 {
+    use HasMutationUploadFiles;
+
     /**
      * createCompany
      */
@@ -80,6 +83,21 @@ class CompanyManagementMutation
         $action = new UpdateCompaniesAction($company, $user, $dto);
 
         return $action->execute();
+    }
+
+    public function attachFileToCompany(mixed $root, array $request): Companies
+    {
+        $app = app(Apps::class);
+        $company = Companies::getById((int) $request['id']);
+
+        $this->hasCompanyPermission($company, auth()->user());
+
+        return $this->uploadFileToEntity(
+            model: $company,
+            app: $app,
+            user: auth()->user(),
+            request: $request
+        );
     }
 
     public function updatePhotoProfile(mixed $root, array $request): Companies

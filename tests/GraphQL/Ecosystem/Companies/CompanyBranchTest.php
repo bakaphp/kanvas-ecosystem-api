@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Companies;
 
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 class CompanyBranchTest extends TestCase
@@ -193,5 +194,45 @@ class CompanyBranchTest extends TestCase
         )
             ->assertSuccessful()
             ->assertSee('true');
+    }
+
+    public function testUploadFileToCompanyBranch()
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $operations = [
+            'query' => /** @lang GraphQL */ '
+            mutation uploadFileToCompanyBranch($id: ID!, $file: Upload!) {
+                uploadFileToCompanyBranch(id: $id, file: $file)
+                    { 
+                        id
+                        name
+                        files{
+                            data {
+                                name
+                                url
+                            }
+                        }
+                    } 
+                }
+            ',
+            'variables' => [
+                'id' => $company->branch->getId(),
+                'file' => null,
+            ],
+        ];
+
+        $map = [
+            '0' => ['variables.file'],
+        ];
+
+        $file = [
+            '0' => UploadedFile::fake()->create('branch.jpg'),
+        ];
+
+        $this->multipartGraphQL($operations, $map, $file)->assertSee('id')
+            ->assertSee('name')
+            ->assertSee('files')
+            ->assertSee('branch.jpg');
     }
 }

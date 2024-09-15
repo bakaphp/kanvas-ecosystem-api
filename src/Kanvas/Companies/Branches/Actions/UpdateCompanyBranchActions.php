@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Companies\Branches\Actions;
 
 use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPutData;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\StateEnums;
@@ -22,11 +21,6 @@ class UpdateCompanyBranchActions
     ) {
     }
 
-    /**
-     * Invoke function.
-     *
-     * @return Companies
-     */
     public function execute(int $companyBranchId): CompaniesBranches
     {
         $companyBranch = CompaniesBranches::getById($companyBranchId);
