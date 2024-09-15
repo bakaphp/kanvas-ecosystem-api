@@ -6,7 +6,7 @@ type FilesystemMapper {
     file_header: Mixed!
     mapping: Mixed!
     configuration: Mixed
-    system_module: SystemModule! @belongsTo
+    system_module: SystemModule! @belongsTo(relation: "systemModule")
     created_at: DateTime!
     updated_at: DateTime
 }
