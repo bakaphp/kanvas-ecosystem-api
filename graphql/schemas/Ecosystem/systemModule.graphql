@@ -23,6 +23,7 @@ extend type Query @guard {
             @whereConditions(
                 columns: [
                     "id"
+                    "uuid"
                     "slug"
                     "parents_id"
                     "created_at"
