@@ -4,6 +4,7 @@ type SystemModule {
     name: String!
     slug: String!
     model_name: String!
+    browse_fields: Mixed
     app: App! @belongsTo 
     parent: SystemModule @belongsTo
     menu_order: Int
