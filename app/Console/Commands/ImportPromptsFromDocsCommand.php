@@ -94,7 +94,6 @@ class ImportPromptsFromDocsCommand extends Command
 
                 foreach ($tags as $tagName) {
                     $tagName = trim(strtolower($tagName));
-                    
                     $tag = Tag::firstOrCreate(
                         ['name' => $tagName, 'apps_id' => $appId],
                         [
