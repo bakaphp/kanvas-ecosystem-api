@@ -66,7 +66,7 @@ class MessageBuilder
         array $args,
         GraphQLContext $context,
         ResolveInfo $resolveInfo
-    ) {
+    ): array {
         $client = SearchClient::create(
             config('scout.algolia.id'),
             config('scout.algolia.secret')
