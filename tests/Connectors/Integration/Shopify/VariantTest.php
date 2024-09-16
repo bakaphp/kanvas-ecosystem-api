@@ -78,7 +78,8 @@ final class VariantTest extends TestCase
                 attributeType: null,
                 isVisible: true,
                 isSearchable: true,
-                isFiltrable: true
+                isFiltrable: true,
+                isRequired: true
             ),
             $product->user
         );
