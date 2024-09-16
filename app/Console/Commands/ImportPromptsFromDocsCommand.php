@@ -200,8 +200,6 @@ class ImportPromptsFromDocsCommand extends Command
     {
         $paragraphStyle = $paragraph->getParagraphStyle();
         $namedStyleType = $paragraphStyle ? $paragraphStyle->getNamedStyleType() : null;
-        
-        
         // Skip paragraphs with Title style
         if ($namedStyleType === 'TITLE') {
             return '';
@@ -241,8 +239,6 @@ class ImportPromptsFromDocsCommand extends Command
 
         // Remove unnecessary spaces and line breaks
         $rawContent = preg_replace('/\s+/', ' ', $rawContent);
-
-        
         // Split the content by the keywords
         $parts = preg_split('/(' . implode('|', array_map('preg_quote', $keywords)) . ')/', $rawContent, -1, PREG_SPLIT_DELIM_CAPTURE);
 
