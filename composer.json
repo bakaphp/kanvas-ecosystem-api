@@ -18,7 +18,7 @@
         "darryldecode/cart": "dev-l11-compatibility",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
         "genealabs/laravel-model-caching": "^11.0",
-        "google/apiclient": "^2.16",
+        "google/apiclient": "^2.15.0",
         "google/cloud-recommendations-ai": "^0.7.5",
         "guzzlehttp/guzzle": "^7.6",
         "http-interop/http-factory-guzzle": "^1.0",
@@ -127,7 +127,8 @@
         ],
         "migrate-laravel-workflow": [
             "php artisan migrate --path vendor/laravel-workflow/laravel-workflow/src/migrations/ --database workflow"
-        ]
+        ],
+        "pre-autoload-dump": "Google\\Task\\Composer::cleanup"
     },
     "repositories": [
         {
@@ -138,7 +139,10 @@
     "extra": {
         "laravel": {
             "dont-discover": []
-        }
+        },
+        "google/apiclient-services": [
+            "Docs"
+        ]
     },
     "config": {
         "optimize-autoloader": true,
