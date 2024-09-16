@@ -14,9 +14,9 @@ use Kanvas\Social\Tags\Models\Tag;
 
 class ImportPromptsFromDocsCommand extends Command
 {
-    const APP_ID = 78;
-    const MESSAGE_TYPE = 588;
-    const COMPANY_ID = 2626;
+    private const APP_ID = 78;
+    private const MESSAGE_TYPE = 588;
+    private const COMPANY_ID = 2626;
 
     /**
      * The name and signature of the console command.
