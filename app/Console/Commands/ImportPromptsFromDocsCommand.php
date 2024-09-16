@@ -124,21 +124,30 @@ class ImportPromptsFromDocsCommand extends Command
             } elseif ($element->getTable()) {
                 $content .= $this->parseTable($element->getTable());
             }
-            // Add more conditions here for other element types if needed
         }
         return $content;
     }
 
     private function parseParagraph($paragraph)
     {
+        $paragraphStyle = $paragraph->getParagraphStyle();
+        $namedStyleType = $paragraphStyle ? $paragraphStyle->getNamedStyleType() : null;
+        
+        // Skip paragraphs with Title style
+        if ($namedStyleType === 'TITLE') {
+            return '';
+        }
+
         $text = '';
         $elements = $paragraph->getElements();
         foreach ($elements as $element) {
             if ($element->getTextRun()) {
-                $text .= $element->getTextRun()->getContent();
+                $textRun = $element->getTextRun();
+                $content = $textRun->getContent();
+                $text .= $content;
             }
         }
-        return $text . "\n";
+        return $text;
     }
 
     private function parseTable($table)
@@ -148,9 +157,8 @@ class ImportPromptsFromDocsCommand extends Command
         foreach ($rows as $row) {
             $cells = $row->getTableCells();
             foreach ($cells as $cell) {
-                $text .= $this->parseBody($cell->getContent()) . "\t";
+                $text .= $this->parseBody($cell->getContent());
             }
-            $text .= "\n";
         }
         return $text;
     }
@@ -162,6 +170,9 @@ class ImportPromptsFromDocsCommand extends Command
         $currentCategory = null;
         $keywords = ['Category:', 'Prompt Title:', 'Full Prompt:', 'Tags:'];
 
+        // Remove unnecessary spaces and line breaks
+        $rawContent = preg_replace('/\s+/', ' ', $rawContent);
+        
         // Split the content by the keywords
         $parts = preg_split('/(' . implode('|', array_map('preg_quote', $keywords)) . ')/', $rawContent, -1, PREG_SPLIT_DELIM_CAPTURE);
 
