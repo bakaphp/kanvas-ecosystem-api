@@ -14,6 +14,10 @@ use Kanvas\Social\Tags\Models\Tag;
 
 class ImportPromptsFromDocsCommand extends Command
 {
+    const APP_ID = 78;
+    const MESSAGE_TYPE = 588;
+    const COMPANY_ID = 2626;
+
     /**
      * The name and signature of the console command.
      *
@@ -51,11 +55,6 @@ class ImportPromptsFromDocsCommand extends Command
         $appId = 78;
         $messageType = 588;
         $companyId = 2626;
-        $userId = 3723;
-        /* $appId = 13;
-        $messageType = 572;
-        $companyId = 8535;
-        $userId = 14073; */
 
         foreach ($processedContent as $category => $prompts) {
             echo $category . PHP_EOL;
@@ -63,7 +62,7 @@ class ImportPromptsFromDocsCommand extends Command
             foreach ($prompts as $prompt) {
                 // Check if the message already exists
                 $message = Message::where('slug', $this->slugify($prompt['title']))
-                                 ->where('apps_id', $appId)
+                                 ->where('apps_id', self::APP_ID)
                                  ->first();
 
                 if ($message) {
@@ -75,11 +74,11 @@ class ImportPromptsFromDocsCommand extends Command
 
                 // Create new message
                 $message = Message::create([
-                    'apps_id' => $appId,
+                    'apps_id' => self::APP_ID,
                     'uuid' => (string) Str::uuid(),
-                    'companies_id' => $companyId,
+                    'companies_id' => self::COMPANY_ID,
                     'users_id' => $user->getId(),
-                    'message_types_id' => $messageType,
+                    'message_types_id' => self::MESSAGE_TYPE,
                     'message' => json_encode([
                         'title' => $prompt['title'],
                         // 'preview' => $prompt['preview'],
@@ -99,15 +98,15 @@ class ImportPromptsFromDocsCommand extends Command
                     $tag = Tag::firstOrCreate(
                         ['name' => $tagName, 'apps_id' => $appId],
                         [
-                            'companies_id' => $companyId,
-                            'users_id' => $userId,
+                            'companies_id' => self::COMPANY_ID,
+                            'users_id' => $user->getId(),
                             'slug' => $this->slugify($tagName),
                         ]
                     );
 
                     // Attach tag to message
                     $message->tags()->attach($tag->id, [
-                        'users_id' => $userId,
+                        'users_id' => $user->getId(),
                         'taggable_type' => Message::class,
                     ]);
                 }
