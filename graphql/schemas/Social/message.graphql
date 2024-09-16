@@ -274,4 +274,8 @@ extend type Query @guard {
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getGroupByDate"
             scopes: ["fromApp", "notDeleted"]
         )
+    messageSearchSuggestions(search: String!): Mixed!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@searchSuggestions"
+        )
 }

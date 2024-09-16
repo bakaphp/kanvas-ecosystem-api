@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Builders\Messages;
 
+use Algolia\AlgoliaSearch\SearchClient;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Models\Message;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
@@ -56,5 +58,31 @@ class MessageBuilder
                 ELSE DATE_FORMAT(created_at, "%M %Y")
             END as additional_field')
         );
+    }
+
+    public function searchSuggestions(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ) {
+        $client = SearchClient::create(
+            config('scout.algolia.id'),
+            config('scout.algolia.secret')
+        );
+
+        $app = app(Apps::class);
+        if (! $app->get('message_suggestion_index')) {
+            return ['error' => 'No index for message suggestion configure in your app'];
+        }
+
+        $index = $client->initIndex($app->get('message_suggestion_index'));
+
+        $results = $index->search($args['search'], [
+            'hitsPerPage' => 15,
+            'attributesToRetrieve' => ['name', 'description'],
+        ]);
+
+        return $results['hits'];
     }
 }
