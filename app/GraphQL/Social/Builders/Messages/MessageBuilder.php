@@ -9,6 +9,7 @@ use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Social\Enums\AppEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
@@ -72,11 +73,12 @@ class MessageBuilder
         );
 
         $app = app(Apps::class);
-        if (! $app->get('message_suggestion_index')) {
+        $suggestionIndex= AppEnum::MESSAGE_SEARCH_SUGGESTION_INDEX->value;
+        if (! $app->get($suggestionIndex)) {
             return ['error' => 'No index for message suggestion configure in your app'];
         }
 
-        $index = $client->initIndex($app->get('message_suggestion_index'));
+        $index = $client->initIndex($app->get($suggestionIndex));
 
         $results = $index->search($args['search'], [
             'hitsPerPage' => 15,
