@@ -71,12 +71,14 @@ class ImportPromptsFromDocsCommand extends Command
                     continue;
                 }
 
+                $user = $this->fetchRandomUser();
+
                 // Create new message
                 $message = Message::create([
                     'apps_id' => $appId,
                     'uuid' => (string) Str::uuid(),
                     'companies_id' => $companyId,
-                    'users_id' => $userId,
+                    'users_id' => $user->getId(),
                     'message_types_id' => $messageType,
                     'message' => json_encode([
                         'title' => $prompt['title'],
