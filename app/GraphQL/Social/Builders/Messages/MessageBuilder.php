@@ -73,7 +73,7 @@ class MessageBuilder
         );
 
         $app = app(Apps::class);
-        $suggestionIndex= AppEnum::MESSAGE_SEARCH_SUGGESTION_INDEX->value;
+        $suggestionIndex = AppEnum::MESSAGE_SEARCH_SUGGESTION_INDEX->value;
         if (! $app->get($suggestionIndex)) {
             return ['error' => 'No index for message suggestion configure in your app'];
         }
