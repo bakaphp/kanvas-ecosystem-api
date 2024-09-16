@@ -41,10 +41,11 @@ class ImportPromptsFromDocsCommand extends Command
         $service = new \Google\Service\Docs($client);
         $document = $service->documents->get(getenv('GOOGLE_DOC_ID'));
         $body = $document->getBody();
-        $contentArray = $this->parseBody($body);
+        $rawContent = $this->parseBody($body);
+        $processedContent = $this->processContent($rawContent);
 
-        print_r($contentArray);
-        // Now you can process $contentArray as needed
+        print_r($processedContent);
+        // Now you can use $processedContent as needed
     }
 
     /**
@@ -115,13 +116,13 @@ class ImportPromptsFromDocsCommand extends Command
      */
     private function parseBody($body)
     {
-        $content = [];
+        $content = '';
         $elements = $body->getContent();
         foreach ($elements as $element) {
             if ($element->getParagraph()) {
-                $content = array_merge($content, $this->parseParagraph($element->getParagraph()));
+                $content .= $this->parseParagraph($element->getParagraph());
             } elseif ($element->getTable()) {
-                $content[] = $this->parseTable($element->getTable());
+                $content .= $this->parseTable($element->getTable());
             }
             // Add more conditions here for other element types if needed
         }
@@ -130,53 +131,78 @@ class ImportPromptsFromDocsCommand extends Command
 
     private function parseParagraph($paragraph)
     {
+        $text = '';
         $elements = $paragraph->getElements();
-        $content = [];
-        $currentKey = null;
-        $currentValue = '';
-
-        $keywords = ['Prompt Title', 'Full Prompt', 'Tags'];
-
         foreach ($elements as $element) {
             if ($element->getTextRun()) {
-                $textRun = $element->getTextRun();
-                $text = $textRun->getContent();
-                $bold = $textRun->getTextStyle()->getBold();
-
-                if ($bold && substr(trim($text), -1) === ':') {
-                    $key = trim($text, ': ');
-                    if (in_array($key, $keywords)) {
-                        if ($currentKey !== null) {
-                            $content[$currentKey] = trim($currentValue);
-                        }
-                        $currentKey = $key;
-                        $currentValue = '';
-                    }
-                } else {
-                    $currentValue .= $text;
-                }
+                $text .= $element->getTextRun()->getContent();
             }
         }
-
-        if ($currentKey !== null) {
-            $content[$currentKey] = trim($currentValue);
-        }
-
-        return $content;
+        return $text . "\n";
     }
 
     private function parseTable($table)
     {
-        $rowsArray = [];
+        $text = '';
         $rows = $table->getTableRows();
         foreach ($rows as $row) {
-            $cellsArray = [];
             $cells = $row->getTableCells();
             foreach ($cells as $cell) {
-                $cellsArray[] = $this->parseBody($cell->getContent());
+                $text .= $this->parseBody($cell->getContent()) . "\t";
             }
-            $rowsArray[] = $cellsArray;
+            $text .= "\n";
         }
-        return ['type' => 'table', 'content' => $rowsArray];
+        return $text;
+    }
+
+    private function processContent($rawContent)
+    {
+        $result = [];
+        $currentPrompt = [];
+        $currentCategory = null;
+        $keywords = ['Category:', 'Prompt Title:', 'Full Prompt:', 'Tags:'];
+
+        // Split the content by the keywords
+        $parts = preg_split('/(' . implode('|', array_map('preg_quote', $keywords)) . ')/', $rawContent, -1, PREG_SPLIT_DELIM_CAPTURE);
+
+        $currentKey = '';
+        foreach ($parts as $part) {
+            $part = trim($part);
+            if (in_array($part, $keywords)) {
+                $currentKey = rtrim($part, ':');
+            } elseif (!empty($part) && !empty($currentKey)) {
+                switch ($currentKey) {
+                    case 'Category':
+                        if ($currentCategory !== null && !empty($currentPrompt)) {
+                            $result[$currentCategory][] = $currentPrompt;
+                            $currentPrompt = [];
+                        }
+                        $currentCategory = $this->slugify($part);
+                        if (!isset($result[$currentCategory])) {
+                            $result[$currentCategory] = [];
+                        }
+                        break;
+                    case 'Prompt Title':
+                        if (!empty($currentPrompt)) {
+                            $result[$currentCategory][] = $currentPrompt;
+                        }
+                        $currentPrompt = ['title' => $part];
+                        break;
+                    case 'Full Prompt':
+                        $currentPrompt['full_prompt'] = $part;
+                        break;
+                    case 'Tags':
+                        $currentPrompt['tags'] = array_map('trim', explode(',', $part));
+                        break;
+                }
+            }
+        }
+
+        // Add the last prompt if it exists
+        if ($currentCategory !== null && !empty($currentPrompt)) {
+            $result[$currentCategory][] = $currentPrompt;
+        }
+
+        return $result;
     }
 }
