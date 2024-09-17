@@ -42,7 +42,7 @@ class ShopifyInventoryService
             'body_html' => $product->description,
             'product_type' => $product->productsTypes?->name ?? 'default',
             'vendor' => 'default' , //$product->categ->name , setup vendor as a attribute and add a wy to look for a attribute $product->attribute('vendor')
-            'status' => $status->value,
+            'status' => $product->hasStock($this->warehouses) ? $status->value : StatusEnum::ARCHIVED->value,
             'published_scope' => 'web',
         ];
 
@@ -90,7 +90,7 @@ class ShopifyInventoryService
      */
     public function mapVariant(Variants $variant, ?Channels $channel = null): array
     {
-        $warehouseInfo = $variant->variantWarehouses()->where('warehouses_id', $this->warehouses->getId());
+        $warehouseInfo = $variant->variantWarehouses()->where('warehouses_id', $this->warehouses->getId())->first();
 
         if ($channel) {
             $channelInfo = $variant->variantChannels()->where('channels_id', $channel->getId())->first();
@@ -127,7 +127,7 @@ class ShopifyInventoryService
         return $shopifyVariantInfo;
     }
 
-    public function saveVariant(Variants $variant, Channels $channel = null): array
+    public function saveVariant(Variants $variant, ?Channels $channel = null): array
     {
         $shopifyProductVariantId = $variant->getShopifyId($this->warehouses->regions);
         $shopifyVariantMetafieldService = new ShopifyVariantMetafieldService($this->app, $this->company, $this->warehouses->regions, $variant);
@@ -157,7 +157,7 @@ class ShopifyInventoryService
         return $response;
     }
 
-    public function setStock(Variants $variant, Channels $channel, bool $isAdjustment = false): int
+    public function setStock(Variants $variant, ?Channels $channel = null, bool $isAdjustment = false): int
     {
         $shopifyVariant = $this->shopifySdk->ProductVariant($variant->getShopifyId($this->warehouses->regions));
 
@@ -218,12 +218,12 @@ class ShopifyInventoryService
 
         $collectData = [
            'collection_id' => $collectionId,
-           'product_id' => $shopifyProductId
+           'product_id' => $shopifyProductId,
         ];
         $collects = $this->shopifySdk->Collect->get([
             'collection_id' => $collectionId,
             'product_id' => $shopifyProductId,
-            'limit' => 1
+            'limit' => 1,
         ]);
         if ($collects) {
             return;

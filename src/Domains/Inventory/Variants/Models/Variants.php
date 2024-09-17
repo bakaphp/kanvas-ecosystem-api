@@ -354,6 +354,13 @@ class Variants extends BaseModel
         return (int) $totalVariantQuantity;
     }
 
+    public function getQuantity(Warehouses $warehouse): float
+    {
+        $warehouseInfo = $this->variantWarehouses()->where('warehouses_id', $warehouse->getId())->first();
+
+        return $warehouseInfo?->quantity ?? 0;
+    }
+
     /**
      * Set the total amount of variants in all the warehouses.
      */

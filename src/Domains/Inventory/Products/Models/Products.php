@@ -261,6 +261,17 @@ class Products extends BaseModel
         return new ProductFactory();
     }
 
+    public function hasStock(Warehouses $warehouses): bool
+    {
+        foreach ($this->variants as $variant) {
+            if ($variant->getQuantity($warehouses)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Add/create new attributes from a product.
      * @psalm-suppress MixedAssignment
