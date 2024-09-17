@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem\Users;
 
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Mail;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\LoginInput;
@@ -326,5 +327,43 @@ class UserTest extends TestCase
                 'requestDeleteAccount' => true,
             ],
         ]);
+    }
+
+    public function testUploadFileToUser()
+    {
+        $operations = [
+            'query' => /** @lang GraphQL */ '
+            mutation uploadFileToUser($id: ID!, $file: Upload!) {
+                uploadFileToUser(id: $id, file: $file)
+                    { 
+                        id
+                        displayname
+                        files{
+                            data {
+                                name
+                                url
+                            }
+                        }
+                    } 
+                }
+            ',
+            'variables' => [
+                'id' => 0,
+                'file' => null,
+            ],
+        ];
+
+        $map = [
+            '0' => ['variables.file'],
+        ];
+
+        $file = [
+            '0' => UploadedFile::fake()->create('avatar.jpg'),
+        ];
+
+        $this->multipartGraphQL($operations, $map, $file)->assertSee('id')
+            ->assertSee('displayname')
+            ->assertSee('files')
+            ->assertSee('avatar.jpg');
     }
 }

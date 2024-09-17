@@ -1195,16 +1195,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.321.9",
+            "version": "3.321.12",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "5de5099cfe0e17cb3eb2fe51de0101c99bc9442a"
+                "reference": "ccb1871998fb05ec1075468a743afba51a36e2c4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/5de5099cfe0e17cb3eb2fe51de0101c99bc9442a",
-                "reference": "5de5099cfe0e17cb3eb2fe51de0101c99bc9442a",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/ccb1871998fb05ec1075468a743afba51a36e2c4",
+                "reference": "ccb1871998fb05ec1075468a743afba51a36e2c4",
                 "shasum": ""
             },
             "require": {
@@ -1287,9 +1287,9 @@
             "support": {
                 "forum": "https://forums.aws.amazon.com/forum.jspa?forumID=80",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.321.9"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.321.12"
             },
-            "time": "2024-09-11T18:15:49+00:00"
+            "time": "2024-09-16T18:15:56+00:00"
         },
         {
             "name": "berkayk/onesignal-laravel",
@@ -2440,16 +2440,16 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.372.0",
+            "version": "v0.373.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
-                "reference": "61b9426f6351ac3c652f6d9ba014c89fc446f764"
+                "reference": "88ee17077a2048ba0b2c637754b599be0523fe36"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/61b9426f6351ac3c652f6d9ba014c89fc446f764",
-                "reference": "61b9426f6351ac3c652f6d9ba014c89fc446f764",
+                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/88ee17077a2048ba0b2c637754b599be0523fe36",
+                "reference": "88ee17077a2048ba0b2c637754b599be0523fe36",
                 "shasum": ""
             },
             "require": {
@@ -2478,9 +2478,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.372.0"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.373.0"
             },
-            "time": "2024-09-09T01:04:23+00:00"
+            "time": "2024-09-16T00:56:51+00:00"
         },
         {
             "name": "google/auth",
@@ -3900,16 +3900,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v11.23.2",
+            "version": "v11.23.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "d38bf0fd3a8936e1cb9ca8eb8d7304a564f790f3"
+                "reference": "16b31ab0e1dad5cb2ed6dcc1818c02f02fc48453"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/d38bf0fd3a8936e1cb9ca8eb8d7304a564f790f3",
-                "reference": "d38bf0fd3a8936e1cb9ca8eb8d7304a564f790f3",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/16b31ab0e1dad5cb2ed6dcc1818c02f02fc48453",
+                "reference": "16b31ab0e1dad5cb2ed6dcc1818c02f02fc48453",
                 "shasum": ""
             },
             "require": {
@@ -4104,7 +4104,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2024-09-11T21:59:23+00:00"
+            "time": "2024-09-13T13:36:30+00:00"
         },
         {
             "name": "laravel/octane",
@@ -5557,16 +5557,16 @@
         },
         {
             "name": "meilisearch/meilisearch-php",
-            "version": "v1.10.0",
+            "version": "v1.10.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/meilisearch/meilisearch-php.git",
-                "reference": "110be455194fda42ae3a3b8b6a9243479c3a6d19"
+                "reference": "e3d8a74fdb0c65ecdef6ef9e89c110810c5c1aa0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/meilisearch/meilisearch-php/zipball/110be455194fda42ae3a3b8b6a9243479c3a6d19",
-                "reference": "110be455194fda42ae3a3b8b6a9243479c3a6d19",
+                "url": "https://api.github.com/repos/meilisearch/meilisearch-php/zipball/e3d8a74fdb0c65ecdef6ef9e89c110810c5c1aa0",
+                "reference": "e3d8a74fdb0c65ecdef6ef9e89c110810c5c1aa0",
                 "shasum": ""
             },
             "require": {
@@ -5618,9 +5618,9 @@
             ],
             "support": {
                 "issues": "https://github.com/meilisearch/meilisearch-php/issues",
-                "source": "https://github.com/meilisearch/meilisearch-php/tree/v1.10.0"
+                "source": "https://github.com/meilisearch/meilisearch-php/tree/v1.10.1"
             },
-            "time": "2024-08-26T23:09:54+00:00"
+            "time": "2024-09-15T22:50:45+00:00"
         },
         {
             "name": "mll-lab/graphql-php-scalars",
@@ -6233,16 +6233,16 @@
         },
         {
             "name": "nikic/php-parser",
-            "version": "v5.1.0",
+            "version": "v5.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nikic/PHP-Parser.git",
-                "reference": "683130c2ff8c2739f4822ff7ac5c873ec529abd1"
+                "reference": "23c79fbbfb725fb92af9bcf41065c8e9a0d49ddb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/683130c2ff8c2739f4822ff7ac5c873ec529abd1",
-                "reference": "683130c2ff8c2739f4822ff7ac5c873ec529abd1",
+                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/23c79fbbfb725fb92af9bcf41065c8e9a0d49ddb",
+                "reference": "23c79fbbfb725fb92af9bcf41065c8e9a0d49ddb",
                 "shasum": ""
             },
             "require": {
@@ -6285,9 +6285,9 @@
             ],
             "support": {
                 "issues": "https://github.com/nikic/PHP-Parser/issues",
-                "source": "https://github.com/nikic/PHP-Parser/tree/v5.1.0"
+                "source": "https://github.com/nikic/PHP-Parser/tree/v5.2.0"
             },
-            "time": "2024-07-01T20:03:41+00:00"
+            "time": "2024-09-15T16:40:33+00:00"
         },
         {
             "name": "nunomaduro/termwind",
@@ -7318,16 +7318,16 @@
         },
         {
             "name": "phpseclib/phpseclib",
-            "version": "3.0.41",
+            "version": "3.0.42",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpseclib/phpseclib.git",
-                "reference": "621c73f7dcb310b61de34d1da4c4204e8ace6ceb"
+                "reference": "db92f1b1987b12b13f248fe76c3a52cadb67bb98"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/621c73f7dcb310b61de34d1da4c4204e8ace6ceb",
-                "reference": "621c73f7dcb310b61de34d1da4c4204e8ace6ceb",
+                "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/db92f1b1987b12b13f248fe76c3a52cadb67bb98",
+                "reference": "db92f1b1987b12b13f248fe76c3a52cadb67bb98",
                 "shasum": ""
             },
             "require": {
@@ -7408,7 +7408,7 @@
             ],
             "support": {
                 "issues": "https://github.com/phpseclib/phpseclib/issues",
-                "source": "https://github.com/phpseclib/phpseclib/tree/3.0.41"
+                "source": "https://github.com/phpseclib/phpseclib/tree/3.0.42"
             },
             "funding": [
                 {
@@ -7424,7 +7424,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2024-08-12T00:13:54+00:00"
+            "time": "2024-09-16T03:06:04+00:00"
         },
         {
             "name": "phpstan/phpdoc-parser",
@@ -9756,16 +9756,16 @@
         },
         {
             "name": "stripe/stripe-php",
-            "version": "v15.8.0",
+            "version": "v15.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/stripe/stripe-php.git",
-                "reference": "5ed133fa45987771f80ad300be2316c05832f6a7"
+                "reference": "dc9726ac0cfbba7b3c97e2cf6042f2c090551cdb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/stripe/stripe-php/zipball/5ed133fa45987771f80ad300be2316c05832f6a7",
-                "reference": "5ed133fa45987771f80ad300be2316c05832f6a7",
+                "url": "https://api.github.com/repos/stripe/stripe-php/zipball/dc9726ac0cfbba7b3c97e2cf6042f2c090551cdb",
+                "reference": "dc9726ac0cfbba7b3c97e2cf6042f2c090551cdb",
                 "shasum": ""
             },
             "require": {
@@ -9809,9 +9809,9 @@
             ],
             "support": {
                 "issues": "https://github.com/stripe/stripe-php/issues",
-                "source": "https://github.com/stripe/stripe-php/tree/v15.8.0"
+                "source": "https://github.com/stripe/stripe-php/tree/v15.9.0"
             },
-            "time": "2024-08-29T21:58:14+00:00"
+            "time": "2024-09-12T22:05:50+00:00"
         },
         {
             "name": "swoole/ide-helper",
@@ -14501,16 +14501,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "11.3.4",
+            "version": "11.3.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "d2ef57db1410b102b250e0cdce6675a60c2a993d"
+                "reference": "4dc07a589a68f8f2d5132ac0849146d122e08347"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/d2ef57db1410b102b250e0cdce6675a60c2a993d",
-                "reference": "d2ef57db1410b102b250e0cdce6675a60c2a993d",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/4dc07a589a68f8f2d5132ac0849146d122e08347",
+                "reference": "4dc07a589a68f8f2d5132ac0849146d122e08347",
                 "shasum": ""
             },
             "require": {
@@ -14531,7 +14531,7 @@
                 "phpunit/php-timer": "^7.0.1",
                 "sebastian/cli-parser": "^3.0.2",
                 "sebastian/code-unit": "^3.0.1",
-                "sebastian/comparator": "^6.0.2",
+                "sebastian/comparator": "^6.1.0",
                 "sebastian/diff": "^6.0.2",
                 "sebastian/environment": "^7.2.0",
                 "sebastian/exporter": "^6.1.3",
@@ -14581,7 +14581,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/11.3.4"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/11.3.5"
             },
             "funding": [
                 {
@@ -14597,7 +14597,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2024-09-09T06:08:34+00:00"
+            "time": "2024-09-13T05:22:17+00:00"
         },
         {
             "name": "sebastian/cli-parser",

@@ -11,10 +11,12 @@ use Laravel\Octane\Events\TickTerminated;
 use Laravel\Octane\Events\WorkerErrorOccurred;
 use Laravel\Octane\Events\WorkerStarting;
 use Laravel\Octane\Events\WorkerStopping;
+use Laravel\Octane\Listeners\CloseMonologHandlers;
 use Laravel\Octane\Listeners\CollectGarbage;
 use Laravel\Octane\Listeners\DisconnectFromDatabases;
 use Laravel\Octane\Listeners\EnsureUploadedFilesAreValid;
 use Laravel\Octane\Listeners\EnsureUploadedFilesCanBeMoved;
+use Laravel\Octane\Listeners\FlushOnce;
 use Laravel\Octane\Listeners\FlushTemporaryContainerInstances;
 use Laravel\Octane\Listeners\FlushUploadedFiles;
 use Laravel\Octane\Listeners\ReportException;
@@ -22,9 +24,8 @@ use Laravel\Octane\Listeners\StopWorkerIfNecessary;
 use Laravel\Octane\Octane;
 
 return [
-
-    'host' => "0.0.0.0",
-    'port' => "8000",
+    'host' => '0.0.0.0',
+    'port' => '8000',
     'swoole' => [
         'options' => [
             'worker_num' => 8,
@@ -82,11 +83,9 @@ return [
         RequestReceived::class => [
             ...Octane::prepareApplicationForNextOperation(),
             ...Octane::prepareApplicationForNextRequest(),
-
         ],
 
         RequestHandled::class => [
-
         ],
 
         RequestTerminated::class => [
@@ -95,25 +94,22 @@ return [
 
         TaskReceived::class => [
             ...Octane::prepareApplicationForNextOperation(),
-
         ],
 
         TaskTerminated::class => [
-
         ],
 
         TickReceived::class => [
             ...Octane::prepareApplicationForNextOperation(),
-
         ],
 
         TickTerminated::class => [
-
         ],
 
         OperationTerminated::class => [
+            FlushOnce::class,
             FlushTemporaryContainerInstances::class,
-            DisconnectFromDatabases::class,
+            // DisconnectFromDatabases::class,
             // CollectGarbage::class,
         ],
 
@@ -123,7 +119,7 @@ return [
         ],
 
         WorkerStopping::class => [
-
+            CloseMonologHandlers::class,
         ],
     ],
 
@@ -144,7 +140,6 @@ return [
     ],
 
     'flush' => [
-
     ],
 
     /*
