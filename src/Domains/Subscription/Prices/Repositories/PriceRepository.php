@@ -11,13 +11,7 @@ use Baka\Traits\SearchableTrait;
 class PriceRepository
 {
     use SearchableTrait;
-    
-    /**
-     * Get a price by its ID.
-     *
-     * @param int $id
-     * @return Price
-     */
+
     public static function getModel(): Model
     {
         return new Price();

@@ -26,7 +26,7 @@ class Plan extends BaseModel
 {
     protected $table = 'apps_plans';
     protected $guarded = [];
-    
+
     /**
      * subscriptionItem.
      */

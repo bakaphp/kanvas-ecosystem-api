@@ -24,11 +24,6 @@ class CreatePrice
      */
     public function execute(): Price
     {
-        CompaniesRepository::userAssociatedToCompany(
-            $this->dto->company,
-            $this->user
-        );
-
         return Price::firstOrCreate([
             'stripe_id' => $this->dto->stripe_id,
             'apps_plans_id' => $this->dto->apps_plans_id,

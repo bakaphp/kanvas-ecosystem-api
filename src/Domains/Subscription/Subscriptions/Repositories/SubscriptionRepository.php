@@ -10,7 +10,7 @@ use Baka\Traits\SearchableTrait;
 class SubscriptionRepository
 {
     use SearchableTrait;
-    
+
     /**
      * Get the model instance for Subscription.
      *

@@ -68,7 +68,7 @@ class SubscriptionItemMutation
             'quantity' => $req['input']['quantity'] ?? $subscriptionItem->quantity,
         ]);
 
-$dto = SubscriptionItemDto::viaRequest($req['input'], Auth::user(), $company, $app);
+        $dto = SubscriptionItemDto::viaRequest($req['input'], Auth::user(), $company, $app);
 
         $action = new UpdateSubscriptionItem($subscriptionItem, $dto);
         $updatedSubscriptionItem = $action->execute();

@@ -10,7 +10,6 @@ use Kanvas\Subscription\Plans\Repositories\PlanRepository;
 use Kanvas\Subscription\Plans\DataTransferObject\Plan as PlanDto;
 use Kanvas\Subscription\Plans\Models\Plan as PlanModel;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Illuminate\Support\Facades\Auth;
 use Stripe\Stripe;
 use Stripe\Product as StripeProduct;
@@ -34,16 +33,17 @@ class PlanMutation
     public function create(array $req): PlanModel
     {
         $app = Apps::findOrFail($req['input']['apps_id']);
-        
+
         $stripeProduct = StripeProduct::create([
             'name' => $req['input']['name'],
             'description' => $req['input']['description'] ?? '',
         ]);
 
         $dto = PlanDto::viaRequest(
-            array_merge($req['input'], ['stripe_id' => $stripeProduct->id]), 
+            array_merge($req['input'], ['stripe_id' => $stripeProduct->id]),
             Auth::user(),
-            $app);
+            $app
+        );
 
         $action = new CreatePlan($dto);
         $planModel = $action->execute();

@@ -19,7 +19,6 @@ class CreatePlan
         return Plan::firstOrCreate([
             'stripe_id' => $this->dto->stripe_id,
             'apps_id' => $this->dto->app->getId(),
-            'companies_id' => $this->dto->company->getId(),
         ], [
             'name' => $this->dto->name,
             'description' => $this->dto->description,

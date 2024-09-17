@@ -10,7 +10,6 @@ use Kanvas\Subscription\Prices\Repositories\PriceRepository;
 use Kanvas\Subscription\Prices\DataTransferObject\Price as PriceDto;
 use Kanvas\Subscription\Prices\Models\Price as PriceModel;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Illuminate\Support\Facades\Auth;
 use Stripe\Stripe;
 use Stripe\Price as StripePrice;
@@ -34,7 +33,7 @@ class PriceMutation
     public function create(array $req): PriceModel
     {
         $app = Apps::findOrFail($req['input']['apps_id']);
-        
+
         $stripeProduct = StripeProduct::create([
             'name' => 'Price for Plan ' . $req['input']['apps_plans_id'],
         ]);

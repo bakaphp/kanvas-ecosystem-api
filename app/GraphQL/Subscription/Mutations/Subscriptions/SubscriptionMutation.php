@@ -39,17 +39,14 @@ class SubscriptionMutation
         $app = app(Apps::class);
         $company = Companies::findOrFail($req['input']['companies_id']);
         $paymentMethodId = $req['input']['payment_method_id'];
-        
-        
-        // Check if there is already a stripe_customer_id for this company and app
+
         $appStripeCustomer = AppsStripeCustomerModel::where('companies_id', $company->id)
             ->where('apps_id', $app->id)
             ->first();
-        
-        if (!$appStripeCustomer) {
+
+        if (! $appStripeCustomer) {
             $stripeCustomerId = $this->createStripeCustomer($company, $paymentMethodId);
-    
-            // Save the new stripe_customer_id in the apps_stripe_customers table
+
             $appStripeCustomer = AppsStripeCustomerModel::create([
                 'companies_id' => $company->id,
                 'apps_id' => $app->id,
@@ -76,12 +73,11 @@ class SubscriptionMutation
 
     public function update(array $req): SubscriptionModel
     {
-
         $app = app(Apps::class);
         $company = Companies::findOrFail($req['input']['companies_id']);
-        
+
         $subscription = SubscriptionModel::findOrFail($req['input']['id']);
-        
+
         if ($subscription->app_id != $app->id) {
             throw new \Exception("This subscription does not belong to the current app.");
         }
@@ -121,10 +117,10 @@ class SubscriptionMutation
         $stripeSubscription->cancel();
 
         $dto = SubscriptionDto::viaRequest($req['input'], Auth::user(), $company, $app);
-    
+
         $action = new CancelSubscription($subscription, $dto);
         $action->execute();
-    
+
         return $subscription;
     }
 

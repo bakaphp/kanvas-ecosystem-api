@@ -25,11 +25,6 @@ class UpdatePrice
      */
     public function execute(): Price
     {
-        CompaniesRepository::userAssociatedToCompany(
-            $this->dto->company,
-            $this->user
-        );
-
         $this->price->update([
             'amount' => $this->dto->amount,
             'currency' => $this->dto->currency,
