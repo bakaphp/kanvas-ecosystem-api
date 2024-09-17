@@ -53,7 +53,6 @@ class ExportProductToShopifyActivity extends Activity
                         $status = Status::where('slug', StatusEnum::CONNECTED->value)
                         ->where('apps_id', 0)
                         ->first();
-
                     } catch (Throwable $exception) {
                         $status = Status::where('slug', StatusEnum::FAILED->value)
                         ->where('apps_id', 0)
