@@ -36,8 +36,8 @@ class EntityIntegrationHistoryService
                                 })
                                 ->get();
 
-        foreach($integrationsCompany as $integrationCompany) {
-            if ($integrationCompany->history()->where('apps_id', $this->app->getId())->exists()){
+        foreach ($integrationsCompany as $integrationCompany) {
+            if ($integrationCompany->history()->where('apps_id', $this->app->getId())->exists()) {
                 $integrationStatus = array_merge(
                     $integrationStatus,
                     $integrationCompany->history->map(function ($history) {
@@ -48,5 +48,4 @@ class EntityIntegrationHistoryService
         }
         return $integrationStatus;
     }
-
 }
