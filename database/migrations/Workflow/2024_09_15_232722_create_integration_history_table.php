@@ -28,6 +28,7 @@ return new class () extends Migration {
             $table->foreign('integrations_company_id')->references('id')->on('integration_companies');
             $table->foreign('status_id')->references('id')->on('status');
 
+            $table->index('entity_id', 'entity_id_index');
             $table->index('status_id', 'status_id_index');
             $table->index('integrations_company_id', 'integrations_company_id_index');
             $table->index('apps_id', 'apps_id_index');
