@@ -31,6 +31,8 @@ services:
       dockerfile: development.Dockerfile
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    ports:
+      - "8000:8000"
     command: 
     - "sh"
     - "-c"
@@ -58,18 +60,6 @@ services:
   queue3:
     <<: *common-queue-settings
     container_name: queue3
-
-  queue4:
-    <<: *common-queue-settings
-    container_name: queue4
-
-  queue5:
-    <<: *common-queue-settings
-    container_name: queue5
-
-  queue6:
-    <<: *common-queue-settings
-    container_name: queue6
 
   batch-logger-queue:
     <<: *common-queue-settings
