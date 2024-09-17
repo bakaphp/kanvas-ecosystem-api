@@ -57,7 +57,7 @@ class Integrations extends BaseModel
         $active = Status::getDefaultStatusByName(StatusEnum::ACTIVE->value);
         $integrations = $this->integrationCompany()->where('companies_id', $company->getId());
 
-        if( !$integrations->exists()) {
+        if (!$integrations->exists()) {
             return Status::getDefaultStatusByName(StatusEnum::OFFLINE->value);
         }
 
