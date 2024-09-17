@@ -9,6 +9,8 @@ use Kanvas\Subscription\Prices\Actions\UpdatePrice;
 use Kanvas\Subscription\Prices\Repositories\PriceRepository;
 use Kanvas\Subscription\Prices\DataTransferObject\Price as PriceDto;
 use Kanvas\Subscription\Prices\Models\Price as PriceModel;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Illuminate\Support\Facades\Auth;
 use Stripe\Stripe;
 use Stripe\Price as StripePrice;
@@ -18,7 +20,8 @@ class PriceMutation
 {
     public function __construct()
     {
-        Stripe::setApiKey(env('STRIPE_SECRET'));
+        $app = app(Apps::class);
+        Stripe::setApiKey($app->get('stripe_secret'));
     }
 
     /**
@@ -30,6 +33,8 @@ class PriceMutation
      */
     public function create(array $req): PriceModel
     {
+        $app = Apps::findOrFail($req['input']['apps_id']);
+        
         $stripeProduct = StripeProduct::create([
             'name' => 'Price for Plan ' . $req['input']['apps_plans_id'],
         ]);
@@ -41,7 +46,11 @@ class PriceMutation
             'product' => $stripeProduct->id,
         ]);
 
-        $dto = PriceDto::viaRequest(array_merge($req['input'], ['stripe_id' => $stripePrice->id]), Auth::user());
+        $dto = PriceDto::viaRequest(
+            array_merge($req['input'], ['stripe_id' => $stripePrice->id]),
+            Auth::user(),
+            $app
+        );
 
         $action = new CreatePrice($dto, Auth::user());
         $priceModel = $action->execute();
@@ -58,6 +67,7 @@ class PriceMutation
      */
     public function update(array $req): PriceModel
     {
+        $app = Apps::findOrFail($req['input']['apps_id']);
         $price = PriceRepository::getByStripeId($req['id']);
 
         StripePrice::create([
@@ -67,7 +77,7 @@ class PriceMutation
             'product' => $price->stripe_id,
         ]);
 
-        $dto = PriceDto::viaRequest($req['input'], Auth::user());
+        $dto = PriceDto::viaRequest($req['input'], Auth::user(), $app);
         $action = new UpdatePrice($price, $dto, Auth::user());
         $updatedPrice = $action->execute();
 

@@ -42,14 +42,6 @@ class Subscription extends BaseModel
     protected $guarded = [];
 
     /**
-     * apps.
-     */
-    public function apps(): BelongsTo
-    {
-        return $this->belongsTo(Apps::class, 'apps_id');
-    }
-
-    /**
      * companies.
      */
     public function company(): BelongsTo

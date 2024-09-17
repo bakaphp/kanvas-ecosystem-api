@@ -6,9 +6,12 @@ namespace Kanvas\Subscription\SubscriptionItems\Repositories;
 
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Subscription\SubscriptionItems\Models\SubscriptionItem;
+use Baka\Traits\SearchableTrait;
 
 class SubscriptionItemRepository
 {
+    use SearchableTrait;
+    
     /**
      * Get the model instance for SubscriptionItem.
      *
@@ -17,27 +20,5 @@ class SubscriptionItemRepository
     public static function getModel(): Model
     {
         return new SubscriptionItem();
-    }
-
-    /**
-     * Get a subscriptionItem by its ID.
-     *
-     * @param int $id
-     * @return SubscriptionItem
-     */
-    public static function getById(int $id): SubscriptionItem
-    {
-        return SubscriptionItem::findOrFail($id);
-    }
-
-    /**
-     * Get a subscriptionItem by its Subscription ID.
-     *
-     * @param int $subscriptionId
-     * @return SubscriptionItem
-     */
-    public static function getBySubscriptionId(int $subscriptionId): SubscriptionItem
-    {
-        return SubscriptionItem::where('subscription_id', $subscriptionId)->firstOrFail();
     }
 }

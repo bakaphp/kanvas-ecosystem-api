@@ -6,9 +6,12 @@ namespace Kanvas\Subscription\Prices\Repositories;
 
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Subscription\Prices\Models\Price;
+use Baka\Traits\SearchableTrait;
 
 class PriceRepository
 {
+    use SearchableTrait;
+    
     /**
      * Get a price by its ID.
      *
@@ -19,16 +22,4 @@ class PriceRepository
     {
         return new Price();
     }
-    
-    /**
-     * Get a price by its Stripe ID.
-     *
-     * @param string $stripeId
-     * @return Price
-     */
-    public static function getByStripeId(string $stripeId): Price
-    {
-        return Price::where('stripe_id', $stripeId)->firstOrFail();
-    }
-
 }

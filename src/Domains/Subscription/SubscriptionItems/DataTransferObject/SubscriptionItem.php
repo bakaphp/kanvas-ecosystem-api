@@ -7,9 +7,8 @@ namespace Kanvas\Subscription\SubscriptionItems\DataTransferObject;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Spatie\LaravelData\Data;
+use Baka\Traits\SearchableTrait;
 
 class SubscriptionItem extends Data
 {
@@ -24,12 +23,12 @@ class SubscriptionItem extends Data
     ) {
     }
 
-    public static function viaRequest(array $request, UserInterface $user): self
+    public static function viaRequest(array $request, UserInterface $user, CompanyInterface $company, AppInterface $app): self
     {
         return new self(
-            isset($request['company_id']) ? Companies::getById($request['company_id']) : $user->getCurrentCompany(),
-            app(Apps::class),
-            auth()->user,
+            $company,
+            $app,
+            $user,
             $request['subscription_id'],
             $request['apps_plans_id'],
             $request['stripe_price_id'],

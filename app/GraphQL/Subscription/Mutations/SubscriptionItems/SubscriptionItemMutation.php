@@ -9,6 +9,8 @@ use Kanvas\Subscription\SubscriptionItems\Actions\UpdateSubscriptionItem;
 use Kanvas\Subscription\SubscriptionItems\Repositories\SubscriptionItemRepository;
 use Kanvas\Subscription\SubscriptionItems\DataTransferObject\SubscriptionItem as SubscriptionItemDto;
 use Kanvas\Subscription\SubscriptionItems\Models\SubscriptionItem as SubscriptionItemModel;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Illuminate\Support\Facades\Auth;
 use Stripe\Stripe;
 use Stripe\SubscriptionItem as StripeSubscriptionItem;
@@ -17,7 +19,8 @@ class SubscriptionItemMutation
 {
     public function __construct()
     {
-        Stripe::setApiKey(env('STRIPE_SECRET'));
+        $app = app(Apps::class);
+        Stripe::setApiKey($app->get('stripe_secret'));
     }
 
     /**
@@ -29,6 +32,8 @@ class SubscriptionItemMutation
      */
     public function create(array $req): SubscriptionItemModel
     {
+        $app = app(Apps::class);
+        $company = Companies::findOrFail($req['input']['company_id']);
 
         StripeSubscriptionItem::create([
             'subscription' => $req['input']['subscription_id'],
@@ -36,7 +41,7 @@ class SubscriptionItemMutation
             'quantity' => $req['input']['quantity'] ?? 1,
         ]);
 
-        $dto = SubscriptionItemDto::viaRequest($req['input'], Auth::user());
+        $dto = SubscriptionItemDto::viaRequest($req['input'], Auth::user(), $company, $app);
 
         $action = new CreateSubscriptionItem($dto);
         $subscriptionItemModel = $action->execute();
@@ -53,6 +58,8 @@ class SubscriptionItemMutation
      */
     public function update(array $req): SubscriptionItemModel
     {
+        $app = app(Apps::class);
+        $company = Companies::findOrFail($req['input']['company_id']);
 
         $subscriptionItem = SubscriptionItemRepository::getById($req['id']);
 
@@ -61,7 +68,7 @@ class SubscriptionItemMutation
             'quantity' => $req['input']['quantity'] ?? $subscriptionItem->quantity,
         ]);
 
-        $dto = SubscriptionItemDto::viaRequest($req['input'], Auth::user());
+$dto = SubscriptionItemDto::viaRequest($req['input'], Auth::user(), $company, $app);
 
         $action = new UpdateSubscriptionItem($subscriptionItem, $dto);
         $updatedSubscriptionItem = $action->execute();

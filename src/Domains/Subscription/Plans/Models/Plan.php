@@ -6,7 +6,6 @@ namespace Kanvas\Subscription\Plans\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Subscription\Models\BaseModel;
 use Kanvas\Subscription\SubscriptionItems\Models\SubscriptionItem;
 /**
@@ -26,14 +25,6 @@ class Plan extends BaseModel
 {
     protected $table = 'apps_plans';
     protected $guarded = [];
-    
-    /**
-     * apps.
-     */
-    public function apps(): BelongsTo
-    {
-        return $this->belongsTo(Apps::class, 'apps_id');
-    }
     
     /**
      * subscriptionItem.

@@ -134,7 +134,20 @@ class AppSettingsSeeder extends Seeder
                 'name' => 'default_feeds_comments',
                 'value' => '3',
                 'created_at' => date('Y-m-d H:m:s'),
+            ],
+            [
+                'apps_id' => 1,
+                'name' => 'stripe_key',
+                'value' => 'pk_test_51Pt9tU14jpNveAtLkAPO6G4zisfYhajJZ4yb2htK433GiLA2e3eWzYTzhDymiyfOd5SU6FmWNyT8vyRoSRHP4QcE001QBEbqe0',
+                'created_at' => date('Y-m-d H:m:s'),
+            ],
+            [
+                'apps_id' => 1,
+                'name' => 'stripe_secret',
+                'value' => 'sk_test_51Pt9tU14jpNveAtL5mIWHOXZ8tL3hhwsvpnZriiBWNae9nanYplBEoO6qdkbAIlRaWzsWycJwY2zTjFENu1mhmkT00kl5aBwBK',
+                'created_at' => date('Y-m-d H:m:s'),
             ]
+
         ]);
     }
 }

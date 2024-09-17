@@ -24,7 +24,6 @@ class CreatePlan
             'name' => $this->dto->name,
             'description' => $this->dto->description,
             'is_default' => $this->dto->is_default,
-            'is_deleted' => $this->dto->is_deleted,
             'users_id' => $this->dto->user->getId(),
         ]);
     }
