@@ -6,6 +6,7 @@ namespace Kanvas\Workflow\Integrations\Models;
 
 use Baka\Casts\Json;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Workflow\Enums\StatusEnum;
@@ -41,6 +42,11 @@ class IntegrationsCompany extends BaseModel
     public function status(): BelongsTo
     {
         return $this->belongsTo(Status::class, 'status_id');
+    }
+
+    public function history(): HasMany
+    {
+        return $this->hasMany(EntityIntegrationHistory::class, 'integrations_company_id');
     }
 
     public function setStatus(Status $status): void
