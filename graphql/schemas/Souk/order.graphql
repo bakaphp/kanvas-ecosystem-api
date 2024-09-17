@@ -76,14 +76,44 @@ input CreditCardBilling {
     country: String!
 }
 
-input OrderInput {
+input CartOrderInput {
     cartId: ID!
+    customer: PeopleInput
     payment: CreditCard!
     billing: CreditCardBilling
 }
 
+input OrderInput {
+    customer: PeopleInput!
+    billing: CreditCardBilling
+    address: AddressInput!
+}
+
+input DraftOrderInput {
+    email: String!
+    customer: PeopleInput!
+    billing: CreditCardBilling
+    address: AddressInput
+    items: [OrderLineItemInput!]!
+    note: String
+}
+
+input OrderLineItemInput {
+    variant_id: ID!
+    quantity: Int!
+}
+
 extend type Mutation @guard {
+    # @deprecated(reason: "Use createOrderFromCart instead")
     createOrder(input: OrderInput!): Mixed!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@create"
+        )
+    createDraftOrder(input: DraftOrderInput!): Mixed!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@create"
+        )
+    createOrderFromCart(input: CartOrderInput!): Mixed!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@create"
         )
