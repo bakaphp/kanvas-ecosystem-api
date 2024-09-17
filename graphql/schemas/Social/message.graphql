@@ -170,6 +170,7 @@ extend type Query @guard {
                     "reactions_count"
                     "comments_count"
                     "total_liked"
+                    "total_children"
                     "total_disliked"
                     "total_saved"
                     "total_view"
@@ -194,7 +195,20 @@ extend type Query @guard {
             )
         hasAppModuleMessage: _
             @whereHasConditions(columns: ["entity_id", "system_modules"])
-        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "created_at"
+                    "updated_at"
+                    "id"
+                    "total_view"
+                    "total_liked"
+                    "total_shared"
+                    "total_saved"
+                    "total_children"
+                    "total_disliked"
+                ]
+            )
         search: String @search
     ): [Message!]!
         @paginate(
