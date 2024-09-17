@@ -10,8 +10,11 @@ use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\StatusEnum;
+use Kanvas\Workflow\Integrations\Actions\AddEntityIntegrationHistoryAction;
+use Kanvas\Workflow\Integrations\DataTransferObject\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
+use Throwable;
 use Workflow\Activity;
 
 class ExportProductToShopifyActivity extends Activity
@@ -21,6 +24,7 @@ class ExportProductToShopifyActivity extends Activity
     public function execute(Products $product, Apps $app, array $params): array
     {
         $response = [];
+        $exception = null;
         $status = Status::where('slug', StatusEnum::ACTIVE->value)
         ->where('apps_id', 0)
         ->first();
@@ -43,7 +47,33 @@ class ExportProductToShopifyActivity extends Activity
                         warehouses: $warehouse
                     );
 
-                    $response = $shopifyService->saveProduct($product, ShopifyStatusEnum::ACTIVE);
+                    try {
+                        $response = $shopifyService->saveProduct($product, ShopifyStatusEnum::ACTIVE);
+                        $historyResponse = json_encode($response);
+                        $status = Status::where('slug', StatusEnum::CONNECTED->value)
+                        ->where('apps_id', 0)
+                        ->first();
+
+                    } catch (Throwable $exception) {
+                        $status = Status::where('slug', StatusEnum::FAILED->value)
+                        ->where('apps_id', 0)
+                        ->first();
+                    }
+
+                    $dto = new EntityIntegrationHistory(
+                        app: $app,
+                        integrationCompany: $integrationCompany,
+                        status: $status,
+                        entity: $product,
+                        response: $historyResponse ?? null,
+                        exception: $exception
+                    );
+
+                    (new AddEntityIntegrationHistoryAction(
+                        dto: $dto,
+                        app: $app,
+                        status: $status
+                    ))->execute();
                 }
             }
         }
@@ -51,7 +81,7 @@ class ExportProductToShopifyActivity extends Activity
         return [
             'company' => $product->company->getId(),
             'product' => $product->getId(),
-            'shopify_response' => $response,
+            'shopify_response' => $response ?? [],
         ];
     }
 }
