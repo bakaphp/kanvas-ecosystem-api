@@ -217,8 +217,8 @@ class Products extends BaseModel
         }
 
         $customFields = $this->getAllCustomFields();
-        foreach ($customFields as $key => $customField) {
-            $product['custom_fields'][$key] = $customField->value;
+        foreach ($customFields as $key => $value) {
+            $product['custom_fields'][$key] = $value;
         }
 
         return $product;
