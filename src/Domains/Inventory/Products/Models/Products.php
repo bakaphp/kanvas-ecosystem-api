@@ -31,6 +31,8 @@ use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
+use Kanvas\Workflow\Contracts\IntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 
@@ -53,7 +55,7 @@ use Laravel\Scout\Searchable;
  * @property string $published_at
  * @property bool $is_deleted
  */
-class Products extends BaseModel
+class Products extends BaseModel implements EntityIntegrationInterface
 {
     use UuidTrait;
     use SlugTrait;

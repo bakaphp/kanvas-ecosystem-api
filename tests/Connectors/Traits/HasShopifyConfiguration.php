@@ -59,6 +59,6 @@ trait HasShopifyConfiguration
 
         // for the time being this can only work with shopify integration.
         // we need to figure out how to standard is it.
-        (new CreateIntegrationCompanyAction($integrationDto, auth()->user(), $status))->execute();
+        return (new CreateIntegrationCompanyAction($integrationDto, auth()->user(), $status))->execute();
     }
 }
