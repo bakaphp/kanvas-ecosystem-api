@@ -19,7 +19,7 @@ class SubscriptionItem extends Data
         public int $subscription_id,
         public int $apps_plans_id,
         public string $stripe_price_id,
-        public ?int $quantity = 1, 
+        public ?int $quantity = 1,
     ) {
     }
 
@@ -32,7 +32,7 @@ class SubscriptionItem extends Data
             $request['subscription_id'],
             $request['apps_plans_id'],
             $request['stripe_price_id'],
-            $request['quantity'] ?? 1, 
+            $request['quantity'] ?? 1,
         );
     }
 }

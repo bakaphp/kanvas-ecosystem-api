@@ -19,7 +19,7 @@ use Stripe\Customer;
 use Kanvas\Companies\Models\Companies;
 
 class SubscriptionMutation
-{   
+{
     public function __construct()
     {
         $app = app(Apps::class);
@@ -93,12 +93,13 @@ class SubscriptionMutation
                     'price' => $item['price_id'],
                 ];
             }, $req['input']['items']),
-        ]);;
+        ]);
+        ;
 
         $dto = SubscriptionDto::viaRequest($req['input'], Auth::user(), $company, $app);
 
         (new UpdateSubscription($subscription, $dto))->execute();
-        
+
         return $subscription;
     }
 

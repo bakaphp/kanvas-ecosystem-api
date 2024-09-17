@@ -40,7 +40,7 @@ class PriceMutation
         ]);
 
         $stripePrice = StripePrice::create([
-            'unit_amount' => $req['input']['amount'] * 100, 
+            'unit_amount' => $req['input']['amount'] * 100,
             'currency' => $req['input']['currency'],
             'recurring' => ['interval' => $req['input']['interval']],
             'product' => $stripeProduct->id,
@@ -72,8 +72,8 @@ class PriceMutation
 
         StripePrice::create([
             'unit_amount' => $req['input']['amount'] * 100,
-            'currency' => $price->currency, 
-            'recurring' => ['interval' => $price->interval], 
+            'currency' => $price->currency,
+            'recurring' => ['interval' => $price->interval],
             'product' => $price->stripe_id,
         ]);
 
