@@ -42,7 +42,7 @@ class ShopifyInventoryService
             'body_html' => $product->description,
             'product_type' => $product->productsTypes?->name ?? 'default',
             'vendor' => 'default' , //$product->categ->name , setup vendor as a attribute and add a wy to look for a attribute $product->attribute('vendor')
-            'status' => $product->hasStock($this->warehouses) ? $status->value : StatusEnum::ARCHIVED->value,
+            'status' => $product->hasPrice($this->warehouses, $channel) ? $status->value : StatusEnum::ARCHIVED->value,
             'published_scope' => 'web',
         ];
 

@@ -20,6 +20,7 @@ use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Models\Categories;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Actions\AddAttributeAction;
 use Kanvas\Inventory\Products\Factories\ProductFactory;
@@ -265,6 +266,17 @@ class Products extends BaseModel
     {
         foreach ($this->variants as $variant) {
             if ($variant->getQuantity($warehouses)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function hasPrice(Warehouses $warehouse, ?Channels $channel = null): bool
+    {
+        foreach ($this->variants as $variant) {
+            if ($variant->hasPrice($warehouse, $channel)) {
                 return true;
             }
         }
