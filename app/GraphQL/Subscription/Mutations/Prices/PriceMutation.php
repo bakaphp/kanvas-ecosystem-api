@@ -67,7 +67,7 @@ class PriceMutation
     public function update(array $req): PriceModel
     {
         $app = Apps::findOrFail($req['input']['apps_id']);
-        $price = PriceRepository::getByStripeId($req['id']);
+        $price = PriceRepository::getById($req['id']);
 
         StripePrice::create([
             'unit_amount' => $req['input']['amount'] * 100,
@@ -92,9 +92,7 @@ class PriceMutation
      */
     public function delete(array $req): bool
     {
-        $price = PriceRepository::getByStripeId($req['id']);
-
-        StripePrice::update($price->stripe_id, ['active' => false]);
+        $price = PriceRepository::getById($req['id']);
 
         $price->delete();
 
