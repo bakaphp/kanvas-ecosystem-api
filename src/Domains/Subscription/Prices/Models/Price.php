@@ -23,7 +23,7 @@ use Kanvas\Subscription\Plans\Models\Plan;
  */
 class Price extends BaseModel
 {
-    protected $table = 'prices';
+    protected $table = 'apps_plans_prices';
     protected $guarded = [];
 
     /**
