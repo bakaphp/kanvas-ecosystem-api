@@ -20,6 +20,7 @@ use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Models\Categories;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Actions\AddAttributeAction;
 use Kanvas\Inventory\Products\Factories\ProductFactory;
@@ -217,6 +218,11 @@ class Products extends BaseModel
             $product['attributes'][$attribute->name] = $attribute->value;
         }
 
+        $customFields = $this->getAllCustomFields();
+        foreach ($customFields as $key => $value) {
+            $product['custom_fields'][$key] = $value;
+        }
+
         return $product;
     }
 
@@ -261,6 +267,28 @@ class Products extends BaseModel
     public static function newFactory()
     {
         return new ProductFactory();
+    }
+
+    public function hasStock(Warehouses $warehouses): bool
+    {
+        foreach ($this->variants as $variant) {
+            if ($variant->getQuantity($warehouses)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function hasPrice(Warehouses $warehouse, ?Channels $channel = null): bool
+    {
+        foreach ($this->variants as $variant) {
+            if ($variant->getPrice($warehouse, $channel)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

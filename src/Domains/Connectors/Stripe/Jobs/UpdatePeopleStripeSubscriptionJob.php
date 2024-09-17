@@ -55,7 +55,7 @@ class UpdatePeopleStripeSubscriptionJob extends ProcessWebhookJob
         $dto = new PeopleSubscriptionDTO(
             app: $app,
             people: $people,
-            subscription_type: $subscriptions['plan']['nickname'],
+            subscription_type: $subscriptions['plan']['nickname'] ?? $subscriptions['plan']['product'],
             status: '1',
             first_date: date('Y-m-d H:i:s', $subscriptions['created']),
             start_date: date('Y-m-d H:i:s', $subscriptions['current_period_start']),
