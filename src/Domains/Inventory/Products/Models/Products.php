@@ -276,7 +276,7 @@ class Products extends BaseModel
     public function hasPrice(Warehouses $warehouse, ?Channels $channel = null): bool
     {
         foreach ($this->variants as $variant) {
-            if ($variant->hasPrice($warehouse, $channel)) {
+            if ($variant->getPrice($warehouse, $channel)) {
                 return true;
             }
         }

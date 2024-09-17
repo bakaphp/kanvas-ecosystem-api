@@ -361,17 +361,17 @@ class Variants extends BaseModel
         return $warehouseInfo?->quantity ?? 0;
     }
 
-    public function hasPrice(Warehouses $warehouse, ?Channels $channel = null): bool
+    public function getPrice(Warehouses $warehouse, ?Channels $channel = null): float
     {
         $warehouseInfo = $this->variantWarehouses()->where('warehouses_id', $warehouse->getId())->first();
 
         if ($channel) {
             $channelInfo = $this->variantChannels()->where('channels_id', $channel->getId())->first();
 
-            return $channelInfo?->price > 0;
+            return $channelInfo?->price ?? 0;
         }
 
-        return $warehouseInfo?->price > 0;
+        return $warehouseInfo?->price ?? 0;
     }
 
     /**
