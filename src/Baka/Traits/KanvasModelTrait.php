@@ -84,7 +84,7 @@ trait KanvasModelTrait
         } catch (ModelNotFoundException $e) {
             throw new ExceptionsModelNotFoundException("No record found for Stripe ID: $stripeId");
         }
-    }  
+    }
 
     public static function getByIdFromCompany(mixed $id, CompanyInterface $company): self
     {

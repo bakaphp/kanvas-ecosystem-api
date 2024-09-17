@@ -58,7 +58,7 @@ trait SearchableTrait
             throw new ExceptionsModelNotFoundException($e->getMessage());
         }
     }
-    
+
     public static function getByStripeId(string $stripeId): self
     {
         try {

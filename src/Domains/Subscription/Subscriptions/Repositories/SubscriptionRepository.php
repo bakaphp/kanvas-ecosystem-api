@@ -7,6 +7,7 @@ namespace Kanvas\Subscription\Subscriptions\Repositories;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Subscription\Subscriptions\Models\Subscription;
 use Baka\Traits\SearchableTrait;
+
 class SubscriptionRepository
 {
     use SearchableTrait;

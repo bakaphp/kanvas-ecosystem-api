@@ -11,7 +11,7 @@ use Baka\Traits\SearchableTrait;
 class SubscriptionItemRepository
 {
     use SearchableTrait;
-    
+
     /**
      * Get the model instance for SubscriptionItem.
      *
