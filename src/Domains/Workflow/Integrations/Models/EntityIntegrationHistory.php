@@ -14,6 +14,7 @@ class EntityIntegrationHistory extends BaseModel
 
     protected $fillable = [
         'entity_namespace',
+        'apps_id',
         'entity_id',
         'integrations_company_id',
         'status_id',
