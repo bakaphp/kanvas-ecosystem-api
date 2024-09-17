@@ -35,3 +35,29 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Subscriptions\\Mutations\\Plans\\PlanMutation@delete"
         )
 }
+
+extend type Query @guard {
+    plans(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "description"
+                    "is_default"
+                ]
+            )
+        hasPrices: _
+            @whereHasConditions(
+                relation: "prices"
+                columns: ["id", "amount", "currency"]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [Plan!]!
+        @paginate(
+            scopes: ["fromApp", "notDeleted"]
+            builder: "App\\GraphQL\\Subscription\\Builders\\Plans\\PlanBuilder@getPlans"
+            defaultCount: 25
+        )
+}

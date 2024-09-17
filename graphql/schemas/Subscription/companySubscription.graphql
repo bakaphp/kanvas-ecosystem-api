@@ -1,5 +1,7 @@
 type CompanySubscription {
     id: ID!
+    companies_id: ID
+    apps_plans_id: ID
     name: String
     payment_method_id: String!
     trial_days: Int
@@ -37,5 +39,34 @@ extend type Mutation @guard {
     cancelSubscription(id: ID!): CompanySubscription!
         @field(
             resolver: "App\\GraphQL\\Subscription\\Mutations\\Subscriptions\\SubscriptionMutation@cancel"
+        )
+}
+
+extend type Query @guard {
+    companySubscriptions(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "companies_id"
+                    "apps_plans_id"
+                    "name"
+                    "is_active"
+                    "is_cancelled"
+                    "paid"
+                ]
+            )
+        hasItems: _
+            @whereHasConditions(
+                relation: "subscriptionItem"
+                columns: ["id", "quantity", "price_id"]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [CompanySubscription!]!
+        @paginate(
+            scopes: ["fromApp", "notDeleted"]
+            builder: "App\\GraphQL\\Subscription\\Builders\\Subscriptions\\SubscriptionBuilder@getSubscriptions"
+            defaultCount: 25
         )
 }

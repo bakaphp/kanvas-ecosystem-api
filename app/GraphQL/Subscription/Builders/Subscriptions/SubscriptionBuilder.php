@@ -2,22 +2,22 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Subscription\Builders;
+namespace App\GraphQL\Subscription\Builders\Subscriptions;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
-use Kanvas\Subscription\Plans\Models\Plan;
+use Kanvas\Subscription\Subscriptions\Models\Subscription;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
-class PlanBuilder
+class SubscriptionBuilder
 {
-    public function getPlans(
+    public function getSubscriptions(
         mixed $root,
         array $args,
         GraphQLContext $context,
         ResolveInfo $resolveInfo
     ): Builder {
-        $user = auth()->user;
+        $user = auth()->user();
         $company = $user->getCurrentCompany();
 
         if (! $user->isAppOwner()) {
@@ -27,6 +27,6 @@ class PlanBuilder
         /**
          * @var Builder
          */
-        return Plan::query();
+        return Subscription::query();
     }
 }

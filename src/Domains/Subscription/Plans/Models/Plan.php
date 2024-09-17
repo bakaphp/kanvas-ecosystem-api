@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Subscription\Models\BaseModel;
 use Kanvas\Subscription\SubscriptionItems\Models\SubscriptionItem;
+use Kanvas\Subscription\Prices\Models\Price;
+
 
 /**
  * Class Plan.
@@ -33,6 +35,14 @@ class Plan extends BaseModel
     public function subscriptionItem(): HasMany
     {
         return $this->hasMany(SubscriptionItem::class, 'apps_plans_id');
+    }
+
+    /**
+     * price.
+     */
+    public function price(): HasMany
+    {
+        return $this->hasMany(Price::class, 'apps_plans_id');
     }
 
     /**
