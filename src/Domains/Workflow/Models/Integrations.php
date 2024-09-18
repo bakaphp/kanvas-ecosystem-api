@@ -8,11 +8,12 @@ use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Workflow\Enums\StatusEnum;
+use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
+use Kanvas\Workflow\Integrations\Services\IntegrationService;
 use Kanvas\Workflow\Traits\PublicAppScopeTrait;
 
 class Integrations extends BaseModel
@@ -40,12 +41,15 @@ class Integrations extends BaseModel
         return $this->hasMany(IntegrationsCompany::class, 'integrations_id');
     }
 
+    public function integrationsHistory(): HasMany
+    {
+        return $this->hasMany(EntityIntegrationHistory::class, 'integrations_id');
+    }
+
     public function getIntegrationsByCompany(): Collection
     {
         $user = auth()->user();
-        $company = $user->getCurrentCompany();
-
-        return $this->integrationCompany()->where('companies_id', $company->getId())->get();
+        return (new IntegrationService($this->app, $user->getCurrentCompany()))->getIntegrationsByCompany();
     }
 
     public function getIntegrationStatus(): Status
@@ -54,9 +58,8 @@ class Integrations extends BaseModel
         // As this is called directly from the graph we take the user from the auth.
 
         $user = auth()->user();
-        $company = $user->getCurrentCompany();
         $active = Status::getDefaultStatusByName(StatusEnum::ACTIVE->value);
-        $integrations = $this->integrationCompany()->where('companies_id', $company->getId());
+        $integrations = (new IntegrationService($this->app, $user->getCurrentCompany()))->getIntegrationsByCompany();
 
         if (! $integrations->exists()) {
             return Status::getDefaultStatusByName(StatusEnum::OFFLINE->value);
