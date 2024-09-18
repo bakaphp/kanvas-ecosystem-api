@@ -53,7 +53,6 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
         public ?FilesystemImports $filesystemImport = null
     ) {
         $this->onQueue('imports');
-
     }
 
     /**
