@@ -87,15 +87,15 @@ services:
 
   queue-imports:
     <<: *common-queue-settings
-    container_name: queue-notifications
+    container_name: queue-imports
     command: 
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue imports --tries=3 --timeout=3750"
 
-  queue-imports-2:
+  queue-imports2:
     <<: *common-queue-settings
-    container_name: queue-notifications
+    container_name: queue-imports2
     command: 
       - "sh"
       - "-c"
