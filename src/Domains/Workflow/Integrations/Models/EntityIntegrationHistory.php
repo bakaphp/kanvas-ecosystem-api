@@ -17,6 +17,7 @@ class EntityIntegrationHistory extends BaseModel
         'apps_id',
         'entity_id',
         'integrations_company_id',
+        'integrations_id',
         'status_id',
         'response',
         'exception'
@@ -29,6 +30,11 @@ class EntityIntegrationHistory extends BaseModel
     public function integrationCompany(): BelongsTo
     {
         return $this->belongsTo(IntegrationsCompany::class, 'integrations_company_id');
+    }
+
+    public function integration(): BelongsTo
+    {
+        return $this->belongsTo(Integrations::class, 'integrations_id');
     }
 
     public function entity(): BelongsTo
