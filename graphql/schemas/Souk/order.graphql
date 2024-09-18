@@ -79,16 +79,16 @@ input CreditCardBillingInput {
 input CartOrderInput {
     cartId: ID!
     email: String!
-    customer: PeopleInput
-    billing: CreditCardBillingInput
+    customer: PeopleInput!
+    billing: CreditCardBillingInput!
     address: AddressInput
     note: String
 }
 
 input OrderInput {
-    customer: PeopleInput!
-    billing: CreditCardBillingInput
-    address: AddressInput!
+    cartId: ID!
+    payment: CreditCard!
+    billing: CreditCardBilling
 }
 
 input DraftOrderInput {
@@ -125,10 +125,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\DraftOrderManagementMutation@create"
         )
-    createOrderFromCart(input: CartOrderInput!): Mixed!
-        @field(
-            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@create"
-        )
+    #createOrderFromCart(input: CartOrderInput!): Mixed!
+    #    @field(
+    #        resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@create"
+    #    )
     #assignPaymentToOrder(input: PaymentInput!): Mixed!
     #    @field(
     #        resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@assignPaymentToOrder"
