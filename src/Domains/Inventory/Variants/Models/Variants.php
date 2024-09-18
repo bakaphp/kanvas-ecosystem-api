@@ -29,6 +29,7 @@ use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
+use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Laravel\Scout\Searchable;
 
 /**
@@ -49,7 +50,7 @@ use Laravel\Scout\Searchable;
  * @property string barcode
  * @property string serial_number
  */
-class Variants extends BaseModel
+class Variants extends BaseModel implements EntityIntegrationInterface
 {
     use SlugTrait;
     use UuidTrait;

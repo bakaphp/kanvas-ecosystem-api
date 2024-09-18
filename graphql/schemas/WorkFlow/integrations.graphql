@@ -2,6 +2,7 @@ type Integrations {
     id: ID!
     name: String!
     uuid: String!
+    status: Status @method(name: "getIntegrationStatus")
     integrations: [IntegrationsCompanies!] @method(name: "getIntegrationsByCompany")
     config: String
     created_at: DateTime
