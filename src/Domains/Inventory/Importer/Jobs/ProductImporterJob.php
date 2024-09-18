@@ -54,7 +54,7 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
         public ?FilesystemImports $filesystemImport = null
     ) {
         $this->onQueue('imports');
-        
+
         if (App::environment('production')) {
             $this->uniqueFor = 15 * 60;
         }
