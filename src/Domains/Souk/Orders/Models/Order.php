@@ -7,6 +7,7 @@ namespace Kanvas\Souk\Orders\Models;
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -15,6 +16,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem as OrderItemDto;
+use Kanvas\Souk\Orders\Observers\OrderObserver;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
@@ -65,6 +67,7 @@ use Spatie\LaravelData\DataCollection;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  */
+#[ObservedBy(OrderObserver::class)]
 class Order extends BaseModel
 {
     use UuidTrait;
@@ -83,6 +86,7 @@ class Order extends BaseModel
         'discount_amount' => 'float',
         'weight' => 'float',
         'payment_gateway_names' => Json::class,
+        'metadata' => Json::class,
     ];
 
     public function region(): BelongsTo
@@ -171,5 +175,20 @@ class Order extends BaseModel
     {
         $this->status = 'cancelled';
         $this->saveOrFail();
+    }
+
+    public function generateOrderNumber(): int
+    {
+        // Lock the orders table while retrieving the last order
+        $lastOrder = Order::where('companies_id', $this->companies_id)
+                        ->where('apps_id', $this->apps_id)
+                        ->lockForUpdate() // Ensure no race conditions
+                        ->latest('id')
+                        ->first();
+
+        $lastOrderNumber = $lastOrder ? intval($lastOrder->order_number) : 0;
+        $newOrderNumber = $lastOrderNumber + 1;
+
+        return $newOrderNumber;
     }
 }
