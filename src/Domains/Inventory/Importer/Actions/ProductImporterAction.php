@@ -379,8 +379,8 @@ class ProductImporterAction
             }
 
             $variantChannel = VariantChannel::from([
-                'price' => $variantData['price'],
-                'discounted_price' => $variantData['discountPrice'],
+                'price' => (float) $variantData['price'],
+                'discounted_price' => (float) $variantData['discountPrice'],
                 'is_published' => $this->importedProduct->isPublished,
             ]);
 
