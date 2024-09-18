@@ -37,7 +37,7 @@ class Order extends Data
         #[DataCollectionOf(OrderItem::class)]
         public readonly DataCollection $items,
         public readonly ?string $email = null,
-        public readonly ?string $metadata = null,
+        public readonly ?mixed $metadata = null,
         public readonly float $weight = 0.0,
         public readonly ?string $shippingMethod = null,
         public readonly ?string $phone = null,

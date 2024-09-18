@@ -44,7 +44,7 @@ class DraftOrder extends Data
         public readonly ?ModelsAddress $shippingAddress = null,
         public readonly ?string $phone = null,
         public readonly ?string $notes = null,
-        public readonly ?string $metadata = null,
+        public readonly mixed $metadata = null,
     ) {
     }
 
@@ -58,6 +58,14 @@ class DraftOrder extends Data
                 'weight' => 0,
             ],
         ];
+
+        if (! empty($request['input']['phone'])) {
+            $customer['contacts'][] = [
+                'value' => $request['input']['phone'],
+                'contacts_types_id' => ContactTypeEnum::PHONE->value,
+                'weight' => 0,
+            ];
+        }
 
         $people = People::from([
             'app' => $app,

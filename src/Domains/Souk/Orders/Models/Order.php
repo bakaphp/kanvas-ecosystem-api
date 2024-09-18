@@ -86,6 +86,7 @@ class Order extends BaseModel
         'discount_amount' => 'float',
         'weight' => 'float',
         'payment_gateway_names' => Json::class,
+        'metadata' => Json::class,
     ];
 
     public function region(): BelongsTo
