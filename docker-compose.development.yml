@@ -85,6 +85,22 @@ services:
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue notifications --tries=3 --timeout=3750"
 
+  queue-imports:
+    <<: *common-queue-settings
+    container_name: queue-notifications
+    command: 
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue imports --tries=3 --timeout=3750"
+
+  queue-imports-2:
+    <<: *common-queue-settings
+    container_name: queue-notifications
+    command: 
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue imports --tries=3 --timeout=3750"
+
   laravel-scheduler:
     container_name: laravel-scheduler
     restart: always
