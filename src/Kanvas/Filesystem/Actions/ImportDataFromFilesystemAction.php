@@ -43,6 +43,17 @@ class ImportDataFromFilesystemAction
          * when we are just importing product type
          */
         foreach ($listOfVariants as $key => $variants) {
+            if (empty($variants[0]['name'])) {
+                continue;
+            }
+            $attributes = [];
+
+            //if we only have one variant we can assign the attributes to the product
+            if (count($variants) == 1) {
+                $attributes = $variants[0]['attributes'];
+                //unset($variants[0]['attributes']);
+            }
+
             $listOfProducts[] = [
                 'name' => $variants[0]['name'],
                 'description' => $variants[0]['description'],
@@ -68,6 +79,7 @@ class ImportDataFromFilesystemAction
                         'position' => 1,
                    ],
                 ],
+                'attributes' => $attributes,
                 'customFields' => [],
                 'variants' => $variants,
             ];
