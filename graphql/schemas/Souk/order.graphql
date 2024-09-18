@@ -93,9 +93,11 @@ input OrderInput {
 
 input DraftOrderInput {
     email: String!
+    phone: String
     customer: PeopleInput!
-    billing: CreditCardBillingInput
-    address: AddressInput
+    region_id: ID!
+    billing_address: CreditCardBillingInput
+    shipping_address: AddressInput
     items: [OrderLineItemInput!]!
     note: String
     metadata: Mixed
@@ -119,7 +121,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@create"
         )
-    createDraftOrder(input: DraftOrderInput!): Mixed!
+    createDraftOrder(input: DraftOrderInput!): Order!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\DraftOrderManagementMutation@create"
         )
