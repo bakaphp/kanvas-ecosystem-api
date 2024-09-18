@@ -87,7 +87,7 @@ input CartOrderInput {
 
 input OrderInput {
     cartId: ID!
-    payment: CreditCard!
+    payment: CreditCardInput!
     billing: CreditCardBilling
 }
 
