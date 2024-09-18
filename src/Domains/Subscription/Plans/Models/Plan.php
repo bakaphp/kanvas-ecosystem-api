@@ -10,7 +10,6 @@ use Kanvas\Subscription\Models\BaseModel;
 use Kanvas\Subscription\SubscriptionItems\Models\SubscriptionItem;
 use Kanvas\Subscription\Prices\Models\Price;
 
-
 /**
  * Class Plan.
  *
