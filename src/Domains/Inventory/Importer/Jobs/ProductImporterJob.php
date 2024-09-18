@@ -14,6 +14,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
@@ -41,7 +42,7 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
     *
     * @var int
     */
-    public $uniqueFor = 1800;
+    public $uniqueFor = 60;
 
     public function __construct(
         public string $jobUuid,
@@ -52,6 +53,11 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
         public AppInterface $app,
         public ?FilesystemImports $filesystemImport = null
     ) {
+        $this->onQueue('imports');
+
+        if (App::environment('production')) {
+            $this->uniqueFor = 15 * 60;
+        }
     }
 
     /**
