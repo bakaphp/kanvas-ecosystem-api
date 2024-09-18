@@ -31,6 +31,6 @@ class Status extends BaseModel
     {
         return self::where('name', $name)
                 ->where('apps_id', 0)
-                ->first();
+                ->firstOrFail();
     }
 }

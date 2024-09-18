@@ -51,6 +51,7 @@ class Integrations extends BaseModel
     public function getIntegrationStatus(): Status
     {
         //@todo Add workflow status to seeds to catch the ids on enums.
+        // As this is called directly from the graph we take the user from the auth.
 
         $user = auth()->user();
         $company = $user->getCurrentCompany();
