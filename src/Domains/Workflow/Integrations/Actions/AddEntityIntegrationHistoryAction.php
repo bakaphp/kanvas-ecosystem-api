@@ -35,6 +35,7 @@ class AddEntityIntegrationHistoryAction
         $integrationHistory->entity_id = $this->dto->entity->getId();
         $integrationHistory->apps_id = $this->app->getId();
         $integrationHistory->integrations_company_id = $this->dto->integrationCompany->getId();
+        $integrationHistory->integrations_id = $this->dto->integrationCompany->integration->getId();
         $integrationHistory->status_id = $this->dto->status->getId();
         $integrationHistory->response = $this->dto->response;
         $integrationHistory->exception = $this->dto->exception;
