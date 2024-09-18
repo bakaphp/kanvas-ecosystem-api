@@ -43,7 +43,7 @@ class ImportDataFromFilesystemAction
          * when we are just importing product type
          */
         foreach ($listOfVariants as $key => $variants) {
-            if (empty($variants[0]['name'])) {
+            if (empty($variants[0]['name']) || empty($variants[0]['slug']) || empty($variants[0]['sku'])) {
                 continue;
             }
             $attributes = [];
