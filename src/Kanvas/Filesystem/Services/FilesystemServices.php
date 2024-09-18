@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Services;
 
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -21,7 +22,8 @@ class FilesystemServices
      * Construct function.
      */
     public function __construct(
-        protected Apps $app
+        protected Apps $app,
+        protected ?CompanyInterface $company = null
     ) {
         $this->storage = $this->getStorageByDisk();
     }
@@ -41,7 +43,7 @@ class FilesystemServices
             ]
         );
 
-        $createFileSystem = new CreateFilesystemAction($file, $user, $this->app);
+        $createFileSystem = new CreateFilesystemAction($file, $user, $this->app, $this->company);
 
         return $createFileSystem->execute(
             $this->storage->url($uploadedFile),
