@@ -32,8 +32,8 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
-use Kanvas\Workflow\Contracts\IntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
 
 /**
@@ -62,6 +62,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
     use LikableTrait;
     use HasShopifyCustomField;
     use HasTagsTrait;
+    use IntegrationEntityTrait;
     use HasLightHouseCache;
     use Searchable {
         search as public traitSearch;
