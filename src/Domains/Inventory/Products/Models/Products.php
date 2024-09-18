@@ -31,6 +31,9 @@ use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
 
 /**
@@ -52,13 +55,14 @@ use Laravel\Scout\Searchable;
  * @property string $published_at
  * @property bool $is_deleted
  */
-class Products extends BaseModel
+class Products extends BaseModel implements EntityIntegrationInterface
 {
     use UuidTrait;
     use SlugTrait;
     use LikableTrait;
     use HasShopifyCustomField;
     use HasTagsTrait;
+    use IntegrationEntityTrait;
     use HasLightHouseCache;
     use Searchable {
         search as public traitSearch;
@@ -66,6 +70,7 @@ class Products extends BaseModel
 
     use CascadeSoftDeletes;
     use Compoships;
+    use CanUseWorkflow;
 
     protected $table = 'products';
     protected $guarded = [];

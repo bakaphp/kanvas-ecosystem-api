@@ -30,6 +30,12 @@ input RegionInputUpdate {
     is_default: Int
 }
 
+input RegionReferenceInput {
+    id: ID!
+    name: String
+    slug: String
+}
+
 extend type Query @guard {
     regions(
         where: _
