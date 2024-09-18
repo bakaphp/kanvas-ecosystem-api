@@ -44,6 +44,11 @@ class Regions extends BaseModel
         return $this->belongsTo(Currencies::class, 'currency_id');
     }
 
+    public function currency(): BelongsTo
+    {
+        return $this->belongsTo(Currencies::class, 'currency_id');
+    }
+
     public function warehouses(): HasMany
     {
         return $this->hasMany(Warehouses::class, 'regions_id');

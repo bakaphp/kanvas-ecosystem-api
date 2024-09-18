@@ -5,7 +5,7 @@ type Filesystem {
     url: String!
     type: String
     size: Float!
-    field_name: String!
+    field_name: String
     attributes: JSON
 }
 
