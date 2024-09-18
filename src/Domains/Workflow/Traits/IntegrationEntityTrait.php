@@ -32,7 +32,7 @@ trait IntegrationEntityTrait
             $query = $integration->integrationsHistory()
                                     ->where('entity_namespace', $entity::class)
                                     ->where('entity_id', $this->getId());
-            if(!$query->exists()) {
+            if (! $query->exists()) {
                 $status = WorkflowStatus::getDefaultStatusByName(StatusEnum::OFFLINE->value);
             }
 
@@ -42,10 +42,9 @@ trait IntegrationEntityTrait
                 'id' => $integration->getId(),
                 'name' => $integration->name,
                 'status' => $status ?? $history->status,
-                'created_at'=> $history->created_at ?? null,
-                'updated_at'=> $history->updated_at ?? null
+                'created_at' => $history->created_at ?? null,
+                'updated_at' => $history->updated_at ?? null
             ];
-
         });
         return $integrationsEntities;
     }
