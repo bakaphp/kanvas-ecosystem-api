@@ -18,6 +18,7 @@ return new class () extends Migration {
             $table->string('entity_namespace');
             $table->unsignedBigInteger('entity_id');
             $table->unsignedBigInteger('integrations_company_id');
+            $table->unsignedBigInteger('integrations_id');
             $table->unsignedBigInteger('status_id');
             $table->text('response')->nullable();
             $table->text('exception')->nullable();
@@ -27,9 +28,11 @@ return new class () extends Migration {
             // Foreign key constraints
             $table->foreign('integrations_company_id')->references('id')->on('integration_companies');
             $table->foreign('status_id')->references('id')->on('status');
+            $table->foreign('integrations_id')->references('id')->on('integrations');
 
             $table->index('entity_id', 'entity_id_index');
             $table->index('status_id', 'status_id_index');
+            $table->index('integrations_id', 'integrations_id_index');
             $table->index('integrations_company_id', 'integrations_company_id_index');
             $table->index('apps_id', 'apps_id_index');
         });
