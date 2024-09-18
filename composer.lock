@@ -12969,16 +12969,16 @@
         },
         {
             "name": "twilio/sdk",
-            "version": "8.3.0",
+            "version": "8.3.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/twilio/twilio-php.git",
-                "reference": "da842421814abaacb1c57eaacd7e8de19bbdbee6"
+                "reference": "bfbb3bd7f274ccd3948f5c98f108c64a2db470d7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/da842421814abaacb1c57eaacd7e8de19bbdbee6",
-                "reference": "da842421814abaacb1c57eaacd7e8de19bbdbee6",
+                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/bfbb3bd7f274ccd3948f5c98f108c64a2db470d7",
+                "reference": "bfbb3bd7f274ccd3948f5c98f108c64a2db470d7",
                 "shasum": ""
             },
             "require": {
@@ -13016,9 +13016,9 @@
             ],
             "support": {
                 "issues": "https://github.com/twilio/twilio-php/issues",
-                "source": "https://github.com/twilio/twilio-php/tree/8.3.0"
+                "source": "https://github.com/twilio/twilio-php/tree/8.3.1"
             },
-            "time": "2024-09-05T13:01:28+00:00"
+            "time": "2024-09-18T13:24:34+00:00"
         },
         {
             "name": "vladimir-yuldashev/laravel-queue-rabbitmq",
