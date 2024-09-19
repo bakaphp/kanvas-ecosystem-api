@@ -52,8 +52,7 @@ extend type Mutation @guard {
 }
 
 extend type Mutation {
-    #@deprecated(reason: "use the query getInvite instead")
-    getInvite(hash: String!): ExternalInvite!
+    getInvite(hash: String!): ExternalInvite! @deprecated(reason: "use the query getInvite instead")
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@getInvite"
         )
