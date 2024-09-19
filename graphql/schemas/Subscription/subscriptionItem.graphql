@@ -2,7 +2,7 @@ type SubscriptionItem {
     id: ID!
     subscription_id:Int! @belongsTo(relation: "subscription")
     price_id: Int! @belongsTo(relation: "price")
-    apps_plans_id: ID! @belongsTo(relation: "plan")
+    apps_plans_id: Int @belongsTo(relation: "plan")
     quantity: Int
     created_at: String
     updated_at: String
@@ -10,7 +10,7 @@ type SubscriptionItem {
 
 input SubscriptionItemInput {
     subscription_id: ID
-    apps_plans_id: ID
+    apps_plans_id: Int
     price_id: ID!
     quantity: Int
 }

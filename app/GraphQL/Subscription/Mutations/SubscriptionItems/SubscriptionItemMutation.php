@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Subscriptions\Mutations\SubscriptionItems;
+namespace App\GraphQL\Subscription\Mutations\SubscriptionItems;
 
 use Kanvas\Subscription\SubscriptionItems\Actions\CreateSubscriptionItem;
 use Kanvas\Subscription\SubscriptionItems\Actions\UpdateSubscriptionItem;
@@ -33,15 +33,10 @@ class SubscriptionItemMutation
     public function create(array $req): SubscriptionItemModel
     {
         $app = app(Apps::class);
-        $company = Companies::findOrFail($req['input']['company_id']);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
 
-        StripeSubscriptionItem::create([
-            'subscription' => $req['input']['subscription_id'],
-            'price' => $req['input']['stripe_price_id'],
-            'quantity' => $req['input']['quantity'] ?? 1,
-        ]);
-
-        $dto = SubscriptionItemDto::viaRequest($req['input'], Auth::user(), $company, $app);
+        $dto = SubscriptionItemDto::viaRequest($req['input'], $user, $company, $app);
 
         $action = new CreateSubscriptionItem($dto);
         $subscriptionItemModel = $action->execute();
