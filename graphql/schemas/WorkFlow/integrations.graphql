@@ -21,7 +21,7 @@ type IntegrationsCompanies {
     integration: Integrations
     status: Status
     region: Region
-    updated_at: DataTime
+    updated_at: DateTime
 }
 
 type IntegrationsEntityReference{
