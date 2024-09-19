@@ -26,17 +26,17 @@ class SubscriptionItemMutation
     /**
      * create.
      *
-     * @param  array $req
-     *
+     * @param  array $args
      * @return SubscriptionItemModel
      */
-    public function create(array $req): SubscriptionItemModel
+    public function create(array $args): SubscriptionItemModel
     {
+        $data = $args['input'];
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        $dto = SubscriptionItemDto::viaRequest($req['input'], $user, $company, $app);
+        $dto = SubscriptionItemDto::viaRequest($data, $user, $company, $app);
 
         $action = new CreateSubscriptionItem($dto);
         $subscriptionItemModel = $action->execute();

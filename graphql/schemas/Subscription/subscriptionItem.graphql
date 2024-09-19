@@ -1,28 +1,28 @@
 type SubscriptionItem {
     id: ID!
-    subscription_id:Int! @belongsTo(relation: "subscription")
-    price_id: Int! @belongsTo(relation: "price")
+    subscription_id:Int @belongsTo(relation: "subscription")
+    price_id: String! @belongsTo(relation: "price")
     apps_plans_id: Int @belongsTo(relation: "plan")
-    quantity: Int
+    quantity: Int!
     created_at: String
     updated_at: String
 }
 
 input SubscriptionItemInput {
-    subscription_id: ID
+    subscription_id: Int
     apps_plans_id: Int
-    price_id: ID!
-    quantity: Int
+    price_id: String!
+    quantity: Int!
 }
 
 extend type Mutation @guard {
     createSubscriptionItem(input: SubscriptionItemInput!): SubscriptionItem!
         @field(
-            resolver: "App\\GraphQL\\Subscriptions\\Mutations\\SubscriptionItems\\SubscriptionItemMutation@create"
+            resolver: "App\\GraphQL\\Subscription\\Mutations\\SubscriptionItems\\SubscriptionItemMutation@create"
         )
 
     deleteSubscriptionItem(id: ID!): Boolean!
         @field(
-            resolver: "App\\GraphQL\\Subscriptions\\Mutations\\SubscriptionItems\\SubscriptionItemMutation@delete"
+            resolver: "App\\GraphQL\\Subscription\\Mutations\\SubscriptionItems\\SubscriptionItemMutation@delete"
         )
 }

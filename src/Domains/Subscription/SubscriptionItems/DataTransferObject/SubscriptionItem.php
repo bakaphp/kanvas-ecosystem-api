@@ -16,8 +16,8 @@ class SubscriptionItem extends Data
         public AppInterface $app,
         public UserInterface $user,
         public int $subscription_id,
+        public int $apps_plans_id,
         public string $stripe_id,
-        public string $stripe_plan,
         public string $price_id,
         public ?int $quantity = 1,
     ) {
@@ -30,8 +30,8 @@ class SubscriptionItem extends Data
             $app,
             $user,
             $request['subscription_id'],
+            $request['apps_plans_id'],
             $request['stripe_id'],
-            $request['stripe_plan'],
             $request['price_id'],
             $request['quantity'] ?? 1,
         );

@@ -6,7 +6,6 @@ namespace Kanvas\Subscription\Subscriptions\Actions;
 
 use Kanvas\Subscription\Subscriptions\Models\Subscription;
 use Kanvas\Subscription\Subscriptions\DataTransferObject\Subscription as SubscriptionDto;
-use Kanvas\Subscription\SubscriptionItems\Actions\CreateSubscriptionItem;
 
 class CreateSubscription
 {

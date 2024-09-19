@@ -19,7 +19,6 @@ class Subscription extends Data
         public string $stripe_id,
         public ?string $payment_method_id,
         public array $items,
-        public int $trial_days,
         public bool $is_active = true,
         public bool $is_cancelled = false,
         public bool $paid = false,
@@ -37,7 +36,6 @@ class Subscription extends Data
             $request['stripe_id'],
             $request['payment_method_id'],
             $request['items'] ?? [],
-            $request['trial_days'] ?? null,
         );
     }
 }

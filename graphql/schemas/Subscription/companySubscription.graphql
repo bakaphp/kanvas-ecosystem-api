@@ -3,6 +3,7 @@ type CompanySubscription {
     companies_id: ID
     apps_plans_id: ID
     name: String
+    subscription_id: ID
     payment_method_id: String!
     trial_days: Int
     items: [SubscriptionItem!] @hasMany(relation: "subscriptionItem")
@@ -22,10 +23,16 @@ input SubscriptionInput {
 }
 
 input SubscriptionUpdateInput {
-    items: [SubscriptionItemInput!]
+    subscription_id: ID!
     name: String
     payment_method_id: String
     trial_days: Int
+}
+
+input AddSubscriptionItemInput {
+    subscription_id: ID!
+    price_id: String!
+    quantity: Int!
 }
 
 extend type Mutation @guard {
@@ -39,6 +46,10 @@ extend type Mutation @guard {
     cancelSubscription(id: ID!): CompanySubscription!
         @field(
             resolver: "App\\GraphQL\\Subscription\\Mutations\\Subscriptions\\SubscriptionMutation@cancel"
+        )
+    addSubscriptionItem(input: AddSubscriptionItemInput!): SubscriptionItem!
+        @field(
+            resolver: "App\\GraphQL\\Subscription\\Mutations\\Subscriptions\\SubscriptionMutation@addSubscriptionItem"
         )
 }
 

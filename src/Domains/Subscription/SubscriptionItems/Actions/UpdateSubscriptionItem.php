@@ -18,7 +18,6 @@ class UpdateSubscriptionItem
     public function execute(): SubscriptionItem
     {
         $this->subscriptionItem->update([
-            'plan_id' => $this->subscriptionItemDto->apps_plans_id,
             'quantity' => $this->subscriptionItemDto->quantity,
         ]);
 
