@@ -121,6 +121,9 @@ class Products extends BaseModel implements EntityIntegrationInterface
         return $this->buildAttributesQuery();
     }
 
+    /**
+     * @todo add integration and graph test
+     */
     public function visibleAttributes(): BelongsToMany
     {
         return $this->buildAttributesQuery(['is_visible' => true]);
