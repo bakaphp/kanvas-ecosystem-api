@@ -59,7 +59,7 @@ type OrderItem {
     updated_at: String
 }
 
-input CreditCard {
+input CreditCardInput {
     name: String!
     number: String!
     exp_month: Int!
@@ -67,7 +67,7 @@ input CreditCard {
     cvv: Int!
 }
 
-input CreditCardBilling {
+input CreditCardBillingInput {
     address: String!
     address2: String
     city: String!
@@ -76,17 +76,63 @@ input CreditCardBilling {
     country: String!
 }
 
+input CartOrderInput {
+    cartId: ID!
+    email: String!
+    customer: PeopleInput!
+    billing: CreditCardBillingInput!
+    address: AddressInput
+    note: String
+}
+
 input OrderInput {
     cartId: ID!
-    payment: CreditCard!
-    billing: CreditCardBilling
+    payment: CreditCardInput!
+    billing: CreditCardBillingInput
+}
+
+input DraftOrderInput {
+    email: String!
+    phone: String
+    customer: PeopleInput!
+    region_id: ID!
+    billing_address: CreditCardBillingInput
+    shipping_address: AddressInput
+    items: [OrderLineItemInput!]!
+    note: String
+    metadata: Mixed
+}
+
+input OrderLineItemInput {
+    variant_id: ID!
+    quantity: Int!
+}
+
+input PaymentInput {
+    orderId: ID!
+    paymentMethod: String! 
+    creditCard: CreditCardInput 
+    billing: CreditCardBillingInput 
 }
 
 extend type Mutation @guard {
+    # @deprecated(reason: "Use createOrderFromCart instead")
     createOrder(input: OrderInput!): Mixed!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@create"
         )
+    createDraftOrder(input: DraftOrderInput!): Order!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\DraftOrderManagementMutation@create"
+        )
+    #createOrderFromCart(input: CartOrderInput!): Mixed!
+    #    @field(
+    #        resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@create"
+    #    )
+    #assignPaymentToOrder(input: PaymentInput!): Mixed!
+    #    @field(
+    #        resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@assignPaymentToOrder"
+    #    )
 }
 
 extend type Query @guard {

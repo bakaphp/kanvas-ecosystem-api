@@ -34,6 +34,7 @@ use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
+use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Laravel\Scout\Searchable;
 use Laravel\Cashier\Billable;
 
@@ -136,6 +137,14 @@ class Companies extends BaseModel implements CompanyInterface
         )->when(app(Apps::class), function ($query, $app) {
             $query->where('users_associated_apps.apps_id', $app->getId());
         });
+    }
+
+    public function integrations(): HasMany
+    {
+        return $this->hasMany(
+            IntegrationsCompany::class,
+            'companies_id'
+        );
     }
 
     /**

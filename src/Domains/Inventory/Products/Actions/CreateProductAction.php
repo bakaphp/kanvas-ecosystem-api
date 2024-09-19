@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
@@ -17,10 +18,13 @@ use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Jobs\IndexProductJob;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Services\VariantService;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
 class CreateProductAction
 {
+    protected Apps $app;
+    protected bool $runWorkflow = true;
     /**
      * __construct.
      *
@@ -118,6 +122,13 @@ class CreateProductAction
             DB::connection('inventory')->rollback();
 
             throw $e;
+        }
+
+        if ($this->runWorkflow) {
+            $products->fireWorkflow(
+                WorkflowEnum::CREATED->value,
+                true
+            );
         }
 
         return $products;

@@ -23,6 +23,7 @@ type Product {
     warehouses: [Warehouse!]! @BelongsToMany
     attributes: [ProductAttribute!]! @BelongsToMany
     variants: [Variant!]! @HasMany
+    integrations: [IntegrationsEntityReference!]! @method(name: "getEntityIntegrationsSummary")
     productsTypes: ProductType @belongsTo
     companies: Company! @belongsTo(relation: "company")
     custom_fields: [CustomField!]!

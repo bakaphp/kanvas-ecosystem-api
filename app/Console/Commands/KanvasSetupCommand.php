@@ -51,6 +51,7 @@ class KanvasSetupCommand extends Command
             'kanvas:create-role Users',
             'kanvas:create-role Agents',
             'kanvas:filesystem-setup',
+            'kanvas:create-workflow-status',
         ];
 
         foreach ($commands as $command) {

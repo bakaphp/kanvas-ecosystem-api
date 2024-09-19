@@ -29,8 +29,8 @@ class AddVariantToChannelAction
         $variantChannel = VariantsChannels::updateOrCreate(
             $search,
             [
-                'price' => $this->variantChannelDto->price ?? 0.00,
-                'discounted_price' => $this->variantChannelDto->discounted_price ?? 0.00,
+                'price' => (float) ($this->variantChannelDto->price ?? 0.00),
+                'discounted_price' => (float) ($this->variantChannelDto->discounted_price ?? 0.00),
                 'is_published' => $this->variantChannelDto->is_published,
                 'products_variants_id' => $this->variantsWarehouses->products_variants_id,
                 'warehouses_id' => $this->variantsWarehouses->warehouses_id
