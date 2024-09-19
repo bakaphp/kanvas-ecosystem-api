@@ -7,7 +7,9 @@ type User {
     description: String
     dob: String
     default_company: Int! @method(name: "defaultCompany")
+    default_company_uuid: String! @method(name: "defaultCompanyUuid")
     default_company_branch: Int! @method(name: "defaultCompanyBranch")
+    default_company_branch_uuid: String! @method(name: "defaultCompanyBranchUuid")
     email: Email! @method(name: "getAppEmail")
     is_active: Boolean! @method(name: "getAppIsActive")
     verify_two_factor: Boolean! @method(name: "runVerifyTwoFactorAuth")
