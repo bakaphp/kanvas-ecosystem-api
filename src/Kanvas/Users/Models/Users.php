@@ -464,6 +464,16 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return $this->currentBranchId();
     }
 
+    public function defaultCompanyUuid(): string
+    {
+        return Companies::getById($this->currentCompanyId())->uuid;
+    }
+
+    public function defaultCompanyBranchUuid(): string
+    {
+        return CompaniesBranches::getById($this->currentBranchId())->uuid;
+    }
+
     /**
      * What the current company the users is logged in with
      * in this current session?
