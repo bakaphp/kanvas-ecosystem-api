@@ -7,6 +7,7 @@ namespace App\GraphQL\Subscription\Mutations\Subscriptions;
 use Kanvas\Subscription\Subscriptions\Actions\CreateSubscription;
 use Kanvas\Subscription\Subscriptions\Actions\UpdateSubscription;
 use Kanvas\Subscription\Subscriptions\Actions\CancelSubscription;
+use Kanvas\Subscription\Subscriptions\Actions\AddSubscriptionItem;
 use Kanvas\Subscription\Subscriptions\DataTransferObject\Subscription as SubscriptionDto;
 use Kanvas\Subscription\SubscriptionItems\DataTransferObject\SubscriptionItem as SubscriptionItemDto;
 use Kanvas\Subscription\Subscriptions\Models\Subscription as SubscriptionModel;
@@ -43,7 +44,6 @@ class SubscriptionMutation
      */
     public function create($root, array $args, $context): SubscriptionModel
     {
-
         $data = $args['input'];
         $company = $this->user->getCurrentCompany();
         $paymentMethodId = $data['payment_method_id'];
@@ -100,6 +100,7 @@ class SubscriptionMutation
      */
     public function cancel(array $req): SubscriptionModel
     {
+
         $data = $req['input'];
         $company = Companies::findOrFail($data['companies_id']);
         $subscription = SubscriptionModel::findOrFail($req['id']);
@@ -112,6 +113,37 @@ class SubscriptionMutation
 
         return $subscription;
     }
+    /**
+     * addSubscriptionItem.
+     *
+     * @param array $args
+     * @return SubscriptionItem
+     */
+    public function addSubscriptionItem(array $args)
+    {
+        $data = $args['input'];
+        $company = $this->user->getCurrentCompany();
+
+        $subscriptionModel = SubscriptionModel::findOrFail($data['subscription_id']);
+
+        $stripeSubscription = StripeSubscription::retrieve($subscriptionModel->stripe_id);
+        $stripeSubscriptionItem = StripeSubscription::update($subscriptionModel->stripe_id, [
+            'items' => [
+                [
+                    'price' => $data['price_id'],
+                    'quantity' => $data['quantity'],
+                ]
+            ]
+        ]);
+
+        $subscriptionItemDto = SubscriptionItemDto::viaRequest(array_merge($data, [
+            'stripe_id' => $stripeSubscriptionItem->id,
+        ]), $this->user, $company, $this->app);
+
+        $addSubscriptionItemAction = new AddSubscriptionItem($subscriptionItemDto);
+        return $addSubscriptionItemAction->execute();
+    }
+
 
     private function createStripeCustomer(Companies $company, string $paymentMethodId): string
     {
@@ -177,7 +209,7 @@ class SubscriptionMutation
                 'subscription_id' => $subscriptionModel->id,
                 'stripe_id' => $stripeSubscriptionItem->id,
                 'stripe_plan' => $stripePlan,
-                'apps_plans_id' => $this->app->id,
+                'apps_plans_id' => $this->app->id, #MODIFY THIS
             ]), $this->user, $company, $this->app);
 
             $subscriptionItemMutation->create([
