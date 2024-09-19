@@ -337,7 +337,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 $attributesDto = AttributesDto::from([
                     'app' => $this->app,
                     'user' => $user,
-                    'company' => $this->product->company,
+                    'company' => $this->company,
                     'name' => $attribute['name'],
                     'value' => $attribute['value'],
                     'isVisible' => true,
