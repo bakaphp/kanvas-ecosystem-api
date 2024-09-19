@@ -13,7 +13,6 @@ use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
-use Kanvas\Workflow\Integrations\Services\IntegrationService;
 use Kanvas\Workflow\Traits\PublicAppScopeTrait;
 
 class Integrations extends BaseModel
@@ -49,7 +48,7 @@ class Integrations extends BaseModel
     public function getIntegrationsByCompany(): Collection
     {
         $user = auth()->user();
-        return (new IntegrationService($this->app, $user->getCurrentCompany()))->getIntegrationsByCompany();
+        return $user->getCurrentCompany()->integrations;
     }
 
     public function getIntegrationStatus(): Status
@@ -59,7 +58,7 @@ class Integrations extends BaseModel
 
         $user = auth()->user();
         $active = Status::getDefaultStatusByName(StatusEnum::ACTIVE->value);
-        $integrations = (new IntegrationService($this->app, $user->getCurrentCompany()))->getIntegrationsByCompany();
+        $integrations = $user->getCurrentCompany()->integrations();
 
         if (! $integrations->exists()) {
             return Status::getDefaultStatusByName(StatusEnum::OFFLINE->value);
