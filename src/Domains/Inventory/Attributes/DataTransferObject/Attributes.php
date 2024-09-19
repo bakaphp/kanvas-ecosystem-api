@@ -23,9 +23,9 @@ class Attributes extends Data
         public string $name,
         public string $slug,
         public ?AttributesTypesModel $attributeType,
-        public bool $isVisible = false,
-        public bool $isSearchable = false,
-        public bool $isFiltrable = false,
+        public bool $isVisible = true,
+        public bool $isSearchable = true,
+        public bool $isFiltrable = true,
     ) {
     }
 
@@ -38,9 +38,9 @@ class Attributes extends Data
             $request['name'],
             $request['slug'] ?? Str::slug($request['name']),
             isset($request['attribute_type']['id']) ? AttributesTypesModel::getById((int) $request['attribute_type']['id'], $app) : null,
-            $request['is_visible'] ?? false,
-            $request['is_searchable'] ?? false,
-            $request['is_filtrable'] ?? false,
+            $request['is_visible'] ?? true,
+            $request['is_searchable'] ?? true,
+            $request['is_filtrable'] ?? true,
         );
     }
 }

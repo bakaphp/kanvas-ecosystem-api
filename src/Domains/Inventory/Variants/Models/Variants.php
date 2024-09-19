@@ -163,13 +163,36 @@ class Variants extends BaseModel implements EntityIntegrationInterface
      */
     public function attributes(): BelongsToMany
     {
-        return $this->belongsToMany(
+        return $this->buildAttributesQuery();
+    }
+
+    /**
+     * @todo add integration and graph test
+     */
+    public function visibleAttributes(): BelongsToMany
+    {
+        return $this->buildAttributesQuery(['is_visible' => true]);
+    }
+
+    public function searchableAttributes(): BelongsToMany
+    {
+        return $this->buildAttributesQuery(['is_searchable' => true]);
+    }
+
+    private function buildAttributesQuery(array $conditions = []): BelongsToMany
+    {
+        $query = $this->belongsToMany(
             Attributes::class,
             VariantsAttributes::class,
             'products_variants_id',
             'attributes_id'
-        )
-            ->withPivot('value');
+        )->withPivot('value');
+
+        foreach ($conditions as $column => $value) {
+            $query->where($column, $value);
+        }
+
+        return $query;
     }
 
     /**
@@ -232,9 +255,9 @@ class Variants extends BaseModel implements EntityIntegrationInterface
                     'company' => $this->product->company,
                     'name' => $attribute['name'],
                     'value' => $attribute['value'],
-                    'isVisible' => false,
-                    'isSearchable' => false,
-                    'isFiltrable' => false,
+                    'isVisible' => true,
+                    'isSearchable' => true,
+                    'isFiltrable' => true,
                     'slug' => Str::slug($attribute['name']),
                 ]);
                 $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();

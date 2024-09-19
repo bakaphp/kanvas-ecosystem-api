@@ -340,9 +340,9 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     'company' => $this->product->company,
                     'name' => $attribute['name'],
                     'value' => $attribute['value'],
-                    'isVisible' => false,
-                    'isSearchable' => false,
-                    'isFiltrable' => false,
+                    'isVisible' => true,
+                    'isSearchable' => true,
+                    'isFiltrable' => true,
                     'slug' => Str::slug($attribute['name']),
                 ]);
                 $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
