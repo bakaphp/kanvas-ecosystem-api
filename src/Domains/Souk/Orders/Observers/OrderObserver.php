@@ -10,6 +10,8 @@ class OrderObserver
 {
     public function creating(Order $order)
     {
-        $order->order_number = $order->generateOrderNumber();
+        if (empty($order->order_number)) {
+            $order->order_number = $order->generateOrderNumber();
+        }
     }
 }
