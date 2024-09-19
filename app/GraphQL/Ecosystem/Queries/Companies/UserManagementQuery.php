@@ -9,6 +9,8 @@ use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersInvite;
+use Kanvas\Users\Repositories\UsersInviteRepository;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class UserManagementQuery
