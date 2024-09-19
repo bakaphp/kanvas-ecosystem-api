@@ -21,7 +21,7 @@ type Product {
     updated_at: String
     categories: [Category!]! @BelongsToMany
     warehouses: [Warehouse!]! @BelongsToMany
-    attributes: [ProductAttribute!]! @BelongsToMany
+    attributes: [ProductAttribute!]! @BelongsToMany(relation: "visibleAttributes")
     variants: [Variant!]! @HasMany
     integrations: [IntegrationsEntityReference!]! @method(name: "getEntityIntegrationsSummary")
     productsTypes: ProductType @belongsTo

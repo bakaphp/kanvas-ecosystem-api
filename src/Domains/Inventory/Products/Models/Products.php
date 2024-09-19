@@ -118,12 +118,36 @@ class Products extends BaseModel implements EntityIntegrationInterface
      */
     public function attributes(): BelongsToMany
     {
-        return $this->belongsToMany(
+        return $this->buildAttributesQuery();
+    }
+
+    /**
+     * @todo add integration and graph test
+     */
+    public function visibleAttributes(): BelongsToMany
+    {
+        return $this->buildAttributesQuery(['is_visible' => true]);
+    }
+
+    public function searchableAttributes(): BelongsToMany
+    {
+        return $this->buildAttributesQuery(['is_searchable' => true]);
+    }
+
+    private function buildAttributesQuery(array $conditions = []): BelongsToMany
+    {
+        $query = $this->belongsToMany(
             Attributes::class,
             'products_attributes',
             'products_id',
             'attributes_id'
         )->withPivot('value');
+
+        foreach ($conditions as $column => $value) {
+            $query->where($column, $value);
+        }
+
+        return $query;
     }
 
     /**
@@ -216,7 +240,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
             'published_at' => $this->published_at,
             'created_at' => $this->created_at->format('Y-m-d H:i:s'),
         ];
-        $attributes = $this->attributes()->get();
+        $attributes = $this->searchableAttributes()->get();
         foreach ($attributes as $attribute) {
             $product['attributes'][$attribute->name] = $attribute->value;
         }
@@ -316,9 +340,9 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     'company' => $this->product->company,
                     'name' => $attribute['name'],
                     'value' => $attribute['value'],
-                    'isVisible' => false,
-                    'isSearchable' => false,
-                    'isFiltrable' => false,
+                    'isVisible' => true,
+                    'isSearchable' => true,
+                    'isFiltrable' => true,
                     'slug' => Str::slug($attribute['name']),
                 ]);
                 $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
