@@ -100,7 +100,6 @@ class SubscriptionMutation
      */
     public function cancel(array $req): SubscriptionModel
     {
-
         $data = $req['input'];
         $company = Companies::findOrFail($data['companies_id']);
         $subscription = SubscriptionModel::findOrFail($req['id']);
@@ -164,10 +163,10 @@ class SubscriptionMutation
         return StripeSubscription::create([
             'customer' => $stripeCustomerId,
             'items' => array_map(function ($item) {
-            return [
-                'price' => $item['price_id'],
-                'quantity' => $item['quantity'] ?? 1,
-            ];
+                return [
+                    'price' => $item['price_id'],
+                    'quantity' => $item['quantity'] ?? 1,
+                ];
             }, $data['items']),
             'default_payment_method' => $paymentMethodId,
             'trial_end' => $data['trial_days'] ? strtotime("+{$data['trial_days']} days") : 'now',
@@ -180,13 +179,13 @@ class SubscriptionMutation
             'companies_id' => $company->id,
             'apps_id' => $this->app->id,
         ])->first();
-    
+
         if ($existingCustomer) {
             return $existingCustomer;
         }
-    
+
         $stripeCustomerId = $this->createStripeCustomer($company, $paymentMethodId);
-    
+
         return AppsStripeCustomerModel::create([
             'companies_id' => $company->id,
             'apps_id' => $this->app->id,
@@ -201,7 +200,7 @@ class SubscriptionMutation
         foreach ($items as $item) {
             $stripeSubscriptionItem = collect($stripeSubscription->items->data)
                 ->firstWhere('price.id', $item['price_id']);
-        
+
             $price = Price::retrieve($item['price_id']);
             $stripePlan = $price->product;
 
