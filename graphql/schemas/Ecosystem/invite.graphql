@@ -52,7 +52,7 @@ extend type Mutation @guard {
 }
 
 extend type Mutation {
-    getInvite(hash: String!): ExternalInvite!
+    getInvite(hash: String!): ExternalInvite! @deprecated(reason: "use the query getInvite instead")
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@getInvite"
         )
@@ -83,5 +83,12 @@ extend type Query @guard {
         @paginate(
             model: "Kanvas\\Users\\Models\\UsersInvite"
             scopes: ["fromCompany", "fromApp"]
+        )
+}
+
+extend type Query {
+    getInvite(hash: String!): ExternalInvite!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Users\\UserInviteQuery@getInvite"
         )
 }
