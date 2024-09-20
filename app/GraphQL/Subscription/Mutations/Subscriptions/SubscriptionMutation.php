@@ -199,9 +199,8 @@ class SubscriptionMutation
         return StripeSubscription::create([
             'customer' => $stripeCustomerId,
             'items' => array_map(function ($item) {
-            $price = PriceRepository::getByIdWithApp($item['apps_plans_prices_id']);
             return [
-                'price' => $price->stripe_id,
+                'price' => $item['price_id'],
                 'quantity' => $item['quantity'] ?? 1,
             ];
             }, $data['items']),
@@ -216,17 +215,41 @@ class SubscriptionMutation
             'companies_id' => $company->id,
             'apps_id' => $this->app->id,
         ])->first();
-    
+
         if ($existingCustomer) {
             return $existingCustomer;
         }
-    
+
         $stripeCustomerId = $this->createStripeCustomer($company, $paymentMethodId);
-    
+
         return AppsStripeCustomerModel::create([
             'companies_id' => $company->id,
             'apps_id' => $this->app->id,
             'stripe_customer_id' => $stripeCustomerId,
         ]);
+    }
+
+    private function storeSubscriptionItems(array $items, StripeSubscription $stripeSubscription, SubscriptionModel $subscriptionModel, Companies $company): void
+    {
+        $subscriptionItemMutation = new SubscriptionItemMutation();
+
+        foreach ($items as $item) {
+            $stripeSubscriptionItem = collect($stripeSubscription->items->data)
+                ->firstWhere('price.id', $item['price_id']);
+        
+            $price = Price::retrieve($item['price_id']);
+            $stripePlan = $price->product;
+
+            $subscriptionItemDto = SubscriptionItemDto::viaRequest(array_merge($item, [
+                'subscription_id' => $subscriptionModel->id,
+                'stripe_id' => $stripeSubscriptionItem->id,
+                'stripe_plan' => $stripePlan,
+                'apps_plans_id' => $this->app->id, #MODIFY THIS
+            ]), $this->user, $company, $this->app);
+
+            $subscriptionItemMutation->create([
+                'input' => $subscriptionItemDto->toArray()
+            ]);
+        }
     }
 }
