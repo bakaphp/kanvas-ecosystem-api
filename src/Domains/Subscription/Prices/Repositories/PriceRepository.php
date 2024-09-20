@@ -19,7 +19,7 @@ class PriceRepository
     {
         return new Price();
     }
-    
+
     public static function getByIdWithApp(int $id, ?AppInterface $app = null): Model
     {
         try {

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Baka\Contracts\AppInterface;
 use Baka\Traits\SearchableTrait;
+
 class PlanRepository
 {
     use SearchableTrait;

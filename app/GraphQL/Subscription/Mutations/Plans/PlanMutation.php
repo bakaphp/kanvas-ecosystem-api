@@ -52,7 +52,7 @@ class PlanMutation
      * @return PlanModel
      */
     public function update(array $req): PlanModel
-    {  
+    {
         $app = app(Apps::class);
         $plan = PlanRepository::getById($req['id']);
 
