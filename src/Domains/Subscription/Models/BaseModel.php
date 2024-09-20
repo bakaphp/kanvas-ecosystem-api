@@ -44,12 +44,4 @@ class BaseModel extends EloquentModel
     {
         return $this->{$this->getDeletedAtColumn()};
     }
-
-    /**
-     * apps.
-     */
-    public function apps(): BelongsTo
-    {
-        return $this->belongsTo(Apps::class, 'apps_id');
-    }
 }

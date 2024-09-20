@@ -1,7 +1,7 @@
 type CompanySubscription {
     id: ID!
-    companies_id: ID
-    apps_plans_id: ID
+    companies_id: ID!
+    apps_plans_id: ID!
     name: String
     subscription_id: ID
     stripe_id: String

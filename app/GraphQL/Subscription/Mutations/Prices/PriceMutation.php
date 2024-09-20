@@ -17,12 +17,6 @@ use Stripe\Product as StripeProduct;
 
 class PriceMutation
 {
-    public function __construct()
-    {
-        $app = app(Apps::class);
-        Stripe::setApiKey($app->get('stripe_secret'));
-    }
-
     /**
      * create.
      *
@@ -32,8 +26,7 @@ class PriceMutation
      */
     public function create(array $req): PriceModel
     {
-        $app = Apps::findOrFail($req['input']['apps_id']);
-
+        $app = app(Apps::class);
         $stripeProduct = StripeProduct::create([
             'name' => 'Price for Plan ' . $req['input']['apps_plans_id'],
         ]);
@@ -66,7 +59,7 @@ class PriceMutation
      */
     public function update(array $req): PriceModel
     {
-        $app = Apps::findOrFail($req['input']['apps_id']);
+        $app = app(Apps::class);
         $price = PriceRepository::getById($req['id']);
 
         StripePrice::create([

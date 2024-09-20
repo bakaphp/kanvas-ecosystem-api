@@ -16,12 +16,6 @@ use Stripe\Product as StripeProduct;
 
 class PlanMutation
 {
-    public function __construct()
-    {
-        $app = app(Apps::class);
-        Stripe::setApiKey($app->get('stripe_secret'));
-    }
-
     /**
      * create.
      *
@@ -30,10 +24,9 @@ class PlanMutation
      *
      * @return PlanModel
      */
-    public function create(array $req): PlanModel
+    public function create(mixed $root, array $req): PlanModel
     {
-        $app = Apps::findOrFail($req['input']['apps_id']);
-
+        $app = app(Apps::class);
         $stripeProduct = StripeProduct::create([
             'name' => $req['input']['name'],
             'description' => $req['input']['description'] ?? '',
@@ -46,9 +39,8 @@ class PlanMutation
         );
 
         $action = new CreatePlan($dto);
-        $planModel = $action->execute();
 
-        return $planModel;
+        return $action->execute();
     }
 
     /**
@@ -60,9 +52,9 @@ class PlanMutation
      * @return PlanModel
      */
     public function update(array $req): PlanModel
-    {
+    {  
+        $app = app(Apps::class);
         $plan = PlanRepository::getById($req['id']);
-        $app = Apps::findOrFail($req['input']['apps_id']);
 
         StripeProduct::update($plan->stripe_id, [
             'name' => $req['input']['name'] ?? $plan->name,
@@ -72,9 +64,8 @@ class PlanMutation
         $dto = PlanDto::viaRequest($req['input'], Auth::user(), $app);
 
         $action = new UpdatePlan($plan, $dto);
-        $updatedPlan = $action->execute();
 
-        return $updatedPlan;
+        return $action->execute();
     }
 
     /**
