@@ -9,12 +9,6 @@ type Integrations {
     updated_at: DateTime
 }
 
-type Status {
-    id: ID!
-    name: String!
-    slug: String!
-}
-
 type IntegrationsCompanies {
     id: ID!
     company: Company

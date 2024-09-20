@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Repositories;
 
+use Baka\Contracts\AppInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\StateEnums;
@@ -18,14 +19,12 @@ class UsersInviteRepository
      *
      * @return UsersInviteModel
      */
-    public static function getById(int $id, Companies $company): UsersInviteModel
+    public static function getById(int $id, Companies $company, ?AppInterface $app = null): UsersInviteModel
     {
-        /**
-         * @var UsersInviteModel
-         */
-        return UsersInviteModel::where('apps_id', app(Apps::class)->id)
-            ->where('companies_id', $company->getKey())
-            ->where('is_deleted', StateEnums::NO->getValue())
+        $app = $app ?: app(Apps::class);
+        return UsersInviteModel::fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
             ->where('id', $id)
             ->firstOrFail();
     }
@@ -37,14 +36,12 @@ class UsersInviteRepository
      *
      * @return UsersInviteModel
      */
-    public static function getByHash(string $hash): UsersInviteModel
+    public static function getByHash(string $hash, ?AppInterface $app = null): UsersInviteModel
     {
-        /**
-         * @var UsersInviteModel
-         */
+        $app = $app ?: app(Apps::class);
         return UsersInviteModel::where('invite_hash', $hash)
-            ->where('apps_id', app(Apps::class)->id)
-            ->where('is_deleted', StateEnums::NO->getValue())
+            ->fromApp($app)
+            ->notDeleted()
             ->firstOrFail();
     }
 }

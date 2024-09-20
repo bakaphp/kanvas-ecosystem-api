@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Jobs;
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Agents\Models\Agent;
+use Kanvas\Guild\Enums\AppEnum;
 use Kanvas\Guild\Leads\Actions\ConvertJsonTemplateToLeadStructureAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadAttemptAction;
@@ -47,6 +47,10 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         }
 
         $payload['receiver_id'] = $leadReceiver->getId();
+
+        if ($leadReceiver->app->get(AppEnum::APP_DEFAULT_RECEIVER_LEAD_STATUS->value)) {
+            $payload['status_id'] = $leadReceiver->app->get(AppEnum::APP_DEFAULT_RECEIVER_LEAD_STATUS->value);
+        }
 
         $createLead = new CreateLeadAction(
             Lead::viaRequest(

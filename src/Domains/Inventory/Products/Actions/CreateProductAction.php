@@ -97,9 +97,9 @@ class CreateProductAction
                             'user' => $this->user,
                             'company' => $this->productDto->company,
                             'name' => $attribute['name'],
-                            'isVisible' => false,
-                            'isSearchable' => false,
-                            'isFiltrable' => false,
+                            'isVisible' => true,
+                            'isSearchable' => true,
+                            'isFiltrable' => true,
                             'slug' => Str::slug($attribute['name']),
                         ]);
 
