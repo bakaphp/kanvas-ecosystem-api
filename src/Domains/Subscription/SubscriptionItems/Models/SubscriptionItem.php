@@ -15,9 +15,12 @@ use Kanvas\Subscription\Prices\Models\Price;
  * Class SubscriptionItem.
  *
  * @property int $id
+ * @property int $companies_id
+ * @property int $apps_id
  * @property int $subscription_id
  * @property int $apps_plans_id
- * @property int $price_id
+ * @property int $stripe_id
+ * @property int $apps_plans_prices_id
  * @property int $quantity
  * @property string $created_at
  * @property string $updated_at

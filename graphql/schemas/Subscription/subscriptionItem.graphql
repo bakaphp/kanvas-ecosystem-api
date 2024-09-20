@@ -1,18 +1,20 @@
 type SubscriptionItem {
     id: ID!
     subscription_id:Int @belongsTo(relation: "subscription")
-    price_id: String! @belongsTo(relation: "price")
     apps_plans_id: Int @belongsTo(relation: "plan")
-    quantity: Int!
+    apps_plans_prices_id: Int @belongsTo(relation: "price")
+    stripe_id: String
+    quantity: Int
     created_at: String
     updated_at: String
 }
 
 input SubscriptionItemInput {
     subscription_id: Int
-    apps_plans_id: Int
-    price_id: String!
-    quantity: Int!
+    apps_plans_id: ID
+    apps_plans_prices_id: Int
+    stripe_id: String
+    quantity: Int
 }
 
 extend type Mutation @guard {

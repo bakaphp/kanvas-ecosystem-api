@@ -13,6 +13,7 @@ use Kanvas\Subscription\SubscriptionItems\DataTransferObject\SubscriptionItem as
 use Kanvas\Subscription\Subscriptions\Models\Subscription as SubscriptionModel;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer as AppsStripeCustomerModel;
 use Kanvas\Subscription\Subscriptions\Repositories\SubscriptionRepository;
+use Kanvas\Subscription\Plans\Repositories\PlanRepository;
 use App\GraphQL\Subscription\Mutations\SubscriptionItems\SubscriptionItemMutation;
 use Kanvas\Apps\Models\Apps;
 use Illuminate\Support\Facades\Auth;
@@ -21,6 +22,7 @@ use Stripe\Price;
 use Stripe\Subscription as StripeSubscription;
 use Stripe\Customer;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Subscription\Prices\Repositories\PriceRepository;
 
 class SubscriptionMutation
 {
@@ -49,8 +51,7 @@ class SubscriptionMutation
         $company = $this->user->getCurrentCompany();
         $paymentMethodId = $data['payment_method_id'];
 
-        $appStripeCustomer = $this->storeAppCustomer($company, $paymentMethodId);
-
+        $appStripeCustomer = $this->createOrFindAppCustomer($company, $paymentMethodId);
         $stripeSubscription = $this->createStripeSubscription($appStripeCustomer->stripe_customer_id, $data, $paymentMethodId);
 
         $dto = SubscriptionDto::viaRequest(array_merge($data, [
@@ -58,9 +59,24 @@ class SubscriptionMutation
             'payment_method_id' => $paymentMethodId,
         ]), $this->user, $company, $this->app);
 
-        $subscriptionModel = (new CreateSubscription($dto))->execute();
+        $action = new CreateSubscription($dto);
+        $subscriptionModel = $action->execute();
 
-        $this->storeSubscriptionItems($data['items'], $stripeSubscription, $subscriptionModel, $company);
+        foreach ($data['items'] as $item) {
+            $price = PriceRepository::getByIdWithApp($item['apps_plans_prices_id']);
+            $plan = PlanRepository::getByIdWithApp($price->apps_plans_id);
+            $stripeSubscriptionItem = collect($stripeSubscription->items->data)
+                ->firstWhere('price.id', $price-> stripe_id);
+
+            $subscriptionItemDto = SubscriptionItemDto::viaRequest(array_merge($item, [
+                'subscription_id' => $subscriptionModel->id,
+                'stripe_id' => $stripeSubscriptionItem->id,
+                'apps_plans_id' => $plan->id,
+            ]), $this->user, $company, $this->app);
+
+            $action = new AddSubscriptionItem($subscriptionItemDto);
+            $subscriptionItemModel = $action->execute();
+        }
 
         return $subscriptionModel;
     }
@@ -75,7 +91,7 @@ class SubscriptionMutation
             throw new \Exception("This subscription does not belong to the current app.");
         }
 
-        $stripeSubscription = StripeSubscription::update($subscription->stripe_id, [
+        StripeSubscription::update($subscription->stripe_id, [
             'metadata' => [
                 'name' => $data['name'],
             ],
@@ -107,13 +123,15 @@ class SubscriptionMutation
         $stripeSubscription = StripeSubscription::retrieve($subscription->stripe_id);
         $stripeSubscription->cancel();
 
+        (new CancelSubscription($subscription))->execute();
         return $subscription->delete();
     }
+
     /**
      * addSubscriptionItem.
      *
      * @param array $args
-     * @return SubscriptionItem
+     * @return SubscriptionItems
      */
     public function addSubscriptionItem($rootValue, array $args, $context)
     {
@@ -123,55 +141,43 @@ class SubscriptionMutation
         $subscriptionModel = SubscriptionModel::findOrFail($subscriptionId);
         $stripeSubscription = StripeSubscription::retrieve($subscriptionModel->stripe_id);
 
+        $subscriptionItems = [];
+    
         foreach ($data['items'] as $item) {
+            $price = PriceRepository::getByIdWithApp($item['apps_plans_prices_id']);
+            $plan = PlanRepository::getByIdWithApp($price->apps_plans_id);
             $existingSubscriptionItem = collect($stripeSubscription->items->data)
-                ->firstWhere('price.id', $item['price_id']);
-
+                ->firstWhere('price.id', $price->stripe_id);
+    
+            $stripeItemData = [
+                'price' => $price->stripe_id,
+                'quantity' => $item['quantity'],
+            ];
+    
             if ($existingSubscriptionItem) {
-                StripeSubscription::update($subscriptionModel->stripe_id, [
-                    'items' => [
-                        [
-                            'id' => $existingSubscriptionItem->id,
-                            'quantity' => $item['quantity'],
-                        ]
-                    ]
-                ]);
-            } else {
-                StripeSubscription::update($subscriptionModel->stripe_id, [
-                    'items' => [
-                        [
-                            'price' => $item['price_id'],
-                            'quantity' => $item['quantity'],
-                        ]
-                    ]
-                ]);
+                $stripeItemData['id'] = $existingSubscriptionItem->id;
             }
-        }
-        $addedSubscriptionItems = [];
-        
-        foreach ($data['items'] as $item) {
-
+    
+            StripeSubscription::update($subscriptionModel->stripe_id, [
+                'items' => [$stripeItemData]
+            ]);
+    
             $stripeSubscriptionItem = collect($stripeSubscription->items->data)
-            ->firstWhere('price.id', $item['price_id']);
-
-            $price = Price::retrieve($item['price_id']);
-            $stripePlan = $price->product;
-        
+                ->firstWhere('price.id', $price->stripe_id);
+    
             $subscriptionItemDto = SubscriptionItemDto::viaRequest(array_merge($item, [
                 'subscription_id' => $subscriptionModel->id,
                 'stripe_id' => $stripeSubscriptionItem->id,
-                'price_id' => $item['price_id'],
-                'stripe_plan' => $stripePlan,
-                'apps_plans_id' => $this->app->id, #MODIFY THIS
+                'apps_plans_id' => $plan->id,
             ]), $this->user, $company, $this->app);
-
+    
             $action = new AddSubscriptionItem($subscriptionItemDto);
             $subscriptionItemModel = $action->execute();
-
-            $addedSubscriptionItems[] = $subscriptionItemModel;
+    
+            $subscriptionItems[] = $subscriptionItemModel;
         }
-
-        return $addedSubscriptionItems;
+    
+        return $subscriptionItems;
     }
 
     private function createStripeCustomer(Companies $company, string $paymentMethodId): string
@@ -193,8 +199,9 @@ class SubscriptionMutation
         return StripeSubscription::create([
             'customer' => $stripeCustomerId,
             'items' => array_map(function ($item) {
+            $price = PriceRepository::getByIdWithApp($item['apps_plans_prices_id']);
             return [
-                'price' => $item['price_id'],
+                'price' => $price->stripe_id,
                 'quantity' => $item['quantity'] ?? 1,
             ];
             }, $data['items']),
@@ -203,7 +210,7 @@ class SubscriptionMutation
         ]);
     }
 
-    private function storeAppCustomer(Companies $company, string $paymentMethodId): AppsStripeCustomerModel
+    private function createOrFindAppCustomer(Companies $company, string $paymentMethodId): AppsStripeCustomerModel
     {
         $existingCustomer = AppsStripeCustomerModel::where([
             'companies_id' => $company->id,
@@ -221,32 +228,5 @@ class SubscriptionMutation
             'apps_id' => $this->app->id,
             'stripe_customer_id' => $stripeCustomerId,
         ]);
-    }
-
-    private function storeSubscriptionItems(array $items, StripeSubscription $stripeSubscription, SubscriptionModel $subscriptionModel, Companies $company): array
-    {
-        $subscriptionItemMutation = new SubscriptionItemMutation();
-        $stripeSubscription = StripeSubscription::retrieve($subscriptionModel->stripe_id);
-        $createdItems = [];
-        foreach ($items as $item) {
-            $stripeSubscriptionItem = collect($stripeSubscription->items->data)
-                ->firstWhere('price.id', $item['price_id']);
-
-            $price = Price::retrieve($item['price_id']);
-            $stripePlan = $price->product;
-
-            $subscriptionItemDto = SubscriptionItemDto::viaRequest(array_merge($item, [
-                'subscription_id' => $subscriptionModel->id,
-                'stripe_id' => $stripeSubscriptionItem->id,
-                'stripe_plan' => $stripePlan,
-                'apps_plans_id' => $this->app->id, #MODIFY THIS
-            ]), $this->user, $company, $this->app);
-
-            $createdItem = $subscriptionItemMutation->create([
-                'input' => $subscriptionItemDto->toArray()
-            ]);
-            $createdItems[] = $createdItem;
-        }
-        return $createdItems;
     }
 }

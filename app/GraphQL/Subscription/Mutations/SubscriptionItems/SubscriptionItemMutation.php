@@ -36,7 +36,10 @@ class SubscriptionItemMutation
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        $dto = SubscriptionItemDto::viaRequest($data, $user, $company, $app);
+        $dto = SubscriptionItemDto::viaRequest(array_merge($data, [
+            'apps_id' => $app->id,
+            'companies_id' => $company->id,
+        ]), $user, $company, $app);
 
         $action = new CreateSubscriptionItem($dto);
         $subscriptionItemModel = $action->execute();

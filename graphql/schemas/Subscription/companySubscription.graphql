@@ -8,6 +8,7 @@ type CompanySubscription {
     payment_method_id: String!
     trial_days: Int
     subscriptionItems: [SubscriptionItem!] @hasMany(relation: "subscriptionItems")
+    stripe_status: String
     is_active: Boolean
     is_cancelled: Boolean
     paid: Boolean

@@ -58,13 +58,4 @@ trait SearchableTrait
             throw new ExceptionsModelNotFoundException($e->getMessage());
         }
     }
-
-    public static function getByStripeId(string $stripeId): self
-    {
-        try {
-            return self::where('stripe_id', $stripeId)->firstOrFail();
-        } catch (ModelNotFoundException $e) {
-            throw new ExceptionsModelNotFoundException("No record found for Stripe ID: $stripeId");
-        }
-    }
 }
