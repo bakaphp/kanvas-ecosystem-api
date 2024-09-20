@@ -14,8 +14,8 @@ class Plan extends Data
         public AppInterface $app,
         public UserInterface $user,
         public string $name,
-        public ?string $description = null,
         public string $stripe_id,
+        public ?string $description = null,
         public bool $is_default = false,
         public bool $is_deleted = false,
     ) {
