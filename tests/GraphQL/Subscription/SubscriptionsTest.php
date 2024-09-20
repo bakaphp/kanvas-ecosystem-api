@@ -96,7 +96,7 @@ final class SubscriptionsTest extends TestCase
                     subscription_id: 1,
                     items: [
                         {
-                            apps_plans_prices_id: 2, #Pro
+                            apps_plans_prices_id: 2, #Change to Pro
                             quantity: 1 #Optional, update quantity
                         }
                     ]

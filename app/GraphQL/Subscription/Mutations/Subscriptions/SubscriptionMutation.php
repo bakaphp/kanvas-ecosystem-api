@@ -200,7 +200,7 @@ class SubscriptionMutation
             'customer' => $stripeCustomerId,
             'items' => array_map(function ($item) {
                 return [
-                    'price' => $item['price_id'],
+                    'price' => (PriceRepository::getByIdWithApp($item['apps_plans_prices_id']))->stripe_id,
                     'quantity' => $item['quantity'] ?? 1,
                 ];
             }, $data['items']),
