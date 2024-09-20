@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Subscription;
 
-use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Facades\Request;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Stripe\StripeClient;
@@ -61,13 +59,13 @@ final class SubscriptionsTest extends TestCase
                 createSubscription(input: {
                     items: [
                         {
-                            apps_plans_prices_id: 1, #Basic
-                            quantity: 1 #Optional, default 1
+                            apps_plans_prices_id: 1, 
+                            quantity: 1
                         }
                     ],
-                    name: "TestCreate Subscription",       
-                    payment_method_id: "' . $this->paymentMethod->id . '",       
-                    trial_days: 30,                       
+                    name: "TestCreate Subscription",
+                    payment_method_id: "' . $this->paymentMethod->id . '",
+                    trial_days: 30,
                 }) {
                     id
                     name
@@ -96,8 +94,8 @@ final class SubscriptionsTest extends TestCase
                     subscription_id: 1,
                     items: [
                         {
-                            apps_plans_prices_id: 2, #Change to Pro
-                            quantity: 1 #Optional, update quantity
+                            apps_plans_prices_id: 2,
+                            quantity: 1
                         }
                     ]
                 }) {
@@ -118,7 +116,7 @@ final class SubscriptionsTest extends TestCase
 
         $response = $this->graphQL('
             mutation {
-                deleteSubscriptionItem(id: 1, subscription_id: 1) #Basic (previous plan)
+                deleteSubscriptionItem(id: 1, subscription_id: 1)
             }
         ');
 
