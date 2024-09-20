@@ -173,22 +173,6 @@ class SubscriptionMutation
 
         return $addedSubscriptionItems;
     }
-    /**
-     * switchSubscriptionPlan.
-     *
-     * @param array $args
-     * @return SubscriptionItem
-     */
-    public function switchSubscriptionPlan(array $args): SubscriptionItem
-    {
-        $data = $args['input'];
-        $subscription = SubscriptionModel::findOrFail($data['subscription_id']);
-        $oldSubscriptionItem = SubscriptionItem::findOrFail($data['old_subscription_item_id']);
-        $newSubscriptionItemDto = SubscriptionItemDto::viaRequest($data['new_subscription_item'], $this->user, $this->user->getCurrentCompany(), $this->app);
-
-        $action = new SwitchSubscriptionPlan($subscription, $newSubscriptionItemDto, $oldSubscriptionItem);
-        return $action->execute();
-    }
 
     private function createStripeCustomer(Companies $company, string $paymentMethodId): string
     {
