@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
-use Kanvas\ActionEngine\Tasks\Models\TaskEngagementItem;
-use Kanvas\ActionEngine\Tasks\Observers\TaskEngagementItemObserver;
 use Kanvas\Companies\Groups\Observers\CompaniesGroupsObserver;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesGroups;
@@ -56,9 +54,6 @@ use Kanvas\Users\Observers\UsersAssociatedAppsObserver;
 use Kanvas\Users\Observers\UsersAssociatedCompaniesObserver;
 use Kanvas\Users\Observers\UsersObserver;
 
-//use Kanvas\Subscriptions\Subscription\Models\Subscription;
-//use Kanvas\Subscriptions\Subscription\Observers\SubscriptionObserver;
-
 class EventServiceProvider extends ServiceProvider
 {
     /**
@@ -102,7 +97,6 @@ class EventServiceProvider extends ServiceProvider
         ProductsCategories::observe(ProductsCategoriesObserver::class);
         PeopleEmploymentHistory::observe(PeopleEmploymentHistoryObserver::class);
         People::observe(PeopleObserver::class);
-        //Subscription::observe(SubscriptionObserver::class);
     }
 
     /**

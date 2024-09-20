@@ -6,10 +6,12 @@ namespace Kanvas\Subscription\Subscriptions\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Subscription\Models\BaseModel;
 use Kanvas\Subscription\SubscriptionItems\Models\SubscriptionItem;
+use Kanvas\Subscriptions\Subscription\Observers\SubscriptionObserver;
 
 /**
  * Class Subscription.
@@ -35,6 +37,7 @@ use Kanvas\Subscription\SubscriptionItems\Models\SubscriptionItem;
  * @property string $updated_at
  * @property bool $is_deleted
  */
+#[ObservedBy(SubscriptionObserver::class)]
 class Subscription extends BaseModel
 {
     use CascadeSoftDeletes;
