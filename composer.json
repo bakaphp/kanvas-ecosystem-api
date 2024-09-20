@@ -129,6 +129,9 @@
         ],
         "migrate-laravel-workflow": [
             "php artisan migrate --path vendor/laravel-workflow/laravel-workflow/src/migrations/ --database workflow"
+        ],
+        "migrate-subscription": [
+            "php artisan migrate --path database/migrations/Subscription/ --database mysql"
         ]
     },
     "repositories": [
