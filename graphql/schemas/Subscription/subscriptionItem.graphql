@@ -21,7 +21,7 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Subscription\\Mutations\\SubscriptionItems\\SubscriptionItemMutation@create"
         )
 
-    deleteSubscriptionItem(id: ID!): Boolean!
+    deleteSubscriptionItem(id: Int!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Subscription\\Mutations\\SubscriptionItems\\SubscriptionItemMutation@delete"
         )

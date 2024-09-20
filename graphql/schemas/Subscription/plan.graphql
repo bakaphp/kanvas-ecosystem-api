@@ -6,6 +6,7 @@ type Plan {
     is_default: Boolean
     created_at: String
     updated_at: String
+    stripe_id: String
 }
 
 input PlanInput {
@@ -51,7 +52,7 @@ extend type Query @guard {
         hasPrices: _
             @whereHasConditions(
                 relation: "prices"
-                columns: ["id", "amount", "currency"]
+                columns: ["id", "stripe_id","amount", "currency", "interval"]
             )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [Plan!]!

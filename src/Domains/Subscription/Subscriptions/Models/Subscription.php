@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Subscription\Subscriptions\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Subscription\Models\BaseModel;
 use Kanvas\Subscription\SubscriptionItems\Models\SubscriptionItem;
@@ -37,8 +37,10 @@ use Kanvas\Subscription\SubscriptionItems\Models\SubscriptionItem;
  */
 class Subscription extends BaseModel
 {
+    use CascadeSoftDeletes;
     protected $table = 'subscriptions';
     protected $guarded = [];
+    protected $cascadeDeletes = ['subscriptionItems'];
 
     /**
      * companies.

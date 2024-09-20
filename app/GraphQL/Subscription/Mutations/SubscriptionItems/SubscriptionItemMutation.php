@@ -78,7 +78,7 @@ class SubscriptionItemMutation
      *
      * @return bool
      */
-    public function delete(array $req): bool
+    public function delete(mixed $root, array $req): bool
     {
         $subscriptionItem = SubscriptionItemRepository::getById($req['id']);
 
