@@ -23,9 +23,15 @@ final class SubscriptionsTest extends TestCase
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        $stripeSecretKey = env('TEST_STRIPE_SECRET_KEY');
+        $stripeSecretKey = getenv('TEST_STRIPE_SECRET_KEY');
+        echo env('ALGOLIA_SECRET'); 
+        echo getenv('TEST_STRIPE_SECRET_KEY'); 
         $this->app->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, $stripeSecretKey);
+        echo $stripeSecretKey;        die('33');
+
         $this->stripe = new StripeClient($stripeSecretKey);
+        die('33');
+
         $customer = $this->stripe->customers->create([
             'email' => 'test_subscription@example.com',
             'name' => 'Test_subscription_User',
@@ -50,6 +56,9 @@ final class SubscriptionsTest extends TestCase
         );
 
         \Stripe\Stripe::setApiKey($this->app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
+
+        die('33');
+
     }
 
     public function testCreateSubscription()
@@ -59,13 +68,13 @@ final class SubscriptionsTest extends TestCase
                 createSubscription(input: {
                     items: [
                         {
-                            apps_plans_prices_id: 1, 
-                            quantity: 1
+                            apps_plans_prices_id: 1, #Basic
+                            quantity: 1 #Optional, default 1
                         }
                     ],
-                    name: "TestCreate Subscription",
-                    payment_method_id: "' . $this->paymentMethod->id . '",
-                    trial_days: 30,
+                    name: "TestCreate Subscription",       
+                    payment_method_id: "' . $this->paymentMethod->id . '",       
+                    trial_days: 30,                       
                 }) {
                     id
                     name
@@ -94,8 +103,8 @@ final class SubscriptionsTest extends TestCase
                     subscription_id: 1,
                     items: [
                         {
-                            apps_plans_prices_id: 2,
-                            quantity: 1
+                            apps_plans_prices_id: 2, #Change to Pro
+                            quantity: 1 #Optional, update quantity
                         }
                     ]
                 }) {
@@ -116,7 +125,7 @@ final class SubscriptionsTest extends TestCase
 
         $response = $this->graphQL('
             mutation {
-                deleteSubscriptionItem(id: 1, subscription_id: 1)
+                deleteSubscriptionItem(id: 1, subscription_id: 1) #Basic (previous plan)
             }
         ');
 
