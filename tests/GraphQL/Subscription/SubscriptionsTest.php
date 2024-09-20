@@ -13,55 +13,68 @@ use Tests\TestCase;
 
 final class SubscriptionsTest extends TestCase
 {
-    public function testCreateSubscription()
+    protected $app;
+    private $stripe;
+    private $paymentMethod;
+
+    protected function setUp(): void
     {
-        $app = app(Apps::class);
+        parent::setUp();
+
+        $this->app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
         $stripeSecretKey = env('TEST_STRIPE_SECRET_KEY');
-        $app->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, $stripeSecretKey);
-        $stripe = new StripeClient($stripeSecretKey);
-        $customer = $stripe->customers->create([
-            'email' => 'test@example.com',
-            'name' => 'Test User',
+        $this->app->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, $stripeSecretKey);
+        $this->stripe = new StripeClient($stripeSecretKey);
+        $customer = $this->stripe->customers->create([
+            'email' => 'test_subscription@example.com',
+            'name' => 'Test_subscription_User',
         ]);
-        $paymentMethod = $stripe->paymentMethods->create([
-          'type' => 'card',
-          'card' => [
-            'number' => '4242424242424242',
-            'exp_month' => 8,
-            'exp_year' => 2026,
-            'cvc' => '314',
-          ],
+        $this->paymentMethod = $this->stripe->paymentMethods->create([
+            'type' => 'card',
+            'card' => [
+                'number' => '4242424242424242',
+                'exp_month' => 8,
+                'exp_year' => 2026,
+                'cvc' => '314',
+            ],
         ]);
 
-        $stripe->paymentMethods->attach(
-            $paymentMethod->id,
+        $this->stripe->paymentMethods->attach(
+            $this->paymentMethod->id,
             ['customer' => $customer->id]
         );
-        $stripe->customers->update(
+        $this->stripe->customers->update(
             $customer->id,
-            ['invoice_settings' => ['default_payment_method' => $paymentMethod->id]]
+            ['invoice_settings' => ['default_payment_method' => $this->paymentMethod->id]]
         );
 
-        \Stripe\Stripe::setApiKey($app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
+        \Stripe\Stripe::setApiKey($this->app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
+    }
 
+    public function testCreateSubscription()
+    {
         $response = $this->graphQL('
             mutation {
                 createSubscription(input: {
                     items: [
-                        {   
-                            price_id: "price_1Q0UbCBwyV21ueMMBn3VnjMo",
-                            quantity: 2 
+                        {
+                            apps_plans_prices_id: 1, #Basic
+                            quantity: 1 #Optional, default 1
                         }
                     ],
-                    name: "Test Subscription",       
-                    payment_method_id: "' . $paymentMethod->id . '",       
-                    trial_days: 14,                       
+                    name: "TestCreate Subscription",       
+                    payment_method_id: "' . $this->paymentMethod->id . '",       
+                    trial_days: 30,                       
                 }) {
                     id
                     name
+                    subscriptionItems {
+                        id
+                        quantity
+                    }
                 }
             }
         ');
@@ -69,8 +82,64 @@ final class SubscriptionsTest extends TestCase
         $response->assertJson([
             'data' => [
                 'createSubscription' => [
-                    'name' => 'Test Subscription',
+                    'name' => 'TestCreate Subscription',
                 ],
+            ],
+        ]);
+    }
+
+    public function testChangeSubscriptionItems() //equivalent to change plan when using one subscription_item
+    {
+        $response = $this->graphQL('
+            mutation {
+                addSubscriptionItem(input: {
+                    subscription_id: 1,
+                    items: [
+                        {
+                            apps_plans_prices_id: 2, #Pro
+                            quantity: 1 #Optional, update quantity
+                        }
+                    ]
+                }) {
+                    id
+                    stripe_id
+                    quantity
+                }
+            }
+        ');
+
+        $response->assertJson([
+            'data' => [
+                'addSubscriptionItem' => [
+                    'quantity' => 1,
+                ],
+            ],
+        ]);
+
+        $response = $this->graphQL('
+            mutation {
+                deleteSubscriptionItem(id: 1, subscription_id: 1) #Basic (previous plan)
+            }
+        ');
+
+        $response->assertJson([
+            'data' => [
+                'deleteSubscriptionItem' => true,
+            ],
+        ]);
+    }
+
+    public function testCancelSubscription()
+    {
+        $response = $this->graphQL('
+            mutation {
+                cancelSubscription(id: 1)
+            }
+        ');
+
+        $response->assertJson([
+            'data' => [
+                'cancelSubscription' => true,
             ],
         ]);
     }

@@ -85,8 +85,11 @@ class SubscriptionItemMutation
     {
         $subscriptionItem = SubscriptionItemRepository::getById($req['id']);
 
+        if ($subscriptionItem->subscription_id !== $req['subscription_id']) {
+            throw new \Exception('The SubscriptionItem does not belong to the specified subscription.');
+        }
+        
         $stripeSubscriptionItem = StripeSubscriptionItem::retrieve($subscriptionItem->stripe_id);
-
         $stripeSubscriptionItem->delete();
 
         $subscriptionItem->delete();
