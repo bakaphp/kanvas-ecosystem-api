@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Subscription\Plans\Models\Plan;
+use Kanvas\Subscription\Prices\Models\Price;
 use Tests\TestCase;
 
 final class SubscriptionsTest extends TestCase
@@ -29,6 +30,8 @@ final class SubscriptionsTest extends TestCase
 
         $this->paymentMethodId = $this->createPaymentMethod();
         $this->plan = Plan::where('apps_id', $this->appModel->getId())->firstOrFail();
+        print_R(Plan::all()->toArray());
+        print_r(Price::all()->toArray());
         print_r($this->plan->toArray());
         print_r($this->appModel->toArray());
         $this->price = $this->plan->price()->firstOrFail();
