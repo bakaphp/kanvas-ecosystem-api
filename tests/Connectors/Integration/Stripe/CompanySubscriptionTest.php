@@ -36,7 +36,8 @@ final class CompanySubscriptionTest extends TestCase
 
     protected function seedAppPlansPrices()
     {
-        DB::table('apps_plans_prices')->insert([
+        // Define the data you want to insert
+        $prices = [
             [
                 'apps_plans_id' => 1,
                 'stripe_id' => 'price_1Q11XeBwyV21ueMMd6yZ4Tl5',
@@ -55,7 +56,16 @@ final class CompanySubscriptionTest extends TestCase
                 'is_default' => 0,
                 'created_at' => now(),
             ],
-        ]);
+        ];
+
+        foreach ($prices as $price) {
+            DB::table('apps_plans_prices')->updateOrInsert(
+                // Check if a record with the same `stripe_id` exists
+                ['stripe_id' => $price['stripe_id']],
+                // If it doesn't exist, insert the entire array
+                $price
+            );
+        }
     }
 
     private function createPaymentMethod(): string

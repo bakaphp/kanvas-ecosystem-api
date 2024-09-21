@@ -41,7 +41,8 @@ final class SubscriptionsTest extends TestCase
 
     protected function seedAppPlansPrices()
     {
-        DB::table('apps_plans_prices')->insert([
+        // Define the data you want to insert
+        $prices = [
             [
                 'apps_plans_id' => 1,
                 'stripe_id' => 'price_1Q11XeBwyV21ueMMd6yZ4Tl5',
@@ -60,7 +61,16 @@ final class SubscriptionsTest extends TestCase
                 'is_default' => 0,
                 'created_at' => now(),
             ],
-        ]);
+        ];
+
+        foreach ($prices as $price) {
+            DB::table('apps_plans_prices')->updateOrInsert(
+                // Check if a record with the same `stripe_id` exists
+                ['stripe_id' => $price['stripe_id']],
+                // If it doesn't exist, insert the entire array
+                $price
+            );
+        }
     }
 
     private function createPaymentMethod(): string
@@ -84,11 +94,10 @@ final class SubscriptionsTest extends TestCase
         $paymentMethod = $this->createPaymentMethod();
         $user = auth()->user();
 
-        $appPlan = Plan::fromApp($this->appModel)->firstOrFail();
         $response = $this->graphQL('
             mutation {
                 createSubscription(input: {
-                    apps_plans_prices_id: ' . $appPlan->getId() . ' , #Basic
+                    apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
                     name: "TestCreate Subscription",       
                     payment_method_id: "' . $paymentMethod . '",       
                 }) {
@@ -114,12 +123,11 @@ final class SubscriptionsTest extends TestCase
     {
         $user = auth()->user();
         $paymentMethod = $this->createPaymentMethod();
-        $appPlan = Plan::fromApp($this->appModel)->firstOrFail();
 
         $response = $this->graphQL('
         mutation {
             createSubscription(input: {
-                apps_plans_prices_id: ' . $appPlan->getId() . ' , #Basic
+                apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
                 name: "TestCreate Subscription",       
                 payment_method_id: "' . $paymentMethod . '",       
             }) {
@@ -135,7 +143,7 @@ final class SubscriptionsTest extends TestCase
         $response = $this->graphQL('
             mutation {
                 updateSubscription(input: {
-                    apps_plans_prices_id: ' . $appPlan->getId() . ' , #Basic
+                    apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
                 }) {
                     id
                     stripe_id
@@ -159,12 +167,11 @@ final class SubscriptionsTest extends TestCase
     {
         $user = auth()->user();
         $paymentMethod = $this->createPaymentMethod();
-        $appPlan = Plan::fromApp($this->appModel)->firstOrFail();
 
         $response = $this->graphQL('
         mutation {
             createSubscription(input: {
-                apps_plans_prices_id: ' . $appPlan->getId() . ' , #Basic
+                apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
                 name: "TestCreate Subscription",       
                 payment_method_id: "' . $paymentMethod . '",       
             }) {
