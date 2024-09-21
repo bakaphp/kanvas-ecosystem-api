@@ -6,6 +6,7 @@ namespace Tests\Connectors\Integration\Stripe;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Apollo\Enums\ConfigurationEnum;
 use Kanvas\Subscription\Plans\Models\Plan;
 use Laravel\Cashier\Subscription;
 use Tests\TestCase;
