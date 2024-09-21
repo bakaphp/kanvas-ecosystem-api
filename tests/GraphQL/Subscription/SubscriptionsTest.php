@@ -28,9 +28,9 @@ final class SubscriptionsTest extends TestCase
         }
 
         $this->paymentMethodId = $this->createPaymentMethod();
-        $this->plan = Plan::fromApp($this->appModel)->firstOrFail();
+        $this->plan = Plan::where('apps_id', $this->appModel->getId())->firstOrFail();
         print_r($this->plan->toArray());
-        print_r($this->plan->price()->firstOrFail()->toArray());
+        print_r($this->appModel->toArray());
         $this->price = $this->plan->price()->firstOrFail();
     }
 
