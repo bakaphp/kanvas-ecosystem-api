@@ -9,7 +9,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Subscription\Plans\Models\Plan;
-use Kanvas\Subscription\Prices\Models\Price;
 use Tests\TestCase;
 
 final class SubscriptionsTest extends TestCase
@@ -154,6 +153,54 @@ final class SubscriptionsTest extends TestCase
             'data' => [
                 'updateSubscription' => [
                     'stripe_status' => 'active',
+                ],
+            ],
+        ]);
+    }
+
+    public function testListSubscription()
+    {
+        $user = auth()->user();
+        $paymentMethod = $this->createPaymentMethod();
+
+        $response = $this->graphQL('
+        mutation {
+            createSubscription(input: {
+                apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
+                name: "TestCreate Subscription",       
+                payment_method_id: "' . $paymentMethod . '",       
+            }) {
+                id
+                stripe_id
+                stripe_status
+            }
+        }
+    ', [], [], [
+        'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
+    ]);
+
+        $response = $this->graphQL('
+            query {
+                companySubscriptions {
+                    data {
+                        id
+                        stripe_id
+                        stripe_status
+                    }
+                }
+            }
+        ', [], [], [
+            'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
+        ]);
+
+        $response->assertJson([
+            'data' => [
+                'companySubscriptions' => [
+                    'data' => [
+                        [
+                            'stripe_status' => 'active',
+                        ],
+                    ],
                 ],
             ],
         ]);
