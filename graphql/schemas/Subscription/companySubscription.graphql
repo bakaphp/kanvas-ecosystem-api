@@ -3,12 +3,22 @@ type CompanySubscription {
     stripe_id: ID!
     stripe_status: String!
     stripe_price: Int
-    #subscriptionItems: [SubscriptionItem!] @hasMany(relation: "subscriptionItems")
+    items: [SubscriptionItem!]! @hasMany(relation: "items")
     quantity: Int!
     trial_ends_at: DateTime
     ends_at: DateTime
     created_at: String
     updated_at: String
+}
+
+type SubscriptionItem {
+    id: ID!
+    stripe_id: ID!
+    stripe_product: ID!
+    stripe_price: ID!
+    quantity: Int!
+    created_at: DateTime
+    updated_at: DateTime
 }
 
 input SubscriptionInput {
@@ -22,9 +32,11 @@ input SubscriptionUpdateInput {
 }
 
 extend type Mutation @guard {
-    createSubscription(input: SubscriptionInput!): CompanySubscription! 
-    @field(resolver: "App\\GraphQL\\Subscription\\Mutations\\Subscriptions\\SubscriptionMutation@create")
-    
+    createSubscription(input: SubscriptionInput!): CompanySubscription!
+        @field(
+            resolver: "App\\GraphQL\\Subscription\\Mutations\\Subscriptions\\SubscriptionMutation@create"
+        )
+
     updateSubscription(input: SubscriptionUpdateInput!): CompanySubscription!
         @field(
             resolver: "App\\GraphQL\\Subscription\\Mutations\\Subscriptions\\SubscriptionMutation@update"
@@ -42,22 +54,10 @@ extend type Mutation @guard {
 extend type Query @guard {
     companySubscriptions(
         search: String @search
-        where: _
-            @whereConditions(
-                columns: [
-                    "id"
-                    "stripe_status"
-                ]
-            )
-        hasItems: _
-            @whereHasConditions(
-                relation: "subscriptionItem"
-                columns: ["id", "quantity", "price_id"]
-            )
+        where: _ @whereConditions(columns: ["id", "stripe_status"])
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [CompanySubscription!]!
         @paginate(
-            scopes: ["fromApp", "notDeleted"]
             builder: "App\\GraphQL\\Subscription\\Builders\\Subscriptions\\SubscriptionBuilder@getSubscriptions"
             defaultCount: 25
         )
