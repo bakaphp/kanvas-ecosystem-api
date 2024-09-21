@@ -25,6 +25,15 @@ class AppPlansPricesSeeder extends Seeder
                 'created_at' => date('Y-m-d H:i:s')
             ],
             [
+                'apps_plans_id' => '1',
+                'stripe_id' => 'price_1Q1NGrBwyV21ueMMkJR2eA8U',
+                'amount' => 5.00,
+                'currency' => 'USD',
+                'interval' => "monthly",
+                'is_default' => 0,
+                'created_at' => date('Y-m-d H:i:s')
+            ],
+            [
                 'apps_plans_id' => '2',
                 'stripe_id' => 'price_1Q11akBwyV21ueMMRweBmalF',
                 'amount' => 199.00,
