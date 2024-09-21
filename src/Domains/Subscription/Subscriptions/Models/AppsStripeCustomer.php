@@ -12,7 +12,6 @@ use Kanvas\Exceptions\ConfigurationException;
 use Kanvas\Subscription\Models\BaseModel;
 use Laravel\Cashier\Billable;
 use Laravel\Cashier\Cashier;
-use Laravel\Cashier\Subscription;
 
 /**
  * Class AppsStripeCustomer.
@@ -41,7 +40,7 @@ class AppsStripeCustomer extends BaseModel
     {
         return (bool) $this->is_deleted;
     }
-    
+
     public function createOrGetStripeCustomer(array $options = [])
     {
         $options = array_merge([
