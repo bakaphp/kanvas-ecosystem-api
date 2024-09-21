@@ -4,145 +4,194 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Subscription;
 
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
-use Stripe\StripeClient;
+use Kanvas\Subscription\Plans\Models\Plan;
+use Kanvas\Subscription\Prices\Models\Price;
 use Tests\TestCase;
 
 final class SubscriptionsTest extends TestCase
 {
-    protected $app;
-    private $stripe;
-    private $paymentMethod;
+    protected Companies $company;
+    protected Apps $appModel;
+    protected string $paymentMethodId;
+    protected Plan $plan;
+    protected $price;
 
     protected function setUp(): void
     {
         parent::setUp();
+        $this->company = auth()->user()->getCurrentCompany();
+        $this->appModel = app(Apps::class);
+        if (empty($this->appModel->get(ConfigurationEnum::STRIPE_SECRET_KEY->value))) {
+            $this->appModel->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, getenv('TEST_STRIPE_SECRET_KEY'));
+        }
 
-        $this->app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $this->paymentMethodId = $this->createPaymentMethod();
+        $this->seedAppPlansPrices();
+        $this->plan = Plan::where('apps_id', $this->appModel->getId())->firstOrFail();
+        $this->price = $this->plan->price()->firstOrFail();
+    }
 
-        $stripeSecretKey = getenv('TEST_STRIPE_SECRET_KEY');
-        echo env('ALGOLIA_SECRET'); 
-        echo getenv('TEST_STRIPE_SECRET_KEY'); 
-        $this->app->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, $stripeSecretKey);
-        echo $stripeSecretKey;        die('33');
+    protected function seedAppPlansPrices()
+    {
+        // Define the data you want to insert
+        $prices = [
+            [
+                'apps_plans_id' => 1,
+                'stripe_id' => 'price_1Q11XeBwyV21ueMMd6yZ4Tl5',
+                'amount' => 59.00,
+                'currency' => 'USD',
+                'interval' => 'year',
+                'is_default' => 1,
+                'created_at' => now(),
+            ],
+            [
+                'apps_plans_id' => 1,
+                'stripe_id' => 'price_1Q1NGrBwyV21ueMMkJR2eA8U',
+                'amount' => 5.00,
+                'currency' => 'USD',
+                'interval' => 'monthly',
+                'is_default' => 0,
+                'created_at' => now(),
+            ],
+        ];
 
-        $this->stripe = new StripeClient($stripeSecretKey);
-        die('33');
+        foreach ($prices as $price) {
+            DB::table('apps_plans_prices')->updateOrInsert(
+                // Check if a record with the same `stripe_id` exists
+                ['stripe_id' => $price['stripe_id']],
+                // If it doesn't exist, insert the entire array
+                $price
+            );
+        }
+    }
 
-        $customer = $this->stripe->customers->create([
-            'email' => 'test_subscription@example.com',
-            'name' => 'Test_subscription_User',
-        ]);
-        $this->paymentMethod = $this->stripe->paymentMethods->create([
+    private function createPaymentMethod(): string
+    {
+        $cashier = $this->company->getStripeAccount($this->appModel)->stripe();
+        $paymentMethod = $cashier->paymentMethods->create([
             'type' => 'card',
             'card' => [
                 'number' => '4242424242424242',
                 'exp_month' => 8,
-                'exp_year' => 2026,
+                'exp_year' => date('Y') + 5,
                 'cvc' => '314',
             ],
         ]);
 
-        $this->stripe->paymentMethods->attach(
-            $this->paymentMethod->id,
-            ['customer' => $customer->id]
-        );
-        $this->stripe->customers->update(
-            $customer->id,
-            ['invoice_settings' => ['default_payment_method' => $this->paymentMethod->id]]
-        );
-
-        \Stripe\Stripe::setApiKey($this->app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
-
-        die('33');
-
+        return $paymentMethod->id;
     }
 
     public function testCreateSubscription()
     {
+        $paymentMethod = $this->createPaymentMethod();
+        $user = auth()->user();
+
         $response = $this->graphQL('
             mutation {
                 createSubscription(input: {
-                    items: [
-                        {
-                            apps_plans_prices_id: 1, #Basic
-                            quantity: 1 #Optional, default 1
-                        }
-                    ],
+                    apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
                     name: "TestCreate Subscription",       
-                    payment_method_id: "' . $this->paymentMethod->id . '",       
-                    trial_days: 30,                       
+                    payment_method_id: "' . $paymentMethod . '",       
                 }) {
                     id
-                    name
-                    subscriptionItems {
-                        id
-                        quantity
-                    }
+                    stripe_id
+                    stripe_status
                 }
             }
-        ');
+        ', [], [], [
+            'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
+        ]);
 
         $response->assertJson([
             'data' => [
                 'createSubscription' => [
-                    'name' => 'TestCreate Subscription',
+                   'stripe_status' => 'active',
                 ],
             ],
         ]);
     }
 
-    public function testChangeSubscriptionItems() //equivalent to change plan when using one subscription_item
+    public function testUpdateSubscription()
     {
+        $user = auth()->user();
+        $paymentMethod = $this->createPaymentMethod();
+
+        $response = $this->graphQL('
+        mutation {
+            createSubscription(input: {
+                apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
+                name: "TestCreate Subscription",       
+                payment_method_id: "' . $paymentMethod . '",       
+            }) {
+                id
+                stripe_id
+                stripe_status
+            }
+        }
+    ', [], [], [
+        'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
+    ]);
+
         $response = $this->graphQL('
             mutation {
-                addSubscriptionItem(input: {
-                    subscription_id: 1,
-                    items: [
-                        {
-                            apps_plans_prices_id: 2, #Change to Pro
-                            quantity: 1 #Optional, update quantity
-                        }
-                    ]
+                updateSubscription(input: {
+                    apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
                 }) {
                     id
                     stripe_id
-                    quantity
+                    stripe_status
                 }
             }
-        ');
-
-        $response->assertJson([
-            'data' => [
-                'addSubscriptionItem' => [
-                    'quantity' => 1,
-                ],
-            ],
+        ', [], [], [
+            'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
         ]);
 
-        $response = $this->graphQL('
-            mutation {
-                deleteSubscriptionItem(id: 1, subscription_id: 1) #Basic (previous plan)
-            }
-        ');
-
         $response->assertJson([
             'data' => [
-                'deleteSubscriptionItem' => true,
+                'updateSubscription' => [
+                    'stripe_status' => 'active',
+                ],
             ],
         ]);
     }
 
     public function testCancelSubscription()
     {
+        $user = auth()->user();
+        $paymentMethod = $this->createPaymentMethod();
+
+        $response = $this->graphQL('
+        mutation {
+            createSubscription(input: {
+                apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
+                name: "TestCreate Subscription",       
+                payment_method_id: "' . $paymentMethod . '",       
+            }) {
+                id
+                stripe_id
+                stripe_status
+            }
+        }
+    ', [], [], [
+        'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
+    ]);
+
+        $id = $response->json('data.createSubscription.id');
+
+        $subscription = $this->company->getStripeAccount($this->appModel)
+            ->subscriptions()->where('type', $this->plan->stripe_plan)->first();
+
         $response = $this->graphQL('
             mutation {
-                cancelSubscription(id: 1)
+                cancelSubscription(id: ' . $subscription->id . ')
             }
-        ');
+        ', [], [], [
+            'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
+        ]);
 
         $response->assertJson([
             'data' => [

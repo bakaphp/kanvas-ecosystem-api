@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Subscription\Plans\Models;
 
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Subscription\Models\BaseModel;
-use Kanvas\Subscription\SubscriptionItems\Models\SubscriptionItem;
 use Kanvas\Subscription\Prices\Models\Price;
+use Kanvas\Subscription\SubscriptionItems\Models\SubscriptionItem;
 
 /**
  * Class Plan.
@@ -29,14 +28,6 @@ class Plan extends BaseModel
     protected $guarded = [];
 
     /**
-     * subscriptionItem.
-     */
-    public function subscriptionItem(): HasMany
-    {
-        return $this->hasMany(SubscriptionItem::class, 'apps_plans_id');
-    }
-
-    /**
      * price.
      */
     public function price(): HasMany
@@ -46,8 +37,6 @@ class Plan extends BaseModel
 
     /**
      * Determine if the model instance has been soft-deleted.
-     *
-     * @return bool
      */
     public function trashed(): bool
     {

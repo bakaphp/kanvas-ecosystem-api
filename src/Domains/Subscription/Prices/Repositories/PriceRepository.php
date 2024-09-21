@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Subscription\Prices\Repositories;
 
-use Illuminate\Database\Eloquent\Model;
-use Kanvas\Subscription\Prices\Models\Price;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Baka\Contracts\AppInterface;
 use Baka\Traits\SearchableTrait;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
+use Kanvas\Subscription\Prices\Models\Price;
 
 class PriceRepository
 {
@@ -20,18 +20,17 @@ class PriceRepository
         return new Price();
     }
 
-    public static function getByIdWithApp(int $id, ?AppInterface $app = null): Model
+    public static function getByIdWithApp(int $id, AppInterface $app): Price
     {
         try {
-            $query = self::getModel()::notDeleted()->where('id', $id);
-
-            if ($app) {
-                $query = $query->fromApp($app);
-            }
-
-            return $query->firstOrFail();
+            return self::getModel()::notDeleted()
+                ->select('apps_plans_prices.*')
+                ->join('apps_plans', 'apps_plans.id', '=', 'apps_plans_prices.apps_plans_id')
+                ->where('apps_plans_prices.id', $id)
+                ->where('apps_plans.apps_id', $app->getId())
+                ->firstOrFail();
         } catch (ModelNotFoundException $e) {
-            throw new ExceptionsModelNotFoundException($e->getMessage());
+            throw new ExceptionsModelNotFoundException('No stripe price configure for this app');
         }
     }
 }

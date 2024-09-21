@@ -4,25 +4,15 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Subscription\Mutations\Subscriptions;
 
-use Kanvas\Subscription\Subscriptions\Actions\CreateSubscription;
-use Kanvas\Subscription\Subscriptions\Actions\UpdateSubscription;
-use Kanvas\Subscription\Subscriptions\Actions\CancelSubscription;
-use Kanvas\Subscription\Subscriptions\Actions\AddSubscriptionItem;
-use Kanvas\Subscription\Subscriptions\DataTransferObject\Subscription as SubscriptionDto;
-use Kanvas\Subscription\SubscriptionItems\DataTransferObject\SubscriptionItem as SubscriptionItemDto;
-use Kanvas\Subscription\Subscriptions\Models\Subscription as SubscriptionModel;
-use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer as AppsStripeCustomerModel;
-use Kanvas\Subscription\Subscriptions\Repositories\SubscriptionRepository;
-use Kanvas\Subscription\Plans\Repositories\PlanRepository;
-use App\GraphQL\Subscription\Mutations\SubscriptionItems\SubscriptionItemMutation;
+use Carbon\Carbon;
 use Kanvas\Apps\Models\Apps;
-use Illuminate\Support\Facades\Auth;
-use Stripe\Stripe;
-use Stripe\Price;
-use Stripe\Subscription as StripeSubscription;
-use Stripe\Customer;
-use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Subscription\Prices\Models\Price;
 use Kanvas\Subscription\Prices\Repositories\PriceRepository;
+use Kanvas\Subscription\Subscriptions\DataTransferObject\SubscriptionInput;
+use Laravel\Cashier\Subscription;
+use Throwable;
 
 class SubscriptionMutation
 {
@@ -33,199 +23,126 @@ class SubscriptionMutation
     {
         $this->app = app(Apps::class);
         $this->user = auth()->user();
-        Stripe::setApiKey($this->app->get('stripe_secret'));
-    }
 
-    /**
-     * create.
-     *
-     * @param  mixed $root
-     * @param  array $args
-     * @param  array $context
-     *
-     * @return SubscriptionModel
-     */
-    public function create($root, array $args, $context): SubscriptionModel
-    {
-        $data = $args['input'];
-        $company = $this->user->getCurrentCompany();
-        $paymentMethodId = $data['payment_method_id'];
-
-        $appStripeCustomer = $this->createOrFindAppCustomer($company, $paymentMethodId);
-        $stripeSubscription = $this->createStripeSubscription($appStripeCustomer->stripe_customer_id, $data, $paymentMethodId);
-
-        $dto = SubscriptionDto::viaRequest(array_merge($data, [
-            'stripe_id' => $stripeSubscription->id,
-            'payment_method_id' => $paymentMethodId,
-        ]), $this->user, $company, $this->app);
-
-        $action = new CreateSubscription($dto);
-        $subscriptionModel = $action->execute();
-
-        foreach ($data['items'] as $item) {
-            $price = PriceRepository::getByIdWithApp($item['apps_plans_prices_id']);
-            $plan = PlanRepository::getByIdWithApp($price->apps_plans_id);
-            $stripeSubscriptionItem = collect($stripeSubscription->items->data)
-                ->firstWhere('price.id', $price-> stripe_id);
-
-            $subscriptionItemDto = SubscriptionItemDto::viaRequest(array_merge($item, [
-                'subscription_id' => $subscriptionModel->id,
-                'stripe_id' => $stripeSubscriptionItem->id,
-                'apps_plans_id' => $plan->id,
-            ]), $this->user, $company, $this->app);
-
-            $action = new AddSubscriptionItem($subscriptionItemDto);
-            $subscriptionItemModel = $action->execute();
+        if (empty($this->app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value))) {
+            throw new ValidationException('Stripe is not configured for this app');
         }
-
-        return $subscriptionModel;
     }
 
-    public function update($root, array $args, $context, $info): SubscriptionModel
+    public function create($root, array $args, $context): Subscription
     {
         $data = $args['input'];
         $company = $this->user->getCurrentCompany();
-        $subscription = SubscriptionModel::findOrFail($data['subscription_id']);
 
-        if ($subscription->apps_id != $this->app->id) {
-            throw new \Exception("This subscription does not belong to the current app.");
-        }
+        $subscriptionInput = SubscriptionInput::viaRequest(
+            $data,
+            $this->user,
+            $company,
+            $this->app
+        );
 
-        StripeSubscription::update($subscription->stripe_id, [
-            'metadata' => [
-                'name' => $data['name'],
-            ],
-            'default_payment_method' => $data['payment_method_id'],
-            'trial_end' => $data['trial_days'] ? strtotime("+{$data['trial_days']} days") : 'now',
-        ]);
+        $companyStripeAccount = $company->getStripeAccount($this->app);
 
-        $data['stripe_id'] = $subscription->stripe_id;
-
-        $dto = SubscriptionDto::viaRequest($data, $this->user, $company, $this->app);
-        (new UpdateSubscription($subscription, $dto))->execute();
-
-        return $subscription;
-    }
-
-    /**
-     * cancel.
-     *
-     * @param  mixed $root
-     * @param  array $req
-     *
-     * @return SubscriptionModel
-     */
-    public function cancel(mixed $root, array $req): bool
-    {
-        $subscriptionId = (int) $req['id'];
-        $subscription = SubscriptionRepository::getById($subscriptionId, auth()->user()->getCurrentCompany());
-
-        $stripeSubscription = StripeSubscription::retrieve($subscription->stripe_id);
-        $stripeSubscription->cancel();
-
-        (new CancelSubscription($subscription))->execute();
-        return $subscription->delete();
-    }
-
-    /**
-     * addSubscriptionItem.
-     *
-     * @param array $args
-     * @return SubscriptionItems
-     */
-    public function addSubscriptionItem($rootValue, array $args, $context)
-    {
-        $data = $args['input'];
-        $company = $this->user->getCurrentCompany();
-        $subscriptionId = (int) $data['subscription_id'];
-        $subscriptionModel = SubscriptionModel::findOrFail($subscriptionId);
-        $stripeSubscription = StripeSubscription::retrieve($subscriptionModel->stripe_id);
-
-        $subscriptionItems = [];
-
-        foreach ($data['items'] as $item) {
-            $price = PriceRepository::getByIdWithApp($item['apps_plans_prices_id']);
-            $plan = PlanRepository::getByIdWithApp($price->apps_plans_id);
-            $existingSubscriptionItem = collect($stripeSubscription->items->data)
-                ->firstWhere('price.id', $price->stripe_id);
-
-            $stripeItemData = [
-                'price' => $price->stripe_id,
-                'quantity' => $item['quantity'],
-            ];
-
-            if ($existingSubscriptionItem) {
-                $stripeItemData['id'] = $existingSubscriptionItem->id;
+        if (! $companyStripeAccount->subscriptions()->exists()) {
+            try {
+                $subscription = $companyStripeAccount->newSubscription($subscriptionInput->price->plan->stripe_plan, $subscriptionInput->price->stripe_id);
+                if ($subscriptionInput->price->plan->free_trial_days) {
+                    $subscription->trialDays($subscriptionInput->price->plan->free_trial_days);
+                }
+                $subscription->create($subscriptionInput->payment_method_id);
+            } catch (Throwable $e) {
+                throw new ValidationException($e->getMessage());
             }
-
-            StripeSubscription::update($subscriptionModel->stripe_id, [
-                'items' => [$stripeItemData]
-            ]);
-
-            $stripeSubscriptionItem = collect($stripeSubscription->items->data)
-                ->firstWhere('price.id', $price->stripe_id);
-
-            $subscriptionItemDto = SubscriptionItemDto::viaRequest(array_merge($item, [
-                'subscription_id' => $subscriptionModel->id,
-                'stripe_id' => $stripeSubscriptionItem->id,
-                'apps_plans_id' => $plan->id,
-            ]), $this->user, $company, $this->app);
-
-            $action = new AddSubscriptionItem($subscriptionItemDto);
-            $subscriptionItemModel = $action->execute();
-
-            $subscriptionItems[] = $subscriptionItemModel;
         }
 
-        return $subscriptionItems;
+        return $companyStripeAccount->subscriptions()->firstOrFail();
     }
 
-    private function createStripeCustomer(Companies $company, string $paymentMethodId): string
+    public function update($root, array $args, $context, $info): Subscription
     {
-        $customer = Customer::create([
-            'email' => $company->email,
-            'name' => $company->name,
-            'payment_method' => $paymentMethodId,
-            'invoice_settings' => [
-                'default_payment_method' => $paymentMethodId,
-            ],
-        ]);
+        $data = $args['input'];
+        $company = $this->user->getCurrentCompany();
+        $companyStripeAccount = $company->getStripeAccount($this->app);
 
-        return $customer->id;
-    }
+        if (! $companyStripeAccount->subscriptions()->exists()) {
+            throw new ValidationException('No active subscription found for your company');
+        }
+        $newPrice = PriceRepository::getByIdWithApp((int) $data['apps_plans_prices_id'], $this->app);
 
-    private function createStripeSubscription(string $stripeCustomerId, array $data, string $paymentMethodId)
-    {
-        return StripeSubscription::create([
-            'customer' => $stripeCustomerId,
-            'items' => array_map(function ($item) {
-                return [
-                    'price' => (PriceRepository::getByIdWithApp($item['apps_plans_prices_id']))->stripe_id,
-                    'quantity' => $item['quantity'] ?? 1,
-                ];
-            }, $data['items']),
-            'default_payment_method' => $paymentMethodId,
-            'trial_end' => $data['trial_days'] ? strtotime("+{$data['trial_days']} days") : 'now',
-        ]);
-    }
+        $upgradeSubscription = $companyStripeAccount
+            ->subscriptions()->where('type', $newPrice->plan->stripe_plan)->first();
 
-    private function createOrFindAppCustomer(Companies $company, string $paymentMethodId): AppsStripeCustomerModel
-    {
-        $existingCustomer = AppsStripeCustomerModel::where([
-            'companies_id' => $company->id,
-            'apps_id' => $this->app->id,
-        ])->first();
-
-        if ($existingCustomer) {
-            return $existingCustomer;
+        if (! $upgradeSubscription) {
+            throw new ValidationException('Trying to upgrade to of a different type');
         }
 
-        $stripeCustomerId = $this->createStripeCustomer($company, $paymentMethodId);
+        $upgradeSubscription->swap($newPrice->stripe_id);
 
-        return AppsStripeCustomerModel::create([
-            'companies_id' => $company->id,
-            'apps_id' => $this->app->id,
-            'stripe_customer_id' => $stripeCustomerId,
-        ]);
+        return $upgradeSubscription;
+    }
+
+    public function cancel(mixed $root, array $args): bool
+    {
+        $id = $args['id'];
+        $company = $this->user->getCurrentCompany();
+        $companyStripeAccount = $company->getStripeAccount($this->app);
+
+        if (! $companyStripeAccount->subscriptions()->exists()) {
+            throw new ValidationException('No active subscription found for your company');
+        }
+
+        $upgradeSubscription = $companyStripeAccount
+            ->subscriptions()->where('id', $id)->first();
+
+        if (! $upgradeSubscription) {
+            throw new ValidationException('Trying to cancel a subscription that does not exist');
+        }
+
+        $cancelSubscription = $upgradeSubscription->cancel();
+
+        return $cancelSubscription->ends_at !== null;
+    }
+
+    public function reactivate(mixed $root, array $args): Subscription
+    {
+        $id = $args['id'];
+        $company = $this->user->getCurrentCompany();
+        $companyStripeAccount = $company->getStripeAccount($this->app);
+
+        if (! $companyStripeAccount->subscriptions()->exists()) {
+            throw new ValidationException('No subscriptions found for your company');
+        }
+
+        $subscription = $companyStripeAccount
+            ->subscriptions()->where('id', $id)->first();
+
+        if (! $subscription) {
+            throw new ValidationException('Subscription not found');
+        }
+
+        // Check if the subscription is past the grace period (30 days)
+        $gracePeriodEnd = Carbon::parse($subscription->ends_at)->addDays(30);
+        if (Carbon::now()->isAfter($gracePeriodEnd)) {
+            // Past grace period, create a new subscription
+            $price = Price::where('stripe_id', $subscription->stripe_price)->firstOrFail();
+
+            try {
+                $newSubscription = $companyStripeAccount->newSubscription($price->plan->stripe_plan, $price->stripe_id);
+                if ($price->plan->free_trial_days) {
+                    $newSubscription->trialDays($price->plan->free_trial_days);
+                }
+
+                return $newSubscription->create($subscription->latestPayment()->payment_method);
+            } catch (Throwable $e) {
+                throw new ValidationException('Failed to create new subscription: ' . $e->getMessage());
+            }
+        }
+
+        // Within grace period, resume the existing subscription
+        try {
+            return $subscription->resume();
+        } catch (Throwable $e) {
+            throw new ValidationException('Failed to reactivate subscription: ' . $e->getMessage());
+        }
     }
 }

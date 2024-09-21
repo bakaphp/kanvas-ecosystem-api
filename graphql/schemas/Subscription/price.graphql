@@ -1,41 +1,35 @@
 type Price {
     id: ID!
-    apps_plans_id:ID! @belongsTo(relation: "plan")
+    apps_plans_id: ID! @belongsTo(relation: "plan")
     stripe_id: String
-    amount: Float!  
-    description: String         
-    currency: String!                
-    interval: String!                               
-    created_at: String
-    updated_at: String               
-}
-
-input PriceInput {
-    apps_plans_id:ID
     amount: Float!
     description: String
     currency: String!
-    interval: String!            
+    interval: String!
+    created_at: String
+    updated_at: String
+}
+
+input PriceInput {
+    apps_plans_id: ID
+    amount: Float!
+    description: String
+    currency: String!
+    interval: String!
 }
 
 input PriceUpdateInput {
     amount: Float
     description: String
     currency: String
-    interval: String          
+    interval: String
 }
 
-extend type Mutation @guard {
-    createPrice(input: CreatePriceInput!): Price
-        @field(
-            resolver: "App\\GraphQL\\Prices\\Mutations\\Price@create"
-        )
-    updatePrice(id: ID!, input: UpdatePriceInput!): Price
-        @field(
-            resolver: "App\\GraphQL\\Prices\\Mutations\\Price@update"
-        )
-    deletePrice(id: ID!): Boolean
-        @field(
-            resolver: "App\\GraphQL\\Prices\\Mutations\\Price@delete"
-        )
+extend type Mutation @guardByAppKey {
+    createPrice(input: CreatePriceInput!): Price!
+        @field(resolver: "App\\GraphQL\\Prices\\Mutations\\Price@create")
+    updatePrice(id: ID!, input: UpdatePriceInput!): Price!
+        @field(resolver: "App\\GraphQL\\Prices\\Mutations\\Price@update")
+    deletePrice(id: ID!): Boolean!
+        @field(resolver: "App\\GraphQL\\Prices\\Mutations\\Price@delete")
 }

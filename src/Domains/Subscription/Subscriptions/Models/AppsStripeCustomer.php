@@ -7,7 +7,11 @@ namespace Kanvas\Subscription\Subscriptions\Models;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
+use Kanvas\Exceptions\ConfigurationException;
 use Kanvas\Subscription\Models\BaseModel;
+use Laravel\Cashier\Billable;
+use Laravel\Cashier\Cashier;
 
 /**
  * Class AppsStripeCustomer.
@@ -22,6 +26,8 @@ use Kanvas\Subscription\Models\BaseModel;
  */
 class AppsStripeCustomer extends BaseModel
 {
+    use Billable;
+
     protected $table = 'apps_stripe_customers';
     protected $guarded = [];
 
@@ -33,5 +39,38 @@ class AppsStripeCustomer extends BaseModel
     public function trashed(): bool
     {
         return (bool) $this->is_deleted;
+    }
+
+    public function createOrGetStripeCustomer(array $options = [])
+    {
+        $options = array_merge([
+            'email' => $this->company->email ?? $this->company->user->email,
+            'name' => $this->company->name,
+            'phone' => $this->company->phone ?? null,
+            'metadata' => [
+                'kanvas_uuid' => $this->company->uuid,
+            ],
+        ], $options);
+
+        if ($this->hasStripeId()) {
+            return $this->asStripeCustomer($options['expand'] ?? []);
+        }
+
+        return $this->createAsStripeCustomer($options);
+    }
+
+    /**
+     * Get the Stripe SDK client.
+     *
+     * @return \Stripe\StripeClient
+     */
+    public static function stripe(array $options = [])
+    {
+        $app = ! isset($options['app_id']) ? app(Apps::class) : Apps::getById($options['app_id']);
+        $options['api_key'] = $app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value);
+
+        throw_if(empty($options['api_key']), new ConfigurationException('Stripe is not configured for this app'));
+
+        return Cashier::stripe($options);
     }
 }

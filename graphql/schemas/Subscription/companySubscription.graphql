@@ -1,45 +1,42 @@
 type CompanySubscription {
     id: ID!
-    companies_id: ID!
-    apps_plans_id: ID!
-    name: String
-    subscription_id: ID
-    stripe_id: String
-    payment_method_id: String!
-    trial_days: Int
-    subscriptionItems: [SubscriptionItem!] @hasMany(relation: "subscriptionItems")
-    stripe_status: String
-    is_active: Boolean
-    is_cancelled: Boolean
-    paid: Boolean
-    charge_date: String
+    stripe_id: ID!
+    stripe_status: String!
+    stripe_price: Int
+    items: [SubscriptionItem!]! @hasMany(relation: "items")
+    quantity: Int!
+    trial_ends_at: DateTime
+    ends_at: DateTime
     created_at: String
     updated_at: String
 }
 
+type SubscriptionItem {
+    id: ID!
+    stripe_id: ID!
+    stripe_product: ID!
+    stripe_price: ID!
+    quantity: Int!
+    created_at: DateTime
+    updated_at: DateTime
+}
+
 input SubscriptionInput {
-    items: [SubscriptionItemInput!]! 
+    apps_plans_prices_id: ID!
     name: String
     payment_method_id: String!
-    trial_days: Int
 }
 
 input SubscriptionUpdateInput {
-    subscription_id: Int!
-    name: String
-    payment_method_id: String
-    trial_days: Int
-}
-
-input AddSubscriptionItemInput {
-    subscription_id: Int!
-    items: [SubscriptionItemInput!]!
+    apps_plans_prices_id: ID!
 }
 
 extend type Mutation @guard {
-    createSubscription(input: SubscriptionInput!): CompanySubscription! 
-    @field(resolver: "App\\GraphQL\\Subscription\\Mutations\\Subscriptions\\SubscriptionMutation@create")
-    
+    createSubscription(input: SubscriptionInput!): CompanySubscription!
+        @field(
+            resolver: "App\\GraphQL\\Subscription\\Mutations\\Subscriptions\\SubscriptionMutation@create"
+        )
+
     updateSubscription(input: SubscriptionUpdateInput!): CompanySubscription!
         @field(
             resolver: "App\\GraphQL\\Subscription\\Mutations\\Subscriptions\\SubscriptionMutation@update"
@@ -48,38 +45,19 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Subscription\\Mutations\\Subscriptions\\SubscriptionMutation@cancel"
         )
-    addSubscriptionItem(input: AddSubscriptionItemInput!): [SubscriptionItem!]!
+    reactiveSubscription(id: ID!): Boolean!
         @field(
-            resolver: "App\\GraphQL\\Subscription\\Mutations\\Subscriptions\\SubscriptionMutation@addSubscriptionItem"
+            resolver: "App\\GraphQL\\Subscription\\Mutations\\Subscriptions\\SubscriptionMutation@reactivate"
         )
 }
 
 extend type Query @guard {
     companySubscriptions(
         search: String @search
-        where: _
-            @whereConditions(
-                columns: [
-                    "id"
-                    "companies_id"
-                    "apps_plans_id"
-                    "stripe_id"
-                    "payment_method_id"
-                    "name"
-                    "is_active"
-                    "is_cancelled"
-                    "paid"
-                ]
-            )
-        hasItems: _
-            @whereHasConditions(
-                relation: "subscriptionItem"
-                columns: ["id", "quantity", "price_id"]
-            )
+        where: _ @whereConditions(columns: ["id", "stripe_status"])
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [CompanySubscription!]!
         @paginate(
-            scopes: ["fromApp", "notDeleted"]
             builder: "App\\GraphQL\\Subscription\\Builders\\Subscriptions\\SubscriptionBuilder@getSubscriptions"
             defaultCount: 25
         )

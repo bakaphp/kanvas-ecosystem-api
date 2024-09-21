@@ -22,7 +22,7 @@ input PlanUpdateInput {
     prices: [PriceInput!]
 }
 
-extend type Mutation @guard {
+extend type Mutation @guardByAppKey {
     createPlan(input: PlanInput!): Plan!
         @field(
             resolver: "App\\GraphQL\\Subscriptions\\Mutations\\Plans\\PlanMutation@create"
@@ -38,21 +38,16 @@ extend type Mutation @guard {
 }
 
 extend type Query @guard {
-    plans(
+    subscriptionPlans(
         search: String @search
         where: _
             @whereConditions(
-                columns: [
-                    "id"
-                    "name"
-                    "description"
-                    "is_default"
-                ]
+                columns: ["id", "name", "description", "is_default"]
             )
         hasPrices: _
             @whereHasConditions(
                 relation: "prices"
-                columns: ["id", "stripe_id","amount", "currency", "interval"]
+                columns: ["id", "stripe_id", "amount", "currency", "interval"]
             )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [Plan!]!

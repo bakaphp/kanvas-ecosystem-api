@@ -6,7 +6,8 @@ namespace App\GraphQL\Subscription\Builders\Subscriptions;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
-use Kanvas\Subscription\Subscriptions\Models\Subscription;
+use Kanvas\Apps\Models\Apps;
+use Laravel\Cashier\Subscription;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class SubscriptionBuilder
@@ -19,14 +20,12 @@ class SubscriptionBuilder
     ): Builder {
         $user = auth()->user();
         $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
 
-        if (! $user->isAppOwner()) {
-            //Subscription::setSearchIndex($company->getId());
-        }
-
-        /**
-         * @var Builder
-         */
-        return Subscription::query();
+        return Subscription::query()
+            ->select('subscriptions.*')
+            ->join('apps_stripe_customers', 'apps_stripe_customers.id', '=', 'subscriptions.apps_stripe_customer_id')
+            ->where('apps_stripe_customers.companies_id', $company->id)
+            ->where('apps_stripe_customers.apps_id', $app->getId());
     }
 }
