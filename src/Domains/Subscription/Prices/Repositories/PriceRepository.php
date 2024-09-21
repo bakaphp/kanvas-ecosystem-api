@@ -24,7 +24,7 @@ class PriceRepository
     {
         try {
             return self::getModel()::notDeleted()
-                ->select('apps_plans_prices.*') // Ensure you are selecting fields from the `apps_plans_prices` table
+                ->select('apps_plans_prices.*')
                 ->join('apps_plans', 'apps_plans.id', '=', 'apps_plans_prices.apps_plans_id')
                 ->where('apps_plans_prices.id', $id)
                 ->where('apps_plans.apps_id', $app->getId())
