@@ -28,14 +28,6 @@ class Plan extends BaseModel
     protected $guarded = [];
 
     /**
-     * subscriptionItem.
-     */
-    public function subscriptionItem(): HasMany
-    {
-        return $this->hasMany(SubscriptionItem::class, 'apps_plans_id');
-    }
-
-    /**
      * price.
      */
     public function price(): HasMany
