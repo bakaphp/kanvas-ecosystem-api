@@ -23,15 +23,9 @@ final class SubscriptionsTest extends TestCase
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        $stripeSecretKey = getenv('TEST_STRIPE_SECRET_KEY');
-        echo env('ALGOLIA_SECRET'); 
-        echo getenv('TEST_STRIPE_SECRET_KEY'); 
+        $stripeSecretKey = env('TEST_STRIPE_SECRET_KEY');
         $this->app->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, $stripeSecretKey);
-        echo $stripeSecretKey;        die('33');
-
         $this->stripe = new StripeClient($stripeSecretKey);
-        die('33');
-
         $customer = $this->stripe->customers->create([
             'email' => 'test_subscription@example.com',
             'name' => 'Test_subscription_User',
@@ -56,9 +50,6 @@ final class SubscriptionsTest extends TestCase
         );
 
         \Stripe\Stripe::setApiKey($this->app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
-
-        die('33');
-
     }
 
     public function testCreateSubscription()

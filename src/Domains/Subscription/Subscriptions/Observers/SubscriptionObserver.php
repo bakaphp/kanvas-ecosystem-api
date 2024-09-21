@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Subscriptions\Subscription\Observers;
+namespace Kanvas\Subscription\Subscriptions\Observers;
 
 use Kanvas\Subscription\Subscriptions\Models\Subscription;
 
