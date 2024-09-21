@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Prices\Mutations;
 
+use Illuminate\Support\Facades\Auth;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Subscription\Prices\Actions\CreatePrice;
 use Kanvas\Subscription\Prices\Actions\UpdatePrice;
-use Kanvas\Subscription\Prices\Repositories\PriceRepository;
 use Kanvas\Subscription\Prices\DataTransferObject\Price as PriceDto;
 use Kanvas\Subscription\Prices\Models\Price as PriceModel;
-use Kanvas\Apps\Models\Apps;
-use Illuminate\Support\Facades\Auth;
-use Stripe\Stripe;
+use Kanvas\Subscription\Prices\Repositories\PriceRepository;
 use Stripe\Price as StripePrice;
 use Stripe\Product as StripeProduct;
 
@@ -19,10 +18,6 @@ class PriceMutation
 {
     /**
      * create.
-     *
-     * @param  array $req
-     *
-     * @return PriceModel
      */
     public function create(array $req): PriceModel
     {
@@ -52,10 +47,6 @@ class PriceMutation
 
     /**
      * update.
-     *
-     * @param  array $req
-     *
-     * @return PriceModel
      */
     public function update(array $req): PriceModel
     {
@@ -78,10 +69,6 @@ class PriceMutation
 
     /**
      * delete.
-     *
-     * @param  array $req
-     *
-     * @return bool
      */
     public function delete(array $req): bool
     {

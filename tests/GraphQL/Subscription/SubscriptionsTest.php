@@ -6,6 +6,7 @@ namespace Tests\GraphQL\Subscription;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Subscription\Plans\Models\Plan;
 use Tests\TestCase;
 
@@ -22,6 +23,10 @@ final class SubscriptionsTest extends TestCase
         parent::setUp();
         $this->company = auth()->user()->getCurrentCompany();
         $this->appModel = app(Apps::class);
+        if (empty($this->appModel->get(ConfigurationEnum::STRIPE_SECRET_KEY->value))) {
+            $this->appModel->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, getenv('TEST_STRIPE_SECRET_KEY'));
+        }
+
         $this->paymentMethodId = $this->createPaymentMethod();
         $this->plan = Plan::fromApp($this->appModel)->firstOrFail();
         $this->price = $this->plan->price()->firstOrFail();
