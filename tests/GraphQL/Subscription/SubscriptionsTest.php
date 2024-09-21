@@ -32,10 +32,6 @@ final class SubscriptionsTest extends TestCase
         $this->paymentMethodId = $this->createPaymentMethod();
         $this->seedAppPlansPrices();
         $this->plan = Plan::where('apps_id', $this->appModel->getId())->firstOrFail();
-        print_R(Plan::all()->toArray());
-        print_r(Price::all()->toArray());
-        print_r($this->plan->toArray());
-        print_r($this->appModel->toArray());
         $this->price = $this->plan->price()->firstOrFail();
     }
 
@@ -94,6 +90,21 @@ final class SubscriptionsTest extends TestCase
         $paymentMethod = $this->createPaymentMethod();
         $user = auth()->user();
 
+        print_r($this->price->toArray());
+echo '
+            mutation {
+                createSubscription(input: {
+                    apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
+                    name: "TestCreate Subscription",       
+                    payment_method_id: "' . $paymentMethod . '",       
+                }) {
+                    id
+                    stripe_id
+                    stripe_status
+                }
+            }
+        ';
+        
         $response = $this->graphQL('
             mutation {
                 createSubscription(input: {

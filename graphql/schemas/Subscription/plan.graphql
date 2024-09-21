@@ -22,7 +22,7 @@ input PlanUpdateInput {
     prices: [PriceInput!]
 }
 
-extend type Mutation @guard {
+extend type Mutation @guardByAppKey {
     createPlan(input: PlanInput!): Plan!
         @field(
             resolver: "App\\GraphQL\\Subscriptions\\Mutations\\Plans\\PlanMutation@create"
