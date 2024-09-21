@@ -53,7 +53,7 @@ extend type Query @guard {
     ): [Plan!]!
         @paginate(
             scopes: ["fromApp", "notDeleted"]
-            builder: "App\\GraphQL\\Subscription\\Builders\\Plans\\PlanBuilder@getPlans"
+            model: "Kanvas\\Subscription\\Plans\\Models\\Plan"
             defaultCount: 25
         )
 }
