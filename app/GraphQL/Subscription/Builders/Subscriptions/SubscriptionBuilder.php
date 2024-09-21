@@ -22,8 +22,10 @@ class SubscriptionBuilder
         $company = $user->getCurrentCompany();
         $app = app(Apps::class);
 
-        return Subscription::query()->join('apps_stripe_customers', 'apps_stripe_customers.id', '=', 'subscriptions.apps_stripe_customer_id')
+        return Subscription::query()
+            ->select('subscriptions.*') 
+            ->join('apps_stripe_customers', 'apps_stripe_customers.id', '=', 'subscriptions.apps_stripe_customer_id')
             ->where('apps_stripe_customers.companies_id', $company->id)
-            ->where('apps_stripe_customers.apps_id', $app->getId());
-    }
+            ->where('apps_stripe_customers.apps_id', $app->getId());    
+        }
 }
