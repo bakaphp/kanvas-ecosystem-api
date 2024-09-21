@@ -29,7 +29,7 @@ final class CompanySubscriptionTest extends TestCase
             $this->appModel->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, getenv('TEST_STRIPE_SECRET_KEY'));
         }
         $this->paymentMethodId = $this->createPaymentMethod();
-        $this->seedAppPlansPrices()
+        $this->seedAppPlansPrices();
         $this->plan = Plan::where('apps_id', $this->appModel->getId())->firstOrFail();
         $this->price = $this->plan->price()->firstOrFail();
     }
