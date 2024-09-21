@@ -66,7 +66,7 @@ class AppsStripeCustomer extends BaseModel
      */
     public static function stripe(array $options = [])
     {
-        $app = !isset($options['app_id']) ? app(Apps::class) : Apps::getById($options['app_id']);
+        $app = ! isset($options['app_id']) ? app(Apps::class) : Apps::getById($options['app_id']);
         $options['api_key'] = $app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value);
 
         throw_if(empty($options['api_key']), new ConfigurationException('Stripe is not configured for this app'));
