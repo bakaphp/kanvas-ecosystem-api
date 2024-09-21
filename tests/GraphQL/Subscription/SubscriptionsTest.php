@@ -5,135 +5,148 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Subscription;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
-use Stripe\StripeClient;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Subscription\Plans\Models\Plan;
 use Tests\TestCase;
 
 final class SubscriptionsTest extends TestCase
 {
-    protected $app;
-    private $stripe;
-    private $paymentMethod;
+    protected Companies $company;
+    protected Apps $appModel;
+    protected string $paymentMethodId;
+    protected Plan $plan;
+    protected $price;
 
     protected function setUp(): void
     {
         parent::setUp();
+        $this->company = auth()->user()->getCurrentCompany();
+        $this->appModel = app(Apps::class);
+        $this->paymentMethodId = $this->createPaymentMethod();
+        $this->plan = Plan::fromApp($this->appModel)->firstOrFail();
+        $this->price = $this->plan->price()->firstOrFail();
+    }
 
-        $this->app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-
-        $stripeSecretKey = env('TEST_STRIPE_SECRET_KEY');
-        $this->app->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, $stripeSecretKey);
-        $this->stripe = new StripeClient($stripeSecretKey);
-        $customer = $this->stripe->customers->create([
-            'email' => 'test_subscription@example.com',
-            'name' => 'Test_subscription_User',
-        ]);
-        $this->paymentMethod = $this->stripe->paymentMethods->create([
+    private function createPaymentMethod(): string
+    {
+        $cashier = $this->company->getStripeAccount($this->appModel)->stripe();
+        $paymentMethod = $cashier->paymentMethods->create([
             'type' => 'card',
             'card' => [
                 'number' => '4242424242424242',
                 'exp_month' => 8,
-                'exp_year' => 2026,
+                'exp_year' => date('Y') + 5,
                 'cvc' => '314',
             ],
         ]);
 
-        $this->stripe->paymentMethods->attach(
-            $this->paymentMethod->id,
-            ['customer' => $customer->id]
-        );
-        $this->stripe->customers->update(
-            $customer->id,
-            ['invoice_settings' => ['default_payment_method' => $this->paymentMethod->id]]
-        );
-
-        \Stripe\Stripe::setApiKey($this->app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
+        return $paymentMethod->id;
     }
 
     public function testCreateSubscription()
     {
+        $paymentMethod = $this->createPaymentMethod();
+        $user = auth()->user();
+
         $response = $this->graphQL('
             mutation {
                 createSubscription(input: {
-                    items: [
-                        {
-                            apps_plans_prices_id: 1, #Basic
-                            quantity: 1 #Optional, default 1
-                        }
-                    ],
+                    apps_plans_prices_id: 1, #Basic
                     name: "TestCreate Subscription",       
-                    payment_method_id: "' . $this->paymentMethod->id . '",       
-                    trial_days: 30,                       
+                    payment_method_id: "' . $paymentMethod . '",       
                 }) {
                     id
-                    name
-                    subscriptionItems {
-                        id
-                        quantity
-                    }
+                    stripe_id
+                    stripe_status
                 }
             }
-        ');
+        ', [], [], [
+            'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
+        ]);
 
         $response->assertJson([
             'data' => [
                 'createSubscription' => [
-                    'name' => 'TestCreate Subscription',
+                   'stripe_status' => 'active',
                 ],
             ],
         ]);
     }
 
-    public function testChangeSubscriptionItems() //equivalent to change plan when using one subscription_item
+    public function testUpdateSubscription()
     {
+        $user = auth()->user();
+        $paymentMethod = $this->createPaymentMethod();
+
+        $response = $this->graphQL('
+        mutation {
+            createSubscription(input: {
+                apps_plans_prices_id: 1, #Basic
+                name: "TestCreate Subscription",       
+                payment_method_id: "' . $paymentMethod . '",       
+            }) {
+                id
+                stripe_id
+                stripe_status
+            }
+        }
+    ', [], [], [
+        'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
+    ]);
+
         $response = $this->graphQL('
             mutation {
-                addSubscriptionItem(input: {
-                    subscription_id: 1,
-                    items: [
-                        {
-                            apps_plans_prices_id: 2, #Change to Pro
-                            quantity: 1 #Optional, update quantity
-                        }
-                    ]
+                updateSubscription(input: {
+                    apps_plans_prices_id: 3 #Basic
                 }) {
                     id
                     stripe_id
-                    quantity
+                    stripe_status
                 }
             }
-        ');
-
-        $response->assertJson([
-            'data' => [
-                'addSubscriptionItem' => [
-                    'quantity' => 1,
-                ],
-            ],
+        ', [], [], [
+            'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
         ]);
 
-        $response = $this->graphQL('
-            mutation {
-                deleteSubscriptionItem(id: 1, subscription_id: 1) #Basic (previous plan)
-            }
-        ');
-
         $response->assertJson([
             'data' => [
-                'deleteSubscriptionItem' => true,
+                'updateSubscription' => [
+                    'stripe_status' => 'active',
+                ],
             ],
         ]);
     }
 
     public function testCancelSubscription()
     {
+        $user = auth()->user();
+        $paymentMethod = $this->createPaymentMethod();
+
+        $response = $this->graphQL('
+        mutation {
+            createSubscription(input: {
+                apps_plans_prices_id: 1, #Basic
+                name: "TestCreate Subscription",       
+                payment_method_id: "' . $paymentMethod . '",       
+            }) {
+                id
+                stripe_id
+                stripe_status
+            }
+        }
+    ', [], [], [
+        'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
+    ]);
+
+        $id = $response->json('data.createSubscription.id');
+
         $response = $this->graphQL('
             mutation {
-                cancelSubscription(id: 1)
+                cancelSubscription(id: ' . $id . ')
             }
-        ');
+        ', [], [], [
+            'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
+        ]);
 
         $response->assertJson([
             'data' => [
