@@ -131,8 +131,7 @@ final class CompanySubscriptionTest extends TestCase
     {
         $this->createSubscription();
 
-        $newPlan = Plan::fromApp($this->appModel)->where('id', '!=', $this->plan->id)->firstOrFail();
-        $newPrice = $newPlan->price()->firstOrFail();
+        $newPrice = $this->plan->price()->where('id', '!=', $this->price->id)->firstOrFail();
 
         $upgradeSubscription = $this->company->getStripeAccount($this->appModel)
             ->subscriptions()->where('type', $this->plan->stripe_plan)->first()
