@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Stripe;
 
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
@@ -28,8 +29,33 @@ final class CompanySubscriptionTest extends TestCase
             $this->appModel->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, getenv('TEST_STRIPE_SECRET_KEY'));
         }
         $this->paymentMethodId = $this->createPaymentMethod();
+        $this->seedAppPlansPrices()
         $this->plan = Plan::where('apps_id', $this->appModel->getId())->firstOrFail();
         $this->price = $this->plan->price()->firstOrFail();
+    }
+
+    protected function seedAppPlansPrices()
+    {
+        DB::table('apps_plans_prices')->insert([
+            [
+                'apps_plans_id' => 1,
+                'stripe_id' => 'price_1Q11XeBwyV21ueMMd6yZ4Tl5',
+                'amount' => 59.00,
+                'currency' => 'USD',
+                'interval' => 'year',
+                'is_default' => 1,
+                'created_at' => now(),
+            ],
+            [
+                'apps_plans_id' => 1,
+                'stripe_id' => 'price_1Q1NGrBwyV21ueMMkJR2eA8U',
+                'amount' => 5.00,
+                'currency' => 'USD',
+                'interval' => 'monthly',
+                'is_default' => 0,
+                'created_at' => now(),
+            ],
+        ]);
     }
 
     private function createPaymentMethod(): string

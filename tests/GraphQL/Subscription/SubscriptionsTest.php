@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Subscription;
 
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
@@ -29,12 +30,37 @@ final class SubscriptionsTest extends TestCase
         }
 
         $this->paymentMethodId = $this->createPaymentMethod();
+        $this->seedAppPlansPrices();
         $this->plan = Plan::where('apps_id', $this->appModel->getId())->firstOrFail();
         print_R(Plan::all()->toArray());
         print_r(Price::all()->toArray());
         print_r($this->plan->toArray());
         print_r($this->appModel->toArray());
         $this->price = $this->plan->price()->firstOrFail();
+    }
+
+    protected function seedAppPlansPrices()
+    {
+        DB::table('apps_plans_prices')->insert([
+            [
+                'apps_plans_id' => 1,
+                'stripe_id' => 'price_1Q11XeBwyV21ueMMd6yZ4Tl5',
+                'amount' => 59.00,
+                'currency' => 'USD',
+                'interval' => 'year',
+                'is_default' => 1,
+                'created_at' => now(),
+            ],
+            [
+                'apps_plans_id' => 1,
+                'stripe_id' => 'price_1Q1NGrBwyV21ueMMkJR2eA8U',
+                'amount' => 5.00,
+                'currency' => 'USD',
+                'interval' => 'monthly',
+                'is_default' => 0,
+                'created_at' => now(),
+            ],
+        ]);
     }
 
     private function createPaymentMethod(): string
