@@ -82,6 +82,12 @@ class NotificationTypes extends BaseModel
     public function getPushTemplateName(): string
     {
         $pushNotificationTemplate = $this->channels()->where('notification_channel_id', NotificationChannelEnum::PUSH->value)->first();
+
+        // if the notification type does not have a push template, we return the default one
+        if(! $pushNotificationTemplate) {
+            return 'new-push-default';
+        }
+
         $templateName = $pushNotificationTemplate->template()->exists() ? $pushNotificationTemplate->template()->first()->name : null;
 
         if (empty($templateName)) {

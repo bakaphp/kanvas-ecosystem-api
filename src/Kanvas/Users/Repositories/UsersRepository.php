@@ -25,11 +25,11 @@ class UsersRepository
      * findUsersByIds
      * @psalm-suppress MixedReturnStatement
      */
-    public static function findUsersByArray(array $users, ?CompanyInterface $company = null): Collection
+    public static function findUsersByArray(array $users, AppInterface $app, ?CompanyInterface $company = null): Collection
     {
         return Users::select('users.*')
             ->join('users_associated_apps', 'users_associated_apps.users_id', 'users.id')
-            ->where('users_associated_apps.apps_id', app(Apps::class)->id)
+            ->where('users_associated_apps.apps_id', $app->id)
             ->when($company, function ($query, $company) {
                 $query->where('users_associated_apps.companies_id', $company->getKey());
             })

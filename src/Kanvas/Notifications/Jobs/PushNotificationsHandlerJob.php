@@ -7,6 +7,7 @@ namespace Kanvas\Notifications\Jobs;
 use Baka\Contracts\AppInterface;
 use Baka\Traits\KanvasJobsTrait;
 use Berkayk\OneSignal\OneSignalClient;
+use Exception;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -47,6 +48,12 @@ class PushNotificationsHandlerJob implements ShouldQueue
         if (getenv('APP_ENV') !== 'testing') {
             $oneSignalAppId = $this->app->get(AppSettingsEnums::ONE_SIGNAL_APP_ID->getValue());
             $oneSignalRestApiKey = $this->app->get(AppSettingsEnums::ONE_SIGNAL_REST_API_KEY->getValue());
+
+            match (true) {
+                empty($oneSignalAppId) => throw new Exception($this->app->name . ' OneSignal App ID is not set'),
+                empty($oneSignalRestApiKey) => throw new Exception($this->app->name . ' OneSignal Rest API Key is not set'),
+            };
+
             $oneSignalClient = new OneSignalClient($oneSignalAppId, $oneSignalRestApiKey, '');
 
             $oneSignalClient->sendNotificationToUser(
