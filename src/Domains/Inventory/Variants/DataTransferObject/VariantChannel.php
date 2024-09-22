@@ -14,4 +14,13 @@ class VariantChannel extends Data
         public bool $is_published = false,
     ) {
     }
+
+    public static function fromArray(array $data): self
+    {
+        return new self(
+            price: (float) ($data['price'] ?? 0.00),
+            discounted_price: (float) ($data['discounted_price'] ?? 0.00),
+            is_published: (bool) ($data['is_published'] ?? false)
+        );
+    }
 }

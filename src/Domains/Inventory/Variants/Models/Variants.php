@@ -29,6 +29,8 @@ use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
+use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
+use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
 
 /**
@@ -49,13 +51,14 @@ use Laravel\Scout\Searchable;
  * @property string barcode
  * @property string serial_number
  */
-class Variants extends BaseModel
+class Variants extends BaseModel implements EntityIntegrationInterface
 {
     use SlugTrait;
     use UuidTrait;
     use SocialInteractionsTrait;
     use HasShopifyCustomField;
     use HasLightHouseCache;
+    use IntegrationEntityTrait;
     use Searchable {
         search as public traitSearch;
     }
@@ -160,13 +163,36 @@ class Variants extends BaseModel
      */
     public function attributes(): BelongsToMany
     {
-        return $this->belongsToMany(
+        return $this->buildAttributesQuery();
+    }
+
+    /**
+     * @todo add integration and graph test
+     */
+    public function visibleAttributes(): BelongsToMany
+    {
+        return $this->buildAttributesQuery(['is_visible' => true]);
+    }
+
+    public function searchableAttributes(): BelongsToMany
+    {
+        return $this->buildAttributesQuery(['is_searchable' => true]);
+    }
+
+    private function buildAttributesQuery(array $conditions = []): BelongsToMany
+    {
+        $query = $this->belongsToMany(
             Attributes::class,
             VariantsAttributes::class,
             'products_variants_id',
             'attributes_id'
-        )
-            ->withPivot('value');
+        )->withPivot('value');
+
+        foreach ($conditions as $column => $value) {
+            $query->where($column, $value);
+        }
+
+        return $query;
     }
 
     /**
@@ -229,9 +255,9 @@ class Variants extends BaseModel
                     'company' => $this->product->company,
                     'name' => $attribute['name'],
                     'value' => $attribute['value'],
-                    'isVisible' => false,
-                    'isSearchable' => false,
-                    'isFiltrable' => false,
+                    'isVisible' => true,
+                    'isSearchable' => true,
+                    'isFiltrable' => true,
                     'slug' => Str::slug($attribute['name']),
                 ]);
                 $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();

@@ -52,6 +52,8 @@ jobs:
             docker restart queue
             docker restart queue2
             docker restart queue3
+            docker restart queue-imports
+            docker restart queue-imports2
             docker restart queue-notifications
             docker restart queue-social
             docker restart laravel-scheduler
@@ -60,6 +62,8 @@ jobs:
               docker restart queue4
               docker restart queue5
               docker restart queue6
+              docker restart queue7
+              docker restart queue8
             fi
 
             docker exec -i phpkanvas-ecosystem php artisan octane:reload

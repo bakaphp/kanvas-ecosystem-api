@@ -132,7 +132,7 @@ class UserInviteTest extends TestCase
         )->assertSuccessful();
     }
 
-    public function testGetInvite(): void
+    public function testGetInviteDeprecated(): void
     {
         Notification::fake();
 
@@ -162,6 +162,54 @@ class UserInviteTest extends TestCase
         $response = $this->graphQL( /** @lang GraphQL */
             '
                 mutation getInvite($hash: String!) {
+                    getInvite(hash: $hash)
+                    {
+                        email,
+                        invite_hash,
+                    }
+                }',
+            [
+
+                    'hash' => $invite['invite_hash'],
+            ]
+        )
+        ->assertSuccessful()
+        ->assertSeeText('email')
+        ->assertSeeText('invite_hash');
+
+        $this->assertEquals($response->json('data.getInvite.email'), $invite['email']);
+    }
+
+    public function testGetInvite(): void
+    {
+        Notification::fake();
+
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation inviteUser($data: InviteInput!) {
+                inviteUser(input: $data)
+                {
+                   id,
+                   email,
+                   invite_hash,
+                }
+            }',
+            [
+                'data' => [
+                    'role_id' => RolesRepository::getByNameFromCompany('Users')->id,
+                    'email' => fake()->email(),
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                    'custom_fields' => [],
+                ],
+            ]
+        );
+
+        $invite = $response->json('data.inviteUser');
+
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+                query getInvite($hash: String!) {
                     getInvite(hash: $hash)
                     {
                         email,

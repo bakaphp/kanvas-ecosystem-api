@@ -1195,16 +1195,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.321.12",
+            "version": "3.321.13",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "ccb1871998fb05ec1075468a743afba51a36e2c4"
+                "reference": "6330c3367f303ef4430fca605df9e411abe34d48"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/ccb1871998fb05ec1075468a743afba51a36e2c4",
-                "reference": "ccb1871998fb05ec1075468a743afba51a36e2c4",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/6330c3367f303ef4430fca605df9e411abe34d48",
+                "reference": "6330c3367f303ef4430fca605df9e411abe34d48",
                 "shasum": ""
             },
             "require": {
@@ -1287,9 +1287,9 @@
             "support": {
                 "forum": "https://forums.aws.amazon.com/forum.jspa?forumID=80",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.321.12"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.321.13"
             },
-            "time": "2024-09-16T18:15:56+00:00"
+            "time": "2024-09-17T18:08:34+00:00"
         },
         {
             "name": "berkayk/onesignal-laravel",
@@ -6379,16 +6379,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.44.2",
+            "version": "v6.45.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "82d02723e2b605bdbe8f1cfbef0574dd4b0859ac"
+                "reference": "0fe0f924a0e72a87ac726296bb95f41f2029a2ab"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/82d02723e2b605bdbe8f1cfbef0574dd4b0859ac",
-                "reference": "82d02723e2b605bdbe8f1cfbef0574dd4b0859ac",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/0fe0f924a0e72a87ac726296bb95f41f2029a2ab",
+                "reference": "0fe0f924a0e72a87ac726296bb95f41f2029a2ab",
                 "shasum": ""
             },
             "require": {
@@ -6505,7 +6505,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2024-09-06T09:05:02+00:00"
+            "time": "2024-09-20T10:05:58+00:00"
         },
         {
             "name": "nyholm/psr7",
@@ -8692,16 +8692,16 @@
         },
         {
             "name": "sentry/sentry-laravel",
-            "version": "4.8.0",
+            "version": "4.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/getsentry/sentry-laravel.git",
-                "reference": "2bbcb7e81097993cf64d5b296eaa6d396cddd5a7"
+                "reference": "73078e1f26d57f7a10e3bee2a2f543a02f6493c3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/getsentry/sentry-laravel/zipball/2bbcb7e81097993cf64d5b296eaa6d396cddd5a7",
-                "reference": "2bbcb7e81097993cf64d5b296eaa6d396cddd5a7",
+                "url": "https://api.github.com/repos/getsentry/sentry-laravel/zipball/73078e1f26d57f7a10e3bee2a2f543a02f6493c3",
+                "reference": "73078e1f26d57f7a10e3bee2a2f543a02f6493c3",
                 "shasum": ""
             },
             "require": {
@@ -8765,7 +8765,7 @@
             ],
             "support": {
                 "issues": "https://github.com/getsentry/sentry-laravel/issues",
-                "source": "https://github.com/getsentry/sentry-laravel/tree/4.8.0"
+                "source": "https://github.com/getsentry/sentry-laravel/tree/4.9.0"
             },
             "funding": [
                 {
@@ -8777,7 +8777,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2024-08-15T19:03:01+00:00"
+            "time": "2024-09-19T12:58:53+00:00"
         },
         {
             "name": "shopify/shopify-api",
@@ -9756,16 +9756,16 @@
         },
         {
             "name": "stripe/stripe-php",
-            "version": "v15.9.0",
+            "version": "v15.10.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/stripe/stripe-php.git",
-                "reference": "dc9726ac0cfbba7b3c97e2cf6042f2c090551cdb"
+                "reference": "3df1a19a33477af9ead8984dbd84e8f637c36199"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/stripe/stripe-php/zipball/dc9726ac0cfbba7b3c97e2cf6042f2c090551cdb",
-                "reference": "dc9726ac0cfbba7b3c97e2cf6042f2c090551cdb",
+                "url": "https://api.github.com/repos/stripe/stripe-php/zipball/3df1a19a33477af9ead8984dbd84e8f637c36199",
+                "reference": "3df1a19a33477af9ead8984dbd84e8f637c36199",
                 "shasum": ""
             },
             "require": {
@@ -9809,9 +9809,9 @@
             ],
             "support": {
                 "issues": "https://github.com/stripe/stripe-php/issues",
-                "source": "https://github.com/stripe/stripe-php/tree/v15.9.0"
+                "source": "https://github.com/stripe/stripe-php/tree/v15.10.0"
             },
-            "time": "2024-09-12T22:05:50+00:00"
+            "time": "2024-09-18T18:38:30+00:00"
         },
         {
             "name": "swoole/ide-helper",
@@ -12969,16 +12969,16 @@
         },
         {
             "name": "twilio/sdk",
-            "version": "8.3.0",
+            "version": "8.3.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/twilio/twilio-php.git",
-                "reference": "da842421814abaacb1c57eaacd7e8de19bbdbee6"
+                "reference": "bfbb3bd7f274ccd3948f5c98f108c64a2db470d7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/da842421814abaacb1c57eaacd7e8de19bbdbee6",
-                "reference": "da842421814abaacb1c57eaacd7e8de19bbdbee6",
+                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/bfbb3bd7f274ccd3948f5c98f108c64a2db470d7",
+                "reference": "bfbb3bd7f274ccd3948f5c98f108c64a2db470d7",
                 "shasum": ""
             },
             "require": {
@@ -13016,9 +13016,9 @@
             ],
             "support": {
                 "issues": "https://github.com/twilio/twilio-php/issues",
-                "source": "https://github.com/twilio/twilio-php/tree/8.3.0"
+                "source": "https://github.com/twilio/twilio-php/tree/8.3.1"
             },
-            "time": "2024-09-05T13:01:28+00:00"
+            "time": "2024-09-18T13:24:34+00:00"
         },
         {
             "name": "vladimir-yuldashev/laravel-queue-rabbitmq",
@@ -14120,16 +14120,16 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "1.12.3",
+            "version": "1.12.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpstan/phpstan.git",
-                "reference": "0fcbf194ab63d8159bb70d9aa3e1350051632009"
+                "reference": "ffa517cb918591b93acc9b95c0bebdcd0e4538bd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/0fcbf194ab63d8159bb70d9aa3e1350051632009",
-                "reference": "0fcbf194ab63d8159bb70d9aa3e1350051632009",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/ffa517cb918591b93acc9b95c0bebdcd0e4538bd",
+                "reference": "ffa517cb918591b93acc9b95c0bebdcd0e4538bd",
                 "shasum": ""
             },
             "require": {
@@ -14174,7 +14174,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-09-09T08:10:35+00:00"
+            "time": "2024-09-19T07:58:01+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
@@ -14501,16 +14501,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "11.3.5",
+            "version": "11.3.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "4dc07a589a68f8f2d5132ac0849146d122e08347"
+                "reference": "d62c45a19c665bb872c2a47023a0baf41a98bb2b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/4dc07a589a68f8f2d5132ac0849146d122e08347",
-                "reference": "4dc07a589a68f8f2d5132ac0849146d122e08347",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/d62c45a19c665bb872c2a47023a0baf41a98bb2b",
+                "reference": "d62c45a19c665bb872c2a47023a0baf41a98bb2b",
                 "shasum": ""
             },
             "require": {
@@ -14537,7 +14537,7 @@
                 "sebastian/exporter": "^6.1.3",
                 "sebastian/global-state": "^7.0.2",
                 "sebastian/object-enumerator": "^6.0.1",
-                "sebastian/type": "^5.0.1",
+                "sebastian/type": "^5.1.0",
                 "sebastian/version": "^5.0.1"
             },
             "suggest": {
@@ -14581,7 +14581,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/11.3.5"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/11.3.6"
             },
             "funding": [
                 {
@@ -14597,7 +14597,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2024-09-13T05:22:17+00:00"
+            "time": "2024-09-19T10:54:28+00:00"
         },
         {
             "name": "sebastian/cli-parser",
@@ -15413,28 +15413,28 @@
         },
         {
             "name": "sebastian/type",
-            "version": "5.0.1",
+            "version": "5.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/type.git",
-                "reference": "fb6a6566f9589e86661291d13eba708cce5eb4aa"
+                "reference": "461b9c5da241511a2a0e8f240814fb23ce5c0aac"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/type/zipball/fb6a6566f9589e86661291d13eba708cce5eb4aa",
-                "reference": "fb6a6566f9589e86661291d13eba708cce5eb4aa",
+                "url": "https://api.github.com/repos/sebastianbergmann/type/zipball/461b9c5da241511a2a0e8f240814fb23ce5c0aac",
+                "reference": "461b9c5da241511a2a0e8f240814fb23ce5c0aac",
                 "shasum": ""
             },
             "require": {
                 "php": ">=8.2"
             },
             "require-dev": {
-                "phpunit/phpunit": "^11.0"
+                "phpunit/phpunit": "^11.3"
             },
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-main": "5.0-dev"
+                    "dev-main": "5.1-dev"
                 }
             },
             "autoload": {
@@ -15458,7 +15458,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/type/issues",
                 "security": "https://github.com/sebastianbergmann/type/security/policy",
-                "source": "https://github.com/sebastianbergmann/type/tree/5.0.1"
+                "source": "https://github.com/sebastianbergmann/type/tree/5.1.0"
             },
             "funding": [
                 {
@@ -15466,7 +15466,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-07-03T05:11:49+00:00"
+            "time": "2024-09-17T13:12:04+00:00"
         },
         {
             "name": "sebastian/version",

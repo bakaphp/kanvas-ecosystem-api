@@ -59,6 +59,13 @@ class Lead extends Data
         $lastname = $request['people']['lastname'] ?? '';
         $title = $request['title'] ?? $firstname . ' ' . $lastname;
 
+        $request['people']['contacts'] = array_filter($request['people']['contacts'], function ($contact) {
+            return isset($contact['value']) && ! empty($contact['value']);
+        });
+
+        // Re-index the array if needed
+        $request['people']['contacts'] = array_values($request['people']['contacts']);
+
         return new self(
             $app,
             $branch,
