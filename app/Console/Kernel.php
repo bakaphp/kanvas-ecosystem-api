@@ -9,6 +9,8 @@ use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 use Spatie\Health\Commands\DispatchQueueCheckJobsCommand;
 use Spatie\Health\Commands\RunHealthChecksCommand;
 use Spatie\Health\Commands\ScheduleCheckHeartbeatCommand;
+use App\Console\Commands\Ecosystem\Notifications\MailunregisteredUsersCampaignCommand;
+use Kanvas\Apps\Models\Apps;
 
 class Kernel extends ConsoleKernel
 {
@@ -23,6 +25,7 @@ class Kernel extends ConsoleKernel
         $schedule->command(DispatchQueueCheckJobsCommand::class)->everyMinute();
         $schedule->command(ScheduleCheckHeartbeatCommand::class)->everyMinute();
         $schedule->command(DeleteUsersRequestedCommand::class)->dailyAt('00:00');
+        $schedule->command(MailunregisteredUsersCampaignCommand::class)->weeklyOn(2, '2:30');
 
         /**
          * @todo move this to a cron subSystem
