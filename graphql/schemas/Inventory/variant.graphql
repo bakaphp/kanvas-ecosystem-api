@@ -24,7 +24,7 @@ type Variant {
     product: Product @cacheRedis
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
-    attributes: [VariantsAttributes!]! @BelongsToMany(relation: "attributes")
+    attributes: [VariantsAttributes!]! @BelongsToMany(relation: "visibleAttributes")
     companies: Company! @belongsTo(relation: "company")
     channels: [VariantChannelRelationship!]!
         @BelongsToMany(relation: "channels")

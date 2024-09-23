@@ -43,7 +43,8 @@ class FilesystemMapperMutation
         $company = $user->getCurrentCompany();
         $app = app(Apps::class);
 
-        $filesystem = Filesystem::getByIdFromCompanyApp($input['filesystem_id'], $company, $app);
+        //$filesystem = Filesystem::getByIdFromCompanyApp($input['filesystem_id'], $company, $app);
+        $filesystem = Filesystem::getById($input['filesystem_id'], $app);
         $mapper = ModelsFilesystemMapper::getByIdFromCompanyApp($input['filesystem_mapper_id'], $company, $app);
         $regions = Regions::getByIdFromCompanyApp($input['regions_id'], $company, $app);
 

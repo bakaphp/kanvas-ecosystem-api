@@ -53,7 +53,7 @@ trait NotificationRenderTrait
 
     protected function getPushTemplate(): string
     {
-        $templateName = $this->getType()->getPushTemplateName();
+        $templateName =  $this->templateName ?? $this->getType()->getPushTemplateName();
 
         $renderTemplate = new RenderTemplateAction($this->app, $this->company);
 

@@ -43,6 +43,7 @@ enum NotificationChannelEnum: int
     {
         return match ($class) {
             'mail' => self::MAIL->value,
+            'push' => self::PUSH->value,
             OneSignalNotificationChannel::class => self::PUSH->value,
             KanvasDatabase::class => self::DATABASE->value,
             default => throw new ValidationException('Invalid channel ' . $class),

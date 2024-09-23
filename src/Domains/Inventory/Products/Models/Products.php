@@ -31,6 +31,9 @@ use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
 
 /**
@@ -52,13 +55,14 @@ use Laravel\Scout\Searchable;
  * @property string $published_at
  * @property bool $is_deleted
  */
-class Products extends BaseModel
+class Products extends BaseModel implements EntityIntegrationInterface
 {
     use UuidTrait;
     use SlugTrait;
     use LikableTrait;
     use HasShopifyCustomField;
     use HasTagsTrait;
+    use IntegrationEntityTrait;
     use HasLightHouseCache;
     use Searchable {
         search as public traitSearch;
@@ -66,6 +70,7 @@ class Products extends BaseModel
 
     use CascadeSoftDeletes;
     use Compoships;
+    use CanUseWorkflow;
 
     protected $table = 'products';
     protected $guarded = [];
@@ -113,12 +118,36 @@ class Products extends BaseModel
      */
     public function attributes(): BelongsToMany
     {
-        return $this->belongsToMany(
+        return $this->buildAttributesQuery();
+    }
+
+    /**
+     * @todo add integration and graph test
+     */
+    public function visibleAttributes(): BelongsToMany
+    {
+        return $this->buildAttributesQuery(['is_visible' => true]);
+    }
+
+    public function searchableAttributes(): BelongsToMany
+    {
+        return $this->buildAttributesQuery(['is_searchable' => true]);
+    }
+
+    private function buildAttributesQuery(array $conditions = []): BelongsToMany
+    {
+        $query = $this->belongsToMany(
             Attributes::class,
             'products_attributes',
             'products_id',
             'attributes_id'
         )->withPivot('value');
+
+        foreach ($conditions as $column => $value) {
+            $query->where($column, $value);
+        }
+
+        return $query;
     }
 
     /**
@@ -211,7 +240,7 @@ class Products extends BaseModel
             'published_at' => $this->published_at,
             'created_at' => $this->created_at->format('Y-m-d H:i:s'),
         ];
-        $attributes = $this->attributes()->get();
+        $attributes = $this->searchableAttributes()->get();
         foreach ($attributes as $attribute) {
             $product['attributes'][$attribute->name] = $attribute->value;
         }
@@ -308,12 +337,12 @@ class Products extends BaseModel
                 $attributesDto = AttributesDto::from([
                     'app' => $this->app,
                     'user' => $user,
-                    'company' => $this->product->company,
+                    'company' => $this->company,
                     'name' => $attribute['name'],
                     'value' => $attribute['value'],
-                    'isVisible' => false,
-                    'isSearchable' => false,
-                    'isFiltrable' => false,
+                    'isVisible' => true,
+                    'isSearchable' => true,
+                    'isFiltrable' => true,
                     'slug' => Str::slug($attribute['name']),
                 ]);
                 $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
