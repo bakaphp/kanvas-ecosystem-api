@@ -14,10 +14,6 @@ use Kanvas\Social\Tags\Models\Tag;
 
 class ImportPromptsFromDocsCommand extends Command
 {
-    private const APP_ID = 78;
-    private const MESSAGE_TYPE = 588;
-    private const COMPANY_ID = 2626;
-
     /**
      * The name and signature of the console command.
      *
@@ -52,9 +48,9 @@ class ImportPromptsFromDocsCommand extends Command
         $processedContent = $this->processContent($rawContent);
 
         //dev env
-        $appId = 78;
-        $messageType = 588;
-        $companyId = 2626;
+        $appId = getenv('KANVAS_IMPORT_PROMPTS_APP_ID');
+        $messageType = getenv('KANVAS_IMPORT_PROMPTS_MESSAGE_TYPE');
+        $companyId = getenv('KANVAS_IMPORT_PROMPTS_COMPANY_ID');
 
         foreach ($processedContent as $category => $prompts) {
             echo $category . PHP_EOL;
@@ -62,7 +58,7 @@ class ImportPromptsFromDocsCommand extends Command
             foreach ($prompts as $prompt) {
                 // Check if the message already exists
                 $message = Message::where('slug', $this->slugify($prompt['title']))
-                                 ->where('apps_id', self::APP_ID)
+                                 ->where('apps_id', $appId)
                                  ->first();
 
                 if ($message) {
@@ -74,14 +70,14 @@ class ImportPromptsFromDocsCommand extends Command
 
                 // Create new message
                 $message = Message::create([
-                    'apps_id' => self::APP_ID,
+                    'apps_id' => $appId,
                     'uuid' => (string) Str::uuid(),
-                    'companies_id' => self::COMPANY_ID,
+                    'companies_id' => $companyId,
                     'users_id' => $user->getId(),
-                    'message_types_id' => self::MESSAGE_TYPE,
-                    'message' => json_encode([
+                    'message_types_id' => $messageType,
+                    'message' =>  json_encode([
                         'title' => $prompt['title'],
-                        // 'preview' => $prompt['preview'],
+                        'preview' => $prompt['prompt'],
                         'prompt' => $prompt['prompt'],
                     ]),
                     'slug' => $this->slugify($prompt['title']),
@@ -98,7 +94,7 @@ class ImportPromptsFromDocsCommand extends Command
                     $tag = Tag::firstOrCreate(
                         ['name' => $tagName, 'apps_id' => $appId],
                         [
-                            'companies_id' => self::COMPANY_ID,
+                            'companies_id' => $companyId,
                             'users_id' => $user->getId(),
                             'slug' => $this->slugify($tagName),
                         ]
