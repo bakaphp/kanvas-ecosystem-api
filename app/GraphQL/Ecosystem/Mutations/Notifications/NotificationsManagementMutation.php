@@ -22,8 +22,6 @@ class NotificationsManagementMutation
 {
     /**
      * sendNotificationBaseOnTemplate
-     * @deprecated use sendNotificationByMessage
-     * @psalm-suppress MixedArgument
      */
     public function sendNotificationBaseOnTemplate(mixed $root, array $request): bool
     {
@@ -84,7 +82,6 @@ class NotificationsManagementMutation
 
     /**
      * sendNotificationByMessage
-     * @psalm-suppress MixedArgument
      */
     public function sendNotificationByMessage(mixed $root, array $request): array
     {
