@@ -27,7 +27,12 @@ class OneSignalNotificationChannel
         $oneSignalService = new OneSignalService($app);
 
         $additionalData = $oneSignalMessage['data'] ?? [];
-        unset($additionalData['apps_id']);
+        unset($additionalData['apps_id'],
+            $additionalData['entity'],
+            $additionalData['app'],
+            $additionalData['options'],
+            $additionalData['fromUser'],
+            $additionalData['user']);
 
         $oneSignalService->sendNotificationToUser(
             $oneSignalMessage['message'],
