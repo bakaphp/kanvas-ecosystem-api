@@ -30,6 +30,8 @@ services:
     image: php-app-image  # Build the image here
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    ports:
+      - "8000:8000"
     command: 
     - "sh"
     - "-c"
