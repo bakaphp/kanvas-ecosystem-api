@@ -7,7 +7,6 @@ namespace Kanvas\Users\Repositories;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Enums\SourceEnum;
-use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Users\Models\Sources;
 use Kanvas\Users\Models\UserLinkedSources;
@@ -24,27 +23,32 @@ class UsersLinkedSourcesRepository
             ->firstOrFail();
     }
 
-    public static function getAppleLinkedSource(UserInterface $user): UserLinkedSources
+    public static function getAppleLinkedSource(UserInterface $user): array
     {
-        try {
-            return UserLinkedSources::where('users_id', $user->getId())
-                ->notDeleted()
-                ->where('source_id', Sources::getByName(SourceEnum::IOS->value)->getId())
-                ->firstOrFail();
-        } catch(ModelNotFoundException $e) {
-            throw new ExceptionsModelNotFoundException('User has not linked an apple device');
-        }
+        return self::getLinkedSourceByPlatform($user, SourceEnum::IOS);
     }
 
-    public static function getAndroidLinkedSource(UserInterface $user): UserLinkedSources
+    public static function getAndroidLinkedSource(UserInterface $user): array
+    {
+        return self::getLinkedSourceByPlatform($user, SourceEnum::ANDROID);
+    }
+
+    public static function getLinkedSourceByPlatform(UserInterface $user, SourceEnum $platform): array
     {
         try {
-            return UserLinkedSources::where('users_id', $user->getId())
+            // Retrieve all sources linked to the platform for the given user
+            $linkedSources = UserLinkedSources::where('users_id', $user->getId())
                 ->notDeleted()
-                ->where('source_id', Sources::getByName(SourceEnum::ANDROID->value)->getId())
-                ->firstOrFail();
-        } catch(ModelNotFoundException $e) {
-            throw new ExceptionsModelNotFoundException('User has not linked an android device');
+                ->where('source_id', Sources::getByName($platform->value)->getId())
+                ->get();
+
+            if ($linkedSources->isEmpty()) {
+                throw new ExceptionsModelNotFoundException("User has not linked a {$platform->value} device");
+            }
+
+            return $linkedSources->pluck('source_users_id_text')->toArray();
+        } catch (ModelNotFoundException $e) {
+            throw new ExceptionsModelNotFoundException("User has not linked a {$platform->value} device");
         }
     }
 }
