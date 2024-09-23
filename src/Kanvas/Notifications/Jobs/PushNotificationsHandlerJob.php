@@ -16,6 +16,9 @@ use Illuminate\Queue\SerializesModels;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Users\Repositories\UsersLinkedSourcesRepository;
 
+/**
+ * @deprecated v1 - Will be removed in v2
+ */
 class PushNotificationsHandlerJob implements ShouldQueue
 {
     use Dispatchable;
@@ -52,6 +55,7 @@ class PushNotificationsHandlerJob implements ShouldQueue
             match (true) {
                 empty($oneSignalAppId) => throw new Exception($this->app->name . ' OneSignal App ID is not set'),
                 empty($oneSignalRestApiKey) => throw new Exception($this->app->name . ' OneSignal Rest API Key is not set'),
+                default => null,
             };
 
             $oneSignalClient = new OneSignalClient($oneSignalAppId, $oneSignalRestApiKey, '');
