@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Tags\Models\Tag;
 use Kanvas\Users\Models\Users;
+use Illuminate\Support\Facades\DB;
 use PDO;
 
 class ImportPromptsFromDocsCommand extends Command
@@ -34,10 +35,6 @@ class ImportPromptsFromDocsCommand extends Command
      */
     public function handle()
     {
-        // The PDO connection string is incorrect. The host should be specified separately.
-        $pdo = new PDO('mysql:host=' . getenv('DB_SOCIAL_HOST') . ';dbname=' . getenv('DB_SOCIAL_DATABASE'), getenv('DB_SOCIAL_USERNAME'), getenv('DB_SOCIAL_PASSWORD'));
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
         // The Google Client setup looks correct, but we should check if the GOOGLE_AUTH_FILE exists
         if (! file_exists(getenv('GOOGLE_AUTH_FILE'))) {
             throw new \Exception('Google Auth file not found: ' . getenv('GOOGLE_AUTH_FILE'));
@@ -66,9 +63,10 @@ class ImportPromptsFromDocsCommand extends Command
             foreach ($prompts as $prompt) {
                 // Check if the message already exists
                 //if the msg exist with the same slug ignore
-                $stmt = $pdo->prepare('SELECT * FROM messages WHERE slug = :slug AND apps_id = :apps_id');
-                $stmt->execute(['slug' => $this->slugify($prompt['title']), 'apps_id' => $appId]);
-                $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                $result = DB::connection('social')->table('messages')
+                    ->where('slug', $this->slugify($prompt['title']))
+                    ->where('apps_id', $appId)
+                    ->first();
 
                 if ($result) {
                     echo 'Message already exists' . PHP_EOL;
@@ -77,9 +75,9 @@ class ImportPromptsFromDocsCommand extends Command
                 }
 
                 //insert into db message
-                $stmt = $pdo->prepare('INSERT INTO messages (apps_id, uuid, companies_id, users_id, message_types_id, message, slug, created_at, updated_at) VALUES (:apps_id, uuid(), :companies_id, :users_id, :message_types_id, :message, :slug, :created_at, :updated_at)');
-                $stmt->execute([
+                $lastId = DB::connection('social')->table('messages')->insertGetId([
                     'apps_id' => $appId,
+                    'uuid' => DB::raw('uuid()'),
                     'companies_id' => $companyId,
                     'users_id' => $userId,
                     'message_types_id' => $messageType,
@@ -89,18 +87,14 @@ class ImportPromptsFromDocsCommand extends Command
                         'prompt' => $prompt['prompt'],
                     ]),
                     'slug' => $this->slugify($prompt['title']),
-                    'created_at' => date('Y-m-d H:i:s'),
-                    'updated_at' => date('Y-m-d H:i:s'),
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
-
-                $lastId = $pdo->lastInsertId();
 
                 // Update the `path` field with the last inserted ID
-                $updateStmt = $pdo->prepare('UPDATE messages SET path = :path WHERE id = :id');
-                $updateStmt->execute([
-                    ':path' => $lastId,
-                    ':id' => $lastId,
-                ]);
+                DB::connection('social')->table('messages')
+                    ->where('id', $lastId)
+                    ->update(['path' => $lastId]);
 
                 //find or create tags
                 $tags = $prompt['tags'];
@@ -110,32 +104,30 @@ class ImportPromptsFromDocsCommand extends Command
                 $tags = array_merge($prompt['tags'], [$category]);
 
                 foreach ($tags as $tag) {
-                    $tag = trim($tag);
-                    $tag = strtolower($tag);
-                    $tagStmt = $pdo->prepare('SELECT * FROM tags WHERE name = :name AND apps_id = :apps_id');
-                    $tagStmt->execute(['name' => $tag, 'apps_id' => $appId]);
-                    $tagResult = $tagStmt->fetch(PDO::FETCH_ASSOC);
+                    $tag = trim(strtolower($tag));
+                    $tagResult = DB::connection('social')->table('tags')
+                        ->where('name', $tag)
+                        ->where('apps_id', $appId)
+                        ->first();
+
                     if ($tagResult) {
-                        $tagId = $tagResult['id'];
+                        $tagId = $tagResult->id;
                     } else {
-                        $tagInsertStmt = $pdo->prepare('INSERT INTO tags (name, apps_id, companies_id, users_id, slug, created_at, updated_at) VALUES (:name, :apps_id, :companies_id, :users_id, :slug, :created_at, :updated_at)');
-                        $tagInsertStmt->execute([
+                        $tagId = DB::connection('social')->table('tags')->insertGetId([
                             'name' => $tag,
+                            'apps_id' => $appId,
                             'companies_id' => $companyId,
                             'users_id' => $userId,
                             'slug' => $this->slugify($tag),
-                            'apps_id' => $appId,
                             'created_at' => date('Y-m-d H:i:s'),
                             'updated_at' => date('Y-m-d H:i:s'),
                         ]);
-                        $tagId = $pdo->lastInsertId();
                     }
-                    //insert into message_tags
-                    $messageTagStmt = $pdo->prepare('INSERT INTO tags_entities (entity_id, tags_id, users_id, taggable_type, created_at, updated_at) VALUES (:entity_id, :tags_id, :users_id, :taggable_type, :created_at, :updated_at)');
-                    $messageTagStmt->execute([
+
+                    DB::connection('social')->table('tags_entities')->insert([
                         'entity_id' => $lastId,
-                        'users_id' => $userId,
                         'tags_id' => $tagId,
+                        'users_id' => $userId,
                         'taggable_type' => "Kanvas\Social\Messages\Models\Message",
                         'created_at' => date('Y-m-d H:i:s'),
                         'updated_at' => date('Y-m-d H:i:s'),
