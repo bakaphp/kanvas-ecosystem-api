@@ -7,7 +7,9 @@ namespace App\GraphQL\Ecosystem\Mutations\Notifications;
 use Baka\Support\Str;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Actions\EvaluateNotificationsLogicAction;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Jobs\SendMessageNotificationsToAllFollowersJob;
 use Kanvas\Notifications\Jobs\SendMessageNotificationsToUsersJob;
 use Kanvas\Notifications\Models\NotificationTypes;
@@ -27,26 +29,36 @@ class NotificationsManagementMutation
     {
         $user = auth()->user();
         $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
 
         if ($user->isAdmin()) {
-            $userToNotify = UsersRepository::findUsersByArray($request['users']);
+            $usersToNotify = UsersRepository::findUsersByArray($request['users'], $app);
         } else {
-            $userToNotify = UsersRepository::findUsersByArray($request['users'], $company);
+            $usersToNotify = UsersRepository::findUsersByArray($request['users'], $app, $company);
+        }
+
+        if (! $usersToNotify->count()) {
+            throw new ModelNotFoundException('No users found to notify');
         }
 
         $data = Str::isJson($request['data']) ? json_decode($request['data'], true) : (array) $request['data']; // This can have more validation like validate if is array o json
         $data['app'] = app(Apps::class);
 
+        $vias = [];
+        foreach ($request['via'] as $via) {
+            $vias[] = NotificationChannelEnum::getNotificationChannelBySlug($via);
+        }
+
         $notification = new Blank(
             $request['template_name'],
             $data,
-            $request['via'],
+            $vias,
             $user,
             key_exists('attachment', $request) ? $request['attachment'] : null
         );
 
         $notification->setFromUser($user);
-        Notification::send($userToNotify, $notification);
+        Notification::send($usersToNotify, $notification);
 
         return true;
     }
