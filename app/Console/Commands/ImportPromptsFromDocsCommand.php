@@ -39,7 +39,7 @@ class ImportPromptsFromDocsCommand extends Command
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
         // The Google Client setup looks correct, but we should check if the GOOGLE_AUTH_FILE exists
-        if (!file_exists(getenv('GOOGLE_AUTH_FILE'))) {
+        if (! file_exists(getenv('GOOGLE_AUTH_FILE'))) {
             throw new \Exception('Google Auth file not found: ' . getenv('GOOGLE_AUTH_FILE'));
         }
 
@@ -112,11 +112,9 @@ class ImportPromptsFromDocsCommand extends Command
                 foreach ($tags as $tag) {
                     $tag = trim($tag);
                     $tag = strtolower($tag);
-        
                     $tagStmt = $pdo->prepare('SELECT * FROM tags WHERE name = :name AND apps_id = :apps_id');
                     $tagStmt->execute(['name' => $tag, 'apps_id' => $appId]);
                     $tagResult = $tagStmt->fetch(PDO::FETCH_ASSOC);
-        
                     if ($tagResult) {
                         $tagId = $tagResult['id'];
                     } else {
@@ -130,10 +128,8 @@ class ImportPromptsFromDocsCommand extends Command
                             'created_at' => date('Y-m-d H:i:s'),
                             'updated_at' => date('Y-m-d H:i:s'),
                         ]);
-        
                         $tagId = $pdo->lastInsertId();
                     }
-        
                     //insert into message_tags
                     $messageTagStmt = $pdo->prepare('INSERT INTO tags_entities (entity_id, tags_id, users_id, taggable_type, created_at, updated_at) VALUES (:entity_id, :tags_id, :users_id, :taggable_type, :created_at, :updated_at)');
                     $messageTagStmt->execute([
