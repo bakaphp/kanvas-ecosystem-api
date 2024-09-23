@@ -48,14 +48,18 @@ class KanvasUserAddToCompany extends Command
         $branch = CompaniesBranches::findOrFail($branchId);
         $company = $branch->company()->first();
         $company->associateApp($app);
+        $user = UsersRepository::getByEmail($email);
 
         $assignCompanyAction = new AssignCompanyAction(
-            UsersRepository::getByEmail($email),
+            $user,
             $branch,
             $role,
             $app
         );
         $assignCompanyAction->execute();
+
+        //make sure it has the app profile
+        $user->getAppProfile($app);
 
         $this->newLine();
         $this->info("User {$email} successfully added to branch : " . $branch->name . ' ( ' . $branch->getKey() . ') in app  ' . $app->name);
