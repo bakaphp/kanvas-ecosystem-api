@@ -2,9 +2,7 @@ version: '3.8'
 
 x-common-queue-settings: &common-queue-settings
   restart: always
-  build:
-    context: .
-    dockerfile: 1.x.Dockerfile
+  image: php-app-image # Reuse the same built image
   extra_hosts:
     - "host.docker.internal:host-gateway"
   command: 
@@ -29,6 +27,7 @@ services:
     build:
       context: .
       dockerfile: 1.x.Dockerfile
+    image: php-app-image  # Build the image here
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: 
@@ -78,7 +77,6 @@ services:
   queue8:
     <<: *common-queue-settings
     container_name: queue8
-  
 
   queue-social:
     <<: *common-queue-settings
@@ -123,9 +121,7 @@ services:
   laravel-scheduler:
     container_name: laravel-scheduler
     restart: always
-    build:
-      context: .
-      dockerfile: 1.x.Dockerfile
+    image: php-app-image  # Reuse the same image here
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command:
