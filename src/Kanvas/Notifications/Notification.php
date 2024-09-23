@@ -211,6 +211,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     public function setFromUser(UserInterface $user): void
     {
         $this->fromUser = $user;
+        $this->data['fromUser'] = $user;
     }
 
     /**
