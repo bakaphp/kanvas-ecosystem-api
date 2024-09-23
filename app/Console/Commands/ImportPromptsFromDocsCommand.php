@@ -85,7 +85,7 @@ class ImportPromptsFromDocsCommand extends Command
                     'message_types_id' => $messageType,
                     'message' => json_encode([
                         'title' => $prompt['title'],
-                        // 'preview' => $prompt['preview'],
+                        'preview' => $prompt['prompt'],
                         'prompt' => $prompt['prompt'],
                     ]),
                     'slug' => $this->slugify($prompt['title']),
