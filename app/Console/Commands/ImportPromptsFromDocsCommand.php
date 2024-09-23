@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Tags\Models\Tag;
 use Kanvas\Users\Models\Users;
+use PDO;
 
 class ImportPromptsFromDocsCommand extends Command
 {
@@ -33,6 +34,15 @@ class ImportPromptsFromDocsCommand extends Command
      */
     public function handle()
     {
+        // The PDO connection string is incorrect. The host should be specified separately.
+        $pdo = new PDO('mysql:host=' . getenv('DB_SOCIAL_HOST') . ';dbname=' . getenv('DB_SOCIAL_DATABASE'), getenv('DB_SOCIAL_USERNAME'), getenv('DB_SOCIAL_PASSWORD'));
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        // The Google Client setup looks correct, but we should check if the GOOGLE_AUTH_FILE exists
+        if (!file_exists(getenv('GOOGLE_AUTH_FILE'))) {
+            throw new \Exception('Google Auth file not found: ' . getenv('GOOGLE_AUTH_FILE'));
+        }
+
         $client = new \Google\Client();
         $client->setApplicationName('Kanvas');
         $client->setAuthConfig(getenv('GOOGLE_AUTH_FILE'));
@@ -49,56 +59,90 @@ class ImportPromptsFromDocsCommand extends Command
         $appId = $this->option('appId');
         $messageType = $this->option('messageType');
         $companyId = $this->option('companyId');
-
+        $userId = $this->fetchRandomUser()->id;
         foreach ($processedContent as $category => $prompts) {
             echo $category . PHP_EOL;
 
             foreach ($prompts as $prompt) {
                 // Check if the message already exists
-                $message = Message::where('slug', $this->slugify($prompt['title']))
-                                 ->where('apps_id', $appId)
-                                 ->first();
+                //if the msg exist with the same slug ignore
+                $stmt = $pdo->prepare('SELECT * FROM messages WHERE slug = :slug AND apps_id = :apps_id');
+                $stmt->execute(['slug' => $this->slugify($prompt['title']), 'apps_id' => $appId]);
+                $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
-                if ($message) {
+                if ($result) {
                     echo 'Message already exists' . PHP_EOL;
 
                     continue;
                 }
 
-                $user = $this->fetchRandomUser();
-
-                // Create new message
-                $message = Message::create([
+                //insert into db message
+                $stmt = $pdo->prepare('INSERT INTO messages (apps_id, uuid, companies_id, users_id, message_types_id, message, slug, created_at, updated_at) VALUES (:apps_id, uuid(), :companies_id, :users_id, :message_types_id, :message, :slug, :created_at, :updated_at)');
+                $stmt->execute([
                     'apps_id' => $appId,
-                    'uuid' => (string) Str::uuid(),
                     'companies_id' => $companyId,
-                    'users_id' => $user->getId(),
+                    'users_id' => $userId,
                     'message_types_id' => $messageType,
                     'message' => json_encode([
                         'title' => $prompt['title'],
+                        // 'preview' => $prompt['preview'],
                         'prompt' => $prompt['prompt'],
                     ]),
                     'slug' => $this->slugify($prompt['title']),
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
                 ]);
+
+                $lastId = $pdo->lastInsertId();
+
+                // Update the `path` field with the last inserted ID
+                $updateStmt = $pdo->prepare('UPDATE messages SET path = :path WHERE id = :id');
+                $updateStmt->execute([
+                    ':path' => $lastId,
+                    ':id' => $lastId,
+                ]);
+
+                //find or create tags
+                $tags = $prompt['tags'];
+                $tags[] = $category;
 
                 // Handle tags
                 $tags = array_merge($prompt['tags'], [$category]);
 
-                foreach ($tags as $tagName) {
-                    $tagName = trim(strtolower($tagName));
-                    $tag = Tag::firstOrCreate(
-                        ['name' => $tagName, 'apps_id' => $appId],
-                        [
+                foreach ($tags as $tag) {
+                    $tag = trim($tag);
+                    $tag = strtolower($tag);
+        
+                    $tagStmt = $pdo->prepare('SELECT * FROM tags WHERE name = :name AND apps_id = :apps_id');
+                    $tagStmt->execute(['name' => $tag, 'apps_id' => $appId]);
+                    $tagResult = $tagStmt->fetch(PDO::FETCH_ASSOC);
+        
+                    if ($tagResult) {
+                        $tagId = $tagResult['id'];
+                    } else {
+                        $tagInsertStmt = $pdo->prepare('INSERT INTO tags (name, apps_id, companies_id, users_id, slug, created_at, updated_at) VALUES (:name, :apps_id, :companies_id, :users_id, :slug, :created_at, :updated_at)');
+                        $tagInsertStmt->execute([
+                            'name' => $tag,
                             'companies_id' => $companyId,
-                            'users_id' => $user->getId(),
-                            'slug' => $this->slugify($tagName),
-                        ]
-                    );
-
-                    // Attach tag to message
-                    $message->tags()->attach($tag->id, [
-                        'users_id' => $user->getId(),
-                        'taggable_type' => Message::class,
+                            'users_id' => $userId,
+                            'slug' => $this->slugify($tag),
+                            'apps_id' => $appId,
+                            'created_at' => date('Y-m-d H:i:s'),
+                            'updated_at' => date('Y-m-d H:i:s'),
+                        ]);
+        
+                        $tagId = $pdo->lastInsertId();
+                    }
+        
+                    //insert into message_tags
+                    $messageTagStmt = $pdo->prepare('INSERT INTO tags_entities (entity_id, tags_id, users_id, taggable_type, created_at, updated_at) VALUES (:entity_id, :tags_id, :users_id, :taggable_type, :created_at, :updated_at)');
+                    $messageTagStmt->execute([
+                        'entity_id' => $lastId,
+                        'users_id' => $userId,
+                        'tags_id' => $tagId,
+                        'taggable_type' => "Kanvas\Social\Messages\Models\Message",
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s'),
                     ]);
                 }
 
@@ -142,7 +186,7 @@ class ImportPromptsFromDocsCommand extends Command
             ->where('is_deleted', 0)
             ->get();
 
-        return count($users) > 0 ? $users[array_rand($users->toArray())] : Users::find(-1);
+        return count($users) > 0 ? $users[array_rand($users->toArray())] : Users::getByEmail(getenv('DEFAULT_PROMPT_ACCOUNT_EMAIL'));
     }
 
     private function parseBody($body)
