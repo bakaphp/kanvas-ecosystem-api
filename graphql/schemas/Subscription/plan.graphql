@@ -1,0 +1,59 @@
+type Plan {
+    id: ID!
+    name: String!
+    description: String
+    prices: [Price!] @hasMany(relation: "price")
+    is_default: Boolean
+    created_at: String
+    updated_at: String
+    stripe_id: String
+}
+
+input PlanInput {
+    name: String!
+    description: String
+    prices: [PriceInput!]!
+    is_default: Boolean
+}
+
+input PlanUpdateInput {
+    name: String
+    description: String
+    prices: [PriceInput!]
+}
+
+extend type Mutation @guardByAppKey {
+    createPlan(input: PlanInput!): Plan!
+        @field(
+            resolver: "App\\GraphQL\\Subscription\\Mutations\\Plans\\PlanMutation@create"
+        )
+    updatePlan(id: ID!, input: PlanUpdateInput!): Plan!
+        @field(
+            resolver: "App\\GraphQL\\Subscription\\Mutations\\Plans\\PlanMutation@update"
+        )
+    deletePlan(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Subscription\\Mutations\\Plans\\PlanMutation@delete"
+        )
+}
+
+extend type Query @guard {
+    subscriptionPlans(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: ["id", "name", "description", "is_default"]
+            )
+        hasPrices: _
+            @whereHasConditions(
+                relation: "prices"
+                columns: ["id", "stripe_id", "amount", "currency", "interval"]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [Plan!]!
+        @paginate(
+            scopes: ["fromApp", "notDeleted"]
+            model: "Kanvas\\Subscription\\Plans\\Models\\Plan"
+            defaultCount: 25
+        )
+}

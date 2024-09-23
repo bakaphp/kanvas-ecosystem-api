@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
-use Kanvas\ActionEngine\Tasks\Models\TaskEngagementItem;
-use Kanvas\ActionEngine\Tasks\Observers\TaskEngagementItemObserver;
 use Kanvas\Companies\Groups\Observers\CompaniesGroupsObserver;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesGroups;

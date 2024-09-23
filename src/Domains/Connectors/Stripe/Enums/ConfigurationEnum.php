@@ -7,4 +7,5 @@ namespace Kanvas\Connectors\Stripe\Enums;
 enum ConfigurationEnum: string
 {
     case STRIPE_SECRET_KEY = 'STRIPE_SECRET_KEY';
+    case STRIPE_DEFAULT_TRIAL_DAYS = 'STRIPE_DEFAULT_TRIAL_DAYS';
 }
