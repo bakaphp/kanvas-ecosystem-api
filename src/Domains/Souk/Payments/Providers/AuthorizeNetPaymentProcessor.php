@@ -205,7 +205,6 @@ class AuthorizeNetPaymentProcessor
      */
     public function createCustomerPaymentProfile(DirectOrder $orderInput)
     {
-
         /* Create a merchantAuthenticationType object with authentication details
         retrieved from the constants file */
         $merchantAuthentication = $this->setupMerchantAuthentication();
@@ -249,5 +248,4 @@ class AuthorizeNetPaymentProcessor
             $this->company->get('MERCHANT_PRODUCTION') ? ANetEnvironment::PRODUCTION : ANetEnvironment::SANDBOX
         );
     }
-
 }
