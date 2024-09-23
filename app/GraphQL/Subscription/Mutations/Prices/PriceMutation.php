@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Prices\Mutations;
+namespace App\GraphQL\Subscription\Mutations\Prices;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
