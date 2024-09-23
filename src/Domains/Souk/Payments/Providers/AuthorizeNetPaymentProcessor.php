@@ -199,4 +199,55 @@ class AuthorizeNetPaymentProcessor
             $this->company->get('MERCHANT_PRODUCTION') ? ANetEnvironment::PRODUCTION : ANetEnvironment::SANDBOX
         ) : $subscriptionInitialCharge;
     }
+
+    /**
+     * @todo move to its own class
+     */
+    public function createCustomerPaymentProfile(DirectOrder $orderInput)
+    {
+
+        /* Create a merchantAuthenticationType object with authentication details
+        retrieved from the constants file */
+        $merchantAuthentication = $this->setupMerchantAuthentication();
+
+        // Set credit card information for payment profile
+        $creditCard = $this->setCreditCard($orderInput->creditCard);
+        $paymentCreditCard = new AnetAPI\PaymentType();
+        $paymentCreditCard->setCreditCard($creditCard);
+
+        // Create the Bill To info for new payment type
+        // Set the customer's identifying information
+        $customerAddress = $this->setCustomerBillingAddress($orderInput);
+
+
+        // Create a new CustomerPaymentProfile object
+        $paymentProfile = new AnetAPI\CustomerPaymentProfileType();
+        $paymentProfile->setCustomerType('individual');
+        $paymentProfile->setBillTo($customerAddress);
+        $paymentProfile->setPayment($paymentCreditCard);
+        $paymentProfiles[] = $paymentProfile;
+
+
+        // Create a new CustomerProfileType and add the payment profile object
+        $customerProfile = new AnetAPI\CustomerProfileType();
+        $customerProfile->setDescription($orderInput->cart->getContent()->first()->name);
+        $customerProfile->setMerchantCustomerId($orderInput->user->getId());
+        $customerProfile->setEmail($orderInput->user->email);
+        $customerProfile->setpaymentProfiles($paymentProfiles);
+
+
+        // Assemble the complete transaction request
+        $request = new AnetAPI\CreateTransactionRequest();
+        $request->setMerchantAuthentication($merchantAuthentication);
+        $request->setRefId($this->refId);
+        $request->setProfile($customerProfile);
+
+        // Create the controller and get the response
+        $controller = new AnetController\CreateTransactionController($request);
+
+        return $controller->executeWithApiResponse(
+            $this->company->get('MERCHANT_PRODUCTION') ? ANetEnvironment::PRODUCTION : ANetEnvironment::SANDBOX
+        );
+    }
+
 }
