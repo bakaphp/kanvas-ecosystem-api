@@ -2,9 +2,7 @@ version: '3.8'
 
 x-common-queue-settings: &common-queue-settings
   restart: always
-  build:
-    context: .
-    dockerfile: development.Dockerfile
+  image: php-app-image # Use the built image for all the services
   extra_hosts:
     - "host.docker.internal:host-gateway"
   command: 
@@ -29,6 +27,7 @@ services:
     build:
       context: .
       dockerfile: development.Dockerfile
+    image: php-app-image  # Build the image here and tag it
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
@@ -56,10 +55,6 @@ services:
   queue2:
     <<: *common-queue-settings
     container_name: queue2
-
-  queue3:
-    <<: *common-queue-settings
-    container_name: queue3
 
   batch-logger-queue:
     <<: *common-queue-settings
@@ -93,20 +88,10 @@ services:
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue imports --tries=3 --timeout=3750"
 
-  queue-imports2:
-    <<: *common-queue-settings
-    container_name: queue-imports2
-    command: 
-      - "sh"
-      - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue imports --tries=3 --timeout=3750"
-
   laravel-scheduler:
     container_name: laravel-scheduler
     restart: always
-    build:
-      context: .
-      dockerfile: development.Dockerfile
+    image: php-app-image  # Use the same image for the scheduler
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command:

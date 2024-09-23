@@ -2,27 +2,21 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Subscriptions\Mutations\Plans;
+namespace App\GraphQL\Subscription\Mutations\Plans;
 
+use Illuminate\Support\Facades\Auth;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Subscription\Plans\Actions\CreatePlan;
 use Kanvas\Subscription\Plans\Actions\UpdatePlan;
-use Kanvas\Subscription\Plans\Repositories\PlanRepository;
 use Kanvas\Subscription\Plans\DataTransferObject\Plan as PlanDto;
 use Kanvas\Subscription\Plans\Models\Plan as PlanModel;
-use Kanvas\Apps\Models\Apps;
-use Illuminate\Support\Facades\Auth;
-use Stripe\Stripe;
+use Kanvas\Subscription\Plans\Repositories\PlanRepository;
 use Stripe\Product as StripeProduct;
 
 class PlanMutation
 {
     /**
      * create.
-     *
-     * @param  mixed $root
-     * @param  array $req
-     *
-     * @return PlanModel
      */
     public function create(mixed $root, array $req): PlanModel
     {
@@ -47,9 +41,6 @@ class PlanMutation
      * update.
      *
      * @param  mixed $root
-     * @param  array $req
-     *
-     * @return PlanModel
      */
     public function update(array $req): PlanModel
     {
@@ -72,9 +63,6 @@ class PlanMutation
      * delete.
      *
      * @param  mixed $root
-     * @param  array $req
-     *
-     * @return bool
      */
     public function delete(array $req): bool
     {
