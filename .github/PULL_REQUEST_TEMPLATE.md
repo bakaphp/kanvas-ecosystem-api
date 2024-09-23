@@ -6,10 +6,6 @@ Please include a summary of the changes and the related issue. Highlight key poi
 
 A link to the ticket or issue that this PR is related to.(if applicable)
 
-## Type of Change
-
-List of changes in this PR.
-
 ## Checklist
 
 A checklist of things that should be done before merging this PR. Linked to the ticket or issue that this PR is related to.(if applicable)
