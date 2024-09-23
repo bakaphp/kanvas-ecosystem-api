@@ -37,15 +37,13 @@ class OneSignalService
         $deviceIds = [];
 
         try {
-            $appleLinkSource = UsersLinkedSourcesRepository::getAppleLinkedSource($user);
-            $deviceIds[] = $appleLinkSource->source_users_id_text;
+            $deviceIds = UsersLinkedSourcesRepository::getAppleLinkedSource($user);
             $this->hasAppleDevices = true;
         } catch (ModelNotFoundException $e) {
         }
 
         try {
-            $androidLinkSource = UsersLinkedSourcesRepository::getAndroidLinkedSource($user);
-            $deviceIds[] = $androidLinkSource->source_users_id_text;
+            $deviceIds = array_merge($deviceIds, UsersLinkedSourcesRepository::getAndroidLinkedSource($user));
         } catch (ModelNotFoundException $e) {
         }
 

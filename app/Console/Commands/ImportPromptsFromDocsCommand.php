@@ -5,32 +5,26 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Kanvas\Apps\Actions\CreateAppsAction;
-use Kanvas\Apps\DataTransferObject\AppInput;
-use Kanvas\Users\Models\Users;
-use Kanvas\Social\Messages\Models\Message;
 use Illuminate\Support\Str;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Tags\Models\Tag;
+use Kanvas\Users\Models\Users;
 
 class ImportPromptsFromDocsCommand extends Command
 {
-    private const APP_ID = 78;
-    private const MESSAGE_TYPE = 588;
-    private const COMPANY_ID = 2626;
-
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'kanvas:import-prompts-from-docs';
+    protected $signature = 'kanvas:import-prompts-from-docs {--appId=78} {--messageType=588} {--companyId=2626}';
 
     /**
      * The console command description.
      *
      * @var string|null
      */
-    protected $description = 'Import prompts from googledocs';
+    protected $description = 'Import prompts from Google Docs';
 
     /**
      * Execute the console command.
@@ -40,21 +34,21 @@ class ImportPromptsFromDocsCommand extends Command
     public function handle()
     {
         $client = new \Google\Client();
-        $client->setApplicationName("Kanvas");
+        $client->setApplicationName('Kanvas');
         $client->setAuthConfig(getenv('GOOGLE_AUTH_FILE'));
         $client->setScopes([\Google\Service\Docs::DOCUMENTS_READONLY]);
 
-        //extract content from docs
+        // Extract content from docs
         $service = new \Google\Service\Docs($client);
         $document = $service->documents->get(getenv('GOOGLE_DOC_ID'));
         $body = $document->getBody();
         $rawContent = $this->parseBody($body);
         $processedContent = $this->processContent($rawContent);
 
-        //dev env
-        $appId = 78;
-        $messageType = 588;
-        $companyId = 2626;
+        // Retrieve command options
+        $appId = $this->option('appId');
+        $messageType = $this->option('messageType');
+        $companyId = $this->option('companyId');
 
         foreach ($processedContent as $category => $prompts) {
             echo $category . PHP_EOL;
@@ -62,11 +56,12 @@ class ImportPromptsFromDocsCommand extends Command
             foreach ($prompts as $prompt) {
                 // Check if the message already exists
                 $message = Message::where('slug', $this->slugify($prompt['title']))
-                                 ->where('apps_id', self::APP_ID)
+                                 ->where('apps_id', $appId)
                                  ->first();
 
                 if ($message) {
                     echo 'Message already exists' . PHP_EOL;
+
                     continue;
                 }
 
@@ -74,21 +69,17 @@ class ImportPromptsFromDocsCommand extends Command
 
                 // Create new message
                 $message = Message::create([
-                    'apps_id' => self::APP_ID,
+                    'apps_id' => $appId,
                     'uuid' => (string) Str::uuid(),
-                    'companies_id' => self::COMPANY_ID,
+                    'companies_id' => $companyId,
                     'users_id' => $user->getId(),
-                    'message_types_id' => self::MESSAGE_TYPE,
+                    'message_types_id' => $messageType,
                     'message' => json_encode([
                         'title' => $prompt['title'],
-                        // 'preview' => $prompt['preview'],
                         'prompt' => $prompt['prompt'],
                     ]),
                     'slug' => $this->slugify($prompt['title']),
                 ]);
-
-                // Update the `path` field
-                // $message->update(['path' => $message->id]);
 
                 // Handle tags
                 $tags = array_merge($prompt['tags'], [$category]);
@@ -98,7 +89,7 @@ class ImportPromptsFromDocsCommand extends Command
                     $tag = Tag::firstOrCreate(
                         ['name' => $tagName, 'apps_id' => $appId],
                         [
-                            'companies_id' => self::COMPANY_ID,
+                            'companies_id' => $companyId,
                             'users_id' => $user->getId(),
                             'slug' => $this->slugify($tagName),
                         ]
@@ -124,29 +115,13 @@ class ImportPromptsFromDocsCommand extends Command
      */
     public function slugify(string $text): string
     {
-        // replace non letter or digits by -
         $text = preg_replace('~[^\pL\d]+~u', '-', $text);
-
-        // transliterate
         $text = iconv('utf-8', 'us-ascii//TRANSLIT', $text);
-
-        // remove unwanted characters
         $text = preg_replace('~[^-\w]+~', '', $text);
-
-        // trim
         $text = trim($text, '-');
-
-        // remove duplicate -
         $text = preg_replace('~-+~', '-', $text);
 
-        // lowercase
-        $text = strtolower($text);
-
-        if (empty($text)) {
-            return 'n-a';
-        }
-
-        return $text;
+        return strtolower($text) ?: 'n-a';
     }
 
     /**
@@ -167,21 +142,9 @@ class ImportPromptsFromDocsCommand extends Command
             ->where('is_deleted', 0)
             ->get();
 
-        if (count($users) > 0) {
-            // Select a random user from the fetched users
-            return $users[array_rand($users->toArray())];
-        } else {
-            // Fallback to anonUser if no users are found
-            return Users::find(-1);
-        }
+        return count($users) > 0 ? $users[array_rand($users->toArray())] : Users::find(-1);
     }
 
-    /**
-     * Parse the content from the docs.
-     *
-     * @param \Google\Service\Docs\Document $document The document to parse.
-     * @return array The parsed content.
-     */
     private function parseBody($body)
     {
         $content = '';
@@ -193,6 +156,7 @@ class ImportPromptsFromDocsCommand extends Command
                 $content .= $this->parseTable($element->getTable());
             }
         }
+
         return $content;
     }
 
@@ -200,7 +164,7 @@ class ImportPromptsFromDocsCommand extends Command
     {
         $paragraphStyle = $paragraph->getParagraphStyle();
         $namedStyleType = $paragraphStyle ? $paragraphStyle->getNamedStyleType() : null;
-        // Skip paragraphs with Title style
+
         if ($namedStyleType === 'TITLE') {
             return '';
         }
@@ -209,11 +173,10 @@ class ImportPromptsFromDocsCommand extends Command
         $elements = $paragraph->getElements();
         foreach ($elements as $element) {
             if ($element->getTextRun()) {
-                $textRun = $element->getTextRun();
-                $content = $textRun->getContent();
-                $text .= $content;
+                $text .= $element->getTextRun()->getContent();
             }
         }
+
         return $text;
     }
 
@@ -227,6 +190,7 @@ class ImportPromptsFromDocsCommand extends Command
                 $text .= $this->parseBody($cell->getContent());
             }
         }
+
         return $text;
     }
 
@@ -237,9 +201,7 @@ class ImportPromptsFromDocsCommand extends Command
         $currentCategory = null;
         $keywords = ['Category:', 'Prompt Title:', 'Full Prompt:', 'Tags:'];
 
-        // Remove unnecessary spaces and line breaks
         $rawContent = preg_replace('/\s+/', ' ', $rawContent);
-        // Split the content by the keywords
         $parts = preg_split('/(' . implode('|', array_map('preg_quote', $keywords)) . ')/', $rawContent, -1, PREG_SPLIT_DELIM_CAPTURE);
 
         $currentKey = '';
@@ -258,24 +220,27 @@ class ImportPromptsFromDocsCommand extends Command
                         if (! isset($result[$currentCategory])) {
                             $result[$currentCategory] = [];
                         }
+
                         break;
                     case 'Prompt Title':
                         if (! empty($currentPrompt)) {
                             $result[$currentCategory][] = $currentPrompt;
                         }
                         $currentPrompt = ['title' => $part];
+
                         break;
                     case 'Full Prompt':
                         $currentPrompt['prompt'] = $part;
+
                         break;
                     case 'Tags':
                         $currentPrompt['tags'] = array_map('trim', explode(',', $part));
+
                         break;
                 }
             }
         }
 
-        // Add the last prompt if it exists
         if ($currentCategory !== null && ! empty($currentPrompt)) {
             $result[$currentCategory][] = $currentPrompt;
         }
