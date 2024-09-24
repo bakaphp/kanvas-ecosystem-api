@@ -24,7 +24,7 @@ class LightHouseCacheCleanUpJob implements ShouldQueue
 
     public $uniqueFor = 300;
     public $tries = 5;
-    
+
     public function __construct(
         protected Model $model
     ) {
