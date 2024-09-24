@@ -14,7 +14,7 @@ class ProductsObserver
             $products->productsTypes->setTotalProducts();
         }
 
-        $products->clearLightHouseCacheJob();
+        //$products->clearLightHouseCacheJob();
     }
 
     public function created(Products $products): void
@@ -23,6 +23,6 @@ class ProductsObserver
             $products->productsTypes->setTotalProducts();
         }
 
-        $products->clearLightHouseCacheJob();
+        //$products->clearLightHouseCacheJob();
     }
 }

@@ -27,7 +27,6 @@ type Product {
     productsTypes: ProductType @belongsTo
     companies: Company! @belongsTo(relation: "company")
     custom_fields: [CustomField!]!
-        @cacheRedis
         @paginate(
             defaultCount: 25
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"

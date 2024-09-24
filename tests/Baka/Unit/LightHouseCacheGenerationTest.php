@@ -36,9 +36,11 @@ class LightHouseCacheGenerationTest extends TestCase
         $people->setCustomFields(['custom_field' => 'value']);
         $people->saveCustomFields();
 
+        $people->addFileFromUrl(fake()->imageUrl(), 'test.png');
+
         $redis = Redis::connection('graph-cache');
         $graphTypeName = $people->getGraphTypeName();
-        $relationship = 'custom_fields';
+        $relationship = 'files';
         $items = 25;
 
         $separator = CacheKeyAndTagsGenerator::SEPARATOR;

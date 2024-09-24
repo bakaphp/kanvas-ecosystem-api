@@ -18,7 +18,7 @@ trait HasLightHouseCache
         $redis = Redis::connection('graph-cache');
         $keys = $redis->keys($key);
         if (empty($keys)) {
-            $this->generateCustomFieldsLighthouseCache();
+            //$this->generateCustomFieldsLighthouseCache();
             $this->generateFilesLighthouseCache();
 
             return;
@@ -28,7 +28,7 @@ trait HasLightHouseCache
             $redis->del(str_replace(config('database.redis.options.prefix'), '', $key));
         }
 
-        $this->generateCustomFieldsLighthouseCache();
+        //$this->generateCustomFieldsLighthouseCache();
         $this->generateFilesLighthouseCache();
     }
 
