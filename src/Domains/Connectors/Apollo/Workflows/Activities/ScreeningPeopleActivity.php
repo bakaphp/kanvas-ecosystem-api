@@ -142,7 +142,7 @@ class ScreeningPeopleActivity extends Activity
         if (! empty($organizationData['logo_url'])) {
             $organization->set('logo', $organizationData['logo_url']);
         }
-        
+
         if (! empty($organizationData['linkedin_url'])) {
             $organization->set('linkedin_url', $organizationData['linkedin_url']);
         }
