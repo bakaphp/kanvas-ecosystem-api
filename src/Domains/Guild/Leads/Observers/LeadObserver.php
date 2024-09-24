@@ -85,13 +85,13 @@ class LeadObserver
             )->execute();
         }
 
-        $lead->clearLightHouseCacheJob();
+        //$lead->clearLightHouseCacheJob();
     }
 
     public function updated(Lead $lead): void
     {
         $lead->fireWorkflow(WorkflowEnum::UPDATED->value);
         Subscription::broadcast('leadUpdate', $lead, true);
-        $lead->clearLightHouseCacheJob();
+        //$lead->clearLightHouseCacheJob();
     }
 }

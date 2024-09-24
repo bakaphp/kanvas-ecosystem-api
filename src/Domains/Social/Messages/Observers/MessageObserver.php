@@ -12,7 +12,7 @@ class MessageObserver
     public function created(Message $message): void
     {
         $message->fireWorkflow(WorkflowEnum::CREATED->value, true, ['app' => $message->app]);
-        $message->clearLightHouseCacheJob();
+        //$message->clearLightHouseCacheJob();
 
         // check if it has a parent, update parent total children
         if ($message->parent_id) {
@@ -23,6 +23,6 @@ class MessageObserver
     public function updated(Message $message): void
     {
         $message->fireWorkflow(WorkflowEnum::UPDATED->value, true, ['app' => $message->app]);
-        $message->clearLightHouseCacheJob();
+        //$message->clearLightHouseCacheJob();
     }
 }

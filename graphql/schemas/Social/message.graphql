@@ -17,28 +17,27 @@ type Message {
     total_shared: Int
     total_view: Int
     total_children: Int
-    parent: Message @cacheRedis
-    user: User! @cacheRedis
+    parent: Message
+    user: User!
     children: [Message!] @hasMany(type: PAGINATOR)
-    messageType: MessageType! @cacheRedis
-    appModuleMessage: AppModuleMessage @cacheRedis
+    messageType: MessageType!
+    appModuleMessage: AppModuleMessage
     myInteraction: myInteraction @method(name: "getMyInteraction")
     comments: [MessageComments!]! @hasMany(type: PAGINATOR)
     additional_field: Mixed
     created_at: DateTime!
     custom_fields: [CustomField!]!
-        @cacheRedis
         @paginate(
             defaultCount: 25
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
     tags: [Tag!]
-        @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
     files: [Filesystem!]!
+        @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
