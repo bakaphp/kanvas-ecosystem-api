@@ -40,6 +40,7 @@ class ScreeningPeopleActivity extends Activity
         }
 
         $peopleData = (new ScreeningAction($people, $app))->execute();
+        
         $this->processPeopleData($people, $app, $peopleData);
 
         return $this->successResponse($people, $peopleData);
@@ -80,8 +81,8 @@ class ScreeningPeopleActivity extends Activity
             'app' => $app,
             'branch' => $people->company->defaultBranch,
             'user' => $people->user,
-            'firstname' => $peopleData['first_name'],
-            'middlename' => $people->middlename ?? null,
+            'firstname' => $peopleData['first_name'] ?? $people->firstname,
+            'middlename' => $people->middlename ?? $people->middlename,
             'lastname' => $peopleData['last_name'] ?? $people->lastname,
             'contacts' => Contact::collect($contacts, DataCollection::class),
             'address' => DataTransferObjectAddress::collect($address, DataCollection::class),
