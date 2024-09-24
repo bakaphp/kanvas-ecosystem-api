@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Ecosystem\Integration\CustomFields;
 
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Templates\Models\Templates;
 use Tests\TestCase;
 
@@ -116,5 +117,16 @@ final class CustomFieldsTest extends TestCase
         $template->deleteAllCustomFields();
 
         $this->assertCount(0, $template->getAll());
+    }
+
+    public function testEntityCustomFields()
+    {
+        $people = People::factory()->create();
+        $people->set('test', 'test');
+
+        $this->assertEquals('test', $people->get('test'));
+
+        $people->set('array', ['test', 'test', 'test']);
+        $this->assertEquals(['test', 'test', 'test'], $people->get('array'));
     }
 }
