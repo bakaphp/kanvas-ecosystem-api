@@ -125,7 +125,7 @@ class SyncAllPeopleInCompanyCommand extends Command
                             'app' => $people->app,
                         ]
                     );
-                    $people->clearLightHouseCacheJob();
+                    //$people->clearLightHouseCacheJob();
 
                     $currentHourlyCount++;
                     $currentDailyCount++;
