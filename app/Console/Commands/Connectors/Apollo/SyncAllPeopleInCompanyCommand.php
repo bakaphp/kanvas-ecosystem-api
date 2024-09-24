@@ -11,7 +11,6 @@ use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Apollo\Enums\ConfigurationEnum;
-use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -86,55 +85,55 @@ class SyncAllPeopleInCompanyCommand extends Command
                 return;
             }
         }
-
         People::fromApp($app)
-            ->fromCompany($company)
-            ->leftJoinSub(
-                AppsCustomFields::select('entity_id')
-                    ->where('name', ConfigurationEnum::APOLLO_DATA_ENRICHMENT_CUSTOM_FIELDS->value),
-                'acf',
-                'peoples.id',
-                '=',
-                'acf.entity_id'
-            )
-            ->whereNull('acf.entity_id')
-            ->take($total)  // Limit the query to 200 results
-            ->orderBy('peoples.id', 'asc')
-            ->chunk($batchSize, function ($peoples) use (&$currentHourlyCount, &$currentDailyCount, $hourlyRateLimit, $dailyRateLimit, $hourlyCacheKey, $dailyCacheKey, $resetHourlyKey, $resetDailyKey, $hourlyTimeWindow, $dailyTimeWindow) {
-                foreach ($peoples as $people) {
-                    if ($currentHourlyCount >= $hourlyRateLimit) {
-                        Cache::put($resetHourlyKey, now()->addSeconds($hourlyTimeWindow), $hourlyTimeWindow);
-                        $this->line("Hourly rate limit reached. Please wait $hourlyTimeWindow seconds to run the process again.");
+        ->fromCompany($company)
+        ->notDeleted(0)
+        ->orderBy('peoples.id', 'DESC')
+        ->chunk($batchSize, function ($peoples) use (&$currentHourlyCount, &$currentDailyCount, $hourlyRateLimit, $dailyRateLimit, $hourlyCacheKey, $dailyCacheKey, $resetHourlyKey, $resetDailyKey, $hourlyTimeWindow, $dailyTimeWindow) {
+            foreach ($peoples as $people) {
+                // Check if the person has the 'APOLLO_DATA_ENRICHMENT_CUSTOM_FIELDS' custom field
+                $hasCustomField = $people->get(ConfigurationEnum::APOLLO_DATA_ENRICHMENT_CUSTOM_FIELDS->value);
 
-                        return false;
-                    }
-
-                    if ($currentDailyCount >= $dailyRateLimit) {
-                        Cache::put($resetDailyKey, now()->addSeconds($dailyTimeWindow), $dailyTimeWindow);
-                        $this->line("Daily rate limit reached. Please wait $dailyTimeWindow seconds to run the process again.");
-
-                        return false;
-                    }
-
-                    $this->line('Syncing people ' . $people->id . ' ' . $people->firstname . ' ' . $people->lastname);
-
-                    $people->fireWorkflow(
-                        WorkflowEnum::UPDATED->value,
-                        true,
-                        [
-                            'app' => $people->app,
-                        ]
-                    );
-                    //$people->clearLightHouseCacheJob();
-
-                    $currentHourlyCount++;
-                    $currentDailyCount++;
-                    Cache::put($hourlyCacheKey, $currentHourlyCount, $hourlyTimeWindow);
-                    Cache::put($dailyCacheKey, $currentDailyCount, $dailyTimeWindow);
-
-                    usleep(100000); // 100ms delay between each request
+                if ($hasCustomField) {
+                    // Skip this record if the custom field exists
+                    continue;
                 }
-            });
+
+                // Process the record if the custom field does not exist
+                if ($currentHourlyCount >= $hourlyRateLimit) {
+                    Cache::put($resetHourlyKey, now()->addSeconds($hourlyTimeWindow), $hourlyTimeWindow);
+                    $this->line("Hourly rate limit reached. Please wait $hourlyTimeWindow seconds to run the process again.");
+
+                    return false;
+                }
+
+                if ($currentDailyCount >= $dailyRateLimit) {
+                    Cache::put($resetDailyKey, now()->addSeconds($dailyTimeWindow), $dailyTimeWindow);
+                    $this->line("Daily rate limit reached. Please wait $dailyTimeWindow seconds to run the process again.");
+
+                    return false;
+                }
+
+                $this->line('Syncing people ' . $people->id . ' ' . $people->firstname . ' ' . $people->lastname);
+
+                $people->fireWorkflow(
+                    WorkflowEnum::UPDATED->value,
+                    true,
+                    [
+                        'app' => $people->app,
+                    ]
+                );
+                //$people->clearLightHouseCacheJob();
+
+                // Increment the count and update cache for rate limiting
+                $currentHourlyCount++;
+                $currentDailyCount++;
+                Cache::put($hourlyCacheKey, $currentHourlyCount, $hourlyTimeWindow);
+                Cache::put($dailyCacheKey, $currentDailyCount, $dailyTimeWindow);
+
+                usleep(100000); // 100ms delay between each request
+            }
+        });
 
         $this->line('All people in company ' . $company->name . ' from app ' . $app->name . ' synced');
 
