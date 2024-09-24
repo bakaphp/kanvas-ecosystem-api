@@ -40,7 +40,7 @@ class ScreeningPeopleActivity extends Activity
         }
 
         $peopleData = (new ScreeningAction($people, $app))->execute();
-        
+
         $this->processPeopleData($people, $app, $peopleData);
 
         return $this->successResponse($people, $peopleData);
@@ -116,9 +116,9 @@ class ScreeningPeopleActivity extends Activity
         $people->set(ConfigurationEnum::APOLLO_DATA_ENRICHMENT_CUSTOM_FIELDS->value, time());
     }
 
-    private function setOrganization(Model $people, AppInterface $app, array $organization): void
+    private function setOrganization(Model $people, AppInterface $app, array $organizationData): void
     {
-        if (empty($organization['name'])) {
+        if (empty($organizationData['name'])) {
             return;
         }
 
@@ -127,13 +127,43 @@ class ScreeningPeopleActivity extends Activity
                 $people->company,
                 $people->user,
                 $app,
-                $organization['name']
+                $organizationData['name'],
+                $organizationData['email'] ?? null,
+                $organizationData['sanitized_phone'] ?? null,
+                $organizationData['raw_address'] ?? null,
+                $organizationData['city'] ?? null
             )
         ))->execute();
 
         OrganizationPeople::addPeopleToOrganization($organization, $people);
 
-        $people->set('company', $organization['name']);
+        $people->set('company', $organizationData['name']);
+
+        if (! empty($organizationData['logo_url'])) {
+            $organization->set('logo', $organizationData['logo_url']);
+        }
+        
+        if (! empty($organizationData['linkedin_url'])) {
+            $organization->set('linkedin_url', $organizationData['linkedin_url']);
+        }
+
+        if (! empty($organizationData['sanitized_phone'])) {
+            $organization->set('phone', $organizationData['sanitized_phone']);
+        }
+
+        if (! empty($organizationData['short_description'])) {
+            $organization->set('short_description', $organizationData['short_description']);
+        }
+
+        if (! empty($organizationData['raw_address'])) {
+            $organization->address = $organizationData['raw_address'];
+            $organization->set('country', $organizationData['country']);
+            $organization->save();
+        }
+
+        if (! empty($organizationData['keywords'])) {
+            $organization->addTags($organizationData['keywords']);
+        }
     }
 
     private function updateEmploymentHistory(Model $people, AppInterface $app, array $employmentHistory): void
