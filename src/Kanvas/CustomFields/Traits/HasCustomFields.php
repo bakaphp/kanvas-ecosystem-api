@@ -412,7 +412,6 @@ trait HasCustomFields
     public function reCacheCustomFields(): void
     {
         foreach ($this->getAll(fromRedis: false) as $key => $value) {
-            //$value = Str::isJson($value) ? json_decode($value, true) : $value;
             $this->setInRedis($key, $value);
         }
     }
