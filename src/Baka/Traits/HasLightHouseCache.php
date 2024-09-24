@@ -34,7 +34,11 @@ trait HasLightHouseCache
 
     public function clearLightHouseCacheJob(): void
     {
-        LightHouseCacheCleanUpJob::dispatch($this);
+        if (! app()->runningInConsole()) {
+            LightHouseCacheCleanUpJob::dispatch($this);
+        } else {
+            $this->clearLightHouseCache();
+        }
     }
 
     public function generateRelationshipLighthouseCache(string $relationship, int $items = 25): void
