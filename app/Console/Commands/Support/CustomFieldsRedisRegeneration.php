@@ -54,12 +54,13 @@ class CustomFieldsRedisRegeneration extends Command
             $entities->each(function ($entity) {
                 if (method_exists($entity, 'reCacheCustomFields')) {
                     $entity->reCacheCustomFields();
-
                     $this->info('Regenerating custom fields for ' . get_class($entity) . ' with id ' . $entity->getId());
                 }
             });
 
             $page++;
         } while ($entities->isNotEmpty());
+
+        $this->info('Custom fields regeneration finished');
     }
 }
