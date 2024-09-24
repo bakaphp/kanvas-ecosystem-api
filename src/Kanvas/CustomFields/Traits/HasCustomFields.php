@@ -124,7 +124,7 @@ trait HasCustomFields
         foreach ($paginatedKeys as $index => $key) {
             $paginatedResult[] = [
                 'name' => $key,
-                'value' => $values[$index],
+                'value' => Str::jsonToArray($values[$index]),
             ];
         }
 
