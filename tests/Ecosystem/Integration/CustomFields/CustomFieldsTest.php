@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Ecosystem\Integration\CustomFields;
 
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Templates\Models\Templates;
 use Tests\TestCase;
 
@@ -15,13 +17,13 @@ final class CustomFieldsTest extends TestCase
             'users_id' => 1,
             'companies_id' => 1,
             'apps_id' => 1,
-            'name' => 'test'
+            'name' => 'test',
         ], [
             'users_id' => 1,
             'companies_id' => 1,
             'apps_id' => 1,
             'name' => 'test',
-            'template' => 'test'
+            'template' => 'test',
         ]);
     }
 
@@ -116,5 +118,43 @@ final class CustomFieldsTest extends TestCase
         $template->deleteAllCustomFields();
 
         $this->assertCount(0, $template->getAll());
+    }
+
+    public function testEntityCustomFields()
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $people = People::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+        $people->set('test', 'test');
+
+        $this->assertEquals('test', $people->get('test'));
+
+        $people->set('array', ['test', 'test', 'test']);
+        $this->assertEquals(['test', 'test', 'test'], $people->get('array'));
+
+        $people->set('json', json_encode(['test', 'test', 'test']));
+        $this->assertEquals(['test', 'test', 'test'], $people->get('json'));
+    }
+
+    public function testEntityGetAllCustomFields()
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $people = People::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+        $people->set('test', 'test');
+        $people->set('array', ['test', 'test', 'test']);
+        $people->set('json', json_encode(['test', 'test', 'test']));
+
+        // Ensure that all fields are retrieved correctly
+        $customFields = $people->getAll();
+        $this->assertCount(3, $customFields);
+
+        $this->assertEquals('test', $customFields['test']);
+        $this->assertEquals(['test', 'test', 'test'], $customFields['array']);
+        $this->assertEquals(['test', 'test', 'test'], $customFields['json']);
     }
 }
