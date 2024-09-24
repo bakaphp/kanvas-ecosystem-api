@@ -124,7 +124,7 @@ trait HasCustomFields
         foreach ($paginatedKeys as $index => $key) {
             $paginatedResult[] = [
                 'name' => $key,
-                'value' => $values[$index],
+                'value' => Str::jsonToArray($values[$index]),
             ];
         }
 
@@ -310,8 +310,7 @@ trait HasCustomFields
         return (bool) Redis::hSet(
             $this->getCustomFieldPrimaryKey(),
             $name,
-            $value
-            //! is_array($value) ? $value : json_encode($value) , wtf why did we have this?
+            ! is_array($value) ? $value : json_encode($value)
         );
     }
 
