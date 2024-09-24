@@ -7,6 +7,7 @@ namespace App\GraphQL\Ecosystem\Mutations\Filesystem;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Actions\CreateFileSystemImportAction;
 use Kanvas\Filesystem\Actions\CreateFilesystemMapperAction;
+use Kanvas\Filesystem\Actions\UpdateFilesystemMapperAction;
 use Kanvas\Filesystem\DataTransferObject\FilesystemImport;
 use Kanvas\Filesystem\DataTransferObject\FilesystemMapper;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -34,6 +35,34 @@ class FilesystemMapperMutation
         );
 
         return (new CreateFilesystemMapperAction($mapperDto))->execute();
+    }
+
+    public function update(mixed $root, array $req): ModelsFilesystemMapper
+    {
+        $req = $req['input'];
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $systemModule = SystemModules::getById($req['system_module_id'], $app);
+
+        $mapperDto = FilesystemMapper::viaRequest(
+            $app,
+            $branch,
+            $user,
+            $systemModule,
+            $req
+        );
+
+        return (new UpdateFilesystemMapperAction($req['mapper_id'], $mapperDto))->execute();
+    }
+
+    public function delete(mixed $root, array $req): bool
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        return FilesystemImports::getByIdFromCompanyApp($req['id'], $company, $app)->delete();
     }
 
     public function process(mixed $root, array $req): FilesystemImports
