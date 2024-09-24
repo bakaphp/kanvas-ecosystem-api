@@ -21,6 +21,7 @@ class LightHouseCacheCleanUpJob implements ShouldQueue
     use KanvasJobsTrait;
 
     public $uniqueFor = 300;
+    public $tries = 1;
 
     public function __construct(
         protected Model $model
