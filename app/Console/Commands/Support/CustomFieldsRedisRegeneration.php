@@ -52,11 +52,11 @@ class CustomFieldsRedisRegeneration extends Command
             ->paginate($perPage, ['*'], 'page', $page);
 
             $entities->each(function ($entity) {
-            if (method_exists($entity, 'reCacheCustomFields')) {
-                $entity->reCacheCustomFields();
+                if (method_exists($entity, 'reCacheCustomFields')) {
+                    $entity->reCacheCustomFields();
 
-                $this->info('Regenerating custom fields for ' . get_class($entity) . ' with id ' . $entity->getId());
-            }
+                    $this->info('Regenerating custom fields for ' . get_class($entity) . ' with id ' . $entity->getId());
+                }
             });
 
             $page++;
