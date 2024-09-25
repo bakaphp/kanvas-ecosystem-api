@@ -45,7 +45,7 @@ class FilesystemMapperMutation
         $app = app(Apps::class);
         $user = auth()->user();
         $branch = $user->getCurrentBranch();
-
+        $mapper = ModelsFilesystemMapper::getById($req['mapper_id']);
         $mapperDto = FilesystemMapperUpdate::viaRequest(
             $app,
             $branch,
@@ -53,7 +53,7 @@ class FilesystemMapperMutation
             $req
         );
 
-        return (new UpdateFilesystemMapperAction($req['mapper_id'], $mapperDto))->execute();
+        return (new UpdateFilesystemMapperAction($mapper, $mapperDto))->execute();
     }
 
     public function delete(mixed $root, array $req): bool
