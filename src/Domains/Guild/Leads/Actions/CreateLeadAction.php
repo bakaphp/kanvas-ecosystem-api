@@ -14,6 +14,7 @@ use Kanvas\Guild\Enums\FlagEnum;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadDataInput;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadAttempt;
+use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
@@ -68,7 +69,7 @@ class CreateLeadAction
         $newLead->email = $people->getEmails()->isNotEmpty() ? $people->getEmails()->first()?->value : null;
         $newLead->phone = $people->getPhones()->isNotEmpty() ? $people->getPhones()->first()?->value : null;
 
-        if (! $this->company->get(FlagEnum::COMPANY_MULTIPLE_OPEN_LEADS->value)) {
+        if ($this->company->get(FlagEnum::COMPANY_CANT_HAVE_MULTIPLE_OPEN_LEADS->value)) {
             $this->checkIfLeadExist($people);
         }
 
@@ -110,7 +111,7 @@ class CreateLeadAction
             ->notDeleted(StateEnums::NO->getValue())
             ->where([
                 ['people_id', $people->getId()],
-                ['leads_status_id', $this->leadData->status_id],
+                ['leads_status_id', $this->leadData->status_id ?: LeadStatus::getDefault()->getId()],
             ])
             ->first();
 
