@@ -6,6 +6,7 @@ namespace Kanvas\Filesystem\Actions;
 
 use Baka\Enums\StateEnums;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
@@ -30,25 +31,31 @@ class AttachFilesystemAction
     {
         $systemModule = SystemModulesRepository::getByModelName($this->entity::class, $this->filesystem->app);
         $update = (int) $id > 0;
+        $allowDuplicateFiles = $this->filesystem->app->get(AppSettingsEnums::FILESYSTEM_ALLOW_DUPLICATE_FILES_BY_NAME);
 
         if ($update) {
             $fileEntity = FilesystemEntitiesRepository::getByIdAdnEntity((int) $id, $this->entity);
         } else {
-            /**
-             * @var FilesystemEntities
-             */
-            $fileEntity = FilesystemEntities::firstOrCreate([
-               'entity_id' => $this->entity->getKey(),
-               'system_modules_id' => $systemModule->getKey(),
-               'filesystem_id' => $this->filesystem->getKey(),
-               //'companies_id' => $this->filesystem->companies_id,
-            ], [
+            $filter = [
+                'entity_id' => $this->entity->getKey(),
+                'system_modules_id' => $systemModule->getKey(),
+                //'filesystem_id' => $this->filesystem->getKey(),
+                //'companies_id' => $this->filesystem->companies_id,
+            ];
+            if (! $allowDuplicateFiles) {
+                $filter['field_name'] = $fieldName;
+            } else {
+                $filter['filesystem_id'] = $this->filesystem->getKey();
+            }
+            $fileEntity = FilesystemEntities::firstOrCreate($filter, [
                'companies_id' => $this->filesystem->companies_id,
             ]);
         }
 
         $fileEntity->filesystem_id = $this->filesystem->getKey();
-        $fileEntity->field_name = $fieldName;
+        if ($allowDuplicateFiles) {
+            $fileEntity->field_name = $fieldName;
+        }
         $fileEntity->is_deleted = StateEnums::NO->getValue();
         $fileEntity->saveOrFail();
 
