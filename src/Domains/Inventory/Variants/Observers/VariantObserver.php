@@ -6,7 +6,6 @@ namespace Kanvas\Inventory\Variants\Observers;
 
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Variants\Models\Variants;
-use Kanvas\Inventory\Products\Models\Products;
 
 class VariantObserver
 {

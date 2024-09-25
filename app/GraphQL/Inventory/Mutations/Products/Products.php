@@ -14,6 +14,7 @@ use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products as ProductsModel;
 use Kanvas\Inventory\Products\Repositories\ProductsRepository;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
+use Kanvas\Inventory\Variants\Models\Variants;
 
 class Products
 {
@@ -67,7 +68,15 @@ class Products
     {
         $product = ProductsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
 
+        $dispatcher = Variants::getEventDispatcher();
+        Variants::unsetEventDispatcher();
+
+        foreach ($product->variants as $variant) {
+            $variant->delete();
+        }
+
         return $product->delete();
+        Variants::setEventDispatcher($dispatcher);
     }
 
     /**
