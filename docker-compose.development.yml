@@ -53,14 +53,6 @@ services:
     <<: *common-queue-settings
     container_name: queue
 
-  queue2:
-    <<: *common-queue-settings
-    container_name: queue2
-
-  queue3:
-    <<: *common-queue-settings
-    container_name: queue3
-
   batch-logger-queue:
     <<: *common-queue-settings
     container_name: batch-logger-queue
@@ -88,14 +80,6 @@ services:
   queue-imports:
     <<: *common-queue-settings
     container_name: queue-imports
-    command: 
-      - "sh"
-      - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue imports --tries=3 --timeout=3750"
-
-  queue-imports2:
-    <<: *common-queue-settings
-    container_name: queue-imports2
     command: 
       - "sh"
       - "-c"
