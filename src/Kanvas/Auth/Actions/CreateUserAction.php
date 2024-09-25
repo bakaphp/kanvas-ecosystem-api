@@ -225,12 +225,11 @@ class CreateUserAction
         );
 
         $company = $createCompany->execute();
-
-        $user->default_company = (int) $company->getId();
-        $user->default_company_branch = (int) $company->defaultBranch()->first()->getId();
-        $user->saveOrFail();
-
         $branch = $company->branch()->firstOrFail();
+
+        $user->default_company = (int) $company->id;
+        $user->default_company_branch = (int) $branch->id;
+        $user->saveOrFail();
 
         $action = new AssignCompanyAction($user, $branch);
         $action->execute();
