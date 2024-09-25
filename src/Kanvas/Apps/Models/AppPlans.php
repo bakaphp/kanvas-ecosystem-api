@@ -9,6 +9,7 @@ use Kanvas\Models\BaseModel;
 /**
  * AppPlan Model.
  *
+ * @deprecated v2
  * @property int $id
  * @property int $apps_id
  * @property string $name

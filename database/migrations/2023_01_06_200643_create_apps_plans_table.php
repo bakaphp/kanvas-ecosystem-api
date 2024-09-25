@@ -22,7 +22,7 @@ class CreateAppsPlansTable extends Migration
             $table->string('stripe_id', 100)->nullable()->index('stripe_id');
             $table->string('stripe_plan', 100)->nullable();
             $table->decimal('pricing', 10)->nullable();
-            $table->decimal('pricing_anual', 10)->nullable();
+            $table->decimal('pricing_annual', 10)->nullable();
             $table->integer('currency_id')->nullable()->index('currency_id');
             $table->integer('free_trial_dates')->nullable()->index('free_trial_dates');
             $table->integer('is_default')->nullable()->default(0)->index('is_default');
