@@ -52,10 +52,6 @@ services:
     <<: *common-queue-settings
     container_name: queue
 
-  queue2:
-    <<: *common-queue-settings
-    container_name: queue2
-
   batch-logger-queue:
     <<: *common-queue-settings
     container_name: batch-logger-queue
