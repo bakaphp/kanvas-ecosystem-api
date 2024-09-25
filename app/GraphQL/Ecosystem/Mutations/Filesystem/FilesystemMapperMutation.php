@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Filesystem;
 
+use Exception;
 use Illuminate\Auth\AuthenticationException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Actions\CreateFileSystemImportAction;
@@ -45,7 +46,7 @@ class FilesystemMapperMutation
         $app = app(Apps::class);
         $user = auth()->user();
         $branch = $user->getCurrentBranch();
-        $mapper = ModelsFilesystemMapper::getById($req['mapper_id']);
+        $mapper = ModelsFilesystemMapper::getByIdFromCompanyApp($req['mapper_id'], $user->getCurrentCompany(), $app);
         $mapperDto = FilesystemMapperUpdate::viaRequest(
             $app,
             $branch,
@@ -64,8 +65,13 @@ class FilesystemMapperMutation
         if (! $user->isAdmin()) {
             throw new AuthenticationException('You are not allowed to perform this action');
         }
+        $filesystemMapper = FilesystemImports::getByIdFromCompanyApp($req['id'], $company, $app);
 
-        return FilesystemImports::getByIdFromCompanyApp($req['id'], $company, $app)->delete();
+        if ($filesystemMapper->imports->count()) {
+            throw new Exception('You cannot delete this mapper because it has imports');
+        }
+
+        return $filesystemMapper->delete();
     }
 
     public function process(mixed $root, array $req): FilesystemImports
