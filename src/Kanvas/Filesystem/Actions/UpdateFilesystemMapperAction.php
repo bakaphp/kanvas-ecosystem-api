@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Actions;
 
-use Kanvas\Filesystem\DataTransferObject\FilesystemMapper;
+use Kanvas\Filesystem\DataTransferObject\FilesystemMapperUpdate;
 use Kanvas\Filesystem\Models\FilesystemMapper as ModelsFilesystemMapper;
 
 class UpdateFilesystemMapperAction
 {
     public function __construct(
         protected string $id,
-        protected FilesystemMapper $filesystemMapping
+        protected FilesystemMapperUpdate $filesystemMapping
     ) {
     }
 
@@ -23,7 +23,6 @@ class UpdateFilesystemMapperAction
                 'companies_branches_id' => $this->filesystemMapping->branch->getId(),
                 'companies_id' => $this->filesystemMapping->branch->company->getId(),
                 'users_id' => $this->filesystemMapping->user->getId(),
-                'system_modules_id' => $this->filesystemMapping->systemModule->getId(),
                 'id' => $this->id,
             ],
             [

@@ -35,7 +35,6 @@ type FileSystemImport {
 input UpdateFilesystemImportInput {
     mapper_id: ID!
     name: String!
-    system_module_id: ID!
     file_header: Mixed!
     mapping: Mixed!
     configuration: Mixed

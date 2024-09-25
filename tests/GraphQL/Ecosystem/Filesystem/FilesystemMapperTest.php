@@ -156,6 +156,7 @@ class FilesystemMapperTest extends TestCase
         ]);
 
         $id = $response->json('data.createFilesystemMapper.id');
+        unset($filesystemMapperInput['system_module_id']);
         $response = $this->graphQL(/** @lang GraphQL */ '
                 mutation(
                     $input: UpdateFilesystemImportInput!
