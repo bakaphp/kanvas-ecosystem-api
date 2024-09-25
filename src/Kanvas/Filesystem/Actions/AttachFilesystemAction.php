@@ -31,7 +31,7 @@ class AttachFilesystemAction
     {
         $systemModule = SystemModulesRepository::getByModelName($this->entity::class, $this->filesystem->app);
         $update = (int) $id > 0;
-        $allowDuplicateFiles = $this->filesystem->app->get(AppSettingsEnums::FILESYSTEM_ALLOW_DUPLICATE_FILES_BY_NAME);
+        $allowDuplicateFiles = $this->filesystem->app->get(AppSettingsEnums::FILESYSTEM_ALLOW_DUPLICATE_FILES_BY_NAME->getValue());
 
         if ($update) {
             $fileEntity = FilesystemEntitiesRepository::getByIdAdnEntity((int) $id, $this->entity);
