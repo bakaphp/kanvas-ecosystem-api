@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Subscription\Mutations\Subscriptions;
 
+use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
@@ -16,10 +17,13 @@ use Throwable;
 
 class SubscriptionMutation
 {
-    private Apps $app;
-    private $user;
+    private ?Apps $app = null;
+    private ?UserInterface $user = null;
 
-    public function __construct()
+    /**
+     * @todo move to middleware
+     */
+    public function validateStripe()
     {
         $this->app = app(Apps::class);
         $this->user = auth()->user();
@@ -31,6 +35,8 @@ class SubscriptionMutation
 
     public function create($root, array $args, $context): Subscription
     {
+        $this->validateStripe();
+
         $data = $args['input'];
         $company = $this->user->getCurrentCompany();
 
@@ -60,6 +66,8 @@ class SubscriptionMutation
 
     public function update($root, array $args, $context, $info): Subscription
     {
+        $this->validateStripe();
+
         $data = $args['input'];
         $company = $this->user->getCurrentCompany();
         $companyStripeAccount = $company->getStripeAccount($this->app);
@@ -83,6 +91,8 @@ class SubscriptionMutation
 
     public function cancel(mixed $root, array $args): bool
     {
+        $this->validateStripe();
+
         $id = $args['id'];
         $company = $this->user->getCurrentCompany();
         $companyStripeAccount = $company->getStripeAccount($this->app);
@@ -105,6 +115,8 @@ class SubscriptionMutation
 
     public function reactivate(mixed $root, array $args): Subscription
     {
+        $this->validateStripe();
+
         $id = $args['id'];
         $company = $this->user->getCurrentCompany();
         $companyStripeAccount = $company->getStripeAccount($this->app);

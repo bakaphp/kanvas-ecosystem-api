@@ -213,8 +213,9 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 'name' => $this->company->name,
             ],
             'user' => [
-                'firstname' => $this?->company?->user?->firstname,
-                'lastname' => $this?->company?->user?->lastname,
+                'id' => $this->user?->getId(),
+                'firstname' => $this->user?->firstname,
+                'lastname' => $this->user?->lastname,
             ],
             'categories' => $this->categories->map(function ($category) {
                 return [

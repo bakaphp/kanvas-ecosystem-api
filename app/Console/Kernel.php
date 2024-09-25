@@ -30,11 +30,11 @@ class Kernel extends ConsoleKernel
         /**
          * @todo move this to a cron subSystem
          */
-        if (getenv('CADDIE_APP_KEY')) {
-            $schedule->command(MailCaddieLabCommand::class, [getenv('CADDIE_APP_KEY')])
-                ->dailyAt('13:00')
-                ->timezone('America/New_York');
-        }
+        /*        if (getenv('CADDIE_APP_KEY')) {
+                   $schedule->command(MailCaddieLabCommand::class, [getenv('CADDIE_APP_KEY')])
+                       ->dailyAt('13:00')
+                       ->timezone('America/New_York');
+               } */
     }
 
     /**

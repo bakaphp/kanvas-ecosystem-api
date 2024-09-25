@@ -124,7 +124,7 @@ trait HasCustomFields
         foreach ($paginatedKeys as $index => $key) {
             $paginatedResult[] = [
                 'name' => $key,
-                'value' => $values[$index],
+                'value' => Str::jsonToArray($values[$index]),
             ];
         }
 
@@ -335,7 +335,7 @@ trait HasCustomFields
         }
 
         if (method_exists($this, 'generateCustomFieldsLighthouseCache')) {
-            $this->clearLightHouseCacheJob();
+            //$this->clearLightHouseCacheJob();
         }
 
         return true;
@@ -436,7 +436,7 @@ trait HasCustomFields
     protected function clearCustomFieldsCacheIfNeeded(): void
     {
         if (method_exists($this, 'clearLightHouseCache')) {
-            $this->clearLightHouseCacheJob();
+            //$this->clearLightHouseCacheJob();
         }
     }
 }

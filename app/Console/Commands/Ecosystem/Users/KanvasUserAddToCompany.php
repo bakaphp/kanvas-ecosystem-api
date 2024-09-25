@@ -6,6 +6,7 @@ namespace App\Console\Commands\Ecosystem\Users;
 
 use Baka\Traits\KanvasJobsTrait;
 use Bouncer;
+use Exception;
 use Illuminate\Console\Command;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
@@ -48,14 +49,22 @@ class KanvasUserAddToCompany extends Command
         $branch = CompaniesBranches::findOrFail($branchId);
         $company = $branch->company()->first();
         $company->associateApp($app);
+        $user = UsersRepository::getByEmail($email);
 
         $assignCompanyAction = new AssignCompanyAction(
-            UsersRepository::getByEmail($email),
+            $user,
             $branch,
             $role,
             $app
         );
         $assignCompanyAction->execute();
+
+        //make sure it has the app profile
+        try {
+            $user->getAppProfile($app);
+        } catch (Exception $e) {
+            $this->error('User didn\'t exist in this app, we just created it , run it again  ' . $e->getMessage());
+        }
 
         $this->newLine();
         $this->info("User {$email} successfully added to branch : " . $branch->name . ' ( ' . $branch->getKey() . ') in app  ' . $app->name);

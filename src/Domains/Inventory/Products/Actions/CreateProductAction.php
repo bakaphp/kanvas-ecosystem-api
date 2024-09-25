@@ -117,7 +117,7 @@ class CreateProductAction
 
             DB::connection('inventory')->commit();
 
-            IndexProductJob::dispatch($products)->delay(now()->addSeconds(2));
+            //IndexProductJob::dispatch($products)->delay(now()->addSeconds(2));
         } catch (Throwable $e) {
             DB::connection('inventory')->rollback();
 
