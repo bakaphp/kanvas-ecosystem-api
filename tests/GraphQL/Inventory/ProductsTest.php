@@ -471,4 +471,5 @@ class ProductsTest extends TestCase
         $this->assertArrayHasKey('errors', $deleteResponse->json());
         $this->assertNull($deleteResponse->json()['data']['deleteVariant']);
     }
+
 }
