@@ -29,12 +29,12 @@ class Event extends BaseModel
         return $this->hasMany(EventVersion::class);
     }
 
-    public function theme() : BelongsTo
+    public function theme(): BelongsTo
     {
         return $this->belongsTo(Theme::class);
     }
 
-    public function themeArea() : BelongsTo
+    public function themeArea(): BelongsTo
     {
         return $this->belongsTo(ThemeArea::class);
     }
