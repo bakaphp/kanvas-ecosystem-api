@@ -6,9 +6,9 @@ namespace Kanvas\Event\Themes\Models;
 
 use Kanvas\Event\Models\BaseModel;
 
-class Theme extends BaseModel
+class ThemeArea extends BaseModel
 {
-    protected $table = 'themes';
+    protected $table = 'themes_areas';
     protected $guarded = [];
 
     protected $is_deleted;
