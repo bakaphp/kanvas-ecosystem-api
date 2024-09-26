@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Models;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\SoftDeletesTrait;
@@ -29,6 +30,7 @@ use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Models\BaseModel;
+use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
@@ -359,5 +361,13 @@ class Companies extends BaseModel implements CompanyInterface
         $defaultAvatarId = $app->get(AppSettingsEnums::DEFAULT_COMPANY_AVATAR->getValue());
 
         return $this->getFileByName('photo') ?: ($defaultAvatarId ? FilesystemEntitiesRepository::getFileFromEntityById($defaultAvatarId) : null);
+    }
+
+    public function getStripeAccount(AppInterface $app): AppsStripeCustomer
+    {
+        return AppsStripeCustomer::firstOrCreate([
+            'companies_id' => $this->getId(),
+            'apps_id' => $app->getId(),
+        ]);
     }
 }
