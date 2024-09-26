@@ -139,9 +139,6 @@ return new class () extends Migration {
             $table->id();
             $table->uuid('uuid')->index();
             $table->unsignedBigInteger('theme_area_id')->index();
-            //$table->unsignedBigInteger('department_id')->index();
-            //$table->unsignedBigInteger('company_office_id')->index();
-            //$table->unsignedBigInteger('profession_id')->index();
             //$table->unsignedBigInteger('participant_type_id')->index();
             $table->unsignedBigInteger('participant_status_id')->index();
             $table->unsignedBigInteger('apps_id')->index();
