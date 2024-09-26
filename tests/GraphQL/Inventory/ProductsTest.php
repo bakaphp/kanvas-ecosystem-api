@@ -425,7 +425,7 @@ class ProductsTest extends TestCase
     /**
      * testDeleteLastVariantToProduct.
      */
-    public function testDeleteLastVariantToProduct(): void 
+    public function testDeleteLastVariantToProduct(): void
     {
         // Create product with default variant
         $productData = [
@@ -462,7 +462,7 @@ class ProductsTest extends TestCase
         $productId = $productResponse->json()['data']['createProduct']['id'];
         $defaultVariantId = $productResponse->json()['data']['createProduct']['variants'][0]['id'];
 
-        // Try delete default product variant 
+        // Try delete default product variant
         $deleteResponse = $this->graphQL('
         mutation($id: ID!) {
             deleteVariant(id: $id)
