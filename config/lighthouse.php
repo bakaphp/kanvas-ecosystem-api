@@ -215,7 +215,7 @@ return [
             // 'App\\GraphQL\\Ecosystem\\Subscriptions',
             // 'App\\GraphQL\\CRM\\Subscriptions',
             // 'App\\GraphQL\\Social\\Subscriptions',
-            'App\\GraphQL\\Subscription\\Subscriptions',
+            // 'App\\GraphQL\\Subscription\\Subscriptions',
             // 'App\\GraphQL\\Inventory\\Subscriptions',
         ],
         'interfaces' => [

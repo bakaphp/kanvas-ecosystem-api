@@ -133,6 +133,10 @@ jobs:
         run: |
           mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS commerce;'
 
+      - name: Setup EVENT DB
+        run: |
+          mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS event;'
+
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
