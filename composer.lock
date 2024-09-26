@@ -3988,16 +3988,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v11.24.0",
+            "version": "v11.24.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "557da2b02e298acbd12b3fb7d04d16ea253c5f20"
+                "reference": "e063fa80ac5818099f45a3a57dd803476c8f3a2a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/557da2b02e298acbd12b3fb7d04d16ea253c5f20",
-                "reference": "557da2b02e298acbd12b3fb7d04d16ea253c5f20",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/e063fa80ac5818099f45a3a57dd803476c8f3a2a",
+                "reference": "e063fa80ac5818099f45a3a57dd803476c8f3a2a",
                 "shasum": ""
             },
             "require": {
@@ -4193,7 +4193,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2024-09-24T14:46:11+00:00"
+            "time": "2024-09-25T07:21:24+00:00"
         },
         {
             "name": "laravel/octane",
@@ -13230,16 +13230,16 @@
         },
         {
             "name": "twilio/sdk",
-            "version": "8.3.1",
+            "version": "8.3.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/twilio/twilio-php.git",
-                "reference": "bfbb3bd7f274ccd3948f5c98f108c64a2db470d7"
+                "reference": "e7a11c1ef855e08cfb29db27a8f557ce030b9128"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/bfbb3bd7f274ccd3948f5c98f108c64a2db470d7",
-                "reference": "bfbb3bd7f274ccd3948f5c98f108c64a2db470d7",
+                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/e7a11c1ef855e08cfb29db27a8f557ce030b9128",
+                "reference": "e7a11c1ef855e08cfb29db27a8f557ce030b9128",
                 "shasum": ""
             },
             "require": {
@@ -13277,9 +13277,9 @@
             ],
             "support": {
                 "issues": "https://github.com/twilio/twilio-php/issues",
-                "source": "https://github.com/twilio/twilio-php/tree/8.3.1"
+                "source": "https://github.com/twilio/twilio-php/tree/8.3.2"
             },
-            "time": "2024-09-18T13:24:34+00:00"
+            "time": "2024-09-25T11:54:10+00:00"
         },
         {
             "name": "vladimir-yuldashev/laravel-queue-rabbitmq",

@@ -50,15 +50,15 @@ jobs:
             docker exec -i phpkanvas-ecosystem php artisan lighthouse:cache
             docker exec -i phpkanvas-ecosystem php artisan config:cache
             docker restart queue
-            docker restart queue2
-            docker restart queue3
             docker restart queue-imports
-            docker restart queue-imports2
             docker restart queue-notifications
             docker restart queue-social
             docker restart laravel-scheduler
             docker restart batch-logger-queue
             if [ "docker-compose.${{ github.ref_name }}.yml" == "docker-compose.1.x.yml" ]; then
+              docker restart queue-imports2
+              docker restart queue2
+              docker restart queue3
               docker restart queue4
               docker restart queue5
               docker restart queue6
