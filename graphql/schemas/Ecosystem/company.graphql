@@ -109,6 +109,22 @@ input CompanyInput {
     is_active: Boolean
 }
 
+input UpdateCompanyInput {
+    name: String
+    website: String
+    address: String
+    zipcode: Int
+    email: String
+    language: String
+    timezone: String
+    phone: String
+    country_code: String
+    users_id: Int
+    files: [FilesystemInputUrl!]
+    custom_fields: [CustomFieldEntityInput!]
+    is_active: Boolean
+}
+
 input CompanyBranchInput {
     name: String!
     companies_id: ID!
@@ -249,11 +265,11 @@ extend type Query @guard {
 }
 
 extend type Mutation @guard {
-    createCompany(input: CompanyInput): Company!
+    createCompany(input: CompanyInput!): Company!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@createCompany"
         )
-    updateCompany(id: ID!, input: CompanyInput): Company!
+    updateCompany(id: ID!, input: UpdateCompanyInput!): Company!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@updateCompany"
         )
@@ -270,11 +286,11 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@deleteCompany"
         )
-    createCompanyBranch(input: CompanyBranchInput): CompanyBranch!
+    createCompanyBranch(input: CompanyBranchInput!): CompanyBranch!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@createCompaniesBranch"
         )
-    updateCompanyBranch(id: ID!, input: CompanyBranchInput): CompanyBranch!
+    updateCompanyBranch(id: ID!, input: CompanyBranchInput!): CompanyBranch!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@updateCompanyBranch"
         )

@@ -79,6 +79,10 @@ class CompanyManagementMutation
             $user = auth()->user();
         }
 
+        if(empty($request['input']['name'])) {
+            $request['input']['name'] = $company->name;
+        }
+
         $dto = Company::viaRequest($request['input'], $user);
         $action = new UpdateCompaniesAction($company, $user, $dto);
 
