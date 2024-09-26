@@ -76,7 +76,6 @@ class Products
         }
 
         return $product->delete();
-        Variants::setEventDispatcher($dispatcher);
     }
 
     /**
