@@ -1,24 +1,24 @@
 type Lead {
     id: ID!
     uuid: String!
-    company: Company! @belongsTo @cacheRedis
-    branch: CompanyBranch! @belongsTo @cacheRedis
+    company: Company! @belongsTo
+    branch: CompanyBranch! @belongsTo
     title: String!
     people: People
-    user: User @belongsTo @cacheRedis
-    owner: User @belongsTo @cacheRedis
-    organization: Organization @belongsTo @cacheRedis
-    receiver: LeadReceiver @belongsTo @cacheRedis
-    status: LeadStatus @belongsTo @cacheRedis
-    type: LeadType @belongsTo @cacheRedis
-    source: LeadSource @belongsTo @cacheRedis
+    user: User @belongsTo
+    owner: User @belongsTo
+    organization: Organization @belongsTo
+    receiver: LeadReceiver @belongsTo
+    status: LeadStatus @belongsTo
+    type: LeadType @belongsTo
+    source: LeadSource @belongsTo
     firstname: String
     lastname: String
     email: String
     phone: String
     description: String
     reason_lost: String
-    pipeline: LeadPipeline @belongsTo @cacheRedis
+    pipeline: LeadPipeline @belongsTo
     stage: LeadPipelineStage @belongsTo(relation: "stage")
     participants: [LeadsParticipants!]! @hasMany
     channels: [SocialChannel]! @hasMany(relation: "socialChannels")
@@ -191,6 +191,8 @@ extend type Query @guard {
                     "leads_owner_id"
                     "leads_status_id"
                     "title"
+                    "email"
+                    "phone"
                     "pipeline_id"
                     "pipeline_stage_id"
                     "people_id"
