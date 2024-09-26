@@ -286,11 +286,11 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyManagementMutation@deleteCompany"
         )
-    createCompanyBranch(input: CompanyBranchInput!): CompanyBranch!
+    createCompanyBranch(input: CompanyBranchInput): CompanyBranch!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@createCompaniesBranch"
         )
-    updateCompanyBranch(id: ID!, input: CompanyBranchInput!): CompanyBranch!
+    updateCompanyBranch(id: ID!, input: CompanyBranchInput): CompanyBranch!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@updateCompanyBranch"
         )
