@@ -79,7 +79,7 @@ class CompanyManagementMutation
             $user = auth()->user();
         }
 
-        if(empty($request['input']['name'])) {
+        if (empty($request['input']['name'])) {
             $request['input']['name'] = $company->name;
         }
 
