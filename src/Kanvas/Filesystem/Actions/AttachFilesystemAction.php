@@ -35,43 +35,29 @@ class AttachFilesystemAction
 
         if ($update) {
             $fileEntity = FilesystemEntitiesRepository::getByIdAdnEntity((int) $id, $this->entity);
-            $fileEntity->filesystem_id = $this->filesystem->getKey();
-
-            if ($allowDuplicateFiles) {
-                $fileEntity->field_name = $fieldName;
-            }
-            $fileEntity->is_deleted = StateEnums::NO->getValue();
-            $fileEntity->saveOrFail();
         } else {
             $filter = [
                 'entity_id' => $this->entity->getKey(),
                 'system_modules_id' => $systemModule->getKey(),
-               // 'companies_id' => $this->filesystem->companies_id,
+                //'filesystem_id' => $this->filesystem->getKey(),
+                //'companies_id' => $this->filesystem->companies_id,
             ];
-
             if (! $allowDuplicateFiles) {
                 $filter['field_name'] = $fieldName;
-            }
-
-            $fileEntity = FilesystemEntities::where($filter)->first();
-
-            if ($fileEntity) {
-                // If a record exists, check if the filesystem_id or field_name should be updated
-                if ($fileEntity->filesystem_id !== $this->filesystem->getKey() || $fileEntity->field_name !== $fieldName) {
-                    // Overwrite the existing file if a new filesystem_id or filename is provided
-                    $fileEntity->filesystem_id = $this->filesystem->getKey();
-                    $fileEntity->field_name = $fieldName;
-                    $fileEntity->is_deleted = StateEnums::NO->getValue();
-                    $fileEntity->saveOrFail();
-                }
             } else {
-                $fileEntity = FilesystemEntities::create(array_merge($filter, [
-                    'filesystem_id' => $this->filesystem->getKey(),
-                    'field_name' => $fieldName, // Ensure the new filename is added
-                    'is_deleted' => StateEnums::NO->getValue(),
-                ]));
+                $filter['filesystem_id'] = $this->filesystem->getKey();
             }
+            $fileEntity = FilesystemEntities::firstOrCreate($filter, [
+               'companies_id' => $this->filesystem->companies_id,
+            ]);
         }
+
+        $fileEntity->filesystem_id = $this->filesystem->getKey();
+        if ($allowDuplicateFiles) {
+            $fileEntity->field_name = $fieldName;
+        }
+        $fileEntity->is_deleted = StateEnums::NO->getValue();
+        $fileEntity->saveOrFail();
 
         if ($this->entity->hasWorkflow()) {
             $this->entity->fireWorkflow(WorkflowEnum::ATTACH_FILE->value);
