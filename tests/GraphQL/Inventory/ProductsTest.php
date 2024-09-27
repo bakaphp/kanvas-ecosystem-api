@@ -236,7 +236,7 @@ class ProductsTest extends TestCase
         ];
 
         $variantResponse = $this->createVariant(
-            productId: (int) $id,
+            productId: $id,
             warehouseData: $warehouseData
         );
 
