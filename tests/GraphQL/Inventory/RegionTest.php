@@ -59,7 +59,7 @@ class RegionTest extends TestCase
         $regionResponse = $regionResponse->json()['data']['createRegion'];
 
         $data = [
-            'name' => fake()->name.'2',
+            'name' => fake()->name . '2',
             'slug' => Str::slug(fake()->name),
             'short_slug' =>  Str::slug(fake()->name),
             'is_default' => 1,

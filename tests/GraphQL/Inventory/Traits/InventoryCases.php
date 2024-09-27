@@ -9,7 +9,7 @@ trait InventoryCases
 {
     public function createProduct(array $data = []): TestResponse
     {
-        if(empty($data)) {
+        if (empty($data)) {
             $data = [
                 'name' => fake()->name,
                 'description' => fake()->text,
@@ -40,7 +40,7 @@ trait InventoryCases
 
     public function createVariant(string $productId, array $warehouseData, array $data = []): TestResponse
     {
-        if(empty($data)) {
+        if (empty($data)) {
             $data = [
                 'name' => fake()->name,
                 'description' => fake()->text,
@@ -98,7 +98,7 @@ trait InventoryCases
 
     public function createWarehouses(string $regionId, array $data = []): TestResponse
     {
-        if(empty($data)) {
+        if (empty($data)) {
             $data = [
                 'regions_id' => $regionId,
                 'name' => fake()->name,
