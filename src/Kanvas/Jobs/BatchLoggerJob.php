@@ -21,7 +21,7 @@ class BatchLoggerJob implements ShouldQueue
     public function __construct(
         public string $message,
     ) {
-        $this->onQueue('batch-logger');
+        $this->onQueue('batch-logger')->delay(now()->addMinutes(10));
     }
 
     public function handle(): void
