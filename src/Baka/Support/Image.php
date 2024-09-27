@@ -21,24 +21,20 @@ class Image
      */
     public static function resizeImageGD(string $file, int $maxWidth, int $maxHeight): string
     {
-        // Obtén el tamaño original de la imagen
         list($originalWidth, $originalHeight) = getimagesize($file);
 
-        // Calcula la proporción de la imagen original
         $aspectRatio = $originalWidth / $originalHeight;
 
-        // Ajusta el ancho y alto basado en la proporción
         if ($maxWidth / $maxHeight > $aspectRatio) {
-            $newWidth = round($maxHeight * $aspectRatio); // Mantén proporción con base en la altura
+            $newWidth = round($maxHeight * $aspectRatio);
             $newHeight = $maxHeight;
         } else {
             $newWidth = $maxWidth;
-            $newHeight = round($maxWidth / $aspectRatio); // Mantén proporción con base en el ancho
+            $newHeight = round($maxWidth / $aspectRatio);
         }
         $newHeight = (int)$newHeight;
         $newWidth = (int)$newWidth;
 
-        // Crea una nueva imagen de destino con el nuevo tamaño
         $newImage = imagecreatetruecolor($newWidth, $newHeight);
 
         $ext = pathinfo($file, PATHINFO_EXTENSION);
@@ -48,12 +44,9 @@ class Image
         $path = storage_path('app/temporal/') ;
 
         $newFile = $name . '_' . $maxWidth . 'x' . $maxHeight . '.' . $ext;
-        // Cargar la imagen original
         $sourceImage = imagecreatefromjpeg($file);
-        // Redimensiona la imagen
         imagecopyresampled($newImage, $sourceImage, 0, 0, 0, 0, $newWidth, $newHeight, $originalWidth, $originalHeight);
 
-        // Guarda la imagen redimensionada
         imagejpeg($newImage, $path . $newFile);
 
         imagedestroy($sourceImage);
