@@ -53,7 +53,7 @@ class ShopifyProductService
            'price' => 0,
            'discountPrice' => 0,
            'quantity' => 1,
-           'isPublished' => $shopifyProduct['status'] == 'active',
+           'isPublished' => (int) ($shopifyProduct['status'] == 'active'),
            'files' => $this->files['files'] ?? [],
            'source' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_PRODUCT_ID->value, $this->company, $this->app, $this->region),
            'sourceId' => $productId,

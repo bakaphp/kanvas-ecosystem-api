@@ -36,20 +36,33 @@ class AttachFilesystemAction
         if ($update) {
             $fileEntity = FilesystemEntitiesRepository::getByIdAdnEntity((int) $id, $this->entity);
         } else {
-            $filter = [
+            /**
+             * @todo improve this code, doesn't look good but works
+             */
+            $fileEntity = FilesystemEntities::where([
                 'entity_id' => $this->entity->getKey(),
                 'system_modules_id' => $systemModule->getKey(),
-                //'filesystem_id' => $this->filesystem->getKey(),
-                //'companies_id' => $this->filesystem->companies_id,
-            ];
-            if (! $allowDuplicateFiles) {
-                $filter['field_name'] = $fieldName;
-            } else {
-                $filter['filesystem_id'] = $this->filesystem->getKey();
+                'filesystem_id' => $this->filesystem->getKey(),
+                'companies_id' => $this->filesystem->companies_id,
+                'is_deleted' => StateEnums::NO->getValue(),
+            ])->first();
+
+            if (! $fileEntity) {
+                $filter = [
+                    'entity_id' => $this->entity->getKey(),
+                    'system_modules_id' => $systemModule->getKey(),
+                    //'filesystem_id' => $this->filesystem->getKey(),
+                    //'companies_id' => $this->filesystem->companies_id,
+                ];
+                if (! $allowDuplicateFiles) {
+                    $filter['field_name'] = $fieldName;
+                } else {
+                    $filter['filesystem_id'] = $this->filesystem->getKey();
+                }
+                $fileEntity = FilesystemEntities::firstOrCreate($filter, [
+                   'companies_id' => $this->filesystem->companies_id,
+                ]);
             }
-            $fileEntity = FilesystemEntities::firstOrCreate($filter, [
-               'companies_id' => $this->filesystem->companies_id,
-            ]);
         }
 
         $fileEntity->filesystem_id = $this->filesystem->getKey();
