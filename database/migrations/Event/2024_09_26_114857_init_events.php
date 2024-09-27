@@ -37,6 +37,10 @@ return new class () extends Migration {
             $table->unsignedBigInteger('event_type_id')->index();
             $table->unsignedBigInteger('event_class_id')->index();
             $table->string('name', 255);
+            $table->unsignedBigInteger('parent_id')->nullable();
+            $table->string('path', 255);
+            $table->string('slug')->index(); // Slug with unique index
+            $table->integer('position')->default(0);
             $table->boolean('is_deleted')->default(false);
             $table->timestamps();
             $table->softDeletes();
@@ -152,7 +156,7 @@ return new class () extends Migration {
             $table->timestamps();
             $table->softDeletes();
             $table->unique(['slug', 'apps_id', 'companies_id'], 'participant_slug_unique'); // Ensure uniqueness
-            $table->index(['theme_area_id', 'department_id', 'company_office_id', 'profession_id', 'participant_status_id', 'apps_id', 'companies_id', 'users_id', 'people_id'], 'participants_idx');
+            $table->index(['theme_area_id', 'participant_status_id', 'apps_id', 'companies_id', 'users_id', 'people_id'], 'participants_idx');
         });
 
         Schema::create('event_version_dates', function (Blueprint $table) {

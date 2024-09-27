@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Event\Events\Models;
 
+use Baka\Traits\SlugTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Event\Models\BaseModel;
+use Nevadskiy\Tree\AsTree;
 
 class EventCategory extends BaseModel
 {
+    use SlugTrait;
+    use AsTree;
+    
     protected $table = 'event_categories';
     protected $guarded = [];
 
