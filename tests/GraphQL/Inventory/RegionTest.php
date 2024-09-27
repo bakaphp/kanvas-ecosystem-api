@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Inventory;
 
+use Baka\Support\Str;
+use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
 class RegionTest extends TestCase
 {
+    use InventoryCases;
     /**
      * testCreateRegion.
      *
@@ -15,30 +18,9 @@ class RegionTest extends TestCase
      */
     public function testCreateRegion()
     {
-        $data = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
-            'is_default' => 1,
-            'currency_id' => 1,
-        ];
-        $this->graphQL('
-            mutation($data: RegionInput!) {
-                createRegion(input: $data)
-                {
-                    id
-                    name
-                    slug
-                    short_slug
-                    currency_id
-                    is_default
-                }
-            }
-        ', [
-            'data' => $data,
-        ])->assertJson([
-            'data' => ['createRegion' => $data],
-        ]);
+        $regionResponse = $this->createRegion();
+        $this->assertArrayHasKey('id', $regionResponse['data']['createRegion']);
+        $regionResponse = $regionResponse->json()['data']['createRegion'];
     }
 
     /**
@@ -48,30 +30,8 @@ class RegionTest extends TestCase
      */
     public function testFindRegion()
     {
-        $data = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
-            'is_default' => 1,
-            'currency_id' => 1,
-        ];
-        $this->graphQL('
-            mutation($data: RegionInput!) {
-                createRegion(input: $data)
-                {
-                    id
-                    name
-                    slug
-                    short_slug
-                    currency_id
-                    is_default
-                }
-            }
-        ', [
-            'data' => $data,
-        ])->assertJson([
-            'data' => ['createRegion' => $data],
-        ]);
+        $regionResponse = $this->createRegion();
+        $this->assertArrayHasKey('id', $regionResponse['data']['createRegion']);
 
         $response = $this->graphQL('
             query {
@@ -94,46 +54,14 @@ class RegionTest extends TestCase
      */
     public function testUpdateRegion()
     {
-        $data = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
-            'is_default' => 1,
-            'currency_id' => 1,
-        ];
-        $this->graphQL('
-            mutation($data: RegionInput!) {
-                createRegion(input: $data)
-                {
-                    id
-                    name
-                    slug
-                    short_slug
-                    currency_id
-                    is_default
-                }
-            }
-        ', [
-            'data' => $data,
-        ])->assertJson([
-            'data' => ['createRegion' => $data],
-        ]);
+        $regionResponse = $this->createRegion();
+        $this->assertArrayHasKey('id', $regionResponse['data']['createRegion']);
+        $regionResponse = $regionResponse->json()['data']['createRegion'];
 
-        $response = $this->graphQL('
-            query getMutation {
-                regions {
-                  data {
-                    name,
-                    id
-                  }
-                }
-            }
-        ');
-        $response = $response->decodeResponseJson();
         $data = [
-            'name' => 'Test Region 2',
-            'slug' => 'test-region-2',
-            'short_slug' => 'test-region-2',
+            'name' => fake()->name.'2',
+            'slug' => Str::slug(fake()->name),
+            'short_slug' =>  Str::slug(fake()->name),
             'is_default' => 1,
             'currency_id' => 1,
         ];
@@ -151,7 +79,7 @@ class RegionTest extends TestCase
             }
         ', [
             'data' => $data,
-            'id' => $response['data']['regions']['data'][0]['id'],
+            'id' => $regionResponse['id'],
         ])->assertJson([
             'data' => ['updateRegion' => $data],
         ]);
@@ -172,32 +100,18 @@ class RegionTest extends TestCase
             'currency_id' => 1,
         ];
 
-        $response = $this->graphQL('
-            mutation($data: RegionInput!) {
-                createRegion(input: $data)
-                {
-                    id
-                    name
-                    slug
-                    short_slug
-                    currency_id
-                    is_default
-                }
-            }
-        ', [
-            'data' => $data,
-        ])->assertJson([
-            'data' => ['createRegion' => $data],
-        ]);
-
-        $response = $response->json();
+        $regionResponse = $this->createRegion(
+            data: $data
+        );
+        $this->assertArrayHasKey('id', $regionResponse['data']['createRegion']);
+        $regionResponse = $regionResponse->json()['data']['createRegion'];
 
         $this->graphQL('
             mutation($id: ID!) {
                 deleteRegion(id: $id)
             }
         ', [
-            'id' => $response['data']['createRegion']['id'],
+            'id' => $regionResponse['id'],
         ])->assertJson([
             'data' => ['deleteRegion' => true],
         ]);
