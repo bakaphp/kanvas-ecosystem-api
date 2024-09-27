@@ -8,7 +8,7 @@ x-common-queue-settings: &common-queue-settings
   command: 
     - "sh"
     - "-c"
-    - "php artisan config:cache && php artisan queue:work --tries=3 --queue=notifications,kanvas-social,batch-logger,imports --timeout=3750"
+    - "php artisan config:cache && php artisan queue:work --tries=3 --queue=default,notifications,kanvas-social,batch-logger,imports --timeout=3750"
   environment:
     WWWUSER: "${WWWUSER}"
     LARAVEL_SAIL: 1
