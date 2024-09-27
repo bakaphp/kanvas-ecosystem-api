@@ -95,10 +95,11 @@ return new class () extends Migration {
             $table->unsignedBigInteger('event_category_id')->index();
             $table->string('name', 255);
             $table->string('slug')->index(); // Slug with unique index
-            $table->string('classification', 255);
-            $table->string('versions_count', 255);
-            $table->string('participants_average', 255);
-            $table->string('participants_satisfaction', 255);
+            $table->string('classification', 255)->nullable();
+            $table->text('description')->nullable();
+            $table->integer('versions_count')->default(0);
+            $table->string('participants_average', 255)->nullable();
+            $table->string('participants_satisfaction', 255)->nullable();
             $table->boolean('is_deleted')->default(false);
             $table->timestamps();
             $table->softDeletes();
@@ -115,11 +116,13 @@ return new class () extends Migration {
             $table->unsignedBigInteger('currency_id')->index();
             $table->unsignedBigInteger('event_id')->index();
             $table->string('name', 255);
+            $table->integer('version_number')->default(1);
             $table->string('version', 255);
             $table->string('slug')->index(); // Slug with unique index
-            $table->string('classification', 255);
-            $table->string('places_comments', 255);
-            $table->string('participants_satisfaction', 255);
+            $table->text('description')->nullable();
+            $table->string('classification', 255)->nullable();
+            $table->string('places_comments', 255)->nullable();
+            $table->string('participants_satisfaction', 255)->nullable();
             $table->float('price_per_ticket');
             $table->boolean('is_deleted')->default(false);
             $table->timestamps();
@@ -232,11 +235,11 @@ return new class () extends Migration {
             $table->unsignedBigInteger('apps_id')->index();
             $table->unsignedBigInteger('companies_id')->index();
             $table->unsignedBigInteger('users_id')->index();
-            $table->string('first_name', 255);
-            $table->string('last_name', 255);
+            $table->unsignedBigInteger('people_id')->index();
             $table->string('slug')->index(); // Slug with unique index
-            $table->string('identification', 255);
-            $table->string('resume', 255);
+            $table->string('identification', 255)->nullable();
+            $table->text('resume')->nullable();
+            $table->text('description')->nullable();
             $table->boolean('is_deleted')->default(false);
             $table->timestamps();
             $table->softDeletes();

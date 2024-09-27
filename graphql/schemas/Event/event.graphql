@@ -1,0 +1,33 @@
+type Event {
+    id: ID!
+    uuid: String!
+    name: String!
+    slug: String!
+    description: String
+    version_count: Int!
+    user: User! @belongsTo(relation: "user")
+    companies: Company! @belongsTo(relation: "company")
+    versions: [EventVersion!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Event\\EventVersionQuery@getEventVersionByGraphType"
+        )
+    created_at: String
+    updated_at: String
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
+}

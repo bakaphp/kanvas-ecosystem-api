@@ -13,7 +13,7 @@ class EventCategory extends BaseModel
 {
     use SlugTrait;
     use AsTree;
-    
+
     protected $table = 'event_categories';
     protected $guarded = [];
 
