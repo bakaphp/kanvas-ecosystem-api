@@ -40,4 +40,9 @@ class EventVersion extends BaseModel
             'agenda' => Json::class,
         ];
     }
+
+    public function getTotalAttendees(): int
+    {
+        return 0;
+    }
 }

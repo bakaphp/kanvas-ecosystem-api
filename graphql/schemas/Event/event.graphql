@@ -56,6 +56,7 @@ type EventVersion {
     created_at: DateTime
     updated_at: DateTime
     dates: [EventVersionDate!]! @hasMany(relation: "dates")
+    total_attendees: Int! @method(name: "getTotalAttendees")
     participants: [EventVersionParticipant!]!
         @paginate(
             defaultCount: 25
