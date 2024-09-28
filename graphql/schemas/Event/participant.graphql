@@ -27,7 +27,7 @@ type Participant {
         )
 }
 
-type ParticipantPass{
+type ParticipantPass {
     id: ID!
     participant: Participant! @belongsTo(relation: "participant")
     event_version: EventVersion! @belongsTo(relation: "eventVersion")

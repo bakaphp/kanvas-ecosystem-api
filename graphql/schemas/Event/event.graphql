@@ -81,6 +81,18 @@ type EventVersionDate {
     end_time: String!
 }
 
+type EventVersionParticipant {
+    id: ID!
+    event_version: EventVersion! @belongsTo(relation: "eventVersion")
+    participant: Participant! @belongsTo(relation: "participant")
+    ticket_price: Float!
+    discount: Float!
+    invoice_date: Date!
+    participant_type: ParticipantType @belongsTo(relation: "participantType")
+    created_at: DateTime
+    updated_at: DateTime
+}
+
 extend type Query @guard {
     events(
         search: String @search
@@ -94,6 +106,36 @@ extend type Query @guard {
             defaultCount: 25
         )
     eventVersions(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "slug"
+                    "event_id"
+                    "companies_id"
+                    "version_number"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "event_id"
+                    "version_number"
+                ]
+            )
+    ): [EventVersion!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            model: "Kanvas\\Event\\Events\\Models\\EventVersion"
+            defaultCount: 25
+        )
+    eventVersionParticipants(
         search: String @search
         where: _
             @whereConditions(
