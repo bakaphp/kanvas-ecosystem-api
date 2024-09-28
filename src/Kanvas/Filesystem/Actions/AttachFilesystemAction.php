@@ -70,7 +70,7 @@ class AttachFilesystemAction
             $fileEntity->filesystem_id = $this->filesystem->getKey();
             $runUpdate = true;
         }
-        if ($allowDuplicateFiles && $fileEntity->field_name != $fieldName) {
+        if ($fileEntity->field_name != $fieldName) {
             $fileEntity->field_name = $fieldName;
             $runUpdate = true;
         }
