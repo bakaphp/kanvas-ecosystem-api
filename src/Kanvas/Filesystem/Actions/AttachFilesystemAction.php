@@ -32,6 +32,7 @@ class AttachFilesystemAction
         $systemModule = SystemModulesRepository::getByModelName($this->entity::class, $this->filesystem->app);
         $update = (int) $id > 0;
         $allowDuplicateFiles = $this->filesystem->app->get(AppSettingsEnums::FILESYSTEM_ALLOW_DUPLICATE_FILES_BY_NAME->getValue());
+        $runUpdate = false;
 
         if ($update) {
             $fileEntity = FilesystemEntitiesRepository::getByIdAdnEntity((int) $id, $this->entity);
@@ -65,12 +66,19 @@ class AttachFilesystemAction
             }
         }
 
-        $fileEntity->filesystem_id = $this->filesystem->getKey();
-        if ($allowDuplicateFiles) {
-            $fileEntity->field_name = $fieldName;
+        if ($fileEntity->filesystem_id != $this->filesystem->getKey()) {
+            $fileEntity->filesystem_id = $this->filesystem->getKey();
+            $runUpdate = true;
         }
-        $fileEntity->is_deleted = StateEnums::NO->getValue();
-        $fileEntity->saveOrFail();
+        if ($allowDuplicateFiles && $fileEntity->field_name != $fieldName) {
+            $fileEntity->field_name = $fieldName;
+            $runUpdate = true;
+        }
+
+        if ($runUpdate) {
+            $fileEntity->is_deleted = StateEnums::NO->getValue();
+            $fileEntity->saveOrFail();
+        }
 
         if ($this->entity->hasWorkflow()) {
             $this->entity->fireWorkflow(WorkflowEnum::ATTACH_FILE->value);
