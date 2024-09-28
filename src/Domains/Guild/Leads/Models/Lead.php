@@ -230,6 +230,22 @@ class Lead extends BaseModel
         $this->saveOrFail();
     }
 
+    public function setDuplicate(): self
+    {
+        $duplicate = LeadStatus::where('name', 'Duplicate')->first();
+
+        if ($duplicate) {
+            $this->leads_status_id = $duplicate->getId();
+        }
+
+        return $this;
+    }
+
+    public function duplicate(): void
+    {
+        $this->setDuplicate()->saveOrFail();
+    }
+
     protected static function newFactory()
     {
         return new LeadFactory();
