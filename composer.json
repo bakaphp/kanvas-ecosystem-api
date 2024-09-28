@@ -82,7 +82,7 @@
             "Kanvas\\Connectors\\": "src/Domains/Connectors",
             "Kanvas\\Dashboard\\": "src/Domains/Dashboard",
             "Kanvas\\ActionEngine\\": "src/Domains/ActionEngine",
-            "Kanvas\\Events\\": "src/Domains/Events",
+            "Kanvas\\Event\\": "src/Domains/Event",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }

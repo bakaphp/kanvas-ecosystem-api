@@ -1,0 +1,100 @@
+type Participant {
+    id: ID!
+    uuid: String!
+    slug: String!
+    people: People! @belongsTo(relation: "people")
+    user: User! @belongsTo(relation: "user")
+    company: Company! @belongsTo(relation: "company")
+    themeArea: EventThemeArea @belongsTo(relation: "themeArea")
+    is_prospect: Boolean!
+    created_at: DateTime
+    updated_at: DateTime
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
+}
+
+type ParticipantPass{
+    id: ID!
+    participant: Participant! @belongsTo(relation: "participant")
+    event_version: EventVersion! @belongsTo(relation: "eventVersion")
+    event: Event! @belongsTo(relation: "event")
+    motive: ParticipantPassMotive! @belongsTo(relation: "motive")
+    expiration_date: Date!
+    used_date: Date
+    code: String!
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type ParticipantType {
+    id: ID!
+    name: String!
+    user: User! @belongsTo(relation: "user")
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type ParticipantPassMotive {
+    id: ID!
+    name: String!
+    user: User! @belongsTo(relation: "user")
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+extend type Query @guard {
+    participants(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "slug"
+                    "companies_id"
+                    "people_id"
+                    "is_prospect"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
+    ): [Participant!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            model: "Kanvas\\Event\\Participants\\Models\\Participant"
+            defaultCount: 25
+        )
+    participantTypes(
+        search: String @search
+        where: _ @whereConditions(columns: ["id", "name", "companies_id"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
+    ): [ParticipantType!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            model: "Kanvas\\Event\\Participants\\Models\\ParticipantType"
+            defaultCount: 25
+        )
+    participantPassMotives(
+        search: String @search
+        where: _ @whereConditions(columns: ["id", "name", "companies_id"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
+    ): [ParticipantPassMotive!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            model: "Kanvas\\Event\\Participants\\Models\\ParticipantPassMotive"
+            defaultCount: 25
+        )
+}

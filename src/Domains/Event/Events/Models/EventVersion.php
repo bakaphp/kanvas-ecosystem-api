@@ -7,6 +7,7 @@ namespace Kanvas\Event\Events\Models;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 
@@ -24,5 +25,10 @@ class EventVersion extends BaseModel
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
+    }
+
+    public function dates(): HasMany
+    {
+        return $this->hasMany(EventVersionDate::class);
     }
 }

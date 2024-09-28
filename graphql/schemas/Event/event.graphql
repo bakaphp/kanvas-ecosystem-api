@@ -6,14 +6,20 @@ type Event {
     description: String
     version_count: Int!
     user: User! @belongsTo(relation: "user")
-    companies: Company! @belongsTo(relation: "company")
+    company: Company! @belongsTo(relation: "company")
+    theme: EventTheme @belongsTo(relation: "theme")
+    themeArea: EventThemeArea @belongsTo(relation: "themeArea")
+    themeStatus: eventClass @belongsTo(relation: "eventStatus")
+    type: EventType @belongsTo(relation: "themeType")
+    class: EventClass @belongsTo(relation: "eventClass")
+    category: EventCategory @belongsTo(relation: "eventCategory")
     versions: [EventVersion!]!
         @paginate(
             defaultCount: 25
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\Event\\EventVersionQuery@getEventVersionByGraphType"
+            builder: "App\\GraphQL\\Event\\Builders\\Events\\EventVersionQuery@getEventVersion"
         )
-    created_at: String
-    updated_at: String
+    created_at: DateTime
+    updated_at: DateTime
     files: [Filesystem!]!
         @cacheRedis
         @paginate(
@@ -29,5 +35,92 @@ type Event {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
+}
+
+type EventVersion {
+    id: ID!
+    uuid: String!
+    name: String!
+    company: Company! @belongsTo(relation: "company")
+    event: Event! @belongsTo(relation: "event")
+    user: User! @belongsTo(relation: "user")
+    version_number: Int!
+    version: String!
+    slug: String!
+    description: String
+    classification: String
+    price_per_ticket: Float!
+    created_at: DateTime
+    updated_at: DateTime
+    dates: [EventVersionDate!]! @hasMany(relation: "dates")
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
+}
+
+type EventVersionDate {
+    id: ID!
+    event_version: EventVersion! @belongsTo(relation: "eventVersion")
+    user: User! @belongsTo(relation: "user")
+    date: Date!
+    start_time: String!
+    end_time: String!
+}
+
+extend type Query @guard {
+    events(
+        search: String @search
+        where: _
+            @whereConditions(columns: ["id", "name", "slug", "companies_id"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [Event!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            model: "Kanvas\\Event\\Events\\Models\\Event"
+            defaultCount: 25
+        )
+    eventVersions(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "slug"
+                    "event_id"
+                    "companies_id"
+                    "version_number"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "event_id"
+                    "version_number"
+                ]
+            )
+    ): [EventVersion!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            model: "Kanvas\\Event\\Events\\Models\\EventVersion"
+            defaultCount: 25
         )
 }

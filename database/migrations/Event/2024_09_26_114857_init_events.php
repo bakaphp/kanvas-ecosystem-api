@@ -12,6 +12,7 @@ return new class () extends Migration {
             $table->id();
             $table->unsignedBigInteger('companies_id')->index();
             $table->unsignedBigInteger('apps_id')->index();
+            $table->unsignedBigInteger('users_id')->index();
             $table->string('name', 255);
             $table->boolean('is_deleted')->default(false);
             $table->timestamps();
@@ -23,6 +24,7 @@ return new class () extends Migration {
             $table->id();
             $table->unsignedBigInteger('companies_id')->index();
             $table->unsignedBigInteger('apps_id')->index();
+            $table->unsignedBigInteger('users_id')->index();
             $table->string('name', 255);
             $table->boolean('is_deleted')->default(false);
             $table->timestamps();
@@ -36,6 +38,7 @@ return new class () extends Migration {
             $table->unsignedBigInteger('apps_id')->index();
             $table->unsignedBigInteger('event_type_id')->index();
             $table->unsignedBigInteger('event_class_id')->index();
+            $table->unsignedBigInteger('users_id')->index();
             $table->string('name', 255);
             $table->unsignedBigInteger('parent_id')->nullable();
             $table->string('path', 255);
@@ -51,6 +54,7 @@ return new class () extends Migration {
             $table->id();
             $table->unsignedBigInteger('companies_id')->index();
             $table->unsignedBigInteger('apps_id')->index();
+            $table->unsignedBigInteger('users_id')->index();
             $table->string('name', 255);
             $table->boolean('is_deleted')->default(false);
             $table->timestamps();
@@ -62,6 +66,7 @@ return new class () extends Migration {
             $table->id();
             $table->unsignedBigInteger('companies_id')->index();
             $table->unsignedBigInteger('apps_id')->index();
+            $table->unsignedBigInteger('users_id')->index();
             $table->string('name', 255);
             $table->boolean('is_deleted')->default(false);
             $table->timestamps();
@@ -135,6 +140,7 @@ return new class () extends Migration {
             $table->id();
             $table->unsignedBigInteger('companies_id')->index();
             $table->unsignedBigInteger('apps_id')->index();
+            $table->unsignedBigInteger('users_id')->index();
             $table->string('name', 255);
             $table->boolean('is_deleted')->default(false);
             $table->timestamps();
@@ -165,6 +171,7 @@ return new class () extends Migration {
         Schema::create('event_version_dates', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('event_version_id')->index();
+            $table->unsignedBigInteger('users_id')->index();
             $table->date('event_date');
             $table->time('start_time');
             $table->time('end_time');
