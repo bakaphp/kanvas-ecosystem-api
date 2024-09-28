@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Event\Events\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -30,5 +31,13 @@ class EventVersion extends BaseModel
     public function dates(): HasMany
     {
         return $this->hasMany(EventVersionDate::class);
+    }
+
+    public function casts(): array
+    {
+        return [
+            'metadata' => Json::class,
+            'agenda' => Json::class,
+        ];
     }
 }

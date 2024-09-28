@@ -129,6 +129,8 @@ return new class () extends Migration {
             $table->string('places_comments', 255)->nullable();
             $table->string('participants_satisfaction', 255)->nullable();
             $table->float('price_per_ticket');
+            $table->json('agenda')->nullable();
+            $table->json('metadata')->nullable();
             $table->boolean('is_deleted')->default(false);
             $table->timestamps();
             $table->softDeletes();

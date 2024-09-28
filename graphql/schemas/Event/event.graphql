@@ -48,6 +48,8 @@ type EventVersion {
     version_number: Int!
     version: String!
     slug: String!
+    agenda: Mixed
+    metadata: Mixed
     description: String
     classification: String
     price_per_ticket: Float!

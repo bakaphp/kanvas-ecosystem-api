@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Event\Events\Models;
 
+use Baka\Casts\Json;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Participants\Models\Participant;
@@ -29,5 +30,12 @@ class EventVersionParticipant extends BaseModel
     public function participantType(): BelongsTo
     {
         return $this->belongsTo(ParticipantType::class);
+    }
+
+    public function casts(): array
+    {
+        return [
+            'metadata' => Json::class,
+        ];
     }
 }
