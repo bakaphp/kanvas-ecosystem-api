@@ -7,7 +7,6 @@ namespace Kanvas\Guild\Leads\Actions;
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Enums\FlagEnum;
@@ -69,12 +68,12 @@ class CreateLeadAction
         $newLead->email = $people->getEmails()->isNotEmpty() ? $people->getEmails()->first()?->value : null;
         $newLead->phone = $people->getPhones()->isNotEmpty() ? $people->getPhones()->first()?->value : null;
 
-        if ($this->company->get(FlagEnum::COMPANY_CANT_HAVE_MULTIPLE_OPEN_LEADS->value)) {
-            $this->checkIfLeadExist($people);
-        }
-
         if (! $this->leadData->runWorkflow) {
             $newLead->disableWorkflows();
+        }
+
+        if ($this->company->get(FlagEnum::COMPANY_CANT_HAVE_MULTIPLE_OPEN_LEADS->value)) {
+            $this->checkIfLeadExist($newLead, $people);
         }
 
         if ($this->leadData->organization instanceof Organization) {
@@ -104,19 +103,19 @@ class CreateLeadAction
         return $newLead;
     }
 
-    protected function checkIfLeadExist(People $people): void
+    protected function checkIfLeadExist(Lead $lead, People $people): void
     {
-        $existentLead = Lead::fromApp($this->leadData->app)
+        $duplicate = Lead::fromApp($this->leadData->app)
             ->fromCompany($this->company)
             ->notDeleted(StateEnums::NO->getValue())
             ->where([
                 ['people_id', $people->getId()],
                 ['leads_status_id', $this->leadData->status_id ?: LeadStatus::getDefault()->getId()],
             ])
-            ->first();
+            ->exists();
 
-        if ($existentLead) {
-            throw new ValidationException('This Customer already has a open lead');
+        if ($duplicate) {
+            $lead->setDuplicate();
         }
     }
 }
