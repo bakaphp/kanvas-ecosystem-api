@@ -188,6 +188,7 @@ return new class () extends Migration {
             $table->float('ticket_price');
             $table->float('discount');
             $table->date('invoice_date'); // Correcting float to date
+            $table->json('metadata')->nullable();
             $table->unsignedBigInteger('participant_type_id')->index();
             $table->boolean('is_deleted')->default(false);
             $table->timestamps();
@@ -228,8 +229,9 @@ return new class () extends Migration {
         Schema::create('event_version_date_participants', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('event_version_date_id')->index();
+            $table->unsignedBigInteger('event_version_id')->index();
             $table->unsignedBigInteger('participant_id')->index();
-            $table->date('arrived');
+            $table->datetime('arrived');
             $table->boolean('is_deleted')->default(false);
             $table->timestamps();
             $table->softDeletes();
@@ -303,6 +305,7 @@ return new class () extends Migration {
         Schema::table('event_version_date_participants', function (Blueprint $table) {
             $table->foreign('event_version_date_id')->references('id')->on('event_version_dates');
             $table->foreign('participant_id')->references('id')->on('participants');
+            $table->foreign('event_version_id')->references('id')->on('event_versions');
         });
 
         Schema::table('event_version_facilitators', function (Blueprint $table) {

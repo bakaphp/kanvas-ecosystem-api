@@ -20,6 +20,11 @@ class EventVersionParticipantDate extends BaseModel
         return $this->belongsTo(EventVersionDate::class);
     }
 
+    public function eventVersion(): BelongsTo
+    {
+        return $this->belongsTo(EventVersion::class);
+    }
+
     public function participant(): BelongsTo
     {
         return $this->belongsTo(Participant::class);
