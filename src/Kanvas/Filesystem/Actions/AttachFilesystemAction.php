@@ -76,7 +76,7 @@ class AttachFilesystemAction
             $runUpdate = true;
         }
 
-        if($fileEntity->is_deleted == StateEnums::YES->getValue()){
+        if ($fileEntity->is_deleted == StateEnums::YES->getValue()) {
             $fileEntity->is_deleted = StateEnums::NO->getValue();
             $runUpdate = true;
         }
