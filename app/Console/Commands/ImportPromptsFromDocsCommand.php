@@ -9,6 +9,8 @@ use Illuminate\Support\Str;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Tags\Models\Tag;
 use Kanvas\Users\Models\Users;
+use Illuminate\Support\Facades\DB;
+use PDO;
 
 class ImportPromptsFromDocsCommand extends Command
 {
@@ -33,6 +35,11 @@ class ImportPromptsFromDocsCommand extends Command
      */
     public function handle()
     {
+        // The Google Client setup looks correct, but we should check if the GOOGLE_AUTH_FILE exists
+        if (! file_exists(getenv('GOOGLE_AUTH_FILE'))) {
+            throw new \Exception('Google Auth file not found: ' . getenv('GOOGLE_AUTH_FILE'));
+        }
+
         $client = new \Google\Client();
         $client->setApplicationName('Kanvas');
         $client->setAuthConfig(getenv('GOOGLE_AUTH_FILE'));
@@ -49,56 +56,81 @@ class ImportPromptsFromDocsCommand extends Command
         $appId = $this->option('appId');
         $messageType = $this->option('messageType');
         $companyId = $this->option('companyId');
-
+        $userId = $this->fetchRandomUser()->id;
         foreach ($processedContent as $category => $prompts) {
             echo $category . PHP_EOL;
 
             foreach ($prompts as $prompt) {
                 // Check if the message already exists
-                $message = Message::where('slug', $this->slugify($prompt['title']))
-                                 ->where('apps_id', $appId)
-                                 ->first();
+                //if the msg exist with the same slug ignore
+                $result = DB::connection('social')->table('messages')
+                    ->where('slug', $this->slugify($prompt['title']))
+                    ->where('apps_id', $appId)
+                    ->first();
 
-                if ($message) {
+                if ($result) {
                     echo 'Message already exists' . PHP_EOL;
 
                     continue;
                 }
 
-                $user = $this->fetchRandomUser();
-
-                // Create new message
-                $message = Message::create([
+                //insert into db message
+                $lastId = DB::connection('social')->table('messages')->insertGetId([
                     'apps_id' => $appId,
-                    'uuid' => (string) Str::uuid(),
+                    'uuid' => DB::raw('uuid()'),
                     'companies_id' => $companyId,
-                    'users_id' => $user->getId(),
+                    'users_id' => $userId,
                     'message_types_id' => $messageType,
                     'message' => json_encode([
                         'title' => $prompt['title'],
+                        'preview' => $prompt['prompt'],
                         'prompt' => $prompt['prompt'],
                     ]),
                     'slug' => $this->slugify($prompt['title']),
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
+
+                // Update the `path` field with the last inserted ID
+                DB::connection('social')->table('messages')
+                    ->where('id', $lastId)
+                    ->update(['path' => $lastId]);
+
+                //find or create tags
+                $tags = $prompt['tags'];
+                $tags[] = $category;
 
                 // Handle tags
                 $tags = array_merge($prompt['tags'], [$category]);
 
-                foreach ($tags as $tagName) {
-                    $tagName = trim(strtolower($tagName));
-                    $tag = Tag::firstOrCreate(
-                        ['name' => $tagName, 'apps_id' => $appId],
-                        [
-                            'companies_id' => $companyId,
-                            'users_id' => $user->getId(),
-                            'slug' => $this->slugify($tagName),
-                        ]
-                    );
+                foreach ($tags as $tag) {
+                    $tag = trim(strtolower($tag));
+                    $tagResult = DB::connection('social')->table('tags')
+                        ->where('name', $tag)
+                        ->where('apps_id', $appId)
+                        ->first();
 
-                    // Attach tag to message
-                    $message->tags()->attach($tag->id, [
-                        'users_id' => $user->getId(),
-                        'taggable_type' => Message::class,
+                    if ($tagResult) {
+                        $tagId = $tagResult->id;
+                    } else {
+                        $tagId = DB::connection('social')->table('tags')->insertGetId([
+                            'name' => $tag,
+                            'apps_id' => $appId,
+                            'companies_id' => $companyId,
+                            'users_id' => $userId,
+                            'slug' => $this->slugify($tag),
+                            'created_at' => date('Y-m-d H:i:s'),
+                            'updated_at' => date('Y-m-d H:i:s'),
+                        ]);
+                    }
+
+                    DB::connection('social')->table('tags_entities')->insert([
+                        'entity_id' => $lastId,
+                        'tags_id' => $tagId,
+                        'users_id' => $userId,
+                        'taggable_type' => "Kanvas\Social\Messages\Models\Message",
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s'),
                     ]);
                 }
 
@@ -142,7 +174,7 @@ class ImportPromptsFromDocsCommand extends Command
             ->where('is_deleted', 0)
             ->get();
 
-        return count($users) > 0 ? $users[array_rand($users->toArray())] : Users::find(-1);
+        return count($users) > 0 ? $users[array_rand($users->toArray())] : Users::getByEmail(getenv('DEFAULT_PROMPT_ACCOUNT_EMAIL'));
     }
 
     private function parseBody($body)

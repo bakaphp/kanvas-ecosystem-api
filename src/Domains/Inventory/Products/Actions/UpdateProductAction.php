@@ -12,6 +12,7 @@ use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
 class UpdateProductAction
@@ -47,6 +48,7 @@ class UpdateProductAction
                 [
                     'products_types_id' => $productType,
                     'name' => $this->productDto->name,
+                    'slug' => $this->productDto->slug ?? $this->product->slug,
                     'description' => $this->productDto->description,
                     'short_description' => $this->productDto->short_description,
                     'html_description' => $this->productDto->html_description,
@@ -84,6 +86,11 @@ class UpdateProductAction
 
             throw $e;
         }
+
+        $this->product->fireWorkflow(
+            WorkflowEnum::CREATED->value,
+            true
+        );
 
         return $this->product;
     }

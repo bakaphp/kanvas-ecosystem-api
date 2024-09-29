@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Actions;
 
 use Baka\Contracts\CompanyInterface;
+use Baka\Enums\StateEnums;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Enums\FlagEnum;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadDataInput;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadAttempt;
+use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
@@ -43,6 +47,7 @@ class CreateLeadAction
             } catch (ModelNotFoundException $e) {
             }
         }
+
         $newLead->apps_id = $this->leadData->app->getId();
         $newLead->users_id = $this->leadData->user->getId();
         $newLead->companies_id = $this->company->getId();
@@ -62,8 +67,13 @@ class CreateLeadAction
         $newLead->people_id = $people->getId();
         $newLead->email = $people->getEmails()->isNotEmpty() ? $people->getEmails()->first()?->value : null;
         $newLead->phone = $people->getPhones()->isNotEmpty() ? $people->getPhones()->first()?->value : null;
+
         if (! $this->leadData->runWorkflow) {
             $newLead->disableWorkflows();
+        }
+
+        if ($this->company->get(FlagEnum::COMPANY_CANT_HAVE_MULTIPLE_OPEN_LEADS->value)) {
+            $this->checkIfLeadExist($newLead, $people);
         }
 
         if ($this->leadData->organization instanceof Organization) {
@@ -91,5 +101,21 @@ class CreateLeadAction
         }
 
         return $newLead;
+    }
+
+    protected function checkIfLeadExist(Lead $lead, People $people): void
+    {
+        $duplicate = Lead::fromApp($this->leadData->app)
+            ->fromCompany($this->company)
+            ->notDeleted(StateEnums::NO->getValue())
+            ->where([
+                ['people_id', $people->getId()],
+                ['leads_status_id', $this->leadData->status_id ?: LeadStatus::getDefault()->getId()],
+            ])
+            ->exists();
+
+        if ($duplicate) {
+            $lead->setDuplicate();
+        }
     }
 }
