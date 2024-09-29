@@ -45,7 +45,7 @@ class AttachFilesystemAction
                 'system_modules_id' => $systemModule->getKey(),
                 'filesystem_id' => $this->filesystem->getKey(),
                 'companies_id' => $this->filesystem->companies_id,
-                'is_deleted' => StateEnums::NO->getValue(),
+              //  'is_deleted' => StateEnums::NO->getValue(),
             ])->first();
 
             if (! $fileEntity) {
@@ -70,13 +70,18 @@ class AttachFilesystemAction
             $fileEntity->filesystem_id = $this->filesystem->getKey();
             $runUpdate = true;
         }
+
         if ($fileEntity->field_name != $fieldName) {
             $fileEntity->field_name = $fieldName;
             $runUpdate = true;
         }
 
-        if ($runUpdate) {
+        if ($fileEntity->is_deleted == StateEnums::YES->getValue()) {
             $fileEntity->is_deleted = StateEnums::NO->getValue();
+            $runUpdate = true;
+        }
+
+        if ($runUpdate) {
             $fileEntity->saveOrFail();
         }
 
