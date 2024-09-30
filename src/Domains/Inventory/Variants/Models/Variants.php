@@ -395,10 +395,12 @@ class Variants extends BaseModel implements EntityIntegrationInterface
         if ($channel) {
             $channelInfo = $this->variantChannels()->where('channels_id', $channel->getId())->first();
 
-            return $channelInfo?->price ?? 0;
+            $price = $channelInfo?->price ?? 0;
         }
 
-        return $warehouseInfo?->price ?? 0;
+        $price = $warehouseInfo?->price ?? 0;
+
+        return (float)$price;
     }
 
     /**
