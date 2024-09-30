@@ -55,7 +55,7 @@ class MailAllAppUsersCommand extends Command
         ->where('is_deleted', StateEnums::NO->getValue())
         ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
         ->orderBy('users_id') // Order by primary or unique key for consistency
-        ->chunk(100, function ($users) use ($app) {
+        ->chunk(100, function ($users) use ($app, $emailTemplateName, $emailSubject) {
             foreach ($users as $user) {
                 $userModelEntity = Users::getByEmail($user->email);
                 $this->sendEmailToUser($userModelEntity, $emailTemplateName, $emailSubject);
