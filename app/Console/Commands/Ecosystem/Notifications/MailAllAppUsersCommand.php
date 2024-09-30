@@ -57,7 +57,6 @@ class MailAllAppUsersCommand extends Command
         ->orderBy('users_id') // Order by primary or unique key for consistency
         ->chunk(100, function ($users) use ($app) {
             foreach ($users as $user) {
-            
                 $userModelEntity = Users::getByEmail($user->email);
                 $this->sendEmailToUser($userModelEntity, $emailTemplateName, $emailSubject);
                 $this->info('Email Successfully sent to: ' . $user->users_id . ' on app: ' . $app->getId());
@@ -70,7 +69,7 @@ class MailAllAppUsersCommand extends Command
      * Send email to user using a custom template
      *
      */
-    private function sendEmailToUser(Users $user, string $emailTemplateName, string $emailSubject) : void
+    private function sendEmailToUser(Users $user, string $emailTemplateName, string $emailSubject): void
     {
         $notification = new Blank(
             $emailTemplateName,
