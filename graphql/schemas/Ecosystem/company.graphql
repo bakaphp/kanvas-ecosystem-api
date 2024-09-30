@@ -107,6 +107,7 @@ input CompanyInput {
     files: [FilesystemInputUrl!]
     custom_fields: [CustomFieldEntityInput!]
     is_active: Boolean
+    timezone: String
 }
 
 input CompanyBranchInput {
