@@ -40,6 +40,15 @@ class MailAllAppUsersCommand extends Command
     {
         $app = Apps::getById((int) $this->argument('apps_id'));
         $this->overwriteAppService($app);
+        $emailTemplateName = $this->argument('email_template_name');
+        $emailSubject = $this->argument('subject');
+
+        if (getenv('TEST_EMAIL_FEATURE')) {
+            $userModelEntity = Users::getByEmail(getenv('TEST_EMAIL_FEATURE_ADRESS'));
+            $this->sendEmailToUser($userModelEntity, $emailTemplateName, $emailSubject);
+            $this->info('Email Successfully sent to: ' . $userModelEntity->getId() . ' on app: ' . $app->getId());
+            exit();
+        }
 
         $user = DB::table('users_associated_apps')
         ->where('apps_id', $app->id) // Assuming 'app_id' is the foreign key
@@ -48,18 +57,28 @@ class MailAllAppUsersCommand extends Command
         ->orderBy('users_id') // Order by primary or unique key for consistency
         ->chunk(100, function ($users) use ($app) {
             foreach ($users as $user) {
+            
                 $userModelEntity = Users::getByEmail($user->email);
-                $notification = new Blank(
-                    $this->argument('email_template_name'),
-                    ['userFirstname' => $user->firstname],
-                    ['mail'],
-                    $userModelEntity
-                );
-                $notification->setSubject($this->argument('subject'));
-                Notification::route('mail', $user->email)->notify($notification);
+                $this->sendEmailToUser($userModelEntity, $emailTemplateName, $emailSubject);
                 $this->info('Email Successfully sent to: ' . $user->users_id . ' on app: ' . $app->getId());
                 $this->newLine();
             }
         });
+    }
+
+    /**
+     * Send email to user using a custom template
+     *
+     */
+    private function sendEmailToUser(Users $user, string $emailTemplateName, string $emailSubject) : void
+    {
+        $notification = new Blank(
+            $emailTemplateName,
+            ['userFirstname' => $user->firstname],
+            ['mail'],
+            $user
+        );
+        $notification->setSubject($emailSubject);
+        Notification::route('mail', $user->email)->notify($notification);
     }
 }
