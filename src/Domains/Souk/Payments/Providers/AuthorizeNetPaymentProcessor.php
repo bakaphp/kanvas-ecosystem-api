@@ -203,7 +203,7 @@ class AuthorizeNetPaymentProcessor
     /**
      * @todo move to its own class
      */
-    public function createCustomerPaymentProfile(DirectOrder $orderInput)
+    public function createCustomerProfileWithPayment(DirectOrder $orderInput)
     {
         /* Create a merchantAuthenticationType object with authentication details
         retrieved from the constants file */
@@ -236,7 +236,7 @@ class AuthorizeNetPaymentProcessor
 
 
         // Assemble the complete transaction request
-        $request = new AnetAPI\CreateTransactionRequest();
+        $request = new AnetAPI\CreateCustomerProfileRequest();
         $request->setMerchantAuthentication($merchantAuthentication);
         $request->setRefId($this->refId);
         $request->setProfile($customerProfile);
@@ -247,5 +247,94 @@ class AuthorizeNetPaymentProcessor
         return $controller->executeWithApiResponse(
             $this->company->get('MERCHANT_PRODUCTION') ? ANetEnvironment::PRODUCTION : ANetEnvironment::SANDBOX
         );
+    }
+
+    public function createCustomerPaymentProfile(DirectOrder $orderInput)
+    {
+        /* Create a merchantAuthenticationType object with authentication details
+        retrieved from the constants file */
+        $merchantAuthentication = $this->setupMerchantAuthentication();
+
+        // Set credit card information for payment profile
+        $creditCard = $this->setCreditCard($orderInput->creditCard);
+        $paymentCreditCard = new AnetAPI\PaymentType();
+        $paymentCreditCard->setCreditCard($creditCard);
+
+        // Create the Bill To info for new payment type
+        // Set the customer's identifying information
+        $customerAddress = $this->setCustomerBillingAddress($orderInput);
+
+
+        // Create a new CustomerPaymentProfile object
+        $paymentProfile = new AnetAPI\CustomerPaymentProfileType();
+        $paymentProfile->setCustomerType('individual');
+        $paymentProfile->setBillTo($customerAddress);
+        $paymentProfile->setPayment($paymentCreditCard);
+        $paymentProfiles[] = $paymentProfile;
+
+        // Assemble the complete transaction request
+        $paymentprofilerequest = new AnetAPI\CreateCustomerPaymentProfileRequest();
+        $paymentprofilerequest->setMerchantAuthentication($merchantAuthentication);
+
+        // Add an existing profile id to the request
+        $paymentprofilerequest->setCustomerProfileId($orderInput->customerProfile->id);
+        $paymentprofilerequest->setPaymentProfile($paymentProfile);
+        $paymentprofilerequest->setValidationMode("liveMode");
+
+        // Create the controller and get the response
+        $controller = new AnetController\CreateCustomerPaymentProfileController($paymentprofilerequest);
+
+        return $controller->executeWithApiResponse(
+            $this->company->get('MERCHANT_PRODUCTION') ? ANetEnvironment::PRODUCTION : ANetEnvironment::SANDBOX
+        );
+    }
+
+    public function updateCustomerPaymentProfile(DirectOrder $orderInput)
+    {
+        /* Create a merchantAuthenticationType object with authentication details
+        retrieved from the constants file */
+        $merchantAuthentication = $this->setupMerchantAuthentication();
+
+        $profile = new AnetAPI\GetCustomerPaymentProfileRequest();
+        $profile->setMerchantAuthentication($merchantAuthentication);
+        $profile->setRefId($this->refId);
+        $profile->setCustomerProfileId($orderInput->customerProfile->id);
+        $profile->setCustomerPaymentProfileId($orderInput->customerPaymentProfile->id);
+
+        $profileController = new AnetController\GetCustomerPaymentProfileController($request);
+
+        $profileResponse = $profileController->executeWithApiResponse(
+            $this->company->get('MERCHANT_PRODUCTION') ? ANetEnvironment::PRODUCTION : ANetEnvironment::SANDBOX
+        );
+
+        if (($profileResponse != null) && ($profileResponse->getMessages()->getResultCode() == "Ok")) {
+            // Set credit card information for payment profile
+            $creditCard = $this->setCreditCard($orderInput->creditCard);
+            $paymentCreditCard = new AnetAPI\PaymentType();
+            $paymentCreditCard->setCreditCard($creditCard);
+
+            // Create the Bill To info for new payment type
+            // Set the customer's identifying information
+            $customerAddress = $this->setCustomerBillingAddress($orderInput);
+
+            $paymentprofile = new AnetAPI\CustomerPaymentProfileExType();
+            $paymentprofile->setBillTo($customerAddress);
+            $paymentprofile->setCustomerPaymentProfileId($orderInput->customerPaymentProfile->id);
+            $paymentprofile->setPayment($paymentCreditCard);
+            
+            // Submit a UpdatePaymentProfileRequest
+            $request = new AnetAPI\UpdateCustomerPaymentProfileRequest();
+            $request->setMerchantAuthentication($merchantAuthentication);
+            $request->setCustomerProfileId($orderInput->customerProfile->id);
+            $request->setPaymentProfile( $paymentprofile );
+
+            $controller = new AnetController\UpdateCustomerPaymentProfileController($request);
+
+            return $controller->executeWithApiResponse(
+                $this->company->get('MERCHANT_PRODUCTION') ? ANetEnvironment::PRODUCTION : ANetEnvironment::SANDBOX
+            );
+        } else {
+            return $profileResponse;
+        }
     }
 }
