@@ -48,15 +48,16 @@ class MailAllAppUsersCommand extends Command
         ->orderBy('users_id') // Order by primary or unique key for consistency
         ->chunk(100, function ($users) use ($app) {
             foreach ($users as $user) {
+                $userModelEntity = Users::getByEmail($user->email);
                 $notification = new Blank(
                     $this->argument('email_template_name'),
                     ['userFirstname' => $user->firstname],
                     ['mail'],
-                    $user
+                    $userModelEntity
                 );
                 $notification->setSubject($this->argument('subject'));
                 Notification::route('mail', $user->email)->notify($notification);
-                $this->info('Email Successfully sent to: ' . $user->getId() . ' on app: ' . $app->getId());
+                $this->info('Email Successfully sent to: ' . $user->users_id . ' on app: ' . $app->getId());
                 $this->newLine();
             }
         });
