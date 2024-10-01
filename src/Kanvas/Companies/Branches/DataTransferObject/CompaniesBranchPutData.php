@@ -20,7 +20,7 @@ class CompaniesBranchPutData extends Data
     public function __construct(
         public string $name,
         public int $companies_id,
-        public int $is_default = 0,
+        public ?int $is_default = null,
         public bool $is_active = true,
         public ?string $email = null,
         public ?string $address = null,
@@ -37,6 +37,7 @@ class CompaniesBranchPutData extends Data
      */
     public static function viaRequest(Request $request): self
     {
+        // send the same amount of fields as the other function or just leave one.
         return new self(
             name: $request->get('name'),
             companies_id: (int) $request->get('companies_id'),
@@ -56,7 +57,7 @@ class CompaniesBranchPutData extends Data
         return new self(
             name: $data['name'],
             companies_id : (int) $data['companies_id'],
-            is_default : (int) $data['is_default'],
+            is_default : ! empty($data['is_default']) ? (int) $data['is_default'] : null,
             email : $data['email'] ?? null,
             phone : $data['phone'] ?? null,
             address : $data['address'] ?? null,
