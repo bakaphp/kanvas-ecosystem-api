@@ -33,9 +33,9 @@ class UpdateCompanyBranchActions
         // Validate if is_default is send otherwise get the existed value.
         // $this->data->is_default = $this->data->is_default ?? $companyBranch->is_default;
 
-        if ($this->data->is_default === StateEnums::YES->getValue()) {
-            $company->branches()->update(['is_default' => StateEnums::NO->getValue()]);
-        }
+        // if ($this->data->is_default === StateEnums::YES->getValue()) {
+        //     $company->branches()->update(['is_default' => StateEnums::NO->getValue()]);
+        // }
 
         // $companyBranch->is_default = $this->data->is_default;
         $companyBranch->name = $this->data->name;
