@@ -7,13 +7,12 @@ namespace App\Console\Commands\Ecosystem\Notifications;
 use Baka\Enums\StateEnums;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Notifications\Templates\Blank;
-use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\Users;
-use Illuminate\Support\Facades\DB;
 
 class MailAllAppUsersCommand extends Command
 {
@@ -67,7 +66,6 @@ class MailAllAppUsersCommand extends Command
 
     /**
      * Send email to user using a custom template
-     *
      */
     private function sendEmailToUser(Users $user, string $emailTemplateName, string $emailSubject): void
     {
