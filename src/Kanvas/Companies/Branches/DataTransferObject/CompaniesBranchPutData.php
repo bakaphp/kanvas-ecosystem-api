@@ -57,7 +57,7 @@ class CompaniesBranchPutData extends Data
         return new self(
             name: $data['name'],
             companies_id : (int) $data['companies_id'],
-            is_default : !empty($data['is_default']) ? (int) $data['is_default'] : null,
+            is_default : ! empty($data['is_default']) ? (int) $data['is_default'] : null,
             email : $data['email'] ?? null,
             phone : $data['phone'] ?? null,
             address : $data['address'] ?? null,
