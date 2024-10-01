@@ -17,7 +17,7 @@ use Kanvas\Enums\AppEnums;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
-class KanvasAppKey
+class KanvasAppKeyMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {

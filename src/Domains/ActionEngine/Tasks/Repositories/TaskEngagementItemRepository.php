@@ -21,6 +21,7 @@ class TaskEngagementItemRepository
         ->when($taskListId, function ($query, $taskListId) {
             return $query->where('company_task_list_items.task_list_id', $taskListId);
         })
+        ->orderBy('company_task_list_items.weight', 'asc')
         ->select(
             'company_task_list_items.*',
             'company_task_engagement_items.lead_id',
