@@ -61,7 +61,10 @@ class SubscriptionMutation
             }
         }
 
-        return $companyStripeAccount->subscriptions()->firstOrFail();
+        $createdSubscription = $companyStripeAccount->subscriptions()->firstOrFail();
+        $createdSubscription->apps_plans_name = $subscriptionInput->price->plan->name;
+
+        return $createdSubscription;
     }
 
     public function update($root, array $args, $context, $info): Subscription

@@ -9,6 +9,7 @@ type CompanySubscription {
     ends_at: DateTime
     created_at: String
     updated_at: String
+    apps_plans_name: String
 }
 
 type SubscriptionItem {
