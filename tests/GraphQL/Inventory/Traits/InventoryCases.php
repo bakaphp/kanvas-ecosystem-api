@@ -10,10 +10,12 @@ trait InventoryCases
     public function createProduct(array $data = []): TestResponse
     {
         if (empty($data)) {
+            $name = fake()->name;
             $data = [
-                'name' => fake()->name,
+                'name' => $name,
                 'description' => fake()->text,
                 'sku' => fake()->time,
+                'slug' => Str::slug($name),
                 'attributes' => [
                     [
                         'name' => fake()->name,
@@ -30,6 +32,7 @@ trait InventoryCases
                     id
                     name
                     description
+                    slug
                     attributes {
                         name
                         value
