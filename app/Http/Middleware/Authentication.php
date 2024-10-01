@@ -4,7 +4,6 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Exception;
-use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Kanvas\Apps\Models\Apps;
@@ -25,15 +24,15 @@ class Authentication
         if (! empty($request->bearerToken())) {
             $token = $this->decodeToken($request->bearerToken());
         } else {
-            throw new AuthorizationException('Missing Token');
+            throw new Exception('Missing Token');
         }
 
         if (! $this->validateJwtToken($token)) {
-            throw new AuthorizationException('Invalid Token');
+            throw new Exception('Invalid Token');
         }
 
         if ($token->isExpired(now())) {
-            throw new AuthorizationException('Token Expired');
+            throw new Exception('Token Expired');
         }
 
         //  $user = $this->sessionUser($token, $request);

@@ -53,10 +53,6 @@ class TokenGuard extends AuthTokenGuard
                     throw new AuthorizationException('Invalid Token');
                 }
 
-                if ($token->isExpired(now())) {
-                    throw new AuthorizationException('Token Expired');
-                }
-
                 return $token;
             }
         }
