@@ -29,14 +29,15 @@ class UpdateCompanyBranchActions
         CompaniesRepository::userAssociatedToCompanyAndBranch($company, $companyBranch, $this->user);
 
         //@todo Add observer for is_default value on company branches.
+        // dont update is_default until the frontend start to send a valid is_default
         // Validate if is_default is send otherwise get the existed value.
-        $this->data->is_default = $this->data->is_default ?? $companyBranch->is_default;
+        // $this->data->is_default = $this->data->is_default ?? $companyBranch->is_default;
 
         if ($this->data->is_default === StateEnums::YES->getValue()) {
             $company->branches()->update(['is_default' => StateEnums::NO->getValue()]);
         }
 
-        $companyBranch->is_default = $this->data->is_default;
+        // $companyBranch->is_default = $this->data->is_default;
         $companyBranch->name = $this->data->name;
         $companyBranch->address = $this->data->address;
         $companyBranch->email = $this->data->email;
