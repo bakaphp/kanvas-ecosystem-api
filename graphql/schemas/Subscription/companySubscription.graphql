@@ -7,9 +7,9 @@ type CompanySubscription {
     quantity: Int!
     trial_ends_at: DateTime
     ends_at: DateTime
+    apps_plans_name: String!
     created_at: String
     updated_at: String
-    apps_plans_name: String!
 }
 
 type SubscriptionItem {
