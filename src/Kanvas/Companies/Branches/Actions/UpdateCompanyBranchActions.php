@@ -34,7 +34,7 @@ class UpdateCompanyBranchActions
         }
 
         $data = array_filter($this->data->toArray(), function ($value) {
-            return !is_null($value);
+            return $value !== null;
         });
 
         $companyBranch->updateOrFail($data);

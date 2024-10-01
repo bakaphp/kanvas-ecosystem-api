@@ -26,7 +26,7 @@ class UpdateCompaniesAction
         CompaniesRepository::userAssociatedToCompany($this->companies, $this->user);
 
         $data = array_filter($this->data->toArray(), function ($value) {
-            return !is_null($value);
+            return $value !== null;
         });
 
         $this->companies->updateOrFail($data);
