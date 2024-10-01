@@ -2,11 +2,8 @@
 
 namespace App\Exceptions;
 
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\JsonResponse;
-use Kanvas\Auth\Exceptions\AuthenticationException;
-use Nuwave\Lighthouse\Exceptions\AuthenticationException as ExceptionsAuthenticationException;
 use Sentry\Laravel\Integration;
 use Throwable;
 
@@ -18,7 +15,7 @@ class Handler extends ExceptionHandler
      * @var array<int, class-string<Throwable>>
      */
     protected $dontReport = [
-        // Add exceptions you don't want to report
+
     ];
 
     /**
@@ -34,8 +31,10 @@ class Handler extends ExceptionHandler
 
     /**
      * Register the exception handling callbacks for the application.
+     *
+     * @return void
      */
-    public function register(): void
+    public function register()
     {
         $this->reportable(function (Throwable $e) {
             Integration::captureUnhandledException($e);
@@ -50,50 +49,12 @@ class Handler extends ExceptionHandler
     public function render($request, Throwable $exception): JsonResponse
     {
         if (app()->isProduction()) {
-            $response = $this->prepareErrorResponse($exception);
-
-            if ($response) {
-                return $response;
-            }
-
             return response()->json([
                 'message' => 'A server error has occurred. We are looking into it',
             ], 503);
         }
 
         return parent::render($request, $exception);
-    }
-
-    /**
-     * Prepare a structured error response based on the exception type.
-     */
-    protected function prepareErrorResponse(Throwable $exception): ?JsonResponse
-    {
-        // Use match expression to handle different exception types
-        return match (true) {
-            $exception instanceof AuthorizationException => $this->buildErrorResponse($exception, 403, $exception->getMessage()),
-            $exception instanceof AuthenticationException => $this->buildErrorResponse($exception, 403, $exception->getMessage()),
-            $exception instanceof ExceptionsAuthenticationException => $this->buildErrorResponse($exception, 403, $exception->getMessage()),
-            // Add more exceptions here as needed
-            default => null,
-        };
-    }
-
-    /**
-     * Build the error response in the desired structure.
-     */
-    protected function buildErrorResponse(Throwable $exception, int $status, string $message): JsonResponse
-    {
-        return response()->json([
-            'errors' => [
-                [
-                    'message' => $message,
-                    'extensions' => [
-                        'reason' => null, // You can populate this if needed
-                    ],
-                ],
-            ],
-        ], $status);
     }
 
     /**
