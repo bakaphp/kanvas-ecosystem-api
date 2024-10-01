@@ -12,11 +12,27 @@ input CreateUserInput {
     create_company: Boolean
 }
 
+input UpdateUserAppInput {
+    firstname: String
+    lastname: String
+    user_active: Boolean
+    is_active: Boolean
+    banned: Boolean
+    status: Int
+    welcome: Boolean
+    configuration: String
+    timezone: String
+}
+
 extend type Mutation @guardByAppKey {
     appCreateUser(data: CreateUserInput!): User!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@createUser"
         )
+    appUpdateUser(user_uuid: ID, input: UpdateUserAppInput!): Boolean!
+    @field(
+        resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@updateUser"
+    )
     appDeleteUser(user_id: ID): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppUserManagementMutation@appDeleteUser"

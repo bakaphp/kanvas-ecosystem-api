@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\CreateUserAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Users\DataTransferObject\UpdateUser;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Repositories\UsersRepository;
@@ -36,6 +37,17 @@ class AppUserManagementMutation
         UsersRepository::belongsToThisApp($user, $app);
 
         return $user->updateEmail($request['email'], $app);
+    }
+
+    public function updateUser(mixed $root, array $request): bool
+    {
+        $user = Users::getByUuid($request['user_uuid']);
+        $app = app(Apps::class);
+        UsersRepository::belongsToThisApp($user, $app);
+        $dto = UpdateUser::from($request['input']);
+        $profile = $user->getAppProfile($app);
+
+        return $profile->updateOrFail($dto->toArray());
     }
 
     public function createUser(mixed $rootValue, array $request): Users
