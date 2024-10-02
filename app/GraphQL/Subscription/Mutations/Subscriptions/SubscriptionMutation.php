@@ -55,16 +55,16 @@ class SubscriptionMutation
                 if ($subscriptionInput->price->plan->free_trial_days) {
                     $subscription->trialDays($subscriptionInput->price->plan->free_trial_days);
                 }
-                $subscription->create($subscriptionInput->payment_method_id);
+                $createdSubscription = $subscription->create($subscriptionInput->payment_method_id);
+                foreach ($createdSubscription->items as $item) {
+                    $item->stripe_product_name = $subscriptionInput->price->plan->name;
+                    $item->save();
+                }
             } catch (Throwable $e) {
                 throw new ValidationException($e->getMessage());
             }
         }
-
-        $createdSubscription = $companyStripeAccount->subscriptions()->firstOrFail();
-        $createdSubscription->apps_plans_name = $subscriptionInput->price->plan->name;
-
-        return $createdSubscription;
+        return $companyStripeAccount->subscriptions()->firstOrFail();
     }
 
     public function update($root, array $args, $context, $info): Subscription
