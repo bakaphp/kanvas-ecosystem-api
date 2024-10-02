@@ -134,7 +134,7 @@ class Sessions extends PersonalAccessToken
             ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException("No record found for $id");
+            throw new ExceptionsModelNotFoundException("No record found for Token $id");
         }
     }
 

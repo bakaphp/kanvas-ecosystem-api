@@ -23,7 +23,7 @@ class ProductsTypes extends Data
         public string $name,
         public ?string $description = null,
         public int $weight = 0,
-        public bool $is_published = true,
+        public bool $isPublished = true,
     ) {
     }
 
