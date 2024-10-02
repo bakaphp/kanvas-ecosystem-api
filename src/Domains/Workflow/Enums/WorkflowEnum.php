@@ -16,4 +16,5 @@ enum WorkflowEnum: string
     case REQUEST_FORGOT_PASSWORD = 'request-forgot-password';
     case CREATE_CUSTOM_FIELD = 'create-custom-field';
     case CREATE_CUSTOM_FIELDS = 'create-custom-fields';
+    case CREATE_FILESYSTEM_ENUM = 'create-filesystem-enum';
 }

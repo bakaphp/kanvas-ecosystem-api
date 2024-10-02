@@ -5,11 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Traits;
 
 use Baka\Enums\StateEnums;
-use Baka\Support\Image;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
-use Illuminate\Support\Facades\Storage;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
@@ -19,9 +17,10 @@ use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
-use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Filesystem\Workflows\DownloadImageWorkflow;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use RuntimeException;
+use Workflow\WorkflowStub;
 
 trait HasFilesystemTrait
 {
@@ -45,27 +44,7 @@ trait HasFilesystemTrait
      */
     public function addFileFromUrl(string $url, string $fieldName): bool
     {
-        $fileSystemService = new FilesystemServices($this->app, $this->company);
-        $storage = $fileSystemService->getStorageByDisk();
-        $app = $this->app ?? app(Apps::class);
         $companyId = $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
-        $fileName = basename($url);
-        $fileDownload = Image::downloadFileToLocalDisk($url, 'temporal/' . $fileName);
-        if ($app->get('size_product_width') && $app->get('size_product_height')) {
-            $fileDownload = storage_path('app/temporal/' . $fileName);
-            $fileDownload = Image::resizeImageGD($fileDownload, $app->get('size_product_width'), $app->get('size_product_height'));
-        }
-        $fileDownload = Storage::disk('local')->get($fileDownload);
-
-        $file = $storage->put($fileName, $fileDownload, [
-            'visibility' => 'public',
-        ]);
-        Storage::disk('local')->delete($fileName);
-        if (! $file) {
-            throw new RuntimeException('Error uploading file');
-        }
-
-        $url = $storage->url($fileName);
         //@todo allow to share media between company only of it the apps specifies it
         $fileSystem = Filesystem::fromApp()
             ->when($companyId > 0, function ($query) use ($companyId) {
@@ -92,6 +71,9 @@ trait HasFilesystemTrait
         }
 
         $attachFilesystem = new AttachFilesystemAction($fileSystem, $this);
+        $app = $this->app ?? app(Apps::class);
+        $workflow = WorkflowStub::make(DownloadImageWorkflow::class);
+        $workflow->start($app, $fileSystem);
 
         return $attachFilesystem->execute($fieldName) instanceof FilesystemEntities;
     }
