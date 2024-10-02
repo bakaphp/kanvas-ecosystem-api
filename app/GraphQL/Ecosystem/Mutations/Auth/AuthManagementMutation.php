@@ -6,7 +6,7 @@ namespace App\GraphQL\Ecosystem\Mutations\Auth;
 
 use Baka\Validations\PasswordValidation;
 use GraphQL\Type\Definition\ResolveInfo;
-use Illuminate\Auth\Access\AuthorizationException;
+use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
 use Kanvas\Apps\Models\Apps;
@@ -144,7 +144,7 @@ class AuthManagementMutation
     {
         $token = $this->decodeToken($req['refresh_token']);
         if ($token->isExpired(now())) {
-            throw new AuthorizationException('Expired refresh token');
+            throw new AuthorizationException('Token Expired');
         }
         $user = UsersRepository::getByEmail($token->claims()->get('email'));
 

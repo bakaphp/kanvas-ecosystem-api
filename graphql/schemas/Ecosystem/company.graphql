@@ -107,8 +107,11 @@ input CompanyInput {
     files: [FilesystemInputUrl!]
     custom_fields: [CustomFieldEntityInput!]
     is_active: Boolean
+    timezone: String
 }
 
+### @todo Split the create and update input.
+### @todo Required is_default value.
 input CompanyBranchInput {
     name: String!
     companies_id: ID!
