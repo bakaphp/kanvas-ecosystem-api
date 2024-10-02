@@ -58,7 +58,7 @@ class SubscriptionMutation
                 $createdSubscription = $subscription->create($subscriptionInput->payment_method_id);
                 foreach ($createdSubscription->items as $item) {
                     $item->stripe_product_name = $subscriptionInput->price->plan->name;
-                    $item->save(); 
+                    $item->save();
                 }
             } catch (Throwable $e) {
                 throw new ValidationException($e->getMessage());
