@@ -56,7 +56,7 @@ trait HasFilesystemTrait
             $fileDownload = Image::resizeImageGD($fileDownload, $app->get('size_product_width'), $app->get('size_product_height'));
         }
         $fileDownload = Storage::disk('local')->get($fileDownload);
-       
+
         $file = $storage->put($fileName, $fileDownload, [
             'visibility' => 'public',
         ]);
