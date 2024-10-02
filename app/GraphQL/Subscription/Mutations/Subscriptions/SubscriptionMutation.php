@@ -89,6 +89,11 @@ class SubscriptionMutation
 
         $upgradeSubscription->swap($newPrice->stripe_id);
 
+        foreach ($upgradeSubscription->items as $item) {
+            $item->stripe_product_name = $newPrice->plan->name;
+            $item->save();
+        }
+
         return $upgradeSubscription;
     }
 
