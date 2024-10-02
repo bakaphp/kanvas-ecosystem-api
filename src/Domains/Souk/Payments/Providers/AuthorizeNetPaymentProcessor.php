@@ -334,7 +334,7 @@ class AuthorizeNetPaymentProcessor
         }
     }
 
-    public function deleteCustomerPaymentProfile(DirectOrder $orderInput) 
+    public function deleteCustomerPaymentProfile(DirectOrder $orderInput)
     {
         /* Create a merchantAuthenticationType object with authentication details
         retrieved from the constants file */
