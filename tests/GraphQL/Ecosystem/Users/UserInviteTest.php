@@ -39,6 +39,33 @@ class UserInviteTest extends TestCase
         ->assertSeeText('invite_hash');
     }
 
+    public function testInviteNewUserWithoutLastName(): void
+    {
+        Notification::fake();
+
+        $this->graphQL( /** @lang GraphQL */
+            '
+            mutation inviteUser($data: InviteInput!) {
+                inviteUser(input: $data)
+                {
+                   id,
+                   email,
+                   invite_hash,
+                }
+            }',
+            [
+                'data' => [
+                    'role_id' => RolesRepository::getByNameFromCompany('Users')->id,
+                    'email' => fake()->email(),
+                    'firstname' => fake()->firstName(),
+                    'custom_fields' => [],
+                ],
+            ]
+        )
+        ->assertSuccessful()
+        ->assertSeeText('invite_hash');
+    }
+
     public function testProcessInvite(): void
     {
         Notification::fake();
@@ -79,6 +106,59 @@ class UserInviteTest extends TestCase
                 'data' => [
                     'firstname' => fake()->firstName(),
                     'lastname' => fake()->lastName(),
+                    'password' => fake()->password(8),
+                    'invite_hash' => $invite['invite_hash'],
+                    'phone_number' => fake()->phoneNumber(),
+
+                ],
+            ]
+        )->assertSuccessful()
+        ->assertSeeText('id');
+
+        $this->assertArrayHasKey('id', $response->json('data.processInvite'));
+        $userId = $response->json('data.processInvite.id');
+        $user = Users::getById($userId);
+        $this->assertEquals($user->email, $invite['email']);
+    }
+
+    public function testProcessInviteWithoutLastName(): void
+    {
+        Notification::fake();
+
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation inviteUser($data: InviteInput!) {
+                inviteUser(input: $data)
+                {
+                   id,
+                   email,
+                   invite_hash,
+                }
+            }',
+            [
+                'data' => [
+                    'role_id' => RolesRepository::getByNameFromCompany('Users')->id,
+                    'email' => fake()->email(),
+                    'firstname' => fake()->firstName(),
+                    'custom_fields' => [],
+
+                ],
+            ]
+        );
+
+        $invite = $response->json('data.inviteUser');
+
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation processInvite($data: CompleteInviteInput!) {
+                processInvite(input: $data)
+                {
+                   id
+                }
+            }',
+            [
+                'data' => [
+                    'firstname' => fake()->firstName(),
                     'password' => fake()->password(8),
                     'invite_hash' => $invite['invite_hash'],
                     'phone_number' => fake()->phoneNumber(),

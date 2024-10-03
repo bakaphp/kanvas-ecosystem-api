@@ -24,7 +24,12 @@ class UpdateCompaniesAction
     public function execute(): Companies
     {
         CompaniesRepository::userAssociatedToCompany($this->companies, $this->user);
-        $this->companies->updateOrFail($this->data->toArray());
+
+        $data = array_filter($this->data->toArray(), function ($value) {
+            return $value !== null;
+        });
+
+        $this->companies->updateOrFail($data);
 
         if ($this->data->files) {
             $this->companies->addMultipleFilesFromUrl($this->data->files);

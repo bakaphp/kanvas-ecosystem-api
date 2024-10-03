@@ -114,6 +114,7 @@ class ShopifyInventoryService
             'quantity' => $quantity,
             'compare_at_price' => $discountedPrice ?? 0,
             'inventory_policy' => 'deny',
+            'published' => $price > 0,
         ];
 
         if ($quantity > 0) {

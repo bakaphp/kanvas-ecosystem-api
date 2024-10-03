@@ -48,6 +48,8 @@ class CompaniesBranches extends BaseModel
      */
     protected $table = 'companies_branches';
 
+    protected $guarded = ['email', 'users_id', 'companies_id'];
+
     /**
      * Create a new factory instance for the model.
      *

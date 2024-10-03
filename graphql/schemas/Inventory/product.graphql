@@ -70,6 +70,7 @@ input ProductAttributesInput {
 input ProductInputUpdate {
     products_types_id: Int
     name: String
+    slug: String
     description: String
     short_description: String
     html_description: String

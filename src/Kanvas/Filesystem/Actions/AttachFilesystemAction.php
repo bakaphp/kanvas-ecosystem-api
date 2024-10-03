@@ -32,32 +32,58 @@ class AttachFilesystemAction
         $systemModule = SystemModulesRepository::getByModelName($this->entity::class, $this->filesystem->app);
         $update = (int) $id > 0;
         $allowDuplicateFiles = $this->filesystem->app->get(AppSettingsEnums::FILESYSTEM_ALLOW_DUPLICATE_FILES_BY_NAME->getValue());
+        $runUpdate = false;
 
         if ($update) {
             $fileEntity = FilesystemEntitiesRepository::getByIdAdnEntity((int) $id, $this->entity);
         } else {
-            $filter = [
+            /**
+             * @todo improve this code, doesn't look good but works
+             */
+            $fileEntity = FilesystemEntities::where([
                 'entity_id' => $this->entity->getKey(),
                 'system_modules_id' => $systemModule->getKey(),
-                //'filesystem_id' => $this->filesystem->getKey(),
-                //'companies_id' => $this->filesystem->companies_id,
-            ];
-            if (! $allowDuplicateFiles) {
-                $filter['field_name'] = $fieldName;
-            } else {
-                $filter['filesystem_id'] = $this->filesystem->getKey();
+                'filesystem_id' => $this->filesystem->getKey(),
+                'companies_id' => $this->filesystem->companies_id,
+              //  'is_deleted' => StateEnums::NO->getValue(),
+            ])->first();
+
+            if (! $fileEntity) {
+                $filter = [
+                    'entity_id' => $this->entity->getKey(),
+                    'system_modules_id' => $systemModule->getKey(),
+                    //'filesystem_id' => $this->filesystem->getKey(),
+                    //'companies_id' => $this->filesystem->companies_id,
+                ];
+                if (! $allowDuplicateFiles) {
+                    $filter['field_name'] = $fieldName;
+                } else {
+                    $filter['filesystem_id'] = $this->filesystem->getKey();
+                }
+                $fileEntity = FilesystemEntities::firstOrCreate($filter, [
+                   'companies_id' => $this->filesystem->companies_id,
+                ]);
             }
-            $fileEntity = FilesystemEntities::firstOrCreate($filter, [
-               'companies_id' => $this->filesystem->companies_id,
-            ]);
         }
 
-        $fileEntity->filesystem_id = $this->filesystem->getKey();
-        if ($allowDuplicateFiles) {
-            $fileEntity->field_name = $fieldName;
+        if ($fileEntity->filesystem_id != $this->filesystem->getKey()) {
+            $fileEntity->filesystem_id = $this->filesystem->getKey();
+            $runUpdate = true;
         }
-        $fileEntity->is_deleted = StateEnums::NO->getValue();
-        $fileEntity->saveOrFail();
+
+        if ($fileEntity->field_name != $fieldName) {
+            $fileEntity->field_name = $fieldName;
+            $runUpdate = true;
+        }
+
+        if ($fileEntity->is_deleted == StateEnums::YES->getValue()) {
+            $fileEntity->is_deleted = StateEnums::NO->getValue();
+            $runUpdate = true;
+        }
+
+        if ($runUpdate) {
+            $fileEntity->saveOrFail();
+        }
 
         if ($this->entity->hasWorkflow()) {
             $this->entity->fireWorkflow(WorkflowEnum::ATTACH_FILE->value);

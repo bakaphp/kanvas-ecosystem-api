@@ -23,7 +23,7 @@ class Company extends Data
         public ?int $currency_id = null,
         public ?array $files = null,
         public array $custom_fields = [],
-        public bool $is_active = true
+        public bool $is_active = true,
     ) {
     }
 

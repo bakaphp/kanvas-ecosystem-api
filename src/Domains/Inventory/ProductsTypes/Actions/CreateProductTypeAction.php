@@ -43,7 +43,7 @@ class CreateProductTypeAction
             'description' => $this->data->description,
             'weight' => $this->data->weight,
             'users_id' => $this->user->getId(),
-            'is_published' => $this->data->is_published
+            'is_published' => $this->data->isPublished
         ]);
     }
 }
