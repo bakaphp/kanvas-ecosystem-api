@@ -68,12 +68,11 @@ class Products
     {
         $product = ProductsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
 
-        $dispatcher = Variants::getEventDispatcher();
-        Variants::unsetEventDispatcher();
-
-        foreach ($product->variants as $variant) {
-            $variant->delete();
-        }
+        Variants::withoutEvents(function () use ($product) {
+            foreach ($product->variants as $variant) {
+                $variant->delete();
+            }
+        }); 
 
         return $product->delete();
     }
