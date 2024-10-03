@@ -65,7 +65,7 @@ class BatchProductImporterJob implements ShouldQueue, ShouldBeUnique
             )
         )->progress(function ($totalProcessSuccessfully) {
             $totalProcessSuccessfully++;
-        })->catch(function ( $totalProcessFailed, Throwable $e) {
+        })->catch(function ($totalProcessFailed, Throwable $e) {
             $errors[] = [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -88,7 +88,5 @@ class BatchProductImporterJob implements ShouldQueue, ShouldBeUnique
                 'finished_at' => now(),
             ]);
         }
-
-        
     }
 }
