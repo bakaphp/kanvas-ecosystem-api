@@ -99,6 +99,13 @@ final class SubscriptionsTest extends TestCase
                     id
                     stripe_id
                     stripe_status
+                    items {
+                        id
+                        stripe_id
+                        stripe_product
+                        stripe_product_name
+                        stripe_price
+                    }
                 }
             }
         ', [], [], [
