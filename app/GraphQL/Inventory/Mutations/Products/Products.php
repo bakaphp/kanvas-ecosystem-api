@@ -72,7 +72,7 @@ class Products
             foreach ($product->variants as $variant) {
                 $variant->delete();
             }
-        }); 
+        });
 
         return $product->delete();
     }
