@@ -7,7 +7,6 @@ type CompanySubscription {
     quantity: Int!
     trial_ends_at: DateTime
     ends_at: DateTime
-    apps_plans_name: String!
     created_at: String
     updated_at: String
 }
@@ -16,6 +15,7 @@ type SubscriptionItem {
     id: ID!
     stripe_id: ID!
     stripe_product: ID!
+    stripe_product_name: String!
     stripe_price: ID!
     quantity: Int!
     created_at: DateTime

@@ -29,21 +29,15 @@ class UpdateCompanyBranchActions
         CompaniesRepository::userAssociatedToCompanyAndBranch($company, $companyBranch, $this->user);
 
         //@todo Add observer for is_default value on company branches.
-        // Validate if is_default is send otherwise get the existed value.
-        $this->data->is_default = $this->data->is_default ?? $companyBranch->is_default;
-
         if ($this->data->is_default === StateEnums::YES->getValue()) {
             $company->branches()->update(['is_default' => StateEnums::NO->getValue()]);
         }
 
-        $companyBranch->is_default = $this->data->is_default;
-        $companyBranch->name = $this->data->name;
-        $companyBranch->address = $this->data->address;
-        $companyBranch->email = $this->data->email;
-        $companyBranch->phone = $this->data->phone;
-        $companyBranch->zipcode = $this->data->zipcode;
-        $companyBranch->is_active = $this->data->is_active;
-        $companyBranch->updateOrFail();
+        $data = array_filter($this->data->toArray(), function ($value) {
+            return $value !== null;
+        });
+
+        $companyBranch->updateOrFail($data);
 
         if ($this->data->files) {
             $companyBranch->addMultipleFilesFromUrl($this->data->files);
