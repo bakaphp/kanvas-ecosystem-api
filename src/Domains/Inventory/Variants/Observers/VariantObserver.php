@@ -16,8 +16,12 @@ class VariantObserver
 
     public function deleting(Variants $variant): void
     {
-        if ($variant->isLastVariant()) {
-            throw new ValidationException('Can\'t delete, you have to have at least one Variant per product');
+        $totalVariant = Variants::fromCompany($variant->company)
+        ->where('products_id', $variant->products_id)
+        ->count();
+
+        if ($totalVariant === 1 && ! $variant->is_deleted) {
+            throw new ValidationException('There must be at least one variant for each product.');
         }
     }
 }

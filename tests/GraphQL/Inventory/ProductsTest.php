@@ -169,4 +169,54 @@ class ProductsTest extends TestCase
             'data' => ['deleteVariant' => true],
         ]);
     }
+
+    /**
+     * testDeleteLastVariantToProduct.
+     */
+    public function testDeleteLastVariantToProduct(): void
+    {
+        // Create product with default variant
+        $productData = [
+            'name' => fake()->name,
+            'description' => fake()->text,
+            'sku' => fake()->time,
+        ];
+        $productResponse = $this->graphQL('
+        mutation($data: ProductInput!) {
+            createProduct(input: $data)
+            {
+                id
+                name
+                description
+                variants {
+                    id
+                }
+            }
+        }', ['data' => $productData]);
+
+        $productResponse->assertJsonStructure([
+            'data' => [
+                'createProduct' => [
+                    'id',
+                    'name',
+                    'description',
+                    'variants' => [
+                        ['id']
+                    ]
+                ]
+            ]
+        ]);
+
+        $productId = $productResponse->json()['data']['createProduct']['id'];
+        $defaultVariantId = $productResponse->json()['data']['createProduct']['variants'][0]['id'];
+
+        // Try delete default product variant
+        $deleteResponse = $this->graphQL('
+        mutation($id: ID!) {
+            deleteVariant(id: $id)
+        }', ['id' => $defaultVariantId]);
+
+        $this->assertArrayHasKey('errors', $deleteResponse->json());
+        $this->assertNull($deleteResponse->json()['data']['deleteVariant']);
+    }
 }

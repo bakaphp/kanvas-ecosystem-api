@@ -14,6 +14,7 @@ use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products as ProductsModel;
 use Kanvas\Inventory\Products\Repositories\ProductsRepository;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
+use Kanvas\Inventory\Variants\Models\Variants;
 
 class Products
 {
@@ -66,6 +67,12 @@ class Products
     public function delete(mixed $root, array $req): bool
     {
         $product = ProductsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
+
+        Variants::withoutEvents(function () use ($product) {
+            foreach ($product->variants as $variant) {
+                $variant->delete();
+            }
+        });
 
         return $product->delete();
     }
