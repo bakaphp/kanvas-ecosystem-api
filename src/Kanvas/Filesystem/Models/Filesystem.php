@@ -35,7 +35,7 @@ class Filesystem extends BaseModel
     use UuidTrait;
     use Cachable;
     use CanUseWorkflow;
-    
+
     protected $table = 'filesystem';
 
     /**

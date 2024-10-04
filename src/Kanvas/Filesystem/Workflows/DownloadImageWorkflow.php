@@ -9,6 +9,7 @@ use Workflow\ActivityStub;
 use Workflow\Workflow;
 use Kanvas\Filesystem\Workflows\Activities\DownloadImageActivity;
 use Baka\Contracts\AppInterface;
+
 class DownloadImageWorkflow extends Workflow
 {
     public function execute(AppInterface $app, Filesystem $filesystem)
