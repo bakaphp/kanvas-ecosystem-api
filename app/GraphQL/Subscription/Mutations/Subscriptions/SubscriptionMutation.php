@@ -56,6 +56,8 @@ class SubscriptionMutation
                     $subscription->trialDays($subscriptionInput->price->plan->free_trial_days);
                 }
                 $createdSubscription = $subscription->create($subscriptionInput->payment_method_id);
+                $createdSubscription->type = null;
+                $createdSubscription->save();
                 foreach ($createdSubscription->items as $item) {
                     $item->stripe_product_name = $subscriptionInput->price->plan->name;
                     $item->save();
@@ -80,12 +82,7 @@ class SubscriptionMutation
         }
         $newPrice = PriceRepository::getByIdWithApp((int) $data['apps_plans_prices_id'], $this->app);
 
-        $upgradeSubscription = $companyStripeAccount
-            ->subscriptions()->where('type', $newPrice->plan->stripe_plan)->first();
-
-        if (! $upgradeSubscription) {
-            throw new ValidationException('Trying to upgrade to of a different type');
-        }
+        $upgradeSubscription = $companyStripeAccount->subscriptions->first();
 
         $upgradeSubscription->swap($newPrice->stripe_id);
 

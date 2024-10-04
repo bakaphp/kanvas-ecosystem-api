@@ -142,10 +142,13 @@ final class SubscriptionsTest extends TestCase
         'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
     ]);
 
+        $newPriceId = DB::table('apps_plans_prices')
+            ->where('apps_plans_id', '!=', $this->price->apps_plans_id)
+            ->value('id');
         $response = $this->graphQL('
             mutation {
                 updateSubscription(input: {
-                    apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
+                apps_plans_prices_id: ' . $newPriceId . ' , 
                 }) {
                     id
                     stripe_id
@@ -155,7 +158,6 @@ final class SubscriptionsTest extends TestCase
         ', [], [], [
             'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
         ]);
-
         $response->assertJson([
             'data' => [
                 'updateSubscription' => [
