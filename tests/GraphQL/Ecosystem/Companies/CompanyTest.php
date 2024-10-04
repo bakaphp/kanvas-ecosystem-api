@@ -59,6 +59,7 @@ class CompanyTest extends TestCase
     {
         $companyData = $this->companyInputData();
         $company = auth()->user()->getCurrentCompany();
+        $companyData['timezone'] = 'UTC +1';
         $this->graphQL( /** @lang GraphQL */
             '
             mutation updateCompany($id: ID!, $input: CompanyInput!) {
@@ -69,7 +70,8 @@ class CompanyTest extends TestCase
                     address,
                     zipcode,
                     email,
-                    language
+                    language,
+                    timezone
                 }
             }',
             [
@@ -83,7 +85,8 @@ class CompanyTest extends TestCase
         ->assertSee('address', $companyData['address'])
         ->assertSee('zipcode', $companyData['zipcode'])
         ->assertSee('email', $companyData['email'])
-        ->assertSee('language', $companyData['language']);
+        ->assertSee('language', $companyData['language'])
+        ->assertSee('timezone', $companyData['timezone']);
     }
 
     public function testGetCompanies(): void

@@ -55,12 +55,15 @@ class SubscriptionMutation
                 if ($subscriptionInput->price->plan->free_trial_days) {
                     $subscription->trialDays($subscriptionInput->price->plan->free_trial_days);
                 }
-                $subscription->create($subscriptionInput->payment_method_id);
+                $createdSubscription = $subscription->create($subscriptionInput->payment_method_id);
+                foreach ($createdSubscription->items as $item) {
+                    $item->stripe_product_name = $subscriptionInput->price->plan->name;
+                    $item->save();
+                }
             } catch (Throwable $e) {
                 throw new ValidationException($e->getMessage());
             }
         }
-
         return $companyStripeAccount->subscriptions()->firstOrFail();
     }
 
@@ -85,6 +88,11 @@ class SubscriptionMutation
         }
 
         $upgradeSubscription->swap($newPrice->stripe_id);
+
+        foreach ($upgradeSubscription->items as $item) {
+            $item->stripe_product_name = $newPrice->plan->name;
+            $item->save();
+        }
 
         return $upgradeSubscription;
     }

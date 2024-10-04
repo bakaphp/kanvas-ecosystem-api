@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth;
 
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\TokenGuard as AuthTokenGuard;
 use Illuminate\Http\Request;
 use Kanvas\Apps\Models\Apps;
@@ -12,6 +11,7 @@ use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Traits\TokenTrait;
 use Kanvas\Users\Models\Users;
 use Lcobucci\JWT\Token;
+use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 
 class TokenGuard extends AuthTokenGuard
 {
@@ -51,10 +51,6 @@ class TokenGuard extends AuthTokenGuard
             if ($token instanceof Token) {
                 if (! $this->validateJwtToken($token)) {
                     throw new AuthorizationException('Invalid Token');
-                }
-
-                if ($token->isExpired(now())) {
-                    throw new AuthorizationException('Token Expired');
                 }
 
                 return $token;
