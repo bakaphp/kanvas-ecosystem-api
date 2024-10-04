@@ -239,7 +239,7 @@ final class SubscriptionsTest extends TestCase
         $id = $response->json('data.createSubscription.id');
 
         $subscription = $this->company->getStripeAccount($this->appModel)
-            ->subscriptions()->where('type', $this->plan->stripe_plan)->first();
+            ->subscriptions()->where('type', 'default')->first();
 
         $response = $this->graphQL('
             mutation {
