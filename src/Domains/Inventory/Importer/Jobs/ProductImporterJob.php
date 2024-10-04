@@ -53,10 +53,10 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
         public AppInterface $app,
         public ?FilesystemImports $filesystemImport = null
     ) {
-        $minuteDelay = $app->get('delay_minute_job') ?? 5;
+        $minuteDelay = (int)($app->get('delay_minute_job') ?? 5);
         $this->onQueue('imports')->delay(now()->addMinutes($minuteDelay));
 
-        $minuteUniqueFor = $app->get('unique_for_minute_job') ?? 15;
+        $minuteUniqueFor = (int)($app->get('unique_for_minute_job') ?? 15);
         if (App::environment('production')) {
             $this->uniqueFor = $minuteUniqueFor * 60;
         }
