@@ -47,15 +47,13 @@ class SingleProductImporterJob implements ShouldQueue, ShouldBeUnique
     public $uniqueFor = 60;
 
     public function __construct(
-        public string $jobUuid,
         public array $request,
         public CompaniesBranches $branch,
         public UserInterface $user,
         public Regions $region,
         public AppInterface $app,
-        public ?FilesystemImports $filesystemImport = null
     ) {
-        $this->onQueue('imports')->delay(now()->addMinutes(5));
+        $this->onQueue('imports');
 
         if (App::environment('production')) {
             $this->uniqueFor = 15 * 60;
@@ -91,61 +89,15 @@ class SingleProductImporterJob implements ShouldQueue, ShouldBeUnique
         Auth::loginUsingId($this->user->getId());
         $this->overwriteAppService($this->app);
         $this->overwriteAppServiceLocation($this->branch);
-
-        // /**
-        //  * @var Companies
-        //  */
         $company = $this->branch->company()->firstOrFail();
-        // $totalItems = count($this->importer);
-        // $totalProcessSuccessfully = 0;
-        // $totalProcessFailed = 0;
-        // $errors = [];
 
-        //mark all variants as unsearchable for this company before running the import
-        /*         Variants::fromCompany($company)->chunkById(100, function ($variants) {
-                    $variants->unsearchable();
-                }, $column = 'id'); */
-
-        if ($this->filesystemImport) {
-            $this->filesystemImport->update([
-                'status' => 'processing', //move to enums
-            ]);
-        }
-
-
-        try {
-            (new ProductImporterAction(
-                ProductImporter::from($this->request),
-                $company,
-                $this->user,
-                $this->region,
-                $this->app
-            ))->execute();
-            // $totalProcessSuccessfully++;
-        } catch (Throwable $e) {
-            $errors[] = [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'request' => $this->request,
-            ];
-            Log::error($e->getMessage());
-            captureException($e);
-            // $totalProcessFailed++;
-        }
-
-        // if ($this->filesystemImport) {
-        //     $this->filesystemImport->update([
-        //         'results' => [
-        //             'total_items' => $totalItems,
-        //             'total_process_successfully' => $totalProcessSuccessfully,
-        //             'total_process_failed' => $totalProcessFailed,
-        //         ],
-        //         'exception' => $errors,
-        //         'status' => 'completed',
-        //         'finished_at' => now(),
-        //     ]);
-        // }
-
-        //handle failed jobs
+        (new ProductImporterAction(
+            ProductImporter::from($this->request),
+            $company,
+            $this->user,
+            $this->region,
+            $this->app
+        ))->execute();
+        
     }
 }
