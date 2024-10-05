@@ -14,10 +14,11 @@ return new class () extends Migration {
             $table->unsignedBigInteger('apps_id')->index();
             $table->unsignedBigInteger('users_id')->index();
             $table->string('name', 255);
-            $table->boolean('is_deleted')->default(false);
+            $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
             $table->softDeletes();
             $table->index(['companies_id', 'apps_id']);
+            $table->index(['apps_id', 'companies_id', 'is_deleted'], 'event_types_full_idx');
         });
 
         Schema::create('event_classes', function (Blueprint $table) {
@@ -27,10 +28,11 @@ return new class () extends Migration {
             $table->unsignedBigInteger('users_id')->index();
             $table->string('name', 255);
             $table->tinyInteger('is_default')->default(0)->index();
-            $table->boolean('is_deleted')->default(false);
+            $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
             $table->softDeletes();
             $table->index(['companies_id', 'apps_id']);
+            $table->index(['apps_id', 'companies_id', 'is_deleted'], 'event_classes_full_idx');
         });
 
         Schema::create('event_categories', function (Blueprint $table) {
@@ -46,10 +48,11 @@ return new class () extends Migration {
             $table->string('slug')->index(); // Slug with unique index
             $table->integer('position')->default(0)->index();
             $table->tinyInteger('is_default')->default(0)->index();
-            $table->boolean('is_deleted')->default(false);
+            $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
             $table->softDeletes();
             $table->index(['companies_id', 'apps_id', 'event_type_id', 'event_class_id'], 'event_cat_idx');
+            $table->index(['apps_id', 'companies_id', 'is_deleted'], 'event_categories_full_idx');
         });
 
         Schema::create('themes', function (Blueprint $table) {
@@ -59,10 +62,11 @@ return new class () extends Migration {
             $table->unsignedBigInteger('users_id')->index();
             $table->string('name', 255);
             $table->tinyInteger('is_default')->default(0)->index();
-            $table->boolean('is_deleted')->default(false);
+            $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
             $table->softDeletes();
             $table->index(['companies_id', 'apps_id']);
+            $table->index(['apps_id', 'companies_id', 'is_deleted'], 'themes_full_idx');
         });
 
         Schema::create('theme_areas', function (Blueprint $table) {
@@ -72,10 +76,11 @@ return new class () extends Migration {
             $table->unsignedBigInteger('users_id')->index();
             $table->string('name', 255);
             $table->tinyInteger('is_default')->default(0)->index();
-            $table->boolean('is_deleted')->default(false);
+            $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
             $table->softDeletes();
             $table->index(['companies_id', 'apps_id']);
+            $table->index(['apps_id', 'companies_id', 'is_deleted'], 'theme_areas_full_idx');
         });
 
         Schema::create('participant_pass_motives', function (Blueprint $table) {
@@ -84,10 +89,12 @@ return new class () extends Migration {
             $table->unsignedBigInteger('companies_id')->index();
             $table->unsignedBigInteger('users_id')->index();
             $table->string('name', 255);
-            $table->boolean('is_deleted')->default(false);
+            $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
             $table->softDeletes();
+            $table->index(['companies_id', 'apps_id']);
             $table->index(['apps_id', 'companies_id', 'users_id'], 'participant_pass_motives_idx');
+            $table->index(['apps_id', 'companies_id', 'is_deleted'], 'participant_pass_motives_full_idx');
         });
 
         Schema::create('events', function (Blueprint $table) {
@@ -109,11 +116,13 @@ return new class () extends Migration {
             $table->integer('versions_count')->default(0);
             $table->string('participants_average', 255)->nullable();
             $table->string('participants_satisfaction', 255)->nullable();
-            $table->boolean('is_deleted')->default(false);
+            $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
             $table->softDeletes();
+            $table->index(['companies_id', 'apps_id']);
             $table->unique(['slug', 'apps_id', 'companies_id'], 'event_slug_unique'); // Ensure uniqueness
             $table->index(['users_id', 'companies_id', 'apps_id', 'theme_id', 'theme_area_id', 'event_status_id', 'event_type_id', 'event_class_id', 'event_category_id'], 'events_idx');
+            $table->index(['apps_id', 'companies_id', 'is_deleted'], 'events_full_idx');
         });
 
         Schema::create('event_versions', function (Blueprint $table) {
@@ -135,11 +144,13 @@ return new class () extends Migration {
             $table->float('price_per_ticket');
             $table->json('agenda')->nullable();
             $table->json('metadata')->nullable();
-            $table->boolean('is_deleted')->default(false);
+            $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
             $table->softDeletes();
             $table->unique(['slug', 'apps_id', 'companies_id'], 'event_version_slug_unique'); // Ensure uniqueness
+            $table->index(['companies_id', 'apps_id']);
             $table->index(['companies_id', 'users_id', 'apps_id', 'event_id'], 'event_versions_idx');
+            $table->index(['apps_id', 'companies_id', 'is_deleted'], 'event_versions_full_idx');
         });
 
         Schema::create('event_statuses', function (Blueprint $table) {
@@ -149,17 +160,17 @@ return new class () extends Migration {
             $table->unsignedBigInteger('users_id')->index();
             $table->string('name', 255);
             $table->tinyInteger('is_default')->default(0)->index();
-            $table->boolean('is_deleted')->default(false);
+            $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
             $table->softDeletes();
             $table->index(['companies_id', 'apps_id']);
+            $table->index(['apps_id', 'companies_id', 'is_deleted'], 'event_statuses_full_idx');
         });
 
         Schema::create('participants', function (Blueprint $table) {
             $table->id();
             $table->uuid('uuid')->index();
             $table->unsignedBigInteger('theme_area_id')->index();
-            //$table->unsignedBigInteger('participant_type_id')->index();
             $table->unsignedBigInteger('participant_status_id')->index();
             $table->unsignedBigInteger('apps_id')->index();
             $table->unsignedBigInteger('companies_id')->index();
@@ -168,24 +179,27 @@ return new class () extends Migration {
             $table->string('general_representative', 255);
             $table->string('slug')->index(); // Slug with unique index
             $table->boolean('is_prospect');
-            $table->boolean('is_deleted')->default(false);
+            $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
             $table->softDeletes();
             $table->unique(['slug', 'apps_id', 'companies_id'], 'participant_slug_unique'); // Ensure uniqueness
+            $table->index(['companies_id', 'apps_id']);
             $table->index(['theme_area_id', 'participant_status_id', 'apps_id', 'companies_id', 'users_id', 'people_id'], 'participants_idx');
+            $table->index(['apps_id', 'companies_id', 'is_deleted'], 'participants_full_idx');
         });
 
         Schema::create('event_version_dates', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('event_version_id')->index();
             $table->unsignedBigInteger('users_id')->index();
-            $table->date('event_date');
-            $table->time('start_time');
-            $table->time('end_time');
-            $table->boolean('is_deleted')->default(false);
+            $table->date('event_date')->index();
+            $table->time('start_time')->index();
+            $table->time('end_time')->index();
+            $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
             $table->softDeletes();
             $table->index('event_version_id', 'event_version_dates_idx');
+            $table->index(['event_version_id', 'event_date']);
         });
 
         Schema::create('event_version_participants', function (Blueprint $table) {
@@ -194,10 +208,10 @@ return new class () extends Migration {
             $table->unsignedBigInteger('participant_id')->index();
             $table->float('ticket_price');
             $table->float('discount');
-            $table->date('invoice_date'); // Correcting float to date
+            $table->date('invoice_date');
             $table->json('metadata')->nullable();
             $table->unsignedBigInteger('participant_type_id')->index();
-            $table->boolean('is_deleted')->default(false);
+            $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
             $table->softDeletes();
             $table->index(['event_version_id', 'participant_id', 'participant_type_id'], 'event_version_participants_idx');
@@ -209,10 +223,12 @@ return new class () extends Migration {
             $table->unsignedBigInteger('companies_id')->index();
             $table->unsignedBigInteger('users_id')->index();
             $table->string('name', 255);
-            $table->boolean('is_deleted')->default(false);
+            $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
             $table->softDeletes();
+            $table->index(['companies_id', 'apps_id']);
             $table->index(['apps_id', 'companies_id', 'users_id']);
+            $table->index(['apps_id', 'companies_id', 'is_deleted'], 'participant_types_full_idx');
         });
 
         Schema::create('participant_passes', function (Blueprint $table) {
@@ -227,10 +243,11 @@ return new class () extends Migration {
             $table->date('expiration_date');
             $table->date('used_date');
             $table->string('code', 255);
-            $table->boolean('is_deleted')->default(false);
+            $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
             $table->softDeletes();
             $table->index(['event_version_id', 'event_id', 'participant_id', 'participant_pass_motive_id', 'apps_id', 'companies_id', 'users_id'], 'participant_passes_idx');
+            $table->index(['apps_id', 'companies_id', 'is_deleted'], 'participant_passes_full_idx');
         });
 
         Schema::create('event_version_date_participants', function (Blueprint $table) {
@@ -239,10 +256,13 @@ return new class () extends Migration {
             $table->unsignedBigInteger('event_version_id')->index();
             $table->unsignedBigInteger('participant_id')->index();
             $table->datetime('arrived');
-            $table->boolean('is_deleted')->default(false);
+            $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
             $table->softDeletes();
             $table->index(['event_version_date_id', 'participant_id'], 'event_version_date_participants_idx');
+            $table->index(['event_version_date_id', 'event_version_id', 'participant_id'], 'event_version_date_participants_idx2');
+            $table->index(['event_version_date_id', 'event_version_id'], 'event_version_date_participants_idx3');
+            $table->index(['participant_id', 'event_version_id'], 'event_version_date_participants_idx4');
         });
 
         Schema::create('facilitators', function (Blueprint $table) {
@@ -256,18 +276,20 @@ return new class () extends Migration {
             $table->string('identification', 255)->nullable();
             $table->text('resume')->nullable();
             $table->text('description')->nullable();
-            $table->boolean('is_deleted')->default(false);
+            $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
             $table->softDeletes();
             $table->unique(['slug', 'apps_id', 'companies_id'], 'facilitator_slug_unique'); // Ensure uniqueness
+            $table->index(['companies_id', 'apps_id']);
             $table->index(['apps_id', 'companies_id', 'users_id']);
+            $table->index(['apps_id', 'companies_id', 'is_deleted'], 'facilitators_full_idx');
         });
 
         Schema::create('event_version_facilitators', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('facilitator_id')->index();
             $table->unsignedBigInteger('event_version_id')->index();
-            $table->boolean('is_deleted')->default(false);
+            $table->boolean('is_deleted')->default(false)->index();
             $table->timestamps();
             $table->softDeletes();
             $table->index(['facilitator_id', 'event_version_id'], 'event_version_facilitators_idx');

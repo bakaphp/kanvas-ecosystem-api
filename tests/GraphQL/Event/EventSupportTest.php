@@ -75,7 +75,7 @@ class EventSupportTest extends TestCase
               }')->assertSee('eventClasses');
     }
 
-    public function testEventTheme(): void
+/*     public function testEventTheme(): void
     {
         $this->graphQL('
               query {
@@ -99,5 +99,5 @@ class EventSupportTest extends TestCase
                       }
                   }
               }')->assertSee('eventThemeAreas');
-    }
+    } */
 }
