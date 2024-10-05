@@ -41,7 +41,7 @@ return new class () extends Migration {
             $table->unsignedBigInteger('event_class_id')->index();
             $table->unsignedBigInteger('users_id')->index();
             $table->string('name', 255);
-            $table->unsignedBigInteger('parent_id')->nullable()->index( );
+            $table->unsignedBigInteger('parent_id')->nullable()->index();
             $table->string('path')->nullable()->index();
             $table->string('slug')->index(); // Slug with unique index
             $table->integer('position')->default(0)->index();

@@ -13,7 +13,7 @@ class EventVersionDate extends BaseModel
 {
     use NoAppRelationshipTrait;
     use NoCompanyRelationshipTrait;
-    
+
     protected $table = 'event_version_dates';
     protected $guarded = [];
 
