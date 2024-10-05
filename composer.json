@@ -82,6 +82,7 @@
             "Kanvas\\Connectors\\": "src/Domains/Connectors",
             "Kanvas\\Dashboard\\": "src/Domains/Dashboard",
             "Kanvas\\ActionEngine\\": "src/Domains/ActionEngine",
+            "Kanvas\\Event\\": "src/Domains/Event",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }
@@ -132,6 +133,9 @@
         ],
         "migrate-subscription": [
             "php artisan migrate --path database/migrations/Subscription/ --database mysql"
+        ],
+        "migrate-events": [
+            "php artisan migrate --path database/migrations/Event/ --database event"
         ],
         "pre-autoload-dump": "Google\\Task\\Composer::cleanup"
     },
