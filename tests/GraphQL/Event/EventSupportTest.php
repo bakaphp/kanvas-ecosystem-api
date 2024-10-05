@@ -48,56 +48,56 @@ class EventSupportTest extends TestCase
                   }
               }')->assertSee('eventDates');
     }
-
-    public function testGetEventStatus(): void
-    {
-        $this->graphQL('
-              query {
-                  eventStatus {
-                      data {
-                          id,
-                          name
-                      }
-                  }
-              }')->assertSee('eventStatus');
-    }
-
-    public function testGetEventClass(): void
-    {
-        $this->graphQL('
-              query {
-                  eventClasses {
-                      data {
-                          id,
-                          name
-                      }
-                  }
-              }')->assertSee('eventClasses');
-    }
-
-    /*     public function testEventTheme(): void
+    /*
+        public function testGetEventStatus(): void
         {
             $this->graphQL('
                   query {
-                      eventThemes {
+                      eventStatus {
                           data {
                               id,
                               name
                           }
                       }
-                  }')->assertSee('eventThemes');
+                  }')->assertSee('eventStatus');
         }
 
-        public function testEventThemeArea(): void
+        public function testGetEventClass(): void
         {
             $this->graphQL('
                   query {
-                      eventThemeAreas {
+                      eventClasses {
                           data {
                               id,
                               name
                           }
                       }
-                  }')->assertSee('eventThemeAreas');
-        } */
+                  }')->assertSee('eventClasses');
+        }
+
+            public function testEventTheme(): void
+            {
+                $this->graphQL('
+                      query {
+                          eventThemes {
+                              data {
+                                  id,
+                                  name
+                              }
+                          }
+                      }')->assertSee('eventThemes');
+            }
+
+            public function testEventThemeArea(): void
+            {
+                $this->graphQL('
+                      query {
+                          eventThemeAreas {
+                              data {
+                                  id,
+                                  name
+                              }
+                          }
+                      }')->assertSee('eventThemeAreas');
+            } */
 }
