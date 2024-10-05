@@ -48,10 +48,10 @@ class EventSupportTest extends TestCase
                   }
               }')->assertSee('eventDates');
     }
-    /*
-        public function testGetEventStatus(): void
-        {
-            $this->graphQL('
+
+    public function testGetEventStatus(): void
+    {
+        $this->graphQL('
                   query {
                       eventStatus {
                           data {
@@ -60,11 +60,11 @@ class EventSupportTest extends TestCase
                           }
                       }
                   }')->assertSee('eventStatus');
-        }
+    }
 
-        public function testGetEventClass(): void
-        {
-            $this->graphQL('
+    public function testGetEventClass(): void
+    {
+        $this->graphQL('
                   query {
                       eventClasses {
                           data {
@@ -73,11 +73,11 @@ class EventSupportTest extends TestCase
                           }
                       }
                   }')->assertSee('eventClasses');
-        }
+    }
 
-            public function testEventTheme(): void
-            {
-                $this->graphQL('
+    public function testEventTheme(): void
+    {
+        $this->graphQL('
                       query {
                           eventThemes {
                               data {
@@ -86,11 +86,11 @@ class EventSupportTest extends TestCase
                               }
                           }
                       }')->assertSee('eventThemes');
-            }
+    }
 
-            public function testEventThemeArea(): void
-            {
-                $this->graphQL('
+    public function testEventThemeArea(): void
+    {
+        $this->graphQL('
                       query {
                           eventThemeAreas {
                               data {
@@ -99,5 +99,5 @@ class EventSupportTest extends TestCase
                               }
                           }
                       }')->assertSee('eventThemeAreas');
-            } */
+    }
 }
