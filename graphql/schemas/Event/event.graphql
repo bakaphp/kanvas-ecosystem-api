@@ -135,6 +135,11 @@ input EventInput {
     dates: [EventVersionDateInput!]!
 }
 
+input EventUpdateInput {
+    name: String
+    description: String
+}
+
 input EventVersionDateInput {
     date: Date!
     start_time: String! @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
@@ -146,7 +151,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventManagementMutation@create"
         )
-    updateEvent(id: ID!, input: EventInput!): Event!
+    updateEvent(id: ID!, input: EventUpdateInput!): Event!
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventManagementMutation@update"
         )

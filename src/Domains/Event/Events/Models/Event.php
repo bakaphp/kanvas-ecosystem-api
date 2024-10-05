@@ -6,6 +6,7 @@ namespace Kanvas\Event\Events\Models;
 
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Event\Models\BaseModel;
@@ -18,6 +19,9 @@ class Event extends BaseModel
     use UuidTrait;
     use SlugTrait;
     use CanUseWorkflow;
+    use CascadeSoftDeletes;
+
+    protected $cascadeDeletes = ['versions'];
 
     protected $table = 'events';
     protected $guarded = [];

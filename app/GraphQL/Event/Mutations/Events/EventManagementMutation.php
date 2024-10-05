@@ -31,14 +31,24 @@ class EventManagementMutation
         $user = auth()->user();
         $app = app(Apps::class);
 
-        //return $lead;
+        $event = Event::getByIdFromCompanyApp($req['id'], $user->getCurrentCompany(), $app);
+        /**
+         * @todo complete
+         */
+        //$eventDto = DataTransferObjectEvent::from($app, $user, $user->getCurrentCompany(), $req['input']);
+
+        $event->name = $req['input']['name'];
+        $event->description = $req['input']['description'] ?? null;
+        $event->saveOrFail();
+
+        return $event;
     }
 
-    public function delete(mixed $root, array $req): Event
+    public function delete(mixed $root, array $req): bool
     {
         $user = auth()->user();
         $app = app(Apps::class);
 
-        //return $lead;
+        return Event::getByIdFromCompanyApp($req['id'], $user->getCurrentCompany(), $app)->delete();
     }
 }
