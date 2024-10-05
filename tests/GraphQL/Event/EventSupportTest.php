@@ -4,13 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Guild;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class EventSupportTest extends TestCase
 {
-    use RefreshDatabase;
-
     public function testGetEventCategory(): void
     {
         $this->graphQL('
