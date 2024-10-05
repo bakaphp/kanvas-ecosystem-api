@@ -10,7 +10,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Event\Support\Setup;
 use Kanvas\Users\Models\Users;
 
-class SocialSetupCommand extends Command
+class EventSetupCommand extends Command
 {
     /**
      * The name and signature of the console command.

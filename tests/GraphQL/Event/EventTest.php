@@ -1,0 +1,194 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\GraphQL\Guild;
+
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Event\Events\Models\EventCategory;
+use Kanvas\Event\Events\Models\EventType;
+use Kanvas\Event\Support\Setup;
+use Tests\TestCase;
+
+class EventTest extends TestCase
+{
+    public function testCreateEvent()
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        /**
+         * @todo move to use factory
+         */
+        $setup = new Setup($app, $user, $company);
+        $setup->run();
+
+        $input = [
+            'name' => 'Test Event',
+            'description' => 'Test event description',
+            'category_id' => EventCategory::fromCompany($company)->fromApp($app)->first()->getId(),
+            'type_id' => EventType::fromCompany($company)->fromApp($app)->first()->getId(),
+            'dates' => [
+                [
+                    'date' => date('Y-m-d'),
+                    'start_time' => '11:00',
+                    'end_time' => '23:00',
+                ],
+            ],
+        ];
+
+        $this->graphQL('
+        mutation($input: EventInput!) {
+            createEvent(input: $input) {
+                id
+                name
+            }
+        }
+    ', [
+            'input' => $input,
+        ])->assertJson([
+            'data' => [
+                'createEvent' => [
+                    'name' => 'Test Event',
+                ],
+            ],
+        ]);
+    }
+
+    public function testGetEvent(): void
+    {
+        $this->graphQL('
+            query {
+                events {
+                    data {
+                        id,
+                        name,
+                        description,
+                        versions {
+                            data {
+                                id
+                                dates {
+                                    date,
+                                    start_time,
+                                    end_time
+                                }
+                            }
+                        }
+                    }
+                }
+            }')->assertSee('events');
+    }
+
+    public function testGetEventVersion(): void
+    {
+        $this->graphQL('
+            query {
+                eventVersions {
+                    data {
+                        id,
+                        name,
+                        description,
+                        dates {
+                            date,
+                            start_time,
+                            end_time
+                        }
+                    }
+                }
+            }')->assertSee('eventVersions');
+    }
+
+    public function testGetEventCategory(): void
+    {
+        $this->graphQL('
+            query {
+                eventCategories {
+                    data {
+                        id,
+                        name
+                    }
+                }
+            }')->assertSee('eventCategories');
+    }
+
+    public function testGetEventType(): void
+    {
+        $this->graphQL('
+            query {
+                eventTypes {
+                    data {
+                        id,
+                        name
+                    }
+                }
+            }')->assertSee('eventTypes');
+    }
+
+    public function testGetEventDate(): void
+    {
+        $this->graphQL('
+            query {
+                eventDates {
+                    data {
+                        id,
+                        date,
+                        startTime,
+                        endTime
+                    }
+                }
+            }')->assertSee('eventDates');
+    }
+
+    public function testGetEventStatus(): void
+    {
+        $this->graphQL('
+            query {
+                eventStatus {
+                    data {
+                        id,
+                        name
+                    }
+                }
+            }')->assertSee('eventStatus');
+    }
+
+    public function testGetEventClass(): void
+    {
+        $this->graphQL('
+            query {
+                eventClasses {
+                    data {
+                        id,
+                        name
+                    }
+                }
+            }')->assertSee('eventClasses');
+    }
+
+    public function testEventTheme(): void
+    {
+        $this->graphQL('
+            query {
+                eventThemes {
+                    data {
+                        id,
+                        name
+                    }
+                }
+            }')->assertSee('eventThemes');
+    }
+
+    public function testEventThemeArea(): void
+    {
+        $this->graphQL('
+            query {
+                eventThemeAreas {
+                    data {
+                        id,
+                        name
+                    }
+                }
+            }')->assertSee('eventThemeAreas');
+    }
+}
