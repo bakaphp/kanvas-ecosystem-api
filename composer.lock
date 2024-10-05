@@ -6411,16 +6411,16 @@
         },
         {
             "name": "nikic/php-parser",
-            "version": "v5.2.0",
+            "version": "v5.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nikic/PHP-Parser.git",
-                "reference": "23c79fbbfb725fb92af9bcf41065c8e9a0d49ddb"
+                "reference": "3abf7425cd284141dc5d8d14a9ee444de3345d1a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/23c79fbbfb725fb92af9bcf41065c8e9a0d49ddb",
-                "reference": "23c79fbbfb725fb92af9bcf41065c8e9a0d49ddb",
+                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/3abf7425cd284141dc5d8d14a9ee444de3345d1a",
+                "reference": "3abf7425cd284141dc5d8d14a9ee444de3345d1a",
                 "shasum": ""
             },
             "require": {
@@ -6463,9 +6463,9 @@
             ],
             "support": {
                 "issues": "https://github.com/nikic/PHP-Parser/issues",
-                "source": "https://github.com/nikic/PHP-Parser/tree/v5.2.0"
+                "source": "https://github.com/nikic/PHP-Parser/tree/v5.3.0"
             },
-            "time": "2024-09-15T16:40:33+00:00"
+            "time": "2024-09-29T13:56:26+00:00"
         },
         {
             "name": "nunomaduro/termwind",
@@ -9185,16 +9185,16 @@
         },
         {
             "name": "spatie/laravel-data",
-            "version": "4.9.0",
+            "version": "4.10.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-data.git",
-                "reference": "1b7c105deddcb1331f245cccddd5b6f397213a86"
+                "reference": "01eea07b5254d319157b7960de99f32dde6975ce"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-data/zipball/1b7c105deddcb1331f245cccddd5b6f397213a86",
-                "reference": "1b7c105deddcb1331f245cccddd5b6f397213a86",
+                "url": "https://api.github.com/repos/spatie/laravel-data/zipball/01eea07b5254d319157b7960de99f32dde6975ce",
+                "reference": "01eea07b5254d319157b7960de99f32dde6975ce",
                 "shasum": ""
             },
             "require": {
@@ -9257,7 +9257,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-data/issues",
-                "source": "https://github.com/spatie/laravel-data/tree/4.9.0"
+                "source": "https://github.com/spatie/laravel-data/tree/4.10.0"
             },
             "funding": [
                 {
@@ -9265,7 +9265,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-09-10T13:25:26+00:00"
+            "time": "2024-10-04T12:50:57+00:00"
         },
         {
             "name": "spatie/laravel-google-cloud-storage",
