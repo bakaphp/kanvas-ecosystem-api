@@ -3,7 +3,7 @@
 namespace App\Console\Commands\Connectors\Notifications;
 
 use Illuminate\Console\Command;
-use Kanvas\Apps\Repositories\AppsRepository;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Notifications\Jobs\MailCaddieLabJob;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 
@@ -15,7 +15,7 @@ class MailCaddieLabCommand extends Command
     {
         $this->info('Sending internal mail to Caddie Lab');
 
-        $app = AppsRepository::findFirstByKey($this->argument('apps_id'));
+        $app = Apps::getById($this->argument('apps_id'));
         $email = $this->argument('email');
 
         $peoplesIn7Days = PeoplesRepository::getByDaysCreated(7, $app);
