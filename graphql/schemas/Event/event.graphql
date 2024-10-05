@@ -9,7 +9,7 @@ type Event {
     company: Company! @belongsTo(relation: "company")
     theme: EventTheme @belongsTo(relation: "theme")
     themeArea: EventThemeArea @belongsTo(relation: "themeArea")
-    themeStatus: eventClass @belongsTo(relation: "eventStatus")
+    themeStatus: EventClass @belongsTo(relation: "eventStatus")
     type: EventType @belongsTo(relation: "themeType")
     class: EventClass @belongsTo(relation: "eventClass")
     category: EventCategory @belongsTo(relation: "eventCategory")
@@ -114,11 +114,46 @@ type EventVersionParticipant {
 
 type EventVersionParticipantDate {
     id: ID!
-    event_version_date: EventVersionDate! @belongsTo(relation: "eventVersionDate")
+    event_version_date: EventVersionDate!
+        @belongsTo(relation: "eventVersionDate")
     participant: Participant! @belongsTo(relation: "participant")
     arrived: DateTime!
-    start_time: String!
-    end_time: String!
+    start_time: String! @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
+    end_time: String! @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
+}
+
+input EventInput {
+    name: String!
+    slug: String
+    description: String
+    theme_id: ID
+    theme_area_id: ID
+    status_id: ID
+    type_id: ID!
+    class_id: ID
+    category_id: ID!
+    dates: [EventVersionDateInput!]!
+}
+
+input EventVersionDateInput {
+    date: Date!
+    start_time: String! @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
+    end_time: String! @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
+}
+
+extend type Mutation @guard {
+    createEvent(input: EventInput!): Event!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventManagementMutation@create"
+        )
+    updateEvent(id: ID!, input: EventInput!): Event!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventManagementMutation@update"
+        )
+    deleteEvent(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventManagementMutation@delete"
+        )
 }
 
 extend type Query @guard {

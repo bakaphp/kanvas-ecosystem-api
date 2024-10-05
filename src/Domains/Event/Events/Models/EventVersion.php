@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Spatie\LaravelData\DataCollection;
 
 class EventVersion extends BaseModel
 {
@@ -44,5 +45,22 @@ class EventVersion extends BaseModel
     public function getTotalAttendees(): int
     {
         return 0;
+    }
+
+    public function getNextEventVersion(Event $event): int
+    {
+        return $this->where('event_id', $event->getId())->max('version') + 1;
+    }
+
+    public function addDates(DataCollection $dates): void
+    {
+        collect($dates)->each(function ($date) {
+            $this->dates()->firstOrCreate([
+                'event_date' => $date['date'],
+                'users_id' => $this->users_id,
+                'start_time' => $date['start_time'],
+                'end_time' => $date['end_time'],
+            ]);
+        });
     }
 }
