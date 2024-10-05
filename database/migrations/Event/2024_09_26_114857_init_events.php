@@ -26,6 +26,7 @@ return new class () extends Migration {
             $table->unsignedBigInteger('apps_id')->index();
             $table->unsignedBigInteger('users_id')->index();
             $table->string('name', 255);
+            $table->tinyInteger('is_default')->default(0)->index();
             $table->boolean('is_deleted')->default(false);
             $table->timestamps();
             $table->softDeletes();
@@ -40,10 +41,11 @@ return new class () extends Migration {
             $table->unsignedBigInteger('event_class_id')->index();
             $table->unsignedBigInteger('users_id')->index();
             $table->string('name', 255);
-            $table->unsignedBigInteger('parent_id')->nullable();
-            $table->string('path', 255);
+            $table->unsignedBigInteger('parent_id')->nullable()->index( );
+            $table->string('path')->nullable()->index();
             $table->string('slug')->index(); // Slug with unique index
-            $table->integer('position')->default(0);
+            $table->integer('position')->default(0)->index();
+            $table->tinyInteger('is_default')->default(0)->index();
             $table->boolean('is_deleted')->default(false);
             $table->timestamps();
             $table->softDeletes();
@@ -56,6 +58,7 @@ return new class () extends Migration {
             $table->unsignedBigInteger('apps_id')->index();
             $table->unsignedBigInteger('users_id')->index();
             $table->string('name', 255);
+            $table->tinyInteger('is_default')->default(0)->index();
             $table->boolean('is_deleted')->default(false);
             $table->timestamps();
             $table->softDeletes();
@@ -68,6 +71,7 @@ return new class () extends Migration {
             $table->unsignedBigInteger('apps_id')->index();
             $table->unsignedBigInteger('users_id')->index();
             $table->string('name', 255);
+            $table->tinyInteger('is_default')->default(0)->index();
             $table->boolean('is_deleted')->default(false);
             $table->timestamps();
             $table->softDeletes();
@@ -144,6 +148,7 @@ return new class () extends Migration {
             $table->unsignedBigInteger('apps_id')->index();
             $table->unsignedBigInteger('users_id')->index();
             $table->string('name', 255);
+            $table->tinyInteger('is_default')->default(0)->index();
             $table->boolean('is_deleted')->default(false);
             $table->timestamps();
             $table->softDeletes();
