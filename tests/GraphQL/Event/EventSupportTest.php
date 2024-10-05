@@ -75,29 +75,29 @@ class EventSupportTest extends TestCase
               }')->assertSee('eventClasses');
     }
 
-/*     public function testEventTheme(): void
-    {
-        $this->graphQL('
-              query {
-                  eventThemes {
-                      data {
-                          id,
-                          name
+    /*     public function testEventTheme(): void
+        {
+            $this->graphQL('
+                  query {
+                      eventThemes {
+                          data {
+                              id,
+                              name
+                          }
                       }
-                  }
-              }')->assertSee('eventThemes');
-    }
+                  }')->assertSee('eventThemes');
+        }
 
-    public function testEventThemeArea(): void
-    {
-        $this->graphQL('
-              query {
-                  eventThemeAreas {
-                      data {
-                          id,
-                          name
+        public function testEventThemeArea(): void
+        {
+            $this->graphQL('
+                  query {
+                      eventThemeAreas {
+                          data {
+                              id,
+                              name
+                          }
                       }
-                  }
-              }')->assertSee('eventThemeAreas');
-    } */
+                  }')->assertSee('eventThemeAreas');
+        } */
 }
