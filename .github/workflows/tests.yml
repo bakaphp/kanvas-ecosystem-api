@@ -83,13 +83,7 @@ jobs:
           MYSQL_DATABASE: kanvas
         ports:
           - 3306:3306
-          options: > 
-            --health-cmd="mysqladmin ping"
-            --health-interval=10s
-            --health-timeout=5s
-            --health-retries=3
-        command: >
-          --max_connections=500
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3 
       redis:
         # Docker Hub image
         image: redis
@@ -177,7 +171,7 @@ jobs:
 
       - name: Run Tests
         if: success()
-        run: php artisan test
+        run: php artisan test --parallel --processes=4  # Limit parallel processes to 4
       
       - name: Upload artifacts
         uses: actions/upload-artifact@master
