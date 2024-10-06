@@ -98,6 +98,5 @@ class SingleProductImporterJob implements ShouldQueue, ShouldBeUnique
             $this->region,
             $this->app
         ))->execute();
-        
     }
 }

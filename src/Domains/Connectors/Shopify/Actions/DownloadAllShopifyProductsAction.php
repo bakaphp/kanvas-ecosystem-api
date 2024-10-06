@@ -73,6 +73,7 @@ class DownloadAllShopifyProductsAction
                 $this->app
             );
             
+            
             $batchProductImport->add();
             $batchProductImport->dispatch();
 

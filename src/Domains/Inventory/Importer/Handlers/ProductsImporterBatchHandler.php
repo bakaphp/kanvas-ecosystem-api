@@ -1,6 +1,5 @@
 <?php
 
-
 namespace Kanvas\Inventory\Importer\Handlers;
 
 use Kanvas\Inventory\Importer\Jobs\SingleProductImporterJob;
@@ -58,19 +57,22 @@ class ProductImporterBatchHandler
 
     /**
      * Dispatch batch by batchId
+     *
      * 
      */
     private function dispatch(string $batchId = null): void
     {
-        if (!$batchId) {
+        if (! $batchId) {
             $batchId = $this->batchId;
         }
-        
+
+
         if ($this->filesystemImport) {
             $this->filesystemImport->update([
                 'status' => 'processing', //move to enums
             ]);
         }
+
 
         $totalProcessSuccessfully = 0;
         $totalProcessFailed = 0;
@@ -92,6 +94,7 @@ class ProductImporterBatchHandler
                 $totalProcessFailed++;
             })->dispatch();
 
+
             if ($this->filesystemImport) {
                 $this->filesystemImport->update([
                     'results' => [
@@ -107,8 +110,5 @@ class ProductImporterBatchHandler
         } else {
             throw new Exception("Batch not found.");
         }
-
     }
-
-    
 }
