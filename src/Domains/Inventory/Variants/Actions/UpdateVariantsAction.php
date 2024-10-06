@@ -57,9 +57,11 @@ class UpdateVariantsAction
                 'ean' => $this->variantDto->ean,
                 'barcode' => $this->variantDto->barcode,
                 'serial_number' => $this->variantDto->serial_number,
-
             ]
         );
+
+        //update product searchable index
+        $this->variant->product->searchable();
 
         return $this->variant;
     }
