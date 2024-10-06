@@ -72,8 +72,6 @@ class DownloadAllShopifyProductsAction
                 $this->warehouses->region,
                 $this->app
             );
-            
-            
             $batchProductImport->add();
             $batchProductImport->dispatch();
 

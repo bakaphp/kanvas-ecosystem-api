@@ -17,7 +17,7 @@ use Exception;
 
 class ProductImporterBatchHandler
 {
-    private $batchId;
+    private string $batchId;
 
     public function __construct(
         public array $imports,
@@ -52,13 +52,10 @@ class ProductImporterBatchHandler
         }
 
         $this->batchId = $batch->id;
-        
     }
 
     /**
      * Dispatch batch by batchId
-     *
-     * 
      */
     private function dispatch(string $batchId = null): void
     {
