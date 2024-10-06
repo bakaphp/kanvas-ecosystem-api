@@ -68,7 +68,7 @@ class TaskEngagementItem extends BaseModel
         }
 
         // Retrieve the items to disable from the config
-        $itemsToDisable = Arr::get($this->config, 'other_items_to_disable', []);
+        $itemsToDisable = Arr::get($this->item->config, 'other_items_to_disable', []);
 
         if (is_array($itemsToDisable) && ! empty($itemsToDisable)) {
             $affectedRows = $this->disableItems($itemsToDisable);
@@ -81,10 +81,27 @@ class TaskEngagementItem extends BaseModel
 
     protected function disableItems(array $itemsToDisable): int
     {
-        return self::fromCompany($this->company)
-            ->fromApp($this->app)
-            ->whereIn('task_list_item_id', $itemsToDisable)
-            ->where('lead_id', $this->lead_id)
-            ->update(['status' => 'no_applicable']);
+        $affectedRows = 0;
+
+        foreach ($itemsToDisable as $itemId) {
+            // Use firstOrNew to either find the item or create a new instance
+            $taskEngagementItem = TaskEngagementItem::firstOrNew([
+                'task_list_item_id' => $itemId,
+                'lead_id' => $this->lead_id,
+                'companies_id' => $this->company->getId(),
+                'apps_id' => $this->app->getId(),
+            ], [
+                'users_id' => $this->user->getId(),
+            ]);
+
+            // Only update the status if it's not completed
+            if ($taskEngagementItem->status !== 'completed') {
+                $taskEngagementItem->status = 'no_applicable';
+                $taskEngagementItem->saveOrFail();
+                $affectedRows++; // Increment only if something was changed
+            }
+        }
+
+        return $affectedRows;
     }
 }
