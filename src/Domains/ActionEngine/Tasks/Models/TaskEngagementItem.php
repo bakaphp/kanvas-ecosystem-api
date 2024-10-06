@@ -9,6 +9,7 @@ use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Arr;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Models\BaseModel;
 use Kanvas\ActionEngine\Tasks\Observers\TaskEngagementItemObserver;
@@ -58,5 +59,32 @@ class TaskEngagementItem extends BaseModel
     public function engagementEnd(): HasOne
     {
         return $this->hasOne(Engagement::class, 'id', 'engagement_end_id');
+    }
+
+    public function disableRelatedItems(): bool
+    {
+        if ($this->status !== 'no_applicable') {
+            return false;
+        }
+
+        // Retrieve the items to disable from the config
+        $itemsToDisable = Arr::get($this->config, 'other_items_to_disable', []);
+
+        if (is_array($itemsToDisable) && ! empty($itemsToDisable)) {
+            $affectedRows = $this->disableItems($itemsToDisable);
+
+            return $affectedRows > 0;
+        }
+
+        return false;
+    }
+
+    protected function disableItems(array $itemsToDisable): int
+    {
+        return self::fromCompany($this->company)
+            ->fromApp($this->app)
+            ->whereIn('task_list_item_id', $itemsToDisable)
+            ->where('lead_id', $this->lead_id)
+            ->update(['status' => 'no_applicable']);
     }
 }
