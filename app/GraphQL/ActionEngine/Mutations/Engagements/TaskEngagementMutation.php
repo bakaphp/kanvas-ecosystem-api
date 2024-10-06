@@ -48,6 +48,20 @@ class TaskEngagementMutation
 
         $taskEngagementItem->status = $status;
 
+        if (is_array($taskEngagementItem->config) && isset($taskEngagementItem->config['other_items_to_disable'])) {
+            foreach ($taskEngagementItem->config['other_items_to_disable'] as $otherItem) {
+                $taskEngagementItem = TaskEngagementItem::fromCompany($company)
+                    ->fromApp($app)
+                    ->where('task_list_item_id', $otherItem)
+                    ->where('lead_id', $lead->getId())
+                    ->first();
+                if ($taskEngagementItem) {
+                    $taskEngagementItem->status = 'no_applicable';
+                    $taskEngagementItem->saveOrFail();
+                }
+            }
+        }
+
         return $taskEngagementItem->saveOrFail();
     }
 }
