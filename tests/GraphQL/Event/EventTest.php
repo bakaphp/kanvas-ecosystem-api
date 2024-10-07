@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\GraphQL\Guild;
+namespace Tests\GraphQL\Event;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Models\EventCategory;
