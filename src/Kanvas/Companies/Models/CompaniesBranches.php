@@ -13,7 +13,9 @@ use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Branches\Factories\CompaniesBranchesFactory;
 use Kanvas\CustomFields\Traits\HasCustomFields;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Filesystem\Models\FilesystemEntities;
+use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
@@ -74,6 +76,14 @@ class CompaniesBranches extends BaseModel
     public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');
+    }
+
+    public function getPhoto(): ?FilesystemEntities
+    {
+        $app = app(Apps::class);
+        $defaultAvatarId = $app->get(AppSettingsEnums::DEFAULT_USER_AVATAR->getValue());
+
+        return $this->getFileByName('photo') ?: ($defaultAvatarId ? FilesystemEntitiesRepository::getFileFromEntityById($defaultAvatarId) : null);
     }
 
     /**
@@ -144,10 +154,5 @@ class CompaniesBranches extends BaseModel
         $branch->id = 0;
 
         return $branch;
-    }
-
-    public function getPhoto(): ?FilesystemEntities
-    {
-        return $this->getFileByName('photo');
     }
 }

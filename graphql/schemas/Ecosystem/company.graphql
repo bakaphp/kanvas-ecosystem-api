@@ -281,6 +281,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@updateCompanyBranch"
         )
+    updatePhotoProfileToCompanyBranch(file: Upload!, id: ID!): CompanyBranch!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@updatePhotoProfile"
+        )
     uploadFileToCompanyBranch(id: ID!, file: Upload!): CompanyBranch!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@attachFileToCompany"
