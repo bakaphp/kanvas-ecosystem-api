@@ -14,11 +14,10 @@ use Illuminate\Support\Facades\Log;
 use Baka\Support\Str;
 use Throwable;
 use Exception;
+use Illuminate\Bus\Batch;
 
-class ProductImporterBatchHandler
+class ProductsImporterBatchHandler
 {
-    private string $batchId;
-
     public function __construct(
         public array $imports,
         public CompaniesBranches $branch,
@@ -34,14 +33,17 @@ class ProductImporterBatchHandler
      *
      * @return void
      */
-    public function add()
+    public function process()
     {
-        $batch = Bus::batch([])->dispatch();
+        $totalProcessSuccessfully = 0;
+        $totalProcessFailed = 0;
+        $errors = [];
+        $batch = Bus::batch([]);
 
         foreach ($this->imports as $request) {
             $batch->add(
                 new SingleProductImporterJob(
-                    Str::uuid()->toString(),
+                    // Str::uuid()->toString(),
                     $request,
                     $this->branch,
                     $this->user,
@@ -51,61 +53,21 @@ class ProductImporterBatchHandler
             );
         }
 
-        $this->batchId = $batch->id;
-    }
-
-    /**
-     * Dispatch batch by batchId
-     */
-    private function dispatch(string $batchId = null): void
-    {
-        if (! $batchId) {
-            $batchId = $this->batchId;
-        }
-
+        $batch->then(function (Batch $batch) {
+            Log::error("All jobs from batch with ID: " . $batch->id . " are done");
+        })->allowFailures()->dispatch();
 
         if ($this->filesystemImport) {
             $this->filesystemImport->update([
-                'status' => 'processing', //move to enums
+                'results' => [
+                    'total_items' => $batch->totalJobs,
+                    'total_process_successfully' => $batch->totalJobs - $batch->failedJobs,
+                    'total_process_failed' => $batch->failedJobs,
+                ],
+                'exception' => $errors,
+                'status' => 'completed',
+                'finished_at' => now(),
             ]);
-        }
-
-
-        $totalProcessSuccessfully = 0;
-        $totalProcessFailed = 0;
-        $errors = [];
-
-        // Retrieve the batch using its ID and dispatch it
-        $batch = Bus::findBatch($batchId);
-        if ($batch) {
-            $batch->progress(function ($totalProcessSuccessfully) {
-                $totalProcessSuccessfully++;
-            })->catch(function ($totalProcessFailed, Throwable $e) {
-                $errors[] = [
-                    'message' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                    // 'request' => $this->request,
-                ];
-                Log::error($e->getMessage());
-                // captureException($e);
-                $totalProcessFailed++;
-            })->dispatch();
-
-
-            if ($this->filesystemImport) {
-                $this->filesystemImport->update([
-                    'results' => [
-                        'total_items' => $batch->totalJobs,
-                        'total_process_successfully' => $totalProcessSuccessfully,
-                        'total_process_failed' => $totalProcessFailed,
-                    ],
-                    'exception' => $errors,
-                    'status' => 'completed',
-                    'finished_at' => now(),
-                ]);
-            }
-        } else {
-            throw new Exception("Batch not found.");
         }
     }
 }

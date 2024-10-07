@@ -13,7 +13,7 @@ use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Users\Models\Users;
-use Kanvas\Inventory\Importer\Handlers\ProductImporterBatchHandler;
+use Kanvas\Inventory\Importer\Handlers\ProductsImporterBatchHandler;
 use Illuminate\Support\Facades\Bus;
 
 class DownloadAllShopifyProductsAction
@@ -61,19 +61,19 @@ class DownloadAllShopifyProductsAction
                 );
                 $productsToImport[] = $shopifyProductService->mapProductForImport($shopifyProduct);
 
-
                 $totalRecords++;
             }
 
-            $batchProductImport = new ProductImporterBatchHandler(
+            $batchProductImport = new ProductsImporterBatchHandler(
                 $productsToImport,
-                this->branch,
+                $this->branch,
                 $this->user,
                 $this->warehouses->region,
                 $this->app
             );
-            $batchProductImport->add();
-            $batchProductImport->dispatch();
+
+            $batchProductImport->process();
+            
 
             $firstPage = false; // After first fetch, do not reset to initial parameters
         } while ($shopifyP->getNextPageParams());
