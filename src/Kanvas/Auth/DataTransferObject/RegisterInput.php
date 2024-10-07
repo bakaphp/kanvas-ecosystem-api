@@ -67,7 +67,7 @@ class RegisterInput extends Data
         return new self(
             firstname: $request['firstname'] ?? '',
             lastname: $request['lastname'] ?? '',
-            displayname: !empty($request['displayname']) ? Random::cleanUpDisplayNameForSlug($request['displayname']) : Random::generateDisplayName($request['email']),
+            displayname: ! empty($request['displayname']) ? Random::cleanUpDisplayNameForSlug($request['displayname']) : Random::generateDisplayName($request['email']),
             email: $request['email'],
             password: Hash::make($request['password']),
             default_company: $request['default_company'] ?? null,
