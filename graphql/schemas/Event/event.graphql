@@ -94,7 +94,7 @@ type EventVersionDate {
     id: ID!
     event_version: EventVersion! @belongsTo(relation: "eventVersion")
     user: User! @belongsTo(relation: "user")
-    event_date: Date!
+    date: Date! @method(name: "getDate")
     start_time: String!
     end_time: String!
 }

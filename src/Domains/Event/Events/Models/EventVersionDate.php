@@ -28,4 +28,9 @@ class EventVersionDate extends BaseModel
             'event_date' => 'datetime',
         ];
     }
+
+    public function getDate(): string
+    {
+        return $this->event_date->format('Y-m-d');
+    }
 }
