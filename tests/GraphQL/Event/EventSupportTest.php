@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\GraphQL\Guild;
+namespace Tests\GraphQL\Event;
 
 use Tests\TestCase;
 

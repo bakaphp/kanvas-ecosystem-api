@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "378509ea96e2760362f0fc05411475e3",
+    "content-hash": "4c7ec86c34ceb534213bf98f4dd94f15",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -1195,16 +1195,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.322.8",
+            "version": "3.323.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "fb5099160e49b676277ae787ff721628e5e4dd5a"
+                "reference": "1b393c41a73e1ef4c493c60c5eee0bb4b0632264"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/fb5099160e49b676277ae787ff721628e5e4dd5a",
-                "reference": "fb5099160e49b676277ae787ff721628e5e4dd5a",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/1b393c41a73e1ef4c493c60c5eee0bb4b0632264",
+                "reference": "1b393c41a73e1ef4c493c60c5eee0bb4b0632264",
                 "shasum": ""
             },
             "require": {
@@ -1287,9 +1287,9 @@
             "support": {
                 "forum": "https://forums.aws.amazon.com/forum.jspa?forumID=80",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.322.8"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.323.1"
             },
-            "time": "2024-09-30T19:09:25+00:00"
+            "time": "2024-10-04T18:07:17+00:00"
         },
         {
             "name": "berkayk/onesignal-laravel",
@@ -2440,16 +2440,16 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.374.0",
+            "version": "v0.375.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
-                "reference": "5f6060df419f4f72dcc970197f9a9b1613cecc62"
+                "reference": "ad8c4fcf925fd10198c20e2d7a3390183dc24bf1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/5f6060df419f4f72dcc970197f9a9b1613cecc62",
-                "reference": "5f6060df419f4f72dcc970197f9a9b1613cecc62",
+                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/ad8c4fcf925fd10198c20e2d7a3390183dc24bf1",
+                "reference": "ad8c4fcf925fd10198c20e2d7a3390183dc24bf1",
                 "shasum": ""
             },
             "require": {
@@ -2478,9 +2478,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.374.0"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.375.0"
             },
-            "time": "2024-09-23T01:02:23+00:00"
+            "time": "2024-09-29T01:10:26+00:00"
         },
         {
             "name": "google/auth",
@@ -2544,16 +2544,16 @@
         },
         {
             "name": "google/cloud-core",
-            "version": "v1.59.1",
+            "version": "v1.60.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-core.git",
-                "reference": "35aae23dc4d0b860b6c3733e5cf381a510b506d9"
+                "reference": "7d63ba4295b799dc63227b6c9daf9dc207650eb4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-core/zipball/35aae23dc4d0b860b6c3733e5cf381a510b506d9",
-                "reference": "35aae23dc4d0b860b6c3733e5cf381a510b506d9",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-core/zipball/7d63ba4295b799dc63227b6c9daf9dc207650eb4",
+                "reference": "7d63ba4295b799dc63227b6c9daf9dc207650eb4",
                 "shasum": ""
             },
             "require": {
@@ -2604,9 +2604,58 @@
             ],
             "description": "Google Cloud PHP shared dependency, providing functionality useful to all components.",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-core/tree/v1.59.1"
+                "source": "https://github.com/googleapis/google-cloud-php-core/tree/v1.60.0"
             },
-            "time": "2024-08-10T02:24:23+00:00"
+            "time": "2024-09-28T04:24:22+00:00"
+        },
+        {
+            "name": "google/cloud-discoveryengine",
+            "version": "v1.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/googleapis/google-cloud-php-discoveryengine.git",
+                "reference": "524c72ce5ba738cef94955d934a3bf8b844cd573"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-discoveryengine/zipball/524c72ce5ba738cef94955d934a3bf8b844cd573",
+                "reference": "524c72ce5ba738cef94955d934a3bf8b844cd573",
+                "shasum": ""
+            },
+            "require": {
+                "google/gax": "^1.34.0",
+                "php": "^8.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9.0"
+            },
+            "suggest": {
+                "ext-grpc": "Enables use of gRPC, a universal high-performance RPC framework created by Google.",
+                "ext-protobuf": "Provides a significant increase in throughput over the pure PHP protobuf implementation. See https://cloud.google.com/php/grpc for installation instructions."
+            },
+            "type": "library",
+            "extra": {
+                "component": {
+                    "id": "cloud-discoveryengine",
+                    "path": "DiscoveryEngine",
+                    "target": "googleapis/google-cloud-php-discoveryengine"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Google\\Cloud\\DiscoveryEngine\\": "src",
+                    "GPBMetadata\\Google\\Cloud\\Discoveryengine\\": "metadata"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "description": "Google Cloud Discovery Engine Client for PHP",
+            "support": {
+                "source": "https://github.com/googleapis/google-cloud-php-discoveryengine/tree/v1.1.0"
+            },
+            "time": "2024-09-07T01:37:15+00:00"
         },
         {
             "name": "google/cloud-recommendations-ai",
@@ -2660,16 +2709,16 @@
         },
         {
             "name": "google/cloud-storage",
-            "version": "v1.42.1",
+            "version": "v1.43.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-storage.git",
-                "reference": "2a418cad887e44d08a86de19a878ea3607212edb"
+                "reference": "e4a071bd5efaecd14fe82b0f4f7748d1acfb1cfc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-storage/zipball/2a418cad887e44d08a86de19a878ea3607212edb",
-                "reference": "2a418cad887e44d08a86de19a878ea3607212edb",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-storage/zipball/e4a071bd5efaecd14fe82b0f4f7748d1acfb1cfc",
+                "reference": "e4a071bd5efaecd14fe82b0f4f7748d1acfb1cfc",
                 "shasum": ""
             },
             "require": {
@@ -2711,9 +2760,9 @@
             ],
             "description": "Cloud Storage Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-storage/tree/v1.42.1"
+                "source": "https://github.com/googleapis/google-cloud-php-storage/tree/v1.43.1"
             },
-            "time": "2024-07-08T23:14:13+00:00"
+            "time": "2024-10-05T04:59:14+00:00"
         },
         {
             "name": "google/common-protos",
@@ -6201,24 +6250,24 @@
         },
         {
             "name": "nette/schema",
-            "version": "v1.3.0",
+            "version": "v1.3.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nette/schema.git",
-                "reference": "a6d3a6d1f545f01ef38e60f375d1cf1f4de98188"
+                "reference": "da801d52f0354f70a638673c4a0f04e16529431d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nette/schema/zipball/a6d3a6d1f545f01ef38e60f375d1cf1f4de98188",
-                "reference": "a6d3a6d1f545f01ef38e60f375d1cf1f4de98188",
+                "url": "https://api.github.com/repos/nette/schema/zipball/da801d52f0354f70a638673c4a0f04e16529431d",
+                "reference": "da801d52f0354f70a638673c4a0f04e16529431d",
                 "shasum": ""
             },
             "require": {
                 "nette/utils": "^4.0",
-                "php": "8.1 - 8.3"
+                "php": "8.1 - 8.4"
             },
             "require-dev": {
-                "nette/tester": "^2.4",
+                "nette/tester": "^2.5.2",
                 "phpstan/phpstan-nette": "^1.0",
                 "tracy/tracy": "^2.8"
             },
@@ -6257,9 +6306,9 @@
             ],
             "support": {
                 "issues": "https://github.com/nette/schema/issues",
-                "source": "https://github.com/nette/schema/tree/v1.3.0"
+                "source": "https://github.com/nette/schema/tree/v1.3.2"
             },
-            "time": "2023-12-11T11:54:22+00:00"
+            "time": "2024-10-06T23:10:23+00:00"
         },
         {
             "name": "nette/utils",
@@ -6349,16 +6398,16 @@
         },
         {
             "name": "nevadskiy/laravel-tree",
-            "version": "0.5.0",
+            "version": "0.5.1",
             "source": {
                 "type": "git",
-                "url": "https://github.com/nevadskiy/laravel-tree.git",
-                "reference": "3b09382e19f3035ee263a641707309fbf8867650"
+                "url": "https://github.com/xalaida/laravel-tree.git",
+                "reference": "99a122f0c843497a14ad7f7d754c31e604599506"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nevadskiy/laravel-tree/zipball/3b09382e19f3035ee263a641707309fbf8867650",
-                "reference": "3b09382e19f3035ee263a641707309fbf8867650",
+                "url": "https://api.github.com/repos/xalaida/laravel-tree/zipball/99a122f0c843497a14ad7f7d754c31e604599506",
+                "reference": "99a122f0c843497a14ad7f7d754c31e604599506",
                 "shasum": ""
             },
             "require": {
@@ -6404,10 +6453,10 @@
                 "tree"
             ],
             "support": {
-                "issues": "https://github.com/nevadskiy/laravel-tree/issues",
-                "source": "https://github.com/nevadskiy/laravel-tree/tree/0.5.0"
+                "issues": "https://github.com/xalaida/laravel-tree/issues",
+                "source": "https://github.com/xalaida/laravel-tree/tree/0.5.1"
             },
-            "time": "2024-03-14T15:34:24+00:00"
+            "time": "2024-10-05T14:38:54+00:00"
         },
         {
             "name": "nikic/php-parser",
@@ -7049,16 +7098,16 @@
         },
         {
             "name": "php-http/discovery",
-            "version": "1.19.4",
+            "version": "1.20.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/php-http/discovery.git",
-                "reference": "0700efda8d7526335132360167315fdab3aeb599"
+                "reference": "82fe4c73ef3363caed49ff8dd1539ba06044910d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/php-http/discovery/zipball/0700efda8d7526335132360167315fdab3aeb599",
-                "reference": "0700efda8d7526335132360167315fdab3aeb599",
+                "url": "https://api.github.com/repos/php-http/discovery/zipball/82fe4c73ef3363caed49ff8dd1539ba06044910d",
+                "reference": "82fe4c73ef3363caed49ff8dd1539ba06044910d",
                 "shasum": ""
             },
             "require": {
@@ -7122,9 +7171,9 @@
             ],
             "support": {
                 "issues": "https://github.com/php-http/discovery/issues",
-                "source": "https://github.com/php-http/discovery/tree/1.19.4"
+                "source": "https://github.com/php-http/discovery/tree/1.20.0"
             },
-            "time": "2024-03-29T13:00:05+00:00"
+            "time": "2024-10-02T11:20:13+00:00"
         },
         {
             "name": "phpclassic/php-shopify",
@@ -14382,16 +14431,16 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "1.12.5",
+            "version": "1.12.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpstan/phpstan.git",
-                "reference": "7e6c6cb7cecb0a6254009a1a8a7d54ec99812b17"
+                "reference": "dc4d2f145a88ea7141ae698effd64d9df46527ae"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/7e6c6cb7cecb0a6254009a1a8a7d54ec99812b17",
-                "reference": "7e6c6cb7cecb0a6254009a1a8a7d54ec99812b17",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/dc4d2f145a88ea7141ae698effd64d9df46527ae",
+                "reference": "dc4d2f145a88ea7141ae698effd64d9df46527ae",
                 "shasum": ""
             },
             "require": {
@@ -14436,7 +14485,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-09-26T12:45:22+00:00"
+            "time": "2024-10-06T15:03:59+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
@@ -14763,16 +14812,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "11.3.6",
+            "version": "11.4.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "d62c45a19c665bb872c2a47023a0baf41a98bb2b"
+                "reference": "89fe0c530133c08f7fff89d3d727154e4e504925"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/d62c45a19c665bb872c2a47023a0baf41a98bb2b",
-                "reference": "d62c45a19c665bb872c2a47023a0baf41a98bb2b",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/89fe0c530133c08f7fff89d3d727154e4e504925",
+                "reference": "89fe0c530133c08f7fff89d3d727154e4e504925",
                 "shasum": ""
             },
             "require": {
@@ -14811,7 +14860,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-main": "11.3-dev"
+                    "dev-main": "11.4-dev"
                 }
             },
             "autoload": {
@@ -14843,7 +14892,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/11.3.6"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/11.4.0"
             },
             "funding": [
                 {
@@ -14859,7 +14908,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2024-09-19T10:54:28+00:00"
+            "time": "2024-10-05T08:39:03+00:00"
         },
         {
             "name": "sebastian/cli-parser",
