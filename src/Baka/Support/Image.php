@@ -12,9 +12,7 @@ class Image
     {
         $file = file_get_contents($url);
         Storage::disk('local')->put($path, $file);
-        
+
         return $path;
     }
-
-
 }
