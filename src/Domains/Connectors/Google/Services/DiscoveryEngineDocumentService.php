@@ -17,7 +17,7 @@ use Google\Cloud\DiscoveryEngine\V1\UpdateDocumentRequest;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Messages\Models\Message;
 
-class MessageRecommendationService
+class DiscoveryEngineDocumentService
 {
     protected RecommendationServiceClient $client;
     protected array $googleClientConfig;
@@ -45,7 +45,7 @@ class MessageRecommendationService
         ]);
     }
 
-    public function createIfNotExists(Message $message): Document
+    public function updateOrCreateDocument(Message $message): Document
     {
         // Create the document
         $document = $this->buildDocument($message);
@@ -65,7 +65,7 @@ class MessageRecommendationService
             );
 
             if ($existingDocument) {
-                return $this->updateExistingDocument($message);
+                return $this->updateDocument($message);
             }
         } catch (ApiException $e) {
             if ($e->getStatus() !== 'NOT_FOUND') {
@@ -81,7 +81,7 @@ class MessageRecommendationService
         return $documentServiceClient->createDocument($request);
     }
 
-    protected function updateExistingDocument(Message $message): Document
+    public function updateDocument(Message $message): Document
     {
         $document = $this->buildDocument($message);
         $documentName = $this->getDocumentName($message->getId());
