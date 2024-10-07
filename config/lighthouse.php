@@ -203,6 +203,7 @@ return [
             'App\\GraphQL\\Inventory\\Queries',
             'App\\GraphQL\\Subscription\\Queries',
             'App\\GraphQL\\Social\\Queries',
+            'App\\GraphQL\\Event\\Queries',
         ],
         'mutations' => [
             'App\\GraphQL\\Ecosystem\\Mutations',
@@ -210,12 +211,13 @@ return [
             'App\\GraphQL\\Social\\Mutations',
             'App\\GraphQL\\Subscription\\Mutations',
             'App\\GraphQL\\Inventory\\Mutations',
+            'App\\GraphQL\\Event\\Mutations',
         ],
         'subscriptions' => [
             // 'App\\GraphQL\\Ecosystem\\Subscriptions',
             // 'App\\GraphQL\\CRM\\Subscriptions',
             // 'App\\GraphQL\\Social\\Subscriptions',
-            'App\\GraphQL\\Subscription\\Subscriptions',
+            // 'App\\GraphQL\\Subscription\\Subscriptions',
             // 'App\\GraphQL\\Inventory\\Subscriptions',
         ],
         'interfaces' => [

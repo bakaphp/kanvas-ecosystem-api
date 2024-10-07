@@ -17,8 +17,8 @@ type Product {
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
     is_published: Boolean
-    created_at: String
-    updated_at: String
+    created_at: DateTime
+    updated_at: DateTime
     categories: [Category!]! @BelongsToMany
     warehouses: [Warehouse!]! @BelongsToMany
     attributes: [ProductAttribute!]! @BelongsToMany(relation: "visibleAttributes")

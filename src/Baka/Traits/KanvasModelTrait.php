@@ -85,8 +85,10 @@ trait KanvasModelTrait
                 ->fromCompany($company)
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
-            //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException("No record found for $id from company {$company->getId()}");
+            // Custom error message for company lookup by ID
+            throw new ExceptionsModelNotFoundException(
+                sprintf('No %s record found with ID %s for Company ID %s.', get_called_class(), $id, $company->getId())
+            );
         }
     }
 
@@ -99,21 +101,36 @@ trait KanvasModelTrait
                 ->fromApp($app)
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
-            //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException("No record found for $id from company {$company->getId()}");
+            // Custom error message for company and app lookup by ID
+            throw new ExceptionsModelNotFoundException(
+                sprintf('No %s record found with ID %s for Company ID %s', get_called_class(), $id, $company->getId())
+            );
         }
     }
 
     public static function getByUuidFromCompanyApp(string $uuid, ?CompanyInterface $company = null, ?AppInterface $app = null): self
     {
-        return self::where('uuid', $uuid)
-        ->when($company, function ($query, $company) {
-            $query->where('companies_id', $company->getId());
-        })
-        ->when($app, function ($query, $app) {
-            $query->where('apps_id', $app->getId());
-        })
-        ->firstOrFail();
+        try {
+            return self::where('uuid', $uuid)
+                ->when($company, function ($query, $company) {
+                    $query->where('companies_id', $company->getId());
+                })
+                ->when($app, function ($query, $app) {
+                    $query->where('apps_id', $app->getId());
+                })
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            // Custom error message for company and app lookup by UUID
+            throw new ExceptionsModelNotFoundException(
+                sprintf(
+                    'No %s record found with UUID %s%s%s.',
+                    get_called_class(),
+                    $uuid,
+                    $company ? ' for Company ID ' . $company->getId() : '',
+                    $app ? ' and App ID ' . $app->getId() : ''
+                )
+            );
+        }
     }
 
     public static function getByIdFromBranch(mixed $id, CompaniesBranches $branch): self
@@ -124,8 +141,10 @@ trait KanvasModelTrait
                 ->where('companies_branches_id', $branch->getId())
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
-            //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException("No record found for $id from branch {$branch->getId()}");
+            // Custom error message for branch lookup by ID
+            throw new ExceptionsModelNotFoundException(
+                sprintf('No %s record found with ID %s for Branch ID %s.', get_called_class(), $id, $branch->getId())
+            );
         }
     }
 
@@ -137,8 +156,10 @@ trait KanvasModelTrait
                 ->fromCompany($company)
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
-            //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException("No record found for $uuid from company {$company->getId()}");
+            // Custom error message for company lookup by UUID
+            throw new ExceptionsModelNotFoundException(
+                sprintf('No %s record found with UUID %s for Company ID %s.', get_called_class(), $uuid, $company->getId())
+            );
         }
     }
 
@@ -150,8 +171,10 @@ trait KanvasModelTrait
                 ->where('companies_branches_id', $branch->getId())
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
-            //we want to expose the not found msg
-            throw new ExceptionsModelNotFoundException("No record found for $uuid from branch {$branch->getId()}");
+            // Custom error message for branch lookup by UUID
+            throw new ExceptionsModelNotFoundException(
+                sprintf('No %s record found with UUID %s for Branch ID %s.', get_called_class(), $uuid, $branch->getId())
+            );
         }
     }
 
