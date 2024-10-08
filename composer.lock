@@ -9234,16 +9234,16 @@
         },
         {
             "name": "spatie/laravel-data",
-            "version": "4.10.0",
+            "version": "4.10.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-data.git",
-                "reference": "01eea07b5254d319157b7960de99f32dde6975ce"
+                "reference": "d3113c6bc03a6f1c241074d6f5832e05daa7ca77"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-data/zipball/01eea07b5254d319157b7960de99f32dde6975ce",
-                "reference": "01eea07b5254d319157b7960de99f32dde6975ce",
+                "url": "https://api.github.com/repos/spatie/laravel-data/zipball/d3113c6bc03a6f1c241074d6f5832e05daa7ca77",
+                "reference": "d3113c6bc03a6f1c241074d6f5832e05daa7ca77",
                 "shasum": ""
             },
             "require": {
@@ -9306,7 +9306,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-data/issues",
-                "source": "https://github.com/spatie/laravel-data/tree/4.10.0"
+                "source": "https://github.com/spatie/laravel-data/tree/4.10.1"
             },
             "funding": [
                 {
@@ -9314,7 +9314,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-10-04T12:50:57+00:00"
+            "time": "2024-10-07T08:36:46+00:00"
         },
         {
             "name": "spatie/laravel-google-cloud-storage",
