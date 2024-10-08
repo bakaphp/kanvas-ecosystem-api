@@ -47,7 +47,13 @@ class TaskEngagementMutation
         }
 
         $taskEngagementItem->status = $status;
+        $saveTaskEngagementItem = $taskEngagementItem->saveOrFail();
 
-        return $taskEngagementItem->saveOrFail();
+        /**
+         * @todo move to observer
+         */
+        $taskEngagementItem->disableRelatedItems();
+
+        return $saveTaskEngagementItem;
     }
 }
