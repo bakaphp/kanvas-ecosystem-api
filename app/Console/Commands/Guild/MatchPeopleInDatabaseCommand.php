@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands\Guild;
 
 use Baka\Traits\KanvasJobsTrait;
-use Bouncer;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
-use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use League\Csv\Reader;
@@ -35,7 +33,6 @@ class MatchPeopleInDatabaseCommand extends Command
     {
         $app = Apps::getById((int) $this->argument('apps_id'));
         $this->overwriteAppService($app);
-        //Bouncer::scope()->to(RolesEnums::getScope($app));
 
         $company = Companies::getById((int) $this->argument('company_id'));
         $file = $this->argument('file');
@@ -53,8 +50,6 @@ class MatchPeopleInDatabaseCommand extends Command
             $name = $record['Attendee Full Name'];
             $title = $record['Title'];
 
-            //$name = '%' . $name . '%'; // Concatenate wildcards with the $name variable
-
             $result = DB::connection('crm')->select('
                 SELECT p.id, CONCAT(p.name) AS full_name
                 FROM peoples p
@@ -63,9 +58,9 @@ class MatchPeopleInDatabaseCommand extends Command
                 AND p.apps_id = ?
                 AND p.companies_id = ?
             ', [
-                $name,            // Pass the modified name with wildcards
-                $app->getId(),    // apps_id
-                $company->getId(), // companies_id
+                $name,
+                $app->getId(),
+                $company->getId(),
             ]);
 
             if ($result) {
