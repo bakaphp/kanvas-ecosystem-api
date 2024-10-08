@@ -53,7 +53,8 @@ class SingleProductImporterJob implements ShouldQueue, ShouldBeUnique
         public Regions $region,
         public AppInterface $app,
     ) {
-        $this->onQueue('imports');
+        // $this->onQueue('imports');
+        $this->onQueue('imports')->delay(now()->addMinutes(5));
 
         if (App::environment('production')) {
             $this->uniqueFor = 15 * 60;
