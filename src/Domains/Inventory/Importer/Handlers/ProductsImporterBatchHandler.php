@@ -55,7 +55,7 @@ class ProductsImporterBatchHandler
 
         $batch->then(function (Batch $batch) {
             Log::error("All jobs from batch with ID: " . $batch->id . " are done");
-        })->allowFailures()->dispatch();
+        })->allowFailures()->onQueue('imports')->dispatch();
 
         if ($this->filesystemImport) {
             $this->filesystemImport->update([
