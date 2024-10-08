@@ -73,7 +73,7 @@ class DownloadAllShopifyProductsAction
             );
 
             $batchProductImport->process();
-            
+            unset($productsToImport); // clear array every time we process one page of data.
 
             $firstPage = false; // After first fetch, do not reset to initial parameters
         } while ($shopifyP->getNextPageParams());
