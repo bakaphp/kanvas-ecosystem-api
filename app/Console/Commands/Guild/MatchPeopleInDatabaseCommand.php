@@ -50,15 +50,22 @@ class MatchPeopleInDatabaseCommand extends Command
             $name = $record['Attendee Full Name'];
             $title = $record['Title'];
 
+            // Split full name into first name and last name
+            $names = explode(' ', $name);
+            $firstName = $names[0];
+            $lastName = isset($names[1]) ? $names[1] : '';
+
+            // Construct the regular expression to allow slight variations
+            $regexPattern = $firstName . '[^ ]*.*' . $lastName . '[^ ]*';
+
             $result = DB::connection('crm')->select('
-                SELECT p.id, CONCAT(p.name) AS full_name
+                SELECT p.id, p.name AS full_name
                 FROM peoples p
-                WHERE 
-                MATCH(p.name) AGAINST(? IN NATURAL LANGUAGE MODE)
+                WHERE p.name REGEXP ?
                 AND p.apps_id = ?
                 AND p.companies_id = ?
             ', [
-                $name,
+                $regexPattern,
                 $app->getId(),
                 $company->getId(),
             ]);
