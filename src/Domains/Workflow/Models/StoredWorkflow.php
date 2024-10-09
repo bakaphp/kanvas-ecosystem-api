@@ -17,7 +17,7 @@ class StoredWorkflow extends ModelsStoredWorkflow
     }
 
     public function getUnserializeArgument(): JsonResponse
-    {        
+    {
         $unserialize = unserialize($this->arguments)->getClosure();
         $data = $unserialize();
 
