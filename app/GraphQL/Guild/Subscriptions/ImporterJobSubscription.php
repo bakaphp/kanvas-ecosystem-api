@@ -28,10 +28,6 @@ class ImporterJobSubscription extends GraphQLSubscription
         } catch (Exception $e) {
             return false;
         }
-        // $args = $subscriber->args;
-        // if ($root->jobUuid == $args['jobUuid']) {
-        //     return true;
-        // }
 
         return false;
     }

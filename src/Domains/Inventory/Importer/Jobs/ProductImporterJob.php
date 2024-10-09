@@ -154,22 +154,33 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                 'finished_at' => now(),
             ]);
         }
-        $subscriptionData = [
-            'jobUuid' => $this->jobUuid,
-            'status' => 'completed',
-            'results' => [
-                'total_items' => $totalItems,
-                'total_process_successfully' => $totalProcessSuccessfully,
-                'total_process_failed' => $totalProcessFailed,
-                'created' => $created,
-                'updated' => $updated,
-            ],
-            'exception' => $errors,
-            'user' => $this->user,
-            'company' => $company,
-        ];
-        Subscription::broadcast('filesystemImported', $subscriptionData);
-
+        $this->notificationStatus($totalItems, $totalProcessSuccessfully, $totalProcessFailed, $created, $updated, $errors, $company);
         //handle failed jobs
+    }
+
+    protected function notificationStatus(
+        int $totalItems,
+        int $totalProcessSuccessfully,
+        int $totalProcessFailed,
+        int $created,
+        int $updated,
+        array $errors,
+        Companies $company
+    ) {
+        $subscriptionData = [
+                   'jobUuid' => $this->jobUuid,
+                   'status' => 'completed',
+                   'results' => [
+                       'total_items' => $totalItems,
+                       'total_process_successfully' => $totalProcessSuccessfully,
+                       'total_process_failed' => $totalProcessFailed,
+                       'created' => $created,
+                       'updated' => $updated,
+                   ],
+                   'exception' => $errors,
+                   'user' => $this->user,
+                   'company' => $company,
+               ];
+        Subscription::broadcast('filesystemImported', $subscriptionData);
     }
 }
