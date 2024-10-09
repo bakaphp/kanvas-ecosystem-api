@@ -354,9 +354,4 @@ class Products extends BaseModel implements EntityIntegrationInterface
             (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
         }
     }
-
-    public function getSystemModule(): SystemModules
-    {
-        return SystemModulesRepository::getByModelName(get_class($this), $this->app);
-    }
 }
