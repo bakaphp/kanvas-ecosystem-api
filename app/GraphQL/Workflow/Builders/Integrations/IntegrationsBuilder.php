@@ -6,6 +6,7 @@ namespace App\GraphQL\Workflow\Builders\Integrations;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
@@ -20,7 +21,7 @@ class IntegrationsBuilder
         ResolveInfo $resolveInfo
     ): Builder {
         $systemModuleUuid = $args['system_module_uuid'];
-        $systemModule = SystemModulesRepository::getByUuidOrModelName($systemModuleUuid);
+        $systemModule = SystemModulesRepository::getByUuidOrModelName($systemModuleUuid, app(Apps::class));
 
         if (! class_exists($entity = $systemModule->model_name)) {
             throw new InternalServerErrorException('System Module not found.');
