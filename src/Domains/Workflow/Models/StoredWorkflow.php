@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Models;
 
-use Illuminate\Http\JsonResponse;
 use Workflow\Models\StoredWorkflow as ModelsStoredWorkflow;
 
 class StoredWorkflow extends ModelsStoredWorkflow
@@ -16,19 +15,15 @@ class StoredWorkflow extends ModelsStoredWorkflow
         return class_basename($this->logs()->first()->class);
     }
 
-    public function getUnserializeArgument(): JsonResponse
+    public function getUnserializeArgument(): mixed
     {
         $unserialize = unserialize($this->arguments)->getClosure();
-        $data = $unserialize();
-
-        return response()->json($data);
+        return $unserialize();
     }
 
-    public function getUnserializeOutput(): JsonResponse
+    public function getUnserializeOutput(): mixed
     {
         $unserialize = unserialize($this->output)->getClosure();
-        $data = $unserialize();
-
-        return response()->json($data);
+        return $unserialize();
     }
 }
