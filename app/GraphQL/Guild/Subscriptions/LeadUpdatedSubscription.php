@@ -6,6 +6,7 @@ namespace App\GraphQL\Guild\Subscriptions;
 
 use Exception;
 use Illuminate\Http\Request;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Repositories\UsersRepository;
 use Nuwave\Lighthouse\Execution\ResolveInfo;
 use Nuwave\Lighthouse\Schema\Types\GraphQLSubscription;
@@ -35,7 +36,7 @@ class LeadUpdatedSubscription extends GraphQLSubscription
         array $args,
         GraphQLContext $context,
         ResolveInfo $resolveInfo
-    ): array {
+    ): Lead {
         return $root;
     }
 }
