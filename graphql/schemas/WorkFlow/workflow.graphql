@@ -2,8 +2,8 @@ type Workflow{
     id: ID!
     class: String
     activity_name: String @method(name: "getActivityName")
-    arguments: String
-    output: String
+    arguments: Mixed @method(name: "getUnserializeArgument")
+    output: Mixed @method(name: "getUnserializeOutput")
     status: String
     created_at: DateTime
     updated_at: DateTime
