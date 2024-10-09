@@ -17,7 +17,7 @@ class StoredWorkflow extends ModelsStoredWorkflow
 
     public function getUnserializeArgument(): mixed
     {
-        if(isset($this->arguments)) {
+        if (isset($this->arguments)) {
             $unserialize = unserialize($this->arguments)->getClosure();
             return $unserialize();
         }
@@ -26,7 +26,7 @@ class StoredWorkflow extends ModelsStoredWorkflow
 
     public function getUnserializeOutput(): mixed
     {
-        if(isset($this->arguments)) {
+        if (isset($this->arguments)) {
             $unserialize = unserialize($this->output)->getClosure();
             return $unserialize();
         }
