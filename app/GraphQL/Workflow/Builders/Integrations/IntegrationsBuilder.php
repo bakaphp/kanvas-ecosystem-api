@@ -20,16 +20,16 @@ class IntegrationsBuilder
         ResolveInfo $resolveInfo
     ): Builder {
         $systemModuleUuid = $args['system_module_uuid'];
-        $systemModule = SystemModulesRepository::getByUuidOrModelName($systemModuleUuid,);
+        $systemModule = SystemModulesRepository::getByUuidOrModelName($systemModuleUuid);
 
-        if (!class_exists($entity = $systemModule->model_name)) {
+        if (! class_exists($entity = $systemModule->model_name)) {
             throw new InternalServerErrorException('System Module not found.');
         }
 
-       $entity = $entity::getById($args['entity_id']);
+        $entity = $entity::getById($args['entity_id']);
 
-       return EntityIntegrationHistory::where('entity_namespace', get_class($entity))
-        ->where('entity_id', $entity->getId());
+        return EntityIntegrationHistory::where('entity_namespace', get_class($entity))
+            ->where('entity_id', $entity->getId());
     }
 
 }
