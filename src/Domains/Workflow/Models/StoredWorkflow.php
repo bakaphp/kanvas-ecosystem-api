@@ -13,7 +13,7 @@ class StoredWorkflow extends ModelsStoredWorkflow
 
     public function getActivityName(): string
     {
-        return class_basename($this->logs->first()->class);
+        return class_basename($this->logs()->first()->class);
     }
 
     public function getUnserializeArgument(): JsonResponse
