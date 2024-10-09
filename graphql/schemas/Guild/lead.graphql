@@ -170,7 +170,7 @@ extend type Mutation @guard {
         )
 }
 
-type Subscription @guard {
+extend type Subscription @guard {
     leadUpdate(id: ID!): Lead
         @subscription(
             class: "App\\GraphQL\\Guild\\Subscriptions\\LeadUpdatedSubscription"

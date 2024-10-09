@@ -12,7 +12,7 @@ use Nuwave\Lighthouse\Schema\Types\GraphQLSubscription;
 use Nuwave\Lighthouse\Subscriptions\Subscriber;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
-class LeadUpdatedSubscription extends GraphQLSubscription
+class ImporterJobSubscription extends GraphQLSubscription
 {
     public function authorize(Subscriber $subscriber, Request $request): bool
     {
@@ -21,13 +21,19 @@ class LeadUpdatedSubscription extends GraphQLSubscription
 
     public function filter(Subscriber $subscriber, mixed $root): bool
     {
+        return true;
+
         try {
             UsersRepository::belongsToThisApp($subscriber->context->user, $root->app, $root->company);
         } catch (Exception $e) {
-            return true;
+            return false;
         }
+        // $args = $subscriber->args;
+        // if ($root->jobUuid == $args['jobUuid']) {
+        //     return true;
+        // }
 
-        return true;
+        return false;
     }
 
     public function resolve(
