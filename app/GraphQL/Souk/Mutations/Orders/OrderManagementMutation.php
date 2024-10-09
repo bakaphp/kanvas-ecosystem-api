@@ -12,6 +12,7 @@ use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
 use Kanvas\Souk\Orders\DataTransferObject\DirectOrder;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
+use Kanvas\Souk\Payments\DataTransferObject\Profile;
 use Kanvas\Souk\Payments\Providers\AuthorizeNetPaymentProcessor;
 
 class OrderManagementMutation
@@ -40,6 +41,101 @@ class OrderManagementMutation
         $response = $this->processPayment($order, $isSubscription);
 
         return $this->handlePaymentResponse($response, $isSubscription);
+    }
+
+    public function createCustomerProfileWithPayment(mixed $root, array $request): array
+    {
+        $user = auth()->user();
+        $creditCard = CreditCard::viaRequest($request['input']);
+        $profile = Profile::viaRequest($request['input']);
+        $cart = app('cart')->session($user->getId());
+
+        $order = new DirectOrder(
+            app(Apps::class),
+            $user,
+            $creditCard,
+            $cart,
+            $profile
+        );
+
+        $payment = new AuthorizeNetPaymentProcessor(
+            app(Apps::class),
+            auth()->user()->getCurrentBranch()
+        );
+
+        return $payment->createCustomerProfileWithPayment($order);
+    }
+
+    public function createCustomerPaymentProfile(mixed $root, array $request): array
+    {
+        $user = auth()->user();
+        $creditCard = CreditCard::viaRequest($request['input']);
+        $profile = Profile::viaRequest($request['input']);
+        $cart = app('cart')->session($user->getId());
+
+        $order = new DirectOrder(
+            app(Apps::class),
+            $user,
+            $creditCard,
+            $cart,
+            $profile
+        );
+
+
+        $payment = new AuthorizeNetPaymentProcessor(
+            app(Apps::class),
+            auth()->user()->getCurrentBranch()
+        );
+
+        return $payment->createCustomerPaymentProfile($order);
+    }
+
+    public function updateCustomerPaymentProfile(mixed $root, array $request): array
+    {
+        $user = auth()->user();
+        $creditCard = CreditCard::viaRequest($request['input']);
+        $profile = Profile::viaRequest($request['input']);
+        $cart = app('cart')->session($user->getId());
+
+        $order = new DirectOrder(
+            app(Apps::class),
+            $user,
+            $creditCard,
+            $cart,
+            $profile
+        );
+
+
+        $payment = new AuthorizeNetPaymentProcessor(
+            app(Apps::class),
+            auth()->user()->getCurrentBranch()
+        );
+
+        return $payment->updateCustomerPaymentProfile($order);
+    }
+
+    public function deleteCustomerPaymentProfile(mixed $root, array $request): array
+    {
+        $user = auth()->user();
+        $creditCard = CreditCard::viaRequest($request['input']);
+        $profile = Profile::viaRequest($request['input']);
+        $cart = app('cart')->session($user->getId());
+
+        $order = new DirectOrder(
+            app(Apps::class),
+            $user,
+            $creditCard,
+            $cart,
+            $profile
+        );
+
+
+        $payment = new AuthorizeNetPaymentProcessor(
+            app(Apps::class),
+            auth()->user()->getCurrentBranch()
+        );
+
+        return $payment->deleteCustomerPaymentProfile($order);
     }
 
     private function processPayment(DirectOrder $order, bool $isSubscription): mixed

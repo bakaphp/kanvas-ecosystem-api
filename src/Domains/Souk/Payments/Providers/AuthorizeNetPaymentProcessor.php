@@ -229,7 +229,6 @@ class AuthorizeNetPaymentProcessor
         // Create a new CustomerProfileType and add the payment profile object
         $customerProfile = new AnetAPI\CustomerProfileType();
         $customerProfile->setDescription($orderInput->cart->getContent()->first()->name);
-        $customerProfile->setMerchantCustomerId($orderInput->user->getId());
         $customerProfile->setEmail($orderInput->user->email);
         $customerProfile->setpaymentProfiles($paymentProfiles);
 
@@ -274,7 +273,7 @@ class AuthorizeNetPaymentProcessor
         $paymentprofilerequest->setMerchantAuthentication($merchantAuthentication);
 
         // Add an existing profile id to the request
-        $paymentprofilerequest->setCustomerProfileId($orderInput->customerProfile->id);
+        $paymentprofilerequest->setCustomerProfileId($orderInput->profile->customerProfileId);
         $paymentprofilerequest->setPaymentProfile($paymentProfile);
         $paymentprofilerequest->setValidationMode("liveMode");
 
@@ -295,8 +294,8 @@ class AuthorizeNetPaymentProcessor
         $profile = new AnetAPI\GetCustomerPaymentProfileRequest();
         $profile->setMerchantAuthentication($merchantAuthentication);
         $profile->setRefId($this->refId);
-        $profile->setCustomerProfileId($orderInput->customerProfile->id);
-        $profile->setCustomerPaymentProfileId($orderInput->customerPaymentProfile->id);
+        $profile->setCustomerProfileId($orderInput->profile->customerProfileId);
+        $profile->setCustomerPaymentProfileId($orderInput->profile->customerPaymentProfileId);
 
         $profileController = new AnetController\GetCustomerPaymentProfileController($profile);
 
@@ -315,13 +314,13 @@ class AuthorizeNetPaymentProcessor
 
             $paymentprofile = new AnetAPI\CustomerPaymentProfileExType();
             $paymentprofile->setBillTo($customerAddress);
-            $paymentprofile->setCustomerPaymentProfileId($orderInput->customerPaymentProfile->id);
+            $paymentprofile->setCustomerPaymentProfileId($orderInput->profile->customerPaymentProfileId);
             $paymentprofile->setPayment($paymentCreditCard);
 
             // Submit a UpdatePaymentProfileRequest
             $request = new AnetAPI\UpdateCustomerPaymentProfileRequest();
             $request->setMerchantAuthentication($merchantAuthentication);
-            $request->setCustomerProfileId($orderInput->customerProfile->id);
+            $request->setCustomerProfileId($orderInput->profile->customerProfileId);
             $request->setPaymentProfile($paymentprofile);
 
             $controller = new AnetController\UpdateCustomerPaymentProfileController($request);
@@ -342,8 +341,8 @@ class AuthorizeNetPaymentProcessor
 
         $profile = new AnetAPI\DeleteCustomerPaymentProfileRequest();
         $profile->setMerchantAuthentication($merchantAuthentication);
-        $profile->setCustomerProfileId($orderInput->customerProfile->id);
-        $profile->setCustomerPaymentProfileId($orderInput->customerPaymentProfile->id);
+        $profile->setCustomerProfileId($orderInput->profile->customerProfileId);
+        $profile->setCustomerPaymentProfileId($orderInput->profile->customerPaymentProfileId);
 
         $controller = new AnetController\DeleteCustomerPaymentProfileController($profile);
 
