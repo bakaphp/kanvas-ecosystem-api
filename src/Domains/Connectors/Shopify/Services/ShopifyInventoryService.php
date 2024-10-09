@@ -35,7 +35,6 @@ class ShopifyInventoryService
     public function saveProduct(Products $product, StatusEnum $status, ?Channels $channel = null): array
     {
         $shopifyProductId = $product->getShopifyId($this->warehouses->regions);
-
         $productInfo = [
             'title' => $product->name,
             'handle' => $product->slug,
@@ -50,13 +49,15 @@ class ShopifyInventoryService
             foreach ($product->variants as $variant) {
                 $productInfo['variants'][] = $this->mapVariant($variant);
             }
-
             $response = $this->shopifySdk->Product->post($productInfo);
             $shopifyProductId = $response['id'];
             $product->setShopifyId($this->warehouses->regions, $shopifyProductId);
 
             foreach ($response['variants'] as $shopifyVariant) {
                 $variant = $product->variants('sku', $shopifyVariant['sku'])->first();
+
+                $this->setStock($variant, $channel);
+
                 if ($variant->getShopifyId($this->warehouses->regions) === null) {
                     $variant->setShopifyId($this->warehouses->regions, $shopifyVariant['id']);
                 }
@@ -91,10 +92,8 @@ class ShopifyInventoryService
     public function mapVariant(Variants $variant, ?Channels $channel = null): array
     {
         $warehouseInfo = $variant->variantWarehouses()->where('warehouses_id', $this->warehouses->getId())->first();
-
         if ($channel) {
             $channelInfo = $variant->variantChannels()->where('channels_id', $channel->getId())->first();
-
             $price = $channelInfo?->price ?? 0;
             $discountedPrice = $channelInfo?->discounted_price ?? 0;
             if ($discountedPrice > 0 && $discountedPrice < $price) {
@@ -104,7 +103,6 @@ class ShopifyInventoryService
         } else {
             $price = $warehouseInfo?->price ?? 0;
         }
-
         $quantity = $warehouseInfo?->quantity ?? 0;
         $shopifyVariantInfo = [
             'option1' => $variant->sku ?? $variant->name,
@@ -115,9 +113,12 @@ class ShopifyInventoryService
             'compare_at_price' => $discountedPrice ?? 0,
             'inventory_policy' => 'deny',
             'published' => $price > 0,
+            'gram' => $variant->get('WEIGHT') ?? 453.592,
+            'metafields' => [
+                $variant->getAllCustomFields(),
+            ],
         ];
-
-        if ($quantity > 0) {
+        if ($quantity > 0 && $variant->getShopifyId($this->warehouses->regions)) {
             $this->setStock($variant, $channel);
         }
 
@@ -161,7 +162,6 @@ class ShopifyInventoryService
     public function setStock(Variants $variant, ?Channels $channel = null, bool $isAdjustment = false): int
     {
         $shopifyVariant = $this->shopifySdk->ProductVariant($variant->getShopifyId($this->warehouses->regions));
-
         $channelInfo = $variant->variantChannels()->first();
         $warehouseInfo = $channelInfo?->productVariantWarehouse()->first();
 
