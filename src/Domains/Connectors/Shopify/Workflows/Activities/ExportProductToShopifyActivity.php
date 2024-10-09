@@ -29,7 +29,6 @@ class ExportProductToShopifyActivity extends Activity
         ->where('apps_id', 0)
         ->first();
 
-
         foreach ($product->variants as $variant) {
             foreach ($variant->warehouses as $warehouse) {
                 $integrationCompany = IntegrationsCompany::getByIntegration(
@@ -65,7 +64,8 @@ class ExportProductToShopifyActivity extends Activity
                         status: $status,
                         entity: $product,
                         response: $historyResponse ?? null,
-                        exception: $exception
+                        exception: $exception,
+                        workflowId: $this->workflowId()
                     );
 
                     (new AddEntityIntegrationHistoryAction(
