@@ -31,5 +31,4 @@ class IntegrationsBuilder
         return EntityIntegrationHistory::where('entity_namespace', get_class($entity))
             ->where('entity_id', $entity->getId());
     }
-
 }
