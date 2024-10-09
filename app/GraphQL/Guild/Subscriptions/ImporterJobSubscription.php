@@ -21,15 +21,13 @@ class ImporterJobSubscription extends GraphQLSubscription
 
     public function filter(Subscriber $subscriber, mixed $root): bool
     {
-        return true;
-
         try {
             UsersRepository::belongsToThisApp($subscriber->context->user, $root->app, $root->company);
         } catch (Exception $e) {
             return false;
         }
 
-        return false;
+        return true;
     }
 
     public function resolve(

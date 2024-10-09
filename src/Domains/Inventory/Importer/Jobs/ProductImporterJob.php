@@ -166,7 +166,7 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
         int $updated,
         array $errors,
         Companies $company
-    ) {
+    ): void {
         $subscriptionData = [
                    'jobUuid' => $this->jobUuid,
                    'status' => 'completed',
