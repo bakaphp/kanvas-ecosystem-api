@@ -9,6 +9,7 @@ type Product {
     html_description: String
     warranty_terms: String
     upc: String
+    system_module: SystemModule! @method(name: "getSystemModule")
     status: Status
     files: [Filesystem!]!
         @cacheRedis
