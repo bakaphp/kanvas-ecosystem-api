@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('entity_integration_history', function (Blueprint $table) {
             $table->unsignedBigInteger('workflow_id')->after('exception')->nullable(true);
 
-            $table->foreign('workflow_id')->references('id')->on('workflows');
+            $table->index('workflow_id', 'workflow_id_index');
         });
     }
 
