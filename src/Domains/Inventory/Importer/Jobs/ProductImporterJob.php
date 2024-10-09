@@ -24,6 +24,7 @@ use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Nuwave\Lighthouse\Execution\Utils\Subscription;
 
 use function Sentry\captureException;
 
@@ -53,10 +54,12 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
         public AppInterface $app,
         public ?FilesystemImports $filesystemImport = null
     ) {
-        $this->onQueue('imports')->delay(now()->addMinutes(5));
+        $minuteDelay = (int)($app->get('delay_minute_job') ?? 5);
+        $this->onQueue('imports')->delay(now()->addMinutes($minuteDelay));
 
+        $minuteUniqueFor = (int)($app->get('unique_for_minute_job') ?? 15);
         if (App::environment('production')) {
-            $this->uniqueFor = 15 * 60;
+            $this->uniqueFor = $minuteUniqueFor * 60;
         }
     }
 
@@ -97,6 +100,8 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
         $totalItems = count($this->importer);
         $totalProcessSuccessfully = 0;
         $totalProcessFailed = 0;
+        $created = 0;
+        $updated = 0;
         $errors = [];
 
         //mark all variants as unsearchable for this company before running the import
@@ -112,13 +117,18 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
 
         foreach ($this->importer as $request) {
             try {
-                (new ProductImporterAction(
+                $product = (new ProductImporterAction(
                     ProductImporter::from($request),
                     $company,
                     $this->user,
                     $this->region,
                     $this->app
                 ))->execute();
+                if ($product->wasRecentlyCreated) {
+                    $created++;
+                } else {
+                    $updated++;
+                }
                 $totalProcessSuccessfully++;
             } catch (Throwable $e) {
                 $errors[] = [
@@ -144,7 +154,33 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                 'finished_at' => now(),
             ]);
         }
-
+        $this->notificationStatus($totalItems, $totalProcessSuccessfully, $totalProcessFailed, $created, $updated, $errors, $company);
         //handle failed jobs
+    }
+
+    protected function notificationStatus(
+        int $totalItems,
+        int $totalProcessSuccessfully,
+        int $totalProcessFailed,
+        int $created,
+        int $updated,
+        array $errors,
+        Companies $company
+    ): void {
+        $subscriptionData = [
+                   'jobUuid' => $this->jobUuid,
+                   'status' => 'completed',
+                   'results' => [
+                       'total_items' => $totalItems,
+                       'total_process_successfully' => $totalProcessSuccessfully,
+                       'total_process_failed' => $totalProcessFailed,
+                       'created' => $created,
+                       'updated' => $updated,
+                   ],
+                   'exception' => $errors,
+                   'user' => $this->user,
+                   'company' => $company,
+               ];
+        Subscription::broadcast('filesystemImported', $subscriptionData);
     }
 }

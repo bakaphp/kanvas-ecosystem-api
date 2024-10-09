@@ -605,6 +605,12 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
         $user->displayname = $displayName;
 
+        /**
+         * @todo, we will update legacy user displayname until we migrate them over to graph
+         */
+        $this->displayname = $displayName;
+        $this->updateOrFail();
+
         return $user->updateOrFail();
     }
 

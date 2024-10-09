@@ -16,6 +16,7 @@ enum AppSettingsEnums implements EnumsInterface
     case SEND_CREATE_USER_EMAIL;
     case ONBOARDING_GUILD_SETUP;
     case ONBOARDING_INVENTORY_SETUP;
+    case ONBOARDING_EVENT_SETUP;
     case ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY;
     case GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY;
     case GLOBAL_APP_IMAGES;
@@ -49,6 +50,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::SEND_CREATE_USER_EMAIL => 'send_create_user_email',
             self::ONBOARDING_GUILD_SETUP => 'onboarding_guild_setup',
             self::ONBOARDING_INVENTORY_SETUP => 'onboarding_inventory_setup',
+            self::ONBOARDING_EVENT_SETUP => 'onboarding_event_setup',
             self::ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY => 'admin_user_registration_assign_current_company',
             self::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY => 'global_user_registration_assign_global_company',
             self::GLOBAL_APP_IMAGES => 'global_app_images',
