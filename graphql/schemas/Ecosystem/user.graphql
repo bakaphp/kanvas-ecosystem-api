@@ -19,6 +19,7 @@ type User {
         @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@address")
     sex: String
     user_active: Boolean!
+    timezone: String
     abilities: Mixed! @method(name: "getAbilitiesList")
     roles: Mixed! @method(name: "getRoles")
     mainRole: String!
