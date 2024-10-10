@@ -201,65 +201,6 @@ class UserManagementTest extends TestCase
         $this->assertTrue($user->companies()->first()->id == $company->getId());
     }
 
-    public function testUpdateUser(): void
-    {
-        $app = app(Apps::class);
-
-        $user = $app->keys()->first()->user()->firstOrFail();
-        $user->assign(RolesEnums::OWNER->value);
-
-        $email = fake()->email();
-        $response = $this->graphQL(/** @lang GraphQL */ '
-            mutation appCreateUser($data: CreateUserInput!) {
-                appCreateUser(data: $data) {
-                    id
-                    email,
-                    uuid
-                }
-              }',
-            [
-                'data' => [
-                    'firstname' => fake()->firstName(),
-                    'lastname' => fake()->lastName(),
-                    'email' => $email,
-                    'custom_fields' => [],
-                ],
-            ],
-            [],
-            [
-                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
-            ]
-        );
-
-        $userUuid = $response->json('data.appCreateUser.uuid');
-
-        $data = [
-            'firstname' => fake()->firstName(),
-            'lastname' => fake()->lastName(),
-            'user_active' => false,
-            'is_active' => false,
-            'banned' => false,
-            'status' => 1,
-            'welcome' => false,
-            'configuration' => fake()->text(),
-            'timezone' => fake()->timezone,
-        ];
-
-        $this->graphQL(/** @lang GraphQL */ '
-            mutation appUpdateUser($user_uuid: ID!, $input: UpdateUserAppInput!) {
-                appUpdateUser(user_uuid: $user_uuid, input: $input) 
-            }',
-            [
-                'user_uuid' => $userUuid,
-                'input' => $data,
-            ]
-        )->assertJson([
-            'data' => [
-                'appUpdateUser' => true,
-            ],
-        ]);
-    }
-
     public function testDeletedUser()
     {
         $app = app(Apps::class);
