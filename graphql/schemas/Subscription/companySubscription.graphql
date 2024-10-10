@@ -26,7 +26,7 @@ input SubscriptionInput {
     apps_plans_prices_id: ID!
     name: String
     payment_method_id: String!
-    trial_days: Int
+    trial_days: Int!
 }
 
 input SubscriptionUpdateInput {
