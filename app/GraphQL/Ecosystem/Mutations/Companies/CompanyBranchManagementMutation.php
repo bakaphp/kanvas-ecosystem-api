@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Companies;
 
+use Exception;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
@@ -15,6 +16,8 @@ use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPutData;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Filesystem\Actions\AttachFilesystemAction;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Users\Models\Users;
 
@@ -65,6 +68,31 @@ class CompanyBranchManagementMutation
             user: $user,
             request: $request
         );
+    }
+
+    public function updatePhotoProfile(mixed $root, array $request): CompaniesBranches
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $companyBranch = CompaniesBranches::getById((int) $request['id']);
+
+        $company = $companyBranch->company()->first();
+
+        CompaniesRepository::userAssociatedToCompanyAndBranch($company, $companyBranch, $user);
+
+        $filesystem = new FilesystemServices(app(Apps::class));
+        $file = $request['file'];
+        in_array($file->extension(), ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp']) ?: throw new Exception('Invalid file format');
+
+        $filesystemEntity = $filesystem->upload($file, $user);
+
+        $action = new AttachFilesystemAction(
+            $filesystemEntity,
+            $companyBranch
+        );
+        $action->execute('photo');
+
+        return $companyBranch;
     }
 
     /**
