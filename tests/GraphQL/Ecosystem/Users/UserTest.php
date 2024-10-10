@@ -67,6 +67,8 @@ class UserTest extends TestCase
                     'sex' => 'U',
                     'phone_number' => fake()->phoneNumber(),
                     'address_1' => fake()->address(),
+                    'timezone' => 'America/New_York',
+                    'welcome' => true,
                     'custom_fields' => [
                         [
                             'name' => 'test',
