@@ -57,4 +57,9 @@ class Event extends BaseModel
     {
         return $this->belongsTo(EventClass::class);
     }
+
+    public function eventType(): BelongsTo
+    {
+        return $this->belongsTo(EventType::class);
+    }
 }
