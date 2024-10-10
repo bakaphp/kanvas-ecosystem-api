@@ -1,4 +1,4 @@
-type Workflow{
+type Workflow {
     id: ID!
     class: String
     activity_name: String @method(name: "getActivityName")
