@@ -52,11 +52,9 @@ class SubscriptionMutation
         if (! $companyStripeAccount->subscriptions()->exists()) {
             try {
                 $subscription = $companyStripeAccount->newSubscription('default', $subscriptionInput->price->stripe_id);
-                if ($subscriptionInput->trial_days) {
-                    $subscription->trialDays($subscriptionInput->trial_days);
-                }
+                $subscription->trialDays($this->app->get('free_trial_days'));
                 $createdSubscription = $subscription->create($subscriptionInput->payment_method_id);
-                $createdSubscription->trial_ends_at = Carbon::make($createdSubscription->trial_ends_at);
+                $createdSubscription->trial_ends_at = Carbon::now()->addDays($this->app->trial_days);
                 foreach ($createdSubscription->items as $item) {
                     $item->stripe_product_name = $subscriptionInput->price->plan->name;
                     $item->save();

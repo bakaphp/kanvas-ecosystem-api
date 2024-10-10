@@ -134,7 +134,14 @@ class AppSettingsSeeder extends Seeder
                 'name' => 'default_feeds_comments',
                 'value' => '3',
                 'created_at' => date('Y-m-d H:m:s'),
+            ],
+            [
+                'apps_id' => 1,
+                'name' => 'free_trial_days',
+                'value' => '14',
+                'created_at' => date('Y-m-d H:m:s'),
             ]
+            
         ]);
     }
 }

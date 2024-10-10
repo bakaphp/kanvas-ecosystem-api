@@ -19,7 +19,6 @@ class SubscriptionInput extends Data
         public UserInterface $user,
         public string $name,
         public string $payment_method_id,
-        public int $trial_days,
         public Price $price
     ) {
     }
@@ -34,7 +33,6 @@ class SubscriptionInput extends Data
             $user,
             $request['name'],
             $request['payment_method_id'],
-            $request['trial_days'],
             $price
         );
     }
