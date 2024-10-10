@@ -169,7 +169,7 @@ class SubscriptionMutation
             ->where('apps_id', $this->app->id)
             ->first();
 
-        if (!$freeTrialDays) {
+        if (! $freeTrialDays) {
             $freeTrialSetting = new AppsSetting();
             $freeTrialSetting->apps_id = $this->app->id;
             $freeTrialSetting->name = 'free_trial_days';
