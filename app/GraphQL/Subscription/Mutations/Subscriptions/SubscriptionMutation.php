@@ -7,11 +7,13 @@ namespace App\GraphQL\Subscription\Mutations\Subscriptions;
 use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Apps\Models\Settings as AppsSetting;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Subscription\Prices\Models\Price;
 use Kanvas\Subscription\Prices\Repositories\PriceRepository;
 use Kanvas\Subscription\Subscriptions\DataTransferObject\SubscriptionInput;
+use Kanvas\Subscription\Enums\TrialPeriodEnum;
 use Laravel\Cashier\Subscription;
 use Throwable;
 
@@ -52,9 +54,10 @@ class SubscriptionMutation
         if (! $companyStripeAccount->subscriptions()->exists()) {
             try {
                 $subscription = $companyStripeAccount->newSubscription('default', $subscriptionInput->price->stripe_id);
-                $subscription->trialDays($this->app->get('free_trial_days'));
+                $subscription->trialDays($this->getFreeTrialDays());
                 $createdSubscription = $subscription->create($subscriptionInput->payment_method_id);
-                $createdSubscription->trial_ends_at = Carbon::now()->addDays($this->app->trial_days);
+
+                $createdSubscription->trial_ends_at = Carbon::now()->addDays(TrialPeriodEnum::MONTHLY->value);
                 foreach ($createdSubscription->items as $item) {
                     $item->stripe_product_name = $subscriptionInput->price->plan->name;
                     $item->save();
@@ -158,5 +161,24 @@ class SubscriptionMutation
         } catch (Throwable $e) {
             throw new ValidationException('Failed to reactivate subscription: ' . $e->getMessage());
         }
+    }
+
+    private function getFreeTrialDays(): int
+    {
+        $freeTrialDays = AppsSetting::where('name', 'free_trial_days')
+            ->where('apps_id', $this->app->id)
+            ->first();
+
+        if (!$freeTrialDays) {
+            $freeTrialSetting = new AppsSetting();
+            $freeTrialSetting->apps_id = $this->app->id;
+            $freeTrialSetting->name = 'free_trial_days';
+            $freeTrialSetting->value = TrialPeriodEnum::MONTHLY->value;
+            $freeTrialSetting->save();
+
+            return TrialPeriodEnum::MONTHLY->value;
+        }
+
+        return (int) $freeTrialDays->value;
     }
 }
