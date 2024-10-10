@@ -78,12 +78,10 @@ class CompaniesBranches extends BaseModel
         return $this->belongsTo(Users::class, 'users_id');
     }
 
+
     public function getPhoto(): ?FilesystemEntities
     {
-        $app = app(Apps::class);
-        $defaultAvatarId = $app->get(AppSettingsEnums::DEFAULT_USER_AVATAR->getValue());
-
-        return $this->getFileByName('photo') ?: ($defaultAvatarId ? FilesystemEntitiesRepository::getFileFromEntityById($defaultAvatarId) : null);
+        return $this->getFileByName('photo');
     }
 
     /**
