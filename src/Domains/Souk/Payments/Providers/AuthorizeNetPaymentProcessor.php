@@ -70,6 +70,17 @@ class AuthorizeNetPaymentProcessor
         return $customerData;
     }
 
+    protected function setCustomerProfileWithPayment(DirectOrder $orderInput): AnetAPI\CustomerProfilePaymentType
+    {
+        $profileToCharge = new AnetAPI\CustomerProfilePaymentType();
+        $profileToCharge->setCustomerProfileId($orderInput->profile->customerProfileId);
+        $paymentProfile = new AnetAPI\PaymentProfileType();
+        $paymentProfile->setPaymentProfileId($orderInput->profile->customerPaymentProfileId);
+        $profileToCharge->setPaymentProfile($paymentProfile);
+
+        return $profileToCharge;
+    }
+
     protected function setCustomerBillingAddress(DirectOrder $orderInput): AnetAPI\CustomerAddressType
     {
         $customerAddress = new AnetAPI\CustomerAddressType();
@@ -116,11 +127,17 @@ class AuthorizeNetPaymentProcessor
         $transactionRequestType = new AnetAPI\TransactionRequestType();
         $transactionRequestType->setTransactionType('authCaptureTransaction');
         $transactionRequestType->setAmount($orderInput->cart->getTotal()); //$orderInput->cart->getTotal());
-        $transactionRequestType->setPayment($paymentOne);
         $transactionRequestType->setCustomer($customerData);
         $transactionRequestType->setOrder($order);
         $transactionRequestType->setBillTo($customerAddress);
         $transactionRequestType->addToTransactionSettings($duplicateWindowSetting);
+        if ($orderInput->profile !== null) {
+            // Set the customer's payment profile
+            $profileToCharge = $this->setCustomerProfileWithPayment($orderInput);
+            $transactionRequestType->setProfile($profileToCharge);
+        } else {
+            $transactionRequestType->setPayment($paymentOne);
+        }
         //$transactionRequestType->addToUserFields($merchantDefinedField1);
         //$transactionRequestType->addToUserFields($merchantDefinedField2);
 
