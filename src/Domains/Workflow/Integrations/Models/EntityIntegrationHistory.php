@@ -7,6 +7,7 @@ namespace Kanvas\Workflow\Integrations\Models;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Models\Integrations;
+use Kanvas\Workflow\Models\StoredWorkflow;
 
 class EntityIntegrationHistory extends BaseModel
 {
@@ -20,7 +21,8 @@ class EntityIntegrationHistory extends BaseModel
         'integrations_id',
         'status_id',
         'response',
-        'exception'
+        'exception',
+        'workflow_id'
     ];
 
     protected $casts = [
@@ -45,6 +47,11 @@ class EntityIntegrationHistory extends BaseModel
     public function status(): BelongsTo
     {
         return $this->belongsTo(Status::class, 'status_id');
+    }
+
+    public function workflow(): BelongsTo
+    {
+        return $this->belongsTo(StoredWorkflow::class, 'workflow_id');
     }
 
     public function setStatus(Status $status): void

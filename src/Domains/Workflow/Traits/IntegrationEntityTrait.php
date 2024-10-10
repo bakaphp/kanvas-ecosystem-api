@@ -7,6 +7,7 @@ namespace Kanvas\Workflow\Traits;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 use Kanvas\Workflow\Enums\StatusEnum;
+use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\Status as WorkflowStatus;
 use Kanvas\Workflow\Models\Integrations;
 
@@ -15,7 +16,7 @@ trait IntegrationEntityTrait
     public function integrationsHistory(): HasMany
     {
         return $this->hasMany(
-            $this::class,
+            EntityIntegrationHistory::class,
             'entity_id'
         )->where('entity_namespace', $this::class);
     }

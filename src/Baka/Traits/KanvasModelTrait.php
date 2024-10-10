@@ -16,6 +16,8 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
+use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 
 trait KanvasModelTrait
@@ -305,5 +307,10 @@ trait KanvasModelTrait
     public function shouldBeSearchable()
     {
         return ! $this->isDeleted();
+    }
+
+    public function getSystemModule(): SystemModules
+    {
+        return SystemModulesRepository::getByModelName(get_class($this), $this->app);
     }
 }
