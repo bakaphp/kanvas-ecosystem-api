@@ -121,6 +121,47 @@ final class SubscriptionsTest extends TestCase
         ]);
     }
 
+    public function testCreateSubscriptionWithFreeTrial()
+    {
+        $paymentMethod = $this->createPaymentMethod();
+        $user = auth()->user();
+        $freeTrialDays = 14;
+
+        $response = $this->graphQL('
+            mutation {
+                createSubscription(input: {
+                    apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
+                    name: "TestCreate Subscription with Free Trial",       
+                    payment_method_id: "' . $paymentMethod . '",
+                    trial_days: ' . $freeTrialDays . '       
+                }) {
+                    id
+                    stripe_id
+                    stripe_status
+                    trial_ends_at
+                    items {
+                        id
+                        stripe_id
+                        stripe_product
+                        stripe_product_name
+                        stripe_price
+                    }
+                }
+            }
+        ', [], [], [
+            'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
+        ]);
+
+        $response->assertJson([
+            'data' => [
+                'createSubscription' => [
+                   'stripe_status' => 'active',
+                   'trial_ends_at' => now()->addDays($freeTrialDays)->toDateTimeString(),
+                ],
+            ],
+        ]);
+    }
+
     public function testUpdateSubscription()
     {
         $user = auth()->user();
