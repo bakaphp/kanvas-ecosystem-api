@@ -7,9 +7,7 @@ namespace App\GraphQL\Subscription\Mutations\Subscriptions;
 use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Apps\Models\Settings as AppsSetting;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
-use Kanvas\Subscription\Enums\SubscriptionEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Subscription\Prices\Models\Price;
 use Kanvas\Subscription\Prices\Repositories\PriceRepository;
@@ -53,19 +51,12 @@ class SubscriptionMutation
 
         if (! $companyStripeAccount->subscriptions()->exists()) {
             try {
-                $freeTrialDays = AppsSetting::where('name', SubscriptionEnum::TRIAL_DAYS->getValue())
-                ->where('apps_id', $this->app->id)
-                ->first();
-
                 $subscription = $companyStripeAccount->newSubscription('default', $subscriptionInput->price->stripe_id);
-                $subscription->trialDays($freeTrialDays?->value ?? 0);
-                $createdSubscription = $subscription->create($subscriptionInput->payment_method_id);
-
-                if ($freeTrialDays) {
-                    $createdSubscription->trial_ends_at = Carbon::now()->addDays($freeTrialDays);
-                    $createdSubscription->save();
+                if ($subscriptionInput->price->plan->free_trial_days) {
+                    $subscription->trialDays($subscriptionInput->price->plan->free_trial_days);
                 }
 
+                $createdSubscription = $subscription->create($subscriptionInput->payment_method_id);
                 foreach ($createdSubscription->items as $item) {
                     $item->stripe_product_name = $subscriptionInput->price->plan->name;
                     $item->save();
@@ -74,6 +65,7 @@ class SubscriptionMutation
                 throw new ValidationException($e->getMessage());
             }
         }
+
         return $companyStripeAccount->subscriptions()->firstOrFail();
     }
 
