@@ -55,10 +55,6 @@ class SubscriptionMutation
                 $subscription->trialDays($subscriptionInput->price->plan->free_trial_dates);
 
                 $createdSubscription = $subscription->create($subscriptionInput->payment_method_id);
-                if ($subscriptionInput->price->plan->free_trial_dates) {
-                    $createdSubscription->trial_ends_at = Carbon::now()->addDays($subscriptionInput->price->plan->free_trial_dates);
-                    $createdSubscription->save();
-                }
                 foreach ($createdSubscription->items as $item) {
                     $item->stripe_product_name = $subscriptionInput->price->plan->name;
                     $item->save();
