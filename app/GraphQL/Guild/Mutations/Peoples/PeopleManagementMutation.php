@@ -100,8 +100,7 @@ class PeopleManagementMutation
     {
         $app = app(Apps::class);
         $user = auth()->user();
-
-        $people = PeoplesRepository::getById((int) $request['people_id'], $user->getCurrentCompany());
+        $people = ModelsPeople::getByIdFromCompanyApp((int) $request['people_id'], $user->getCurrentCompany(), $app);
 
         return $this->uploadFileToEntity(
             model: $people,
