@@ -53,7 +53,6 @@ class SubscriptionMutation
 
         if (! $companyStripeAccount->subscriptions()->exists()) {
             try {
-
                 $freeTrialDays = AppsSetting::where('name', SubscriptionEnum::TRIAL_DAYS->getValue())
                 ->where('apps_id', $this->app->id)
                 ->first();
