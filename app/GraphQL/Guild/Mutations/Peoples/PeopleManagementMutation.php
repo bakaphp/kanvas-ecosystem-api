@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Guild\Mutations\Peoples;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
@@ -16,6 +17,8 @@ use Spatie\LaravelData\DataCollection;
 
 class PeopleManagementMutation
 {
+    use HasMutationUploadFiles;
+
     /**
      * Create new customer
      */
@@ -91,6 +94,21 @@ class PeopleManagementMutation
             (int) $req['id'],
             $user->getCurrentCompany()
         )->softDelete();
+    }
+
+    public function attachFileToPeople(mixed $root, array $request): ModelsPeople
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+
+        $people = PeoplesRepository::getById((int) $request['people_id'], $user->getCurrentCompany());
+
+        return $this->uploadFileToEntity(
+            model: $people,
+            app: $app,
+            user: $user,
+            request: $request
+        );
     }
 
     /**
