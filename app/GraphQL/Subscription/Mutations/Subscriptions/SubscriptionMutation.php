@@ -52,10 +52,12 @@ class SubscriptionMutation
         if (! $companyStripeAccount->subscriptions()->exists()) {
             try {
                 $subscription = $companyStripeAccount->newSubscription('default', $subscriptionInput->price->stripe_id);
-                if ($subscriptionInput->price->plan->free_trial_days) {
-                    $subscription->trialDays($subscriptionInput->price->plan->free_trial_days);
+                if ($subscriptionInput->price->plan->free_trial_dates) {
+                    $subscription->trialDays($subscriptionInput->price->plan->free_trial_dates);
                 }
+
                 $createdSubscription = $subscription->create($subscriptionInput->payment_method_id);
+
                 foreach ($createdSubscription->items as $item) {
                     $item->stripe_product_name = $subscriptionInput->price->plan->name;
                     $item->save();
@@ -64,6 +66,7 @@ class SubscriptionMutation
                 throw new ValidationException($e->getMessage());
             }
         }
+
         return $companyStripeAccount->subscriptions()->firstOrFail();
     }
 
