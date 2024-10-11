@@ -14,7 +14,6 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Subscription\Prices\Models\Price;
 use Kanvas\Subscription\Prices\Repositories\PriceRepository;
 use Kanvas\Subscription\Subscriptions\DataTransferObject\SubscriptionInput;
-use \Stripe\Subscription as StripeSubscription;
 use Laravel\Cashier\Subscription;
 use Throwable;
 
@@ -64,9 +63,9 @@ class SubscriptionMutation
                 $createdSubscription = $subscription->create($subscriptionInput->payment_method_id);
 
                 if ($freeTrialDays) {
-                        $createdSubscription->trial_ends_at = Carbon::now()->addDays($freeTrialDays);
-                        $createdSubscription->save();
-                    }
+                    $createdSubscription->trial_ends_at = Carbon::now()->addDays($freeTrialDays);
+                    $createdSubscription->save();
+                }
 
                 foreach ($createdSubscription->items as $item) {
                     $item->stripe_product_name = $subscriptionInput->price->plan->name;
