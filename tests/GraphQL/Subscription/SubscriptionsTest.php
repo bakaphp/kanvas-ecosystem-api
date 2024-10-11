@@ -122,6 +122,71 @@ final class SubscriptionsTest extends TestCase
         ]);
     }
 
+    public function testCreateSubscriptionWithoutTrial()
+    {
+        $paymentMethod = $this->createPaymentMethod();
+        $user = auth()->user();
+
+        $plan = [
+            'apps_id' => 1,
+            'name' => 'Test without trial',
+            'stripe_id' => 'prod_R0llYZVFCMX0Dz',
+            'free_trial_dates' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        $planId = DB::table('apps_plans')->insertGetId($plan);
+
+        $price = [
+            'apps_plans_id' => $planId,
+            'stripe_id' => 'price_1Q8kDZBwyV21ueMMq6ZDUKqI',
+            'amount' => 38.00,
+            'currency' => 'USD',
+            'interval' => 'yearly',
+            'is_default' => 0,
+            'created_at' => now(),
+        ];
+
+        DB::table('apps_plans_prices')->updateOrInsert(
+            ['stripe_id' => $price['stripe_id']],
+            $price
+        );
+        $priceId = DB::table('apps_plans_prices')->where('stripe_id', $price['stripe_id'])->value('id');
+
+        $response = $this->graphQL('
+            mutation {
+                createSubscription(input: {
+                    apps_plans_prices_id: ' . $priceId . ' , #without trial
+                    name: "TestCreate Subscription",       
+                    payment_method_id: "' . $paymentMethod . '"                      
+                }) {
+                    id
+                    stripe_id
+                    stripe_status
+                    trial_ends_at
+                    items {
+                        id
+                        stripe_id
+                        stripe_product
+                        stripe_product_name
+                        stripe_price
+                    }
+                }
+            }
+        ', [], [], [
+            'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
+        ]);
+
+        $response->assertJson([
+            'data' => [
+                'createSubscription' => [
+                   'stripe_status' => 'active',
+                ],
+            ],
+        ]);
+    }
+
     public function testUpdateSubscription()
     {
         $user = auth()->user();
@@ -162,7 +227,7 @@ final class SubscriptionsTest extends TestCase
         $response->assertJson([
             'data' => [
                 'updateSubscription' => [
-                    'stripe_status' => 'active',
+                    'stripe_status' => 'trialing',
                 ],
             ],
         ]);
