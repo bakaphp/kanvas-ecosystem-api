@@ -60,17 +60,11 @@ class SubscriptionMutation
                 ->first();
 
                 $subscription = $companyStripeAccount->newSubscription('default', $subscriptionInput->price->stripe_id);
-                // if ($freeTrialDays) {
-                //     $subscription->trialDays($freeTrialDays);
-                // }
+                $subscription->trialDays($freeTrialDays?->value ?? 0);
                 $createdSubscription = $subscription->create($subscriptionInput->payment_method_id);
 
                 if ($freeTrialDays) {
-                        $trialEndDate = Carbon::now()->addDays($freeTrialDays);
-                        StripeSubscription::update($createdSubscription->stripe_id, [
-                            'trial_end' => $trialEndDate->timestamp,
-                        ]);
-                        $createdSubscription->trial_ends_at = $trialEndDate;
+                        $createdSubscription->trial_ends_at = Carbon::now()->addDays($freeTrialDays);
                         $createdSubscription->save();
                     }
 

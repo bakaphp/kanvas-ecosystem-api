@@ -162,7 +162,7 @@ final class SubscriptionsTest extends TestCase
         $response->assertJson([
             'data' => [
                 'updateSubscription' => [
-                    'stripe_status' => 'trialing',
+                    'stripe_status' => 'active',
                 ],
             ],
         ]);
