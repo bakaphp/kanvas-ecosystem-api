@@ -105,8 +105,8 @@ class DiscoveryEngineDocumentService
 
         $content = new Content();
         $data = $message->message;
-        $data['title'] = ! empty($data['title']) ? $data['title'] : $message->slug;
-        $data['uri'] = ! empty($data['title']) ? $data['title'] : $message->slug;
+        $data['title'] = ! empty($data['title']) ? $data['title'] : ($message->slug ?? $message->uuid);
+        $data['uri'] = ! empty($data['title']) ? $data['title'] : ($message->slug ?? $message->uuid);
         $data['categories'] = ['message'];
         $data['available_time'] = $message->created_at->toRfc3339String();
 
