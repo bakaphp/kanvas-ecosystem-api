@@ -24,7 +24,7 @@ class ImporterJobSubscription extends GraphQLSubscription
         try {
             UsersRepository::belongsToThisApp($subscriber->context->user, $root->app, $root->company);
         } catch (Exception $e) {
-            return true;
+            return false;
         }
 
         return true;
