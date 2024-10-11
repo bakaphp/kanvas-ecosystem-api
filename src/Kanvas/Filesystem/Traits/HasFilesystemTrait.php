@@ -17,8 +17,10 @@ use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
+use Kanvas\Filesystem\Workflows\DownloadImageWorkflow;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use RuntimeException;
+use Workflow\WorkflowStub;
 
 trait HasFilesystemTrait
 {
@@ -43,7 +45,6 @@ trait HasFilesystemTrait
     public function addFileFromUrl(string $url, string $fieldName): bool
     {
         $companyId = $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
-
         //@todo allow to share media between company only of it the apps specifies it
         $fileSystem = Filesystem::fromApp()
             ->when($companyId > 0, function ($query) use ($companyId) {
@@ -70,6 +71,9 @@ trait HasFilesystemTrait
         }
 
         $attachFilesystem = new AttachFilesystemAction($fileSystem, $this);
+        $app = $this->app ?? app(Apps::class);
+        $workflow = WorkflowStub::make(DownloadImageWorkflow::class);
+        $workflow->start($app, $fileSystem);
 
         return $attachFilesystem->execute($fieldName) instanceof FilesystemEntities;
     }

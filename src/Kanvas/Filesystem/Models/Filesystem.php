@@ -11,6 +11,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
  * Filesystem Model.
@@ -33,6 +34,7 @@ class Filesystem extends BaseModel
 {
     use UuidTrait;
     use Cachable;
+    use CanUseWorkflow;
 
     protected $table = 'filesystem';
 

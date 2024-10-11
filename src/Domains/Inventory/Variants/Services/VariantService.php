@@ -126,7 +126,6 @@ class VariantService
         $company = $variantDto->product->company;
 
         $warehouse = Warehouses::getDefault($company);
-
         if (isset($variant['warehouse']['status'])) {
             $variant['warehouse']['status_id'] = StatusRepository::getById(
                 (int) $variant['warehouse']['status']['id'],
