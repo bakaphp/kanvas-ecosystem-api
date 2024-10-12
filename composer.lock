@@ -2614,16 +2614,16 @@
         },
         {
             "name": "google/cloud-discoveryengine",
-            "version": "v1.1.0",
+            "version": "v1.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-discoveryengine.git",
-                "reference": "524c72ce5ba738cef94955d934a3bf8b844cd573"
+                "reference": "40ca907d649ec20fcee337740d051ff3c52e63c2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-discoveryengine/zipball/524c72ce5ba738cef94955d934a3bf8b844cd573",
-                "reference": "524c72ce5ba738cef94955d934a3bf8b844cd573",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-discoveryengine/zipball/40ca907d649ec20fcee337740d051ff3c52e63c2",
+                "reference": "40ca907d649ec20fcee337740d051ff3c52e63c2",
                 "shasum": ""
             },
             "require": {
@@ -2657,9 +2657,9 @@
             ],
             "description": "Google Cloud Discovery Engine Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-discoveryengine/tree/v1.1.0"
+                "source": "https://github.com/googleapis/google-cloud-php-discoveryengine/tree/v1.2.0"
             },
-            "time": "2024-09-07T01:37:15+00:00"
+            "time": "2024-10-11T19:23:00+00:00"
         },
         {
             "name": "google/cloud-recommendations-ai",
@@ -15897,6 +15897,6 @@
     "platform": {
         "php": "^8.2"
     },
-    "platform-dev": {},
+    "platform-dev": [],
     "plugin-api-version": "2.6.0"
 }
