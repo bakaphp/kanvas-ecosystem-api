@@ -15,9 +15,9 @@ use Kanvas\Social\Messages\Models\Message;
 
 class DiscoveryEngineUserEventService extends DiscoveryEngineService
 {
-    public function createUserEvent(UsersInteractions $userInteraction): ?WriteUserEventRequest
+    public function createUserEvent(UsersInteractions $userInteraction): ?UserEvent
     {
-        $UserEventServiceClient = UserEventServiceClient::dataStoreName(
+        $userEventServiceClient = UserEventServiceClient::dataStoreName(
             $this->googleRecommendationConfig['projectId'],
             $this->googleRecommendationConfig['location'],
             $this->googleRecommendationConfig['dataSource'],
@@ -46,8 +46,14 @@ class DiscoveryEngineUserEventService extends DiscoveryEngineService
             ->setDocuments([$document])
             ->setEventTime($eventTime);
 
-        return (new WriteUserEventRequest())
-            ->setParent($UserEventServiceClient)
+        $writeUserEventRequest = (new WriteUserEventRequest())
+            ->setParent($userEventServiceClient)
             ->setUserEvent($userEvent);
+
+        $client = new UserEventServiceClient([
+            'credentials' => $this->googleClientConfig,
+        ]);
+
+        return $client->writeUserEvent($writeUserEventRequest);
     }
 }
