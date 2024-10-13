@@ -23,6 +23,17 @@ enum InteractionEnum implements EnumsInterface
     case PIN;
     case VIEW;
 
+    // Google Interaction Types
+    case SEARCH;
+    case VIEW_ITEM;
+    case VIEW_ITEM_LIST;
+    case VIEW_HOME_PAGE;
+    case VIEW_CATEGORY_PAGE;
+    case ADD_TO_CART;
+    case PURCHASE;
+    case MEDIA_PLAY;
+    case MEDIA_COMPLETE;
+
     /**
      * Get value.
      */
@@ -43,6 +54,17 @@ enum InteractionEnum implements EnumsInterface
             self::REPLY => 'reply',
             self::PIN => 'pin',
             self::VIEW => 'view',
+            
+            // Google Interaction Types
+            self::SEARCH => 'search',
+            self::VIEW_ITEM => 'view-item',
+            self::VIEW_ITEM_LIST => 'view-item-list',
+            self::VIEW_HOME_PAGE => 'view-home-page',
+            self::VIEW_CATEGORY_PAGE => 'view-category-page',
+            self::ADD_TO_CART => 'add-to-cart',
+            self::PURCHASE => 'purchase',
+            self::MEDIA_PLAY => 'media-play',
+            self::MEDIA_COMPLETE => 'media-complete',
         };
     }
 
