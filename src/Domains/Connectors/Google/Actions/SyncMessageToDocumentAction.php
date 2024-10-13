@@ -28,7 +28,7 @@ class SyncMessageToDocumentAction
         ?MessageType $messageType = null,
         array $messagesId = [],
         int $messagePerBatch = 100
-    ) : array {
+    ): array {
         $query = Message::fromApp($this->app)
             ->orderBy('id', 'DESC');
 
