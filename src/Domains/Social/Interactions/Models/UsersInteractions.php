@@ -6,11 +6,15 @@ namespace Kanvas\Social\Interactions\Models;
 
 use Baka\Support\Str;
 use Baka\Traits\MorphEntityDataTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Social\Messages\Observers\UserInteractionObserver;
 use Kanvas\Social\Models\BaseModel;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
  * @property int $id
+ * @property int $apps_id
  * @property int $users_id
  * @property string $entity_id
  * @property string $entity_namespace
@@ -20,9 +24,11 @@ use Kanvas\Social\Models\BaseModel;
  * @property string $updated_at
  * @property bool $is_deleted
  */
+#[ObservedBy([UserInteractionObserver::class])]
 class UsersInteractions extends BaseModel
 {
     use MorphEntityDataTrait;
+    use CanUseWorkflow;
 
     protected $table = 'users_interactions';
     protected $guarded = [];
