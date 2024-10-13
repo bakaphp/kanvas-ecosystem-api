@@ -96,11 +96,11 @@ class PeopleManagementMutation
         )->softDelete();
     }
 
-    public function attachFileToPeople(mixed $root, array $request): ModelsPeople
+    public function attachFile(mixed $root, array $request): ModelsPeople
     {
         $app = app(Apps::class);
         $user = auth()->user();
-        $people = ModelsPeople::getByIdFromCompanyApp((int) $request['people_id'], $user->getCurrentCompany(), $app);
+        $people = ModelsPeople::getByIdFromCompanyApp((int) $request['id'], $user->getCurrentCompany(), $app);
 
         return $this->uploadFileToEntity(
             model: $people,

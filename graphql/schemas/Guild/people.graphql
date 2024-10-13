@@ -195,8 +195,8 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleImportMutation@import"
         )
-    attachFileToPeople(file: Upload!, people_id: ID!): People!
+    attachFileToPeople(file: Upload!, id: ID!): People!
         @field(
-            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@attachFileToPeople"
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@attachFile"
         )
 }
