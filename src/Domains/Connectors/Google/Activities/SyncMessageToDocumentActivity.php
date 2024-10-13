@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Internal\Activities;
+namespace Kanvas\Connectors\Google\Activities;
 
 use Baka\Contracts\AppInterface;
 use Baka\Traits\KanvasJobsTrait;
