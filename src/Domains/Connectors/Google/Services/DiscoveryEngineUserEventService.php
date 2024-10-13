@@ -11,6 +11,7 @@ use Google\Cloud\DiscoveryEngine\V1\WriteUserEventRequest;
 use Kanvas\Connectors\Google\Enums\UserEventEnum;
 use Kanvas\Social\Interactions\Models\UsersInteractions;
 use Kanvas\Social\Messages\Models\Message;
+use Google\Protobuf\Timestamp;
 
 class DiscoveryEngineUserEventService extends DiscoveryEngineService
 {
@@ -35,11 +36,15 @@ class DiscoveryEngineUserEventService extends DiscoveryEngineService
         $document = new DocumentInfo();
         $document->setId($userInteraction->entityData()->id);
 
+        $eventTime = new Timestamp();
+        $eventTime->fromDateTime($userInteraction->created_at);
+
         // Prepare the request message.
         $userEvent = (new UserEvent())
             ->setEventType($eventType)
             ->setUserPseudoId((string) $userInteraction->users_id)
-            ->setDocuments([$document]);
+            ->setDocuments([$document])
+            ->setEventTime($eventTime); 
 
         return (new WriteUserEventRequest())
             ->setParent($UserEventServiceClient)

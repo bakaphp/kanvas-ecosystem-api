@@ -25,7 +25,7 @@ class SyncUserInteractionToEventAction
     public function execute(
         ?Interactions $userInteraction = null,
         array $userInteractionIds = [],
-        int $interactionPerBatch = 1
+        int $interactionPerBatch = 100
     ): array {
         $query = UsersInteractions::fromApp($this->app)
             ->orderBy('id', 'DESC');
