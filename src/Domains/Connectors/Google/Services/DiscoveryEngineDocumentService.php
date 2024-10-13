@@ -77,7 +77,7 @@ class DiscoveryEngineDocumentService extends DiscoveryEngineService
         $data = ! is_array($message->message) ? [$message->message] : $message->message;
         $data['title'] = ! empty($data['title']) ? $data['title'] : ($message->slug ?? $message->uuid);
         $data['uri'] = ! empty($data['title']) ? $data['title'] : ($message->slug ?? $message->uuid);
-        $data['categories'] = ['message'];
+        $data['categories'] = $message->tags() ? $message->tags()->pluck('name')->toArray() : ['message'];
         $data['available_time'] = $message->created_at->toRfc3339String();
 
         $jsonContent = json_encode($data);
