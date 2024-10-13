@@ -8,7 +8,7 @@ use Baka\Support\Str;
 use Baka\Traits\MorphEntityDataTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Social\Messages\Observers\UserInteractionObserver;
+use Kanvas\Social\Interactions\Observers\UserInteractionObserver;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 

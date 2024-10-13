@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Messages\Observers;
+namespace Kanvas\Social\Interactions\Observers;
 
 use Kanvas\Social\Interactions\Models\UsersInteractions;
 use Kanvas\Workflow\Enums\WorkflowEnum;
