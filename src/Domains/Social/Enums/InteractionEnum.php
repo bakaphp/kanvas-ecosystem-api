@@ -54,8 +54,6 @@ enum InteractionEnum implements EnumsInterface
             self::REPLY => 'reply',
             self::PIN => 'pin',
             self::VIEW => 'view',
-            
-            // Google Interaction Types
             self::SEARCH => 'search',
             self::VIEW_ITEM => 'view-item',
             self::VIEW_ITEM_LIST => 'view-item-list',
