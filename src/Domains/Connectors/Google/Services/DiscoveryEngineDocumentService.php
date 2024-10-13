@@ -14,37 +14,12 @@ use Google\Cloud\DiscoveryEngine\V1\Document;
 use Google\Cloud\DiscoveryEngine\V1\Document\Content;
 use Google\Cloud\DiscoveryEngine\V1\GetDocumentRequest;
 use Google\Cloud\DiscoveryEngine\V1\UpdateDocumentRequest;
+use Kanvas\Connectors\Google\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Messages\Models\Message;
 
-class DiscoveryEngineDocumentService
+class DiscoveryEngineDocumentService extends DiscoveryEngineService
 {
-    protected RecommendationServiceClient $client;
-    protected array $googleClientConfig;
-    protected array $googleRecommendationConfig;
-
-    public function __construct(
-        protected AppInterface $app,
-        protected CompanyInterface $company
-    ) {
-        $googleClientConfig = $this->app->get('google-client-config');
-        $googleRecommendationConfig = $this->app->get('google-recommendation-config');
-
-        if (! $googleClientConfig) {
-            throw new ValidationException('Google client config not found for app ' . $this->app->name);
-        }
-
-        if (! $googleRecommendationConfig) {
-            throw new ValidationException('Google recommendation config not found for app ' . $this->app->name);
-        }
-
-        $this->googleClientConfig = $googleClientConfig;
-        $this->googleRecommendationConfig = $googleRecommendationConfig;
-        $this->client = new RecommendationServiceClient([
-            'credentials' => $this->googleClientConfig,
-        ]);
-    }
-
     public function updateOrCreateDocument(Message $message): Document
     {
         // Create the document

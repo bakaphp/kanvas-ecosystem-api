@@ -9,13 +9,11 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Support\Facades\Log;
-use Kanvas\Connectors\Google\Services\DiscoveryEngineDocumentService;
-use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Connectors\Google\Services\DiscoveryEngineUserEventService;
+use Kanvas\Social\Interactions\Models\Interactions;
+use Kanvas\Social\Interactions\Models\UsersInteractions;
 
-use function Sentry\captureException;
-
-class SyncMessageToDocumentAction
+class SyncUserInteractionToEventAction
 {
     public function __construct(
         protected AppInterface $app,
@@ -25,39 +23,38 @@ class SyncMessageToDocumentAction
     }
 
     public function execute(
-        ?MessageType $messageType = null,
-        array $messagesId = [],
-        int $messagePerBatch = 100
-    ) : array {
-        $query = Message::fromApp($this->app)
+        ?Interactions $userInteraction = null,
+        array $userInteractionIds = [],
+        int $interactionPerBatch = 1
+    ): array {
+        $query = UsersInteractions::fromApp($this->app)
             ->orderBy('id', 'DESC');
 
-        if ($messageType) {
-            $query->where('message_type_id', $messageType->id);
+        if ($userInteraction) {
+            $query->where('interaction_id', $userInteraction->id);
         }
 
-        if (! empty($messagesId)) {
-            $query->whereIn('id', $messagesId);
+        if (! empty($userInteractionIds)) {
+            $query->whereIn('id', $userInteractionIds);
         }
 
-        $messageRecommendation = new DiscoveryEngineDocumentService($this->app, $this->company);
+        $userEventService = new DiscoveryEngineUserEventService($this->app, $this->company);
         $totalProcessed = [
             'total' => 0,
             'success' => 0,
             'error' => 0,
         ];
 
-        $query->chunk($messagePerBatch, function ($messages) use ($messageRecommendation, &$totalProcessed) {
-            foreach ($messages as $message) {
+        $query->chunk($interactionPerBatch, function ($interactions) use ($userEventService, &$totalProcessed) {
+            foreach ($interactions as $interaction) {
                 $totalProcessed['total']++;
 
                 try {
-                    $messageRecommendation->updateOrCreateDocument($message);
+                    $userEventService->createUserEvent($interaction);
                     $totalProcessed['success']++;
                 } catch (Exception $e) {
                     $totalProcessed['error']++;
                     Log::error($e->getMessage());
-                    captureException($e);
                 }
             }
         });
