@@ -34,7 +34,7 @@ class DiscoveryEngineUserEventService extends DiscoveryEngineService
         }
 
         $document = new DocumentInfo();
-        $document->setId($userInteraction->entityData()->id);
+        $document->setId(30294);
 
         $eventTime = new Timestamp();
         $eventTime->fromDateTime($userInteraction->created_at);

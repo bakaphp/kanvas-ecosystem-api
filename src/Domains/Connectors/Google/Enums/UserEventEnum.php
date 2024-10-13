@@ -51,7 +51,7 @@ enum UserEventEnum: string
         return null;
     }
 
-    public static function convertInteractionToEvent(Interactions $interaction): string
+    public static function convertInteractionToEvent(Interactions $interaction): ?string
     {
         return match ($interaction->name) {
             InteractionEnum::LIKE->getValue() => self::VIEW_ITEM->value,

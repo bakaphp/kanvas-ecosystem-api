@@ -4,18 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Google\Services;
 
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Google\ApiCore\ApiException;
 use Google\Cloud\DiscoveryEngine\V1\Client\DocumentServiceClient;
-use Google\Cloud\DiscoveryEngine\V1\Client\RecommendationServiceClient;
 use Google\Cloud\DiscoveryEngine\V1\CreateDocumentRequest;
 use Google\Cloud\DiscoveryEngine\V1\Document;
 use Google\Cloud\DiscoveryEngine\V1\Document\Content;
 use Google\Cloud\DiscoveryEngine\V1\GetDocumentRequest;
 use Google\Cloud\DiscoveryEngine\V1\UpdateDocumentRequest;
-use Kanvas\Connectors\Google\Enums\ConfigurationEnum;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Messages\Models\Message;
 
 class DiscoveryEngineDocumentService extends DiscoveryEngineService
@@ -79,7 +74,7 @@ class DiscoveryEngineDocumentService extends DiscoveryEngineService
         $document->setId($message->getId()); // Set document ID
 
         $content = new Content();
-        $data = $message->message;
+        $data = ! is_array($message->message) ? [$message->message] : $message->message;
         $data['title'] = ! empty($data['title']) ? $data['title'] : ($message->slug ?? $message->uuid);
         $data['uri'] = ! empty($data['title']) ? $data['title'] : ($message->slug ?? $message->uuid);
         $data['categories'] = ['message'];
