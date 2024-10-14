@@ -31,7 +31,7 @@ class SyncUserInteractionToEventAction
             ->orderBy('id', 'DESC');
 
         if ($userInteraction) {
-            $query->where('interaction_id', $userInteraction->id);
+            $query->where('interactions_id', $userInteraction->id);
         }
 
         if (! empty($userInteractionIds)) {
