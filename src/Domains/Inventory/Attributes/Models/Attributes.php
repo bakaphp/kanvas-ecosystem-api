@@ -14,9 +14,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Models\BaseModel;
-use Kanvas\Inventory\Variants\Models\VariantsAttributes;
-use Kanvas\Inventory\ProductsTypes\Models\ProductsTypesAttributes;
 use Kanvas\Inventory\Products\Models\ProductsAttributes;
+use Kanvas\Inventory\ProductsTypes\Models\ProductsTypesAttributes;
+use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 
 /**
  * Class Attributes.
@@ -29,6 +29,7 @@ use Kanvas\Inventory\Products\Models\ProductsAttributes;
  * @property int $is_filterable
  * @property int $is_searchable
  * @property int $is_visible
+ * @property int $weight
  */
 class Attributes extends BaseModel
 {
@@ -41,17 +42,11 @@ class Attributes extends BaseModel
     public $guarded = [];
     protected $cascadeDeletes = ['variantAttributes','defaultValues'];
 
-    /**
-     * apps.
-     */
     public function apps(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
 
-    /**
-     * apps.
-     */
     public function attributeType(): BelongsTo
     {
         return $this->belongsTo(AttributesTypes::class, 'attributes_type_id');
