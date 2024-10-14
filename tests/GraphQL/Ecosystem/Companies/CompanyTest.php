@@ -89,6 +89,43 @@ class CompanyTest extends TestCase
         ->assertSee('timezone', $companyData['timezone']);
     }
 
+    public function testUnactivateCompany(): void
+    {
+        $companyData = $this->companyInputData();
+        $company = auth()->user()->getCurrentCompany();
+        $companyData['timezone'] = 'UTC +1';
+        $companyData['is_active'] = false;
+        $this->graphQL( /** @lang GraphQL */
+            '
+            mutation updateCompany($id: ID!, $input: CompanyInput!) {
+                updateCompany(id: $id, input: $input)
+                {
+                    name,
+                    website,
+                    address,
+                    zipcode,
+                    email,
+                    language,
+                    timezone,
+                    is_active
+                }
+            }',
+            [
+                'id' => $company->getId(),
+                'input' => $companyData,
+            ]
+        )
+        ->assertSuccessful()
+        ->assertSee('name', $companyData['name'])
+        ->assertSee('website', $companyData['website'])
+        ->assertSee('address', $companyData['address'])
+        ->assertSee('zipcode', $companyData['zipcode'])
+        ->assertSee('email', $companyData['email'])
+        ->assertSee('language', $companyData['language'])
+        ->assertSee('timezone', $companyData['timezone'])
+        ->assertSee('is_active', false);
+    }
+
     public function testGetCompanies(): void
     {
         $this->graphQL( /** @lang GraphQL */
