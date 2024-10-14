@@ -17,7 +17,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
-use Kanvas\Filesystem\Enum\AllowedFileExtensionEnum;
+use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Users\Models\Users;
