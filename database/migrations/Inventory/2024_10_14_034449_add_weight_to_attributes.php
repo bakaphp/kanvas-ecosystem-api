@@ -11,7 +11,7 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('attributes', function (Blueprint $table) {
-            $table->decimal('weight',3)->default(0)->after('is_visible')->index();
+            $table->decimal('weight', 3)->default(0)->after('is_visible')->index();
             $table->index('is_filtrable');
             $table->index('is_searchable');
             $table->index('is_visible');
