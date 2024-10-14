@@ -33,7 +33,7 @@ class SyncMessageToDocumentAction
             ->orderBy('id', 'DESC');
 
         if ($messageType) {
-            $query->where('message_type_id', $messageType->id);
+            $query->where('message_types_id', $messageType->id);
         }
 
         if (! empty($messagesId)) {
