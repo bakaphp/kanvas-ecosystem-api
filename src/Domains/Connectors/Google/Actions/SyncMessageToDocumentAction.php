@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
+use Google\Cloud\DiscoveryEngine\V1\Document;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Google\Services\DiscoveryEngineDocumentService;
 use Kanvas\Social\Messages\Models\Message;
@@ -52,8 +53,11 @@ class SyncMessageToDocumentAction
                 $totalProcessed['total']++;
 
                 try {
-                    $messageRecommendation->updateOrCreateDocument($message);
-                    $totalProcessed['success']++;
+                    if ($messageRecommendation->updateOrCreateDocument($message) instanceof Document) {
+                        $totalProcessed['success']++;
+                    } else {
+                        $totalProcessed['error']++;
+                    }
                 } catch (Exception $e) {
                     $totalProcessed['error']++;
                     Log::error($e->getMessage());

@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
+use Google\Cloud\DiscoveryEngine\V1\UserEvent;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Google\Services\DiscoveryEngineUserEventService;
 use Kanvas\Social\Interactions\Models\Interactions;
@@ -50,8 +51,11 @@ class SyncUserInteractionToEventAction
                 $totalProcessed['total']++;
 
                 try {
-                    $userEventService->createUserEvent($interaction);
-                    $totalProcessed['success']++;
+                    if ($userEventService->createUserEvent($interaction) instanceof UserEvent) {
+                        $totalProcessed['success']++;
+                    } else {
+                        $totalProcessed['error']++;
+                    }
                 } catch (Exception $e) {
                     $totalProcessed['error']++;
                     Log::error($e->getMessage());
