@@ -40,7 +40,7 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
 
     /**
     * The number of seconds after which the job's unique lock will be released.
-    *
+    * @todo Verify the use of the $branch param to be replaced to warehouses or company.
     * @var int
     */
     public $uniqueFor = 60;
