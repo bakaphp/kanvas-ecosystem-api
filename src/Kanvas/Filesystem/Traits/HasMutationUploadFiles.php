@@ -9,7 +9,7 @@ use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
-use Kanvas\Filesystem\Enum\AllowedFileExtensionEnum;
+use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
 use Kanvas\Filesystem\Services\FilesystemServices;
 
 trait HasMutationUploadFiles
