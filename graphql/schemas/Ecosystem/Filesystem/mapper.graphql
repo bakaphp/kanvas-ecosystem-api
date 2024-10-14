@@ -45,7 +45,9 @@ type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemMapperMutation@create"
         )
-    updateFilesystemMapper(input: UpdateFilesystemImportInput!): FilesystemMapper!
+    updateFilesystemMapper(
+        input: UpdateFilesystemImportInput!
+    ): FilesystemMapper!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemMapperMutation@update"
         )
@@ -56,6 +58,13 @@ type Mutation @guard {
     filesystemImport(input: FilesystemImportInput!): FileSystemImport!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemMapperMutation@process"
+        )
+}
+
+extend type Subscription @guard {
+    filesystemImported(jobUuid: String!): JSON
+        @subscription(
+            class: "App\\GraphQL\\Guild\\Subscriptions\\ImporterJobSubscription"
         )
 }
 

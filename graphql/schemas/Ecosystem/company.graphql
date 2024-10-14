@@ -108,6 +108,7 @@ input CompanyInput {
     custom_fields: [CustomFieldEntityInput!]
     is_active: Boolean
     timezone: String
+    address: String
 }
 
 ### @todo Split the create and update input.
@@ -280,6 +281,10 @@ extend type Mutation @guard {
     updateCompanyBranch(id: ID!, input: CompanyBranchInput): CompanyBranch!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@updateCompanyBranch"
+        )
+    updatePhotoProfileToCompanyBranch(file: Upload!, id: ID!): CompanyBranch!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@updatePhotoProfile"
         )
     uploadFileToCompanyBranch(id: ID!, file: Upload!): CompanyBranch!
         @field(

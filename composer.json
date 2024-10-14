@@ -19,17 +19,18 @@
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
         "genealabs/laravel-model-caching": "^11.0",
         "google/apiclient": "^2.16",
+        "google/cloud-discoveryengine": "^1.1",
         "google/cloud-recommendations-ai": "^0.7.5",
         "guzzlehttp/guzzle": "^7.6",
         "http-interop/http-factory-guzzle": "^1.0",
         "laravel-workflow/laravel-workflow": "^1.0.24",
+        "laravel/cashier": "^15.4.0",
         "laravel/framework": "^11.0",
         "laravel/octane": "^2.3",
         "laravel/sanctum": "^4.0",
         "laravel/scout": "^10.2",
         "laravel/socialite": "^5.14.0",
         "laravel/tinker": "^2.7",
-        "laravel/cashier": "^15.4.0",
         "lcobucci/jwt": "^5.2",
         "league/csv": "^9.0",
         "league/flysystem-aws-s3-v3": "^3.12",
@@ -82,6 +83,7 @@
             "Kanvas\\Connectors\\": "src/Domains/Connectors",
             "Kanvas\\Dashboard\\": "src/Domains/Dashboard",
             "Kanvas\\ActionEngine\\": "src/Domains/ActionEngine",
+            "Kanvas\\Event\\": "src/Domains/Event",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }
@@ -132,6 +134,9 @@
         ],
         "migrate-subscription": [
             "php artisan migrate --path database/migrations/Subscription/ --database mysql"
+        ],
+        "migrate-events": [
+            "php artisan migrate --path database/migrations/Event/ --database event"
         ],
         "pre-autoload-dump": "Google\\Task\\Composer::cleanup"
     },

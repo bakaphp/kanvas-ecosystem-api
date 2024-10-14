@@ -10,6 +10,7 @@ use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -31,6 +32,7 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 use Nevadskiy\Tree\AsTree;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Social\Messages\Observers\MessageObserver;
 
 /**
  *  Class Message
@@ -55,6 +57,7 @@ use Kanvas\Filesystem\Traits\HasFilesystemTrait;
  *  @property string|null ip_address
  */
 // Company, User and App Relationship is defined in KanvasModelTrait,
+#[ObservedBy([MessageObserver::class])]
 class Message extends BaseModel
 {
     use UuidTrait;

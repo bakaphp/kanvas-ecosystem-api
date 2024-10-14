@@ -39,10 +39,8 @@ use Kanvas\Inventory\Warehouses\Observers\VariantsWarehouseObserver;
 use Kanvas\Inventory\Warehouses\Observers\WarehouseObserver;
 use Kanvas\Notifications\Events\PushNotificationsEvent;
 use Kanvas\Notifications\Listeners\NotificationsListener;
-use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Models\UserMessage;
 use Kanvas\Social\Messages\Models\UserMessageActivity;
-use Kanvas\Social\Messages\Observers\MessageObserver;
 use Kanvas\Social\Messages\Observers\UserMessageActivityObserver;
 use Kanvas\Social\Messages\Observers\UserMessageObserver;
 use Kanvas\Social\UsersLists\Models\UserList;
@@ -81,7 +79,6 @@ class EventServiceProvider extends ServiceProvider
         UserList::observe(UsersListsObserver::class);
         Lead::observe(LeadObserver::class);
         UserMessage::observe(UserMessageObserver::class);
-        Message::observe(MessageObserver::class);
         Warehouses::observe(WarehouseObserver::class);
         Regions::observe(RegionObserver::class);
         Status::observe(StatusObserver::class);

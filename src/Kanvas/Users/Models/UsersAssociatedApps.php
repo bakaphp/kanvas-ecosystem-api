@@ -40,6 +40,7 @@ use Kanvas\Users\Enums\StatusEnums;
  * @property string $two_step_phone_number
  * @property string $email_verified_at
  * @property string $phone_verified_at
+ * @property  string $timezone
  * @property int $is_deleted
  */
 class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppInterface
@@ -84,6 +85,7 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
         'two_step_phone_number',
         'phone_verified_at',
         'email_verified_at',
+        'timezone',
     ];
 
     protected $casts = [

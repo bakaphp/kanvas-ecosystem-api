@@ -285,6 +285,34 @@ return [
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
+        'event' => [
+            'driver' => 'mysql',
+            'read' => [
+                'host' => [
+                    env('DB_EVENT_HOST_READ', env('DB_EVENT_HOST', '127.0.0.1')),
+                ],
+            ],
+            'write' => [
+                'host' => [
+                    env('DB_EVENT_HOST', '127.0.0.1'),
+                ],
+            ],
+            'sticky' => false,
+            'port' => env('DB_EVENT_PORT', '3306'),
+            'database' => env('DB_EVENT_DATABASE', 'event'),
+            'username' => env('DB_EVENT_USERNAME', 'kanvas'),
+            'password' => env('DB_EVENT_PASSWORD', ''),
+            'unix_socket' => env('DB_EVENT_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_520_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => 'InnoDB',
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
         'third_party' => [
             'driver' => 'mysql',
             'read' => [

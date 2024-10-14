@@ -51,20 +51,23 @@ class SubscriptionMutation
 
         if (! $companyStripeAccount->subscriptions()->exists()) {
             try {
-                $subscription = $companyStripeAccount->newSubscription($subscriptionInput->price->plan->stripe_plan, $subscriptionInput->price->stripe_id);
-                if ($subscriptionInput->price->plan->free_trial_days) {
-                    $subscription->trialDays($subscriptionInput->price->plan->free_trial_days);
+                $subscription = $companyStripeAccount->newSubscription('default', $subscriptionInput->price->stripe_id);
+                if ($subscriptionInput->price->plan->free_trial_dates) {
+                    $subscription->trialDays($subscriptionInput->price->plan->free_trial_dates);
                 }
-                $subscription->create($subscriptionInput->payment_method_id);
+
+                $createdSubscription = $subscription->create($subscriptionInput->payment_method_id);
+
+                foreach ($createdSubscription->items as $item) {
+                    $item->stripe_product_name = $subscriptionInput->price->plan->name;
+                    $item->save();
+                }
             } catch (Throwable $e) {
                 throw new ValidationException($e->getMessage());
             }
         }
 
-        $createdSubscription = $companyStripeAccount->subscriptions()->firstOrFail();
-        $createdSubscription->apps_plans_name = $subscriptionInput->price->plan->name;
-
-        return $createdSubscription;
+        return $companyStripeAccount->subscriptions()->firstOrFail();
     }
 
     public function update($root, array $args, $context, $info): Subscription
@@ -80,14 +83,14 @@ class SubscriptionMutation
         }
         $newPrice = PriceRepository::getByIdWithApp((int) $data['apps_plans_prices_id'], $this->app);
 
-        $upgradeSubscription = $companyStripeAccount
-            ->subscriptions()->where('type', $newPrice->plan->stripe_plan)->first();
-
-        if (! $upgradeSubscription) {
-            throw new ValidationException('Trying to upgrade to of a different type');
-        }
+        $upgradeSubscription = $companyStripeAccount->subscriptions->first();
 
         $upgradeSubscription->swap($newPrice->stripe_id);
+
+        foreach ($upgradeSubscription->items as $item) {
+            $item->stripe_product_name = $newPrice->plan->name;
+            $item->save();
+        }
 
         return $upgradeSubscription;
     }

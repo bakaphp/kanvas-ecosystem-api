@@ -23,7 +23,8 @@ class EntityIntegrationHistory extends Data
         public Status $status,
         public EntityIntegrationInterface $entity,
         public ?string $response = null,
-        public mixed $exception = null
+        public mixed $exception = null,
+        public ?int $workflowId = null
     ) {
     }
 }
