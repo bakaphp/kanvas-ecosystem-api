@@ -106,7 +106,8 @@ class CompanyTest extends TestCase
                     zipcode,
                     email,
                     language,
-                    timezone
+                    timezone,
+                    is_active
                 }
             }',
             [
