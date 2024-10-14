@@ -93,6 +93,10 @@ class AttachFilesystemAction
             $this->entity->clearLightHouseCacheJob();
         }
 
+        if (method_exists($this->entity, 'searchable')) {
+            $this->entity->searchable();
+        }
+
         return $fileEntity;
     }
 }

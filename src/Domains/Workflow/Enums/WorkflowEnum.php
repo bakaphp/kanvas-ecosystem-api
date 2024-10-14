@@ -8,6 +8,7 @@ enum WorkflowEnum: string
 {
     case CREATED = 'created';
     case UPDATED = 'updated';
+    case DELETED = 'deleted';
     case REGISTERED = 'registered';
     case ATTACH_FILE = 'attach-file';
     case USER_LOGIN = 'user-login';

@@ -43,16 +43,16 @@ final class SubscriptionsTest extends TestCase
                 'stripe_id' => 'price_1Q11XeBwyV21ueMMd6yZ4Tl5',
                 'amount' => 59.00,
                 'currency' => 'USD',
-                'interval' => 'year',
+                'interval' => 'yearly',
                 'is_default' => 1,
                 'created_at' => now(),
             ],
             [
-                'apps_plans_id' => 1,
+                'apps_plans_id' => 2,
                 'stripe_id' => 'price_1Q1NGrBwyV21ueMMkJR2eA8U',
                 'amount' => 5.00,
                 'currency' => 'USD',
-                'interval' => 'monthly',
+                'interval' => 'yearly',
                 'is_default' => 0,
                 'created_at' => now(),
             ],
@@ -94,11 +94,84 @@ final class SubscriptionsTest extends TestCase
                 createSubscription(input: {
                     apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
                     name: "TestCreate Subscription",       
-                    payment_method_id: "' . $paymentMethod . '",       
+                    payment_method_id: "' . $paymentMethod . '"                      
                 }) {
                     id
                     stripe_id
                     stripe_status
+                    trial_ends_at
+                    items {
+                        id
+                        stripe_id
+                        stripe_product
+                        stripe_product_name
+                        stripe_price
+                    }
+                }
+            }
+        ', [], [], [
+            'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
+        ]);
+
+        $response->assertJson([
+            'data' => [
+                'createSubscription' => [
+                   'stripe_status' => 'trialing',
+                ],
+            ],
+        ]);
+    }
+
+    public function testCreateSubscriptionWithoutTrial()
+    {
+        $paymentMethod = $this->createPaymentMethod();
+        $user = auth()->user();
+
+        $plan = [
+            'apps_id' => 1,
+            'name' => 'Test without trial',
+            'stripe_id' => 'prod_R0llYZVFCMX0Dz',
+            'free_trial_dates' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        $planId = DB::table('apps_plans')->insertGetId($plan);
+
+        $price = [
+            'apps_plans_id' => $planId,
+            'stripe_id' => 'price_1Q8kDZBwyV21ueMMq6ZDUKqI',
+            'amount' => 38.00,
+            'currency' => 'USD',
+            'interval' => 'yearly',
+            'is_default' => 0,
+            'created_at' => now(),
+        ];
+
+        DB::table('apps_plans_prices')->updateOrInsert(
+            ['stripe_id' => $price['stripe_id']],
+            $price
+        );
+        $priceId = DB::table('apps_plans_prices')->where('stripe_id', $price['stripe_id'])->value('id');
+
+        $response = $this->graphQL('
+            mutation {
+                createSubscription(input: {
+                    apps_plans_prices_id: ' . $priceId . ' , #without trial
+                    name: "TestCreate Subscription",       
+                    payment_method_id: "' . $paymentMethod . '"                      
+                }) {
+                    id
+                    stripe_id
+                    stripe_status
+                    trial_ends_at
+                    items {
+                        id
+                        stripe_id
+                        stripe_product
+                        stripe_product_name
+                        stripe_price
+                    }
                 }
             }
         ', [], [], [
@@ -124,7 +197,7 @@ final class SubscriptionsTest extends TestCase
             createSubscription(input: {
                 apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
                 name: "TestCreate Subscription",       
-                payment_method_id: "' . $paymentMethod . '",       
+                payment_method_id: "' . $paymentMethod . '"      
             }) {
                 id
                 stripe_id
@@ -135,10 +208,13 @@ final class SubscriptionsTest extends TestCase
         'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
     ]);
 
+        $newPriceId = DB::table('apps_plans_prices')
+            ->where('apps_plans_id', '!=', $this->price->apps_plans_id)
+            ->value('id');
         $response = $this->graphQL('
             mutation {
                 updateSubscription(input: {
-                    apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
+                apps_plans_prices_id: ' . $newPriceId . ' ,
                 }) {
                     id
                     stripe_id
@@ -148,11 +224,10 @@ final class SubscriptionsTest extends TestCase
         ', [], [], [
             'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
         ]);
-
         $response->assertJson([
             'data' => [
                 'updateSubscription' => [
-                    'stripe_status' => 'active',
+                    'stripe_status' => 'trialing',
                 ],
             ],
         ]);
@@ -168,7 +243,7 @@ final class SubscriptionsTest extends TestCase
             createSubscription(input: {
                 apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
                 name: "TestCreate Subscription",       
-                payment_method_id: "' . $paymentMethod . '",       
+                payment_method_id: "' . $paymentMethod . '"     
             }) {
                 id
                 stripe_id
@@ -198,7 +273,7 @@ final class SubscriptionsTest extends TestCase
                 'companySubscriptions' => [
                     'data' => [
                         [
-                            'stripe_status' => 'active',
+                            'stripe_status' => 'trialing',
                         ],
                     ],
                 ],
@@ -216,7 +291,7 @@ final class SubscriptionsTest extends TestCase
             createSubscription(input: {
                 apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
                 name: "TestCreate Subscription",       
-                payment_method_id: "' . $paymentMethod . '",       
+                payment_method_id: "' . $paymentMethod . '",
             }) {
                 id
                 stripe_id
@@ -230,7 +305,7 @@ final class SubscriptionsTest extends TestCase
         $id = $response->json('data.createSubscription.id');
 
         $subscription = $this->company->getStripeAccount($this->appModel)
-            ->subscriptions()->where('type', $this->plan->stripe_plan)->first();
+            ->subscriptions()->where('type', 'default')->first();
 
         $response = $this->graphQL('
             mutation {
