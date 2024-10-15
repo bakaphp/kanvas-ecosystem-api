@@ -56,6 +56,7 @@
         "symfony/http-client": "^7.0",
         "symfony/mailgun-mailer": "^7.0",
         "twilio/sdk": "^8.0",
+        "typesense/typesense-php": "^4.9",
         "vladimir-yuldashev/laravel-queue-rabbitmq": "^14.0",
         "vlucas/phpdotenv": "^5.5",
         "webleit/zohocrmapi": "^5.3"
