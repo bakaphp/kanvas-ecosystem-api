@@ -14,6 +14,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Services\UserManagement as UserManagementService;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
+use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Notifications\Templates\ChangeEmailUserLogged;
@@ -178,7 +179,7 @@ class UserManagementMutation
 
         $filesystem = new FilesystemServices(app(Apps::class));
         $file = $request['file'];
-        in_array($file->extension(), ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp']) ?: throw new Exception('Invalid file format');
+        in_array($file->extension(), AllowedFileExtensionEnum::ONLY_IMAGES->getAllowedExtensions()) ?: throw new Exception('Invalid file format');
 
         $filesystemEntity = $filesystem->upload($file, $user);
         $action = new AttachFilesystemAction(

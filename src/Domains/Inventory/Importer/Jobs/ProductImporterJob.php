@@ -43,7 +43,7 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
     *
     * @var int
     */
-    public $uniqueFor = 60;
+    public $uniqueFor = 10;
 
     public function __construct(
         public string $jobUuid,
@@ -54,10 +54,10 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
         public AppInterface $app,
         public ?FilesystemImports $filesystemImport = null
     ) {
-        $minuteDelay = (int)($app->get('delay_minute_job') ?? 5);
+        $minuteDelay = (int)($app->get('delay_minute_job') ?? 0);
         $this->onQueue('imports')->delay(now()->addMinutes($minuteDelay));
 
-        $minuteUniqueFor = (int)($app->get('unique_for_minute_job') ?? 15);
+        $minuteUniqueFor = (int)($app->get('unique_for_minute_job') ?? 1);
         if (App::environment('production')) {
             $this->uniqueFor = $minuteUniqueFor * 60;
         }
