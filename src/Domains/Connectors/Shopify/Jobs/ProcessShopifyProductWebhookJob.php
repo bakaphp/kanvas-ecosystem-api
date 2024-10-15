@@ -5,15 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Shopify\Jobs;
 
 use Baka\Support\Str;
-use Kanvas\Connectors\Shopify\Actions\SyncShopifyOrderAction;
 use Kanvas\Connectors\Shopify\Services\ShopifyProductService;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
-use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 
-class ProcessShopifyProductsWebhookJob extends ProcessWebhookJob
+class ProcessShopifyProductWebhookJob extends ProcessWebhookJob
 {
     public function execute(): array
     {
@@ -33,7 +31,9 @@ class ProcessShopifyProductsWebhookJob extends ProcessWebhookJob
         );
 
         $mappedProduct = $shopifyProductService->mapProductForImport($this->webhookRequest->payload);
-        $mappedProduct['variants']['warehouses'] = $warehouses->toArray();
+        foreach($mappedProduct['variants'] as $key => $variant) {
+            $mappedProduct['variants'][$key]['warehouses'] = $warehouses->toArray();
+        }
 
         $jobUuid = Str::uuid()->toString();
 
