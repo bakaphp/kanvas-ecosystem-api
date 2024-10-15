@@ -18,7 +18,7 @@ class ProcessShopifyProductWebhookJob extends ProcessWebhookJob
         $integrationCompanyId = $this->receiver->configuration['integration_company_id'];
         $integrationCompany = IntegrationsCompany::getById($integrationCompanyId);
 
-        $warehouses = Warehouses::where('regions_id',$integrationCompany->region_id)
+        $warehouses = Warehouses::where('regions_id', $integrationCompany->region_id)
                                 ->fromCompany($integrationCompany->company)
                                 ->fromApp($this->receiver->app)
                                 ->get();
@@ -31,7 +31,7 @@ class ProcessShopifyProductWebhookJob extends ProcessWebhookJob
         );
 
         $mappedProduct = $shopifyProductService->mapProductForImport($this->webhookRequest->payload);
-        foreach($mappedProduct['variants'] as $key => $variant) {
+        foreach( $mappedProduct['variants'] as $key => $variant) {
             $mappedProduct['variants'][$key]['warehouses'] = $warehouses->toArray();
         }
 

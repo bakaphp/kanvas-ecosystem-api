@@ -41,7 +41,7 @@ final class ImportProductFromShopifyActivityTest extends TestCase
         );
 
         $mappedProduct = $shopifyProductService->mapProductForImport($productData);
-        foreach($mappedProduct['variants'] as $key => $variant) {
+        foreach ($mappedProduct['variants'] as $key => $variant) {
             $mappedProduct['variants'][$key]['warehouses'] = $warehouses->toArray();
         }
 
