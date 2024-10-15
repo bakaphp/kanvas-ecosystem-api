@@ -31,7 +31,7 @@ class ProcessShopifyProductWebhookJob extends ProcessWebhookJob
         );
 
         $mappedProduct = $shopifyProductService->mapProductForImport($this->webhookRequest->payload);
-        foreach( $mappedProduct['variants'] as $key => $variant) {
+        foreach ($mappedProduct['variants'] as $key => $variant) {
             $mappedProduct['variants'][$key]['warehouses'] = $warehouses->toArray();
         }
 

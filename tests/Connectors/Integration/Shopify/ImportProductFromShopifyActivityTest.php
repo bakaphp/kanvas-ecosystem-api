@@ -27,7 +27,7 @@ final class ImportProductFromShopifyActivityTest extends TestCase
 
         $integrationCompany = $this->setupShopifyIntegration($product, $warehouse->region);
 
-        $warehouses = Warehouses::where('regions_id',$integrationCompany->region_id)
+        $warehouses = Warehouses::where('regions_id', $integrationCompany->region_id)
         ->fromCompany($integrationCompany->company)
         ->fromApp($app)
         ->get();
