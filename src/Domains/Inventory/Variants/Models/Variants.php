@@ -192,6 +192,8 @@ class Variants extends BaseModel implements EntityIntegrationInterface
             $query->where($column, $value);
         }
 
+        $query->orderBy('attributes.weight', 'asc');
+
         return $query;
     }
 

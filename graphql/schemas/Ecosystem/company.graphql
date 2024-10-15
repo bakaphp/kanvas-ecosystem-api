@@ -108,6 +108,8 @@ input CompanyInput {
     custom_fields: [CustomFieldEntityInput!]
     is_active: Boolean
     timezone: String
+    address: String
+    is_active: Boolean
 }
 
 ### @todo Split the create and update input.

@@ -19,6 +19,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
+use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Users\Actions\AssignRoleAction;
@@ -115,7 +116,7 @@ class CompanyManagementMutation
         }
         $filesystem = new FilesystemServices(app(Apps::class));
         $file = $request['file'];
-        in_array($file->extension(), ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp']) ?: throw new Exception('Invalid file format');
+        in_array($file->extension(), AllowedFileExtensionEnum::ONLY_IMAGES->getAllowedExtensions()) ?: throw new Exception('Invalid file format');
 
         $filesystemEntity = $filesystem->upload($file, auth()->user());
         $action = new AttachFilesystemAction(

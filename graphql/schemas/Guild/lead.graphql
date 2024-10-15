@@ -136,11 +136,11 @@ input LeadUpdateInput {
 }
 
 extend type Mutation @guard {
-    createLead(input: LeadInput!): Lead
+    createLead(input: LeadInput!): Lead!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@create"
         )
-    updateLead(id: ID!, input: LeadUpdateInput!): Lead
+    updateLead(id: ID!, input: LeadUpdateInput!): Lead!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@update"
         )
@@ -167,6 +167,14 @@ extend type Mutation @guard {
     unFollowLead(input: FollowInput!): Boolean
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\SocialMutation@unFollow"
+        )
+    attachFileToLead(file: Upload!, id: ID!, params: Mixed): Lead!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@attachFile"
+        )
+    attachFilesToLead(file: [Upload!]!, id: ID!, params: Mixed): Lead!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@attachFile"
         )
 }
 
