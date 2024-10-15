@@ -19,7 +19,8 @@ use Laravel\Cashier\Cashier;
  * @property int $id
  * @property int $apps_id
  * @property int $companies_id
- * @property string $stripe_customer_id
+ * @property string $stripe_id
+ * @property string $trial_ends_at
  * @property bool $is_deleted
  * @property string $created_at
  * @property string $updated_at
