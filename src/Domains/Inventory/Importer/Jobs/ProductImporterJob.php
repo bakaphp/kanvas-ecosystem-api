@@ -8,7 +8,6 @@ use Baka\Contracts\AppInterface;
 use Baka\Traits\KanvasJobsTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -23,14 +22,13 @@ use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Regions\Models\Regions;
-use Kanvas\Inventory\Variants\Models\Variants;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
 
 use function Sentry\captureException;
 
 use Throwable;
 
-class ProductImporterJob implements ShouldQueue, ShouldBeUnique
+class ProductImporterJob implements ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
@@ -55,10 +53,10 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
         public ?FilesystemImports $filesystemImport = null
     ) {
         $minuteDelay = (int)($app->get('delay_minute_job') ?? 5);
-        $this->onQueue('imports')->delay(now()->addMinutes($minuteDelay));
-
+        $this->onQueue('imports');
         $minuteUniqueFor = (int)($app->get('unique_for_minute_job') ?? 15);
         if (App::environment('production')) {
+            $this->onQueue('imports')->delay(now()->addMinutes($minuteDelay));
             $this->uniqueFor = $minuteUniqueFor * 60;
         }
     }
