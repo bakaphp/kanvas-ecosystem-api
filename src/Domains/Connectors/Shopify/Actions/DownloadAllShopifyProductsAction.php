@@ -13,6 +13,8 @@ use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Users\Models\Users;
+use Kanvas\Inventory\Importer\Handlers\ProductsImporterBatchHandler;
+use Illuminate\Support\Facades\Bus;
 
 class DownloadAllShopifyProductsAction
 {
@@ -62,19 +64,30 @@ class DownloadAllShopifyProductsAction
                 $totalRecords++;
             }
 
+            $batchProductImport = new ProductsImporterBatchHandler(
+                $productsToImport,
+                $this->branch,
+                $this->user,
+                $this->warehouses->region,
+                $this->app
+            );
+
+            $batchProductImport->process();
+            unset($productsToImport); // clear array every time we process one page of data.
+
             $firstPage = false; // After first fetch, do not reset to initial parameters
         } while ($shopifyP->getNextPageParams());
 
-        $jobUuid = Str::uuid()->toString();
+        // $jobUuid = Str::uuid()->toString();
 
-        ProductImporterJob::dispatch(
-            $jobUuid,
-            $productsToImport,
-            $this->branch,
-            $this->user,
-            $this->warehouses->region,
-            $this->app
-        );
+        // ProductImporterJob::dispatch(
+        //     $jobUuid,
+        //     $productsToImport,
+        //     $this->branch,
+        //     $this->user,
+        //     $this->warehouses->region,
+        //     $this->app
+        // );
 
         return $totalRecords;
     }

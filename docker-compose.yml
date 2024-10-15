@@ -1,8 +1,6 @@
 x-common-queue-settings: &common-queue-settings
   restart: always
-  build:
-    context: .
-    dockerfile: development.Dockerfile
+  image: php-app-image # Reuse the same built image
   extra_hosts:
     - "host.docker.internal:host-gateway"
   command: 
@@ -48,6 +46,13 @@ services:
     queue:
         <<: *common-queue-settings
         container_name: queue
+    queue-imports:
+        <<: *common-queue-settings
+        container_name: queue-imports
+        command: 
+        - "sh"
+        - "-c"
+        - "php artisan config:cache && php artisan queue:work --queue imports --tries=3 --timeout=3750"
     batch-logger-queue:
         <<: *common-queue-settings
         container_name: batch-logger-queue
