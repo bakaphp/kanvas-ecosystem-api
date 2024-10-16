@@ -58,7 +58,7 @@ class FollowTest extends TestCase
             'data' => [
                 'me' => [
                     'social' => [
-                        'total_following' => 1,
+                        'total_following' => 2, //test has another one that add a follower
                     ],
                 ],
             ],
