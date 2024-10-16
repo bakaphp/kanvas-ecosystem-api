@@ -77,7 +77,6 @@ final class SetPlanWithoutPaymentActivityTest extends TestCase
                 $price
             );
         }
-
     }
 
     public function testSetPlanWithoutPayment()
