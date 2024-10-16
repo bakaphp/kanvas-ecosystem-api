@@ -77,10 +77,12 @@ final class SetPlanWithoutPaymentActivityTest extends TestCase
                 $price
             );
         }
+
     }
 
     public function testSetPlanWithoutPayment()
     {
+        DB::table('apps')->where('id', $this->appModel->id)->update(['default_apps_plan_id' => 2]);
         $params = [];
         $response = $this->activity->execute($this->user, $this->appModel, $params);
 
