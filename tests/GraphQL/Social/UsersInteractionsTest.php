@@ -79,4 +79,21 @@ class UsersInteractionsTest extends TestCase
             'data' => ['userDisLikeEntity' => true],
         ]);
     }
+
+    public function testShareUser()
+    {
+        $user = auth()->user();
+        $this->graphQL(
+            '
+            mutation userShare($id: Int!) {
+                userShare(id: $id)
+            }
+            ',
+            [
+                'id' => $user->getId(),
+            ]
+        )->assertJson([
+            'data' => ['userShare' => '/' . $user->displayname],
+        ]);
+    }
 }
