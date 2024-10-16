@@ -33,11 +33,11 @@ class AssignPlanWithFreeTrialActivity extends Activity
         $response = [];
         $companyStripeAccount = $company->getStripeAccount($app);
 
-        if (!$companyStripeAccount->subscriptions()->exists()){
+        if (! $companyStripeAccount->subscriptions()->exists()) {
             try {
                 $plan = Plan::findOrFail($app->default_apps_plan_id);
                 $price = $plan->price()->where('is_default', 1)->firstOrFail();
-                $trialEndsAt = now()->addDays($plan->free_trial_dates);  
+                $trialEndsAt = now()->addDays($plan->free_trial_dates);
 
                 $subscription = $companyStripeAccount->newSubscription('default', $price->stripe_id)
                 ->trialUntil($trialEndsAt)
