@@ -34,13 +34,13 @@ class ProductRepository
         return $response['search_results'];
     }
 
-    public function getByAsin(int $asin): array
+    public function getByAsin(string $asin): array
     {
         $client = Client::getClient();
         $response = $client->get('/request', [
             'query' => [
                 'api_key' => $this->app->get(RainForestEnum::RAINFOREST_KEY->value),
-                'type' => 'asin',
+                'type' => 'product',
                 'amazon_domain' => 'amazon.com',
                 'asin' => $asin,
             ],
@@ -57,7 +57,7 @@ class ProductRepository
 
         return [
             'name' => $product['title'],
-            'description' => $product['description'],
+            'description' => $product['title'],
             'price' => $price,
             'discountPrice' => $discountPrice,
             'slug' => Str::slug($product['title']),
@@ -113,7 +113,9 @@ class ProductRepository
     public function mapAttributes(array $product): array
     {
         $attributes = [];
-
+        if (! key_exists('attributes', $product)) {
+            return $attributes;
+        }
         foreach ($product['attributes'] as $attribute) {
             $attributes[] = [
                 'name' => $attribute['name'],
@@ -131,10 +133,10 @@ class ProductRepository
         foreach ($product['categories'] as $category) {
             $categories[] = [
                 'name' => $category['name'],
-                'source_id' => $category['category_id'],
+                'source_id' => isset($category['category_id']) ? $category['category_id'] : null,
                 'isPublished' => true,
                 'position' => $position,
-                'code' => $category['category_id'],
+                'code' => isset($category['category_id']) ? $category['category_id'] : null,
             ];
             $position++;
         }
@@ -153,7 +155,7 @@ class ProductRepository
 
             $variants[] = [
                 'name' => $product['title'],
-                'description' => $product['description'],
+                'description' => $product['title'],
                 'sku' => $product['asin'],
                 'price' => $price,
                 'discountPrice' => $discountPrice,

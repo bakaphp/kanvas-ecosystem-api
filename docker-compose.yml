@@ -158,6 +158,14 @@ services:
         volumes:
           - typesense-data:/data
         command: '--data-dir /data --api-key=xyz --enable-cors'
+        networks:
+          - sail
+    admin_dashboard:
+        container_name: admin_dashboard
+        image: ghcr.io/lewynation/typesense-admin-dashboard:latest
+        restart: always
+        ports:
+          - 3005:3000
     minio1:
       image: minio/minio
       container_name: minio${APP_CONTAINER_NAME}

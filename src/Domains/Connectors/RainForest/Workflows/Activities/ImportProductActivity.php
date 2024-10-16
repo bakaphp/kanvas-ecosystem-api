@@ -10,29 +10,43 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\RainForest\Repositories\ProductRepository;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Users\Models\Users;
 use Workflow\Activity;
 
 class ImportProductActivity extends Activity
 {
-    public function execute(AppInterface $app, CompaniesBranches $companyBranch, Regions $region, string $search)
+    public function execute(AppInterface $app, Users $users, CompaniesBranches $companyBranch, Regions $region, string $search)
     {
-        $warehouse = $region->warehouses()->where('is_default', true)->first();
-        $productRepository = new ProductRepository($app, $warehouse);
-        $products = $productRepository->getByTerm($search);
-        $importProducts = [];
-        foreach ($products as $product) {
-            $productDetail = $productRepository->getByAsin($product['asin']);
-            $importProducts[] = $productRepository->mapProduct($productDetail);
-        }
-        ProductImporterJob::dispatch(
-            jobUuid: Str::uuid(),
-            importer: $importProducts,
-            branch: $companyBranch,
-            user: auth()->user(),
-            region: $region,
-            app: $app
-        );
+        try {
+            $warehouse = $region->warehouses()->where('is_default', true)->first();
+            $productRepository = new ProductRepository($app, $warehouse);
+            $products = $productRepository->getByTerm($search);
+            $importProducts = [];
+            foreach ($products as $product) {
+                if (! key_exists('price', $product)) {
+                    continue;
+                }
+                $productDetail = $productRepository->getByAsin($product['asin']);
+                $productDetail['variants'] = []; // key_exists('variants', $product) ? $product['variants'] : [];
+                $productDetail['price'] = $product['price'];
+                $productDetail['categories'] = $product['categories'];
+                $importProducts[] = $productRepository->mapProduct($productDetail);
+            }
+            ProductImporterJob::dispatch(
+                jobUuid: Str::uuid(),
+                importer: $importProducts,
+                branch: $companyBranch,
+                user: $users,
+                region: $region,
+                app: $app
+            );
 
-        return $importProducts;
+            return $importProducts;
+        } catch (\Throwable $e) {
+            return [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ];
+        }
     }
 }

@@ -24,11 +24,10 @@ class ProductBuilder
     ): Builder {
         $app = app(Apps::class);
         $companyBranch = app(CompaniesBranches::class);
-        $search = $args['search'] ?? null;
-        if (($companyBranch && $search)) {
+        if ($companyBranch && key_exists('search', $args)) {
             $region = Regions::getDefault($companyBranch->company);
             $workflow = WorkflowStub::make(RainForestSearchWorkflow::class);
-            $workflow->start($app, $companyBranch, $region, $search);
+            $workflow->start($app, auth()->user(), $companyBranch, $region, $args['search']);
         }
 
         $company = auth()->user()->getCurrentCompany();
