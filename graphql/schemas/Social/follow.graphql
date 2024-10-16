@@ -12,32 +12,32 @@ input FollowInput {
 }
 
 extend type Query @guard {
-    isFollowing(user_id: Int!): Boolean
+    isFollowing(user_id: ID!): Boolean
         @field(
             resolver: "App\\GraphQL\\Social\\Queries\\Follows\\FollowQueries@isFollowing"
         )
-    getFollowers(user_id: Int!): [User!]!
+    getFollowers(user_id: ID!): [User!]!
         @paginate(
             builder: "App\\GraphQL\\Social\\Builders\\Follows\\GetFollowersBuilder"
             defaultCount: 25
         )
-    getFollowing(user_id: Int!): [Following!]!
+    getFollowing(user_id: ID!): [Following!]!
         @paginate(
         builder: "App\\GraphQL\\Social\\Builders\\Follows\\GetFollowingBuilder"
             defaultCount: 25
         )
-    getTotalFollowers(user_id: Int!): Int!
+    getTotalFollowers(user_id: ID!): Int!
         @field(
             resolver: "App\\GraphQL\\Social\\Queries\\Follows\\FollowQueries@getTotalFollowers"
         )
 }
 
 extend type Mutation @guard {
-    userFollow(user_id: Int!): Boolean!
+    userFollow(user_id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Follows\\FollowManagementMutation@userFollow"
         )
-    userUnFollow(user_id: Int!): Boolean!
+    userUnFollow(user_id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Follows\\FollowManagementMutation@userUnFollow"
         )
