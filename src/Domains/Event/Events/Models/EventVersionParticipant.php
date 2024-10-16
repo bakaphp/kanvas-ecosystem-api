@@ -16,7 +16,7 @@ class EventVersionParticipant extends BaseModel
 {
     use NoAppRelationshipTrait;
     use NoCompanyRelationshipTrait;
-    
+
     protected $table = 'event_version_participants';
     protected $guarded = [];
 
