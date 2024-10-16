@@ -4,47 +4,17 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Google\Services;
 
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Google\ApiCore\ApiException;
 use Google\Cloud\DiscoveryEngine\V1\Client\DocumentServiceClient;
-use Google\Cloud\DiscoveryEngine\V1\Client\RecommendationServiceClient;
 use Google\Cloud\DiscoveryEngine\V1\CreateDocumentRequest;
 use Google\Cloud\DiscoveryEngine\V1\Document;
 use Google\Cloud\DiscoveryEngine\V1\Document\Content;
 use Google\Cloud\DiscoveryEngine\V1\GetDocumentRequest;
 use Google\Cloud\DiscoveryEngine\V1\UpdateDocumentRequest;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Messages\Models\Message;
 
-class DiscoveryEngineDocumentService
+class DiscoveryEngineDocumentService extends DiscoveryEngineService
 {
-    protected RecommendationServiceClient $client;
-    protected array $googleClientConfig;
-    protected array $googleRecommendationConfig;
-
-    public function __construct(
-        protected AppInterface $app,
-        protected CompanyInterface $company
-    ) {
-        $googleClientConfig = $this->app->get('google-client-config');
-        $googleRecommendationConfig = $this->app->get('google-recommendation-config');
-
-        if (! $googleClientConfig) {
-            throw new ValidationException('Google client config not found for app ' . $this->app->name);
-        }
-
-        if (! $googleRecommendationConfig) {
-            throw new ValidationException('Google recommendation config not found for app ' . $this->app->name);
-        }
-
-        $this->googleClientConfig = $googleClientConfig;
-        $this->googleRecommendationConfig = $googleRecommendationConfig;
-        $this->client = new RecommendationServiceClient([
-            'credentials' => $this->googleClientConfig,
-        ]);
-    }
-
     public function updateOrCreateDocument(Message $message): Document
     {
         // Create the document
@@ -104,10 +74,10 @@ class DiscoveryEngineDocumentService
         $document->setId($message->getId()); // Set document ID
 
         $content = new Content();
-        $data = $message->message;
-        $data['title'] = ! empty($data['title']) ? $data['title'] : $message->slug;
-        $data['uri'] = ! empty($data['title']) ? $data['title'] : $message->slug;
-        $data['categories'] = ['message'];
+        $data = ! is_array($message->message) ? [$message->message] : $message->message;
+        $data['title'] = ! empty($data['title']) ? $data['title'] : ($message->slug ?? $message->uuid);
+        $data['uri'] = ! empty($data['title']) ? $data['title'] : ($message->slug ?? $message->uuid);
+        $data['categories'] = $message->tags()->count() ? $message->tags()->pluck('name')->toArray() : ['message'];
         $data['available_time'] = $message->created_at->toRfc3339String();
 
         $jsonContent = json_encode($data);
