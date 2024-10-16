@@ -8,7 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 
-class GetFollowersBuilder
+class GetUserFollowingBuilder
 {
     /**
      * __invoke
@@ -18,6 +18,6 @@ class GetFollowersBuilder
         $app = app(Apps::class);
         $user = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
 
-        return UsersFollowsRepository::getFollowersBuilder($user, $app);
+        return UsersFollowsRepository::getFollowingUserBuilder($user, $app);
     }
 }

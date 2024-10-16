@@ -37,6 +37,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 
 /**
@@ -63,6 +64,7 @@ class Companies extends BaseModel implements CompanyInterface
 {
     use HashTableTrait;
     use HasFilesystemTrait;
+    use CanUseWorkflow;
     use Searchable {
         search as public traitSearch;
     }
