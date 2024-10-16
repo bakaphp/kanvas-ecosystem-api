@@ -21,6 +21,11 @@ extend type Query @guard {
             builder: "App\\GraphQL\\Social\\Builders\\Follows\\GetFollowersBuilder"
             defaultCount: 25
         )
+    getUserFollowing(user_id: ID!): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Social\\Builders\\Follows\\GetUserFollowingBuilder"
+            defaultCount: 25
+        )
     getFollowing(user_id: ID!): [Following!]!
         @paginate(
         builder: "App\\GraphQL\\Social\\Builders\\Follows\\GetFollowingBuilder"

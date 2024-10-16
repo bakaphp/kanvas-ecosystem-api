@@ -300,6 +300,58 @@ class FollowTest extends TestCase
     /**
      * testGetFollowing
      */
+    public function testGetUserFollowing(): void
+    {
+        $user = Users::factory()->create();
+        $branch = auth()->user()->getCurrentBranch();
+
+        (new RegisterUsersAppAction($user, app(Apps::class)))->execute($user->password);
+        //add user to current company
+        (new AssignCompanyAction(
+            $user,
+            $branch,
+            RolesRepository::getByNameFromCompany(RolesEnums::ADMIN->value),
+            app(Apps::class)
+        ))->execute();
+
+        $response = $this->graphQL(/** @lang GraphQL */
+            '
+            mutation userFollow(
+                $user_id: ID!
+            ) {
+                userFollow(user_id: $user_id)
+            }
+            ',
+            [
+                'user_id' => $user->id,
+            ]
+        );
+        $response->assertJson([
+            'data' => ['userFollow' => true],
+        ]);
+
+        $this->graphQL(
+            /** @lang GraphQL */
+            '
+            query getUserFollowing($user_id: ID!)
+            {
+                getUserFollowing(
+                    user_id: $user_id
+                )
+                {
+                    data {
+                        id
+                            email
+                    }
+                }
+            }
+            ',
+            [
+                'user_id' => auth()->user()->id,
+            ]
+        )->assertSee($user->email);
+    }
+
     public function testGetFollowing(): void
     {
         $user = Users::factory()->create();
