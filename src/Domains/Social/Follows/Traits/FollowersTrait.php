@@ -6,6 +6,7 @@ namespace Kanvas\Social\Follows\Traits;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Follows\Actions\FollowAction;
@@ -16,19 +17,19 @@ use Kanvas\Users\Models\Users;
 
 trait FollowersTrait
 {
-    public function follow(UserInterface $user): UsersFollows
+    public function follow(Model $entity): UsersFollows
     {
-        return (new FollowAction($user, $this))->execute();
+        return (new FollowAction($this, $entity))->execute();
     }
 
-    public function unFollow(UserInterface $user): bool
+    public function unFollow(Model $entity): bool
     {
-        return (new UnFollowAction($user, $this))->execute();
+        return (new UnFollowAction($this, $entity))->execute();
     }
 
-    public function isFollowing(UserInterface $user): bool
+    public function isFollowing(Model $entity): bool
     {
-        return UsersFollowsRepository::isFollowing($user, $this);
+        return UsersFollowsRepository::isFollowing($this, $entity);
     }
 
     public function getFollowersCount(AppInterface $app): array
