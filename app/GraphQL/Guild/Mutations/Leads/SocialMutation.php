@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Guild\Mutations\Leads;
 
-use Kanvas\Guild\Leads\Actions\RemoveLeadParticipantAction;
-use Kanvas\Guild\Leads\DataTransferObject\LeadsParticipant;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Follows\Models\UsersFollows;
 
@@ -16,12 +14,13 @@ class SocialMutation
      */
     public function follow(mixed $root, array $req): bool
     {
+        $user = auth()->user();
         $lead = Lead::getByUuidFromBranch(
             $req['input']['entity_id'],
-            auth()->user()->getCurrentBranch()
+            $user->getCurrentBranch()
         );
 
-        return $lead->follow(auth()->user()) instanceof UsersFollows;
+        return $user->follow($lead) instanceof UsersFollows;
     }
 
     /**
@@ -29,11 +28,12 @@ class SocialMutation
      */
     public function unFollow(mixed $root, array $req): bool
     {
+        $user = auth()->user();
         $lead = Lead::getByUuidFromBranch(
             $req['input']['entity_id'],
-            auth()->user()->getCurrentBranch()
+            $user->getCurrentBranch()
         );
 
-        return $lead->unFollow(auth()->user());
+        return $user->unFollow($lead);
     }
 }

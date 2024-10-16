@@ -45,6 +45,24 @@ class FollowTest extends TestCase
         $response->assertJson([
             'data' => ['userFollow' => true],
         ]);
+
+        $this->graphQL(/** @lang GraphQL */ '
+            { 
+                me {
+                    social {
+                        total_following
+                    }
+                }
+            }
+        ')->assertJsonFragment([
+            'data' => [
+                'me' => [
+                    'social' => [
+                        'total_following' => 2, //test has another one that add a follower
+                    ],
+                ],
+            ],
+        ]);
     }
 
     /**
@@ -142,6 +160,24 @@ class FollowTest extends TestCase
         );
         $response->assertJson([
             'data' => ['isFollowing' => true],
+        ]);
+
+        $this->graphQL(/** @lang GraphQL */ '
+            { 
+                user(id: ' . $user->id . ') {
+                    social {
+                        total_followers
+                    }
+                }
+            }
+        ')->assertJsonFragment([
+            'data' => [
+                'user' => [
+                    'social' => [
+                        'total_followers' => 1,
+                    ],
+                ],
+            ],
         ]);
     }
 

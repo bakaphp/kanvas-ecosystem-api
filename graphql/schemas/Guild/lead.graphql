@@ -170,11 +170,11 @@ extend type Mutation @guard {
         )
     attachFileToLead(file: Upload!, id: ID!, params: Mixed): Lead!
         @field(
-            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\LeadManagementMutation@attachFile"
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@attachFile"
         )
     attachFilesToLead(file: [Upload!]!, id: ID!, params: Mixed): Lead!
         @field(
-            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\LeadManagementMutation@attachFile"
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@attachFile"
         )
 }
 

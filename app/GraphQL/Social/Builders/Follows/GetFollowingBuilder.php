@@ -15,8 +15,8 @@ class GetFollowingBuilder
      */
     public function __invoke(mixed $root, array $request): mixed
     {
-        $user = UsersRepository::getUserOfAppById($request['user_id']);
         $app = app(Apps::class);
+        $user = UsersRepository::getUserOfAppById($request['user_id'], $app);
 
         return UsersFollowsRepository::getFollowingBuilder($user, $app);
     }
