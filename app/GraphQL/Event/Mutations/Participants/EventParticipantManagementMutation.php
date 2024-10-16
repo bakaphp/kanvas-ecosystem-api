@@ -13,7 +13,7 @@ use Kanvas\Guild\Customers\Models\People;
 
 class EventParticipantManagementMutation
 {
-    public function addPeopleToEventVersion(mixed $root, _uarray $req): Participant
+    public function addPeopleToEventVersion(mixed $root, array $req): Participant
     {
         $user = auth()->user();
         $app = app(Apps::class);
