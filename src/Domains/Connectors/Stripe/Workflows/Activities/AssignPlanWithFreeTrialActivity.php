@@ -7,10 +7,8 @@ namespace Kanvas\Connectors\Stripe\Workflows\Activities;
 use Kanvas\Apps\Models\Apps;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Subscription\Plans\Models\Plan;
-use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
-use Laravel\Cashier\Subscription;
 use Throwable;
 use Workflow\Activity;
 
@@ -33,37 +31,29 @@ class AssignPlanWithFreeTrialActivity extends Activity
         $this->validateStripe();
         $company = $user->getCurrentCompany();
         $response = [];
-        $exception = null;
+        $companyStripeAccount = $company->getStripeAccount($app);
 
-        try {
-            $companyStripeAccount = $company->getStripeAccount($app);
-            //print("companyStripeAccount " . $companyStripeAccount . "\n");
-            $plan = Plan::findOrFail($app->default_apps_plan_id);
-           // print("plan " . $plan . "\n");
-            $price = $plan->prices()->where('is_default', 1)->firstOrFail();
-            print("price " . $price . "\n");
-            $trialEndsAt = now()->addDays($plan->free_trial_dates);
-            print("trialEndsAt" . $trialEndsAt. "\n");
+        if (!$companyStripeAccount->subscriptions()->exists()){
+            try {
+                $plan = Plan::findOrFail($app->default_apps_plan_id);
+                $price = $plan->price()->where('is_default', 1)->firstOrFail();
+                $trialEndsAt = now()->addDays($plan->free_trial_dates);  
 
-            $companyStripeAccount->newSubscription('default', $price->stripe_id)
-            ->trialUntil($trialEndsAt);
-            print("companyStripeAccountAfterStripe " . $companyStripeAccount . "\n");
+                $subscription = $companyStripeAccount->newSubscription('default', $price->stripe_id)
+                ->trialUntil($trialEndsAt)
+                ->create();
+                foreach ($subscription->items as $item) {
+                    $item->stripe_product_name = $plan->name;
+                    $item->save();
+                }
 
-            AppsStripeCustomer::create([
-                'apps_id' => $app->id,
-                'companies_id' => $company->id,
-                'stripe_id' =>  $companyStripeAccount->id,
-                'trial_ends_at' => $trialEndsAt,
-            ]);
-
-            $response['status'] = 'success';
-            $response['message'] = 'Plan assigned successfully. Trial period started.';
-        } catch (Throwable $e) {
-            $exception = $e;
-            $response['status'] = 'error';
-            $response['message'] = $exception->getMessage();
+                $response['status'] = 'success';
+            } catch (Throwable $e) {
+                $exception = $e;
+                $response['status'] = 'error';
+                $response['message'] = $exception->getMessage();
+            }
         }
-
         return $response;
     }
 }
