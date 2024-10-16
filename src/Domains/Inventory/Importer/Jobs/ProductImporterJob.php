@@ -15,6 +15,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
@@ -55,11 +56,11 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
         public ?FilesystemImports $filesystemImport = null
     ) {
         $minuteDelay = (int)($app->get('delay_minute_job') ?? 5);
-        $this->onQueue('imports')->delay(now()->addMinutes($minuteDelay));
+        // $this->onQueue('imports')->delay(now()->addMinutes($minuteDelay));
 
         $minuteUniqueFor = (int)($app->get('unique_for_minute_job') ?? 15);
         if (App::environment('production')) {
-            $this->uniqueFor = $minuteUniqueFor * 60;
+            // $this->uniqueFor = $minuteUniqueFor * 60;
         }
     }
 
@@ -130,6 +131,11 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                     $updated++;
                 }
                 $totalProcessSuccessfully++;
+
+                //handle failed jobs
+                // @todo: Make a workflow or Action to sync always inventory connectors
+                $command = "kanvas:inventory-shopify-sync {$this->app->getId()} {$company->getId()} {$this->branch->getId()} {$this->region->getId()} --product_id={$product->getId()}";
+                Artisan::call($command);
             } catch (Throwable $e) {
                 $errors[] = [
                     'message' => $e->getMessage(),
@@ -137,6 +143,7 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                     'request' => $request,
                 ];
                 Log::error($e->getMessage());
+                Log::error($e->getTraceAsString());
                 captureException($e);
                 $totalProcessFailed++;
             }
@@ -155,7 +162,6 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
             ]);
         }
         $this->notificationStatus($totalItems, $totalProcessSuccessfully, $totalProcessFailed, $created, $updated, $errors, $company);
-        //handle failed jobs
     }
 
     protected function notificationStatus(

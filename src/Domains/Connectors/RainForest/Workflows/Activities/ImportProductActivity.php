@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Support\Str;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\RainForest\Repositories\ProductRepository;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
@@ -19,9 +20,12 @@ class ImportProductActivity extends Activity
     {
         try {
             $warehouse = $region->warehouses()->where('is_default', true)->first();
-            $productRepository = new ProductRepository($app, $warehouse);
-            $products = $productRepository->getByTerm($search);
             $importProducts = [];
+            $channels = Channels::getDefault($companyBranch->company);
+            $channels->unPublishAllVariants();
+            $productRepository = new ProductRepository($app, $warehouse, $channels);
+            $products = $productRepository->getByTerm($search);
+            $products = array_slice($products, 0, 10);
             foreach ($products as $product) {
                 if (! key_exists('price', $product)) {
                     continue;

@@ -8,13 +8,15 @@ use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Kanvas\Connectors\RainForest\Client;
 use Kanvas\Connectors\RainForest\Enums\RainForestEnum;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 class ProductRepository
 {
     public function __construct(
         public AppInterface $app,
-        public Warehouses $warehouse
+        public Warehouses $warehouse,
+        public Channels $channels
     ) {
     }
 
@@ -72,9 +74,11 @@ class ProductRepository
                 [
                     'id' => $this->warehouse->id,
                     'price' => (float) $discountPrice,
+                    'warehouse' => $this->warehouse->name,
                     'quantity' => 1,
                     'sku' => $product['asin'],
                     'is_new' => true,
+                    'channel' => $this->channels->name,
                 ],
             ],
             'variants' => $this->mapVariants($product),

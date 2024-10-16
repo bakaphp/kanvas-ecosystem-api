@@ -25,7 +25,7 @@ class ShopifyInventorySyncCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:inventory-shopify-sync {app_id} {company_id} {warehouse_id} {channel_id}';
+    protected $signature = 'kanvas:inventory-shopify-sync {app_id} {company_id} {warehouse_id} {channel_id} {--product_id=}';
 
     /**
      * The console command description.
@@ -52,10 +52,18 @@ class ShopifyInventorySyncCommand extends Command
 
         $companyData = $associatedApps->company;
         $this->info("Checking company {$companyData->getId()} \n");
-
-        $products = Products::where('companies_id', $companyData->getId())
+        if ($productId = $this->option('product_id')) {
+            $products = Products::where('companies_id', $companyData->getId())
                     ->where('apps_id', $app->getId())
+                    ->where('id', $productId)
+                    ->orderBy('id', 'desc')
                     ->get();
+        } else {
+            $products = Products::where('companies_id', $companyData->getId())
+                ->where('apps_id', $app->getId())
+                ->orderBy('id', 'desc')
+                ->get();
+        }
 
         foreach ($products as $product) {
             try {
