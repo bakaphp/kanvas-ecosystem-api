@@ -85,15 +85,15 @@ class UsersInteractionsTest extends TestCase
         $user = auth()->user();
         $this->graphQL(
             '
-            mutation userShare($id: Int!) {
-                userShare(id: $id)
+            mutation shareUser($id: Int!) {
+                shareUser(id: $id)
             }
             ',
             [
                 'id' => $user->getId(),
             ]
         )->assertJson([
-            'data' => ['userShare' => '/' . $user->displayname],
+            'data' => ['shareUser' => '/' . $user->displayname],
         ]);
     }
 }
