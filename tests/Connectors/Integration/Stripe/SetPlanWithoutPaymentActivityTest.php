@@ -52,6 +52,8 @@ final class SetPlanWithoutPaymentActivityTest extends TestCase
             'name' => 'Test Plan',
             'description' => 'This is a test plan.',
             'stripe_id' => 'prod_QnFvCpGitBFjvY',
+            'free_trial_dates' => 14,
+            'is_default' => 1,
             'created_at' => now(),
             'updated_at' => now(),
         ];
