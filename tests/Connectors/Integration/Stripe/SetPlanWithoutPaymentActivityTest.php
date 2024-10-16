@@ -7,6 +7,7 @@ namespace Tests\Connectors\Integration\Stripe;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Users\Models\Users;
+use Kanvas\Subscription\Plans\Models\Plan;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\TestCase;
@@ -63,7 +64,6 @@ final class SetPlanWithoutPaymentActivityTest extends TestCase
             $plan
         );
         $planId = DB::table('apps_plans')->where('stripe_id', $plan['stripe_id'])->value('id');
-        DB::table('apps')->where('id', $this->appModel->id)->update(['default_apps_plan_id' => $planId]);
         $price = [
                 'apps_plans_id' => $planId,
                 'stripe_id' => 'price_1QAcVrBwyV21ueMMngenEy2U',
@@ -85,9 +85,12 @@ final class SetPlanWithoutPaymentActivityTest extends TestCase
 
     public function testSetPlanWithoutPayment()
     {
+        $defaultPlan = Plan::where('apps_id', $this->appModel->id)->firstOrFail();
+        $this->appModel->default_apps_plan_id = $defaultPlan->id;
+        $this->appModel->save();
+
         $params = [];
         $response = $this->activity->execute($this->user, $this->appModel, $params);
-
         $this->assertIsArray($response);
         $this->assertEquals('success', $response['status']);
     }
