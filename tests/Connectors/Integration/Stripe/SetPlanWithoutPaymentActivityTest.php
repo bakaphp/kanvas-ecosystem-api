@@ -47,11 +47,11 @@ final class SetPlanWithoutPaymentActivityTest extends TestCase
     {
         // Define the data you want to insert
         $plan = [
-            'id' => 1,
             'apps_id' => $this->appModel->id,
             'name' => 'Test Plan',
+            'payment_interval' => 'year',
             'description' => 'This is a test plan.',
-            'stripe_id' => 'prod_QnFvCpGitBFjvY',
+            'stripe_id' => 'prod_R2hvq1l4dBI0v2',
             'free_trial_dates' => 14,
             'is_default' => 1,
             'created_at' => now(),
@@ -59,15 +59,15 @@ final class SetPlanWithoutPaymentActivityTest extends TestCase
         ];
 
         DB::table('apps_plans')->updateOrInsert(
-            ['id' => $plan['id']],
+            ['stripe_id' => $plan['stripe_id']],
             $plan
         );
-        DB::table('apps')->where('id', $this->appModel->id)->update(['default_apps_plan_id' => $plan['id']]);
-
+        $planId = DB::table('apps_plans')->where('stripe_id', $plan['stripe_id'])->value('id');
+        DB::table('apps')->where('id', $this->appModel->id)->update(['default_apps_plan_id' => $planId]);
         $price = [
-                'apps_plans_id' => 1,
-                'stripe_id' => 'price_1Q1NGrBwyV21ueMMkJR2eA8U',
-                'amount' => 5.00,
+                'apps_plans_id' => $planId,
+                'stripe_id' => 'price_1QAcVrBwyV21ueMMngenEy2U',
+                'amount' => 100.00,
                 'currency' => 'USD',
                 'interval' => 'yearly',
                 'is_default' => 1,
