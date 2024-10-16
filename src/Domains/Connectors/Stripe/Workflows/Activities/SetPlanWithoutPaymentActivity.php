@@ -12,7 +12,7 @@ use Kanvas\Exceptions\ValidationException;
 use Throwable;
 use Workflow\Activity;
 
-class AssignPlanWithFreeTrialActivity extends Activity
+class SetPlanWithoutPaymentActivity extends Activity
 {
     public $tries = 5;
     /**
