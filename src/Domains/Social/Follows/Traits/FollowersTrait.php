@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Follows\Traits;
 
+use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Follows\Actions\FollowAction;
 use Kanvas\Social\Follows\Actions\UnFollowAction;
 use Kanvas\Social\Follows\Models\UsersFollows;
@@ -27,6 +29,12 @@ trait FollowersTrait
     public function isFollowing(UserInterface $user): bool
     {
         return UsersFollowsRepository::isFollowing($user, $this);
+    }
+
+    public function getFollowersCount(AppInterface $app): array
+    {
+        //app_2_social_count
+        return $this->get('app_' . $app->getId() . '_social_count') ?? [];
     }
 
     public function followers(): HasManyThrough
