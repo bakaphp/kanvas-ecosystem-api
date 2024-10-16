@@ -93,5 +93,8 @@ final class SetPlanWithoutPaymentActivityTest extends TestCase
         $response = $this->activity->execute($this->user, $this->appModel, $params);
         $this->assertIsArray($response);
         $this->assertEquals('success', $response['status']);
+        foreach (['user_id', 'company_id', 'default_plan', 'trial_ends_at'] as $key) {
+            $this->assertArrayHasKey($key, $response);
+        }
     }
 }

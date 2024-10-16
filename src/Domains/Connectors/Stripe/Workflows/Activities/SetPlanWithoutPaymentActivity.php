@@ -45,11 +45,21 @@ class SetPlanWithoutPaymentActivity extends Activity
                     $item->save();
                 }
 
-                $response['status'] = 'success';
+                $response = [
+                    'status' => 'success',
+                    'user_id' => $user->id,
+                    'company_id' => $company->id,
+                    'default_plan' => $plan->name,
+                    'trial_ends_at' => $trialEndsAt->toDateTimeString(),
+                ];
             } catch (Throwable $e) {
-                $exception = $e;
-                $response['status'] = 'error';
-                $response['message'] = $exception->getMessage();
+                $response = [
+                    'status' => 'error',
+                    'message' => $e->getMessage(),
+                    'user_id' => $user->id,
+                    'company_id' => $company->id,
+                    'default_plan' => $app->default_apps_plan_id,
+                ];
             }
         }
         return $response;
