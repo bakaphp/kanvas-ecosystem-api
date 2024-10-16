@@ -33,7 +33,7 @@ class FollowTest extends TestCase
         $response = $this->graphQL(/** @lang GraphQL */
             '
             mutation userFollow(
-                $user_id: Int!
+                $user_id: ID!
             ) {
                 userFollow(user_id: $user_id)
             }
@@ -84,7 +84,7 @@ class FollowTest extends TestCase
         $response = $this->graphQL(/** @lang GraphQL */
             '
             mutation userFollow(
-                $user_id: Int!
+                $user_id: ID!
             ) {
                 userFollow(user_id: $user_id)
             }
@@ -100,7 +100,7 @@ class FollowTest extends TestCase
             /** @lang GraphQL */
             '
             mutation userUnFollow(
-                $user_id: Int!
+                $user_id: ID!
             ) {
                 userUnFollow(user_id: $user_id)
             }
@@ -134,7 +134,7 @@ class FollowTest extends TestCase
         $response = $this->graphQL(/** @lang GraphQL */
             '
             mutation userFollow(
-                $user_id: Int!
+                $user_id: ID!
             ) {
                 userFollow(user_id: $user_id)
             }
@@ -147,7 +147,7 @@ class FollowTest extends TestCase
             'data' => ['userFollow' => true],
         ]);
         $response = $this->graphQL(/** @lang GraphQL */
-            'query isFollowing($user_id: Int!)
+            'query isFollowing($user_id: ID!)
             {
                 isFollowing(
                     user_id: $user_id
@@ -200,7 +200,7 @@ class FollowTest extends TestCase
         $response = $this->graphQL(/** @lang GraphQL */
             '
             mutation userFollow(
-                $user_id: Int!
+                $user_id: ID!
             ) {
                 userFollow(user_id: $user_id)
             }
@@ -216,7 +216,7 @@ class FollowTest extends TestCase
         $response = $this->graphQL(
             /** @lang GraphQL */
             '
-            query getFollowers($user_id: Int!)
+            query getFollowers($user_id: ID!)
             {
                 getFollowers(
                     user_id: $user_id
@@ -262,7 +262,7 @@ class FollowTest extends TestCase
         $response = $this->graphQL(/** @lang GraphQL */
             '
             mutation userFollow(
-                $user_id: Int!
+                $user_id: ID!
             ) {
                 userFollow(user_id: $user_id)
             }
@@ -278,7 +278,7 @@ class FollowTest extends TestCase
         $response = $this->graphQL(
             /** @lang GraphQL */
             '
-            query getTotalFollowers($user_id: Int!)
+            query getTotalFollowers($user_id: ID!)
             {
                 getTotalFollowers(
                     user_id: $user_id
@@ -317,7 +317,7 @@ class FollowTest extends TestCase
         $response = $this->graphQL(/** @lang GraphQL */
             '
             mutation userFollow(
-                $user_id: Int!
+                $user_id: ID!
             ) {
                 userFollow(user_id: $user_id)
             }
@@ -333,7 +333,7 @@ class FollowTest extends TestCase
         $this->graphQL(
             /** @lang GraphQL */
             '
-            query getFollowing($user_id: Int!)
+            query getFollowing($user_id: ID!)
             {
                 getFollowing(
                     user_id: $user_id

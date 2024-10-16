@@ -16,7 +16,7 @@ class GetFollowersBuilder
     public function __invoke(mixed $root, array $request): mixed
     {
         $app = app(Apps::class);
-        $user = UsersRepository::getUserOfAppById($request['user_id'], $app);
+        $user = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
 
         return UsersFollowsRepository::getFollowersBuilder($user, $app);
     }
