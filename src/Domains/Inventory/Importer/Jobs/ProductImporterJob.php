@@ -43,7 +43,7 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
     *
     * @var int
     */
-    public $uniqueFor = 1;
+    public $uniqueFor = 0;
 
     public function __construct(
         public string $jobUuid,
@@ -56,15 +56,13 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
     ) {
         $minuteDelay = (int)($app->get('delay_minute_job') ?? 0);
         $queue = $this->onQueue('imports');
-
         if ($minuteDelay) {
             $queue->delay(now()->addMinutes($minuteDelay));
         }
 
-        $this->uniqueFor = (int)($app->get('unique_for_minute_job') ?? 1) * 60;
-
-        if (! App::environment('production')) {
-            $this->uniqueFor = null;
+        $minuteUniqueFor = (int)($app->get('unique_for_minute_job') ?? 1);
+        if (App::environment('production')) {
+            $this->uniqueFor = $minuteUniqueFor * 60;
         }
     }
 
@@ -81,6 +79,10 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
 
     public function middleware(): array
     {
+        if (! $this->uniqueFor) {
+            return [];
+        }
+
         return [
             (new WithoutOverlapping($this->uniqueId()))->expireAfter($this->uniqueFor),
         ];
