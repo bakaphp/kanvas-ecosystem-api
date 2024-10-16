@@ -333,9 +333,9 @@ class FollowTest extends TestCase
         $this->graphQL(
             /** @lang GraphQL */
             '
-            query getUserFollowing($user_id: ID!)
+            query getFollowing($user_id: ID!)
             {
-                getUserFollowing(
+                getFollowing(
                     user_id: $user_id
                 )
                 {
@@ -352,7 +352,7 @@ class FollowTest extends TestCase
         )->assertSee($user->email);
     }
 
-    public function testGetFollowing(): void
+    public function testGetEntityFollowing(): void
     {
         $user = Users::factory()->create();
         $branch = auth()->user()->getCurrentBranch();
@@ -385,9 +385,9 @@ class FollowTest extends TestCase
         $this->graphQL(
             /** @lang GraphQL */
             '
-            query getFollowing($user_id: ID!)
+            query getFollowingEntity($user_id: ID!)
             {
-                getFollowing(
+                getFollowingEntity(
                     user_id: $user_id
                 )
                 {
