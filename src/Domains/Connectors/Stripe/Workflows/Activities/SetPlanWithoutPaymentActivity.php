@@ -15,21 +15,18 @@ use Workflow\Activity;
 class SetPlanWithoutPaymentActivity extends Activity
 {
     public $tries = 5;
-    private ?Apps $app = null;
     /**
      * @todo move to middleware
      */
-    public function validateStripe()
+    public function validateStripe(Apps $app)
     {
-        $this->app = app(Apps::class);
-
-        if (empty($this->app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value))) {
+        if (empty($app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value))) {
             throw new ValidationException('Stripe is not configured for this app');
         }
     }
     public function execute(UserInterface $user, Apps $app, array $params): array
     {
-        $this->validateStripe();
+        $this->validateStripe($app);
         $company = $user->getCurrentCompany();
         $response = [];
         $companyStripeAccount = $company->getStripeAccount($app);
