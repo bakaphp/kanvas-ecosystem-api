@@ -72,7 +72,7 @@ final class SetPlanWithoutPaymentActivityTest extends TestCase
                 'created_at' => now(),
                 'updated_at' => now(),
         ];
-        
+
         DB::table('apps_plans_prices')->updateOrInsert(
             // Check if a record with the same `stripe_id` exists
             ['stripe_id' => $price['stripe_id']],
