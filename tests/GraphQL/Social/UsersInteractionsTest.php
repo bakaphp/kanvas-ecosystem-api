@@ -85,7 +85,7 @@ class UsersInteractionsTest extends TestCase
         $user = auth()->user();
         $this->graphQL(
             '
-            mutation shareUser($id: Int!) {
+            mutation shareUser($id: ID!) {
                 shareUser(id: $id)
             }
             ',
