@@ -42,7 +42,6 @@
         "nuwave/lighthouse": "^6.0",
         "phpclassic/php-shopify": "^1.2",
         "powersync/authorizenet-sdk-php": "^2.0",
-        "predis/predis": "^2.2",
         "pusher/pusher-php-server": "^7.2",
         "sentry/sentry-laravel": "^4.2",
         "shopify/shopify-api": "^5.3",
