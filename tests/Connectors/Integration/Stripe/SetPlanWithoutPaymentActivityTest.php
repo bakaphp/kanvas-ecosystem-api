@@ -46,19 +46,24 @@ final class SetPlanWithoutPaymentActivityTest extends TestCase
     protected function seedAppPlansPrices()
     {
         // Define the data you want to insert
-        $prices = [
-            [
+        $plan = [
+            'id' => 1,
+            'apps_id' => $this->appModel->id,
+            'name' => 'Test Plan',
+            'description' => 'This is a test plan.',
+            'stripe_id' => 'prod_QnFvCpGitBFjvY',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        DB::table('apps_plans')->updateOrInsert(
+            ['id' => $plan['id']],
+            $plan
+        );
+        DB::table('apps')->where('id', $this->appModel->id)->update(['default_apps_plan_id' => $plan['id']]);
+
+        $price = [
                 'apps_plans_id' => 1,
-                'stripe_id' => 'price_1Q11XeBwyV21ueMMd6yZ4Tl5',
-                'amount' => 59.00,
-                'currency' => 'USD',
-                'interval' => 'yearly',
-                'is_default' => 1,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'apps_plans_id' => 2,
                 'stripe_id' => 'price_1Q1NGrBwyV21ueMMkJR2eA8U',
                 'amount' => 5.00,
                 'currency' => 'USD',
@@ -66,22 +71,18 @@ final class SetPlanWithoutPaymentActivityTest extends TestCase
                 'is_default' => 1,
                 'created_at' => now(),
                 'updated_at' => now(),
-            ],
         ];
-
-        foreach ($prices as $price) {
-            DB::table('apps_plans_prices')->updateOrInsert(
-                // Check if a record with the same `stripe_id` exists
-                ['stripe_id' => $price['stripe_id']],
-                // If it doesn't exist, insert the entire array
-                $price
-            );
-        }
+        
+        DB::table('apps_plans_prices')->updateOrInsert(
+            // Check if a record with the same `stripe_id` exists
+            ['stripe_id' => $price['stripe_id']],
+            // If it doesn't exist, insert the entire array
+            $price
+        );
     }
 
     public function testSetPlanWithoutPayment()
     {
-        DB::table('apps')->where('id', $this->appModel->id)->update(['default_apps_plan_id' => 2]);
         $params = [];
         $response = $this->activity->execute($this->user, $this->appModel, $params);
 
