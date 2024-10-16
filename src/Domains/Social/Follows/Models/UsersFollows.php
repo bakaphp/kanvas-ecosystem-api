@@ -55,11 +55,11 @@ class UsersFollows extends BaseModel
      */
     public function updateSocialCount(): void
     {
-        $this->incrementSocialCount($this->user, 'followers');
+        $this->incrementSocialCount($this->user, 'following');
 
         if ($this->entity_namespace === Users::class) {
             $following = $this->getEntityAttribute();
-            $this->incrementSocialCount($following, 'following');
+            $this->incrementSocialCount($following, 'followers');
         }
     }
 
@@ -68,11 +68,11 @@ class UsersFollows extends BaseModel
      */
     public function decreaseSocialCount(): void
     {
-        $this->decrementSocialCount($this->user, 'followers');
+        $this->decrementSocialCount($this->user, 'following');
 
         if ($this->entity_namespace === Users::class) {
             $following = $this->getEntityAttribute();
-            $this->decrementSocialCount($following, 'following');
+            $this->decrementSocialCount($following, 'followers');
         }
     }
 
