@@ -45,6 +45,29 @@ class FollowTest extends TestCase
         $response->assertJson([
             'data' => ['userFollow' => true],
         ]);
+
+        $this->graphQL(/** @lang GraphQL */ '
+            { 
+                me {
+                    id,
+                    uuid,
+                    email
+                    social {
+                        total_followers
+                        total_following
+                    }
+                }
+            }
+        ')->assertJsonFragment([
+            'data' => [
+                'me' => [
+                    'social' => [
+                        'total_followers' => 0,
+                        'total_following' => 1,
+                    ],
+                ],
+            ],
+        ]);
     }
 
     /**
