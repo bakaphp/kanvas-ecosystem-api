@@ -72,6 +72,7 @@ class ShopifyInventorySyncCommand extends Command
                 $shopifyService = new ShopifyInventoryService($product->app, $product->company, $warehouses);
                 $shopifyService->saveProduct($product, StatusEnum::ACTIVE, $channel);
             } catch (Throwable $e) {
+                $this->error($e->getMessage());
                 $this->error("Error syncing product {$product->getId()} {$product->name} \n");
             }
         }
