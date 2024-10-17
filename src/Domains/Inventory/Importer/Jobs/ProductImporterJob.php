@@ -141,7 +141,8 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
 
                 //handle failed jobs
                 // @todo: Make a workflow or Action to sync always inventory connectors
-                $command = "kanvas:inventory-shopify-sync {$this->app->getId()} {$company->getId()} {$this->branch->getId()} {$this->region->getId()} --product_id={$product->getId()}";
+                $warehouseId = $product->warehouses()->first()->getId();
+                $command = "kanvas:inventory-shopify-sync {$this->app->getId()} {$company->getId()} {$warehouseId} {$this->region->getId()} --product_id={$product->getId()}";
                 Artisan::call($command);
             } catch (Throwable $e) {
                 $errors[] = [

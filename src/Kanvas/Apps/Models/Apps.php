@@ -26,6 +26,7 @@ use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
  * Apps Model.
@@ -49,7 +50,8 @@ class Apps extends BaseModel implements AppInterface
 {
     use HashTableTrait;
     use Cachable;
-
+    use CanUseWorkflow;
+    
     /**
      * The table associated with the model.
      *

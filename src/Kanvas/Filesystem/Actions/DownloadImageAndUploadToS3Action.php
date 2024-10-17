@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Kanvas\Filesystem\Services\FilesystemServices;
 
-class DownloadImageAndUploadToS3
+class DownloadImageAndUploadToS3Action
 {
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
