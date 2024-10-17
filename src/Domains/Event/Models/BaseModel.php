@@ -30,7 +30,7 @@ class BaseModel extends EloquentModel
     // use Cachable;
     use SoftDeletesTrait;
     use DefaultTrait;
-    
+
     protected $attributes = [
         'is_deleted' => 0,
     ];
