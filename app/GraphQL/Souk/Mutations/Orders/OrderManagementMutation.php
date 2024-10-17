@@ -13,6 +13,7 @@ use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
 use Kanvas\Souk\Orders\DataTransferObject\DirectOrder;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
 use Kanvas\Souk\Payments\DataTransferObject\Profile;
+use Kanvas\Souk\Payments\DataTransferObject\Transaction;
 use Kanvas\Souk\Payments\Providers\AuthorizeNetPaymentProcessor;
 
 class OrderManagementMutation
@@ -43,7 +44,7 @@ class OrderManagementMutation
         return $this->handlePaymentResponse($response, $isSubscription);
     }
 
-    public function createCustomerProfileWithPayment(mixed $root, array $request): array
+    public function createCustomerProfileWithPayment(mixed $root, array $request)
     {
         $user = auth()->user();
         $creditCard = CreditCard::viaRequest($request['input']);
@@ -66,7 +67,7 @@ class OrderManagementMutation
         return $payment->createCustomerProfileWithPayment($order);
     }
 
-    public function createCustomerPaymentProfile(mixed $root, array $request): array
+    public function createCustomerPaymentProfile(mixed $root, array $request)
     {
         $user = auth()->user();
         $creditCard = CreditCard::viaRequest($request['input']);
@@ -90,7 +91,7 @@ class OrderManagementMutation
         return $payment->createCustomerPaymentProfile($order);
     }
 
-    public function updateCustomerPaymentProfile(mixed $root, array $request): array
+    public function updateCustomerPaymentProfile(mixed $root, array $request)
     {
         $user = auth()->user();
         $creditCard = CreditCard::viaRequest($request['input']);
@@ -114,7 +115,7 @@ class OrderManagementMutation
         return $payment->updateCustomerPaymentProfile($order);
     }
 
-    public function deleteCustomerPaymentProfile(mixed $root, array $request): array
+    public function deleteCustomerPaymentProfile(mixed $root, array $request)
     {
         $user = auth()->user();
         $creditCard = CreditCard::viaRequest($request['input']);
@@ -136,6 +137,31 @@ class OrderManagementMutation
         );
 
         return $payment->deleteCustomerPaymentProfile($order);
+    }
+
+    public function refundPayment(mixed $root, array $request)
+    {
+        $user = auth()->user();
+        $creditCard = CreditCard::viaRequest($request['input']);
+        $transactionId = Transaction::viaRequest($request['input']);
+        $cart = app('cart')->session($user->getId());
+
+        $order = new DirectOrder(
+            app(Apps::class),
+            $user,
+            $creditCard,
+            $cart,
+            null,
+            $transactionId
+        );
+
+
+        $payment = new AuthorizeNetPaymentProcessor(
+            app(Apps::class),
+            auth()->user()->getCurrentBranch()
+        );
+
+        return $payment->refundPayment($order);
     }
 
     private function processPayment(DirectOrder $order, bool $isSubscription): mixed

@@ -302,6 +302,35 @@ class AuthorizeNetPaymentProcessor
         );
     }
 
+    public function refundPayment(DirectOrder $orderInput)
+    {
+        /* Create a merchantAuthenticationType object with authentication details
+        retrieved from the constants file */
+        $merchantAuthentication = $this->setupMerchantAuthentication();
+
+        // Set credit card information for payment profile
+        $creditCard = $this->setCreditCard($orderInput->creditCard);
+        $paymentCreditCard = new AnetAPI\PaymentType();
+        $paymentCreditCard->setCreditCard($creditCard);
+
+        $transactionRequest = new AnetAPI\TransactionRequestType();
+        $transactionRequest->setTransactionType("refundTransaction");
+        $transactionRequest->setAmount($orderInput->amount);
+        $transactionRequest->setPayment($paymentCreditCard);
+        $transactionRequest->setRefTransId($orderInput->transactionId);
+
+        $request = new AnetAPI\CreateTransactionRequest();
+        $request->setMerchantAuthentication($merchantAuthentication);
+        $request->setRefId($this->refId);
+        $request->setTransactionRequest($transactionRequest);
+
+        $controller = new AnetController\CreateTransactionController($request);
+
+        return $controller->executeWithApiResponse(
+            $this->company->get('MERCHANT_PRODUCTION') ? ANetEnvironment::PRODUCTION : ANetEnvironment::SANDBOX
+        );
+    }
+
     public function updateCustomerPaymentProfile(DirectOrder $orderInput)
     {
         /* Create a merchantAuthenticationType object with authentication details
