@@ -45,8 +45,6 @@ class ImportDataFromFilesystemAction
          * when we are just importing product type
          */
         if ($modelName == Products::class) {
-            $this->importProducts($listOfVariants, $modelName);
-
             foreach ($listOfVariants as $key => $variants) {
                 if (empty($variants[0]['name']) || empty($variants[0]['slug']) || empty($variants[0]['sku'])) {
                     continue;
@@ -90,7 +88,6 @@ class ImportDataFromFilesystemAction
                 ];
             }
         }
-
         $job = $this->getJob($modelName);
         $job::dispatch(
             $this->filesystemImports->uuid,
