@@ -15,6 +15,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
@@ -137,6 +138,8 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                     $updated++;
                 }
                 $totalProcessSuccessfully++;
+
+                //handle failed jobs
             } catch (Throwable $e) {
                 $errors[] = [
                     'message' => $e->getMessage(),
@@ -144,6 +147,7 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                     'request' => $request,
                 ];
                 Log::error($e->getMessage());
+                Log::error($e->getTraceAsString());
                 captureException($e);
                 $totalProcessFailed++;
             }
@@ -162,7 +166,6 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
             ]);
         }
         $this->notificationStatus($totalItems, $totalProcessSuccessfully, $totalProcessFailed, $created, $updated, $errors, $company);
-        //handle failed jobs
     }
 
     protected function notificationStatus(

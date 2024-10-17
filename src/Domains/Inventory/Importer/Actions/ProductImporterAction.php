@@ -102,6 +102,7 @@ class ProductImporterAction
                 $this->productType();
             }
             DB::connection('inventory')->commit();
+            $this->product->fireWorkflow('sync-shopify');
         } catch (Throwable $e) {
             DB::connection('inventory')->rollback();
 
