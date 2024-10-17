@@ -60,6 +60,7 @@ class ShopifyInventoryService
                 if ($variant->getShopifyId($this->warehouses->regions) === null) {
                     $variant->setShopifyId($this->warehouses->regions, $shopifyVariant['id']);
                 }
+                $this->setStock($variant, $channel);
             }
         } else {
             $shopifyProduct = $this->shopifySdk->Product($shopifyProductId);
@@ -67,6 +68,7 @@ class ShopifyInventoryService
 
             foreach ($product->variants as $variant) {
                 $this->saveVariant($variant, $channel);
+                $this->setStock($variant, $channel);
             }
         }
 
@@ -118,7 +120,7 @@ class ShopifyInventoryService
         ];
 
         if ($quantity > 0) {
-            $this->setStock($variant, $channel);
+            // $this->setStock($variant, $channel);
         }
 
         if ($variant->product->getShopifyId($this->warehouses->regions)) {
