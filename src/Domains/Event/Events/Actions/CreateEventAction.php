@@ -20,7 +20,7 @@ class CreateEventAction
     public function execute(): ModelsEvent
     {
         $event = DB::connection('event')->transaction(function () {
-            $event = ModelsEvent::create([
+            $event = ModelsEvent::updateOrCreate([
                 'apps_id' => $this->event->app->getId(),
                 'companies_id' => $this->event->company->getId(),
                 'users_id' => $this->event->user->getId(),

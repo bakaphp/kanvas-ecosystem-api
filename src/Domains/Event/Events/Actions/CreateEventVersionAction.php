@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Actions;
 
 use Kanvas\Event\Events\DataTransferObject\EventVersion;
-use Kanvas\Event\Events\Models\Event as ModelsEvent;
 use Kanvas\Event\Events\Models\EventVersion as ModelsEventVersion;
 
 class CreateEventVersionAction
@@ -17,7 +16,7 @@ class CreateEventVersionAction
 
     public function execute(): ModelsEventVersion
     {
-        $eventVersion = ModelsEventVersion::create([
+        $eventVersion = ModelsEventVersion::updateOrCreate([
             'apps_id' => $this->eventVersion->event->app->getId(),
             'companies_id' => $this->eventVersion->event->company->getId(),
             'users_id' => $this->eventVersion->user->getId(),
