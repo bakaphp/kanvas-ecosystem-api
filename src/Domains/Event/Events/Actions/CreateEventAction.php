@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Event\Events\Actions;
 
+use Baka\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Event\Events\DataTransferObject\Event;
 use Kanvas\Event\Events\DataTransferObject\EventVersion;
@@ -19,7 +21,11 @@ class CreateEventAction
 
     public function execute(): ModelsEvent
     {
-        $event = DB::connection('event')->transaction(function () {
+        $slug = $this->event->slug ?? Str::slug($this->event->name);
+
+        $this->validateSlug($slug);
+
+        $event = DB::connection('event')->transaction(function () use ($slug) {
             $event = ModelsEvent::create([
                 'apps_id' => $this->event->app->getId(),
                 'companies_id' => $this->event->company->getId(),
@@ -32,6 +38,7 @@ class CreateEventAction
                 'event_category_id' => $this->event->category->getId(),
                 'event_class_id' => $this->event->class->getId(),
                 'description' => $this->event->description,
+                'slug' => $slug,
             ]);
 
             $eventVersion = new CreateEventVersionAction(
@@ -43,7 +50,8 @@ class CreateEventAction
                     version: 1,
                     description: $this->event->description,
                     pricePerTicket: 0,
-                    dates: $this->event->dates
+                    dates: $this->event->dates,
+                    slug: $slug
                 )
             );
 
@@ -53,5 +61,30 @@ class CreateEventAction
         });
 
         return $event;
+    }
+
+    protected function validateSlug(string $slug): void
+    {
+        Validator::make(
+            ['slug' => $slug],
+            [
+                'slug' => [
+                    'required',
+                    // Custom rule using DB to specify the connection and validate uniqueness.
+                    function ($attribute, $value, $fail) {
+                        $exists = DB::connection('event') // Replace with your DB connection name.
+                            ->table('events')
+                            ->where('slug', $value)
+                            ->where('apps_id', $this->event->app->getId())
+                            ->where('companies_id', $this->event->company->getId())
+                            ->exists();
+
+                        if ($exists) {
+                            $fail('The ' . $attribute . ' has already been taken.');
+                        }
+                    },
+                ],
+            ]
+        )->validate();
     }
 }
