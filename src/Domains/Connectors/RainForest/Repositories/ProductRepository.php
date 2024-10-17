@@ -184,7 +184,7 @@ class ProductRepository
                         'data' => $product['asin'],
                     ],
                     [
-                        'name' => 'GRAMS',
+                        'name' => RainForestEnum::WEIGHT_UNIT->value,
                         'data' => $this->calcWeight($product),
                     ],
                 ],

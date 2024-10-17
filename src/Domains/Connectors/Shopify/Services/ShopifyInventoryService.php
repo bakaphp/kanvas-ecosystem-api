@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Shopify\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Kanvas\Connectors\RainForest\Enums\RainForestEnum;
 use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Connectors\Shopify\Enums\StatusEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -117,6 +118,7 @@ class ShopifyInventoryService
             'compare_at_price' => $discountedPrice ?? 0,
             'inventory_policy' => 'deny',
             'published' => $price > 0,
+            'grams' => $variant->get(RainForestEnum::WEIGHT_UNIT->value) ?? 453.592,
         ];
 
         if ($quantity > 0) {
