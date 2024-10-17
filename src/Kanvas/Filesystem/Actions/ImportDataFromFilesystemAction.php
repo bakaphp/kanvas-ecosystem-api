@@ -144,7 +144,7 @@ class ImportDataFromFilesystemAction
                 break;
             case Event::class:
                 $job = ImporterEventJob::class;
-
+                
                 break;
             default:
                 break;
