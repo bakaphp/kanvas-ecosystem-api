@@ -20,7 +20,7 @@ class DirectOrder extends Data
         public CreditCard $creditCard,
         public Cart $cart,
         public ?Profile $profile = null,
-        public ?Transaction $transactionId = null
+        public ?Transaction $transaction = null
     ) {
     }
 }

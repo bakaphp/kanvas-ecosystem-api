@@ -315,9 +315,9 @@ class AuthorizeNetPaymentProcessor
 
         $transactionRequest = new AnetAPI\TransactionRequestType();
         $transactionRequest->setTransactionType("refundTransaction");
-        $transactionRequest->setAmount($orderInput->amount);
+        $transactionRequest->setAmount($orderInput->transaction->amount);
         $transactionRequest->setPayment($paymentCreditCard);
-        $transactionRequest->setRefTransId($orderInput->transactionId);
+        $transactionRequest->setRefTransId($orderInput->transaction->transactionId);
 
         $request = new AnetAPI\CreateTransactionRequest();
         $request->setMerchantAuthentication($merchantAuthentication);

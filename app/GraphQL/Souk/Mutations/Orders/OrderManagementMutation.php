@@ -143,7 +143,7 @@ class OrderManagementMutation
     {
         $user = auth()->user();
         $creditCard = CreditCard::viaRequest($request['input']);
-        $transactionId = Transaction::viaRequest($request['input']);
+        $transaction = Transaction::viaRequest($request['input']);
         $cart = app('cart')->session($user->getId());
 
         $order = new DirectOrder(
@@ -152,7 +152,7 @@ class OrderManagementMutation
             $creditCard,
             $cart,
             null,
-            $transactionId
+            $transaction
         );
 
 

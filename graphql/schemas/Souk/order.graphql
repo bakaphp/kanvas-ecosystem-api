@@ -90,12 +90,17 @@ input ProfileInput {
     customerPaymentProfileId: ID!
 }
 
+input TransactionInput {
+    transactionId: ID!
+    amount: Float!
+}
+
 input OrderInput {
     cartId: ID!
     payment: CreditCardInput!
     billing: CreditCardBillingInput
     profile: ProfileInput
-    transactionId: ID
+    transaction: TransactionInput
 }
 
 input DraftOrderInput {

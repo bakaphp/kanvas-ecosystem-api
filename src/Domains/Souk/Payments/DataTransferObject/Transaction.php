@@ -11,15 +11,17 @@ class Transaction extends Data
 {
     public function __construct(
         public readonly int $transactionId,
+        public readonly float $amount,
     ) {
     }
 
     public static function viaRequest(array $orderInput): self
     {
-        $profileData = Arr::get($orderInput, 'transactionId', []);
+        $transactionData = Arr::get($orderInput, 'transaction', []);
 
         return new self(
-            $profileData['transactionId'],
+            $transactionData['transactionId'],
+            $transactionData['amount']
         );
     }
 }
