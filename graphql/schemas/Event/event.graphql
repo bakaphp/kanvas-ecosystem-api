@@ -203,4 +203,38 @@ extend type Query @guard {
             model: "Kanvas\\Event\\Events\\Models\\EventVersion"
             defaultCount: 25
         )
+    eventVersionParticipants(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "event_version_id"
+                    "participant_id"
+                    "ticket_price"
+                    "discount"
+                    "invoice_date"
+                    "participant_type_id"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "event_version_id"
+                    "participant_id"
+                    "ticket_price"
+                    "discount"
+                    "invoice_date"
+                    "participant_type_id"
+                ]
+            )
+    ): [EventVersionParticipant!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            model: "Kanvas\\Event\\Events\\Models\\EventVersionParticipant"
+            defaultCount: 25
+        )
 }

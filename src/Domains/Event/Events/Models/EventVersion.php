@@ -10,6 +10,8 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Event\Models\BaseModel;
+use Kanvas\Event\Participants\Models\Participant;
+use Kanvas\Event\Participants\Models\ParticipantType;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Spatie\LaravelData\DataCollection;
 
@@ -32,6 +34,11 @@ class EventVersion extends BaseModel
     public function dates(): HasMany
     {
         return $this->hasMany(EventVersionDate::class);
+    }
+
+    public function participants(): HasMany
+    {
+        return $this->hasMany(Participant::class);
     }
 
     public function casts(): array
@@ -62,5 +69,18 @@ class EventVersion extends BaseModel
                 'end_time' => $date['end_time'],
             ]);
         });
+    }
+
+    public function addParticipant(Participant $participant): EventVersionParticipant
+    {
+        $participantType = ParticipantType::fromApp($this->app)
+            ->fromCompany($this->company)
+            ->where('name', 'Attendee')->firstOrFail();
+
+        return EventVersionParticipant::firstOrCreate([
+            'event_version_id' => $this->getId(),
+            'participant_id' => $participant->getId(),
+            'participant_type_id' => $participantType->getId(),
+        ]);
     }
 }

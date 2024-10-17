@@ -32,12 +32,13 @@ class FollowAction
     {
         UsersRepository::belongsToThisApp($this->user, $this->app, $this->company);
 
-        $params = [
+        $search = [
             'users_id' => $this->user->getId(),
             'entity_id' => $this->entity->getId(),
             'entity_namespace' => get_class($this->entity),
             'apps_id' => $this->app->getId(),
         ];
+        $params = [];
 
         if ($this->company) {
             $params['companies_id'] = $this->company->getId();
@@ -48,6 +49,6 @@ class FollowAction
             $params['companies_branches_id'] = $this->entity->companies_branches_id;
         }
 
-        return UsersFollows::firstOrCreate($params);
+        return UsersFollows::firstOrCreate($search, $params);
     }
 }

@@ -50,6 +50,7 @@ use Kanvas\Notifications\Models\Notifications;
 use Kanvas\Notifications\Traits\HasNotificationSettings;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\SystemModules\Models\SystemModules;
@@ -119,6 +120,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use HasApiTokens;
     use HasRolesAndAbilities;
     use LikableTrait;
+    use FollowersTrait;
     use HasFilesystemTrait;
     use KanvasModelTrait;
     use HasNotificationSettings;
@@ -744,11 +746,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     public function getSocialInfo(): array
     {
+        $app = app(Apps::class);
+        $socialCount = $this->getFollowersCount($app);
+
         return [
             'total_message' => Message::fromApp(app(Apps::class))->where('users_id', $this->getId())->count(),
             'total_like' => 0,
-            'total_followers' => 0,
-            'total_following' => 0,
+            'total_followers' => $socialCount['users_followers_count'] ?? 0,
+            'total_following' => $socialCount['users_following_count'] ?? 0,
             'total_list' => 0,
         ];
     }
