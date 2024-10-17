@@ -38,7 +38,7 @@ class SyncUserInteractionToEventActivity extends Activity implements WorkflowAct
 
         $result = $syncUserInteraction->execute(
             $userInteraction->interaction,
-            [$userInteraction->entity_id]
+            [$userInteraction->id]
         );
 
         return [
