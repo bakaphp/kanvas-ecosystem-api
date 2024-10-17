@@ -8,7 +8,6 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Google\Actions\SyncMessageToDocumentAction;
 use Kanvas\Connectors\Google\Actions\SyncUserInteractionToEventAction;
 use Kanvas\Users\Models\Users;
 
