@@ -29,6 +29,8 @@ class ProductRepository
                 'type' => 'search',
                 'amazon_domain' => 'amazon.com',
                 'search_term' => $name,
+                'sort_by' => 'featured',
+                'exclude_sponsored' => true,
             ],
         ]);
         $response = json_decode($response->getBody()->getContents(), true);
