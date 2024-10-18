@@ -14,7 +14,7 @@ use Kanvas\Users\Models\Users;
 
 class UsersFollowsRepository
 {
-    public static function getByUserAndEntity(Users $user, EloquentModel $entity, ?Apps $apps = null): ?UsersFollows
+    public static function getByUserAndEntity(Users $user, EloquentModel $entity, ?AppInterface $apps = null): ?UsersFollows
     {
         $apps = $apps ?? app(Apps::class);
 
@@ -26,9 +26,9 @@ class UsersFollowsRepository
             ->first();
     }
 
-    public static function isFollowing(Users $user, EloquentModel $entity): bool
+    public static function isFollowing(Users $user, EloquentModel $entity, ?AppInterface $app = null): bool
     {
-        return (bool) self::getByUserAndEntity($user, $entity);
+        return (bool) self::getByUserAndEntity($user, $entity, $app);
     }
 
     public static function getFollowersBuilder(EloquentModel $entity, ?AppInterface $app = null): Builder

@@ -750,12 +750,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         $app = app(Apps::class);
         $socialCount = $this->getFollowersCount($app);
+        $currentUser = auth()->user();
 
         return [
             'total_message' => Message::fromApp(app(Apps::class))->where('users_id', $this->getId())->count(),
             'total_like' => 0,
             'total_followers' => $socialCount['users_followers_count'] ?? 0,
             'total_following' => $socialCount['users_following_count'] ?? 0,
+            'is_following' => $currentUser && ($currentUser->getId() !== $this->getId()) ? $currentUser->isFollowing($this, $app) : false,
             'total_list' => 0,
         ];
     }

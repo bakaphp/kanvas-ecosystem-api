@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Social\Follows\Traits;
 
 use Baka\Contracts\AppInterface;
-use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Kanvas\Apps\Models\Apps;
@@ -17,19 +16,19 @@ use Kanvas\Users\Models\Users;
 
 trait FollowersTrait
 {
-    public function follow(Model $entity): UsersFollows
+    public function follow(Model $entity, ?AppInterface $app = null): UsersFollows
     {
         return (new FollowAction($this, $entity))->execute();
     }
 
-    public function unFollow(Model $entity): bool
+    public function unFollow(Model $entity , ?AppInterface $app = null): bool
     {
-        return (new UnFollowAction($this, $entity))->execute();
+        return (new UnFollowAction($this, $entity, $app))->execute();
     }
 
-    public function isFollowing(Model $entity): bool
+    public function isFollowing(Model $entity, ?AppInterface $app = null): bool
     {
-        return UsersFollowsRepository::isFollowing($this, $entity);
+        return UsersFollowsRepository::isFollowing($this, $entity, $app);
     }
 
     public function getFollowersCount(AppInterface $app): array
@@ -39,7 +38,8 @@ trait FollowersTrait
     }
 
     public function followers(): HasManyThrough
-    {
+    { 
+        $app = app(Apps::class);
         return $this->hasManyThrough(
             Users::class,
             UsersFollows::class,
@@ -48,6 +48,7 @@ trait FollowersTrait
             'id',
             'users_id'
         )
+        ->where('apps_id', $app->getId())
         ->where('entity_namespace', $this::class)
         ->when(isset($this->companies_id), fn ($query) => $query->where('companies_id', $this->companies_id))
         ->when(isset($this->companies_branches_id), fn ($query) => $query->where('companies_branches_id', $this->companies_branches_id));
