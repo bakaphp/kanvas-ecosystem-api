@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Stripe\Workflows\Activities;
 
+use Baka\Traits\KanvasJobsTrait;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
@@ -14,6 +15,8 @@ use Workflow\Activity;
 
 class SetPlanWithoutPaymentActivity extends Activity
 {
+    use KanvasJobsTrait;
+
     public $tries = 5;
 
     /**
@@ -28,6 +31,7 @@ class SetPlanWithoutPaymentActivity extends Activity
 
     public function execute(UserInterface $user, Apps $app, array $params): array
     {
+        $this->overwriteAppService($app);
         $this->validateStripe($app);
         $company = $user->getCurrentCompany();
         $response = [];
