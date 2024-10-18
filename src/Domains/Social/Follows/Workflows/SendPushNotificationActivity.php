@@ -32,20 +32,22 @@ class SendPushNotificationActivity extends Activity implements WorkflowActivityI
     {
         $user = Users::getById($entity->users_id);
         $notificationType = NotificationTypesRepository::getByName($params['notification_name'], $app);
+        $toUsersArray = isset($params['toUsers']) ? $params['toUsers'] : [];
+        $distributionType = isset($params['toUsers']) && count($params['toUsers']) > 0  ? 'users' : 'followers';
         
-        // if (!in_array(NotificationChannelEnum::PUSH->value,$notificationType->getChannelsInNotificationFormat())) {
-        //     return [
-        //         'result' => false,
-        //         'message' => 'NotificationType does not have push notification enabled',
-        //         'notificationType' => $notificationType->name
-        //     ];
-        // }
+        if (!in_array(NotificationChannelEnum::PUSH->value,$notificationType->getChannelsInNotificationFormat())) {
+            return [
+                'result' => false,
+                'message' => 'NotificationType does not have push notification enabled',
+                'notificationType' => $notificationType->name
+            ];
+        }
 
         $messageMetadata = new MessagesNotificationMetadata(
             $notificationType->getId(),
             $entity->toArray(),
-            $params['toUser'] ?? [],
-            $params['toUser'] ? 'users' : 'followers'
+            $toUsersArray,
+            $distributionType
         );
 
         if ($messageMetadata->distributeToSpecificUsers()) {
