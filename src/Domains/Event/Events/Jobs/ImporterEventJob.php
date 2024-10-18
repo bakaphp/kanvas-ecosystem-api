@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Jobs;
 
 use Illuminate\Support\Facades\Log;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event;
+use Kanvas\Event\Events\Events\ImportResultEvents;
 use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Events\Models\EventClass;
 use Kanvas\Event\Events\Models\EventStatus;
@@ -58,9 +60,44 @@ class ImporterEventJob extends ProductImporterJob
                 ];
 
                 Log::error($e->getMessage());
-                captureException($e);
+                // captureException($e);
                 $totalProcessFailed++;
             }
         }
+        $this->notificationStatus(
+            $totalItems,
+            $totalProcessSuccessfully,
+            $totalProcessFailed,
+            $created,
+            $updated,
+            $errors,
+            $this->branch->company
+        );
+    }
+
+    protected function notificationStatus(
+        int $totalItems,
+        int $totalProcessSuccessfully,
+        int $totalProcessFailed,
+        int $created,
+        int $updated,
+        array $errors,
+        Companies $company
+    ): void {
+        $subscriptionData = [
+                   'jobUuid' => $this->jobUuid,
+                   'status' => 'completed',
+                   'results' => [
+                       'total_items' => $totalItems,
+                       'total_process_successfully' => $totalProcessSuccessfully,
+                       'total_process_failed' => $totalProcessFailed,
+                       'created' => $created,
+                       'updated' => $updated,
+                   ],
+                   'exception' => $errors,
+                   'user' => $this->user,
+                   'company' => $company,
+               ];
+        ImportResultEvents::dispatch($subscriptionData);
     }
 }
