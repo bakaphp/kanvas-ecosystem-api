@@ -21,7 +21,7 @@ trait FollowersTrait
         return (new FollowAction($this, $entity))->execute();
     }
 
-    public function unFollow(Model $entity , ?AppInterface $app = null): bool
+    public function unFollow(Model $entity, ?AppInterface $app = null): bool
     {
         return (new UnFollowAction($this, $entity, $app))->execute();
     }
@@ -38,8 +38,9 @@ trait FollowersTrait
     }
 
     public function followers(): HasManyThrough
-    { 
+    {
         $app = app(Apps::class);
+
         return $this->hasManyThrough(
             Users::class,
             UsersFollows::class,
