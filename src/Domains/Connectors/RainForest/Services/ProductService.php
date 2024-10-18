@@ -41,7 +41,7 @@ class ProductService
                     'id' => $this->warehouse->id,
                     'price' => (float) $discountPrice,
                     'warehouse' => $this->warehouse->name,
-                    'quantity' => 1,
+                    'quantity' => 0,
                     'sku' => $product['asin'],
                     'is_new' => true,
                     'channel' => $this->channels->name,

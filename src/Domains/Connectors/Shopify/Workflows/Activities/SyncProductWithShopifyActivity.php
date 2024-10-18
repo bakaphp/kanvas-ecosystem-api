@@ -13,7 +13,7 @@ class SyncProductWithShopifyActivity extends Activity
 {
     public $tries = 5;
 
-    public function execute(Products $product, Apps $app, array $params): array
+    public function execute(Apps $app, Products $product, array $params): array
     {
         $syncProductWithShopify = new SyncProductWithShopifyAction($product);
         $response = $syncProductWithShopify->execute();
