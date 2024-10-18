@@ -18,6 +18,8 @@ use Kanvas\Social\Messages\DataTransferObject\MessagesNotificationMetadata;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Notifications\Repositories\NotificationTypesRepository;
+use Kanvas\Notifications\Jobs\SendMessageNotificationsToUsersJob;
+use Kanvas\Notifications\Enums\NotificationChannelEnum;
 
 class SendPushNotificationActivity extends Activity implements WorkflowActivityInterface
 {
@@ -28,15 +30,42 @@ class SendPushNotificationActivity extends Activity implements WorkflowActivityI
 
     public function execute(Model $entity, AppInterface $app, array $params = []): array
     {
-        $user = Users::getById($params['message']->users_id);
+        $user = Users::getById($entity->users_id);
         $notificationType = NotificationTypesRepository::getByName($params['notification_name'], $app);
-        // $notificationType = NotificationTypes::getById(75, $app); //New message notification type for a specific app?
+        
+        // if (!in_array(NotificationChannelEnum::PUSH->value,$notificationType->getChannelsInNotificationFormat())) {
+        //     return [
+        //         'result' => false,
+        //         'message' => 'NotificationType does not have push notification enabled',
+        //         'notificationType' => $notificationType->name
+        //     ];
+        // }
 
         $messageMetadata = new MessagesNotificationMetadata(
             $notificationType->getId(),
-            "FOLLOWERS",
-            $params['message']->toArray(),
+            $entity->toArray(),
+            $params['toUser'] ?? [],
+            $params['toUser'] ? 'users' : 'followers'
         );
+
+        if ($messageMetadata->distributeToSpecificUsers()) {
+            SendMessageNotificationsToUsersJob::dispatch(
+                $user,
+                $app,
+                $notificationType,
+                $messageMetadata
+            );
+
+            return [
+                'result' => true,
+                'message' => 'Push Notification sent successfully',
+                'data' => $params,
+                'entity' => [
+                    get_class($entity),
+                    $entity->getId(),
+                ],
+            ];
+        }
 
         SendMessageNotificationsToAllFollowersJob::dispatch(
             $user,
@@ -45,8 +74,14 @@ class SendPushNotificationActivity extends Activity implements WorkflowActivityI
             $messageMetadata
         );
 
-        Log::info("Push Notifications Sent");
-
-        return [];
+        return [
+            'result' => true,
+            'message' => 'Push Notification sent successfully',
+            'data' => $params,
+            'entity' => [
+                get_class($entity),
+                $entity->getId(),
+            ],
+        ];
     }
 }
