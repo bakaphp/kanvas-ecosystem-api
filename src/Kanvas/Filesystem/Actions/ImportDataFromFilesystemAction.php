@@ -42,8 +42,8 @@ class ImportDataFromFilesystemAction
                 $variant['productSlug'] = $variant['slug'];
                 $listOfVariants[$variant['productSlug']][] = $variant;
             }
+            $listOfProducts[] = $variant;
         }
-
         /**
          * @todo this structure is just for product so we need to encapsulate this in a method
          * when we are just importing product type

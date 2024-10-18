@@ -25,7 +25,6 @@ class CreateEventAction
             $slug = $this->event->slug ?? Str::slug($this->event->name);
 
             $this->validateSlug($slug);
-
             $event = ModelsEvent::updateOrCreate([
                 'apps_id' => $this->event->app->getId(),
                 'companies_id' => $this->event->company->getId(),

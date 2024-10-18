@@ -39,7 +39,6 @@ class ImporterEventJob extends ProductImporterJob
         $created = 0;
         $updated = 0;
         $errors = [];
-
         foreach ($this->importer as $request) {
             try {
                 $data = Event::fromMultiple($this->app, $this->user, $this->branch->company, $request);
