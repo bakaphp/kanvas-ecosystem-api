@@ -1,0 +1,22 @@
+extend type Mutation @guard {
+    blockUser(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Users\\BlockUserManagement@block"
+        )
+    unBlockUser(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Users\\BlockUserManagement@unBlock"
+        )
+}
+
+extend type Query @guard {
+    blockedUsers(
+        where: _ @whereConditions(columns: ["id", "blocked_users_id"])
+        orderBy: _ @orderBy(columns: ["created_at", "id"])
+    ): [User!]!
+        @paginate(
+            scopes: ["fromApp", "fromUser", "notDeleted"]
+            builder: "App\\GraphQL\\Social\\Builders\\Users\\BlockUserBuilder@getUsers"
+            defaultCount: 25
+        )
+}
