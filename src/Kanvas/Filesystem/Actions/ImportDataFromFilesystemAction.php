@@ -32,12 +32,16 @@ class ImportDataFromFilesystemAction
         $listOfVariants = [];
         $listOfProducts = [];
         $modelName = $this->filesystemImports->filesystemMapper->systemModule->model_name;
+
         foreach ($records as $record) {
             $variant = $this->mapper(
                 $this->filesystemImports->filesystemMapper->mapping,
                 $record
             );
-            $listOfVariants[$variant['productSlug']][] = $variant;
+            if (Products::class == $modelName) {
+                $variant['productSlug'] = $variant['slug'];
+                $listOfVariants[$variant['productSlug']][] = $variant;
+            }
         }
 
         /**
@@ -144,7 +148,7 @@ class ImportDataFromFilesystemAction
                 break;
             case Event::class:
                 $job = ImporterEventJob::class;
-                
+
                 break;
             default:
                 break;
