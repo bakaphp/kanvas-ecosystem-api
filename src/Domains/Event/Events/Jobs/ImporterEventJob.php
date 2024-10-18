@@ -46,12 +46,16 @@ class ImporterEventJob extends ProductImporterJob
             try {
                 $request['slug'] = key_exists('slug', $request) ? $request['slug'] : Str::slug($request['name']);
                 if (! key_exists('type_id', $request)) {
-                    $type = EventType::where('companes_id', $this->branch->company->getId())
-                    ->where('name', $request['event_type'])->first();
+                    $type = EventType::firstOrCreate([
+                        'companies_id' => $this->branch->company->getId(),
+                        'apps_id' => $this->app->getId(),
+                        'users_id' => $this->user->getId(),
+                        'name' => $request['event_type'],
+                    ]);
                     $request['type_id'] = $type->getId();
                 }
 
-                $request['category_id'] = key_exists('category_id', $request) ? $request['category_id'] : EventCategory::where('companes_id', $this->branch->company->getId())->first()->getId();
+                $request['category_id'] = key_exists('category_id', $request) ? $request['category_id'] : EventCategory::where('companies_id', $this->branch->company->getId())->first()->getId();
                 $data = Event::fromMultiple($this->app, $this->user, $this->branch->company, $request);
                 $event = (new CreateEventAction($data))->execute();
 
