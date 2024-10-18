@@ -20,8 +20,8 @@ class BlockUserBuilder
         $socialDb = config('database.connections.social.database');
 
         return Users::query()
-        ->join($socialDb . '.blocked_users', 'users.id', '=', 'blocked_users.blocked_users_id')
-        ->where('blocked_users.is_deleted', 0)
-        ->select('users.*');
+            ->join($socialDb . '.blocked_users', 'users.id', '=', 'blocked_users.blocked_users_id')
+            ->where('blocked_users.is_deleted', 0)
+            ->select('users.*');
     }
 }
