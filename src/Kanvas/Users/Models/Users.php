@@ -53,6 +53,7 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Users\Traits\CanBlockUser;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Factories\UsersFactory;
@@ -124,6 +125,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use HasFilesystemTrait;
     use KanvasModelTrait;
     use HasNotificationSettings;
+    use CanBlockUser;
     use Searchable {
         search as public traitSearch;
     }
