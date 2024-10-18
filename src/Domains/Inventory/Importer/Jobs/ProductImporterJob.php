@@ -15,7 +15,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\App;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
@@ -140,10 +139,6 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                 $totalProcessSuccessfully++;
 
                 //handle failed jobs
-                // @todo: Make a workflow or Action to sync always inventory connectors
-                $warehouseId = $product->warehouses()->first()->getId();
-                $command = "kanvas:inventory-shopify-sync {$this->app->getId()} {$company->getId()} {$warehouseId} {$this->region->getId()} --product_id={$product->getId()}";
-                Artisan::call($command);
             } catch (Throwable $e) {
                 $errors[] = [
                     'message' => $e->getMessage(),
