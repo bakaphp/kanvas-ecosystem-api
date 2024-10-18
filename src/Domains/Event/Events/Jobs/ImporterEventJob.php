@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Jobs;
 
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event;
@@ -43,6 +44,18 @@ class ImporterEventJob extends ProductImporterJob
         $errors = [];
         foreach ($this->importer as $request) {
             try {
+                $request['slug'] = key_exists('slug', $request) ? $request['slug'] : Str::slug($request['name']);
+                if (! key_exists('type_id', $request)) {
+                    $type = EventType::firstOrCreate([
+                        'companies_id' => $this->branch->company->getId(),
+                        'apps_id' => $this->app->getId(),
+                        'users_id' => $this->user->getId(),
+                        'name' => $request['event_type'],
+                    ]);
+                    $request['type_id'] = $type->getId();
+                }
+
+                $request['category_id'] = key_exists('category_id', $request) ? $request['category_id'] : EventCategory::where('companies_id', $this->branch->company->getId())->first()->getId();
                 $data = Event::fromMultiple($this->app, $this->user, $this->branch->company, $request);
                 $event = (new CreateEventAction($data))->execute();
 
