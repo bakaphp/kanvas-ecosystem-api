@@ -125,7 +125,7 @@ class CreateProductAction
             throw $e;
         }
 
-        if (!$this->disableWorkflow && $this->runWorkflow) {
+        if (! $this->disableWorkflow && $this->runWorkflow) {
             $products->fireWorkflow(
                 WorkflowEnum::CREATED->value,
                 true
