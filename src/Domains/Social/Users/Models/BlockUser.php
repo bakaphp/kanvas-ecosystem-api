@@ -18,6 +18,6 @@ use Kanvas\Social\Models\BaseModel;
 class BlockUser extends BaseModel
 {
     use SoftDeletesTrait;
-    
+
     protected $table = 'blocked_users';
 }
