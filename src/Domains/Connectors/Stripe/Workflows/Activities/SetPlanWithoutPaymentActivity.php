@@ -42,7 +42,7 @@ class SetPlanWithoutPaymentActivity extends Activity
                 $subscription = $companyStripeAccount->newSubscription('default', $price->stripe_id)
                     ->trialUntil($trialEndsAt)
                     ->create();
-                    
+
                 foreach ($subscription->items as $item) {
                     $item->stripe_product_name = $plan->name;
                     $item->save();
