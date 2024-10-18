@@ -43,7 +43,9 @@ class ProcessShopifyProductWebhookJob extends ProcessWebhookJob
             $integrationCompany->company->branch,
             $this->receiver->user,
             $integrationCompany->region,
-            $this->receiver->app
+            $this->receiver->app,
+            null,
+            true
         );
 
         return [

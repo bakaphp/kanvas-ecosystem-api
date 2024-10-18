@@ -33,6 +33,7 @@ class CreateProductAction
     public function __construct(
         protected ProductDto $productDto,
         protected UserInterface $user,
+        public bool $disableWorkflow = false
     ) {
     }
 
@@ -124,7 +125,7 @@ class CreateProductAction
             throw $e;
         }
 
-        if ($this->runWorkflow) {
+        if (!$this->disableWorkflow && $this->runWorkflow) {
             $products->fireWorkflow(
                 WorkflowEnum::CREATED->value,
                 true

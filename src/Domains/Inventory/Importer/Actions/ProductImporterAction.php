@@ -52,7 +52,8 @@ class ProductImporterAction
         public Companies $company,
         public UserInterface $user,
         public Regions $region,
-        public ?AppInterface $app = null
+        public ?AppInterface $app = null,
+        public bool $disableWorkflow = false
     ) {
         $this->app = $this->app ?? app(Apps::class);
     }
@@ -81,7 +82,7 @@ class ProductImporterAction
                 'is_published' => $this->importedProduct->isPublished,
                 'attributes' => $this->importedProduct->attributes,
             ]);
-            $this->product = (new CreateProductAction($productDto, $this->user))->execute();
+            $this->product = (new CreateProductAction($productDto, $this->user, $this->disableWorkflow))->execute();
 
             if (isset($this->importedProduct->customFields) && ! empty($this->importedProduct->customFields)) {
                 $this->product->setAllCustomFields($this->importedProduct->customFields);
