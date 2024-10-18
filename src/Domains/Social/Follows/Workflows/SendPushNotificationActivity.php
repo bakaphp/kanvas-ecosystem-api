@@ -45,9 +45,9 @@ class SendPushNotificationActivity extends Activity implements WorkflowActivityI
 
         $messageMetadata = new MessagesNotificationMetadata(
             $notificationType->getId(),
+            $distributionType,
             $entity->toArray(),
-            $toUsersArray,
-            $distributionType
+            $toUsersArray
         );
 
         if ($messageMetadata->distributeToSpecificUsers()) {
