@@ -52,7 +52,8 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
         public UserInterface $user,
         public Regions $region,
         public AppInterface $app,
-        public ?FilesystemImports $filesystemImport = null
+        public ?FilesystemImports $filesystemImport = null,
+        public bool $runWorkflow = true
     ) {
         $minuteDelay = (int)($app->get('delay_minute_job') ?? 0);
         $queue = $this->onQueue('imports');
@@ -129,7 +130,8 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                     $company,
                     $this->user,
                     $this->region,
-                    $this->app
+                    $this->app,
+                    $this->runWorkflow
                 ))->execute();
                 if ($product->wasRecentlyCreated) {
                     $created++;

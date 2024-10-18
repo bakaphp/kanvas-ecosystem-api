@@ -38,12 +38,13 @@ class ProcessShopifyProductWebhookJob extends ProcessWebhookJob
         $jobUuid = Str::uuid()->toString();
 
         ProductImporterJob::dispatch(
-            $jobUuid,
-            [$mappedProduct],
-            $integrationCompany->company->branch,
-            $this->receiver->user,
-            $integrationCompany->region,
-            $this->receiver->app
+            jobUuid: $jobUuid,
+            importer: [$mappedProduct],
+            branch: $integrationCompany->company->branch,
+            user: $this->receiver->user,
+            region: $integrationCompany->region,
+            app: $this->receiver->app,
+            runWorkflow: false
         );
 
         return [
