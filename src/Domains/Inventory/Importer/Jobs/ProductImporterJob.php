@@ -139,6 +139,8 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                     $updated++;
                 }
                 $totalProcessSuccessfully++;
+
+                //handle failed jobs
             } catch (Throwable $e) {
                 $errors[] = [
                     'message' => $e->getMessage(),
@@ -146,6 +148,7 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                     'request' => $request,
                 ];
                 Log::error($e->getMessage());
+                Log::error($e->getTraceAsString());
                 captureException($e);
                 $totalProcessFailed++;
             }
@@ -164,7 +167,6 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
             ]);
         }
         $this->notificationStatus($totalItems, $totalProcessSuccessfully, $totalProcessFailed, $created, $updated, $errors, $company);
-        //handle failed jobs
     }
 
     protected function notificationStatus(
