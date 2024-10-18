@@ -23,7 +23,7 @@ class CreateEventVersionAction
 
         $this->validateSlug($slug);
 
-        $eventVersion = ModelsEventVersion::create([
+        $eventVersion = ModelsEventVersion::updateOrCreate([
             'apps_id' => $this->eventVersion->event->app->getId(),
             'companies_id' => $this->eventVersion->event->company->getId(),
             'users_id' => $this->eventVersion->user->getId(),

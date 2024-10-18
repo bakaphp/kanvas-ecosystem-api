@@ -21,12 +21,11 @@ class CreateEventAction
 
     public function execute(): ModelsEvent
     {
-        $slug = $this->event->slug ?? Str::slug($this->event->name);
+        $event = DB::connection('event')->transaction(function () {
+            $slug = $this->event->slug ?? Str::slug($this->event->name);
 
-        $this->validateSlug($slug);
-
-        $event = DB::connection('event')->transaction(function () use ($slug) {
-            $event = ModelsEvent::create([
+            // $this->validateSlug($slug);
+            $event = ModelsEvent::updateOrCreate([
                 'apps_id' => $this->event->app->getId(),
                 'companies_id' => $this->event->company->getId(),
                 'users_id' => $this->event->user->getId(),
