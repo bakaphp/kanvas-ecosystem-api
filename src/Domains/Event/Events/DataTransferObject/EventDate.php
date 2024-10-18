@@ -17,8 +17,8 @@ class EventDate extends Data
         #[WithCast(DateTimeInterfaceCast::class)]
         #[WithTransformer(DateTimeInterfaceTransformer::class)]
         public readonly DateTime $date,
-        public readonly ?string $start_time=null,
-        public readonly ?string $end_time=null,
+        public readonly ?string $start_time = null,
+        public readonly ?string $end_time = null,
     ) {
     }
 
