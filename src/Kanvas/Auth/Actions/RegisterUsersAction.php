@@ -70,6 +70,7 @@ class RegisterUsersAction extends CreateUserAction
                 [
                     'company' => $company,
                     'password' => $this->data->raw_password,
+                    'app' => $this->app,
                 ]
             );
         }

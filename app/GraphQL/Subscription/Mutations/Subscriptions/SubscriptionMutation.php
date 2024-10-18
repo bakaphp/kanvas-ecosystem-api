@@ -85,6 +85,10 @@ class SubscriptionMutation
 
         $upgradeSubscription = $companyStripeAccount->subscriptions->first();
 
+        if (isset($data['payment_method_id'])) {
+            $companyStripeAccount->updateDefaultPaymentMethod($data['payment_method_id']);
+        }
+
         $upgradeSubscription->swap($newPrice->stripe_id);
 
         foreach ($upgradeSubscription->items as $item) {

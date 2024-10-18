@@ -89,7 +89,8 @@ class SyncAllPeopleInCompanyCommand extends Command
         ->fromCompany($company)
         ->notDeleted(0)
         ->orderBy('peoples.id', 'DESC')
-        ->chunk($batchSize, function ($peoples) use (&$currentHourlyCount, &$currentDailyCount, $hourlyRateLimit, $dailyRateLimit, $hourlyCacheKey, $dailyCacheKey, $resetHourlyKey, $resetDailyKey, $hourlyTimeWindow, $dailyTimeWindow) {
+        ->limit($total)
+        ->chunk($perPage, function ($peoples) use (&$currentHourlyCount, &$currentDailyCount, $hourlyRateLimit, $dailyRateLimit, $hourlyCacheKey, $dailyCacheKey, $resetHourlyKey, $resetDailyKey, $hourlyTimeWindow, $dailyTimeWindow) {
             foreach ($peoples as $people) {
                 // Check if the person has the 'APOLLO_DATA_ENRICHMENT_CUSTOM_FIELDS' custom field
                 $hasCustomField = $people->get(ConfigurationEnum::APOLLO_DATA_ENRICHMENT_CUSTOM_FIELDS->value);

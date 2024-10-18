@@ -91,6 +91,7 @@ type UserSocialInfo {
     total_followers: Int
     total_following: Int
     total_lists: Int
+    is_following: Boolean
 }
 
 input LoginInput {

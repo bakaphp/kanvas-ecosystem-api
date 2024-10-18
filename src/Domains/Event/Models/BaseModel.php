@@ -14,6 +14,7 @@ use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Inventory\Traits\AppsIdTrait;
 use Kanvas\Inventory\Traits\CompaniesIdTrait;
+use Kanvas\Inventory\Traits\DefaultTrait;
 use Kanvas\Inventory\Traits\SourceTrait;
 
 class BaseModel extends EloquentModel
@@ -28,6 +29,7 @@ class BaseModel extends EloquentModel
     use HasFilesystemTrait;
     // use Cachable;
     use SoftDeletesTrait;
+    use DefaultTrait;
 
     protected $attributes = [
         'is_deleted' => 0,

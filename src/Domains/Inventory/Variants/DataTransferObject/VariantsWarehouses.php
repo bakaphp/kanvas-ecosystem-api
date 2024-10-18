@@ -42,7 +42,7 @@ class VariantsWarehouses extends Data
             $request['serial_number'] ?? null,
             $request['status_id'] ?? null,
             $request['is_oversellable'] ?? false,
-            $request['is_default'] ?? false,
+            isset($request['is_default']) ? (bool) $request['is_default'] : false,
             $request['is_best_seller'] ?? false,
             $request['is_on_sale'] ?? false,
             $request['is_on_promo'] ?? false,

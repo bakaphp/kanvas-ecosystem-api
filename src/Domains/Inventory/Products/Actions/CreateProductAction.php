@@ -133,4 +133,10 @@ class CreateProductAction
 
         return $products;
     }
+
+    public function setRunWorkflow(bool $runWorkflow): self
+    {
+        $this->runWorkflow = $runWorkflow;
+        return $this;
+    }
 }
