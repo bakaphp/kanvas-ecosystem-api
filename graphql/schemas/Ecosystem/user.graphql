@@ -92,6 +92,7 @@ type UserSocialInfo {
     total_following: Int
     total_lists: Int
     is_following: Boolean
+    is_blocked: Boolean
 }
 
 input LoginInput {
