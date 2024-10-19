@@ -33,9 +33,9 @@ class SendPushNotificationActivity extends Activity implements WorkflowActivityI
         $user = Users::getById($entity->users_id);
         $notificationType = NotificationTypesRepository::getByName($params['notification_name'], $app);
         $toUsersArray = $params['toUsers'] ?? [];
-        $distributionType = isset($params['toUsers']) && count($params['toUsers']) > 0  ? 'users' : 'followers';
-        
-        if (!in_array(NotificationChannelEnum::PUSH->value,$notificationType->getChannelsInNotificationFormat())) {
+        $distributionType = isset($params['toUsers']) && count($params['toUsers']) > 0 ? 'users' : 'followers';
+
+        if (! in_array(NotificationChannelEnum::PUSH->value, $notificationType->getChannelsInNotificationFormat())) {
             return [
                 'result' => false,
                 'message' => 'NotificationType does not have push notification enabled',
