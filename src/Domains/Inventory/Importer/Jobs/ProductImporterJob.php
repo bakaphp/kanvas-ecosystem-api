@@ -22,6 +22,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
+use Kanvas\Inventory\Importer\Events\ProductImportEvent;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
@@ -117,11 +118,7 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                     $variants->unsearchable();
                 }, $column = 'id'); */
 
-        if ($this->filesystemImport) {
-            $this->filesystemImport->update([
-                'status' => 'processing', //move to enums
-            ]);
-        }
+        $this->startFilesystemMapperImport();
 
         foreach ($this->importer as $request) {
             try {
@@ -151,6 +148,39 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
             }
         }
 
+        $this->finishFilesystemMapperImport(
+            $totalItems,
+            $totalProcessSuccessfully,
+            $totalProcessFailed,
+            $errors
+        );
+
+        $this->notificationStatus(
+            $totalItems,
+            $totalProcessSuccessfully,
+            $totalProcessFailed,
+            $created,
+            $updated,
+            $errors,
+            $company
+        );
+    }
+
+    protected function startFilesystemMapperImport(): void
+    {
+        if ($this->filesystemImport) {
+            $this->filesystemImport->update([
+                'status' => 'processing',
+            ]);
+        }
+    }
+
+    protected function finishFilesystemMapperImport(
+        int $totalItems,
+        int $totalProcessSuccessfully,
+        int $totalProcessFailed,
+        array $errors
+    ): void {
         if ($this->filesystemImport) {
             $this->filesystemImport->update([
                 'results' => [
@@ -163,8 +193,6 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                 'finished_at' => now(),
             ]);
         }
-        $this->notificationStatus($totalItems, $totalProcessSuccessfully, $totalProcessFailed, $created, $updated, $errors, $company);
-        //handle failed jobs
     }
 
     protected function notificationStatus(
@@ -190,6 +218,13 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                    'user' => $this->user,
                    'company' => $company,
                ];
+
+        ProductImportEvent::dispatch(
+            $this->app,
+            $this->branch->company,
+            $this->user,
+            $subscriptionData
+        );
         Subscription::broadcast('filesystemImported', $subscriptionData);
     }
 }
