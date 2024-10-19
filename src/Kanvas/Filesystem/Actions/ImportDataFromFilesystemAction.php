@@ -118,12 +118,37 @@ class ImportDataFromFilesystemAction
             $result[$key] = match (true) {
                 is_array($value) => $this->mapper($value, $data),
                 is_string($value) && Str::startsWith($value, '_') => Str::after($value, '_'),
-                is_string($value) => $data[$value] ?? null,
+                is_string($value) => $this->getTypedValue($value, $data),
                 default => $value,
             };
+
+            if ($key == 'files' && ! empty($result[$key])) {
+                $result[$key] = $this->explodeStringBasedOnDelimiter($result[$key]);
+            }
         }
 
         return $result;
+    }
+
+    protected function getTypedValue(string $key, array $data): mixed
+    {
+        return match ($key) {
+            'files' => (array)($data[$key] ?? []),
+            default => $data[$key] ?? null,
+        };
+    }
+
+    public function explodeStringBasedOnDelimiter(string $value): array
+    {
+        if (Str::contains($value, '|')) {
+            return explode('|', $value);
+        } elseif (Str::contains($value, ',')) {
+            return explode(',', $value);
+        } elseif (Str::contains($value, ';')) {
+            return explode(';', $value);
+        }
+
+        return [];
     }
 
     private function getFilePath(Filesystem $filesystem): string
