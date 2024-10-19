@@ -108,7 +108,7 @@ class ImportDataFromFilesystemAction
     public function mapper(array $template, array $data): array
     {
         $result = [];
-        
+
         /**
          * @todo
          * - assign type to attributes
