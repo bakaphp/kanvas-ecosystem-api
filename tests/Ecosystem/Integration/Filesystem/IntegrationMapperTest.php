@@ -37,12 +37,7 @@ final class IntegrationMapperTest extends TestCase
             'discountPrice' => 'Discount Price',
             'quantity' => 'Quantity',
             'is_published' => 'Is Published',
-            'files' => [
-                [
-                    'url' => 'File URL',
-                    'name' => 'File Name',
-                ],
-            ],
+            'files' => 'File URL',
             'productType' => [
                 'name' => 'Property Type',
                 'description' => 'Property Type',
@@ -60,12 +55,7 @@ final class IntegrationMapperTest extends TestCase
                     'discountPrice' => 'Discount Price',
                     'is_published' => 'Status',
                     'slug' => 'List Number',
-                    'files' => [
-                        [
-                            'url' => 'File URL',
-                            'name' => 'File Name',
-                        ],
-                    ],
+                    'files' => 'File URL',
                     'warehouse' => [
                         [
                             'id' => 'Warehouse ID',
@@ -130,7 +120,7 @@ final class IntegrationMapperTest extends TestCase
                     'Discount Price' => fake()->randomFloat(2, 50, 900),
                     'Quantity' => fake()->numberBetween(1, 100),
                     'Is Published' => fake()->boolean,
-                    'File URL' => fake()->imageUrl,
+                    'File URL' => fake()->imageUrl . '|' . fake()->imageUrl . '|' . fake()->imageUrl,
                     'File Name' => fake()->word . '.jpg',
                     'Property Type' => fake()->word,
                     'Weight' => fake()->randomFloat(2, 0.5, 5),

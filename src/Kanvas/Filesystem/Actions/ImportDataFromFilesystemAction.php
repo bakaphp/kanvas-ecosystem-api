@@ -41,8 +41,9 @@ class ImportDataFromFilesystemAction
             if (Products::class == $modelName) {
                 $variant['productSlug'] = $variant['slug'];
                 $listOfVariants[$variant['productSlug']][] = $variant;
+            } else {
+                $listOfProducts[] = $variant;
             }
-            $listOfProducts[] = $variant;
         }
         /**
          * @todo this structure is just for product so we need to encapsulate this in a method
@@ -120,9 +121,35 @@ class ImportDataFromFilesystemAction
                 is_string($value) => $data[$value] ?? null,
                 default => $value,
             };
+
+            if ($key == 'files' && ! empty($result[$key]) && is_string($result[$key])) {
+                $result[$key] = $this->explodeFileStringBasedOnDelimiter($result[$key]);
+            }
         }
 
         return $result;
+    }
+
+    public function explodeFileStringBasedOnDelimiter(string $value): array
+    {
+        $delimiter = match (true) {
+            Str::contains($value, '|') => '|',
+            Str::contains($value, ',') => ',',
+            Str::contains($value, ';') => ';',
+            default => '|',
+        };
+
+        $fileLinks = explode($delimiter, $value);
+
+        return array_map(function ($fileLink) {
+            $fileLink = trim($fileLink);
+            $cleanedUrl = Str::before($fileLink, '?');
+
+            return [
+                'url' => $fileLink,
+                'name' => basename($cleanedUrl),
+            ];
+        }, $fileLinks);
     }
 
     private function getFilePath(Filesystem $filesystem): string
