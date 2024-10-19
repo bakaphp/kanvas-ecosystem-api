@@ -250,7 +250,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
 
             if (isset($attribute['id'])) {
                 $attributeModel = Attributes::getById((int) $attribute['id'], $this->app);
-            } else {
+            } elseif (! empty($attribute['name'])) {
                 $attributesDto = AttributesDto::from([
                     'app' => app(Apps::class),
                     'user' => $user,
@@ -265,7 +265,9 @@ class Variants extends BaseModel implements EntityIntegrationInterface
                 $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
             }
 
-            (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
+            if ($attributeModel) {
+                (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
+            }
         }
     }
 

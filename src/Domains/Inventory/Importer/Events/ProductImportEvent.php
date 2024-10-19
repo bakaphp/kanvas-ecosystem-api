@@ -27,7 +27,7 @@ class ProductImportEvent implements ShouldBroadcast
 
     public function broadcastWith(): array
     {
-        unset($this->result['user'], $this->result['company'], $this->result['exception']);
+        unset($this->result['exception']);
 
         return $this->result;
     }
