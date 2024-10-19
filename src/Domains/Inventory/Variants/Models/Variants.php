@@ -271,6 +271,14 @@ class Variants extends BaseModel implements EntityIntegrationInterface
         }
     }
 
+    public function addAttribute(string $name, mixed $value): void
+    {
+        $this->addAttributes($this->user, [[
+            'name' => $name,
+            'value' => $value,
+        ]]);
+    }
+
     /**
      * Set status for the current variant.
      */
