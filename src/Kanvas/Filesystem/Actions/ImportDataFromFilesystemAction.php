@@ -108,7 +108,12 @@ class ImportDataFromFilesystemAction
     public function mapper(array $template, array $data): array
     {
         $result = [];
-
+        
+        /**
+         * @todo
+         * - assign type to attributes
+         * - assign type to fields , so we can say files has to be array , x is INT and so on
+        */
         foreach ($template as $key => $value) {
             // Handle arrays for objects like 'attributes' or 'variants'
             if (is_array($value)) {
