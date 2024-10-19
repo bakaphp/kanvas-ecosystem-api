@@ -28,7 +28,7 @@ class ImporterEventJob extends ProductImporterJob
         Auth::loginUsingId($this->user->getId());
         $this->overwriteAppService($this->app);
         $this->overwriteAppServiceLocation($this->branch);
-        
+
         // Import the events from the file
         // $data = [
         //     'app' => $this->app,
