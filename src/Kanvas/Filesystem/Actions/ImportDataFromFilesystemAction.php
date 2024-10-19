@@ -113,17 +113,33 @@ class ImportDataFromFilesystemAction
          * @todo
          * - assign type to attributes
          * - assign type to fields , so we can say files has to be array , x is INT and so on
-         */
+        */
         foreach ($template as $key => $value) {
-            $result[$key] = match (true) {
-                is_array($value) => $this->mapper($value, $data),
-                is_string($value) && Str::startsWith($value, '_') => Str::after($value, '_'),
-                is_string($value) => $data[$value] ?? null,
-                default => $value,
-            };
-
-            if ($key == 'files' && ! empty($result[$key]) && is_string($result[$key])) {
-                $result[$key] = $this->explodeFileStringBasedOnDelimiter($result[$key]);
+            // Handle arrays for objects like 'attributes' or 'variants'
+            if (is_array($value)) {
+                // Check if the array contains 'key' and 'default', e.g., 'is_published'
+                if (isset($value['key'])) {
+                    $result[$key] = $data[$value['key']] ?? $value['default'] ?? null;
+                }
+                // Check if the array contains 'value' and 'default', e.g., attributes
+                elseif (isset($value['value'])) {
+                    $result[$key] = [
+                        'name' => Str::after($value['name'], '_'),
+                        'value' => $data[$value['value']] ?? $value['default'] ?? null,
+                    ];
+                }
+                // If it's a nested array without 'key' or 'value', recursively map it
+                else {
+                    $result[$key] = $this->mapper($value, $data);
+                }
+            }
+            // Handle 'files' field (special case)
+            elseif ($key === 'files' && ! empty($data[$value])) {
+                $result[$key] = $this->explodeFileStringBasedOnDelimiter($data[$value]);
+            }
+            // Handle strings (simple mappings)
+            else {
+                $result[$key] = $data[$value] ?? null;
             }
         }
 

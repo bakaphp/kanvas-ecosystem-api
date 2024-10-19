@@ -36,7 +36,10 @@ final class IntegrationMapperTest extends TestCase
             'price' => 'Original List Price',
             'discountPrice' => 'Discount Price',
             'quantity' => 'Quantity',
-            'is_published' => 'Is Published',
+            'is_published' => [
+                'key' => 'Is Published',
+                'default' => 1, // Default value if 'Is Published' is not present in $data
+            ],
             'files' => 'File URL',
             'productType' => [
                 'name' => 'Property Type',
@@ -45,7 +48,18 @@ final class IntegrationMapperTest extends TestCase
                 'weight' => 'Weight',
             ],
             'customFields' => [],
-            'attributes' => [],
+            'attributes' => [
+                [
+                    'name' => '_Compensation Comments',
+                    'value' => 'Compensation Comments',
+                    'default' => 0, // Default value
+                ],
+                [
+                    'name' => 'Default Value',
+                    'value' => '_Default Value',
+                    'default' => 10, // Default value
+                ],
+            ],
             'variants' => [
                 [
                     'name' => 'List Number',
@@ -130,6 +144,7 @@ final class IntegrationMapperTest extends TestCase
                     'is_new' => fake()->boolean,
                     'Style' => fake()->word,
                     'Position' => fake()->numberBetween(1, 10),
+                    'Compensation Comments' => fake()->sentence,
             ];
 
         $importDataFromFilesystemAction = new ImportDataFromFilesystemAction(new FilesystemImports());
