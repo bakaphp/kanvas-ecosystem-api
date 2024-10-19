@@ -137,12 +137,13 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                 }
                 $totalProcessSuccessfully++;
             } catch (Throwable $e) {
-                $errors[] = [
+                $errorDetails = [
                     'message' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
                     'request' => $request,
                 ];
-                Log::error($e->getMessage());
+                $errors[] = $errorDetails;
+                Log::error($e->getMessage(), $errorDetails);
                 captureException($e);
                 $totalProcessFailed++;
             }
@@ -214,7 +215,7 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                        'created' => $created,
                        'updated' => $updated,
                    ],
-                   'exception' => $errors,
+                   //'exception' => $errors,
                    //'user' => $this->user,
                    //'company' => $company,
                ];

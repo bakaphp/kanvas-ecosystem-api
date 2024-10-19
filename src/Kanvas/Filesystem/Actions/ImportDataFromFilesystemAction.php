@@ -41,8 +41,9 @@ class ImportDataFromFilesystemAction
             if (Products::class == $modelName) {
                 $variant['productSlug'] = $variant['slug'];
                 $listOfVariants[$variant['productSlug']][] = $variant;
+            } else {
+                $listOfProducts[] = $variant;
             }
-            $listOfProducts[] = $variant;
         }
         /**
          * @todo this structure is just for product so we need to encapsulate this in a method
