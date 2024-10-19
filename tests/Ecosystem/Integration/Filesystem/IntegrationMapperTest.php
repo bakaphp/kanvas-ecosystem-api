@@ -36,10 +36,7 @@ final class IntegrationMapperTest extends TestCase
             'price' => 'Original List Price',
             'discountPrice' => 'Discount Price',
             'quantity' => 'Quantity',
-            'is_published' => [
-                'key' => 'Is Published',
-                'default' => 1, // Default value if 'Is Published' is not present in $data
-            ],
+            'is_published' => 1,
             'files' => 'File URL',
             'productType' => [
                 'name' => 'Property Type',
@@ -52,12 +49,10 @@ final class IntegrationMapperTest extends TestCase
                 [
                     'name' => '_Compensation Comments',
                     'value' => 'Compensation Comments',
-                    'default' => 0, // Default value
                 ],
                 [
                     'name' => 'Default Value',
                     'value' => '_Default Value',
-                    'default' => 10, // Default value
                 ],
             ],
             'variants' => [
