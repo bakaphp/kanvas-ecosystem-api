@@ -118,7 +118,7 @@ class ImportDataFromFilesystemAction
             $result[$key] = match (true) {
                 is_array($value) => $this->mapper($value, $data),
                 is_string($value) && Str::startsWith($value, '_') => Str::after($value, '_'),
-                is_string($value) => $this->getTypedValue($value, $data),
+                is_string($value) => $data[$value] ?? null,
                 default => $value,
             };
 
@@ -128,14 +128,6 @@ class ImportDataFromFilesystemAction
         }
 
         return $result;
-    }
-
-    protected function getTypedValue(string $key, array $data): mixed
-    {
-        return match ($key) {
-            'files' => (array)($data[$key] ?? []),
-            default => $data[$key] ?? null,
-        };
     }
 
     public function explodeStringBasedOnDelimiter(string $value): array
