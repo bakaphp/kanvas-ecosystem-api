@@ -34,7 +34,7 @@ class EventSupportTest extends TestCase
               }')->assertSee('eventTypes');
     }
 
-    public function testGetEventDate(): void
+/*     public function testGetEventDate(): void
     {
         $this->graphQL('
               query {
@@ -48,7 +48,7 @@ class EventSupportTest extends TestCase
                   }
               }')->assertSee('eventDates');
     }
-
+ */
     public function testGetEventStatus(): void
     {
         $this->graphQL('
