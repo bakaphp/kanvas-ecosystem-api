@@ -5,7 +5,6 @@ type ProductType {
     name: String!
     description: String
     slug: String!
-    description: String
     weight: Int
     companies: Company!
     is_published: Boolean
