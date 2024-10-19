@@ -216,8 +216,8 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                        'updated' => $updated,
                    ],
                    'exception' => $errors,
-                   'user' => $this->user,
-                   'company' => $company,
+                   //'user' => $this->user,
+                  // 'company' => $company,
                ];
 
         ProductImportEvent::dispatch(

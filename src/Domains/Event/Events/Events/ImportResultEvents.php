@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Event\Events\Events;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
@@ -15,6 +18,9 @@ class ImportResultEvents implements ShouldBroadcast
     use InteractsWithSockets;
 
     public function __construct(
+        protected AppInterface $app,
+        protected CompanyInterface $company,
+        protected UserInterface $user,
         protected array $result
     ) {
     }
@@ -22,14 +28,14 @@ class ImportResultEvents implements ShouldBroadcast
     public function broadcastWith(): array
     {
         $result = $this->result;
-        unset($result['user'], $result['company'], $result['exception']);
+        unset($result['exception']);
 
         return $result;
     }
 
     public function broadcastOn(): Channel
     {
-        return new Channel('importer-' . $this->result['jobUuid']);
+        return new Channel('app-' . $this->app->getId() . '-import-results-' . $this->company->getId());
     }
 
     public function broadcastAs(): string

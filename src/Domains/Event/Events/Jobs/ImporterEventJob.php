@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Event\Events\Jobs;
 
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Kanvas\Companies\Models\Companies;
@@ -23,6 +24,11 @@ class ImporterEventJob extends ProductImporterJob
 {
     public function handle()
     {
+        config(['laravel-model-caching.disabled' => true]);
+        Auth::loginUsingId($this->user->getId());
+        $this->overwriteAppService($this->app);
+        $this->overwriteAppServiceLocation($this->branch);
+        
         // Import the events from the file
         // $data = [
         //     'app' => $this->app,
@@ -108,9 +114,14 @@ class ImporterEventJob extends ProductImporterJob
                        'updated' => $updated,
                    ],
                    'exception' => $errors,
-                   'user' => $this->user,
-                   'company' => $company,
+                  // 'user' => $this->user,
+                  // 'company' => $company,
                ];
-        ImportResultEvents::dispatch($subscriptionData);
+        ImportResultEvents::dispatch(
+            $this->app,
+            $this->branch->company,
+            $this->user,
+            $subscriptionData
+        );
     }
 }
