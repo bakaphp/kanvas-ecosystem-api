@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Builders\Messages;
 
-use Algolia\AlgoliaSearch\SearchClient;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Social\Enums\AppEnum;
+use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Messages\Models\Message;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
@@ -61,30 +60,24 @@ class MessageBuilder
         );
     }
 
-    public function searchSuggestions(
+    public function likedMessagesByUser(
         mixed $root,
         array $args,
         GraphQLContext $context,
         ResolveInfo $resolveInfo
-    ): array {
-        $client = SearchClient::create(
-            config('scout.algolia.id'),
-            config('scout.algolia.secret')
-        );
-
+    ): Builder {
+        $userId = (int) $args['id'];
         $app = app(Apps::class);
-        $suggestionIndex = AppEnum::MESSAGE_SEARCH_SUGGESTION_INDEX->value;
-        if (! $app->get($suggestionIndex)) {
-            return ['error' => 'No index for message suggestion configure in your app'];
-        }
 
-        $index = $client->initIndex($app->get($suggestionIndex));
+        $like = Interactions::getByName('like', $app);
 
-        $results = $index->search($args['search'], [
-            'hitsPerPage' => 15,
-            'attributesToRetrieve' => ['name', 'description'],
-        ]);
-
-        return $results['hits'];
+        return Message::join('users_interactions', 'messages.id', '=', 'users_interactions.entity_id')
+            ->where('users_interactions.entity_namespace', '=', Message::class)
+            ->where('users_interactions.interactions_id', '=', $like->getId())
+            ->where('users_interactions.users_id', '=', $userId)
+            ->where('users_interactions.is_deleted', '=', 0)
+            ->where('messages.is_deleted', '=', 0)
+            ->where('messages.apps_id', '=', $app->getId())
+            ->select('messages.*');
     }
 }

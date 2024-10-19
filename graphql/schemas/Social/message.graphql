@@ -292,4 +292,32 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@searchSuggestions"
         )
+
+    messagesLikedByUser(
+        id: ID!
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "parent_id"
+                    "parent_unique_id"
+                    "companies_id"
+                    "uuid"
+                    "slug"
+                    "users_id"
+                    "message_types_id"
+                    "message"
+                    "reactions_count"
+                    "comments_count"
+                    "total_liked"
+                    "total_saved"
+                    "total_shared"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
+    ): [Message!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@likedMessagesByUser"
+        )
 }
