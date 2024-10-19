@@ -22,9 +22,11 @@ type Product {
     updated_at: DateTime
     categories: [Category!]! @BelongsToMany
     warehouses: [Warehouse!]! @BelongsToMany
-    attributes: [ProductAttribute!]! @BelongsToMany(relation: "visibleAttributes")
+    attributes: [ProductAttribute!]!
+        @BelongsToMany(relation: "visibleAttributes")
     variants: [Variant!]! @HasMany
-    integrations: [IntegrationsEntityReference!]! @method(name: "getEntityIntegrationsSummary")
+    integrations: [IntegrationsEntityReference!]!
+        @method(name: "getEntityIntegrationsSummary")
     productsTypes: ProductType @belongsTo
     companies: Company! @belongsTo(relation: "company")
     custom_fields: [CustomField!]!
