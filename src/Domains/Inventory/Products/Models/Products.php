@@ -31,8 +31,6 @@ use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
-use Kanvas\SystemModules\Models\SystemModules;
-use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
@@ -355,5 +353,16 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
             (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
         }
+    }
+
+    public function addAttribute(string $name, mixed $value): void
+    {
+        $this->addAttributes($this->user, [['name' => $name, 'value' => $value]]);
+    }
+
+    public function unPublish(): void
+    {
+        $this->is_published = 0;
+        $this->save();
     }
 }
