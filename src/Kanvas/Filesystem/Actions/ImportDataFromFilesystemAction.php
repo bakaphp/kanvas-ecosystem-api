@@ -6,6 +6,8 @@ namespace Kanvas\Filesystem\Actions;
 
 use Baka\Enums\StateEnums;
 use Illuminate\Support\Str;
+use Kanvas\Event\Events\Jobs\ImporterEventJob;
+use Kanvas\Event\Events\Models\Event;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Filesystem\Services\FilesystemServices;
@@ -29,63 +31,69 @@ class ImportDataFromFilesystemAction
         $records = $reader->getRecords();
         $listOfVariants = [];
         $listOfProducts = [];
+        $modelName = $this->filesystemImports->filesystemMapper->systemModule->model_name;
 
         foreach ($records as $record) {
             $variant = $this->mapper(
                 $this->filesystemImports->filesystemMapper->mapping,
                 $record
             );
-            $listOfVariants[$variant['productSlug']][] = $variant;
+            if (Products::class == $modelName) {
+                $variant['productSlug'] = $variant['slug'];
+                $listOfVariants[$variant['productSlug']][] = $variant;
+            } else {
+                $listOfProducts[] = $variant;
+            }
         }
-
         /**
          * @todo this structure is just for product so we need to encapsulate this in a method
          * when we are just importing product type
          */
-        foreach ($listOfVariants as $key => $variants) {
-            if (empty($variants[0]['name']) || empty($variants[0]['slug']) || empty($variants[0]['sku'])) {
-                continue;
-            }
-            $attributes = [];
+        if ($modelName == Products::class) {
+            foreach ($listOfVariants as $key => $variants) {
+                if (empty($variants[0]['name']) || empty($variants[0]['slug']) || empty($variants[0]['sku'])) {
+                    continue;
+                }
+                $attributes = [];
 
-            //if we only have one variant we can assign the attributes to the product
-            if (count($variants) == 1) {
-                $attributes = $variants[0]['attributes'];
-                //unset($variants[0]['attributes']);
-            }
+                //if we only have one variant we can assign the attributes to the product
+                if (count($variants) == 1) {
+                    $attributes = $variants[0]['attributes'];
+                    //unset($variants[0]['attributes']);
+                }
 
-            $listOfProducts[] = [
-                'name' => $variants[0]['name'],
-                'description' => $variants[0]['description'],
-                'slug' => $variants[0]['productSlug'],
-                'sku' => $variants[0]['sku'],
-                'regionId' => $variants[0]['regionId'],
-                'price' => (float) ($variants[0]['price'] ?? 0),
-                'discountPrice' => (float) ($variants[0]['discountPrice'] ?? 0),
-                'quantity' => $variants[0]['quantity'] ?? 1,
-                'isPublished' => (bool) ($variants[0]['isPublished'] ?? true),
-                'files' => (array) ($variants[0]['files'] ?? []),
-                'productType' => [
-                    'name' => $variants[0]['productType'] ?? StateEnums::DEFAULT_NAME->getValue(),
-                    'description' => null,
-                    'is_published' => true,
-                    'weight' => 1,
-                ],
-                'categories' => [
-                   [
-                        'name' => $variants[0]['categories'],
-                        'code' => strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '', $variants[0]['categories']))),
+                $listOfProducts[] = [
+                    'name' => $variants[0]['name'],
+                    'description' => $variants[0]['description'],
+                    'slug' => $variants[0]['productSlug'],
+                    'sku' => $variants[0]['sku'],
+                    'regionId' => $variants[0]['regionId'],
+                    'price' => (float) ($variants[0]['price'] ?? 0),
+                    'discountPrice' => (float) ($variants[0]['discountPrice'] ?? 0),
+                    'quantity' => $variants[0]['quantity'] ?? 1,
+                    'isPublished' => (bool) ($variants[0]['isPublished'] ?? true),
+                    'files' => (array) ($variants[0]['files'] ?? []),
+                    'productType' => [
+                        'name' => $variants[0]['productType'] ?? StateEnums::DEFAULT_NAME->getValue(),
+                        'description' => null,
                         'is_published' => true,
-                        'position' => 1,
-                   ],
-                ],
-                'attributes' => $attributes,
-                'customFields' => [],
-                'variants' => $variants,
-            ];
+                        'weight' => 1,
+                    ],
+                    'categories' => [
+                        [
+                            'name' => $variants[0]['categories'],
+                            'code' => strtolower(trim(preg_replace('/[^a-zA-Z0-9]+/', '', $variants[0]['categories']))),
+                            'is_published' => true,
+                            'position' => 1,
+                        ],
+                    ],
+                    'attributes' => $attributes,
+                    'customFields' => [],
+                    'variants' => $variants,
+                ];
+            }
         }
-
-        $job = $this->getJob($this->filesystemImports->filesystemMapper->systemModule->model_name);
+        $job = $this->getJob($modelName);
         $job::dispatch(
             $this->filesystemImports->uuid,
             $listOfProducts,
@@ -113,9 +121,35 @@ class ImportDataFromFilesystemAction
                 is_string($value) => $data[$value] ?? null,
                 default => $value,
             };
+
+            if ($key == 'files' && ! empty($result[$key]) && is_string($result[$key])) {
+                $result[$key] = $this->explodeFileStringBasedOnDelimiter($result[$key]);
+            }
         }
 
         return $result;
+    }
+
+    public function explodeFileStringBasedOnDelimiter(string $value): array
+    {
+        $delimiter = match (true) {
+            Str::contains($value, '|') => '|',
+            Str::contains($value, ',') => ',',
+            Str::contains($value, ';') => ';',
+            default => '|',
+        };
+
+        $fileLinks = explode($delimiter, $value);
+
+        return array_map(function ($fileLink) {
+            $fileLink = trim($fileLink);
+            $cleanedUrl = Str::before($fileLink, '?');
+
+            return [
+                'url' => $fileLink,
+                'name' => basename($cleanedUrl),
+            ];
+        }, $fileLinks);
     }
 
     private function getFilePath(Filesystem $filesystem): string
@@ -137,6 +171,10 @@ class ImportDataFromFilesystemAction
         switch ($className) {
             case Products::class:
                 $job = ProductImporterJob::class;
+
+                break;
+            case Event::class:
+                $job = ImporterEventJob::class;
 
                 break;
             default:

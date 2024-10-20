@@ -118,8 +118,8 @@ type EventVersionParticipantDate {
         @belongsTo(relation: "eventVersionDate")
     participant: Participant! @belongsTo(relation: "participant")
     arrived: DateTime!
-    start_time: String! @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
-    end_time: String! @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
+    start_time: String!
+    end_time: String!
 }
 
 input EventInput {
@@ -142,8 +142,10 @@ input EventUpdateInput {
 
 input EventVersionDateInput {
     date: Date!
-    start_time: String! @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
-    end_time: String! @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
+    start_time: String!
+        @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
+    end_time: String!
+        @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
 }
 
 extend type Mutation @guard {
@@ -201,6 +203,40 @@ extend type Query @guard {
         @paginate(
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             model: "Kanvas\\Event\\Events\\Models\\EventVersion"
+            defaultCount: 25
+        )
+    eventVersionParticipants(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "event_version_id"
+                    "participant_id"
+                    "ticket_price"
+                    "discount"
+                    "invoice_date"
+                    "participant_type_id"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "event_version_id"
+                    "participant_id"
+                    "ticket_price"
+                    "discount"
+                    "invoice_date"
+                    "participant_type_id"
+                ]
+            )
+    ): [EventVersionParticipant!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            model: "Kanvas\\Event\\Events\\Models\\EventVersionParticipant"
             defaultCount: 25
         )
 }

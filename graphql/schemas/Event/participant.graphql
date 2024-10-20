@@ -56,6 +56,23 @@ type ParticipantPassMotive {
     updated_at: DateTime
 }
 
+input PeopleEventVersionInput {
+    people_id: ID!
+    event_version_id: ID!
+    ticket_price: Float
+    discount: Float
+    invoice_date: Date
+    metadata: Mixed
+    participant_type_id: ID
+}
+
+extend type Mutation @guard {
+    addPeopleToEventVersion(input: PeopleEventVersionInput!): Participant!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Participants\\EventParticipantManagementMutation@addPeopleToEventVersion"
+        )
+}
+
 extend type Query @guard {
     participants(
         search: String @search
