@@ -43,7 +43,7 @@ class DeleteUsersRequestedCommand extends Command
             $this->info('Deleting user from app: ' . $app->name);
         }
 
-        if (optional($app)->get('delete_users_request_process') !== true) {
+        if (!isset($app)) {
             $this->info('Delete users request process is disabled');
 
             return;
