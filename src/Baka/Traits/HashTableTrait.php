@@ -18,7 +18,7 @@ trait HashTableTrait
     /**
      * Get the primary key of this model, this will only work on model with just 1 primary key.
      */
-    private function getSettingsPrimaryKey(): string
+    protected function getSettingsPrimaryKey(): string
     {
         return $this->table . '_' . $this->getKeyName();
     }

@@ -220,6 +220,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
+     * overwrite hash table trait primary key
+     */
+    protected function getSettingsPrimaryKey(): string
+    {
+        return 'users_id';
+    }
+
+    /**
      * Create a new factory instance for the model.
      *
      * @return \Illuminate\Database\Eloquent\Factories\Factory

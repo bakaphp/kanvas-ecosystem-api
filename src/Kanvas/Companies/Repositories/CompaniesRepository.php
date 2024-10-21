@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Repositories;
 
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Schema;
@@ -105,6 +106,11 @@ class CompaniesRepository
 
     public static function getAllCompanyUsers(Companies $company): Collection
     {
+        return self::getAllCompanyUserBuilder($company)->get();
+    }
+
+    public static function getAllCompanyUserBuilder(Companies $company): Builder
+    {
         $ecosystemConnection = config('database.connections.ecosystem');
         $columns = Schema::Connection('ecosystem')->getColumnListing('users');
 
@@ -113,8 +119,7 @@ class CompaniesRepository
                                 ->where('users_associated_company.is_deleted', StateEnums::NO->getValue())
                                 ->where('users.is_deleted', StateEnums::NO->getValue())
                                 ->groupBy($columns)
-                                ->select('users.*')
-                                ->get();
+                                ->select('users.*');
     }
 
     /**
