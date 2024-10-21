@@ -15,6 +15,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Actions\AssignRoleAction;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CompaniesObserver
 {
@@ -83,10 +84,25 @@ class CompaniesObserver
         if (! $user->get($company->branchCacheKey())) {
             $user->set($company->branchCacheKey(), $branch->id);
         }
+
+        $company->fireWorkflow(
+            WorkflowEnum::CREATED->value,
+            true,
+            [
+                'company' => $company,
+            ]
+        );
     }
 
     public function updated(Companies $company): void
     {
         (new CompaniesSetUsersCountAction($company))->execute();
+        $company->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            true,
+            [
+                'company' => $company,
+            ]
+        );
     }
 }
