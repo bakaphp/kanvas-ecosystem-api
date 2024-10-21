@@ -48,7 +48,7 @@ trait CanBlockUser
     {
         $isBlocked = $this->findBlockedUser($this, $blockedUser, $app);
 
-        return $isBlocked === null || $isBlocked->is_deleted == 1;
+        return $isBlocked !== null && $isBlocked->is_deleted === 0;
     }
 
     private function findBlockedUser(UserInterface $user, UserInterface $blockedUser, ModelsApps $app): ?BlockUser
