@@ -6,10 +6,12 @@ namespace Kanvas\Connectors\Internal\Activities;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Enums\StateEnums;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Workflow\Activity;
 
@@ -35,8 +37,12 @@ class GenerateCompanyDashboardActivity extends Activity implements WorkflowActiv
         }
 
         $totalUsers = CompaniesRepository::getAllCompanyUsers($company);
-        $totalActiveUsers = CompaniesRepository::getAllCompanyUserBuilder($company)->where('users_associated_company.is_active', 1)->count();
-        $suspendedUsers = CompaniesRepository::getAllCompanyUserBuilder($company)->where('users_associated_company.is_active', 0)->count();
+        $userAssociatedCompanyBuilder = UsersAssociatedApps::where('apps_id', $app->getId())
+            ->where('is_deleted', StateEnums::NO->getValue())
+            ->where('companies_id', $company->getId());
+
+        $totalActiveUsers = (clone $userAssociatedCompanyBuilder)->where('is_active', 1)->count();
+        $suspendedUsers = (clone $userAssociatedCompanyBuilder)->where('is_active', 0)->count();
         $totalProducts = Products::fromApp($app)->fromCompany($company)->notDeleted()->where('is_published', 1)->count();
         $totalUnpublishedProducts = Products::fromApp($app)->fromCompany($company)->notDeleted()->where('is_published', 0)->count();
 
