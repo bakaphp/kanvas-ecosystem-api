@@ -57,7 +57,7 @@ class ImportPromptsFromDocsCommand extends Command
         $contentArray = [];
         $promptsCollection = [];
         // Process the sheet data as needed
-        if (!empty($values)) {
+        if (! empty($values)) {
             array_shift($values);
             $headers = [
                 'title',
@@ -66,7 +66,6 @@ class ImportPromptsFromDocsCommand extends Command
                 'tags',
                 'preview'
             ];
-            
             foreach ($values as $row) {
                 foreach ($row as $index => $value) {
                     $promptArray[$headers[$index]] = $value ?? null;
@@ -84,9 +83,6 @@ class ImportPromptsFromDocsCommand extends Command
         $userId = $this->fetchRandomUser()->id;
 
         foreach ($promptsCollection as $prompt) {
-
-            // Check if the message already exists
-            //if the msg exist with the same slug ignore
             $result = DB::connection('social')->table('messages')
                 ->where('slug', $this->slugify($prompt['title']))
                 ->where('apps_id', $appId)
