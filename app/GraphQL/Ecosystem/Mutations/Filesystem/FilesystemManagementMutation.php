@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Mutations\Filesystem;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\DataTransferObject\FilesystemAttachInput;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -58,8 +59,15 @@ class FilesystemManagementMutation
         if ($fileEntity->filesystem->apps_id != $app->getId()) {
             return false;
         }
+        $response = $fileEntity->softDelete();
 
-        return $fileEntity->softDelete();
+        try {
+            $systemModule = $fileEntity->systemModule->model_name;
+            ($systemModule::getById($fileEntity->entity_id))->clearLightHouseCacheJob();
+        } catch(ModelNotFoundException $e) {
+        }
+
+        return $response;
     }
 
     public function deAttachFiles(mixed $rootValue, array $request): bool
@@ -82,6 +90,11 @@ class FilesystemManagementMutation
 
             if ($fileEntity->softDelete()) {
                 $i++;
+                try {
+                    $systemModule = $fileEntity->systemModule->model_name;
+                    ($systemModule::getById($fileEntity->entity_id))->clearLightHouseCacheJob();
+                } catch(ModelNotFoundException $e) {
+                }
             }
         }
 
