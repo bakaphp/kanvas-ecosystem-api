@@ -15,6 +15,7 @@ use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Users\Models\Users;
 use Spatie\LaravelData\DataCollection;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Illuminate\Support\Facades\Log;
 class CreateParticipantAction
 {
     public function __construct(
@@ -28,16 +29,19 @@ class CreateParticipantAction
 
     public function execute()
     {
-        $people = PeoplesRepository::getByEmail($this->peopleData['contact'][0]['value'], $this->company);
+        // @todo search by contact type
+        $peopleData = $this->peopleData[0];
+        $people = PeoplesRepository::getByEmail($peopleData['contacts'][0]['value'], $this->branch->company);
+        
         if (! $people) {
             $peopleData = PeopleDto::from([
                 'app' => $this->app,
                 'branch' => $this->branch,
                 'user' => $this->user,
-                'firstname' => $this->peopleData['firstname'],
-                'lastname' => $this->peopleData['lastname'],
-                'contacts' => Contact::collect($this->peopleData['contacts'] ?? [], DataCollection::class),
-                'address' => Address::collect($this->peopleData['address'] ?? [], DataCollection::class),
+                'firstname' => $peopleData['firstname'],
+                'lastname' => $peopleData['lastname'] ?? null,
+                'contacts' => Contact::collect($peopleData['contacts'] ?? [], DataCollection::class),
+                'address' => Address::collect($peopleData['address'] ?? [], DataCollection::class),
                 
             ]);
             $createPeopleAction = new CreatePeopleAction($peopleData);

@@ -80,6 +80,7 @@ class ImporterEventJob extends ProductImporterJob
                 ];
 
                 Log::error($e->getMessage());
+                Log::error($e->getTraceAsString());
                 // captureException($e);
                 $totalProcessFailed++;
             }

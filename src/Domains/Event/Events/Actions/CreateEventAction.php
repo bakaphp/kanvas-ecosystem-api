@@ -40,8 +40,12 @@ class CreateEventAction
                 'description' => $this->event->description,
                 'slug' => $slug,
             ]);
-            $eventVersionSlug = Str::slug('events-versions-' . $event . $this->event->dates[0]->date);
-            $eventVersion = new CreateEventVersionAction(
+            if ($this->event->dates->count()) {
+                $eventVersionSlug = Str::slug('events-versions-' . $event->name . $this->event->dates[0]->date);
+            } else {
+                $eventVersionSlug = Str::slug('events-versions-' . $event->name);
+            }
+            $eventVersionAction = new CreateEventVersionAction(
                 new EventVersion(
                     event: $event,
                     user: $this->event->user,
@@ -55,9 +59,9 @@ class CreateEventAction
                 )
             );
 
-            $eventVersion->execute();
+            $eventVersion = $eventVersionAction->execute();
             foreach ($this->event->participants as $participant) {
-                $createParticipant = new CreateParticipantAction($this->event->app, $this->event->company->defaultBranch, $this->event->user, $this->event->participants, $participant, $eventVersion);
+                $createParticipant = new CreateParticipantAction($this->event->app, $this->event->company->defaultBranch, $this->event->user, $this->event->participants, $eventVersion, $participant);
                 $createParticipant->execute();
             }
 

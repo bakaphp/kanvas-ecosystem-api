@@ -55,6 +55,7 @@ class Event extends Data
             dates: EventDate::collect($data['dates'] ?? [], DataCollection::class),
             description: $data['description'] ?? null,
             slug: $data['slug'] ?? null,
+            participants: $data['participants'] ?? []
         );
     }
 
