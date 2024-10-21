@@ -35,6 +35,7 @@ class Event extends Data
         public readonly DataCollection $dates,
         public readonly ?string $description = null,
         public readonly ?string $slug = null,
+        public readonly array $participants = []
     ) {
     }
 

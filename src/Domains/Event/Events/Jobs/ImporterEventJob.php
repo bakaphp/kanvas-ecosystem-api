@@ -19,6 +19,7 @@ use Kanvas\Event\Themes\Models\Theme;
 use Kanvas\Event\Themes\Models\ThemeArea;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Throwable;
+use Kanvas\Event\Participants\Actions\CreateParticipantAction;
 
 class ImporterEventJob extends ProductImporterJob
 {
