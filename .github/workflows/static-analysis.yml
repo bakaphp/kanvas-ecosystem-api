@@ -62,7 +62,8 @@ jobs:
       TEST_APPLE_LOGIN_TOKEN: ${{ secrets.TEST_APPLE_LOGIN_TOKEN }}
       TEST_APOLLO_KEY: ${{ secrets.TEST_APOLLO_KEY }}
       TEST_STRIPE_SECRET_KEY: ${{ secrets.TEST_STRIPE_SECRET_KEY }}
-
+      TEST_AMPLITUDE_KEY: ${{ secrets.TEST_AMPLITUDE_KEY }}
+      TEST_AMPLITUDE_SECRET: ${{ secrets.TEST_AMPLITUDE_SECRET }}
     strategy:
       fail-fast: false
       matrix:
