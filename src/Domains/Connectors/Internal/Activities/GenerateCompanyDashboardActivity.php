@@ -9,7 +9,6 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -36,13 +35,14 @@ class GenerateCompanyDashboardActivity extends Activity implements WorkflowActiv
             ];
         }
 
-        $totalUsers = CompaniesRepository::getAllCompanyUsers($company);
         $userAssociatedCompanyBuilder = UsersAssociatedApps::where('apps_id', $app->getId())
-            ->where('is_deleted', StateEnums::NO->getValue())
-            ->where('companies_id', $company->getId());
+                    ->where('is_deleted', StateEnums::NO->getValue())
+                    ->where('companies_id', $company->getId());
 
+        $totalUsers = (clone $userAssociatedCompanyBuilder)->count();
         $totalActiveUsers = (clone $userAssociatedCompanyBuilder)->where('is_active', 1)->count();
         $suspendedUsers = (clone $userAssociatedCompanyBuilder)->where('is_active', 0)->count();
+
         $totalProducts = Products::fromApp($app)->fromCompany($company)->notDeleted()->where('is_published', 1)->count();
         $totalUnpublishedProducts = Products::fromApp($app)->fromCompany($company)->notDeleted()->where('is_published', 0)->count();
 
@@ -54,7 +54,7 @@ class GenerateCompanyDashboardActivity extends Activity implements WorkflowActiv
             'total_expired_products' => $totalUnpublishedProducts,
         ];
 
-        $company->set('dashboard', $dashboard);
+        $company->set('dashboard', $dashboard, true);
 
         return array_merge(['company' => $company->getId()], $dashboard);
     }
