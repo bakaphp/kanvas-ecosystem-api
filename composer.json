@@ -162,7 +162,7 @@
             "dont-discover": []
         },
         "google/apiclient-services": [
-            "Docs"
+            "Sheets"
         ]
     },
     "config": {
