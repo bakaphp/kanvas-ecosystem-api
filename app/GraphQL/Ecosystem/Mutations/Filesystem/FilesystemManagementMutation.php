@@ -63,8 +63,12 @@ class FilesystemManagementMutation
 
         try {
             $systemModule = $fileEntity->systemModule->model_name;
-            ($systemModule::getById($fileEntity->entity_id))->clearLightHouseCacheJob();
-        } catch(ModelNotFoundException $e) {
+            $entityData = $systemModule::getById($fileEntity->entity_id);
+            //@todo Set the same cache trait to all filesystem entities
+            if (method_exists($entityData, 'clearLightHouseCacheJob')) {
+                $entityData->clearLightHouseCacheJob();
+            }
+        } catch (ModelNotFoundException $e) {
         }
 
         return $response;
@@ -90,6 +94,7 @@ class FilesystemManagementMutation
 
             if ($fileEntity->softDelete()) {
                 $i++;
+
                 try {
                     $systemModule = $fileEntity->systemModule->model_name;
                     $entityData = $systemModule::getById($fileEntity->entity_id);
@@ -97,7 +102,7 @@ class FilesystemManagementMutation
                     if (method_exists($entityData, 'clearLightHouseCacheJob')) {
                         $entityData->clearLightHouseCacheJob();
                     }
-                } catch(ModelNotFoundException $e) {
+                } catch (ModelNotFoundException $e) {
                 }
             }
         }
