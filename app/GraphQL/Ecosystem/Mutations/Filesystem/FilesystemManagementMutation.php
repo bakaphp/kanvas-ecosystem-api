@@ -58,8 +58,11 @@ class FilesystemManagementMutation
         if ($fileEntity->filesystem->apps_id != $app->getId()) {
             return false;
         }
+        $response = $fileEntity->softDelete();
+        $systemModule = $fileEntity->systemModule->model_name;
+        ($systemModule::getById($fileEntity->entity_id))->clearLightHouseCacheJob();
 
-        return $fileEntity->softDelete();
+        return $response;
     }
 
     public function deAttachFiles(mixed $rootValue, array $request): bool
@@ -82,6 +85,8 @@ class FilesystemManagementMutation
 
             if ($fileEntity->softDelete()) {
                 $i++;
+                $systemModule = $fileEntity->systemModule->model_name;
+                ($systemModule::getById($fileEntity->entity_id))->clearLightHouseCacheJob();        
             }
         }
 
