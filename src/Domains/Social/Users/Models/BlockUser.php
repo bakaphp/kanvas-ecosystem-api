@@ -20,4 +20,11 @@ class BlockUser extends BaseModel
     use SoftDeletesTrait;
 
     protected $table = 'blocked_users';
+
+    public function casts(): array
+    {
+        return [
+            'is_deleted' => 'int',
+        ];
+    }
 }

@@ -49,6 +49,9 @@ class ImporterEventJob extends ProductImporterJob
         $created = 0;
         $updated = 0;
         $errors = [];
+
+        $this->startFilesystemMapperImport();
+
         foreach ($this->importer as $request) {
             try {
                 $request['slug'] = key_exists('slug', $request) ? $request['slug'] : Str::slug($request['name']);
@@ -85,6 +88,14 @@ class ImporterEventJob extends ProductImporterJob
                 $totalProcessFailed++;
             }
         }
+
+        $this->finishFilesystemMapperImport(
+            $totalItems,
+            $totalProcessSuccessfully,
+            $totalProcessFailed,
+            $errors
+        );
+
         $this->notificationStatus(
             $totalItems,
             $totalProcessSuccessfully,
