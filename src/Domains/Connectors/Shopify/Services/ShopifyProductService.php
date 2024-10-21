@@ -100,6 +100,7 @@ class ShopifyProductService
                 'files' => $this->files['filesSystemVariantImages'][$variant['id']] ?? [],
                 'source' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_VARIANT_ID->value, $this->company, $this->app, $this->region),
                 'sourceId' => $variant['id'],
+                'barcode' => $variant['barcode'],
                 'custom_fields' => [
                     [
                         'name' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_VARIANT_ID->value, $this->company, $this->app, $this->region),
