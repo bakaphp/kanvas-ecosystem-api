@@ -86,7 +86,7 @@ class FilesystemManagementMutation
             if ($fileEntity->softDelete()) {
                 $i++;
                 $systemModule = $fileEntity->systemModule->model_name;
-                ($systemModule::getById($fileEntity->entity_id))->clearLightHouseCacheJob();        
+                ($systemModule::getById($fileEntity->entity_id))->clearLightHouseCacheJob();
             }
         }
 
