@@ -29,7 +29,7 @@ class GenerateCompanyDashboardActivity extends Activity implements WorkflowActiv
         } else {
             return [
                 'msg' => 'No company found for entity',
-                'entity' => get_class($entity),
+                'entity_class' => get_class($entity),
                 'entity' => $entity->toArray(),
             ];
         }
