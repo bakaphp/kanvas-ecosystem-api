@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Console\Commands\Connectors\Apollo;
 
 use Baka\Traits\KanvasJobsTrait;
-use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
@@ -22,7 +21,7 @@ class SyncAllPeopleInCompanyCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:guild-apollo-people-sync {app_id} {company_id} {total=200} {perPage=200}';
+    protected $signature = 'kanvas:guild-apollo-people-sync {app_id} {company_id} {total=150} {perPage=50}';
 
     /**
      * The console command description.
@@ -44,100 +43,87 @@ class SyncAllPeopleInCompanyCommand extends Command
         $this->overwriteAppService($app);
         $company = Companies::getById((int) $this->argument('company_id'));
 
-        $hourlyRateLimit = 400; // Maximum API calls per hour
-        $dailyRateLimit = 2000; // Maximum API calls per day
-        $batchSize = 100; // Number of people to process per batch
+        $hourlyRateLimit = 400;
+        $dailyRateLimit = 2000;
+        $batchSize = 100;
         $hourlyCacheKey = 'api_hourly_rate_limit_' . $app->getId();
         $dailyCacheKey = 'api_daily_rate_limit_' . $app->getId();
         $resetHourlyKey = 'api_hourly_rate_limit_reset_' . $app->getId();
         $resetDailyKey = 'api_daily_rate_limit_reset_' . $app->getId();
-        $hourlyTimeWindow = 60 * 60; // 1 hour in seconds
-        $dailyTimeWindow = 24 * 60 * 60; // 24 hours in seconds
+        $hourlyTimeWindow = 60 * 60;
+        $dailyTimeWindow = 24 * 60 * 60;
 
-        // Check the current count of API calls
+        // Reset hourly/daily counters if time window has expired
+        if (now()->timestamp >= Cache::get($resetHourlyKey, 0)) {
+            Cache::put($hourlyCacheKey, 0, $hourlyTimeWindow);
+        }
+
+        if (now()->timestamp >= Cache::get($resetDailyKey, 0)) {
+            Cache::put($dailyCacheKey, 0, $dailyTimeWindow);
+        }
+
         $currentHourlyCount = Cache::get($hourlyCacheKey, 0);
         $currentDailyCount = Cache::get($dailyCacheKey, 0);
-        $resetHourlyTimestamp = Cache::get($resetHourlyKey);
-        $resetDailyTimestamp = Cache::get($resetDailyKey);
 
-        $this->line('Syncing ' . $currentHourlyCount . ' people in company ' . $company->name . ' from app ' . $app->name . ' total ' . $total . ' per page ' . $perPage);
+        $this->line("Syncing people for company {$company->name} from app {$app->name}, total {$total}, per page {$perPage}");
 
-        if ($resetHourlyTimestamp) {
-            $resetHourlyTime = Carbon::parse($resetHourlyTimestamp);
-            $currentTimestamp = now()->timestamp;
-            $hourlyWaitTime = $resetHourlyTime->timestamp - $currentTimestamp;
-
-            if ($currentHourlyCount >= $hourlyRateLimit && $hourlyWaitTime > 0) {
-                $this->line("Hourly rate limit reached. Please wait $hourlyWaitTime seconds to run the process again.");
-
-                return;
-            }
-        }
-
-        if ($resetDailyTimestamp) {
-            $resetDailyTime = Carbon::parse($resetDailyTimestamp);
-            $currentTimestamp = now()->timestamp;
-            $dailyWaitTime = $resetDailyTime->timestamp - $currentTimestamp;
-
-            if ($currentDailyCount >= $dailyRateLimit && $dailyWaitTime > 0) {
-                $this->line("Daily rate limit reached. Please wait $dailyWaitTime seconds to run the process again.");
-
-                return;
-            }
-        }
         People::fromApp($app)
-        ->fromCompany($company)
-        ->notDeleted(0)
-        ->orderBy('peoples.id', 'DESC')
-        ->limit($total)
-        ->chunk($perPage, function ($peoples) use (&$currentHourlyCount, &$currentDailyCount, $hourlyRateLimit, $dailyRateLimit, $hourlyCacheKey, $dailyCacheKey, $resetHourlyKey, $resetDailyKey, $hourlyTimeWindow, $dailyTimeWindow) {
-            foreach ($peoples as $people) {
-                // Check if the person has the 'APOLLO_DATA_ENRICHMENT_CUSTOM_FIELDS' custom field
-                $hasCustomField = $people->get(ConfigurationEnum::APOLLO_DATA_ENRICHMENT_CUSTOM_FIELDS->value);
+            ->fromCompany($company)
+            ->notDeleted(0)
+            ->orderBy('peoples.id', 'DESC')
+            ->limit($total)
+            ->chunk($perPage, function ($peoples) use (&$currentHourlyCount, &$currentDailyCount, $hourlyRateLimit, $dailyRateLimit, $hourlyCacheKey, $dailyCacheKey, $resetHourlyKey, $resetDailyKey, $hourlyTimeWindow, $dailyTimeWindow) {
+                foreach ($peoples as $people) {
+                    $hasCustomField = $people->get(ConfigurationEnum::APOLLO_DATA_ENRICHMENT_CUSTOM_FIELDS->value);
+                    if ($hasCustomField) {
+                        continue;
+                    }
 
-                if ($hasCustomField) {
-                    // Skip this record if the custom field exists
-                    continue;
+                    if ($currentHourlyCount >= $hourlyRateLimit) {
+                        Cache::put($resetHourlyKey, now()->addSeconds($hourlyTimeWindow), $hourlyTimeWindow);
+                        $this->line('Hourly rate limit reached. Waiting for reset...');
+                        sleep($hourlyTimeWindow);
+
+                        continue;
+                    }
+
+                    if ($currentDailyCount >= $dailyRateLimit) {
+                        Cache::put($resetDailyKey, now()->addSeconds($dailyTimeWindow), $dailyTimeWindow);
+                        $this->line('Daily rate limit reached. Waiting for reset...');
+                        sleep($dailyTimeWindow);
+
+                        continue;
+                    }
+
+                    $this->line("Syncing people {$people->id}: {$people->firstname} {$people->lastname}");
+
+                    $people->fireWorkflow(
+                        WorkflowEnum::UPDATED->value,
+                        true,
+                        ['app' => $people->app]
+                    );
+
+                    $currentHourlyCount++;
+                    $currentDailyCount++;
+
+                    Cache::put($hourlyCacheKey, $currentHourlyCount, $hourlyTimeWindow);
+                    Cache::put($dailyCacheKey, $currentDailyCount, $dailyTimeWindow);
+
+                    // Dynamic delay based on remaining rate limit
+                    $delay = $this->calculateDelay($currentHourlyCount, $hourlyRateLimit);
+                    sleep($delay);
                 }
+            });
 
-                // Process the record if the custom field does not exist
-                if ($currentHourlyCount >= $hourlyRateLimit) {
-                    Cache::put($resetHourlyKey, now()->addSeconds($hourlyTimeWindow), $hourlyTimeWindow);
-                    $this->line("Hourly rate limit reached. Please wait $hourlyTimeWindow seconds to run the process again.");
+        $this->line("All people for company {$company->name} from app {$app->name} synced");
+    }
 
-                    return false;
-                }
+    private function calculateDelay(int $currentCount, int $rateLimit): int
+    {
+        // Adjust delay dynamically to distribute requests evenly
+        $remainingRequests = $rateLimit - $currentCount;
+        $remainingTime = 60 * 60; // 1 hour in seconds
 
-                if ($currentDailyCount >= $dailyRateLimit) {
-                    Cache::put($resetDailyKey, now()->addSeconds($dailyTimeWindow), $dailyTimeWindow);
-                    $this->line("Daily rate limit reached. Please wait $dailyTimeWindow seconds to run the process again.");
-
-                    return false;
-                }
-
-                $this->line('Syncing people ' . $people->id . ' ' . $people->firstname . ' ' . $people->lastname);
-
-                $people->fireWorkflow(
-                    WorkflowEnum::UPDATED->value,
-                    true,
-                    [
-                        'app' => $people->app,
-                    ]
-                );
-                //$people->clearLightHouseCacheJob();
-
-                // Increment the count and update cache for rate limiting
-                $currentHourlyCount++;
-                $currentDailyCount++;
-                Cache::put($hourlyCacheKey, $currentHourlyCount, $hourlyTimeWindow);
-                Cache::put($dailyCacheKey, $currentDailyCount, $dailyTimeWindow);
-
-                usleep(100000); // 100ms delay between each request
-            }
-        });
-
-        $this->line('All people in company ' . $company->name . ' from app ' . $app->name . ' synced');
-
-        return;
+        return $remainingRequests > 0 ? intdiv($remainingTime, $remainingRequests) : 2;
     }
 }
