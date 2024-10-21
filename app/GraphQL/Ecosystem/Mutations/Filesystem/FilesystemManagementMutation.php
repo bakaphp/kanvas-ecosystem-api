@@ -92,7 +92,11 @@ class FilesystemManagementMutation
                 $i++;
                 try {
                     $systemModule = $fileEntity->systemModule->model_name;
-                    ($systemModule::getById($fileEntity->entity_id))->clearLightHouseCacheJob();
+                    $entityData = $systemModule::getById($fileEntity->entity_id);
+                    //@todo Set the same cache trait to all filesystem entities
+                    if (method_exists($entityData, 'clearLightHouseCacheJob')) {
+                        $entityData->clearLightHouseCacheJob();
+                    }
                 } catch(ModelNotFoundException $e) {
                 }
             }
