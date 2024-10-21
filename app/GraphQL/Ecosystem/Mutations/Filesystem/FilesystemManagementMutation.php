@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Mutations\Filesystem;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\DataTransferObject\FilesystemAttachInput;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -59,8 +60,12 @@ class FilesystemManagementMutation
             return false;
         }
         $response = $fileEntity->softDelete();
-        $systemModule = $fileEntity->systemModule->model_name;
-        ($systemModule::getById($fileEntity->entity_id))->clearLightHouseCacheJob();
+
+        try {
+            $systemModule = $fileEntity->systemModule->model_name;
+            ($systemModule::getById($fileEntity->entity_id))->clearLightHouseCacheJob();
+        } catch(ModelNotFoundException $e) {
+        }
 
         return $response;
     }
@@ -85,8 +90,11 @@ class FilesystemManagementMutation
 
             if ($fileEntity->softDelete()) {
                 $i++;
-                $systemModule = $fileEntity->systemModule->model_name;
-                ($systemModule::getById($fileEntity->entity_id))->clearLightHouseCacheJob();
+                try {
+                    $systemModule = $fileEntity->systemModule->model_name;
+                    ($systemModule::getById($fileEntity->entity_id))->clearLightHouseCacheJob();
+                } catch(ModelNotFoundException $e) {
+                }
             }
         }
 
