@@ -24,7 +24,8 @@ class CreateEventAction
     {
         $event = DB::connection('event')->transaction(function () {
             $slug = $this->event->slug ?? Str::slug($this->event->name);
-
+            //Slug no attached to the event type id , idk why
+            $slug = $slug . '-' . $this->event->type->getId();
             // $this->validateSlug($slug);
             $event = ModelsEvent::updateOrCreate([
                 'apps_id' => $this->event->app->getId(),
@@ -41,9 +42,9 @@ class CreateEventAction
                 'slug' => $slug,
             ]);
             if ($this->event->dates->count()) {
-                $eventVersionSlug = Str::slug('events-versions-' . $event->name . $this->event->dates[0]->date);
+                $eventVersionSlug = Str::slug('events-versions-' . $slug . $this->event->dates[0]->date);
             } else {
-                $eventVersionSlug = Str::slug('events-versions-' . $event->name);
+                $eventVersionSlug = Str::slug('events-versions-' . $slug);
             }
             $eventVersionAction = new CreateEventVersionAction(
                 new EventVersion(
