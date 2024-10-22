@@ -5,10 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Subscription\Prices\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Spatie\LaravelData\Data;
 
 class Price extends Data
@@ -16,11 +13,12 @@ class Price extends Data
     public function __construct(
         public AppInterface $app,
         public UserInterface $user,
-        public int $apps_plans_id,
+        public string $apps_plans_id,
         public string $stripe_id,
         public float $amount,
         public string $currency,
         public string $interval,
+        public ?bool $is_active = true,
         public ?bool $is_default = false
     ) {
     }
@@ -38,6 +36,7 @@ class Price extends Data
             $request['amount'],
             $request['currency'],
             $request['interval'],
+            $request['is_active'] ?? true,
             $request['is_default'] ?? false
         );
     }

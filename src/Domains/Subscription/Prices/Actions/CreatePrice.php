@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Subscription\Prices\Actions;
 
 use Baka\Users\Contracts\UserInterface;
-use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Subscription\Prices\DataTransferObject\Price as PriceDto;
 use Kanvas\Subscription\Prices\Models\Price;
 
