@@ -7,7 +7,6 @@ namespace Kanvas\Subscription\Plans\Models;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Subscription\Models\BaseModel;
 use Kanvas\Subscription\Prices\Models\Price;
-use Kanvas\Subscription\SubscriptionItems\Models\SubscriptionItem;
 
 /**
  * Class Plan.
@@ -17,6 +16,7 @@ use Kanvas\Subscription\SubscriptionItems\Models\SubscriptionItem;
  * @property string $name
  * @property string $description
  * @property string $stripe_id
+ * @property int $free_trial_dates
  * @property bool $is_default
  * @property bool $is_deleted
  * @property string $created_at

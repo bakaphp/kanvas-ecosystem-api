@@ -16,6 +16,7 @@ class Plan extends Data
         public string $name,
         public string $stripe_id,
         public ?string $description = null,
+        public int $free_trial_dates = 0,
         public bool $is_default = false,
         public bool $is_deleted = false,
     ) {
@@ -29,6 +30,7 @@ class Plan extends Data
             $request['name'],
             $request['stripe_id'],
             $request['description'] ?? null,
+            $request['free_trial_dates'] ?? 0,
             $request['is_default'] ?? false,
             $request['is_deleted'] ?? false
         );

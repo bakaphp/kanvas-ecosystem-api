@@ -11,7 +11,7 @@ type Price {
 }
 
 input PriceInput {
-    apps_plans_id: ID!
+    apps_plans_id: ID
     amount: Float!
     description: String
     currency: String!
@@ -25,7 +25,7 @@ input PriceUpdateInput {
     interval: String
 }
 
-extend type Mutation @guardByAppKey {
+extend type Mutation @guard {
     createPrice(input: PriceInput!): Price!
         @field(resolver: "App\\GraphQL\\Subscription\\Mutations\\Prices\\PriceMutation@create")
     updatePrice(id: ID!, input: PriceUpdateInput!): Price!

@@ -22,8 +22,8 @@ class CreatePlan
         ], [
             'name' => $this->dto->name,
             'description' => $this->dto->description,
+            'free_trial_dates' => $this->dto->free_trial_dates,
             'is_default' => $this->dto->is_default,
-            'users_id' => $this->dto->user->getId(),
         ]);
     }
 }
