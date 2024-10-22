@@ -18,7 +18,7 @@ use Stripe\Product as StripeProduct;
 use Stripe\Stripe;
 
 class PlanMutation
-{   
+{
     private ?Apps $app = null;
     private ?UserInterface $user = null;
 
