@@ -21,7 +21,7 @@ class CreateEventVersionAction
     {
         $slug = $this->eventVersion->slug ?? Str::slug($this->eventVersion->name);
 
-        $this->validateSlug($slug);
+        // $this->validateSlug($slug);
 
         $eventVersion = ModelsEventVersion::updateOrCreate([
             'apps_id' => $this->eventVersion->event->app->getId(),

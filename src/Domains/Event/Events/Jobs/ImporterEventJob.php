@@ -18,6 +18,9 @@ use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Event\Themes\Models\Theme;
 use Kanvas\Event\Themes\Models\ThemeArea;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
+
+use function Sentry\captureException;
+
 use Throwable;
 
 class ImporterEventJob extends ProductImporterJob
@@ -48,6 +51,9 @@ class ImporterEventJob extends ProductImporterJob
         $created = 0;
         $updated = 0;
         $errors = [];
+
+        $this->startFilesystemMapperImport();
+
         foreach ($this->importer as $request) {
             try {
                 $request['slug'] = key_exists('slug', $request) ? $request['slug'] : Str::slug($request['name']);
@@ -60,8 +66,12 @@ class ImporterEventJob extends ProductImporterJob
                     ]);
                     $request['type_id'] = $type->getId();
                 }
-
-                $request['category_id'] = key_exists('category_id', $request) ? $request['category_id'] : EventCategory::where('companies_id', $this->branch->company->getId())->first()->getId();
+                if (! key_exists('category_id', $request)) {
+                    $category = EventCategory::where('companies_id', $this->branch->company->getId())
+                           ->where('apps_id', $this->app->getId())
+                           ->first();
+                    $request['category_id'] = $category->getId();
+                }
                 $data = Event::fromMultiple($this->app, $this->user, $this->branch->company, $request);
                 $event = (new CreateEventAction($data))->execute();
 
@@ -79,10 +89,19 @@ class ImporterEventJob extends ProductImporterJob
                 ];
 
                 Log::error($e->getMessage());
-                // captureException($e);
+                Log::error($e->getTraceAsString());
+                captureException($e);
                 $totalProcessFailed++;
             }
         }
+
+        $this->finishFilesystemMapperImport(
+            $totalItems,
+            $totalProcessSuccessfully,
+            $totalProcessFailed,
+            $errors
+        );
+
         $this->notificationStatus(
             $totalItems,
             $totalProcessSuccessfully,
