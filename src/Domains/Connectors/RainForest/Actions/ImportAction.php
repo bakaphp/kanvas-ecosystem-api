@@ -38,7 +38,7 @@ class ImportAction
         $productRepository = new ProductRepository($this->app, $warehouse, $channels);
         $productService = new ProductService($channels, $warehouse);
         $products = $productRepository->getByTerm($search);
-        $products = array_slice($products, 0, length: 5);
+        $products = array_slice($products, 0, length: 10);
         foreach ($products as $product) {
             if (! key_exists('price', $product)) {
                 continue;
