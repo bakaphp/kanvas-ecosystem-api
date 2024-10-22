@@ -1,0 +1,47 @@
+type Templates {
+    id: ID!
+    users_id: Int!
+    companies_id: Int!
+    apps_id: Int!
+    name: String!
+    parent_template_id: Int!
+    template: String!
+    created_at: String
+    updated_at: String
+    is_deleted: Int
+}
+
+input TemplatesInput {
+    name: String!
+    parent_template_id: Int!
+    subject: String!
+    content: String!
+    template: String!
+}
+
+extend type Mutation @guard {
+    createOrUpdateTemplate(input: TemplatesInput!): Templates!
+        @field(
+            resolver: "\\App\\GraphQL\\Ecosystem\\Mutations\\Templates\\TemplatesManagementMutation@createOrUpdate"
+        )
+}
+
+extend type Query @guard {
+    emailTemplates(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "users_id"
+                    "companies_id"
+                    "apps_id"
+                    "name"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id"], direction: "DESC")
+    ): [Templates!]!
+        @paginate(
+            model: "Kanvas\\Templates\\Models\\Templates"
+            scopes: ["fromCompany", "fromApp"]
+        )
+}
