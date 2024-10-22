@@ -118,8 +118,8 @@ type EventVersionParticipantDate {
         @belongsTo(relation: "eventVersionDate")
     participant: Participant! @belongsTo(relation: "participant")
     arrived: DateTime!
-    start_time: String! @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
-    end_time: String! @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
+    start_time: String!
+    end_time: String!
 }
 
 input EventInput {
@@ -142,8 +142,10 @@ input EventUpdateInput {
 
 input EventVersionDateInput {
     date: Date!
-    start_time: String! @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
-    end_time: String! @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
+    start_time: String!
+        @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
+    end_time: String!
+        @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
 }
 
 extend type Mutation @guard {

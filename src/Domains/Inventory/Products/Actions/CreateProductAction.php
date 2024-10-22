@@ -25,6 +25,7 @@ class CreateProductAction
 {
     protected Apps $app;
     protected bool $runWorkflow = true;
+
     /**
      * __construct.
      *
@@ -91,7 +92,7 @@ class CreateProductAction
                 foreach ($this->productDto->attributes as $attribute) {
                     if (isset($attribute['id'])) {
                         $attributeModel = Attributes::getById((int) $attribute['id'], $products->app);
-                    } else {
+                    } elseif (! empty($attribute['name'])) {
                         $attributesDto = AttributesDto::from([
                             'app' => $this->productDto->app,
                             'user' => $this->user,
@@ -105,7 +106,10 @@ class CreateProductAction
 
                         $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
                     }
-                    (new AddAttributeAction($products, $attributeModel, $attribute['value']))->execute();
+
+                    if ($attributeModel) {
+                        (new AddAttributeAction($products, $attributeModel, $attribute['value']))->execute();
+                    }
                 }
             }
 
@@ -132,5 +136,12 @@ class CreateProductAction
         }
 
         return $products;
+    }
+
+    public function setRunWorkflow(bool $runWorkflow): self
+    {
+        $this->runWorkflow = $runWorkflow;
+
+        return $this;
     }
 }

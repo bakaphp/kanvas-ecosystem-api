@@ -110,6 +110,17 @@
             "@php artisan key:generate --ansi"
         ],
         "test": "php artisan test",
+        "migrate-kanvas-all": [
+            "php artisan migrate",
+            "php artisan migrate --path database/migrations/Inventory/ --database inventory",
+            "php artisan migrate --path database/migrations/Social/ --database social",
+            "php artisan migrate --path database/migrations/Guild/ --database crm",
+            "php artisan migrate --path database/migrations/Souk/ --database commerce",
+            "php artisan migrate --path database/migrations/ActionEngine/ --database action_engine",
+            "php artisan migrate --path database/migrations/Subscription/ --database mysql",
+            "php artisan migrate --path database/migrations/Event/ --database event",
+            "php artisan migrate --path database/migrations/Workflow/ --database workflow"
+        ],
         "migrate-kanvas": [
             "php artisan migrate"
         ],
@@ -153,7 +164,7 @@
             "dont-discover": []
         },
         "google/apiclient-services": [
-            "Docs"
+            "Sheets"
         ]
     },
     "config": {

@@ -4,17 +4,21 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Stripe\Workflows\Activities;
 
-use Kanvas\Apps\Models\Apps;
+use Baka\Traits\KanvasJobsTrait;
 use Baka\Users\Contracts\UserInterface;
-use Kanvas\Subscription\Plans\Models\Plan;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Subscription\Plans\Models\Plan;
 use Throwable;
 use Workflow\Activity;
 
 class SetPlanWithoutPaymentActivity extends Activity
 {
+    use KanvasJobsTrait;
+
     public $tries = 5;
+
     /**
      * @todo move to middleware
      */
@@ -24,8 +28,10 @@ class SetPlanWithoutPaymentActivity extends Activity
             throw new ValidationException('Stripe is not configured for this app');
         }
     }
+
     public function execute(UserInterface $user, Apps $app, array $params): array
     {
+        $this->overwriteAppService($app);
         $this->validateStripe($app);
         $company = $user->getCurrentCompany();
         $response = [];
@@ -38,8 +44,9 @@ class SetPlanWithoutPaymentActivity extends Activity
                 $trialEndsAt = now()->addDays($plan->free_trial_dates);
 
                 $subscription = $companyStripeAccount->newSubscription('default', $price->stripe_id)
-                ->trialUntil($trialEndsAt)
-                ->create();
+                    ->trialUntil($trialEndsAt)
+                    ->create();
+
                 foreach ($subscription->items as $item) {
                     $item->stripe_product_name = $plan->name;
                     $item->save();
@@ -62,6 +69,7 @@ class SetPlanWithoutPaymentActivity extends Activity
                 ];
             }
         }
+
         return $response;
     }
 }

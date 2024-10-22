@@ -36,13 +36,8 @@ final class IntegrationMapperTest extends TestCase
             'price' => 'Original List Price',
             'discountPrice' => 'Discount Price',
             'quantity' => 'Quantity',
-            'is_published' => 'Is Published',
-            'files' => [
-                [
-                    'url' => 'File URL',
-                    'name' => 'File Name',
-                ],
-            ],
+            'is_published' => 1,
+            'files' => 'File URL',
             'productType' => [
                 'name' => 'Property Type',
                 'description' => 'Property Type',
@@ -50,7 +45,16 @@ final class IntegrationMapperTest extends TestCase
                 'weight' => 'Weight',
             ],
             'customFields' => [],
-            'attributes' => [],
+            'attributes' => [
+                [
+                    'name' => '_Compensation Comments',
+                    'value' => 'Compensation Comments',
+                ],
+                [
+                    'name' => 'Default Value',
+                    'value' => '_Default Value',
+                ],
+            ],
             'variants' => [
                 [
                     'name' => 'List Number',
@@ -60,12 +64,7 @@ final class IntegrationMapperTest extends TestCase
                     'discountPrice' => 'Discount Price',
                     'is_published' => 'Status',
                     'slug' => 'List Number',
-                    'files' => [
-                        [
-                            'url' => 'File URL',
-                            'name' => 'File Name',
-                        ],
-                    ],
+                    'files' => 'File URL',
                     'warehouse' => [
                         [
                             'id' => 'Warehouse ID',
@@ -130,7 +129,7 @@ final class IntegrationMapperTest extends TestCase
                     'Discount Price' => fake()->randomFloat(2, 50, 900),
                     'Quantity' => fake()->numberBetween(1, 100),
                     'Is Published' => fake()->boolean,
-                    'File URL' => fake()->imageUrl,
+                    'File URL' => fake()->imageUrl . '|' . fake()->imageUrl . '|' . fake()->imageUrl,
                     'File Name' => fake()->word . '.jpg',
                     'Property Type' => fake()->word,
                     'Weight' => fake()->randomFloat(2, 0.5, 5),
@@ -140,6 +139,7 @@ final class IntegrationMapperTest extends TestCase
                     'is_new' => fake()->boolean,
                     'Style' => fake()->word,
                     'Position' => fake()->numberBetween(1, 10),
+                    'Compensation Comments' => fake()->sentence,
             ];
 
         $importDataFromFilesystemAction = new ImportDataFromFilesystemAction(new FilesystemImports());

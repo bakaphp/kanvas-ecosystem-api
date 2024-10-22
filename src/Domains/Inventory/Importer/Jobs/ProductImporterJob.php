@@ -22,6 +22,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
+use Kanvas\Inventory\Importer\Events\ProductImportEvent;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
@@ -52,7 +53,8 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
         public UserInterface $user,
         public Regions $region,
         public AppInterface $app,
-        public ?FilesystemImports $filesystemImport = null
+        public ?FilesystemImports $filesystemImport = null,
+        public bool $runWorkflow = true
     ) {
         $minuteDelay = (int)($app->get('delay_minute_job') ?? 0);
         $queue = $this->onQueue('imports');
@@ -116,11 +118,7 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                     $variants->unsearchable();
                 }, $column = 'id'); */
 
-        if ($this->filesystemImport) {
-            $this->filesystemImport->update([
-                'status' => 'processing', //move to enums
-            ]);
-        }
+        $this->startFilesystemMapperImport();
 
         foreach ($this->importer as $request) {
             try {
@@ -129,7 +127,8 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                     $company,
                     $this->user,
                     $this->region,
-                    $this->app
+                    $this->app,
+                    $this->runWorkflow
                 ))->execute();
                 if ($product->wasRecentlyCreated) {
                     $created++;
@@ -140,18 +139,51 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
 
                 //handle failed jobs
             } catch (Throwable $e) {
-                $errors[] = [
+                $errorDetails = [
                     'message' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
                     'request' => $request,
                 ];
-                Log::error($e->getMessage());
-                Log::error($e->getTraceAsString());
+                $errors[] = $errorDetails;
+                Log::error($e->getMessage(), $errorDetails);
                 captureException($e);
                 $totalProcessFailed++;
             }
         }
 
+        $this->finishFilesystemMapperImport(
+            $totalItems,
+            $totalProcessSuccessfully,
+            $totalProcessFailed,
+            $errors
+        );
+
+        $this->notificationStatus(
+            $totalItems,
+            $totalProcessSuccessfully,
+            $totalProcessFailed,
+            $created,
+            $updated,
+            $errors,
+            $company
+        );
+    }
+
+    protected function startFilesystemMapperImport(): void
+    {
+        if ($this->filesystemImport) {
+            $this->filesystemImport->update([
+                'status' => 'processing',
+            ]);
+        }
+    }
+
+    protected function finishFilesystemMapperImport(
+        int $totalItems,
+        int $totalProcessSuccessfully,
+        int $totalProcessFailed,
+        array $errors
+    ): void {
         if ($this->filesystemImport) {
             $this->filesystemImport->update([
                 'results' => [
@@ -164,7 +196,6 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                 'finished_at' => now(),
             ]);
         }
-        $this->notificationStatus($totalItems, $totalProcessSuccessfully, $totalProcessFailed, $created, $updated, $errors, $company);
     }
 
     protected function notificationStatus(
@@ -187,9 +218,16 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                        'updated' => $updated,
                    ],
                    'exception' => $errors,
-                   'user' => $this->user,
-                   'company' => $company,
+                   //'user' => $this->user,
+                  // 'company' => $company,
                ];
+
+        ProductImportEvent::dispatch(
+            $this->app,
+            $this->branch->company,
+            $this->user,
+            $subscriptionData
+        );
         Subscription::broadcast('filesystemImported', $subscriptionData);
     }
 }

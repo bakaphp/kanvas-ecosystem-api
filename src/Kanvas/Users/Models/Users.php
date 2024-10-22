@@ -53,6 +53,7 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Users\Traits\CanBlockUser;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Factories\UsersFactory;
@@ -124,6 +125,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use HasFilesystemTrait;
     use KanvasModelTrait;
     use HasNotificationSettings;
+    use CanBlockUser;
     use Searchable {
         search as public traitSearch;
     }
@@ -215,6 +217,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function getUuid(): string
     {
         return $this->uuid;
+    }
+
+    /**
+     * overwrite hash table trait primary key
+     */
+    protected function getSettingsPrimaryKey(): string
+    {
+        return 'users_id';
     }
 
     /**
@@ -748,12 +758,15 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         $app = app(Apps::class);
         $socialCount = $this->getFollowersCount($app);
+        $currentUser = auth()->user();
 
         return [
             'total_message' => Message::fromApp(app(Apps::class))->where('users_id', $this->getId())->count(),
             'total_like' => 0,
             'total_followers' => $socialCount['users_followers_count'] ?? 0,
             'total_following' => $socialCount['users_following_count'] ?? 0,
+            'is_following' => $currentUser && ($currentUser->getId() !== $this->getId()) ? $currentUser->isFollowing($this, $app) : false,
+            'is_blocked' => $currentUser && ($currentUser->getId() !== $this->getId()) ? $currentUser->isBlocked($this, $app) : false,
             'total_list' => 0,
         ];
     }
