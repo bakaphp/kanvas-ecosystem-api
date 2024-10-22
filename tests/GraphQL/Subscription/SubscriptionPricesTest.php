@@ -33,7 +33,6 @@ final class SubscriptionPricesTest extends TestCase
      */
     public function testCreatePrice()
     {
-
         $plan = [
             'apps_id' => 1,
             'name' => 'Test plan',

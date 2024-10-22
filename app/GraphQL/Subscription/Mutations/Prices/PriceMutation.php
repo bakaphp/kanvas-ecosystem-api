@@ -17,7 +17,7 @@ use Stripe\Price as StripePrice;
 use Stripe\Stripe;
 
 class PriceMutation
-{   
+{
     private ?Apps $app = null;
     private ?UserInterface $user = null;
 
@@ -43,7 +43,7 @@ class PriceMutation
         $data = $req['input'];
         $stripePlan = PlanRepository::getByIdWithApp(($data['apps_plans_id']));
 
-        $newPrice= StripePrice::create([
+        $newPrice = StripePrice::create([
             'unit_amount' => $data['amount'] * 100,
             'currency' => $data['currency'],
             'recurring' => ['interval' => $data['interval']],
