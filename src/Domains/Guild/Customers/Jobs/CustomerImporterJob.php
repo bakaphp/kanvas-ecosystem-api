@@ -78,7 +78,6 @@ class CustomerImporterJob extends ProductImporterJob
         $company = $this->branch->company()->firstOrFail();
 
         foreach ($this->importer as $customerData) {
-            Log::debug('Processing customer data', $customerData);
             try {
                 $people = People::from([
                     'app' => $this->app,
