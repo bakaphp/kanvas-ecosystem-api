@@ -139,7 +139,6 @@ final class SubscriptionPlansTest extends TestCase
      */
     public function testDeletePlan(): void
     {
-
         $response = $this->graphQL('
             mutation {
                 createPlan(input: {
