@@ -31,7 +31,7 @@ class CreateParticipantAction
     {
         // @todo search by contact type
         $peopleData = $this->peopleData[0];
-        $people = PeoplesRepository::getByEmail($peopleData['contacts'][0]['value'], $this->branch->company);
+        $people = PeoplesRepository::getByEmail($peopleData['contacts'][0]['value'], $this->branch->company, $this->app);
         
         if (! $people) {
             $peopleData = PeopleDto::from([
@@ -42,7 +42,6 @@ class CreateParticipantAction
                 'lastname' => $peopleData['lastname'] ?? null,
                 'contacts' => Contact::collect($peopleData['contacts'] ?? [], DataCollection::class),
                 'address' => Address::collect($peopleData['address'] ?? [], DataCollection::class),
-                
             ]);
             $createPeopleAction = new CreatePeopleAction($peopleData);
             $people = $createPeopleAction->execute();

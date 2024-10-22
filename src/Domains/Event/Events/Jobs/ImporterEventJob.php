@@ -20,6 +20,7 @@ use Kanvas\Event\Themes\Models\ThemeArea;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Throwable;
 use Kanvas\Event\Participants\Actions\CreateParticipantAction;
+use function Sentry\captureException;
 
 class ImporterEventJob extends ProductImporterJob
 {
@@ -84,7 +85,7 @@ class ImporterEventJob extends ProductImporterJob
 
                 Log::error($e->getMessage());
                 Log::error($e->getTraceAsString());
-                // captureException($e);
+                captureException($e);
                 $totalProcessFailed++;
             }
         }
