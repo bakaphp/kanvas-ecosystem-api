@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Event\Participants\Actions;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
@@ -14,8 +14,6 @@ use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDto;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Users\Models\Users;
 use Spatie\LaravelData\DataCollection;
-use Kanvas\Companies\Models\CompaniesBranches;
-use Illuminate\Support\Facades\Log;
 
 class CreateParticipantAction
 {
@@ -32,6 +30,9 @@ class CreateParticipantAction
     {
         // @todo search by contact type
         $peopleData = $this->peopleData[0];
+        if (! isset($peopleData['contacts'][0]['value'])) {
+            return;
+        }
         $people = PeoplesRepository::getByEmail($peopleData['contacts'][0]['value'], $this->branch->company);
 
         if (! $people) {

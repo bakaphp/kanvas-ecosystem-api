@@ -25,11 +25,11 @@ class Participant extends BaseModel
     public static function bootSlugTrait()
     {
         static::creating(function ($model) {
-            $model->slug = $model->slug ?? Str::slug($model->people->name);
+            $model->slug = $model->slug ?? Str::slug("{$model->people->name} {$model->people->id}");
         });
 
         static::updating(function ($model) {
-            $model->slug = $model->slug ?? Str::slug($model->people->name);
+            $model->slug = $model->slug ?? Str::slug("{$model->people->name} {$model->people->id}");
         });
     }
 
