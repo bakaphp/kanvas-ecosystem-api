@@ -61,7 +61,14 @@ class CreateEventAction
 
             $eventVersion = $eventVersionAction->execute();
             foreach ($this->event->participants as $participant) {
-                $createParticipant = new CreateParticipantAction($this->event->app, $this->event->company->defaultBranch, $this->event->user, $this->event->participants, $eventVersion, $participant);
+                $createParticipant = new CreateParticipantAction(
+                    $this->event->app,
+                    $this->event->company->defaultBranch,
+                    $this->event->user,
+                    $this->event->participants,
+                    $eventVersion,
+                    $participant
+                );
                 $createParticipant->execute();
             }
 
