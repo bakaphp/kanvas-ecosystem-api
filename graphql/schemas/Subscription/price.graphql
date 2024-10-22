@@ -11,7 +11,7 @@ type Price {
 }
 
 input PriceInput {
-    apps_plans_id: Int!
+    apps_plans_id: ID!
     amount: Float!
     currency: String!
     interval: String!

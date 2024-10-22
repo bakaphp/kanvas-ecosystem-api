@@ -13,7 +13,7 @@ class Price extends Data
     public function __construct(
         public AppInterface $app,
         public UserInterface $user,
-        public int $apps_plans_id,
+        public string $apps_plans_id,
         public string $stripe_id,
         public float $amount,
         public string $currency,
