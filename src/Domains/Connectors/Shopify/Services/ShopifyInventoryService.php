@@ -6,6 +6,8 @@ namespace Kanvas\Connectors\Shopify\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Kanvas\Connectors\RainForest\Enums\ConfigurationEnum as RainForestConfigurationEnum;
+use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Connectors\Shopify\Enums\StatusEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -60,6 +62,7 @@ class ShopifyInventoryService
                 if ($variant->getShopifyId($this->warehouses->regions) === null) {
                     $variant->setShopifyId($this->warehouses->regions, $shopifyVariant['id']);
                 }
+                // $this->setStock($variant, $channel);
             }
         } else {
             $shopifyProduct = $this->shopifySdk->Product($shopifyProductId);
@@ -67,6 +70,7 @@ class ShopifyInventoryService
 
             foreach ($product->variants as $variant) {
                 $this->saveVariant($variant, $channel);
+                // $this->setStock($variant, $channel);
             }
         }
 
@@ -115,9 +119,10 @@ class ShopifyInventoryService
             'compare_at_price' => $discountedPrice ?? 0,
             'inventory_policy' => 'deny',
             'published' => $price > 0,
+            'grams' => $variant->get(RainForestConfigurationEnum::WEIGHT_UNIT->value) ?? 453.592,
         ];
 
-        if ($quantity > 0) {
+        if ($quantity > 0 && $this->app->get(CustomFieldEnum::SHOPIFY_INVENTORY_MANAGEMENT->value)) {
             $this->setStock($variant, $channel);
         }
 
