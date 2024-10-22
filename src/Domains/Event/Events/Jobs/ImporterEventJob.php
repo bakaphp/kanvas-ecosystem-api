@@ -18,10 +18,10 @@ use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Event\Themes\Models\Theme;
 use Kanvas\Event\Themes\Models\ThemeArea;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
-use Throwable;
-use Kanvas\Event\Participants\Actions\CreateParticipantAction;
 
 use function Sentry\captureException;
+
+use Throwable;
 
 class ImporterEventJob extends ProductImporterJob
 {
@@ -66,8 +66,12 @@ class ImporterEventJob extends ProductImporterJob
                     ]);
                     $request['type_id'] = $type->getId();
                 }
-
-                $request['category_id'] = key_exists('category_id', $request) ? $request['category_id'] : EventCategory::where('companies_id', $this->branch->company->getId())->first()->getId();
+                if (! key_exists('category_id', $request)) {
+                    $category = EventCategory::where('companies_id', $this->branch->company->getId())
+                           ->where('apps_id', $this->app->getId())
+                           ->first();
+                    $request['category_id'] = $category->getId();
+                }
                 $data = Event::fromMultiple($this->app, $this->user, $this->branch->company, $request);
                 $event = (new CreateEventAction($data))->execute();
 
