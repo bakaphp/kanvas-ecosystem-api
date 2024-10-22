@@ -18,6 +18,7 @@ use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Event\Events\Events\ImportResultEvents;
+
 use function Sentry\captureException;
 
 use Spatie\LaravelData\DataCollection;
