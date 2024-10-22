@@ -11,6 +11,7 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Event\Events\DataTransferObject\Event;
 use Kanvas\Event\Events\DataTransferObject\EventVersion;
 use Kanvas\Event\Events\Models\Event as ModelsEvent;
+use Kanvas\Event\Participants\Actions\CreateParticipantAction;
 
 class CreateEventAction
 {
@@ -39,8 +40,12 @@ class CreateEventAction
                 'description' => $this->event->description,
                 'slug' => $slug,
             ]);
-
-            $eventVersion = new CreateEventVersionAction(
+            if ($this->event->dates->count()) {
+                $eventVersionSlug = Str::slug('events-versions-' . $event->name . $this->event->dates[0]->date);
+            } else {
+                $eventVersionSlug = Str::slug('events-versions-' . $event->name);
+            }
+            $eventVersionAction = new CreateEventVersionAction(
                 new EventVersion(
                     event: $event,
                     user: $this->event->user,
@@ -50,11 +55,15 @@ class CreateEventAction
                     description: $this->event->description,
                     pricePerTicket: 0,
                     dates: $this->event->dates,
-                    slug: $slug
+                    slug: $eventVersionSlug
                 )
             );
 
-            $eventVersion->execute();
+            $eventVersion = $eventVersionAction->execute();
+            foreach ($this->event->participants as $participant) {
+                $createParticipant = new CreateParticipantAction($this->event->app, $this->event->company->defaultBranch, $this->event->user, $this->event->participants, $eventVersion, $participant);
+                $createParticipant->execute();
+            }
 
             return $event;
         });

@@ -40,19 +40,23 @@ class PeoplesRepository
         }
     }
 
-    public static function getByEmail(string $email, CompanyInterface $company): ?People
+    public static function getByEmail(string $email, CompanyInterface $company, ?AppInterface $app = null): ?People
     {
         /**
          * @psalm-suppress MixedReturnStatement
          */
-        return People::from('peoples as p')
+        $query = People::from('peoples as p')
             ->join('peoples_contacts as c', 'p.id', '=', 'c.peoples_id')
             ->where('c.value', $email)
             ->where('c.contacts_types_id', ContactTypeEnum::EMAIL->value) // Assuming EMAIL is a constant in ContactsTypes model
             ->where('p.companies_id', $company->getId())
-            ->where('p.is_deleted', 0)
-            ->select('p.*')
-            ->first();
+            ->where('p.is_deleted', 0);
+
+        if ($app) {
+            $query->where('p.apps_id', $app->getId());
+        }
+
+        return $query->select('p.*')->first();
     }
 
     public static function getByValue(string $value, CompanyInterface $company, AppInterface $app): ?People

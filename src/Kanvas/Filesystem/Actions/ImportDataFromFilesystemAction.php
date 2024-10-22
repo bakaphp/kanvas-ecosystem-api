@@ -14,6 +14,8 @@ use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Products\Models\Products;
 use League\Csv\Reader;
+use Kanvas\Guild\Customers\Jobs\CustomerImporterJob;
+use Kanvas\Guild\Customers\Models\People;
 
 class ImportDataFromFilesystemAction
 {
@@ -176,6 +178,9 @@ class ImportDataFromFilesystemAction
             case Event::class:
                 $job = ImporterEventJob::class;
 
+                break;
+            case People::class:
+                $job = CustomerImporterJob::class;
                 break;
             default:
                 break;
