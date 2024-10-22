@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Connectors\Apollo;
 
 use Baka\Traits\KanvasJobsTrait;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
@@ -53,12 +54,15 @@ class SyncAllPeopleInCompanyCommand extends Command
         $hourlyTimeWindow = 60 * 60;
         $dailyTimeWindow = 24 * 60 * 60;
 
+        $resetHourlyTimestamp = Cache::get($resetHourlyKey, 0) instanceof Carbon ? Cache::get($resetHourlyKey, 0)->timestamp : 0;
+        $resetDailyTimestamp = Cache::get($resetDailyKey, 0) instanceof Carbon ? Cache::get($resetDailyKey, 0)->timestamp : 0;
+
         // Reset hourly/daily counters if time window has expired
-        if (now()->timestamp >= Cache::get($resetHourlyKey, 0)) {
+        if (now()->timestamp >= $resetHourlyTimestamp) {
             Cache::put($hourlyCacheKey, 0, $hourlyTimeWindow);
         }
 
-        if (now()->timestamp >= Cache::get($resetDailyKey, 0)) {
+        if (now()->timestamp >= $resetDailyTimestamp) {
             Cache::put($dailyCacheKey, 0, $dailyTimeWindow);
         }
 
