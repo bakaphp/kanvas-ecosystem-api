@@ -51,7 +51,7 @@ class Apps extends BaseModel implements AppInterface
     use HashTableTrait;
     use Cachable;
     use CanUseWorkflow;
-    
+
     /**
      * The table associated with the model.
      *
