@@ -18,4 +18,6 @@ enum WorkflowEnum: string
     case CREATE_CUSTOM_FIELD = 'create-custom-field';
     case CREATE_CUSTOM_FIELDS = 'create-custom-fields';
     case SEARCH = 'search';
+
+    case SYNC_SHOPIFY = 'sync-shopify';
 }
