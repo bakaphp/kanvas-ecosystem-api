@@ -89,7 +89,7 @@ final class SubscriptionPricesTest extends TestCase
         $response = $this->graphQL('
             mutation {
                 updatePrice(id: ' . $priceId . ', input: {
-                    is_active: false
+                    is_active: true
                 }) {
                     id
                     stripe_id
@@ -101,14 +101,14 @@ final class SubscriptionPricesTest extends TestCase
         $response->assertJson([
             'data' => [
                 'updatePrice' => [
-                    'is_active' => false,
+                    'is_active' => true,
                 ],
             ],
         ]);
 
         $this->assertDatabaseHas('apps_plans_prices', [
             'id' => $priceId,
-            'is_active' => false,
+            'is_active' => true,
         ]);
     }
 }
