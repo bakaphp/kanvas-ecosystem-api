@@ -4,6 +4,7 @@ type Plan {
     description: String
     free_trial_dates: Int
     prices: [Price!] @hasMany(relation: "price")
+    is_active: Boolean
     is_default: Boolean
     created_at: String
     updated_at: String
@@ -22,6 +23,7 @@ input PlanUpdateInput {
     name: String
     description: String
     free_trial_dates: Int
+    is_active: Boolean
     is_default: Boolean
 }
 

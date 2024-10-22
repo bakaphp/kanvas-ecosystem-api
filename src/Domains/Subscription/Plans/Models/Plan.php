@@ -17,6 +17,7 @@ use Kanvas\Subscription\Prices\Models\Price;
  * @property string $description
  * @property string $stripe_id
  * @property int $free_trial_dates
+ * @property bool $is_active
  * @property bool $is_default
  * @property bool $is_deleted
  * @property string $created_at

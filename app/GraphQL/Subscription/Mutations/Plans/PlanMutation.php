@@ -67,21 +67,21 @@ class PlanMutation
 
     /**
      * update.
-     *
-     * @param  mixed $root
      */
-    public function update(array $req): PlanModel
+    public function update(mixed $root, array $req): PlanModel
     {
-        $app = app(Apps::class);
-        $plan = PlanRepository::getById($req['id']);
+        $this->validateStripe();
+        $data = $req['input'];
+        $plan = PlanRepository::getByIdWithApp($req['id']);
 
         StripeProduct::update($plan->stripe_id, [
-            'name' => $req['input']['name'] ?? $plan->name,
-            'description' => $req['input']['description'] ?? $plan->description,
+            'name' => $data['name'] ?? $plan->name,
+            'description' => $data['description'] ?? $plan->description,
+            'active' => $data['is_active']
         ]);
 
-        $dto = PlanDto::viaRequest($req['input'], Auth::user(), $app);
-
+        $data['stripe_id'] = $plan->stripe_id;
+        $dto = PlanDto::viaRequest($data, $this->user, $this->app);
         $action = new UpdatePlan($plan, $dto);
 
         return $action->execute();
@@ -92,9 +92,10 @@ class PlanMutation
      *
      * @param  mixed $root
      */
-    public function delete(array $req): bool
+    public function delete(mixed $root, array $req): bool
     {
-        $plan = PlanRepository::getById($req['id']);
+        $this->validateStripe();
+        $plan = PlanRepository::getByIdWithApp($req['id']);
 
         $stripeProduct = StripeProduct::retrieve($plan->stripe_id);
         $stripeProduct->delete();
