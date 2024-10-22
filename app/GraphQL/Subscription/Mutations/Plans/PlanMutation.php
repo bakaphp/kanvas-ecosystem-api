@@ -57,8 +57,8 @@ class PlanMutation
         if (! empty($data['prices'])) {
             $priceMutation = new PriceMutation();
             foreach ($data['prices'] as $priceData) {
-                $priceData['apps_plans_id'] = $newPlan->id;
-                $priceMutation->create(['input' => $priceData]);
+                $priceData['apps_plans_id'] = (string)$newPlan->id;
+                $priceMutation->create($root, ['input' => $priceData]);
             }
         }
 

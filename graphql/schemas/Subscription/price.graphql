@@ -6,6 +6,7 @@ type Price {
     currency: String!
     interval: String!
     is_active: Boolean
+    is_default: Boolean
     created_at: String
     updated_at: String
 }
@@ -15,6 +16,7 @@ input PriceInput {
     amount: Float!
     currency: String!
     interval: String!
+    is_default: Boolean
 }
 
 input PriceUpdateInput {
