@@ -9,10 +9,7 @@ class Random
     /**
      * Given a firstname give me a random username.
      *
-     * @param string $displayname
      * @param int $randNo
-     *
-     * @return string
      */
     public static function generateDisplayName(string $displayname, $randNo = 200): string
     {
@@ -25,18 +22,22 @@ class Random
         $part3 = ($randNo) ? rand(0, $randNo) : '';
 
         $username = $part1 . str_shuffle($part2) . $part3; //str_shuffle to randomly shuffle all characters
+
         return $username;
     }
 
     /**
      * Given a email generate a displayname.
-     *
-     * @param string $email
-     *
-     * @return string
      */
     public static function generateDisplayNameFromEmail(string $email): string
     {
         return self::generateDisplayName($email);
+    }
+
+    public static function cleanUpDisplayNameForSlug(string $displayName): string
+    {
+        $slug = Str::slug($displayName);
+
+        return Str::limit($slug, 45, '');
     }
 }

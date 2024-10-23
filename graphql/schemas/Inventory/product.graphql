@@ -9,6 +9,7 @@ type Product {
     html_description: String
     warranty_terms: String
     upc: String
+    system_module: SystemModule! @method(name: "getSystemModule")
     status: Status
     files: [Filesystem!]!
         @cacheRedis
@@ -17,17 +18,18 @@ type Product {
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
     is_published: Boolean
-    created_at: String
-    updated_at: String
+    created_at: DateTime
+    updated_at: DateTime
     categories: [Category!]! @BelongsToMany
     warehouses: [Warehouse!]! @BelongsToMany
-    attributes: [ProductAttribute!]! @BelongsToMany(relation: "visibleAttributes")
+    attributes: [ProductAttribute!]!
+        @BelongsToMany(relation: "visibleAttributes")
     variants: [Variant!]! @HasMany
-    integrations: [IntegrationsEntityReference!]! @method(name: "getEntityIntegrationsSummary")
+    integrations: [IntegrationsEntityReference!]!
+        @method(name: "getEntityIntegrationsSummary")
     productsTypes: ProductType @belongsTo
     companies: Company! @belongsTo(relation: "company")
     custom_fields: [CustomField!]!
-        @cacheRedis
         @paginate(
             defaultCount: 25
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
@@ -71,6 +73,7 @@ input ProductAttributesInput {
 input ProductInputUpdate {
     products_types_id: Int
     name: String
+    slug: String
     description: String
     short_description: String
     html_description: String

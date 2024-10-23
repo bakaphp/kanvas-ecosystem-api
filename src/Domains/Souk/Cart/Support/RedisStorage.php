@@ -18,8 +18,8 @@ class RedisStorage
     public function __construct()
     {
         $this->cartId = $this->key . app(Apps::class)->getId();
-        $data = Redis::get($this->cartId);
-        $this->data = $data !== null && is_array($data) ? $data : [];
+        $data = Redis::connection('default')->get($this->cartId);
+        $this->data = $data !== null ? $data : [];
     }
 
     public function has(string $key): bool
@@ -35,10 +35,10 @@ class RedisStorage
     public function put(string $key, mixed $value): void
     {
         $this->data[$key] = $value;
-        Redis::setex(
+        Redis::connection('default')->set(
             $this->cartId,
+            $this->data,
             Carbon::now()->addDays(30)->diffInSeconds(),
-            $this->data
         );
     }
 }

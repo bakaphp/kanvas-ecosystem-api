@@ -192,6 +192,8 @@ class Variants extends BaseModel implements EntityIntegrationInterface
             $query->where($column, $value);
         }
 
+        $query->orderBy('attributes.weight', 'asc');
+
         return $query;
     }
 
@@ -248,7 +250,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
 
             if (isset($attribute['id'])) {
                 $attributeModel = Attributes::getById((int) $attribute['id'], $this->app);
-            } else {
+            } elseif (! empty($attribute['name'])) {
                 $attributesDto = AttributesDto::from([
                     'app' => app(Apps::class),
                     'user' => $user,
@@ -263,8 +265,18 @@ class Variants extends BaseModel implements EntityIntegrationInterface
                 $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
             }
 
-            (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
+            if ($attributeModel) {
+                (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
+            }
         }
+    }
+
+    public function addAttribute(string $name, mixed $value): void
+    {
+        $this->addAttributes($this->user, [[
+            'name' => $name,
+            'value' => $value,
+        ]]);
     }
 
     /**
@@ -395,10 +407,12 @@ class Variants extends BaseModel implements EntityIntegrationInterface
         if ($channel) {
             $channelInfo = $this->variantChannels()->where('channels_id', $channel->getId())->first();
 
-            return $channelInfo?->price ?? 0;
+            $price = $channelInfo?->price ?? 0;
         }
 
-        return $warehouseInfo?->price ?? 0;
+        $price = $warehouseInfo?->price ?? 0;
+
+        return (float)$price;
     }
 
     /**
@@ -416,25 +430,5 @@ class Variants extends BaseModel implements EntityIntegrationInterface
         );
 
         return (int) $total;
-    }
-
-    /**
-     * Determine if this is the last variant for the product.
-     */
-    public function isLastVariant(): bool
-    {
-        $product = $this->product;
-
-        // Check if the product is being deleted
-        if ($product && $product->is_deleted) {
-            return false;
-        }
-
-        $otherVariantExists = self::where('products_id', $this->products_id)
-            ->where('companies_id', $this->companies_id)
-            ->where('id', '!=', $this->id)
-            ->exists();
-
-        return ! $otherVariantExists;
     }
 }

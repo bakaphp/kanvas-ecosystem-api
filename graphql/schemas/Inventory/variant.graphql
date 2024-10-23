@@ -21,7 +21,7 @@ type Variant {
     interactions(visitor: VisitorEntityInput!): Interactions
         @method(name: "getEntitySocialInteractions")
     user_interactions: Mixed! @method(name: "getUserSocialInteractions") @guard
-    product: Product @cacheRedis
+    product: Product
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
     attributes: [VariantsAttributes!]! @BelongsToMany(relation: "visibleAttributes")
@@ -37,7 +37,6 @@ type Variant {
             resolver: "App\\GraphQL\\Inventory\\Types\\MetadataType@linkedStores"
         )
     custom_fields: [CustomField!]!
-        @cacheRedis
         @paginate(
             defaultCount: 25
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"

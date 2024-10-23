@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Guild\Mutations\Leads;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadAttemptAction;
 use Kanvas\Guild\Leads\Actions\UpdateLeadAction;
@@ -14,6 +15,8 @@ use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 
 class LeadManagementMutation
 {
+    use HasMutationUploadFiles;
+
     /**
      * Create new lead
      */
@@ -91,5 +94,19 @@ class LeadManagementMutation
                             ->firstOrFail();
 
         return $lead->restoreRecord();
+    }
+
+    public function attachFile(mixed $root, array $request): ModelsLead
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $lead = ModelsLead::getByIdFromCompanyApp((int) $request['id'], $user->getCurrentCompany(), $app);
+
+        return $this->uploadFileToEntity(
+            model: $lead,
+            app: $app,
+            user: $user,
+            request: $request
+        );
     }
 }

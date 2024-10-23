@@ -36,7 +36,7 @@ input CompleteInviteInput {
     invite_hash: String!
     password: String!
     firstname: String!
-    lastname: String!
+    lastname: String
     phone_number: String
 }
 
@@ -52,7 +52,8 @@ extend type Mutation @guard {
 }
 
 extend type Mutation {
-    getInvite(hash: String!): ExternalInvite! @deprecated(reason: "use the query getInvite instead")
+    getInvite(hash: String!): ExternalInvite!
+        @deprecated(reason: "use the query getInvite instead")
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@getInvite"
         )
@@ -78,7 +79,11 @@ extend type Query @guard {
                     "description"
                 ]
             )
-        orderBy: _ @orderBy(columns: ["id"], direction: "DESC")
+        orderBy: _
+            @orderBy(
+                columns: ["id", "firstname", "lastname"]
+                direction: "DESC"
+            )
     ): [Invite!]!
         @paginate(
             model: "Kanvas\\Users\\Models\\UsersInvite"

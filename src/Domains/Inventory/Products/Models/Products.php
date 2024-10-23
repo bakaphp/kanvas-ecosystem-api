@@ -147,6 +147,8 @@ class Products extends BaseModel implements EntityIntegrationInterface
             $query->where($column, $value);
         }
 
+        $query->orderBy('attributes.weight', 'asc');
+
         return $query;
     }
 
@@ -351,5 +353,16 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
             (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
         }
+    }
+
+    public function addAttribute(string $name, mixed $value): void
+    {
+        $this->addAttributes($this->user, [['name' => $name, 'value' => $value]]);
+    }
+
+    public function unPublish(): void
+    {
+        $this->is_published = 0;
+        $this->save();
     }
 }

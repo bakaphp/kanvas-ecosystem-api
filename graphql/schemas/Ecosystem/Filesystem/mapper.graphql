@@ -32,14 +32,39 @@ type FileSystemImport {
     results: Mixed
 }
 
+input UpdateFilesystemImportInput {
+    mapper_id: ID!
+    name: String!
+    file_header: Mixed!
+    mapping: Mixed!
+    configuration: Mixed
+}
+
 type Mutation @guard {
     createFilesystemMapper(input: FilesystemMapperInput!): FilesystemMapper!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemMapperMutation@create"
         )
+    updateFilesystemMapper(
+        input: UpdateFilesystemImportInput!
+    ): FilesystemMapper!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemMapperMutation@update"
+        )
+    deleteFilesystemMapper(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemMapperMutation@delete"
+        )
     filesystemImport(input: FilesystemImportInput!): FileSystemImport!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemMapperMutation@process"
+        )
+}
+
+extend type Subscription @guard {
+    filesystemImported(jobUuid: String!): JSON
+        @subscription(
+            class: "App\\GraphQL\\Guild\\Subscriptions\\ImporterJobSubscription"
         )
 }
 

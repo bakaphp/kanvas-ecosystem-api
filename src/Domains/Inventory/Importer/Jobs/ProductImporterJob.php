@@ -22,8 +22,10 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
+use Kanvas\Inventory\Importer\Events\ProductImportEvent;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Nuwave\Lighthouse\Execution\Utils\Subscription;
 
 use function Sentry\captureException;
 
@@ -42,7 +44,7 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
     *
     * @var int
     */
-    public $uniqueFor = 60;
+    public $uniqueFor = 0;
 
     public function __construct(
         public string $jobUuid,
@@ -51,12 +53,18 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
         public UserInterface $user,
         public Regions $region,
         public AppInterface $app,
-        public ?FilesystemImports $filesystemImport = null
+        public ?FilesystemImports $filesystemImport = null,
+        public bool $runWorkflow = true
     ) {
-        $this->onQueue('imports');
+        $minuteDelay = (int)($app->get('delay_minute_job') ?? 0);
+        $queue = $this->onQueue('imports');
+        if ($minuteDelay) {
+            $queue->delay(now()->addMinutes($minuteDelay));
+        }
 
+        $minuteUniqueFor = (int)($app->get('unique_for_minute_job') ?? 1);
         if (App::environment('production')) {
-            $this->uniqueFor = 15 * 60;
+            $this->uniqueFor = $minuteUniqueFor * 60;
         }
     }
 
@@ -73,6 +81,10 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
 
     public function middleware(): array
     {
+        if (! $this->uniqueFor) {
+            return [];
+        }
+
         return [
             (new WithoutOverlapping($this->uniqueId()))->expireAfter($this->uniqueFor),
         ];
@@ -97,6 +109,8 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
         $totalItems = count($this->importer);
         $totalProcessSuccessfully = 0;
         $totalProcessFailed = 0;
+        $created = 0;
+        $updated = 0;
         $errors = [];
 
         //mark all variants as unsearchable for this company before running the import
@@ -104,34 +118,72 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                     $variants->unsearchable();
                 }, $column = 'id'); */
 
-        if ($this->filesystemImport) {
-            $this->filesystemImport->update([
-                'status' => 'processing', //move to enums
-            ]);
-        }
+        $this->startFilesystemMapperImport();
 
         foreach ($this->importer as $request) {
             try {
-                (new ProductImporterAction(
+                $product = (new ProductImporterAction(
                     ProductImporter::from($request),
                     $company,
                     $this->user,
                     $this->region,
-                    $this->app
+                    $this->app,
+                    $this->runWorkflow
                 ))->execute();
+                if ($product->wasRecentlyCreated) {
+                    $created++;
+                } else {
+                    $updated++;
+                }
                 $totalProcessSuccessfully++;
+
+                //handle failed jobs
             } catch (Throwable $e) {
-                $errors[] = [
+                $errorDetails = [
                     'message' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
                     'request' => $request,
                 ];
-                Log::error($e->getMessage());
+                $errors[] = $errorDetails;
+                Log::error($e->getMessage(), $errorDetails);
                 captureException($e);
                 $totalProcessFailed++;
             }
         }
 
+        $this->finishFilesystemMapperImport(
+            $totalItems,
+            $totalProcessSuccessfully,
+            $totalProcessFailed,
+            $errors
+        );
+
+        $this->notificationStatus(
+            $totalItems,
+            $totalProcessSuccessfully,
+            $totalProcessFailed,
+            $created,
+            $updated,
+            $errors,
+            $company
+        );
+    }
+
+    protected function startFilesystemMapperImport(): void
+    {
+        if ($this->filesystemImport) {
+            $this->filesystemImport->update([
+                'status' => 'processing',
+            ]);
+        }
+    }
+
+    protected function finishFilesystemMapperImport(
+        int $totalItems,
+        int $totalProcessSuccessfully,
+        int $totalProcessFailed,
+        array $errors
+    ): void {
         if ($this->filesystemImport) {
             $this->filesystemImport->update([
                 'results' => [
@@ -144,7 +196,38 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                 'finished_at' => now(),
             ]);
         }
+    }
 
-        //handle failed jobs
+    protected function notificationStatus(
+        int $totalItems,
+        int $totalProcessSuccessfully,
+        int $totalProcessFailed,
+        int $created,
+        int $updated,
+        array $errors,
+        Companies $company
+    ): void {
+        $subscriptionData = [
+                   'jobUuid' => $this->jobUuid,
+                   'status' => 'completed',
+                   'results' => [
+                       'total_items' => $totalItems,
+                       'total_process_successfully' => $totalProcessSuccessfully,
+                       'total_process_failed' => $totalProcessFailed,
+                       'created' => $created,
+                       'updated' => $updated,
+                   ],
+                   'exception' => $errors,
+                   //'user' => $this->user,
+                  // 'company' => $company,
+               ];
+
+        ProductImportEvent::dispatch(
+            $this->app,
+            $this->branch->company,
+            $this->user,
+            $subscriptionData
+        );
+        Subscription::broadcast('filesystemImported', $subscriptionData);
     }
 }

@@ -8,7 +8,7 @@ x-common-queue-settings: &common-queue-settings
   command: 
     - "sh"
     - "-c"
-    - "php artisan config:cache && php artisan queue:work --tries=3 --timeout=3750"
+    - "php artisan config:cache && php artisan queue:work --tries=3 --queue=default,notifications,kanvas-social,batch-logger,imports --timeout=3750"
   environment:
     WWWUSER: "${WWWUSER}"
     LARAVEL_SAIL: 1
@@ -52,10 +52,6 @@ services:
     <<: *common-queue-settings
     container_name: queue
 
-  queue2:
-    <<: *common-queue-settings
-    container_name: queue2
-
   batch-logger-queue:
     <<: *common-queue-settings
     container_name: batch-logger-queue
@@ -70,7 +66,7 @@ services:
     command: 
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue kanvas-social --tries=3 --timeout=3750"
+      - "php artisan config:cache && php artisan queue:work --queue=kanvas-social --tries=3 --timeout=3750"
 
   queue-notifications:
     <<: *common-queue-settings
@@ -78,7 +74,7 @@ services:
     command: 
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue notifications --tries=3 --timeout=3750"
+      - "php artisan config:cache && php artisan queue:work --queue=notifications --tries=3 --timeout=3750"
 
   queue-imports:
     <<: *common-queue-settings
@@ -86,7 +82,7 @@ services:
     command: 
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue imports --tries=3 --timeout=3750"
+      - "php artisan config:cache && php artisan queue:work --queue=imports --tries=3 --timeout=3750"
 
   laravel-scheduler:
     container_name: laravel-scheduler

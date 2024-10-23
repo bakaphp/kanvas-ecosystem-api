@@ -1,24 +1,24 @@
 type Lead {
     id: ID!
     uuid: String!
-    company: Company! @belongsTo @cacheRedis
-    branch: CompanyBranch! @belongsTo @cacheRedis
+    company: Company! @belongsTo
+    branch: CompanyBranch! @belongsTo
     title: String!
     people: People
-    user: User @belongsTo @cacheRedis
-    owner: User @belongsTo @cacheRedis
-    organization: Organization @belongsTo @cacheRedis
-    receiver: LeadReceiver @belongsTo @cacheRedis
-    status: LeadStatus @belongsTo @cacheRedis
-    type: LeadType @belongsTo @cacheRedis
-    source: LeadSource @belongsTo @cacheRedis
+    user: User @belongsTo
+    owner: User @belongsTo
+    organization: Organization @belongsTo
+    receiver: LeadReceiver @belongsTo
+    status: LeadStatus @belongsTo
+    type: LeadType @belongsTo
+    source: LeadSource @belongsTo
     firstname: String
     lastname: String
     email: String
     phone: String
     description: String
     reason_lost: String
-    pipeline: LeadPipeline @belongsTo @cacheRedis
+    pipeline: LeadPipeline @belongsTo
     stage: LeadPipelineStage @belongsTo(relation: "stage")
     participants: [LeadsParticipants!]! @hasMany
     channels: [SocialChannel]! @hasMany(relation: "socialChannels")
@@ -136,11 +136,11 @@ input LeadUpdateInput {
 }
 
 extend type Mutation @guard {
-    createLead(input: LeadInput!): Lead
+    createLead(input: LeadInput!): Lead!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@create"
         )
-    updateLead(id: ID!, input: LeadUpdateInput!): Lead
+    updateLead(id: ID!, input: LeadUpdateInput!): Lead!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@update"
         )
@@ -168,9 +168,17 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\SocialMutation@unFollow"
         )
+    attachFileToLead(file: Upload!, id: ID!, params: Mixed): Lead!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@attachFile"
+        )
+    attachFilesToLead(file: [Upload!]!, id: ID!, params: Mixed): Lead!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@attachFile"
+        )
 }
 
-type Subscription @guard {
+extend type Subscription @guard {
     leadUpdate(id: ID!): Lead
         @subscription(
             class: "App\\GraphQL\\Guild\\Subscriptions\\LeadUpdatedSubscription"
@@ -191,6 +199,8 @@ extend type Query @guard {
                     "leads_owner_id"
                     "leads_status_id"
                     "title"
+                    "email"
+                    "phone"
                     "pipeline_id"
                     "pipeline_stage_id"
                     "people_id"

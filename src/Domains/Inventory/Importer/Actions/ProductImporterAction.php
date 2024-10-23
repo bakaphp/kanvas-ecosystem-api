@@ -38,6 +38,7 @@ use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehou
 use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
 class ProductImporterAction
@@ -52,14 +53,14 @@ class ProductImporterAction
         public Companies $company,
         public UserInterface $user,
         public Regions $region,
-        public ?AppInterface $app = null
+        public ?AppInterface $app = null,
+        public bool $runWorkflow = true
     ) {
         $this->app = $this->app ?? app(Apps::class);
     }
 
     /**
      * Run all method dor a specify product.
-     *
      */
     public function execute(): ProductsModel
     {
@@ -81,7 +82,9 @@ class ProductImporterAction
                 'is_published' => $this->importedProduct->isPublished,
                 'attributes' => $this->importedProduct->attributes,
             ]);
-            $this->product = (new CreateProductAction($productDto, $this->user))->execute();
+            $createAction = new CreateProductAction($productDto, $this->user);
+            $createAction->setRunWorkflow($this->runWorkflow);
+            $this->product = $createAction->execute();
 
             if (isset($this->importedProduct->customFields) && ! empty($this->importedProduct->customFields)) {
                 $this->product->setAllCustomFields($this->importedProduct->customFields);
@@ -102,6 +105,7 @@ class ProductImporterAction
                 $this->productType();
             }
             DB::connection('inventory')->commit();
+            $this->product->fireWorkflow(WorkflowEnum::SYNC_SHOPIFY->value);
         } catch (Throwable $e) {
             DB::connection('inventory')->rollback();
 

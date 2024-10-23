@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Guild;
 
+use Kanvas\Guild\Enums\FlagEnum;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Tests\TestCase;
 
@@ -73,6 +74,10 @@ class LeadTest extends TestCase
                     },
                     systemModule{
                         id
+                    }
+                    status {
+                        id
+                        name
                     }
                 }
             }
@@ -220,7 +225,6 @@ class LeadTest extends TestCase
                 'updateLead' => [
                     'id' => $leadId,
                     'title' => $title,
-
                 ],
             ],
         ]);
@@ -552,7 +556,6 @@ class LeadTest extends TestCase
                         ],
                     ],
                 ],
-
             ],
         ]);
         $channel = $channel->json()['data']['socialChannels']['data'][0];
@@ -570,7 +573,6 @@ class LeadTest extends TestCase
                 'followers' => [],
             ],
         ];
-
 
         $this->graphQL(
             '
@@ -636,5 +638,58 @@ class LeadTest extends TestCase
     ', [
         'lead_id' => $leadId, // Passing the lead ID to the GraphQL query
     ])->assertOk();
+    }
+
+    public function testCreationOfDuplicateLeads()
+    {
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $currentCompany = $user->getCurrentCompany();
+        $currentCompany->set(FlagEnum::COMPANY_CANT_HAVE_MULTIPLE_OPEN_LEADS->value, 1);
+        $title = fake()->title();
+
+        $input = [
+            'branch_id' => $branch->getId(),
+            'title' => $title,
+            'pipeline_stage_id' => 0,
+            'people' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+                'contacts' => [
+                    [
+                        'value' => fake()->email(),
+                        'contacts_types_id' => 1,
+                        'weight' => 0,
+                    ],
+                ],
+                'address' => [
+                    [
+                        'address' => fake()->address(),
+                        'city' => fake()->city(),
+                        'state' => fake()->state(),
+                        'country' => fake()->country(),
+                        'zip' => fake()->postcode(),
+                    ],
+                ],
+                'custom_fields' => [],
+            ],
+            'custom_fields' => [
+                [
+                    'name' => 'test',
+                    'data' => 'test',
+                ],
+            ],
+            'files' => [
+                [
+                    'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    'name' => 'dummy.pdf',
+                ],
+            ],
+        ];
+
+        $response = $this->createLeadAndGetResponse($input);
+        $response = $this->createLeadAndGetResponse($input);
+
+        $this->assertTrue($response['data']['createLead']['status']['name'] === 'Duplicate');
     }
 }

@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\SoftDeletesTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -21,6 +22,7 @@ use Kanvas\Companies\Actions\CompaniesTotalBranchesAction;
 use Kanvas\Companies\Actions\SetUsersCountAction as CompaniesSetUsersCountAction;
 use Kanvas\Companies\Enums\Defaults;
 use Kanvas\Companies\Factories\CompaniesFactory;
+use Kanvas\Companies\Observers\CompaniesObserver;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\AppSettingsEnums;
@@ -37,6 +39,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 
 /**
@@ -59,10 +62,12 @@ use Laravel\Scout\Searchable;
  * @property string $country_code
  * @property bool $is_active
  */
+#[ObservedBy([CompaniesObserver::class])]
 class Companies extends BaseModel implements CompanyInterface
 {
     use HashTableTrait;
     use HasFilesystemTrait;
+    use CanUseWorkflow;
     use Searchable {
         search as public traitSearch;
     }

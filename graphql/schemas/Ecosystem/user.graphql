@@ -19,6 +19,7 @@ type User {
         @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@address")
     sex: String
     user_active: Boolean!
+    timezone: String
     abilities: Mixed! @method(name: "getAbilitiesList")
     roles: Mixed! @method(name: "getRoles")
     mainRole: String!
@@ -90,6 +91,8 @@ type UserSocialInfo {
     total_followers: Int
     total_following: Int
     total_lists: Int
+    is_following: Boolean
+    is_blocked: Boolean
 }
 
 input LoginInput {
@@ -145,6 +148,7 @@ input UpdateUserInput {
     address_2: String
     zip_code: Int
     welcome: Boolean
+    timezone: String
     city_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Models\\Cities,id"])
     state_id: Int @rules(apply: ["exists:Kanvas\\Locations\\Models\\States,id"])
     country_id: Int

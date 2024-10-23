@@ -4,16 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Subscription\Prices\Actions;
 
-use Baka\Users\Contracts\UserInterface;
-use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Subscription\Prices\DataTransferObject\Price as PriceDto;
 use Kanvas\Subscription\Prices\Models\Price;
+use Stripe\Price as StripePrice;
 
 class CreatePrice
 {
     public function __construct(
         protected PriceDto $dto,
-        protected UserInterface $user
     ) {
     }
 
@@ -24,8 +22,15 @@ class CreatePrice
      */
     public function execute(): Price
     {
+        $newPrice = StripePrice::create([
+            'unit_amount' => $this->dto->amount * 100,
+            'currency' => $this->dto->currency,
+            'recurring' => ['interval' => $this->dto->interval],
+            'product' => $this->dto->stripe_id,
+        ]);
+
         return Price::firstOrCreate([
-            'stripe_id' => $this->dto->stripe_id,
+            'stripe_id' => $newPrice->id,
             'apps_plans_id' => $this->dto->apps_plans_id,
         ], [
             'amount' => $this->dto->amount,

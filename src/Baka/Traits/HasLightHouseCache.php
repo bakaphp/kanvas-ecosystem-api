@@ -18,7 +18,7 @@ trait HasLightHouseCache
         $redis = Redis::connection('graph-cache');
         $keys = $redis->keys($key);
         if (empty($keys)) {
-            $this->generateCustomFieldsLighthouseCache();
+            //$this->generateCustomFieldsLighthouseCache();
             $this->generateFilesLighthouseCache();
 
             return;
@@ -28,13 +28,17 @@ trait HasLightHouseCache
             $redis->del(str_replace(config('database.redis.options.prefix'), '', $key));
         }
 
-        $this->generateCustomFieldsLighthouseCache();
+        //$this->generateCustomFieldsLighthouseCache();
         $this->generateFilesLighthouseCache();
     }
 
     public function clearLightHouseCacheJob(): void
     {
-        LightHouseCacheCleanUpJob::dispatch($this);
+        if (! app()->runningInConsole()) {
+            LightHouseCacheCleanUpJob::dispatch($this);
+        } else {
+            $this->clearLightHouseCache();
+        }
     }
 
     public function generateRelationshipLighthouseCache(string $relationship, int $items = 25): void

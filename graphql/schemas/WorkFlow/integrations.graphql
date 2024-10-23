@@ -3,7 +3,8 @@ type Integrations {
     name: String!
     uuid: String!
     status: Status @method(name: "getIntegrationStatus")
-    integrations: [IntegrationsCompanies!]! @method(name: "getIntegrationsByCompany")
+    integrations: [IntegrationsCompanies!]!
+        @method(name: "getIntegrationsByCompany")
     config: String
     created_at: DateTime
     updated_at: DateTime
@@ -18,12 +19,19 @@ type IntegrationsCompanies {
     updated_at: DateTime
 }
 
-type IntegrationsEntityReference{
+type IntegrationsEntityReference {
     id: ID!
     name: String
     status: Status
     created_at: DateTime
     updated_at: DateTime
+}
+
+type IntegrationsEntityHistory {
+    integration: Integrations
+    status: Status
+    workflow: Workflow
+    created_at: DateTime
 }
 
 input IntegrationsCompaniesInput {
@@ -39,7 +47,9 @@ input IntegrationsReferenceInput {
 }
 
 extend type Mutation @guard {
-    integrationCompany(input: IntegrationsCompaniesInput!): IntegrationsCompanies!
+    integrationCompany(
+        input: IntegrationsCompaniesInput!
+    ): IntegrationsCompanies!
         @field(
             resolver: "App\\GraphQL\\Workflow\\Mutations\\Integrations\\IntegrationsMutation@createIntegrationCompany"
         )
@@ -56,26 +66,21 @@ extend type Mutation @guard {
 extend type Query @guard {
     integrations(
         search: String @search
-        where: _
-            @whereConditions(
-                columns: [
-                    "id"
-                    "name"
-                ]
-            )
-        orderBy: _
-            @orderBy(
-                columns: [
-                    "id"
-                    "name"
-                    "created_at"
-                    "updated_at"
-                ]
-            )
+        where: _ @whereConditions(columns: ["id", "name"])
+        orderBy: _ @orderBy(columns: ["id", "name", "created_at", "updated_at"])
     ): [Integrations!]!
         @paginate(
             model: "Kanvas\\Workflow\\Models\\Integrations"
             scopes: ["fromApp", "notDeleted", "fromPublicApp"]
             defaultCount: 25
+        )
+    integrationsEntityHistory(
+        system_module_uuid: String!
+        entity_id: ID!
+        orderBy: _ @orderBy(columns: ["id", "name", "created_at", "updated_at"])
+    ): [IntegrationsEntityHistory!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Workflow\\Builders\\Integrations\\IntegrationsBuilder@integrationEntityHistoryByEntity"
         )
 }

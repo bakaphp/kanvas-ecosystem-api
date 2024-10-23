@@ -26,7 +26,7 @@ trait HasTagsTrait
     }
 
     public function addTag(
-        string $tag,
+        string|int $tag,
         ?AppInterface $app = null,
         ?UserInterface $user = null,
         ?CompanyInterface $company = null

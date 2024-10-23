@@ -34,6 +34,9 @@ jobs:
       DB_COMMERCE_DATABASE: commerce
       DB_COMMERCE_USERNAME: root
       DB_COMMERCE_PASSWORD: password
+      DB_EVENT_DATABASE: event
+      DB_EVENT_USERNAME: root
+      DB_EVENT_PASSWORD: password
       KANVAS_APP_ID: 059ddaaf-89b5-4158-a85a-90cbd69aa34b
       APP_KEY: base64:Wm5KmkE4aWFjdFUzU2o3SElYNGc0QlpLcXNWR0hMME0=
       APP_JWT_TOKEN: Wm5KmkE4aWFjdFUzU2o3SElYNGc0QlpLcXNWR0hMME0=4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjYj
@@ -68,6 +71,8 @@ jobs:
       TEST_APPLE_LOGIN_TOKEN: ${{ secrets.TEST_APPLE_LOGIN_TOKEN }}
       TEST_APOLLO_KEY: ${{ secrets.TEST_APOLLO_KEY }}
       TEST_STRIPE_SECRET_KEY: ${{ secrets.TEST_STRIPE_SECRET_KEY }}
+      TEST_AMPLITUDE_KEY: ${{ secrets.TEST_AMPLITUDE_KEY }}
+      TEST_AMPLITUDE_SECRET: ${{ secrets.TEST_AMPLITUDE_SECRET }}
     strategy:
       fail-fast: false
       matrix:
@@ -80,7 +85,7 @@ jobs:
           MYSQL_DATABASE: kanvas
         ports:
           - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3 
       redis:
         # Docker Hub image
         image: redis
@@ -149,6 +154,14 @@ jobs:
       - name: Setup COMMERCE DB
         run: |
           mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS commerce;'
+
+      - name: Setup EVENT DB
+        run: |
+          mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS event;'
+
+      - name: Configure MySQL
+        run: |
+          mysql -uroot -h127.0.0.1 -ppassword -e "SET GLOBAL max_connections = 1000;"  
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress

@@ -9,6 +9,9 @@ use Illuminate\Support\Str;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Tags\Models\Tag;
 use Kanvas\Users\Models\Users;
+use Illuminate\Support\Facades\DB;
+use Google\Service\Sheets;
+use PDO;
 
 class ImportPromptsFromDocsCommand extends Command
 {
@@ -33,77 +36,122 @@ class ImportPromptsFromDocsCommand extends Command
      */
     public function handle()
     {
+        // The Google Client setup looks correct, but we should check if the GOOGLE_AUTH_FILE exists
+        if (! file_exists(getenv('GOOGLE_AUTH_FILE'))) {
+            throw new \Exception('Google Auth file not found: ' . getenv('GOOGLE_AUTH_FILE'));
+        }
+
         $client = new \Google\Client();
         $client->setApplicationName('Kanvas');
         $client->setAuthConfig(getenv('GOOGLE_AUTH_FILE'));
-        $client->setScopes([\Google\Service\Docs::DOCUMENTS_READONLY]);
+        $client->setScopes([Sheets::SPREADSHEETS_READONLY]);
 
-        // Extract content from docs
-        $service = new \Google\Service\Docs($client);
-        $document = $service->documents->get(getenv('GOOGLE_DOC_ID'));
-        $body = $document->getBody();
-        $rawContent = $this->parseBody($body);
-        $processedContent = $this->processContent($rawContent);
+        $service = new Sheets($client);
+        $spreadsheetId = getenv('GOOGLE_SHEET_ID');
+        $range = 'A:E';
+
+        // Fetch the entire sheet data
+        $response = $service->spreadsheets_values->get($spreadsheetId, $range);
+        $values = $response->getValues();
+
+        $contentArray = [];
+        $promptsCollection = [];
+        // Process the sheet data as needed
+        if (! empty($values)) {
+            array_shift($values);
+            $headers = [
+                'title',
+                'category',
+                'prompt',
+                'tags',
+                'preview'
+            ];
+            foreach ($values as $row) {
+                foreach ($row as $index => $value) {
+                    $promptArray[$headers[$index]] = $value ?? null;
+                }
+                $promptsCollection [] = $promptArray;
+            }
+        } else {
+            echo "No data found.";
+        }
 
         // Retrieve command options
         $appId = $this->option('appId');
         $messageType = $this->option('messageType');
         $companyId = $this->option('companyId');
+        $userId = $this->fetchRandomUser()->id;
 
-        foreach ($processedContent as $category => $prompts) {
-            echo $category . PHP_EOL;
+        foreach ($promptsCollection as $prompt) {
+            $result = DB::connection('social')->table('messages')
+                ->where('slug', $this->slugify($prompt['title']))
+                ->where('apps_id', $appId)
+                ->first();
 
-            foreach ($prompts as $prompt) {
-                // Check if the message already exists
-                $message = Message::where('slug', $this->slugify($prompt['title']))
-                                 ->where('apps_id', $appId)
-                                 ->first();
+            if ($result) {
+                echo($prompt['title'] . 'message already exists with id: ' . $result->id . PHP_EOL);
 
-                if ($message) {
-                    echo 'Message already exists' . PHP_EOL;
+                continue;
+            }
 
-                    continue;
-                }
+            //insert into db message
+            $lastId = DB::connection('social')->table('messages')->insertGetId([
+                'apps_id' => $appId,
+                'uuid' => DB::raw('uuid()'),
+                'companies_id' => $companyId,
+                'users_id' => $userId,
+                'message_types_id' => $messageType,
+                'message' => json_encode([
+                    'title' => $prompt['title'],
+                    'category' => $prompt['category'],
+                    'prompt' => $prompt['prompt'],
+                    'preview' => $prompt['preview'] ?? $prompt['prompt'],
+                ]),
+                'slug' => $this->slugify($prompt['title']),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 
-                $user = $this->fetchRandomUser();
+            // Update the `path` field with the last inserted ID
+            DB::connection('social')->table('messages')
+                ->where('id', $lastId)
+                ->update(['path' => $lastId]);
 
-                // Create new message
-                $message = Message::create([
-                    'apps_id' => $appId,
-                    'uuid' => (string) Str::uuid(),
-                    'companies_id' => $companyId,
-                    'users_id' => $user->getId(),
-                    'message_types_id' => $messageType,
-                    'message' => json_encode([
-                        'title' => $prompt['title'],
-                        'prompt' => $prompt['prompt'],
-                    ]),
-                    'slug' => $this->slugify($prompt['title']),
-                ]);
+            // Handle tags
+            $tags = array_merge(explode(',', $prompt['tags']), [$prompt['category']]);
 
-                // Handle tags
-                $tags = array_merge($prompt['tags'], [$category]);
+            foreach ($tags as $tag) {
+                $tag = trim(strtolower($tag));
+                $tagResult = DB::connection('social')->table('tags')
+                    ->where('name', $tag)
+                    ->where('apps_id', $appId)
+                    ->first();
 
-                foreach ($tags as $tagName) {
-                    $tagName = trim(strtolower($tagName));
-                    $tag = Tag::firstOrCreate(
-                        ['name' => $tagName, 'apps_id' => $appId],
-                        [
-                            'companies_id' => $companyId,
-                            'users_id' => $user->getId(),
-                            'slug' => $this->slugify($tagName),
-                        ]
-                    );
-
-                    // Attach tag to message
-                    $message->tags()->attach($tag->id, [
-                        'users_id' => $user->getId(),
-                        'taggable_type' => Message::class,
+                if ($tagResult) {
+                    $tagId = $tagResult->id;
+                } else {
+                    $tagId = DB::connection('social')->table('tags')->insertGetId([
+                        'name' => $tag,
+                        'apps_id' => $appId,
+                        'companies_id' => $companyId,
+                        'users_id' => $userId,
+                        'slug' => $this->slugify($tag),
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s'),
                     ]);
                 }
 
-                echo 'Message inserted' . PHP_EOL;
+                DB::connection('social')->table('tags_entities')->insert([
+                    'entity_id' => $lastId,
+                    'tags_id' => $tagId,
+                    'users_id' => $userId,
+                    'taggable_type' => "Kanvas\Social\Messages\Models\Message",
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ]);
             }
+
+            echo($prompt['title'] . ' message inserted with id: ' . $lastId . PHP_EOL);
         }
     }
 
@@ -131,68 +179,21 @@ class ImportPromptsFromDocsCommand extends Command
      */
     private function fetchRandomUser(): Users
     {
-        $usersDisplayNames = explode(',', getenv('PROMPT_ACCOUNT_DISPLAYNAMES'));
+        $usersEmails = explode(',', getenv('PROMPT_ACCOUNT_DISPLAYNAMES'));
 
-        if (empty($usersDisplayNames)) {
+        if (empty($usersEmails)) {
             $this->error('No display names provided in PROMPT_ACCOUNT_DISPLAYNAMES.');
             exit(1);
         }
 
-        $users = Users::whereIn('displayname', $usersDisplayNames)
+        $users = Users::whereIn('email', $usersEmails)
             ->where('is_deleted', 0)
             ->get();
 
-        return count($users) > 0 ? $users[array_rand($users->toArray())] : Users::find(-1);
+        return $users[array_rand($users->toArray())];
     }
 
-    private function parseBody($body)
-    {
-        $content = '';
-        $elements = $body->getContent();
-        foreach ($elements as $element) {
-            if ($element->getParagraph()) {
-                $content .= $this->parseParagraph($element->getParagraph());
-            } elseif ($element->getTable()) {
-                $content .= $this->parseTable($element->getTable());
-            }
-        }
 
-        return $content;
-    }
-
-    private function parseParagraph($paragraph)
-    {
-        $paragraphStyle = $paragraph->getParagraphStyle();
-        $namedStyleType = $paragraphStyle ? $paragraphStyle->getNamedStyleType() : null;
-
-        if ($namedStyleType === 'TITLE') {
-            return '';
-        }
-
-        $text = '';
-        $elements = $paragraph->getElements();
-        foreach ($elements as $element) {
-            if ($element->getTextRun()) {
-                $text .= $element->getTextRun()->getContent();
-            }
-        }
-
-        return $text;
-    }
-
-    private function parseTable($table)
-    {
-        $text = '';
-        $rows = $table->getTableRows();
-        foreach ($rows as $row) {
-            $cells = $row->getTableCells();
-            foreach ($cells as $cell) {
-                $text .= $this->parseBody($cell->getContent());
-            }
-        }
-
-        return $text;
-    }
 
     private function processContent($rawContent)
     {

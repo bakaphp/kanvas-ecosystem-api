@@ -19,7 +19,7 @@ class PeopleObserver
             ]
         );
 
-        $people->clearLightHouseCacheJob();
+        //$people->clearLightHouseCacheJob();
     }
 
     public function updated(People $people): void
@@ -32,6 +32,6 @@ class PeopleObserver
             ]
         );
 
-        $people->clearLightHouseCacheJob();
+        //$people->clearLightHouseCacheJob();
     }
 }

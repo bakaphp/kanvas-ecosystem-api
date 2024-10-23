@@ -2,7 +2,9 @@ type Plan {
     id: ID!
     name: String!
     description: String
+    free_trial_dates: Int
     prices: [Price!] @hasMany(relation: "price")
+    is_active: Boolean
     is_default: Boolean
     created_at: String
     updated_at: String
@@ -12,28 +14,31 @@ type Plan {
 input PlanInput {
     name: String!
     description: String
-    prices: [PriceInput!]!
+    prices: [PriceInput!]
+    free_trial_dates: Int
     is_default: Boolean
 }
 
 input PlanUpdateInput {
     name: String
     description: String
-    prices: [PriceInput!]
+    free_trial_dates: Int
+    is_active: Boolean
+    is_default: Boolean
 }
 
-extend type Mutation @guardByAppKey {
+extend type Mutation @guard {
     createPlan(input: PlanInput!): Plan!
         @field(
-            resolver: "App\\GraphQL\\Subscriptions\\Mutations\\Plans\\PlanMutation@create"
+            resolver: "App\\GraphQL\\Subscription\\Mutations\\Plans\\PlanMutation@create"
         )
     updatePlan(id: ID!, input: PlanUpdateInput!): Plan!
         @field(
-            resolver: "App\\GraphQL\\Subscriptions\\Mutations\\Plans\\PlanMutation@update"
+            resolver: "App\\GraphQL\\Subscription\\Mutations\\Plans\\PlanMutation@update"
         )
     deletePlan(id: ID!): Boolean!
         @field(
-            resolver: "App\\GraphQL\\Subscriptions\\Mutations\\Plans\\PlanMutation@delete"
+            resolver: "App\\GraphQL\\Subscription\\Mutations\\Plans\\PlanMutation@delete"
         )
 }
 

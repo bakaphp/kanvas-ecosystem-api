@@ -16,6 +16,7 @@ yarn-error.log
 package.json
 /storage/framework/cache/data/*
 /storage/framework/cache/views/*
+/storage/framework/sessions/*
 /storage/app/*
 /storage/logs/*
 package-lock.json
@@ -29,3 +30,5 @@ service-account.json
 /caddy
 frankenphp
 frankenphp-worker.php
+google_auth.json
+typesense-data/

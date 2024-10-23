@@ -23,7 +23,6 @@ type People {
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
     custom_fields: [CustomField!]!
-        @cacheRedis
         @paginate(
             defaultCount: 25
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
@@ -34,7 +33,6 @@ type People {
             builder: "App\\GraphQL\\Social\\Builders\\Interactions\\EntityInteractionsBuilder@getAll"
         )
     tags: [Tag!]
-        @cacheRedis
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
@@ -196,5 +194,13 @@ extend type Mutation @guard {
     importPeoples(input: [PeopleInput!]!, companyId: Int): String!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleImportMutation@import"
+        )
+    attachFileToPeople(file: Upload!, id: ID!, params: Mixed): People!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@attachFile"
+        )
+    attachFilesToPeople(files: [Upload!]!, id: ID!, params: Mixed): People!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@attachFile"
         )
 }

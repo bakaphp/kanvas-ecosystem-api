@@ -15,6 +15,7 @@ type SubscriptionItem {
     id: ID!
     stripe_id: ID!
     stripe_product: ID!
+    stripe_product_name: String!
     stripe_price: ID!
     quantity: Int!
     created_at: DateTime
@@ -29,6 +30,7 @@ input SubscriptionInput {
 
 input SubscriptionUpdateInput {
     apps_plans_prices_id: ID!
+    payment_method_id: String
 }
 
 extend type Mutation @guard {

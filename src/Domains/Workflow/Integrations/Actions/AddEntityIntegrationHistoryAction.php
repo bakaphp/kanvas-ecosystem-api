@@ -39,6 +39,7 @@ class AddEntityIntegrationHistoryAction
         $integrationHistory->status_id = $this->dto->status->getId();
         $integrationHistory->response = $this->dto->response;
         $integrationHistory->exception = $this->dto->exception;
+        $integrationHistory->workflow_id = $this->dto->workflowId;
 
         $integrationHistory->saveOrFail();
         return $integrationHistory;

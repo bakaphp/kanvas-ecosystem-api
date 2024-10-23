@@ -7,12 +7,6 @@ namespace Kanvas\Guild\Customers\Jobs;
 use Baka\Contracts\AppInterface;
 use Baka\Traits\KanvasJobsTrait;
 use Baka\Users\Contracts\UserInterface;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
@@ -22,19 +16,16 @@ use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
+use Kanvas\Event\Events\Events\ImportResultEvents;
 
 use function Sentry\captureException;
 
 use Spatie\LaravelData\DataCollection;
-
 use Throwable;
 
-class CustomerImporterJob implements ShouldQueue, ShouldBeUnique
+class CustomerImporterJob extends ProductImporterJob
 {
-    use Dispatchable;
-    use InteractsWithQueue;
-    use Queueable;
-    use SerializesModels;
     use KanvasJobsTrait;
 
     /**
@@ -44,14 +35,14 @@ class CustomerImporterJob implements ShouldQueue, ShouldBeUnique
     */
     public $uniqueFor = 1800;
 
-    public function __construct(
-        public string $jobUuid,
-        public array $importer,
-        public CompaniesBranches $branch,
-        public UserInterface $user,
-        public AppInterface $app
-    ) {
-    }
+    // public function __construct(
+    //     public string $jobUuid,
+    //     public array $importer,
+    //     public CompaniesBranches $branch,
+    //     public UserInterface $user,
+    //     public AppInterface $app
+    // ) {
+    // }
 
     /**
      * Get the unique ID for the job.
@@ -72,6 +63,15 @@ class CustomerImporterJob implements ShouldQueue, ShouldBeUnique
         Auth::loginUsingId($this->user->getId());
         $this->overwriteAppService($this->app);
         $this->overwriteAppServiceLocation($this->branch);
+
+        $totalItems = count($this->importer);
+        $totalProcessSuccessfully = 0;
+        $totalProcessFailed = 0;
+        $created = 0;
+        $updated = 0;
+        $errors = [];
+
+        $this->startFilesystemMapperImport();
 
         /**
          * @var Companies
@@ -111,11 +111,73 @@ class CustomerImporterJob implements ShouldQueue, ShouldBeUnique
                 }
 
                 $peopleSync = new CreatePeopleAction($people);
-                $peopleSync->execute();
+                $peopleModel = $peopleSync->execute();
+                if ($peopleModel->wasRecentlyCreated) {
+                    $created++;
+                } else {
+                    $updated++;
+                }
+                $totalProcessSuccessfully++;
             } catch (Throwable $e) {
                 Log::error($e->getMessage());
                 captureException($e);
+
+                $errors[] = [
+                    'message' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                    'request' => $customerData,
+                ];
+
+                $totalProcessFailed++;
             }
         }
+
+        $this->finishFilesystemMapperImport(
+            $totalItems,
+            $totalProcessSuccessfully,
+            $totalProcessFailed,
+            $errors
+        );
+
+        $this->notificationStatus(
+            $totalItems,
+            $totalProcessSuccessfully,
+            $totalProcessFailed,
+            $created,
+            $updated,
+            $errors,
+            $this->branch->company
+        );
+    }
+
+    protected function notificationStatus(
+        int $totalItems,
+        int $totalProcessSuccessfully,
+        int $totalProcessFailed,
+        int $created,
+        int $updated,
+        array $errors,
+        Companies $company
+    ): void {
+        $subscriptionData = [
+                   'jobUuid' => $this->jobUuid,
+                   'status' => 'completed',
+                   'results' => [
+                       'total_items' => $totalItems,
+                       'total_process_successfully' => $totalProcessSuccessfully,
+                       'total_process_failed' => $totalProcessFailed,
+                       'created' => $created,
+                       'updated' => $updated,
+                   ],
+                   'exception' => $errors,
+                  // 'user' => $this->user,
+                  // 'company' => $company,
+               ];
+        ImportResultEvents::dispatch(
+            $this->app,
+            $this->branch->company,
+            $this->user,
+            $subscriptionData
+        );
     }
 }

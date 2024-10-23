@@ -30,7 +30,7 @@ type Order {
     weight: Float
     checkout_token: String
     currency: String
-    metadata: String
+    metadata: Mixed
     private_metadata: String
     is_deleted: Boolean!
     created_at: String!

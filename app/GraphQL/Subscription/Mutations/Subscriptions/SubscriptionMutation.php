@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Subscription\Mutations\Subscriptions;
 
+use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
@@ -16,10 +17,13 @@ use Throwable;
 
 class SubscriptionMutation
 {
-    private Apps $app;
-    private $user;
+    private ?Apps $app = null;
+    private ?UserInterface $user = null;
 
-    public function __construct()
+    /**
+     * @todo move to middleware
+     */
+    public function validateStripe()
     {
         $this->app = app(Apps::class);
         $this->user = auth()->user();
@@ -31,6 +35,8 @@ class SubscriptionMutation
 
     public function create($root, array $args, $context): Subscription
     {
+        $this->validateStripe();
+
         $data = $args['input'];
         $company = $this->user->getCurrentCompany();
 
@@ -45,11 +51,17 @@ class SubscriptionMutation
 
         if (! $companyStripeAccount->subscriptions()->exists()) {
             try {
-                $subscription = $companyStripeAccount->newSubscription($subscriptionInput->price->plan->stripe_plan, $subscriptionInput->price->stripe_id);
-                if ($subscriptionInput->price->plan->free_trial_days) {
-                    $subscription->trialDays($subscriptionInput->price->plan->free_trial_days);
+                $subscription = $companyStripeAccount->newSubscription('default', $subscriptionInput->price->stripe_id);
+                if ($subscriptionInput->price->plan->free_trial_dates) {
+                    $subscription->trialDays($subscriptionInput->price->plan->free_trial_dates);
                 }
-                $subscription->create($subscriptionInput->payment_method_id);
+
+                $createdSubscription = $subscription->create($subscriptionInput->payment_method_id);
+
+                foreach ($createdSubscription->items as $item) {
+                    $item->stripe_product_name = $subscriptionInput->price->plan->name;
+                    $item->save();
+                }
             } catch (Throwable $e) {
                 throw new ValidationException($e->getMessage());
             }
@@ -60,6 +72,8 @@ class SubscriptionMutation
 
     public function update($root, array $args, $context, $info): Subscription
     {
+        $this->validateStripe();
+
         $data = $args['input'];
         $company = $this->user->getCurrentCompany();
         $companyStripeAccount = $company->getStripeAccount($this->app);
@@ -69,20 +83,26 @@ class SubscriptionMutation
         }
         $newPrice = PriceRepository::getByIdWithApp((int) $data['apps_plans_prices_id'], $this->app);
 
-        $upgradeSubscription = $companyStripeAccount
-            ->subscriptions()->where('type', $newPrice->plan->stripe_plan)->first();
+        $upgradeSubscription = $companyStripeAccount->subscriptions->first();
 
-        if (! $upgradeSubscription) {
-            throw new ValidationException('Trying to upgrade to of a different type');
+        if (isset($data['payment_method_id'])) {
+            $companyStripeAccount->updateDefaultPaymentMethod($data['payment_method_id']);
         }
 
         $upgradeSubscription->swap($newPrice->stripe_id);
+
+        foreach ($upgradeSubscription->items as $item) {
+            $item->stripe_product_name = $newPrice->plan->name;
+            $item->save();
+        }
 
         return $upgradeSubscription;
     }
 
     public function cancel(mixed $root, array $args): bool
     {
+        $this->validateStripe();
+
         $id = $args['id'];
         $company = $this->user->getCurrentCompany();
         $companyStripeAccount = $company->getStripeAccount($this->app);
@@ -105,6 +125,8 @@ class SubscriptionMutation
 
     public function reactivate(mixed $root, array $args): Subscription
     {
+        $this->validateStripe();
+
         $id = $args['id'];
         $company = $this->user->getCurrentCompany();
         $companyStripeAccount = $company->getStripeAccount($this->app);

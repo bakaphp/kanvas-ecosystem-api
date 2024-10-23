@@ -53,7 +53,7 @@ class ShopifyProductService
            'price' => 0,
            'discountPrice' => 0,
            'quantity' => 1,
-           'isPublished' => true,
+           'isPublished' => (int) ($shopifyProduct['status'] == 'active'),
            'files' => $this->files['files'] ?? [],
            'source' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_PRODUCT_ID->value, $this->company, $this->app, $this->region),
            'sourceId' => $productId,
@@ -100,6 +100,7 @@ class ShopifyProductService
                 'files' => $this->files['filesSystemVariantImages'][$variant['id']] ?? [],
                 'source' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_VARIANT_ID->value, $this->company, $this->app, $this->region),
                 'sourceId' => $variant['id'],
+                'barcode' => $variant['barcode'],
                 'custom_fields' => [
                     [
                         'name' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_VARIANT_ID->value, $this->company, $this->app, $this->region),

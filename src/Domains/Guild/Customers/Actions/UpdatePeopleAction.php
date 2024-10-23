@@ -94,7 +94,7 @@ class UpdatePeopleAction
             }
         }
 
-        $this->people->clearLightHouseCacheJob();
+        //$this->people->clearLightHouseCacheJob();
         return $this->people;
     }
 }

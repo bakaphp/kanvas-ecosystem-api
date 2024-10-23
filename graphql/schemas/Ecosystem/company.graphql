@@ -107,8 +107,13 @@ input CompanyInput {
     files: [FilesystemInputUrl!]
     custom_fields: [CustomFieldEntityInput!]
     is_active: Boolean
+    timezone: String
+    address: String
+    is_active: Boolean
 }
 
+### @todo Split the create and update input.
+### @todo Required is_default value.
 input CompanyBranchInput {
     name: String!
     companies_id: ID!
@@ -277,6 +282,10 @@ extend type Mutation @guard {
     updateCompanyBranch(id: ID!, input: CompanyBranchInput): CompanyBranch!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@updateCompanyBranch"
+        )
+    updatePhotoProfileToCompanyBranch(file: Upload!, id: ID!): CompanyBranch!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CompanyBranchManagementMutation@updatePhotoProfile"
         )
     uploadFileToCompanyBranch(id: ID!, file: Upload!): CompanyBranch!
         @field(

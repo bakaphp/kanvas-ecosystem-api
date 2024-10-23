@@ -30,12 +30,6 @@ class DeleteVariantsAction
             $this->user
         );
 
-        $totalVariant = Variants::fromCompany($this->variant->company)->count();
-
-        if ($totalVariant === 1 && ! $this->variant->is_deleted) {
-            throw new ValidationException('There must be at least one variant for each product.');
-        }
-
         return $this->variant->delete();
     }
 }
