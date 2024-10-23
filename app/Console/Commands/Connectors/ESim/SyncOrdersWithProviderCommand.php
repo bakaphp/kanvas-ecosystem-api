@@ -11,7 +11,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Souk\Orders\Models\Order;
 
-class SyncOrdersWithProvidersCommand extends Command
+class SyncOrdersWithProviderCommand extends Command
 {
     use KanvasJobsTrait;
 
