@@ -16,7 +16,7 @@ class CreateFileSystemImportAction
 
     public function execute(): FilesystemImports
     {
-        return FilesystemImports::create([
+        $filesystemImport = FilesystemImports::create([
             'apps_id' => $this->filesystemImportDto->app->getId(),
             'companies_id' => $this->filesystemImportDto->companies->getId(),
             'companies_branches_id' => $this->filesystemImportDto->companiesBranches->getId(),
@@ -25,5 +25,8 @@ class CreateFileSystemImportAction
             'filesystem_id' => $this->filesystemImportDto->filesystem->getId(),
             'filesystem_mapper_id' => $this->filesystemImportDto->filesystemMapper->getId(),
         ]);
+        $filesystemImport->set('extra', $this->filesystemImportDto->extra);
+
+        return $filesystemImport;
     }
 }

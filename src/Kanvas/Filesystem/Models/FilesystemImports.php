@@ -9,6 +9,7 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Filesystem\Observers\FilesystemImportObserver;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Models\BaseModel;
@@ -32,6 +33,7 @@ use Kanvas\Models\BaseModel;
 class FilesystemImports extends BaseModel
 {
     use UuidTrait;
+    use HasCustomFields;
 
     public $table = 'filesystem_imports';
     protected $guarded = [];

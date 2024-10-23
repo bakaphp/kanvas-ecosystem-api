@@ -11,13 +11,15 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Event\Events\Events\ImportResultEvents;
+use Kanvas\Event\Events\Models\EventVersion;
+use Kanvas\Event\Participants\Actions\SyncPeopleWithParticipantAction;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
-use Kanvas\Event\Events\Events\ImportResultEvents;
 
 use function Sentry\captureException;
 
@@ -112,11 +114,27 @@ class CustomerImporterJob extends ProductImporterJob
 
                 $peopleSync = new CreatePeopleAction($people);
                 $peopleModel = $peopleSync->execute();
+
+                if (key_exists('event_version_id', $customerData)) {
+                    $eventVersion = EventVersion::getByIdFromCompanyApp(
+                        $customerData['event_version_id'],
+                        $company,
+                        $this->app
+                    );
+                    $sync = new SyncPeopleWithParticipantAction(
+                        $peopleModel,
+                        $this->user,
+                    );
+                    $participant = $sync->execute();
+                    $eventVersion->addParticipant($participant);
+                }
+
                 if ($peopleModel->wasRecentlyCreated) {
                     $created++;
                 } else {
                     $updated++;
                 }
+
                 $totalProcessSuccessfully++;
             } catch (Throwable $e) {
                 Log::error($e->getMessage());

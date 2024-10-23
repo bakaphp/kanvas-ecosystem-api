@@ -11,11 +11,12 @@ use Kanvas\Event\Events\Models\Event;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Guild\Customers\Jobs\CustomerImporterJob;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Products\Models\Products;
 use League\Csv\Reader;
-use Kanvas\Guild\Customers\Jobs\CustomerImporterJob;
-use Kanvas\Guild\Customers\Models\People;
+use Illuminate\Support\Facades\Log;
 
 class ImportDataFromFilesystemAction
 {
@@ -36,6 +37,7 @@ class ImportDataFromFilesystemAction
         $modelName = $this->filesystemImports->filesystemMapper->systemModule->model_name;
 
         foreach ($records as $record) {
+            $record['extra'] = $this->filesystemImports->get('extra');
             $variant = $this->mapper(
                 $this->filesystemImports->filesystemMapper->mapping,
                 $record
@@ -181,6 +183,7 @@ class ImportDataFromFilesystemAction
                 break;
             case People::class:
                 $job = CustomerImporterJob::class;
+
                 break;
             default:
                 break;
