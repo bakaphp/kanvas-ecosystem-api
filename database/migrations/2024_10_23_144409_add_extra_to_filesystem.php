@@ -10,7 +10,7 @@ return new class () extends Migration {
      */
     public function up(): void
     {
-        Schema::table('filesystem', function (Blueprint $table) {
+        Schema::table('filesystem_imports', function (Blueprint $table) {
             $table->text('extra')->nullable();
         });
     }
@@ -20,7 +20,7 @@ return new class () extends Migration {
      */
     public function down(): void
     {
-        Schema::table('filesystem', function (Blueprint $table) {
+        Schema::table('filesystem_imports', function (Blueprint $table) {
             $table->text('extra')->nullable();
         });
     }
