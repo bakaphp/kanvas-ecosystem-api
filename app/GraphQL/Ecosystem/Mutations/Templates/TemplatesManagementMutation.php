@@ -30,7 +30,9 @@ use Kanvas\Users\Repositories\UsersRepository;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Kanvas\Templates\Actions\CreateTemplateAction;
 use Kanvas\Templates\DataTransferObject\TemplateInput;
+use Kanvas\TemplatesVariables\DataTransferObject\TemplatesVariablesDto;
 use Kanvas\Templates\Models\Templates;
+use Kanvas\TemplatesVariables\Actions\CreateTemplateVariableAction;
 
 class TemplatesManagementMutation
 {
@@ -45,10 +47,24 @@ class TemplatesManagementMutation
 
         $user = auth()->user();
 
-        //We need to save the subject and content into email_template_variables
-        //we put the content inside the template.
+         //We need to save the subject and content into email_template_variables
+        //The template itself should have the content as {$content} inside the body
+        //The subject, content and template should be then used for notifications
 
-        // $templateVariablesDto =  TemplateVariables::viaRequest();
+        foreach ($request['template_variables'] as $key => $value) {
+            $templateVariablesDto =  new TemplatesVariablesDto(
+                $key,
+                $value,
+                $user->getCurrentCompany(),
+                $user,
+                app(Apps::class),
+            );
+
+            //Create the template variable here
+            $createTemplateVariableAction = (new CreateTemplateVariableAction(
+                    $templateVariablesDto
+                ))->execute();
+        }
 
         $dto =  new TemplateInput(
             app(Apps::class),
@@ -58,10 +74,6 @@ class TemplatesManagementMutation
             $user
         );
 
-        $action = new CreateTemplateAction($dto);
-
-
-        return $action->execute();
+        return (new CreateTemplateAction($dto))->execute();
     }
-
 }
