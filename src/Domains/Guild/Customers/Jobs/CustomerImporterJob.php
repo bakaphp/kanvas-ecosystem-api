@@ -117,7 +117,7 @@ class CustomerImporterJob extends ProductImporterJob
 
                 if (key_exists('event_version_id', $customerData)) {
                     $eventVersion = EventVersion::getByIdFromCompanyApp(
-                        $customerData['event_version_id'],
+                        $customerData['event_version_id']['id'],
                         $company,
                         $this->app
                     );

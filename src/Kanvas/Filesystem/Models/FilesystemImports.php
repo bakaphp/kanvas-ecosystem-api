@@ -43,6 +43,7 @@ class FilesystemImports extends BaseModel
         return [
             'results' => Json::class,
             'exception' => Json::class,
+            'extra' => Json::class,
         ];
     }
 

@@ -11,7 +11,7 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('filesystem_imports', function (Blueprint $table) {
-            $table->text('extra')->nullable();
+            $table->json('extra')->nullable();
         });
     }
 
@@ -21,7 +21,7 @@ return new class () extends Migration {
     public function down(): void
     {
         Schema::table('filesystem_imports', function (Blueprint $table) {
-            $table->text('extra')->nullable();
+            $table->dropColumn('extra');
         });
     }
 };
