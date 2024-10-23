@@ -24,8 +24,8 @@ class CreateFileSystemImportAction
             'regions_id' => $this->filesystemImportDto->regions->getId(),
             'filesystem_id' => $this->filesystemImportDto->filesystem->getId(),
             'filesystem_mapper_id' => $this->filesystemImportDto->filesystemMapper->getId(),
+            'extra' => $this->filesystemImportDto->extra,
         ]);
-        $filesystemImport->set('extra', $this->filesystemImportDto->extra);
 
         return $filesystemImport;
     }

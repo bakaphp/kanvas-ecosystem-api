@@ -37,7 +37,7 @@ class ImportDataFromFilesystemAction
         $modelName = $this->filesystemImports->filesystemMapper->systemModule->model_name;
 
         foreach ($records as $record) {
-            $record['extra'] = $this->filesystemImports->get('extra');
+            $record['extra'] = $this->filesystemImports->extra;
             $variant = $this->mapper(
                 $this->filesystemImports->filesystemMapper->mapping,
                 $record
