@@ -13,11 +13,11 @@ class Price extends Data
     public function __construct(
         public AppInterface $app,
         public UserInterface $user,
-        public string $apps_plans_id,
-        public string $stripe_id,
-        public float $amount,
-        public string $currency,
-        public string $interval,
+        public ?float $amount = null,
+        public ?string $currency = null,
+        public ?string $interval = null,
+        public ?string $apps_plans_id = null,
+        public ?string $stripe_id = null,
         public ?bool $is_active = true,
         public ?bool $is_default = false
     ) {
@@ -31,11 +31,11 @@ class Price extends Data
         return new self(
             $app,
             $user,
-            $request['apps_plans_id'],
-            $request['stripe_id'],
-            $request['amount'],
-            $request['currency'],
-            $request['interval'],
+            $request['amount'] ?? null,
+            $request['currency'] ?? null,
+            $request['interval'] ?? null,
+            $request['apps_plans_id'] ?? null,
+            $request['stripe_id'] ?? null,
             $request['is_active'] ?? true,
             $request['is_default'] ?? false
         );

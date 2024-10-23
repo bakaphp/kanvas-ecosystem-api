@@ -7,13 +7,13 @@ namespace App\GraphQL\Subscription\Mutations\Prices;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Subscription\Prices\Actions\CreatePrice;
+use Kanvas\Subscription\Prices\Actions\UpdatePrice;
 use Kanvas\Subscription\Prices\DataTransferObject\Price as PriceDto;
 use Kanvas\Subscription\Prices\Models\Price as PriceModel;
 use Kanvas\Subscription\Prices\Repositories\PriceRepository;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Subscription\Plans\Repositories\PlanRepository;
-use Stripe\Price as StripePrice;
 use Stripe\Stripe;
 
 class PriceMutation
@@ -41,18 +41,11 @@ class PriceMutation
     {
         $this->validateStripe();
         $data = $req['input'];
-        $stripePlan = PlanRepository::getByIdWithApp(($data['apps_plans_id']));
+        $stripePlan = PlanRepository::getByIdWithApp($data['apps_plans_id'], $this->app);
+        $data['stripe_id'] = $stripePlan->stripe_id;
 
-        $newPrice = StripePrice::create([
-            'unit_amount' => $data['amount'] * 100,
-            'currency' => $data['currency'],
-            'recurring' => ['interval' => $data['interval']],
-            'product' => $stripePlan->stripe_id,
-        ]);
-
-        $data['stripe_id'] = $newPrice->id;
         $dto = PriceDto::viaRequest($data, $this->user, $this->app);
-        $action = new CreatePrice($dto, $this->user);
+        $action = new CreatePrice($dto);
         return $action->execute();
     }
 
@@ -64,16 +57,10 @@ class PriceMutation
         $this->validateStripe();
         $data = $req['input'];
         $price = PriceRepository::getByIdWithApp((int)$req['id'], $this->app);
+        $data['stripe_id'] = $price->stripe_id;
 
-        StripePrice::update(
-            $price->stripe_id,
-            [
-                'active' => $data['is_active']
-            ]
-        );
-
-        $price->update($data);
-
-        return $price;
+        $dto = PriceDto::viaRequest($data, $this->user, $this->app);
+        $action = new UpdatePrice($price, $dto);
+        return $action->execute();
     }
 }

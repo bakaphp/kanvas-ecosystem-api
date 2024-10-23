@@ -14,7 +14,7 @@ type Plan {
 input PlanInput {
     name: String!
     description: String
-    prices: [PriceInput!]!
+    prices: [PriceInput!]
     free_trial_dates: Int
     is_default: Boolean
 }

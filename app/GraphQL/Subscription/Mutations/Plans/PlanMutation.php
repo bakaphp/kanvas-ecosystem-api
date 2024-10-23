@@ -8,12 +8,13 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Subscription\Plans\Actions\CreatePlan;
 use Kanvas\Subscription\Plans\Actions\UpdatePlan;
+use Kanvas\Subscription\Prices\Actions\CreatePrice;
 use Kanvas\Subscription\Plans\DataTransferObject\Plan as PlanDto;
+use Kanvas\Subscription\Prices\DataTransferObject\Price as PriceDto;
 use Kanvas\Subscription\Plans\Models\Plan as PlanModel;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Subscription\Plans\Repositories\PlanRepository;
-use App\GraphQL\Subscription\Mutations\Prices\PriceMutation;
 use Stripe\Product as StripeProduct;
 use Stripe\Stripe;
 
@@ -55,10 +56,13 @@ class PlanMutation
         $newPlan = $action->execute();
 
         if (! empty($data['prices'])) {
-            $priceMutation = new PriceMutation();
             foreach ($data['prices'] as $priceData) {
                 $priceData['apps_plans_id'] = (string)$newPlan->id;
-                $priceMutation->create($root, ['input' => $priceData]);
+                $priceData['stripe_id'] = $newPlan->stripe_id;
+
+                $priceDto = PriceDto::viaRequest($priceData, $this->user, $this->app);
+                $action = new CreatePrice($priceDto);
+                $action->execute();
             }
         }
 
