@@ -42,17 +42,15 @@ class TemplatesManagementMutation
     public function createOrUpdate(mixed $root, array $request): Templates
     {
         $request = $request['input'];
-        
         if (! auth()->user()->isAdmin()) {
             throw new AuthorizationException('Only admin can create or update templates, please contact your admin');
         }
 
         $user = auth()->user();
 
-         //We need to save the subject and content into email_template_variables
+        //We need to save the subject and content into email_template_variables
         //The template itself should have the content as {$content} inside the body
         //The subject, content and template should be then used for notifications
-
 
         $templatedto =  new TemplateInput(
             app(Apps::class),
@@ -62,7 +60,9 @@ class TemplatesManagementMutation
             $user
         );
 
-        $template = (new CreateTemplateAction($templatedto))->execute();
+        $template = (new CreateTemplateAction(
+            $templatedto
+        ))->execute();
 
         foreach ($request['template_variables'] as $templateVariable) {
             $templateVariablesDto =  new TemplatesVariablesDto(
@@ -76,8 +76,8 @@ class TemplatesManagementMutation
 
             //Create the template variable here
             $createTemplateVariableAction = (new CreateTemplateVariableAction(
-                    $templateVariablesDto
-                ))->execute();
+                $templateVariablesDto
+            ))->execute();
         }
 
         return $template;

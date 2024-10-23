@@ -28,7 +28,6 @@ use Kanvas\Templates\Models\Templates;
  */
 class TemplatesVariables extends BaseModel
 {
-
     /**
      * The table associated with the model.
      *
@@ -44,11 +43,11 @@ class TemplatesVariables extends BaseModel
     protected $guarded = [];
 
 
-     /**
-     * Template I'm based from
-     *
-     * @return BelongsTo <Templates>
-     */
+    /**
+    * Template I'm based from
+    *
+    * @return BelongsTo <Templates>
+    */
     public function template(): BelongsTo
     {
         return $this->belongsTo(Templates::class, 'template_id');
