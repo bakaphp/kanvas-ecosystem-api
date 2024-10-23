@@ -76,7 +76,7 @@ class PlanMutation
     {
         $this->validateStripe();
         $data = $req['input'];
-        $plan = PlanRepository::getByIdWithApp($req['id']);
+        $plan = PlanRepository::getByIdWithApp((int)$req['id']);
 
         StripeProduct::update($plan->stripe_id, [
             'name' => $data['name'] ?? $plan->name,
@@ -99,7 +99,7 @@ class PlanMutation
     public function delete(mixed $root, array $req): bool
     {
         $this->validateStripe();
-        $plan = PlanRepository::getByIdWithApp($req['id']);
+        $plan = PlanRepository::getByIdWithApp((int)$req['id']);
 
         $stripeProduct = StripeProduct::retrieve($plan->stripe_id);
         $stripeProduct->delete();

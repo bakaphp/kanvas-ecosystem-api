@@ -25,7 +25,7 @@ class PlanRepository
         return new Plan();
     }
 
-    public static function getByIdWithApp(string $id, ?AppInterface $app = null): Model
+    public static function getByIdWithApp(int $id, ?AppInterface $app = null): Model
     {
         try {
             $query = self::getModel()::notDeleted()->where('id', $id);

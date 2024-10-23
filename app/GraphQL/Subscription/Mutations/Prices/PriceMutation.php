@@ -41,7 +41,7 @@ class PriceMutation
     {
         $this->validateStripe();
         $data = $req['input'];
-        $stripePlan = PlanRepository::getByIdWithApp($data['apps_plans_id'], $this->app);
+        $stripePlan = PlanRepository::getByIdWithApp((int)$data['apps_plans_id'], $this->app);
         $data['stripe_id'] = $stripePlan->stripe_id;
 
         $dto = PriceDto::viaRequest($data, $this->user, $this->app);
