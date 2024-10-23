@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
-use Exception;
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -13,24 +13,42 @@ use Workflow\Activity;
 
 class GenerateMessageTagsActivity extends Activity implements WorkflowActivityInterface
 {
+    use KanvasJobsTrait;
+
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
+        $this->overwriteAppService($app);
+
         if (! key_exists('tags', $params)) {
-            throw new Exception('No tags fields provided on the workflow params');
+            return [
+                'message' => 'No tags to add to the message',
+            ];
         }
 
         if (! $entity instanceof Message) {
-            throw new Exception('Entity is not a message');
+            return [
+                 'message' => 'Entity is not a message',
+             ];
         }
 
         $messageData = $entity->message;
 
         if (empty($messageData)) {
-            throw new Exception('Message data is empty');
+            return [
+                'message' => 'No message data found',
+            ];
         }
 
         $messagesTags = $this->findKeysInArray((array) $messageData, $params['tags']);
-        $entity->addTags($messagesTags);
+
+        if (empty($messagesTags)) {
+            return [
+                 'message' => 'No tags found in the message data',
+                 'tags' => $params['tags'],
+             ];
+        }
+
+        $entity->addTags(array_values($messagesTags));
 
         return [
             'message' => 'Tags added to the message',

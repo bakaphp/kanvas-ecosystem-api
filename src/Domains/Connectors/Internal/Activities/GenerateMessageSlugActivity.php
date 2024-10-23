@@ -11,10 +11,13 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Workflow\Activity;
 
+/**
+ * @todo move to the social domain
+ */
 class GenerateMessageSlugActivity extends Activity implements WorkflowActivityInterface
 {
     use KanvasJobsTrait;
-    public $tries = 10;
+    public $tries = 3;
 
     public function execute(Model $message, AppInterface $app, array $params): array
     {
