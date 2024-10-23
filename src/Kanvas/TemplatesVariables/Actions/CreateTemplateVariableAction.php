@@ -34,7 +34,8 @@ class CreateTemplateVariableAction
                 'apps_id' => $this->templateVariable->app->getKey(),
                 'companies_id' => $this->templateVariable->company ? $this->templateVariable->company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue(),
                 'name' => $this->templateVariable->name,
-                'value' => $this->templateVariable->value
+                'value' => $this->templateVariable->value,
+                'template_id' => $this->templateVariable->template_id,
             ]
         );
     }

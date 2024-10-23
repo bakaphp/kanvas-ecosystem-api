@@ -6,6 +6,7 @@ type Templates {
     name: String!
     parent_template_id: Int!
     template: String!
+    template_variables: [TemplatesVariables!]@hasMany(relation: "templateVariables")
     created_at: String
     updated_at: String
     is_deleted: Int
@@ -14,9 +15,20 @@ type Templates {
 input TemplatesInput {
     name: String!
     parent_template_id: Int!
-    subject: String!
-    content: String!
+    template_variables: [TemplateVariableInput!]!
     template: String!
+}
+
+type TemplatesVariables {
+    name: String
+    value: String
+    template_id: Int
+}
+
+
+input TemplateVariableInput {
+    key: String!
+    value: String!
 }
 
 extend type Mutation @guard {
@@ -27,7 +39,7 @@ extend type Mutation @guard {
 }
 
 extend type Query @guard {
-    emailTemplates(
+    templates(
         where: _
             @whereConditions(
                 columns: [

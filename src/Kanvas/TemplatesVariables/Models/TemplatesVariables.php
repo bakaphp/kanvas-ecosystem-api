@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Models\BaseModel;
-use Kanvas\Notifications\Models\NotificationTypes;
+use Kanvas\Templates\Models\Templates;
 
 /**
  * Apps Model.
@@ -42,4 +42,15 @@ class TemplatesVariables extends BaseModel
      * @var array
      */
     protected $guarded = [];
+
+
+     /**
+     * Template I'm based from
+     *
+     * @return BelongsTo <Templates>
+     */
+    public function template(): BelongsTo
+    {
+        return $this->belongsTo(Templates::class, 'template_id');
+    }
 }

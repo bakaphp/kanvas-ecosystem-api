@@ -19,16 +19,18 @@ class TemplatesVariablesDto extends Data
      *
      * @param string $name
      * @param string $value
+     * @param int $template_id
      * @param Companies|null $company
      * @param Users|null $user
      * @param Apps $app
      */
     public function __construct(
-        public Apps $app,
         public string $name,
-        public string $template,
+        public string $value,
+        public int $template_id,
+        public Apps $app,
         public ?Companies $company = null,
-        public ?Users $user = null
+        public ?Users $user = null,
     ) {
     }
 }
