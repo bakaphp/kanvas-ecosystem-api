@@ -56,6 +56,7 @@ class InventoryDailyReportCommand extends Command
     {
         $this->info('Sending Inventory Daily Report - ' . $company->name . ' - ' . date('Y-m-d'));
         $this->unPublishProductsByExpirationDate($app, $company);
+        //$this->publishedProductsWithPendingEndDate($app, $company);
     }
 
     protected function unPublishProductsByExpirationDate(AppInterface $app, CompanyInterface $company): void
@@ -65,6 +66,17 @@ class InventoryDailyReportCommand extends Command
         foreach ($productsToUnPublished as $product) {
             $product->unPublish();
             $this->info('Product ' . $product->id . ' has been unpublished');
+            //@todo send report to the company
+        }
+    }
+
+    protected function publishedProductsWithPendingEndDate(AppInterface $app, CompanyInterface $company): void
+    {
+        $productsToPublish = ProductsRepository::getProductsWithPendingEndDate($app, $company)->get();
+
+        foreach ($productsToPublish as $product) {
+            $product->publish();
+            $this->info('Product ' . $product->id . ' has been published');
             //@todo send report to the company
         }
     }
