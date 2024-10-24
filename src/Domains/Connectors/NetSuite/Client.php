@@ -12,13 +12,14 @@ use NetSuite\NetSuiteService;
 
 class Client
 {
-    protected string $apiUrl = 'https://webservices.netsuite.com';
+    protected string $apiUrl;
     protected string $endPoint = '2021_1';
 
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company
     ) {
+        $this->apiUrl = $app->get(ConfigurationEnum::NET_SUITE_CUSTOM_API_URL->value) ?? 'https://webservices.netsuite.com';
     }
 
     public function getService(): NetSuiteService
