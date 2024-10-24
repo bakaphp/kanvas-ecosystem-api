@@ -1,0 +1,63 @@
+type Templates {
+    users_id: Int!
+    companies_id: Int!
+    user: User @belongsTo(relation: "user")
+    company: Company @belongsTo(relation: "company")
+    name: String!
+    parent_template_id: Int!
+    template: String!
+    template_variables: [TemplatesVariables!]@hasMany(relation: "templateVariables")
+    created_at: String
+    updated_at: String
+    is_deleted: Int
+}
+
+input TemplatesInput {
+    name: String!
+    parent_template_id: Int!
+    template_variables: [TemplateVariableInput!]!
+    template: String!
+}
+
+type TemplatesVariables {
+    name: String
+    value: String
+    template_id: Int
+}
+
+
+input TemplateVariableInput {
+    key: String!
+    value: String!
+}
+
+extend type Mutation @guard {
+    createTemplate(input: TemplatesInput!): Templates!
+        @field(
+            resolver: "\\App\\GraphQL\\Ecosystem\\Mutations\\Templates\\TemplatesManagementMutation@createOrUpdate"
+        )
+    updateTemplate(input: TemplatesInput!): Templates!
+        @field(
+            resolver: "\\App\\GraphQL\\Ecosystem\\Mutations\\Templates\\TemplatesManagementMutation@createOrUpdate"
+        )
+}
+
+extend type Query @guard {
+    templates(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "users_id"
+                    "companies_id"
+                    "apps_id"
+                    "name"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id"], direction: "DESC")
+    ): [Templates!]!
+        @paginate(
+            model: "Kanvas\\Templates\\Models\\Templates"
+            scopes: ["fromCompany", "fromApp","notDeleted"]
+        )
+}
