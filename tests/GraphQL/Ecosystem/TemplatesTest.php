@@ -120,4 +120,28 @@ class TemplatesTest extends TestCase
             ],
         ]);
     }
+
+     /**
+     * test_save.
+     */
+    public function testGetTemplate(): void
+    {
+        $response = $this->graphQL(/** @lang GraphQL */ '
+            query {
+            templates(first: 20) {
+                data {
+                template
+                name
+                template_variables {
+                    name
+                    value
+                }
+              }
+            }
+        }
+        '
+        );
+
+        $this->assertArrayHasKey('data', $response);
+    }
 }
