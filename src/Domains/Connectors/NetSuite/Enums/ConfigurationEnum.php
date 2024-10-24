@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\NetSuite;
+namespace Kanvas\Connectors\NetSuite\Enums;
 
 enum ConfigurationEnum: string
 {

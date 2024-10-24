@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\NetSuite;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Kanvas\Connectors\NetSuite\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use NetSuite\NetSuiteService;
 
@@ -23,6 +24,10 @@ class Client
     public function getService(): NetSuiteService
     {
         $config = $this->app->get(ConfigurationEnum::NET_SUITE_ACCOUNT_CONFIG->value);
+
+        if (empty($config)) {
+            throw new ValidationException('NetSuite configuration is missing.');
+        }
 
         $config = [
             // required -------------------------------------

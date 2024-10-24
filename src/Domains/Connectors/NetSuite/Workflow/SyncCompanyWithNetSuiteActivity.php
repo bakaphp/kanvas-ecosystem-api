@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Shopify\Workflows\Activities;
+namespace Kanvas\Connectors\NetSuite\Workflow;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\NetSuite\CustomFieldEnum;
-use SyncCompanyWithNetSuiteAction;
+use Kanvas\Connectors\NetSuite\Actions\SyncCompanyWithNetSuiteAction;
+use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Workflow\Activity;
 
 class SyncCompanyWithNetSuiteActivity extends Activity

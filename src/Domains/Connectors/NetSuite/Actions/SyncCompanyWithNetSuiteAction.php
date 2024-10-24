@@ -2,10 +2,13 @@
 
 declare(strict_types=1);
 
+namespace Kanvas\Connectors\NetSuite\Actions;
+
 use Baka\Contracts\AppInterface;
+use Exception;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Client;
-use Kanvas\Connectors\NetSuite\CustomFieldEnum;
+use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use NetSuite\Classes\AddRequest;
 use NetSuite\Classes\Customer;
 use NetSuite\Classes\CustomerSearchBasic;
