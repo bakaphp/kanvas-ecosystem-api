@@ -90,9 +90,9 @@ class Templates extends BaseModel
     }
 
     /**
-     * Template I'm based from
+     * User I belong to
      *
-     * @return BelongsTo <Templates>
+     * @return BelongsTo <Users>
      */
     public function user(): BelongsTo
     {
@@ -100,9 +100,9 @@ class Templates extends BaseModel
     }
 
     /**
-     * Template I'm based from
+     * Company I belong to
      *
-     * @return BelongsTo <Templates>
+     * @return BelongsTo <Companies>
      */
     public function company(): BelongsTo
     {
