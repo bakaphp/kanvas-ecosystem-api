@@ -136,6 +136,8 @@ class ProductImporterJob implements ShouldQueue, ShouldBeUnique
                     $updated++;
                 }
                 $totalProcessSuccessfully++;
+
+                //handle failed jobs
             } catch (Throwable $e) {
                 $errorDetails = [
                     'message' => $e->getMessage(),

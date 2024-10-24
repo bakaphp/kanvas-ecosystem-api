@@ -20,6 +20,9 @@ class UpdatePlan
         $this->plan->update([
             'name' => $this->planDto->name,
             'description' => $this->planDto->description,
+            'free_trial_dates' => $this->planDto->free_trial_dates,
+            'is_active' => $this->planDto->is_active,
+            'is_default' => $this->planDto->is_default,
         ]);
 
         return $this->plan;

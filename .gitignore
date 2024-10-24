@@ -31,3 +31,4 @@ service-account.json
 frankenphp
 frankenphp-worker.php
 google_auth.json
+typesense-data/

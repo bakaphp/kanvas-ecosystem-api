@@ -85,7 +85,6 @@ class FilesystemMapperMutation
         $filesystem = Filesystem::getById($input['filesystem_id'], $app);
         $mapper = ModelsFilesystemMapper::getByIdFromCompanyApp($input['filesystem_mapper_id'], $company, $app);
         $regions = Regions::getByIdFromCompanyApp($input['regions_id'], $company, $app);
-
         $dto = FilesystemImport::from([
             'app' => $app,
             'users' => $user,
@@ -94,6 +93,7 @@ class FilesystemMapperMutation
             'companiesBranches' => $user->getCurrentBranch(),
             'filesystem' => $filesystem,
             'filesystemMapper' => $mapper,
+            'extra' => $input['extra'] ?? null,
         ]);
 
         $import = (new CreateFilesystemImportAction($dto))->execute();

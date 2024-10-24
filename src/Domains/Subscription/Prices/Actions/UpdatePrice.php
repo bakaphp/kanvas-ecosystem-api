@@ -4,34 +4,34 @@ declare(strict_types=1);
 
 namespace Kanvas\Subscription\Prices\Actions;
 
-use Baka\Users\Contracts\UserInterface;
-use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Subscription\Prices\DataTransferObject\Price as PriceDto;
 use Kanvas\Subscription\Prices\Models\Price;
+use Stripe\Price as StripePrice;
 
 class UpdatePrice
 {
     public function __construct(
         protected Price $price,
-        protected PriceDto $dto,
-        protected UserInterface $user
+        protected PriceDto $dto
     ) {
     }
 
     /**
-     * Execute the action to update a price.
+     * Execute the action to update an existing price.
      *
      * @return Price
      */
     public function execute(): Price
     {
+        StripePrice::update(
+            $this->dto->stripe_id,
+            [
+                'active' => $this->dto->is_active,
+            ]
+        );
         $this->price->update([
-            'amount' => $this->dto->amount,
-            'currency' => $this->dto->currency,
-            'interval' => $this->dto->interval,
-            'is_default' => $this->dto->is_default,
-        ]);
-
+                'is_active' => $this->dto->is_active,
+            ]);
         return $this->price;
     }
 }

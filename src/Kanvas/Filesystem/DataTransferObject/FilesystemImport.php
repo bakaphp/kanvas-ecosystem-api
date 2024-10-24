@@ -22,7 +22,8 @@ class FilesystemImport extends Data
         public Regions $regions,
         public CompaniesBranches $companiesBranches,
         public Filesystem $filesystem,
-        public FilesystemMapper $filesystemMapper
+        public FilesystemMapper $filesystemMapper,
+        public mixed $extra
     ) {
     }
 }

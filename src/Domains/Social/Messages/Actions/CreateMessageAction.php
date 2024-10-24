@@ -38,6 +38,7 @@ class CreateMessageAction
             'total_shared' => $this->messageInput->total_shared,
             'ip_address' => $this->messageInput->ip_address,
             'is_public' => $this->messageInput->is_public,
+            'slug' => $this->messageInput->slug
         ];
 
         $validator = Validator::make($data, [

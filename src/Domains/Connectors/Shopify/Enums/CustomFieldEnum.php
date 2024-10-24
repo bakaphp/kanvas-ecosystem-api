@@ -23,4 +23,6 @@ enum CustomFieldEnum: string
     case SHOPIFY_COLLECTION_ID = 'shopify_collection_id';
 
     case SHOPIFY_COLLECTION_IS_SYNCED = 'shopify_collection_is_synced';
+
+    case SHOPIFY_INVENTORY_MANAGEMENT = 'shopify_inventory_management';
 }
