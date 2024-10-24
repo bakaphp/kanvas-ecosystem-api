@@ -16,28 +16,28 @@ final class CustomerTest extends TestCase
 {
     public function testSynCompanyWithNetSuite()
     {
-       /*  $company = Companies::first();
-        $app = app(Apps::class);
+        /*  $company = Companies::first();
+         $app = app(Apps::class);
 
-        //$netSuiteService = new Client($app, $company);
-        //@todo use netsuite sandbox
+         //$netSuiteService = new Client($app, $company);
+         //@todo use netsuite sandbox
 
-        $syncCompany = new SyncCompanyWithNetSuiteAction($app, $company);
-        $result = $syncCompany->execute();
+         $syncCompany = new SyncCompanyWithNetSuiteAction($app, $company);
+         $result = $syncCompany->execute();
 
-        $this->assertTrue($result->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value) > 0); */
+         $this->assertTrue($result->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value) > 0); */
     }
 
     public function testGetCustomerInfo()
     {
-       /*  $company = Companies::first();
-        $app = app(Apps::class);
-        //$customerId = '123'; // Replace with a valid customer ID
+        /*  $company = Companies::first();
+         $app = app(Apps::class);
+         //$customerId = '123'; // Replace with a valid customer ID
 
-        $netSuiteService = new NetSuiteCustomerService($app, $company);
-        $netSuiteId = $company->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value);
-        $customerInfo = $netSuiteService->getCustomerInfo($company->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value));
+         $netSuiteService = new NetSuiteCustomerService($app, $company);
+         $netSuiteId = $company->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value);
+         $customerInfo = $netSuiteService->getCustomerInfo($company->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value));
 
-        $this->assertEquals($netSuiteId, $customerInfo->internalId); */
+         $this->assertEquals($netSuiteId, $customerInfo->internalId); */
     }
 }
