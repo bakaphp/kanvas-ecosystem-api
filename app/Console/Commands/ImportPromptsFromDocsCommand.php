@@ -248,7 +248,6 @@ class ImportPromptsFromDocsCommand extends Command
         if ($currentCategory !== null && ! empty($currentPrompt)) {
             $result[$currentCategory][] = $currentPrompt;
         }
-
         return $result;
     }
 }
