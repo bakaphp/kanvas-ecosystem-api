@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "5dd56372c17d1665d486fef78f0dffda",
+    "content-hash": "7cb80408c4233f2fcb84d9d900b20390",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -9210,6 +9210,68 @@
                 }
             ],
             "time": "2024-08-30T07:09:40+00:00"
+        },
+        {
+            "name": "ryanwinchester/netsuite-php",
+            "version": "v2023.2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/netsuitephp/netsuite-php.git",
+                "reference": "13c7e9bf68b1acb183da5ffb57d1bff9f6bf9ff6"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/netsuitephp/netsuite-php/zipball/13c7e9bf68b1acb183da5ffb57d1bff9f6bf9ff6",
+                "reference": "13c7e9bf68b1acb183da5ffb57d1bff9f6bf9ff6",
+                "shasum": ""
+            },
+            "require": {
+                "ext-openssl": "*",
+                "ext-simplexml": "*",
+                "ext-soap": "*",
+                "paragonie/random_compat": ">=1",
+                "php": ">=8.1",
+                "psr/log": "^1|^2|^3"
+            },
+            "require-dev": {
+                "mikey179/vfsstream": "^1.6",
+                "phpspec/phpspec": ">=5",
+                "phpunit/phpunit": "^9.5"
+            },
+            "suggest": {
+                "symfony/dotenv": "Provides loading a .env file for obtaining config variables",
+                "vlucas/phpdotenv": "Provides loading a .env file for obtaining config variables"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "src/includes/functions.php"
+                ],
+                "psr-4": {
+                    "NetSuite\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Ryan Winchester (fungku)",
+                    "email": "fungku@gmail.com"
+                }
+            ],
+            "description": "NetSuite PHP API wrapper",
+            "keywords": [
+                "api",
+                "netsuite",
+                "php"
+            ],
+            "support": {
+                "issues": "https://github.com/netsuitephp/netsuite-php/issues",
+                "source": "https://github.com/netsuitephp/netsuite-php/tree/v2023.2.0"
+            },
+            "time": "2024-08-14T04:52:43+00:00"
         },
         {
             "name": "sentry/sentry",
