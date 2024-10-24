@@ -37,7 +37,8 @@ class MessageInput extends Data
         public ?string $parent_unique_id = null,
         public ?string $ip_address = null,
         public array $tags = [],
-        public ?int $is_public = 1
+        public ?int $is_public = 1,
+        public ?string $slug = null,
     ) {
     }
 
@@ -78,7 +79,8 @@ class MessageInput extends Data
             $parent ? $parent->uuid : null,
             $data['ip_address'] ?? null,
             $data['tags'] ?? [],
-            $data['is_public'] ?? 1
+            $data['is_public'] ?? 1,
+            $data['slug'] ?? null,
         );
     }
 }
