@@ -13,6 +13,9 @@ use Tests\TestCase;
 
 class TemplatesTest extends TestCase
 {
+    /**
+     * Test Create Template
+     */
     public function testCreateTemplate(): void
     {
         $name = fake()->name;
@@ -63,7 +66,10 @@ class TemplatesTest extends TestCase
             ],
         ]);
     }
-    
+
+    /**
+     * Test Update Template
+     */
     public function testUpdateTemplate(): void
     {
         $name = fake()->name;
@@ -115,6 +121,9 @@ class TemplatesTest extends TestCase
         ]);
     }
 
+    /**
+     * Test Get Template
+     */
     public function testGetTemplate(): void
     {
         $response = $this->graphQL(/** @lang GraphQL */ '
