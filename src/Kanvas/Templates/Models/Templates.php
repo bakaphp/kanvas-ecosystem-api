@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Users\Models\Users;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Models\BaseModel;
 use Kanvas\Notifications\Models\NotificationTypes;
@@ -85,5 +87,25 @@ class Templates extends BaseModel
     public function templateVariables(): HasMany
     {
         return $this->hasMany(TemplatesVariables::class, 'template_id');
+    }
+
+    /**
+     * Template I'm based from
+     *
+     * @return BelongsTo <Templates>
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'users_id');
+    }
+
+    /**
+     * Template I'm based from
+     *
+     * @return BelongsTo <Templates>
+     */
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Companies::class, 'companies_id');
     }
 }

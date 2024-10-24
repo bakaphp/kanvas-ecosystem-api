@@ -1,8 +1,8 @@
 type Templates {
-    id: ID!
     users_id: Int!
     companies_id: Int!
-    apps_id: Int!
+    user: User @belongsTo(relation: "user")
+    company: Company @belongsTo(relation: "company")
     name: String!
     parent_template_id: Int!
     template: String!
@@ -32,7 +32,11 @@ input TemplateVariableInput {
 }
 
 extend type Mutation @guard {
-    createOrUpdateTemplate(input: TemplatesInput!): Templates!
+    createTemplate(input: TemplatesInput!): Templates!
+        @field(
+            resolver: "\\App\\GraphQL\\Ecosystem\\Mutations\\Templates\\TemplatesManagementMutation@createOrUpdate"
+        )
+    updateTemplate(input: TemplatesInput!): Templates!
         @field(
             resolver: "\\App\\GraphQL\\Ecosystem\\Mutations\\Templates\\TemplatesManagementMutation@createOrUpdate"
         )
@@ -54,6 +58,6 @@ extend type Query @guard {
     ): [Templates!]!
         @paginate(
             model: "Kanvas\\Templates\\Models\\Templates"
-            scopes: ["fromCompany", "fromApp"]
+            scopes: ["fromCompany", "fromApp","notDeleted"]
         )
 }
