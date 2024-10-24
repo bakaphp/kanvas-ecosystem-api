@@ -13,9 +13,6 @@ use Tests\TestCase;
 
 class TemplatesTest extends TestCase
 {
-    /**
-     * test_save.
-     */
     public function testCreateTemplate(): void
     {
         $name = fake()->name;
@@ -58,7 +55,7 @@ class TemplatesTest extends TestCase
                     'template' => $template,
                     'template_variables' => [
                         [
-                            'name' =>$contentName,
+                            'name' => $contentName,
                             'value' => $contentValue
                         ]
                     ]
@@ -66,10 +63,7 @@ class TemplatesTest extends TestCase
             ],
         ]);
     }
-
-    /**
-     * test_save.
-     */
+    
     public function testUpdateTemplate(): void
     {
         $name = fake()->name;
@@ -112,7 +106,7 @@ class TemplatesTest extends TestCase
                     'template' => $template,
                     'template_variables' => [
                         [
-                            'name' =>$contentName,
+                            'name' => $contentName,
                             'value' => $contentValue
                         ]
                     ]
@@ -121,9 +115,6 @@ class TemplatesTest extends TestCase
         ]);
     }
 
-     /**
-     * test_save.
-     */
     public function testGetTemplate(): void
     {
         $response = $this->graphQL(/** @lang GraphQL */ '
