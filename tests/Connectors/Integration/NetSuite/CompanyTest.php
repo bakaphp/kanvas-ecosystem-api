@@ -21,7 +21,7 @@ final class CompanyTest extends TestCase
         //$netSuiteService = new Client($app, $company);
         //@todo use netsuite sandbox
 
-        $syncCompany = new SyncCompanyWithNetSuiteAction($app, $company);
+        //$syncCompany = new SyncCompanyWithNetSuiteAction($app, $company);
         //$result = $syncCompany->execute();
 
         //$this->assertTrue($result->get(CustomFieldEnum::NET_SUITE_COMPANY_ID->value) > 0);
