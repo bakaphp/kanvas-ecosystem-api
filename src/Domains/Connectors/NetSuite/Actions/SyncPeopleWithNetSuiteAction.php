@@ -9,26 +9,30 @@ use Exception;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Client;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
+use Kanvas\Connectors\NetSuite\Traits\IsNetSuiteCustomerTrait;
 use Kanvas\Connectors\NetSuite\Traits\UseNetSuiteCustomerTrait;
+use Kanvas\Guild\Customers\Models\People;
+use NetSuite\Classes\AddRequest;
 use NetSuite\Classes\Customer;
 use NetSuite\Classes\CustomerSearchBasic;
+use NetSuite\Classes\SearchRequest;
 use NetSuite\Classes\SearchStringField;
 use NetSuite\Classes\UpdateRequest;
 use NetSuite\NetSuiteService;
 
-class SyncCompanyWithNetSuiteAction
+class SyncPeopleWithNetSuiteAction
 {
     use UseNetSuiteCustomerTrait;
 
     public function __construct(
         protected AppInterface $app,
-        protected Companies $company
+        protected People $people
     ) {
-        $client = new Client($app, $company);
+        $client = new Client($app, $people->company);
         $this->service = $client->getService();
     }
 
-    public function execute(): Companies
+    public function execute(): People
     {
         if ($this->hasExistingNetSuiteId()) {
             return $this->updateExistingCustomer();
@@ -48,7 +52,7 @@ class SyncCompanyWithNetSuiteAction
 
     protected function hasExistingNetSuiteId(): bool
     {
-        return ! empty($this->company->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value));
+        return ! empty($this->people->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value));
     }
 
     /**
@@ -59,17 +63,18 @@ class SyncCompanyWithNetSuiteAction
         $customerSearch = new CustomerSearchBasic();
         $customerSearch->email = new SearchStringField();
         $customerSearch->email->operator = 'is';
-        $customerSearch->email->searchValue = $this->company->user->email;
+        $customerSearch->email->searchValue = $this->people->getEmails()->count() > 0 ? $this->people->getEmails()->first()->email : '';
 
         return $customerSearch;
     }
 
-    protected function updateExistingCustomer(): Companies
+    protected function updateExistingCustomer(): People
     {
         $customer = new Customer();
-        $customer->internalId = $this->company->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value);
-        $customer->companyName = $this->company->name;
-        $customer->phone = $this->company->user->phone;
+        $customer->internalId = $this->people->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value);
+        $customer->firstName = $this->people->firstname;
+        $customer->lastName = $this->people->lastname;
+        $customer->phone = $this->people->getPhones()->count() > 0 ? $this->people->getPhones()->first()->phone : '';
 
         $updateRequest = new UpdateRequest();
         $updateRequest->record = $customer;
@@ -83,7 +88,7 @@ class SyncCompanyWithNetSuiteAction
             );
         }
 
-        return $this->company;
+        return $this->people;
     }
 
     /**
@@ -92,18 +97,18 @@ class SyncCompanyWithNetSuiteAction
     protected function prepareCustomerData(): Customer
     {
         $customer = new Customer();
-        $customer->companyName = $this->company->name;
-        $customer->isPerson = false;
-        $customer->email = $this->company->user->email;
-        $customer->phone = $this->company->user->phone;
+        $customer->companyName = $this->people->name;
+        $customer->isPerson = true;
+        $customer->email = $this->people->user->email;
+        $customer->phone = $this->people->user->phone;
 
         return $customer;
     }
 
-    protected function updateCompanyWithNetSuiteId(string $netSuiteId): Companies
+    protected function updateCompanyWithNetSuiteId(string $netSuiteId): People
     {
-        $this->company->set(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value, $netSuiteId);
+        $this->people->set(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value, $netSuiteId);
 
-        return $this->company;
+        return $this->people;
     }
 }
