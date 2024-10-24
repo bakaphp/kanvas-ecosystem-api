@@ -124,15 +124,15 @@ final class IntegrationMapperTest extends TestCase
         );
         $warehouse = (new CreateWarehouseAction($warehouseDto, $user))->execute();
         $values = [
-            'NAME' => 'Ryan Heafy',
-            'TITLE' => 'Co-Founder & COO',
-            'COMPANY' => '6am City',
-            'EMAIL' => 'rheafy@6amcity.com',
+            'NAME' => 'Ryan MC',
+            'TITLE' => 'Founder',
+            'COMPANY' => 'MC City',
+            'EMAIL' => 'nada@nodeknot.com',
             'TOPIC 1' => 'Local',
             'TOPIC 2' => null,
-            'LOCATION' => 'Charlotte',
+            'LOCATION' => 'LA',
             'DINNER' => null,
-            'LINKEDIN' => 'https://www.linkedin.com/in/ryanheafy/',
+            'LINKEDIN' => 'https://www.linkedin.com/in/someonebody/',
             'TRB SUBSCRIBER? Y / N' => 'Y',
             ];
 
