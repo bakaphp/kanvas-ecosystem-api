@@ -12,6 +12,9 @@ use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
+use Kanvas\Guild\Organizations\DataTransferObject\Organization;
+use Kanvas\Guild\Organizations\Models\OrganizationPeople;
 
 class CreatePeopleAction
 {
@@ -114,31 +117,43 @@ class CreatePeopleAction
                     ]));
                 }
             }
-
-            if ($this->peopleData->peopleEmploymentHistory) {
-                foreach ($this->peopleData->peopleEmploymentHistory as $employmentHistory) {
-                    $people->employmentHistory()->updateOrCreate(
-                        [
-                            'organizations_id' => $employmentHistory['organizations_id'],
-                            'apps_id' => $this->peopleData->app->getId(),
-                            'position' => $employmentHistory['position'],
-                        ],
-                        [
-                            'position' => $employmentHistory['position'],
-                            'income' => $employmentHistory['income'],
-                            'start_date' => $employmentHistory['start_date'],
-                            'end_date' => $employmentHistory['end_date'],
-                            'status' => $employmentHistory['status'],
-                            'income_type' => $employmentHistory['income_type'] ?? null,
-                        ]
-                    );
-                }
-            }
-
-            if (! empty($addressesToAdd)) {
-                $people->address()->saveMany($addressesToAdd);
+        }
+        if ($this->peopleData->peopleEmploymentHistory) {
+            foreach ($this->peopleData->peopleEmploymentHistory as $employmentHistory) {
+                $people->employmentHistory()->updateOrCreate(
+                    [
+                        'organizations_id' => $employmentHistory['organizations_id'],
+                        'apps_id' => $this->peopleData->app->getId(),
+                        'position' => $employmentHistory['position'],
+                    ],
+                    [
+                        'position' => $employmentHistory['position'],
+                        'income' => $employmentHistory['income'],
+                        'start_date' => $employmentHistory['start_date'],
+                        'end_date' => $employmentHistory['end_date'],
+                        'status' => $employmentHistory['status'],
+                        'income_type' => $employmentHistory['income_type'] ?? null,
+                    ]
+                );
             }
         }
+
+        if ($this->peopleData->organization) {
+            $organization = (new CreateOrganizationAction(
+                new Organization(
+                    company: $this->peopleData->branch->company,
+                    user: $this->peopleData->user,
+                    app: $this->peopleData->app,
+                    name: $this->peopleData->organization,
+                )
+            ))->execute();
+            OrganizationPeople::addPeopleToOrganization($organization, $people);
+        }
+
+        if (! empty($addressesToAdd)) {
+            $people->address()->saveMany($addressesToAdd);
+        }
+
         $people->refresh();
 
         return $people;

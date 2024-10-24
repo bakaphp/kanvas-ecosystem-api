@@ -40,6 +40,7 @@ class People extends Data
         public readonly array $custom_fields = [],
         public readonly array $tags = [],
         public readonly array $peopleEmploymentHistory = [],
+        public readonly ?string $organization = null,
         public readonly ?string $created_at = null
     ) {
     }
