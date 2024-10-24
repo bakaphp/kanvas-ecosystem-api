@@ -4,56 +4,26 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Jobs;
 
-use Baka\Contracts\AppInterface;
-use Baka\Traits\KanvasJobsTrait;
-use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Event\Events\Events\ImportResultEvents;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Participants\Actions\SyncPeopleWithParticipantAction;
+use Kanvas\Filesystem\Contracts\ImporterJobContract;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
-use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 
 use function Sentry\captureException;
 
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 
-class CustomerImporterJob extends ProductImporterJob
+class CustomerImporterJob extends ImporterJobContract
 {
-    use KanvasJobsTrait;
-
-    /**
-    * The number of seconds after which the job's unique lock will be released.
-    *
-    * @var int
-    */
-    public $uniqueFor = 1800;
-
-    // public function __construct(
-    //     public string $jobUuid,
-    //     public array $importer,
-    //     public CompaniesBranches $branch,
-    //     public UserInterface $user,
-    //     public AppInterface $app
-    // ) {
-    // }
-
-    /**
-     * Get the unique ID for the job.
-     */
-    public function uniqueId(): string
-    {
-        return $this->jobUuid . $this->app->getId() . $this->branch->getId();
-    }
-
     /**
      * handle.
      *
@@ -98,6 +68,7 @@ class CustomerImporterJob extends ProductImporterJob
                     'linkedin_contact_id' => $customerData['linkedin_contact_id'] ?? null,
                     'custom_fields' => $customerData['custom_fields'] ?? [],
                     'tags' => $customerData['tags'] ?? [],
+                    'organization' => $customerData['organization'] ?? null,
                     'created_at' => $customerData['created_at'] ?? null,
                 ]);
 
