@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Actions;
 
 use Baka\Enums\StateEnums;
+use DateTime;
 use Illuminate\Support\Str;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Event\Events\Jobs\ImporterEventJob;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -132,6 +134,7 @@ class ImportDataFromFilesystemAction
             $result[$key] = match (true) {
                 is_array($value) => $this->mapper($value, $data),
                 is_string($value) && Str::startsWith($value, '_') => Str::after($value, '_'),
+                is_string($value) && Str::startsWith($value, 'date_') => $this->formatDate($data[Str::after($value, 'date_')]),
                 is_string($value) => $data[$value] ?? null,
                 default => $value,
             };
@@ -142,6 +145,19 @@ class ImportDataFromFilesystemAction
         }
 
         return $result;
+    }
+
+    public function formatDate(string $date): string
+    {
+        $csvFormat = $this->filesystemImports->app->get(AppEnums::fromName('CSV_DATE_FORMAT'));
+        if (! $csvFormat) {
+            $date = date('Y-m-d', strtotime($date));
+
+            return $date;
+        }
+        $date = DateTime::createFromFormat($csvFormat, $date);
+
+        return $date->format('Y-m-d');
     }
 
     public function explodeFileStringBasedOnDelimiter(string $value): array

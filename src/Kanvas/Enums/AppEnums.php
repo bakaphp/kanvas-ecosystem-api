@@ -50,6 +50,7 @@ enum AppEnums implements EnumsInterface
     case DISPLAYNAME_LOGIN;
     case ANONYMOUS_USER_ID;
     case DEFAULT_APP_JWT_TOKEN_NAME;
+    case CSV_DATE_FORMAT;
 
     /**
      * Get value.
@@ -99,6 +100,7 @@ enum AppEnums implements EnumsInterface
             self::VERSION => '1.7.0',
             self::ANONYMOUS_USER_ID => -1,
             self::DEFAULT_APP_JWT_TOKEN_NAME => 'kanvas-login',
+            self::CSV_DATE_FORMAT => 'csv_date_format',
         };
     }
 

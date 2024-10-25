@@ -42,7 +42,7 @@ class CreateEventAction
                 'slug' => $slug,
             ]);
             if ($this->event->dates->count()) {
-                $eventVersionSlug = Str::slug('events-versions-' . $slug . $this->event->dates[0]->date);
+                $eventVersionSlug = Str::slug('events-versions-' . $slug . $this->event->dates[0]->date->format('Y-m-d'));
             } else {
                 $eventVersionSlug = Str::slug('events-versions-' . $slug);
             }
