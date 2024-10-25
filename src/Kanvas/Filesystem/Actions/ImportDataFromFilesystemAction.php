@@ -16,7 +16,6 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Products\Models\Products;
 use League\Csv\Reader;
-use Illuminate\Support\Facades\Log;
 
 class ImportDataFromFilesystemAction
 {
@@ -36,6 +35,7 @@ class ImportDataFromFilesystemAction
         $listOfProducts = [];
         $modelName = $this->filesystemImports->filesystemMapper->systemModule->model_name;
 
+        $appDefaultAttributes = $this->filesystemImports->app->get('default_product_import_attributes');
         foreach ($records as $record) {
             $record['extra'] = $this->filesystemImports->extra;
             $variant = $this->mapper(
@@ -49,6 +49,7 @@ class ImportDataFromFilesystemAction
                 $listOfProducts[] = $variant;
             }
         }
+        
         /**
          * @todo this structure is just for product so we need to encapsulate this in a method
          * when we are just importing product type
@@ -60,6 +61,15 @@ class ImportDataFromFilesystemAction
                 }
                 $attributes = [];
 
+                if( ! empty($appDefaultAttributes)) {
+                    foreach ($appDefaultAttributes as $defaultAttribute) {
+                        $attributes[] = [
+                            'name' => $defaultAttribute['name'],
+                            'value' => $defaultAttribute['value'],
+                        ];
+                    }
+                }
+                
                 //if we only have one variant we can assign the attributes to the product
                 if (count($variants) == 1) {
                     $attributes = $variants[0]['attributes'];
