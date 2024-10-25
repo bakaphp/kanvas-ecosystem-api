@@ -140,6 +140,8 @@ class ImportDataFromFilesystemAction
     {
         $csvFormat = $this->filesystemImports->app->get(AppEnums::fromName('CSV_DATE_FORMAT'));
         if (! $csvFormat) {
+            $date = date('Y-m-d', strtotime($date));
+
             return $date;
         }
         $date = DateTime::createFromFormat($csvFormat, $date);
