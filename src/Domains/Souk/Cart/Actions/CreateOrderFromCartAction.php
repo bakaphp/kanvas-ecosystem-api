@@ -47,7 +47,7 @@ class CreateOrderFromCartAction
             ));
         }
 
-        $items = $this->getOrderItems($this->cart->getContent()->toArray(), $this->company, $this->app, $this->region);
+        $items = $this->getOrderItems($this->cart->getContent()->toArray(), $this->app);
 
         $orderObject = new Order(
             app: $this->app,
@@ -61,7 +61,7 @@ class CreateOrderFromCartAction
             shippingAddress: null,
             billingAddress: $billing ?? null,
             total: (float) $this->cart->getTotal(),
-            taxes: (float) (($this->cart->getTotal())-($this->cart->getSubTotal())),
+            taxes: (float) (($this->cart->getTotal()) - ($this->cart->getSubTotal())),
             totalDiscount: 0.0,
             totalShipping: 0.0,
             status: 'completed',
@@ -80,7 +80,7 @@ class CreateOrderFromCartAction
         return $orderObject;
     }
 
-    protected function getOrderItems($cartContent, $company, $app, $region): DataCollection
+    protected function getOrderItems($cartContent, $app): DataCollection
     {
         $orderItems = [];
 

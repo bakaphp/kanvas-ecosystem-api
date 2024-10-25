@@ -48,20 +48,20 @@ class OrderManagementMutation
 
         if (empty($paymentFlag)) {
             $createOrder = new CreateOrderFromCartAction(
-                $cart, 
-                $creditCard, 
-                $order, 
-                $company, 
-                $region, 
-                $people, 
-                $user, 
+                $cart,
+                $creditCard,
+                $order,
+                $company,
+                $region,
+                $people,
+                $user,
                 $app
             );
             return $createOrder->execute();
         } else {
             $isSubscription = $cart->getContent()?->first()?->attributes->has('use_subscription');
             $response = $this->processPayment($order, $isSubscription);
-    
+
             return $this->handlePaymentResponse($response, $isSubscription);
         }
     }
