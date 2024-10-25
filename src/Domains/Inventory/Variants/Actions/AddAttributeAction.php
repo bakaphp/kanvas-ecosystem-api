@@ -21,7 +21,7 @@ class AddAttributeAction
      */
     public function execute(): Variants
     {
-        if (empty($this->value)) {
+        if ($this->value === null || $this->value === '') {
             return $this->variants;
         }
 
