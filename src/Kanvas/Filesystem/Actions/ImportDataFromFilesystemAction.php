@@ -172,9 +172,6 @@ class ImportDataFromFilesystemAction
 
     protected function isValidDate(string $dateString): bool
     {
-        Log::info('List of Variants' . $dateString);
-
-        // Try to create a DateTime object from the string
         $date = DateTime::createFromFormat('Y-m-d H:i:s', $dateString) ?:
                 DateTime::createFromFormat('Y-m-d', $dateString) ?:
                 DateTime::createFromFormat('m/d/Y', $dateString) ?:
@@ -184,7 +181,6 @@ class ImportDataFromFilesystemAction
                 DateTime::createFromFormat('Y-m-d', $dateString) ?:
                 DateTime::createFromFormat('j/n/Y', $dateString);
 
-        // Check if there were any parsing errors
         return $date !== false;
     }
 
