@@ -6,7 +6,6 @@ namespace Kanvas\Filesystem\Actions;
 
 use Baka\Enums\StateEnums;
 use DateTime;
-use Exception;
 use Illuminate\Support\Str;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Event\Events\Jobs\ImporterEventJob;
@@ -141,9 +140,10 @@ class ImportDataFromFilesystemAction
     {
         $csvFormat = $this->filesystemImports->app->get(AppEnums::fromName('CSV_DATE_FORMAT'));
         if (! $csvFormat) {
-            throw new Exception('CSV_DATE_FORMAT not found in app settings');
+            return $date;
         }
         $date = DateTime::createFromFormat($csvFormat, $date);
+
         return $date->format('Y-m-d');
     }
 
