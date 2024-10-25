@@ -1,0 +1,111 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Dashboard\Actions;
+
+use Darryldecode\Cart\Cart;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Currencies\Models\Currencies;
+use Kanvas\Guild\Customers\DataTransferObject\Address;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Orders\DataTransferObject\DirectOrder;
+use Kanvas\Souk\Orders\DataTransferObject\Order;
+use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
+use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
+use Spatie\LaravelData\DataCollection;
+
+class CreateOrderFromCartAction
+{
+    public function __construct(
+        private Cart $cart,
+        private CreditCard $creditCard,
+        private DirectOrder $order,
+        private Companies $company,
+        private Regions $region,
+        private People $people,
+        private Authenticatable $user,
+        private Apps $app
+    ) {
+    }
+
+    public function execute(): Order
+    {
+        $billingAddress = $this->creditCard?->billing;
+        if ($billingAddress !== null) {
+            $billing = $this->people->addAddress(new Address(
+                address: $billingAddress->address,
+                address_2: null,
+                city: $billingAddress->city,
+                state: $billingAddress->state,
+                country: $billingAddress->country,
+                zipcode: $billingAddress->zip
+            ));
+        }
+
+        $items = $this->getOrderItems($this->cart->getContent()->toArray(), $this->company, $this->app, $this->region);
+
+        $orderObject = new Order(
+            app: $this->app,
+            region: $this->region,
+            company: $this->company,
+            people: $this->people,
+            user: $this->user ?? $this->company->user,
+            email: $order->user->email ?? null,
+            phone: $order->user->phone ?? null,
+            token: '',
+            shippingAddress: null,
+            billingAddress: $billing ?? null,
+            total: (float) $this->cart->getTotal(),
+            taxes: (float) (($this->cart->getTotal())-($this->cart->getSubTotal())),
+            totalDiscount: 0.0,
+            totalShipping: 0.0,
+            status: 'completed',
+            orderNumber: '',
+            shippingMethod: null,
+            currency: Currencies::getByCode("USD"),
+            fulfillmentStatus: null,
+            items: $items,
+            metadata: json_encode($this->order ?? ''),
+            weight: 0.0,
+            checkoutToken: '',
+            paymentGatewayName: [],
+            languageCode: null,
+        );
+
+        return $orderObject;
+    }
+
+    protected function getOrderItems($cartContent, $company, $app, $region): DataCollection
+    {
+        $orderItems = [];
+
+        foreach ($cartContent as $lineItem) {
+            $variant = Variants::getById($lineItem['id']);
+
+            //this shouldn't happen but just in case
+            if (! $variant) {
+                continue;
+            }
+
+            $orderItems[] = new OrderItem(
+                app: $app,
+                variant: $variant,
+                name: $lineItem['name'],
+                sku: (string) ($variant->sku ?? $lineItem['id']),
+                quantity: $lineItem['quantity'],
+                price: (float) $lineItem['price'],
+                tax: $lineItem['tax'] ?? 0,
+                discount: (float) ($lineItem['total_discount'] ?? 0),
+                currency: Currencies::getByCode('USD'),
+                quantityShipped: 0
+            );
+        }
+
+        return OrderItem::collect($orderItems, DataCollection::class);
+    }
+}

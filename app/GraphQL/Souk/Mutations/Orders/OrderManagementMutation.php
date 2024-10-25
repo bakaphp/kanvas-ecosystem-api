@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace App\GraphQL\Souk\Mutations\Orders;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Dashboard\Actions\CreateOrderFromCartAction;
+use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Interactions\Actions\CreateInteraction;
 use Kanvas\Social\Interactions\Actions\CreateUserInteractionAction;
@@ -23,13 +27,19 @@ class OrderManagementMutation
         $user = auth()->user();
         $creditCard = CreditCard::viaRequest($request['input']);
         $cart = app('cart')->session($user->getId());
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentBranch()->company;
+        $region = Regions::getDefault($company);
+        $people = PeoplesRepository::getByEmail($user->email, $company);
 
         $order = new DirectOrder(
-            app(Apps::class),
+            $app,
             $user,
             $creditCard,
             $cart
         );
+
+        $paymentFlag = $app->get(AppSettingsEnums::PAYMENT_FLAG->getValue());
 
         if ($cart->isEmpty()) {
             return [
@@ -38,10 +48,24 @@ class OrderManagementMutation
             ];
         }
 
-        $isSubscription = $cart->getContent()?->first()?->attributes->has('use_subscription');
-        $response = $this->processPayment($order, $isSubscription);
-
-        return $this->handlePaymentResponse($response, $isSubscription);
+        if (empty($paymentFlag)) {
+            $createOrder = new CreateOrderFromCartAction(
+                $cart, 
+                $creditCard, 
+                $order, 
+                $company, 
+                $region, 
+                $people, 
+                $user, 
+                $app
+            );
+            return $createOrder->execute();
+        } else {
+            $isSubscription = $cart->getContent()?->first()?->attributes->has('use_subscription');
+            $response = $this->processPayment($order, $isSubscription);
+    
+            return $this->handlePaymentResponse($response, $isSubscription);
+        }
     }
 
     public function createCustomerProfileWithPayment(mixed $root, array $request)
