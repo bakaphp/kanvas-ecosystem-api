@@ -177,6 +177,11 @@ class Order extends BaseModel
         $this->saveOrFail();
     }
 
+    public function scopeWhereNotCompleted(Builder $query): Builder
+    {
+        return $query->where('status', '!=', 'completed');
+    }
+
     public function scopeWhereCompleted(Builder $query): Builder
     {
         return $query->where('status', 'completed');

@@ -41,7 +41,7 @@ class SyncOrdersWithProviderCommand extends Command
 
         $company = Companies::getById((int) $this->argument('company_id'));
 
-        $orders = Order::fromApp($app)->fromCompany($company)->notDeleted()->whereCompleted()->get();
+        $orders = Order::fromApp($app)->fromCompany($company)->notDeleted()->whereNotCompleted()->get();
 
         $authHeaderToken = $app->get('esim_auth_header_token');
         if (empty($authHeaderToken)) {
