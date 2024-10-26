@@ -37,7 +37,7 @@ class SocialUserCounterResetCommand extends Command
 
         $this->info('Resetting social counter for app: ' . $this->argument('app_id'));
 
-        $appUsers = UserAppRepository::getAllAppUsers($app)->chunk(100, function ($users) use ($app) {
+        UserAppRepository::getAllAppUsers($app)->chunk(100, function ($users) use ($app) {
             foreach ($users as $user) {
                 $this->info('Resetting social counter for user: ' . $user->getId());
                 $user->resetSocialCount($app);
