@@ -177,9 +177,29 @@ class Order extends BaseModel
         $this->saveOrFail();
     }
 
-    public function scopeCompleted(Builder $query): Builder
+    public function scopeWhereCompleted(Builder $query): Builder
     {
         return $query->where('status', 'completed');
+    }
+
+    public function scopeWhereCancelled(Builder $query): Builder
+    {
+        return $query->where('status', 'cancelled');
+    }
+
+    public function scopeWhereFulfilled(Builder $query): Builder
+    {
+        return $query->where('fulfillment_status', 'fulfilled');
+    }
+
+    public function scopeWhereNotFulfilled(Builder $query): Builder
+    {
+        return $query->where('fulfillment_status', '!=', 'fulfilled');
+    }
+
+    public function scopeWhereDraft(Builder $query): Builder
+    {
+        return $query->where('status', 'draft');
     }
 
     public function generateOrderNumber(): int
