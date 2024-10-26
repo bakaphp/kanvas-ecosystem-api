@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Follows\Models;
 
+use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Social\Follows\Observers\UserFollowObserver;
+use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 

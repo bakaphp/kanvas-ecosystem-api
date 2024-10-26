@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Mutations\Follows;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Follows\Actions\FollowAction;
 use Kanvas\Social\Follows\Actions\UnFollowAction;
 use Kanvas\Social\Follows\Models\UsersFollows;
@@ -17,7 +18,13 @@ class FollowManagementMutation
     public function userFollow(mixed $root, array $request): bool
     {
         $user = auth()->user();
-        $userToFollow = UsersRepository::getUserOfAppById((int) $request['user_id']);
+        $app = app(Apps::class);
+        $userToFollow = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
+
+        if ($user->getId() === $userToFollow->getId()) {
+            return false;
+        }
+
         //$action = new FollowAction(auth()->user(), $user);
         //$action->execute();
 
@@ -30,8 +37,12 @@ class FollowManagementMutation
     public function userUnFollow(mixed $root, array $request): bool
     {
         $user = auth()->user();
-        $userToUnFollow = UsersRepository::getUserOfAppById((int) $request['user_id']);
+        $app = app(Apps::class);
+        $userToUnFollow = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
         //$action = new UnFollowAction(auth()->user(), $user);
+        if ($user->getId() === $userToUnFollow->getId()) {
+            return false;
+        }
 
         return $user->unFollow($userToUnFollow);
     }

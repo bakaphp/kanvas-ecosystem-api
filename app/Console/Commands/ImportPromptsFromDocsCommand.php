@@ -11,6 +11,7 @@ use Kanvas\Social\Tags\Models\Tag;
 use Kanvas\Users\Models\Users;
 use Illuminate\Support\Facades\DB;
 use Google\Service\Sheets;
+use Illuminate\Support\Facades\Log;
 use PDO;
 
 class ImportPromptsFromDocsCommand extends Command
@@ -80,9 +81,9 @@ class ImportPromptsFromDocsCommand extends Command
         $appId = $this->option('appId');
         $messageType = $this->option('messageType');
         $companyId = $this->option('companyId');
-        $userId = $this->fetchRandomUser()->id;
 
         foreach ($promptsCollection as $prompt) {
+            $userId = $this->fetchRandomUser()->id;
             $result = DB::connection('social')->table('messages')
                 ->where('slug', $this->slugify($prompt['title']))
                 ->where('apps_id', $appId)
@@ -90,6 +91,7 @@ class ImportPromptsFromDocsCommand extends Command
 
             if ($result) {
                 echo($prompt['title'] . 'message already exists with id: ' . $result->id . PHP_EOL);
+                Log::info($prompt['title'] . 'message already exists with id: ' . $result->id);
 
                 continue;
             }
@@ -152,6 +154,7 @@ class ImportPromptsFromDocsCommand extends Command
             }
 
             echo($prompt['title'] . ' message inserted with id: ' . $lastId . PHP_EOL);
+            Log::info($prompt['title'] . ' message inserted with id: ' . $lastId);
         }
     }
 
