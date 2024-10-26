@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Connectors\Esim;
+namespace App\Console\Commands\Connectors\ESim;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
@@ -41,7 +41,7 @@ class SyncOrdersWithProviderCommand extends Command
 
         $company = Companies::getById((int) $this->argument('company_id'));
 
-        $orders = Order::fromApp($app)->fromCompany($company)->notDeleted()->where('status', '!=', 'completed')->get();
+        $orders = Order::fromApp($app)->fromCompany($company)->notDeleted()->whereCompleted()->get();
 
         $authHeaderToken = $app->get('esim_auth_header_token');
         if (empty($authHeaderToken)) {
@@ -54,23 +54,27 @@ class SyncOrdersWithProviderCommand extends Command
 
         foreach ($orders as $order) {
             $iccid = $order->metadata['data']['iccid'] ?? null;
+            $bundle = $order->metadata['data']['bundle'] ?? null;
 
             if ($iccid == null) {
                 $this->info("Order ID: {$order->id} does not have an ICCID.");
 
                 continue;
             }
-            $api = $apiUrl . "/{$iccid}/esims_1GB_7D_IT_V2";
+
+            #$api = $apiUrl . "/{$iccid}/esims_1GB_7D_IT_V2";
+            $api = $apiUrl . "/esims/{$iccid}/bundles/" . $bundle;
 
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $authHeaderToken,
+                #'Authorization' => 'Bearer ' . $authHeaderToken,
+                'X-API-KEY' => $authHeaderToken,
                 'Accept' => 'application/json',
             ])->get($api);
 
             if ($response->successful()) {
                 $data = $response->json();
 
-                if ($data['data']['status'] === 'active') {
+                if ($data['assignments'][0]['bundleState'] === 'active') {
                     $order->fulfill();
                     $order->completed();
                 } else {

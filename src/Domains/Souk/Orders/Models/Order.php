@@ -177,6 +177,11 @@ class Order extends BaseModel
         $this->saveOrFail();
     }
 
+    public function scopeCompleted(Builder $query): Builder
+    {
+        return $query->where('status', 'completed');
+    }
+
     public function generateOrderNumber(): int
     {
         // Lock the orders table while retrieving the last order
