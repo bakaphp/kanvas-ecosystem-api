@@ -37,6 +37,24 @@ trait FollowersTrait
         return $this->get('app_' . $app->getId() . '_social_count') ?? [];
     }
 
+    public function resetSocialCount(AppInterface $app): void
+    {
+        $key = "app_{$app->getId()}_social_count";
+        $socialCount = $this->get($key);
+
+        $className = strtolower(class_basename($this->entity_namespace));
+        $followingIndex = "{$className}_following_count";
+        $followersIndex = "{$className}_followers_count";
+
+        $totalFollower = UsersFollowsRepository::getUserFollowerBuilder($this, $app)->count();
+        $totalFollowing = UsersFollowsRepository::getFollowingBuilder($this, $app)->count();
+
+        $socialCount[$followingIndex] = $totalFollowing;
+        $socialCount[$followersIndex] = $totalFollower;
+
+        $this->set($key, $socialCount);
+    }
+
     public function followers(): HasManyThrough
     {
         $app = app(Apps::class);
