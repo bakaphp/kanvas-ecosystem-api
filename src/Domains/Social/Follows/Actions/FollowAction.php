@@ -40,7 +40,7 @@ class FollowAction
             'apps_id' => $this->app->getId(),
         ];
         $params = [
-            'is_deleted' => StateEnums::NO->getValue()
+            'is_deleted' => StateEnums::NO->getValue(),
         ];
 
         if ($this->company) {
