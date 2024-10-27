@@ -80,10 +80,14 @@ class ExtractCompanyNameFromEmailAction
         if (preg_match("/<title>(.*?)<\/title>/i", $html, $matches)) {
             $title = $matches[1];
 
+            // Decode HTML entities like &amp; &lt; etc.
+            $title = html_entity_decode($title, ENT_QUOTES | ENT_HTML5);
+
             // Split the title by `-` or `|` and take the first part
             $titleParts = preg_split('/[-|]/', $title);
             $cleanTitle = trim($titleParts[0]);
 
+            // Return the title in proper case
             return Str::title($cleanTitle);
         }
 
