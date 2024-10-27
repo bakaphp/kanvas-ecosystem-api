@@ -31,7 +31,7 @@ class ExtractCompanyNameFromEmailAction
             $companyName = $this->scrapeWebsiteForCompanyName($domain);
 
             if ($companyName) {
-                return $companyName;
+                return Str::limit($companyName, 128);
             }
         }
 
