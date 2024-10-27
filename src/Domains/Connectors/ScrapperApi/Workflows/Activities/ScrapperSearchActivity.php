@@ -12,6 +12,7 @@ use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum;
 use function Sentry\captureException;
 
 use Workflow\Activity;
+use Throwable;
 
 class ScrapperSearchActivity extends Activity
 {
@@ -30,7 +31,7 @@ class ScrapperSearchActivity extends Activity
             );
 
             return $action->execute();
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             captureException($e);
 
             return [

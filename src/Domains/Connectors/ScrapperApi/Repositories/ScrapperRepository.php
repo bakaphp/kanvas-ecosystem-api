@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\ScrapperApi\Repositories;
 
 use Baka\Contracts\AppInterface;
+use Exception;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum;
 
@@ -22,7 +23,7 @@ class ScrapperRepository
         $response = Http::get($this->baseUri . $url, $queryParams);
 
         if ($response->failed()) {
-            throw new \Exception('Request failed with status: ' . $response->status());
+            throw new Exception('Request failed with status: ' . $response->status());
         }
 
         return $response->json();

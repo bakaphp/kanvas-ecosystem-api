@@ -17,6 +17,8 @@ use Kanvas\Users\Models\Users;
 
 use function Sentry\captureException;
 
+use Throwable;
+
 /**
  * Class ScrapperAction.
  */
@@ -31,7 +33,7 @@ class ScrapperAction
     ) {
     }
 
-    public function execute(): void
+    public function execute(): array
     {
         $warehouse = $this->region->warehouses()->where('is_default', true)->first();
 
@@ -40,7 +42,11 @@ class ScrapperAction
         $repository = new ScrapperRepository($this->app);
         $results = $repository->getSearch($this->search);
         $service = new ProductService($channels, $warehouse);
+        $scrapperProducts = 0;
+        $importerProducts = 0;
         foreach ($results as $result) {
+            $scrapperProducts++;
+
             try {
                 $asin = $result['asin'];
                 $productModel = Products::getBySlug($asin, $this->companyBranch->company);
@@ -59,10 +65,15 @@ class ScrapperAction
                     region: $this->region,
                     app: $this->app
                 );
-            } catch (\Throwable $e) {
+                $importerProducts++;
+            } catch (Throwable $e) {
                 captureException($e);
             }
-            // Do something with the product
         }
+
+        return [
+            'scrapperProducts' => $scrapperProducts,
+            'importerProducts' => $importerProducts,
+        ];
     }
 }
