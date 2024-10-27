@@ -387,10 +387,14 @@ trait HasCustomFields
 
         /***
          * if column name exist this is a CustomFieldEntityInput
-         * we need to convert it to key value
+         * we need to convert it to key => value
          */
         if (isset($fields[0]) && array_key_exists('name', $fields[0])) {
-            $fields = array_column($fields, 'data', 'name');
+            if (array_key_exists('data', $fields[0])) {
+                $fields = array_column($fields, 'data', 'name');
+            } elseif (array_key_exists('value', $fields[0])) {
+                $fields = array_column($fields, 'value', 'name');
+            }
         }
 
         $this->customFields = $fields;
