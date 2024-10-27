@@ -18,7 +18,7 @@ class ScrapperSearchActivity extends Activity
     public $tries = 3;
     public $queue = ConfigEnum::ACTIVITY_QUEUE->value;
 
-    public function execute(Model $model, AppInterface $app, array $params)
+    public function execute(Model $model, AppInterface $app, array $params): array
     {
         try {
             $action = new ScrapperAction(
