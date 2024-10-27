@@ -52,7 +52,7 @@ class SyncAllPeopleExtractCompanyNameFromEmailCommand extends Command
             ->notDeleted(0)
             ->count();
 
-            // Add a progress bar
+        // Add a progress bar
         $this->output->progressStart($peopleCount);
 
         $exportActivity = new ExtractCompanyNameFromPeopleEmailActivity(
