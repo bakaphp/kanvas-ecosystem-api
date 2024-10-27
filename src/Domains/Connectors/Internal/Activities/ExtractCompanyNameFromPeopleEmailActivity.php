@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Internal\Actions\ExtractCompanyNameFromEmailAction;
+use Kanvas\Connectors\Internal\Enums\ConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
@@ -35,6 +36,16 @@ class ExtractCompanyNameFromPeopleEmailActivity extends Activity implements Work
                 'organization_id' => $people->organizations->first()->getId(),
             ];
         }
+
+        if ($this->hasBeenScreenedRecently($people)) {
+            return [
+                'people_id' => $people->getId(),
+                'message' => 'People has been screened recently',
+                'organization_id' => null,
+            ];
+        }
+
+        $people->set(ConfigurationEnum::INTERNAL_EMAIL_DOMAIN_DATA_ENRICHMENT_CUSTOM_FIELDS->value, time());
 
         foreach ($peopleEmails as $peopleEmail) {
             $email = $peopleEmail->value;
@@ -68,5 +79,13 @@ class ExtractCompanyNameFromPeopleEmailActivity extends Activity implements Work
             'message' => 'No company name found in people email',
             'organization_id' => null,
         ];
+    }
+
+    private function hasBeenScreenedRecently(Model $people): bool
+    {
+        $key = ConfigurationEnum::INTERNAL_EMAIL_DOMAIN_DATA_ENRICHMENT_CUSTOM_FIELDS->value;
+        $apolloRevalidationThreshold = $people->company->get(ConfigurationEnum::INTERNAL_EMAIL_DOMAIN_DATA_ENRICHMENT_CUSTOM_FIELDS->value) ?? '-2 months';
+
+        return $people->get($key) && $people->get($key) > strtotime($apolloRevalidationThreshold);
     }
 }
