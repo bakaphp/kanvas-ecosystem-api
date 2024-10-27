@@ -66,6 +66,7 @@ class ExtractCompanyNameFromPeopleEmailActivity extends Activity implements Work
                 $organization = $createOrganization->execute();
 
                 $organization->addPeople($people);
+                $people->set('company', $companyName); //@todo remove this
 
                 return [
                     'people_id' => $people->getId(),
