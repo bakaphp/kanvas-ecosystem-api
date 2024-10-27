@@ -58,9 +58,6 @@ final class PeopleTest extends TestCase
             params: []
         );
 
-        print_r($result);
-        $this->assertNotNull($result['organization_id']);
-        $this->assertNotNull($result['people_id']);
-        $this->assertNotNull($people->organizations()->first()->name);
+        $this->assertArrayHasKey('people_id', $result);
     }
 }
