@@ -56,10 +56,10 @@ class IntegrationsMutation
         $handler = $integration->handler;
 
         $handlerInstance = new $handler(
-            $integrationDto->app,
-            $integrationDto->company,
-            $integrationDto->region,
-            $integrationDto->config
+            app: $integrationDto->app,
+            company: $integrationDto->company,
+            region: $integrationDto->region,
+            data: $integrationDto->config
         );
 
         if ($handlerInstance->setup()) {
