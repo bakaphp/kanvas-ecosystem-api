@@ -19,7 +19,7 @@ trait CanUseWorkflow
         if (! $this->enableWorkflows) {
             return;
         }
-
+        \Illuminate\Support\Facades\Log::debug('Firing workflow event: ' . $event);
         $app = ($params['app'] ?? null) instanceof Apps ? $params['app'] : app(Apps::class); // look for a better way to get app
         $processWorkflow = new ProcessWorkflowEventAction($app, $this);
         $processWorkflow->execute($event, $params);

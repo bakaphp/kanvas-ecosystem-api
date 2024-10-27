@@ -1141,16 +1141,16 @@
         },
         {
             "name": "aws/aws-crt-php",
-            "version": "v1.2.6",
+            "version": "v1.2.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/awslabs/aws-crt-php.git",
-                "reference": "a63485b65b6b3367039306496d49737cf1995408"
+                "reference": "d71d9906c7bb63a28295447ba12e74723bd3730e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/awslabs/aws-crt-php/zipball/a63485b65b6b3367039306496d49737cf1995408",
-                "reference": "a63485b65b6b3367039306496d49737cf1995408",
+                "url": "https://api.github.com/repos/awslabs/aws-crt-php/zipball/d71d9906c7bb63a28295447ba12e74723bd3730e",
+                "reference": "d71d9906c7bb63a28295447ba12e74723bd3730e",
                 "shasum": ""
             },
             "require": {
@@ -1189,22 +1189,22 @@
             ],
             "support": {
                 "issues": "https://github.com/awslabs/aws-crt-php/issues",
-                "source": "https://github.com/awslabs/aws-crt-php/tree/v1.2.6"
+                "source": "https://github.com/awslabs/aws-crt-php/tree/v1.2.7"
             },
-            "time": "2024-06-13T17:21:28+00:00"
+            "time": "2024-10-18T22:15:13+00:00"
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.324.7",
+            "version": "3.324.11",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "c430d00e5ea6ce23739d6345f073fdd39e8ef0dc"
+                "reference": "a667ca29db288af083c3d8cff2e7f32d89fd4cf0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/c430d00e5ea6ce23739d6345f073fdd39e8ef0dc",
-                "reference": "c430d00e5ea6ce23739d6345f073fdd39e8ef0dc",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/a667ca29db288af083c3d8cff2e7f32d89fd4cf0",
+                "reference": "a667ca29db288af083c3d8cff2e7f32d89fd4cf0",
                 "shasum": ""
             },
             "require": {
@@ -1287,9 +1287,9 @@
             "support": {
                 "forum": "https://forums.aws.amazon.com/forum.jspa?forumID=80",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.324.7"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.324.11"
             },
-            "time": "2024-10-21T18:06:52+00:00"
+            "time": "2024-10-25T18:07:16+00:00"
         },
         {
             "name": "berkayk/onesignal-laravel",
@@ -3041,16 +3041,16 @@
         },
         {
             "name": "google/protobuf",
-            "version": "v4.28.2",
+            "version": "v4.28.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/protocolbuffers/protobuf-php.git",
-                "reference": "96021a9a8a5aa7770427b1e7ef1b2e543792684e"
+                "reference": "c5c311e0f3d89928251ac5a2f0e3db283612c100"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/96021a9a8a5aa7770427b1e7ef1b2e543792684e",
-                "reference": "96021a9a8a5aa7770427b1e7ef1b2e543792684e",
+                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/c5c311e0f3d89928251ac5a2f0e3db283612c100",
+                "reference": "c5c311e0f3d89928251ac5a2f0e3db283612c100",
                 "shasum": ""
             },
             "require": {
@@ -3079,9 +3079,9 @@
                 "proto"
             ],
             "support": {
-                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v4.28.2"
+                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v4.28.3"
             },
-            "time": "2024-09-18T20:56:15+00:00"
+            "time": "2024-10-22T22:27:17+00:00"
         },
         {
             "name": "graham-campbell/result-type",
@@ -14187,16 +14187,16 @@
         },
         {
             "name": "webonyx/graphql-php",
-            "version": "v15.14.3",
+            "version": "v15.17.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/webonyx/graphql-php.git",
-                "reference": "fac6205e957c9fbe0145606bc82a32973db1a339"
+                "reference": "c1c9e5b5a4eaf8d6209bf33becdcc93d20f71912"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/webonyx/graphql-php/zipball/fac6205e957c9fbe0145606bc82a32973db1a339",
-                "reference": "fac6205e957c9fbe0145606bc82a32973db1a339",
+                "url": "https://api.github.com/repos/webonyx/graphql-php/zipball/c1c9e5b5a4eaf8d6209bf33becdcc93d20f71912",
+                "reference": "c1c9e5b5a4eaf8d6209bf33becdcc93d20f71912",
                 "shasum": ""
             },
             "require": {
@@ -14214,7 +14214,7 @@
                 "nyholm/psr7": "^1.5",
                 "phpbench/phpbench": "^1.2",
                 "phpstan/extension-installer": "^1.1",
-                "phpstan/phpstan": "1.12.6",
+                "phpstan/phpstan": "1.12.7",
                 "phpstan/phpstan-phpunit": "1.4.0",
                 "phpstan/phpstan-strict-rules": "1.6.1",
                 "phpunit/phpunit": "^9.5 || ^10.5.21 || ^11",
@@ -14249,7 +14249,7 @@
             ],
             "support": {
                 "issues": "https://github.com/webonyx/graphql-php/issues",
-                "source": "https://github.com/webonyx/graphql-php/tree/v15.14.3"
+                "source": "https://github.com/webonyx/graphql-php/tree/v15.17.0"
             },
             "funding": [
                 {
@@ -14257,7 +14257,7 @@
                     "type": "open_collective"
                 }
             ],
-            "time": "2024-10-17T13:03:37+00:00"
+            "time": "2024-10-26T10:54:35+00:00"
         }
     ],
     "packages-dev": [
@@ -16346,6 +16346,6 @@
     "platform": {
         "php": "^8.2"
     },
-    "platform-dev": [],
+    "platform-dev": {},
     "plugin-api-version": "2.6.0"
 }
