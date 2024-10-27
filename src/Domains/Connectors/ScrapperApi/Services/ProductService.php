@@ -33,7 +33,7 @@ class ProductService
             'description' => $product['full_description'],
             'price' => $discountPrice,
             'discountPrice' => $discountPrice,
-            'slug' => Str::slug($product['name']),
+            'slug' => Str::slug($product['asin']),
             'sku' => $product['asin'],
             'source_id' => $product['asin'],
             'files' => $this->mapFilesystem(product: ['image' => $product['image'],'images' => $product['images']]),
