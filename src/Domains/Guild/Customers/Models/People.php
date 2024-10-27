@@ -201,6 +201,17 @@ class People extends BaseModel
         );
     }
 
+    public function addEmail(string $email): Contact
+    {
+        return Contact::updateOrCreate(
+            [
+                'peoples_id' => $this->id,
+                'value' => $email,
+                'contacts_types_id' => ContactType::getByName('Email')->getId(),
+            ]
+        );
+    }
+
     public function shouldBeSearchable(): bool
     {
         return $this->is_deleted == 0;
