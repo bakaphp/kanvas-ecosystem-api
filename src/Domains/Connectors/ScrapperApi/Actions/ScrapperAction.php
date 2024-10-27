@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\ScrapperApi\Actions;
 
 use Baka\Contracts\AppInterface;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
 use Kanvas\Connectors\ScrapperApi\Services\ProductService;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 
@@ -43,7 +43,10 @@ class ScrapperAction
         foreach ($results as $result) {
             try {
                 $asin = $result['asin'];
-                Log::debug('Importing product with ASIN: ' . $asin);
+                $productModel = Products::getBySlug($asin, $this->companyBranch->company);
+                if ($productModel && $productModel->updated_at->addDays(3)->isPast()) {
+                    continue;
+                }
                 $product = $repository->getByAsin($asin);
                 $product = array_merge($product, $result);
                 $mappedProduct = $service->mapProduct($product);

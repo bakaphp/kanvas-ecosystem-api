@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\ScrapperApi\Repositories;
 
 use Baka\Contracts\AppInterface;
+use Illuminate\Support\Facades\Http;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum;
 
 class ScrapperRepository
@@ -18,22 +19,13 @@ class ScrapperRepository
 
     protected function makeRequest(string $url, array $queryParams): array
     {
-        $query = http_build_query($queryParams);
-        $fullUrl = $this->baseUri . $url . '?' . $query;
+        $response = Http::get($this->baseUri . $url, $queryParams);
 
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $fullUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
-        $response = curl_exec($ch);
-
-        if (curl_errno($ch)) {
-            throw new \Exception(curl_error($ch));
+        if ($response->failed()) {
+            throw new \Exception('Request failed with status: ' . $response->status());
         }
 
-        curl_close($ch);
-
-        return json_decode($response, true);
+        return $response->json();
     }
 
     public function getByAsin(string $asin): array
