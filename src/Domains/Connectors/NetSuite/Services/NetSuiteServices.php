@@ -15,7 +15,6 @@ use NetSuite\Classes\CustomerSearchBasic;
 use NetSuite\Classes\SearchStringField;
 use NetSuite\NetSuiteService as NetSuiteSdkService;
 
-
 class NetSuiteServices
 {
     private NetSuiteSdkService $service;
