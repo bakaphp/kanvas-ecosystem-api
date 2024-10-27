@@ -19,6 +19,10 @@ class ExtractCompanyNameFromEmailAction
     {
         $domain = $this->extractDomain($email);
 
+        if (empty($domain)) {
+            return null;
+        }
+
         if ($this->isPublicEmailProvider($domain)) {
             return null;
         }
