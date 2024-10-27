@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\NetSuite\Handlers;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Interfaces\IntegrationInterfaces;
-use Kanvas\Connectors\NetSuite\Client;
 use Kanvas\Connectors\NetSuite\DataTransferObject\NetSuite as NetSuiteDto;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteServices;
 
@@ -35,7 +34,7 @@ class NetSuiteHandler extends IntegrationInterfaces
         );
 
         NetSuiteServices::netSuitSetup($netSuiteDto);
-        $client = new Client($this->app, $this->company);
-        return ! empty($client->getService()->Shop->get());
+        $client = new NetSuiteServices($this->app, $this->company);
+        return ! empty($client->findExistingCustomer($this->company->email));
     }
 }
