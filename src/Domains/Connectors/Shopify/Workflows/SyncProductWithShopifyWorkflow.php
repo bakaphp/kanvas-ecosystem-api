@@ -11,6 +11,7 @@ use Kanvas\Inventory\Products\Models\Products;
 
 use function Sentry\captureLastError;
 
+use Throwable;
 use Workflow\ActivityStub;
 use Workflow\Workflow;
 
@@ -20,7 +21,7 @@ class SyncProductWithShopifyWorkflow extends Workflow
     {
         try {
             return yield ActivityStub::make(SyncProductWithShopifyActivity::class, $app, $product, $params);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             captureLastError($e);
         }
     }
