@@ -7,7 +7,7 @@ namespace Kanvas\Inventory\Importer\Jobs;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Filesystem\Contracts\ImporterJobContract;
+use Kanvas\Imports\AbstractImporterJob;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Importer\Events\ProductImportEvent;
@@ -18,7 +18,7 @@ use function Sentry\captureException;
 
 use Throwable;
 
-class ProductImporterJob extends ImporterJobContract
+class ProductImporterJob extends AbstractImporterJob
 {
     /**
      * handle.

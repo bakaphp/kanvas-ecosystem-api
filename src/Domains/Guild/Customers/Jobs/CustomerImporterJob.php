@@ -10,19 +10,19 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Event\Events\Events\ImportResultEvents;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Participants\Actions\SyncPeopleWithParticipantAction;
-use Kanvas\Filesystem\Contracts\ImporterJobContract;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Imports\AbstractImporterJob;
 
 use function Sentry\captureException;
 
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 
-class CustomerImporterJob extends ImporterJobContract
+class CustomerImporterJob extends AbstractImporterJob
 {
     /**
      * handle.

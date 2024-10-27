@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Filesystem\Contracts;
+namespace Kanvas\Imports;
 
 use Baka\Contracts\AppInterface;
 use Baka\Traits\KanvasJobsTrait;
@@ -20,7 +20,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Inventory\Regions\Models\Regions;
 
-abstract class ImporterJobContract implements ShouldQueue, ShouldBeUnique
+abstract class AbstractImporterJob implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable;
     use InteractsWithQueue;
