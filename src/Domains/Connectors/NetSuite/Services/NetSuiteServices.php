@@ -60,7 +60,7 @@ class NetSuiteServices
     public function findExistingCustomer(string $email): ?object
     {
         $searchRequest = new SearchRequest();
-        $searchRequest->searchRecord = $this->createEmailSearchCriteria();
+        $searchRequest->searchRecord = $this->createEmailSearchCriteria($email);
 
         $searchResponse = $this->service->search($searchRequest);
 
