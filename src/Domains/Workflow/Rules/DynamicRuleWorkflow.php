@@ -45,7 +45,7 @@ class DynamicRuleWorkflow extends Workflow
             $params = array_merge($params, $rule->params);
         }
 
-        unset($params['app']); //dont pass the app to the activity
+        unset($params['app']); //dont pass the app to the activity via the param array
         foreach ($rule->workflowActivities as $workflowActivity) {
             $activity = $workflowActivity->activity;
             $activities[] = yield ActivityStub::make($activity->actionClass(), $entity, $app, $params);
