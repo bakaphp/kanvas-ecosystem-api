@@ -9,12 +9,14 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Interfaces\IntegrationInterfaces;
 use Kanvas\Connectors\NetSuite\DataTransferObject\NetSuite as NetSuiteDto;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteServices;
+use Kanvas\Inventory\Regions\Models\Regions;
 
 class NetSuiteHandler extends IntegrationInterfaces
 {
     public function __construct(
         public Apps $app,
         public Companies $company,
+        public Regions $region,
         public array $data
     ) {
     }
@@ -25,7 +27,7 @@ class NetSuiteHandler extends IntegrationInterfaces
             company: $this->company,
             app: $this->app,
             endpoint: $this->data['endpoint'],
-            apiUrl: $this->data['apiUrl'],
+            apiUrl: $this->data['host'],
             account: $this->data['account'],
             consumerKey: $this->data['consumerKey'],
             consumerSecret: $this->data['consumerSecret'],
