@@ -5,17 +5,20 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Actions;
 
 use Baka\Enums\StateEnums;
+use DateTime;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Event\Events\Jobs\ImporterEventJob;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Guild\Customers\Jobs\CustomerImporterJob;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Products\Models\Products;
 use League\Csv\Reader;
-use Kanvas\Guild\Customers\Jobs\CustomerImporterJob;
-use Kanvas\Guild\Customers\Models\People;
 
 class ImportDataFromFilesystemAction
 {
@@ -35,7 +38,9 @@ class ImportDataFromFilesystemAction
         $listOfProducts = [];
         $modelName = $this->filesystemImports->filesystemMapper->systemModule->model_name;
 
+        $appDefaultAttributes = $this->filesystemImports->app->get('default_product_import_attributes');
         foreach ($records as $record) {
+            $record['extra'] = $this->filesystemImports->extra;
             $variant = $this->mapper(
                 $this->filesystemImports->filesystemMapper->mapping,
                 $record
@@ -47,6 +52,7 @@ class ImportDataFromFilesystemAction
                 $listOfProducts[] = $variant;
             }
         }
+
         /**
          * @todo this structure is just for product so we need to encapsulate this in a method
          * when we are just importing product type
@@ -58,10 +64,37 @@ class ImportDataFromFilesystemAction
                 }
                 $attributes = [];
 
-                //if we only have one variant we can assign the attributes to the product
+                /**
+                 * @todo move this, this is not the way, but quick test
+                 */
+                if (! empty($appDefaultAttributes)) {
+                    // Check if we have variants and if the first variant has attributes
+                    $variantAttributes = isset($variants[0]['attributes']) ? $variants[0]['attributes'] : [];
+
+                    foreach ($appDefaultAttributes as $defaultAttribute) {
+                        // Check if the attribute exists in the variant and it's not null
+                        $existsInVariant = false;
+                        foreach ($variantAttributes as $variantAttribute) {
+                            if ($variantAttribute['name'] === $defaultAttribute['name'] && $variantAttribute['value'] !== null) {
+                                $existsInVariant = true;
+
+                                break;
+                            }
+                        }
+
+                        // Only add if it doesn't exist in the variant or is null
+                        if (! $existsInVariant) {
+                            $variants[0]['attributes'][] = [
+                                'name' => $defaultAttribute['name'],
+                                'value' => $defaultAttribute['value'],
+                            ];
+                        }
+                    }
+                }
+
+                // If we only have one variant, you can assign the attributes directly from the variant
                 if (count($variants) == 1) {
                     $attributes = $variants[0]['attributes'];
-                    //unset($variants[0]['attributes']);
                 }
 
                 $listOfProducts[] = [
@@ -120,6 +153,7 @@ class ImportDataFromFilesystemAction
             $result[$key] = match (true) {
                 is_array($value) => $this->mapper($value, $data),
                 is_string($value) && Str::startsWith($value, '_') => Str::after($value, '_'),
+                is_string($value) && Str::startsWith($value, 'date_') => $this->formatDate($data[Str::after($value, 'date_')]),
                 is_string($value) => $data[$value] ?? null,
                 default => $value,
             };
@@ -127,9 +161,40 @@ class ImportDataFromFilesystemAction
             if ($key == 'files' && ! empty($result[$key]) && is_string($result[$key])) {
                 $result[$key] = $this->explodeFileStringBasedOnDelimiter($result[$key]);
             }
+
+            if (is_string($result[$key]) && $this->isValidDate($result[$key])) {
+                $result[$key] = $this->formatDate($result[$key]);
+            }
         }
 
         return $result;
+    }
+
+    protected function isValidDate(string $dateString): bool
+    {
+        $date = DateTime::createFromFormat('Y-m-d H:i:s', $dateString) ?:
+                DateTime::createFromFormat('Y-m-d', $dateString) ?:
+                DateTime::createFromFormat('m/d/Y', $dateString) ?:
+                DateTime::createFromFormat('d/m/Y', $dateString) ?:
+                DateTime::createFromFormat('m/d/y', $dateString) ?:
+                DateTime::createFromFormat('d-m-Y', $dateString) ?:
+                DateTime::createFromFormat('Y-m-d', $dateString) ?:
+                DateTime::createFromFormat('j/n/Y', $dateString);
+
+        return $date !== false;
+    }
+
+    public function formatDate(string $date): string
+    {
+        $csvFormat = $this->filesystemImports->app->get(AppEnums::fromName('CSV_DATE_FORMAT'));
+        if (! $csvFormat) {
+            $date = date('Y-m-d', strtotime($date));
+
+            return $date;
+        }
+        $date = DateTime::createFromFormat($csvFormat, $date);
+
+        return $date->format('Y-m-d');
     }
 
     public function explodeFileStringBasedOnDelimiter(string $value): array
@@ -181,6 +246,7 @@ class ImportDataFromFilesystemAction
                 break;
             case People::class:
                 $job = CustomerImporterJob::class;
+
                 break;
             default:
                 break;

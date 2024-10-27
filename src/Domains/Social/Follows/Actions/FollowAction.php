@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Social\Follows\Actions;
 
 use Baka\Contracts\CompanyInterface;
+use Baka\Enums\StateEnums;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Follows\Models\UsersFollows;
@@ -38,7 +39,9 @@ class FollowAction
             'entity_namespace' => get_class($this->entity),
             'apps_id' => $this->app->getId(),
         ];
-        $params = [];
+        $params = [
+            'is_deleted' => StateEnums::NO->getValue(),
+        ];
 
         if ($this->company) {
             $params['companies_id'] = $this->company->getId();
@@ -49,6 +52,6 @@ class FollowAction
             $params['companies_branches_id'] = $this->entity->companies_branches_id;
         }
 
-        return UsersFollows::firstOrCreate($search, $params);
+        return UsersFollows::updateOrCreate($search, $params);
     }
 }

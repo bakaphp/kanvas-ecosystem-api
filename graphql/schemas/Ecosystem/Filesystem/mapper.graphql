@@ -23,6 +23,7 @@ input FilesystemImportInput {
     regions_id: ID!
     filesystem_mapper_id: ID!
     filesystem_id: ID!
+    extra: Mixed
 }
 
 type FileSystemImport {

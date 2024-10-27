@@ -38,6 +38,7 @@ use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehou
 use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
 class ProductImporterAction
@@ -60,7 +61,6 @@ class ProductImporterAction
 
     /**
      * Run all method dor a specify product.
-     *
      */
     public function execute(): ProductsModel
     {
@@ -105,6 +105,7 @@ class ProductImporterAction
                 $this->productType();
             }
             DB::connection('inventory')->commit();
+            $this->product->fireWorkflow(WorkflowEnum::SYNC_SHOPIFY->value);
         } catch (Throwable $e) {
             DB::connection('inventory')->rollback();
 

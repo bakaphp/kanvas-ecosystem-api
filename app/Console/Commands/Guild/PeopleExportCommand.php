@@ -106,14 +106,17 @@ class PeopleExportCommand extends Command
 
         // Insert headers
         $this->csv->insertOne([
+            'Id',
             'First Name',
             'Last Name',
             'Full Name',
             'Email',
             'Location',
             'Title',
-            'Organization',
+            'Company',
+            'Company Type',
             'LinkedIn',
+            'Tags',
             'Is VIP',
             'Created At',
         ]);
@@ -133,15 +136,20 @@ class PeopleExportCommand extends Command
         $location = $person->get('location');
         $location = is_array($location) ? ($location['state'] ?? null) : $location;
 
+        $tags = $person->tags()->count() ? $person->tags()->pluck('name')->join(', ') : 'N/A';
+        $company = $lastEmploymentHistory ? $lastEmploymentHistory->organization->name : ($person->get('company') ?? 'N/A');
         $this->csv->insertOne([
+            $person->getId(),
             $person->firstname,
             $person->lastname,
             $person->name,
-            $person->getEmails()->first()->email ?? 'N/A',
+            $person->getEmails()->first()->value ?? 'N/A',
             $person->get('location') ?? 'N/A',
             $lastEmploymentHistory ? $lastEmploymentHistory->position : 'N/A',
-            $lastEmploymentHistory ? $lastEmploymentHistory->organization->name : 'N/A',
+            $company,
+            $person->get('company_type') ?? 'N/A',
             $linkedIn->count() ? $linkedIn->first()->value : 'N/A',
+            $tags,
             $person->get('VIP') ? 'Yes' : 'No',
             $person->created_at->format('Y-m-d H:i:s'),
         ]);
