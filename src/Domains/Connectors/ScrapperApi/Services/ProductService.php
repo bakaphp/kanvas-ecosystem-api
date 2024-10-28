@@ -37,7 +37,7 @@ class ProductService
             'sku' => $product['asin'],
             'source_id' => $product['asin'],
             'files' => $this->mapFilesystem(product: ['image' => $product['image'],'images' => $product['images']]),
-            'quantity' => 0,
+            'quantity' => 10,
             'isPublished' => true,
             'categories' => $this->mapCategories($product),
             'warehouses' => [
@@ -45,7 +45,7 @@ class ProductService
                     'id' => $this->warehouse->id,
                     'price' => (float) $discountPrice,
                     'warehouse' => $this->warehouse->name,
-                    'quantity' => 0,
+                    'quantity' => 10,
                     'sku' => $product['asin'],
                     'is_new' => true,
                     'channel' => $this->channels->name,

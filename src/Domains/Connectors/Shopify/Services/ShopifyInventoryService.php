@@ -61,8 +61,8 @@ class ShopifyInventoryService
                 $variant = $product->variants('sku', $shopifyVariant['sku'])->first();
                 if ($variant->getShopifyId($this->warehouses->regions) === null) {
                     $variant->setShopifyId($this->warehouses->regions, $shopifyVariant['id']);
+                    $this->setStock($variant, $channel);
                 }
-                // $this->setStock($variant, $channel);
             }
         } else {
             $shopifyProduct = $this->shopifySdk->Product($shopifyProductId);
@@ -70,7 +70,7 @@ class ShopifyInventoryService
 
             foreach ($product->variants as $variant) {
                 $this->saveVariant($variant, $channel);
-                // $this->setStock($variant, $channel);
+                $this->setStock($variant, $channel);
             }
         }
 
@@ -123,7 +123,7 @@ class ShopifyInventoryService
         ];
 
         if ($quantity > 0 && $this->app->get(CustomFieldEnum::SHOPIFY_INVENTORY_MANAGEMENT->value)) {
-            $this->setStock($variant, $channel);
+            // $this->setStock($variant, $channel);
         }
 
         if ($variant->product->getShopifyId($this->warehouses->regions)) {
@@ -145,13 +145,11 @@ class ShopifyInventoryService
             $response = $shopifyProduct->Variant->post($variantInfo);
             $shopifyProductVariantId = $response['id'];
             $shopifyProductVariantInventoryId = $response['inventory_item_id'];
-
             $variant->setShopifyId($this->warehouses->regions, $shopifyProductVariantId);
             $variant->setInventoryId($this->warehouses->regions, $shopifyProductVariantInventoryId);
         } else {
             unset($variantInfo['option1']);
             $response = $shopifyProduct->Variant($shopifyProductVariantId)->put($variantInfo);
-
             if ($variant->getInventoryId($this->warehouses->regions) === null) {
                 $variant->setInventoryId($this->warehouses->regions, $response['inventory_item_id']);
             }
@@ -175,7 +173,6 @@ class ShopifyInventoryService
         ]);
 
         $defaultLocation = $this->shopifySdk->Shop->get()['primary_location_id'];
-
         if ($isAdjustment) {
             $shopifyInventory = $this->shopifySdk->InventoryLevel->adjust([
                 'inventory_item_id' => $variant->getInventoryId($this->warehouses->regions),
