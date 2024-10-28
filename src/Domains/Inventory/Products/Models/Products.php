@@ -163,6 +163,18 @@ class Products extends BaseModel implements EntityIntegrationInterface
         );
     }
 
+    public function scopeFilterByVariantAttributeValue($query, $value)
+    {
+        return $query->where('products.is_deleted', 0)
+            ->whereHas('variants', function ($query) use ($value) {
+                $query->where('products_variants.is_deleted', 0)
+                    ->whereHas('attributes', function ($query) use ($value) {
+                        $query->where('products_variants_attributes.value', $value)
+                              ->where('products_variants_attributes.is_deleted', 0);
+                    });
+            });
+    }
+
     /**
      * variants.
      */
