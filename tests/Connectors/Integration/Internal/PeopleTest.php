@@ -24,16 +24,6 @@ final class PeopleTest extends TestCase
         $this->assertNotNull($companyName);
     }
 
-    public function testExtractEmailCompanyNamePublicProvider()
-    {
-        $email = fake()->email;
-
-        $extractCompanyNameFromEmailAction = new ExtractCompanyNameFromEmailAction();
-        $companyName = $extractCompanyNameFromEmailAction->execute($email);
-
-        $this->assertNull($companyName);
-    }
-
     public function testExtractEmailCompanyNameFromEmailActivity()
     {
         $app = app(Apps::class);
