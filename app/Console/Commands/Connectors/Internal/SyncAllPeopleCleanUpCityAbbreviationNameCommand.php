@@ -66,6 +66,7 @@ class SyncAllPeopleCleanUpCityAbbreviationNameCommand extends Command
                         if (empty($add->city)) {
                             continue;
                         }
+                        $add->address = USCityAbbreviations::expand($add->address); // this should not be needed , this is do to bad data
                         $add->city = USCityAbbreviations::expand($add->city);
                         $add->save();
                         $people->searchable();
