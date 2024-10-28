@@ -68,6 +68,7 @@ class SyncAllPeopleCleanUpCityAbbreviationNameCommand extends Command
                         }
                         $add->city = USCityAbbreviations::expand($add->city);
                         $add->save();
+                        $people->searchable();
                     }
 
                     $this->output->progressAdvance(); // Advance the progress bar for each person
