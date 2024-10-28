@@ -11,6 +11,7 @@ use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -163,12 +164,12 @@ class Products extends BaseModel implements EntityIntegrationInterface
         );
     }
 
-    public function scopeFilterByVariantAttributeValue($query, $value)
+    public function scopeFilterByVariantAttributeValue(Builder $query, string $value): Builder
     {
         return $query->where('products.is_deleted', 0)
-            ->whereHas('variants', function ($query) use ($value) {
+            ->whereHas('variants', function (Builder $query) use ($value) {
                 $query->where('products_variants.is_deleted', 0)
-                    ->whereHas('attributes', function ($query) use ($value) {
+                    ->whereHas('attributes', function (Builder $query) use ($value) {
                         $query->where('products_variants_attributes.value', $value)
                               ->where('products_variants_attributes.is_deleted', 0);
                     });
