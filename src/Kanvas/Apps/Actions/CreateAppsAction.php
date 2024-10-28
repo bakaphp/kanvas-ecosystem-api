@@ -52,9 +52,9 @@ class CreateAppsAction
             ]);
             $app->saveOrFail();
 
+            $this->settings($app);
             $app->associateUser($this->user, $this->data->is_actived);
 
-            $this->settings($app);
             $this->systemModules($app);
             $this->acl($app);
             CreateSystemModuleJob::dispatch($app);
@@ -96,10 +96,10 @@ class CreateAppsAction
                 'name' => 'delete_images_on_empty_files_field',
                 'value' => '1',
             ], [
-                'name' => AppSettingsEnums::GLOBAL_APP_IMAGES->value,
+                'name' => AppSettingsEnums::GLOBAL_APP_IMAGES->getValue(),
                 'value' => 1,
             ], [
-                'name' => AppSettingsEnums::DEFAULT_SIGNUP_ROLE->value,
+                'name' => AppSettingsEnums::DEFAULT_SIGNUP_ROLE->getValue(),
                 'value' => RolesEnums::USER->value,
             ], [
                 'name' => 'default_feeds_comments',
@@ -107,7 +107,10 @@ class CreateAppsAction
             ], [
                 'name' => 'notification_from_user_id',
                 'value' => $this->user->getId(),
-            ],
+            ], [
+                'name' => AppSettingsEnums::ONBOARDING_INVENTORY_SETUP->getValue(),
+                'value' => 1,
+            ]
         ];
 
         foreach ($settings as $key => $value) {
