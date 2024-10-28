@@ -124,6 +124,7 @@ extend type Mutation @guard {
 extend type Query @guard {
     products(
         search: String @search
+        variantAttributeValue: String 
         where: _
             @whereConditions(
                 columns: [
