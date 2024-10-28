@@ -31,6 +31,10 @@ trait HasTagsTrait
         ?UserInterface $user = null,
         ?CompanyInterface $company = null
     ): void {
+        if (empty($tag)) {
+            return;
+        }
+
         $app = $this->app ?? $app;
         $user = $this->user ?? $user;
         $company = $company ?? $this->company;
@@ -61,6 +65,9 @@ trait HasTagsTrait
         ?CompanyInterface $company = null
     ): void {
         foreach ($tags as $tag) {
+            if (empty($tag)) {
+                continue;
+            }
             $this->addTag($tag, $app, $user, $company);
         }
     }
