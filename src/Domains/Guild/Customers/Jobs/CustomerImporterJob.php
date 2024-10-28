@@ -52,6 +52,17 @@ class CustomerImporterJob extends AbstractImporterJob
 
         foreach ($this->importer as $customerData) {
             try {
+                // Check if lastname and middlename are empty, and firstname contains a space
+                if (empty($customerData['lastname']) && empty($customerData['middlename']) && isset($customerData['firstname'])) {
+                    // Split the firstname by space
+                    $nameParts = explode(' ', trim($customerData['firstname']));
+
+                    // If there are multiple parts, use the first part as firstname and the last part as lastname
+                    if (count($nameParts) > 1) {
+                        $customerData['firstname'] = $nameParts[0];
+                        $customerData['lastname'] = $nameParts[count($nameParts) - 1];
+                    }
+                }
                 $people = People::from([
                     'app' => $this->app,
                     'branch' => $this->branch,
@@ -71,17 +82,6 @@ class CustomerImporterJob extends AbstractImporterJob
                     'organization' => $customerData['organization'] ?? null,
                     'created_at' => $customerData['created_at'] ?? null,
                 ]);
-
-                if ($people->contacts->count()) {
-                    foreach ($people->contacts as $contact) {
-                        $customer = PeoplesRepository::getByValue($contact->value, $company, $this->app);
-                        if ($customer) {
-                            $people->id = $customer->id;
-
-                            break;
-                        }
-                    }
-                }
 
                 $peopleSync = new CreatePeopleAction($people);
                 $peopleModel = $peopleSync->execute();
