@@ -110,6 +110,12 @@ class CreateAppsAction
             ], [
                 'name' => AppSettingsEnums::ONBOARDING_INVENTORY_SETUP->getValue(),
                 'value' => 1,
+            ], [
+                'name' => AppSettingsEnums::ONBOARDING_GUILD_SETUP->getValue(),
+                'value' => 1,
+            ], [
+                'name' => AppSettingsEnums::ONBOARDING_EVENT_SETUP->getValue(),
+                'value' => 1,
             ]
         ];
 
