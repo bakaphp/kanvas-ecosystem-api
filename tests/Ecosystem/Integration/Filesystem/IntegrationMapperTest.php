@@ -201,6 +201,12 @@ final class IntegrationMapperTest extends TestCase
                             'contacts_types_id' => '_5',
                         ],
                     ],
+                    'address' => [
+                        [
+                            'address' => 'LOCATION',
+                            'city' => 'LOCATION',
+                        ],
+                    ],
                     'custom_fields' => [
                         [
                             'name' => '_title',
@@ -217,7 +223,7 @@ final class IntegrationMapperTest extends TestCase
                         [
                             'name' => '_trb_subscriber',
                             'value' => 'TRB SUBSCRIBER? Y / N',
-                        ]
+                        ],
                     ],
                     'tags' => [[
                         'name' => 'TRB SUBSCRIBER? Y / N',
