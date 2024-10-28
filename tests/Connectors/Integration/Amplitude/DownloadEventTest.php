@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Integration\Apollo;
+namespace Tests\Connectors\Integration\Amplitude;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Amplitude\Client;
