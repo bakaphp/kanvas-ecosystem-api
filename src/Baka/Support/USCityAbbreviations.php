@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Baka\Support;
 
+/**
+ * @todo find a better package for this
+ */
 class USCityAbbreviations
 {
     private static array $cityMap = [
@@ -17,7 +20,6 @@ class USCityAbbreviations
         'SA' => 'San Antonio',
         'SD' => 'San Diego',
         'DAL' => 'Dallas',
-        'SJ' => 'San Jose',
 
         // Notable Cities
         'ATL' => 'Atlanta',
@@ -61,6 +63,7 @@ class USCityAbbreviations
         'SAT' => 'San Antonio',
         'SF' => 'San Francisco',
         'SFO' => 'San Francisco',
+        'SF Bay Area' => 'San Francisco',
         'SJ' => 'San Jose',
         'SEA' => 'Seattle',
         'STL' => 'St. Louis',
