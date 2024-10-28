@@ -37,7 +37,7 @@ class ProductService
             'sku' => $product['asin'],
             'source_id' => $product['asin'],
             'files' => $this->mapFilesystem(product: ['image' => $product['image'],'images' => $product['images']]),
-            'quantity' => 10,
+            'quantity' => $this->channels->app->get(ScrapperConfigEnum::DEFAULT_QUANTITY->value) ?? 1,
             'isPublished' => true,
             'categories' => $this->mapCategories($product),
             'warehouses' => [
