@@ -137,6 +137,8 @@ extend type Query @guard {
                     "is_published"
                 ]
             )
+        hasVariants: _
+            @whereHasConditions(relation: "variants", columns: ["id", "sku"])
         hasCategories: _
             @whereHasConditions(relation: "categories", columns: ["id", "name"])
         hasWarehouses: _

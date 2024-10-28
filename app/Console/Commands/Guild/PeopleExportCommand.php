@@ -133,8 +133,11 @@ class PeopleExportCommand extends Command
             ->where('contacts_types_id', ContactType::getByName('LinkedIn')->getId())
             ->get();
 
-        $location = $person->get('location');
-        $location = is_array($location) ? ($location['state'] ?? null) : $location;
+        $location = $person->address->count() ? $person->address->first()->city : null;
+        if ($location == null) {
+            $location = $person->get('location');
+            $location = is_array($location) ? ($location['state'] ?? null) : $location;
+        }
 
         $tags = $person->tags()->count() ? $person->tags()->pluck('name')->join(', ') : 'N/A';
         $company = $lastEmploymentHistory ? $lastEmploymentHistory->organization->name : ($person->get('company') ?? 'N/A');
@@ -144,7 +147,7 @@ class PeopleExportCommand extends Command
             $person->lastname,
             $person->name,
             $person->getEmails()->first()->value ?? 'N/A',
-            $person->get('location') ?? 'N/A',
+            $location ?? 'N/A',
             $lastEmploymentHistory ? $lastEmploymentHistory->position : 'N/A',
             $company,
             $person->get('company_type') ?? 'N/A',
