@@ -6,7 +6,7 @@ type Template {
     name: String!
     parent_template_id: Template @belongsTo(relation: "parentTemplate")
     template: String!
-    template_variables: [TemplatesVariables!]@hasMany(relation: "templateVariables")
+    template_variables: [TemplateVariables!]@hasMany(relation: "templateVariables")
     created_at: String
     updated_at: String
     is_deleted: Int
@@ -24,7 +24,6 @@ type TemplateVariables {
     value: String
     template_id: Int
 }
-
 
 input TemplateVariableInput {
     key: String!
