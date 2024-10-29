@@ -5,7 +5,7 @@ type Template {
     company: Company @belongsTo(relation: "company")
     name: String!
     parent_template_id: Int
-    parent: Template @belongsTo(relation: "parentTemplate")
+    parent_template: Template @belongsTo(relation: "parentTemplate")
     template: Mixed!
     template_variables: [TemplateVariables!]@hasMany(relation: "templateVariables")
     created_at: String
