@@ -28,22 +28,27 @@ class ProductBuilder
 
         if ($companyBranch && key_exists('search', $args)) {
             $region = Regions::getDefault($companyBranch->company, $app);
-            $app->fireWorkflow(event: WorkflowEnum::SEARCH->value, params: [
+            $app->fireWorkflow(
+                event: WorkflowEnum::SEARCH->value,
+                params: [
                 'app' => $app,
                 'user' => auth()->user(),
                 'companyBranch' => $companyBranch,
                 'region' => $region,
                 'search' => $args['search'],
-            ]);
+            ]
+            );
         }
 
         if (! $user->isAppOwner()) {
             //Products::setSearchIndex($company->getId());
         }
+        $query = Products::query();
 
-        /**
-         * @var Builder
-         */
-        return Products::query();
+        if (! empty($args['variantAttributeValue'])) {
+            $query->filterByVariantAttributeValue($args['variantAttributeValue']);
+        }
+
+        return $query;
     }
 }

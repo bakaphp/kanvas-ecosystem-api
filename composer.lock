@@ -5768,16 +5768,16 @@
         },
         {
             "name": "meilisearch/meilisearch-php",
-            "version": "v1.10.1",
+            "version": "v1.11.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/meilisearch/meilisearch-php.git",
-                "reference": "e3d8a74fdb0c65ecdef6ef9e89c110810c5c1aa0"
+                "reference": "4dd127cb87848f7a7b28e83bb355b4b86d329867"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/meilisearch/meilisearch-php/zipball/e3d8a74fdb0c65ecdef6ef9e89c110810c5c1aa0",
-                "reference": "e3d8a74fdb0c65ecdef6ef9e89c110810c5c1aa0",
+                "url": "https://api.github.com/repos/meilisearch/meilisearch-php/zipball/4dd127cb87848f7a7b28e83bb355b4b86d329867",
+                "reference": "4dd127cb87848f7a7b28e83bb355b4b86d329867",
                 "shasum": ""
             },
             "require": {
@@ -5829,9 +5829,9 @@
             ],
             "support": {
                 "issues": "https://github.com/meilisearch/meilisearch-php/issues",
-                "source": "https://github.com/meilisearch/meilisearch-php/tree/v1.10.1"
+                "source": "https://github.com/meilisearch/meilisearch-php/tree/v1.11.0"
             },
-            "time": "2024-09-15T22:50:45+00:00"
+            "time": "2024-10-28T14:04:37+00:00"
         },
         {
             "name": "mll-lab/graphql-php-scalars",
@@ -13603,16 +13603,16 @@
         },
         {
             "name": "twilio/sdk",
-            "version": "8.3.6",
+            "version": "8.3.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/twilio/twilio-php.git",
-                "reference": "404df9185a5e25f757f2d398d5336a453a34b61f"
+                "reference": "d2eba45cdc483fde10527ce44811d6bbeea3c82e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/404df9185a5e25f757f2d398d5336a453a34b61f",
-                "reference": "404df9185a5e25f757f2d398d5336a453a34b61f",
+                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/d2eba45cdc483fde10527ce44811d6bbeea3c82e",
+                "reference": "d2eba45cdc483fde10527ce44811d6bbeea3c82e",
                 "shasum": ""
             },
             "require": {
@@ -13650,9 +13650,9 @@
             ],
             "support": {
                 "issues": "https://github.com/twilio/twilio-php/issues",
-                "source": "https://github.com/twilio/twilio-php/tree/8.3.6"
+                "source": "https://github.com/twilio/twilio-php/tree/8.3.7"
             },
-            "time": "2024-10-25T12:02:22+00:00"
+            "time": "2024-10-28T12:15:00+00:00"
         },
         {
             "name": "typesense/typesense-php",
@@ -15204,16 +15204,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "11.4.2",
+            "version": "11.4.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "1863643c3f04ad03dcb9c6996c294784cdda4805"
+                "reference": "e8e8ed1854de5d36c088ec1833beae40d2dedd76"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/1863643c3f04ad03dcb9c6996c294784cdda4805",
-                "reference": "1863643c3f04ad03dcb9c6996c294784cdda4805",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/e8e8ed1854de5d36c088ec1833beae40d2dedd76",
+                "reference": "e8e8ed1854de5d36c088ec1833beae40d2dedd76",
                 "shasum": ""
             },
             "require": {
@@ -15284,7 +15284,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/11.4.2"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/11.4.3"
             },
             "funding": [
                 {
@@ -15300,7 +15300,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2024-10-19T13:05:19+00:00"
+            "time": "2024-10-28T13:07:50+00:00"
         },
         {
             "name": "sebastian/cli-parser",
@@ -16286,6 +16286,6 @@
     "platform": {
         "php": "^8.2"
     },
-    "platform-dev": {},
+    "platform-dev": [],
     "plugin-api-version": "2.6.0"
 }

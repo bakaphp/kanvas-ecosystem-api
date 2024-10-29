@@ -140,7 +140,10 @@ class PeopleExportCommand extends Command
         }
 
         $tags = $person->tags()->count() ? $person->tags()->pluck('name')->join(', ') : 'N/A';
-        $company = $lastEmploymentHistory ? $lastEmploymentHistory->organization->name : ($person->get('company') ?? 'N/A');
+        $companyPosition = $lastEmploymentHistory ? $lastEmploymentHistory->organization->name : ($person->get('company') ?? ($person->get('title') ?? 'N/A'));
+
+        //add title to people employment history
+
         $this->csv->insertOne([
             $person->getId(),
             $person->firstname,
@@ -149,7 +152,7 @@ class PeopleExportCommand extends Command
             $person->getEmails()->first()->value ?? 'N/A',
             $location ?? 'N/A',
             $lastEmploymentHistory ? $lastEmploymentHistory->position : 'N/A',
-            $company,
+            $companyPosition,
             $person->get('company_type') ?? 'N/A',
             $linkedIn->count() ? $linkedIn->first()->value : 'N/A',
             $tags,
