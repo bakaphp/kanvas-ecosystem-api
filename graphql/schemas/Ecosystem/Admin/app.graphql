@@ -30,7 +30,7 @@ type AppKey {
     updated_at: String!
 }
 
-type Template {
+type AppTemplate {
     id: ID!
     name: String!
     template: String!
@@ -106,7 +106,7 @@ input FilesystemConfigInput {
     client_x509_cert_url: String
 }
 
-input templateInput {
+input appTemplateInput {
     name: ID!
     template: String!
 }
@@ -195,7 +195,7 @@ extend type Mutation @guardByAppKey {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppSettingsMutation@saveSettings"
         )
-    addTemplateToApp(id: String!, input: templateInput!): Template
+    addTemplateToApp(id: String!, input: appTemplateInput!): AppTemplate
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Apps\\AppTemplateMutation@createAppTemplate"
         )
