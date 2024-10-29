@@ -7,15 +7,18 @@ namespace Kanvas\Event\Events\Models;
 use Baka\Casts\Json;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Kanvas\Event\Events\Observers\EventVersionObserver;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Event\Participants\Models\ParticipantType;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Spatie\LaravelData\DataCollection;
 
+#[ObservedBy([EventVersionObserver::class])]
 class EventVersion extends BaseModel
 {
     use UuidTrait;
