@@ -27,10 +27,10 @@ class ProductService
             $price = (float)$product['price'];
             $discountPrice = $price - ($price * 0.1);
         }
-
+        $name = Str::limit($product['name'], 255);
         $product = [
-            'name' => $product['name'],
-            'description' => $product['full_description'],
+            'name' => $name,
+            'description' => $name ,
             'price' => $discountPrice,
             'discountPrice' => $discountPrice,
             'slug' => Str::slug($product['asin']),
@@ -163,9 +163,9 @@ class ProductService
     {
         $weight = $product['product_information']['item_weight'] ?? 0;
         if ($weight && str_contains($weight, 'ounces')) {
-            $weight = Str::before($weight, 'ounces') * 28.3495;
+            $weight = ((float)Str::before($weight, 'ounces')) * 28.3495;
         } elseif ($weight && str_contains($weight, 'pounds')) {
-            $weight = Str::before($weight, 'pounds') * 453.592;
+            $weight = ((float)Str::before($weight, 'pounds')) * 453.592;
         }
 
         return $weight;
