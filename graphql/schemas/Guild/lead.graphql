@@ -213,6 +213,15 @@ extend type Query @guard {
                 relation: "customFields"
                 columns: ["name", "value"]
             )
+        hasStatus: _ @whereHasConditions(relation: "status", columns: ["name"])
+        hasType: _
+            @whereHasConditions(relation: "type", columns: ["name", "uuid"])
+        hasSource: _
+            @whereHasConditions(relation: "source", columns: ["name", "uuid"])
+        hasPipeline: _
+            @whereHasConditions(relation: "pipeline", columns: ["name"])
+        hasReceiver: _
+            @whereHasConditions(relation: "receiver", columns: ["name", "uuid"])
         orderBy: _
             @orderBy(
                 columns: [
