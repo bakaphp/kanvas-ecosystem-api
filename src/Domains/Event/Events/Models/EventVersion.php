@@ -9,6 +9,7 @@ use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Event\Participants\Models\ParticipantType;
@@ -36,9 +37,16 @@ class EventVersion extends BaseModel
         return $this->hasMany(EventVersionDate::class);
     }
 
-    public function participants(): HasMany
+    public function participants(): HasManyThrough
     {
-        return $this->hasMany(Participant::class);
+        return $this->hasManyThrough(
+            Participant::class,
+            EventVersionParticipant::class,
+            'event_version_id',
+            'id',
+            'id',
+            'participant_id'
+        );
     }
 
     public function casts(): array
@@ -47,11 +55,6 @@ class EventVersion extends BaseModel
             'metadata' => Json::class,
             'agenda' => Json::class,
         ];
-    }
-
-    public function getTotalAttendees(): int
-    {
-        return 0;
     }
 
     public function getNextEventVersion(Event $event): int
@@ -77,10 +80,54 @@ class EventVersion extends BaseModel
             ->fromCompany($this->company)
             ->where('name', 'Attendee')->firstOrFail();
 
-        return EventVersionParticipant::firstOrCreate([
-            'event_version_id' => $this->getId(),
-            'participant_id' => $participant->getId(),
-            'participant_type_id' => $participantType->getId(),
-        ]);
+        $eventVersionParticipant = EventVersionParticipant::withTrashed() // includes soft-deleted records
+            ->where('event_version_id', $this->getId())
+            ->where('participant_id', $participant->getId())
+            ->where('participant_type_id', $participantType->getId())
+            ->first();
+
+        if ($eventVersionParticipant) {
+            // Restore if it was soft deleted and update 'is_deleted' to 0
+            $eventVersionParticipant->restore();
+            $eventVersionParticipant->is_deleted = 0;
+            $eventVersionParticipant->save();
+        } else {
+            // Create a new record if no existing one is found
+            $eventVersionParticipant = EventVersionParticipant::create([
+                'event_version_id' => $this->getId(),
+                'participant_id' => $participant->getId(),
+                'participant_type_id' => $participantType->getId(),
+                'is_deleted' => 0,
+            ]);
+        }
+
+        return $eventVersionParticipant;
+    }
+
+    public function removeParticipant(Participant $participant): bool
+    {
+        $eventVersionParticipant = EventVersionParticipant::where('event_version_id', $this->getId())
+             ->where('participant_id', $participant->getId())
+             ->first();
+
+        if ($eventVersionParticipant) {
+            $eventVersionParticipant->delete();
+
+            return true;
+        }
+
+        return false;
+    }
+
+    public function incrementAttendees(): void
+    {
+        $this->total_attendees++;
+        $this->saveOrFail();
+    }
+
+    public function decrementAttendees(): void
+    {
+        $this->total_attendees--;
+        $this->saveOrFail();
     }
 }

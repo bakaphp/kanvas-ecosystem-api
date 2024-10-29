@@ -31,4 +31,20 @@ class EventParticipantManagementMutation
 
         return $participant;
     }
+
+    public function removePeopleFromEventVersion(mixed $root, array $req): bool
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $input = $req['input'];
+
+        $eventVersion = EventVersion::getByIdFromCompanyApp($input['event_version_id'], $user->getCurrentCompany(), $app);
+        $people = People::getByIdFromCompanyApp($input['people_id'], $user->getCurrentCompany(), $app);
+        //$event->removePeopleFromEventVersion($req['input']['people_id'], $req['input']['event_version_id']);
+
+        $syncParticipant = new SyncPeopleWithParticipantAction($people, $user);
+        $participant = $syncParticipant->execute();
+
+        return $eventVersion->removeParticipant($participant);
+    }
 }
