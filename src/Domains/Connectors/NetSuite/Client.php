@@ -50,21 +50,21 @@ class Client
         return new NetSuiteService($config);
     }
 
-    public function setServiceConfig(array $config): void
-    {
-        $requiredKeys = ['account', 'consumerKey', 'consumerSecret', 'token', 'tokenSecret'];
-        $missingKeys = [];
+    // public function setServiceConfig(array $config): void
+    // {
+    //     $requiredKeys = ['account', 'consumerKey', 'consumerSecret', 'token', 'tokenSecret'];
+    //     $missingKeys = [];
 
-        foreach ($requiredKeys as $key) {
-            if (empty($config[$key])) {
-                $missingKeys[] = $key;
-            }
-        }
+    //     foreach ($requiredKeys as $key) {
+    //         if (empty($config[$key])) {
+    //             $missingKeys[] = $key;
+    //         }
+    //     }
 
-        if (! empty($missingKeys)) {
-            throw new ValidationException('NetSuite configuration is missing the following keys: ' . implode(', ', $missingKeys));
-        }
+    //     if (! empty($missingKeys)) {
+    //         throw new ValidationException('NetSuite configuration is missing the following keys: ' . implode(', ', $missingKeys));
+    //     }
 
-        $this->app->set(ConfigurationEnum::NET_SUITE_ACCOUNT_CONFIG->value, $config);
-    }
+    //     $this->app->set(ConfigurationEnum::NET_SUITE_ACCOUNT_CONFIG->value, $config);
+    // }
 }
