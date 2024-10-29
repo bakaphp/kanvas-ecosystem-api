@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Products\Actions;
 
-use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -17,11 +16,8 @@ use Throwable;
 
 class UpdateProductAction
 {
-    /**
-     * __construct.
-     *
-     * @return void
-     */
+    protected bool $runWorkflow = true;
+
     public function __construct(
         protected Products $product,
         protected ProductDto $productDto,
@@ -29,9 +25,6 @@ class UpdateProductAction
     ) {
     }
 
-    /**
-     * execute.
-     */
     public function execute(): Products
     {
         CompaniesRepository::userAssociatedToCompany(
@@ -87,10 +80,12 @@ class UpdateProductAction
             throw $e;
         }
 
-        $this->product->fireWorkflow(
-            WorkflowEnum::CREATED->value,
-            true
-        );
+        if ($this->runWorkflow) {
+            $this->product->fireWorkflow(
+                WorkflowEnum::UPDATED->value,
+                true
+            );
+        }
 
         return $this->product;
     }

@@ -26,20 +26,12 @@ class CreateProductAction
     protected Apps $app;
     protected bool $runWorkflow = true;
 
-    /**
-     * __construct.
-     *
-     * @return void
-     */
     public function __construct(
         protected ProductDto $productDto,
         protected UserInterface $user,
     ) {
     }
 
-    /**
-     * execute.
-     */
     public function execute(): Products
     {
         CompaniesRepository::userAssociatedToCompany(
