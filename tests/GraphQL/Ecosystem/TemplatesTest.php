@@ -24,7 +24,7 @@ class TemplatesTest extends TestCase
         $template = "<p>{$contentName}/p>";
 
         $response = $this->graphQL(/** @lang GraphQL */ '
-            mutation createTemplate($input: TemplatesInput!) {
+            mutation createTemplate($input: TemplateInput!) {
                 createTemplate(
             input: $input
         ){
@@ -78,7 +78,7 @@ class TemplatesTest extends TestCase
         $template = "<p>{$contentName}/p>";
 
         $response = $this->graphQL(/** @lang GraphQL */ '
-            mutation updateTemplate($input: TemplatesInput!) {
+            mutation updateTemplate($input: TemplateInput!) {
                 updateTemplate(
             input: $input
         ){
