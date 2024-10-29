@@ -378,4 +378,10 @@ class Products extends BaseModel implements EntityIntegrationInterface
         $this->is_published = 0;
         $this->save();
     }
+
+    public function publish(): void
+    {
+        $this->is_published = 1;
+        $this->save();
+    }
 }
