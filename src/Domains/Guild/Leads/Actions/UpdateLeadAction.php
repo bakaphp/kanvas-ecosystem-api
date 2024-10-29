@@ -17,9 +17,12 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class UpdateLeadAction
 {
+    protected bool $runWorkflow = true;
+
     /**
      * __construct.
      */
@@ -119,6 +122,13 @@ class UpdateLeadAction
         if ($this->leadAttempt) {
             $this->leadAttempt->leads_id = $lead->getId();
             $this->leadAttempt->saveOrFail();
+        }
+
+        if ($this->runWorkflow) {
+            $lead->fireWorkflow(
+                WorkflowEnum::UPDATED->value,
+                true
+            );
         }
 
         return $lead;
