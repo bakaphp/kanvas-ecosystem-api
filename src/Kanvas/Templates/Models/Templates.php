@@ -88,24 +88,4 @@ class Templates extends BaseModel
     {
         return $this->hasMany(TemplatesVariables::class, 'template_id');
     }
-
-    /**
-     * User I belong to
-     *
-     * @return BelongsTo <Users>
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(Users::class, 'users_id');
-    }
-
-    /**
-     * Company I belong to
-     *
-     * @return BelongsTo <Companies>
-     */
-    public function company(): BelongsTo
-    {
-        return $this->belongsTo(Companies::class, 'companies_id');
-    }
 }
