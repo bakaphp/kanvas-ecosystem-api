@@ -23,7 +23,6 @@ class EventVersionParticipantObserver
         if (! $eventVersionParticipant->isDeleted()) {
             $eventVersionParticipant->eventVersion->incrementAttendees();
         } else {
-           
             $eventVersionParticipant->eventVersion->decrementAttendees();
         }
     }
