@@ -4,8 +4,9 @@ type Template {
     user: User @belongsTo(relation: "user")
     company: Company @belongsTo(relation: "company")
     name: String!
-    parent_template_id: Template @belongsTo(relation: "parentTemplate")
-    template: String!
+    parent_template_id: Int
+    parent: Template @belongsTo(relation: "parentTemplate")
+    template: Mixed!
     template_variables: [TemplateVariables!]@hasMany(relation: "templateVariables")
     created_at: String
     updated_at: String
@@ -57,6 +58,6 @@ extend type Query @guard {
     ): [Template!]!
         @paginate(
             model: "Kanvas\\Templates\\Models\\Templates"
-            scopes: ["fromCompany", "fromApp","notDeleted"]
+            scopes: ["fromApp","notDeleted"]
         )
 }
