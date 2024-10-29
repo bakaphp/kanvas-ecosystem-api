@@ -1,10 +1,10 @@
-type Templates {
+type Template {
     users_id: Int!
     companies_id: Int!
     user: User @belongsTo(relation: "user")
     company: Company @belongsTo(relation: "company")
     name: String!
-    parent_template_id: Int!
+    parent_template_id: Template @belongsTo(relation: "parentTemplate")
     template: String!
     template_variables: [TemplatesVariables!]@hasMany(relation: "templateVariables")
     created_at: String
@@ -12,14 +12,14 @@ type Templates {
     is_deleted: Int
 }
 
-input TemplatesInput {
+input TemplateInput {
     name: String!
     parent_template_id: Int!
     template_variables: [TemplateVariableInput!]!
     template: String!
 }
 
-type TemplatesVariables {
+type TemplateVariables {
     name: String
     value: String
     template_id: Int
@@ -32,11 +32,11 @@ input TemplateVariableInput {
 }
 
 extend type Mutation @guard {
-    createTemplate(input: TemplatesInput!): Templates!
+    createTemplate(input: TemplateInput!): Template!
         @field(
             resolver: "\\App\\GraphQL\\Ecosystem\\Mutations\\Templates\\TemplatesManagementMutation@createOrUpdate"
         )
-    updateTemplate(input: TemplatesInput!): Templates!
+    updateTemplate(input: TemplateInput!): Template!
         @field(
             resolver: "\\App\\GraphQL\\Ecosystem\\Mutations\\Templates\\TemplatesManagementMutation@createOrUpdate"
         )
@@ -55,7 +55,7 @@ extend type Query @guard {
                 ]
             )
         orderBy: _ @orderBy(columns: ["id"], direction: "DESC")
-    ): [Templates!]!
+    ): [Template!]!
         @paginate(
             model: "Kanvas\\Templates\\Models\\Templates"
             scopes: ["fromCompany", "fromApp","notDeleted"]
