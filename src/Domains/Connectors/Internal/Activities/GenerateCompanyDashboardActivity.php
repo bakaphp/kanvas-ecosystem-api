@@ -47,7 +47,8 @@ class GenerateCompanyDashboardActivity extends Activity implements WorkflowActiv
         $totalActiveUsers = (clone $userAssociatedCompanyBuilder)->where('is_active', 1)->count();
         $suspendedUsers = (clone $userAssociatedCompanyBuilder)->where('is_active', 0)->count();
 
-        $totalProducts = Products::fromApp($app)->fromCompany($company)->notDeleted()->where('is_published', 1)->count();
+        $totalProducts = Products::fromApp($app)->fromCompany($company)->notDeleted()->count();
+        $totalPublishedProducts = Products::fromApp($app)->fromCompany($company)->notDeleted()->where('is_published', 1)->count();
         $totalUnpublishedProducts = Products::fromApp($app)->fromCompany($company)->notDeleted()->where('is_published', 0)->count();
 
         $totalEvents = Event::fromApp($app)->fromCompany($company)->notDeleted()->count();
@@ -61,6 +62,8 @@ class GenerateCompanyDashboardActivity extends Activity implements WorkflowActiv
             'total_active_users' => $totalActiveUsers,
             'total_suspended_users' => $suspendedUsers,
             'total_products' => $totalProducts,
+            'total_published_products' => $totalPublishedProducts,
+            'total_unpublished_products' => $totalUnpublishedProducts,
             'total_expired_products' => $totalUnpublishedProducts,
             'total_events' => $totalEvents,
             'total_event_versions' => $totalEventVersions,
