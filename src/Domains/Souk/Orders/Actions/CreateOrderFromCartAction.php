@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Dashboard\Actions;
+namespace Kanvas\Souk\Orders\Actions;
 
 use Darryldecode\Cart\Cart;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -34,7 +34,7 @@ class CreateOrderFromCartAction
     ) {
     }
 
-    public function execute(): Order
+    public function execute(): array
     {
         $billingAddress = $this->creditCard?->billing;
         if ($billingAddress !== null) {
@@ -94,7 +94,7 @@ class CreateOrderFromCartAction
             languageCode: null,
         );
 
-        return $orderObject;
+        return $orderObject->toArray();
     }
 
     protected function getOrderItems($cartContent, $app): DataCollection

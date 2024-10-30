@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\GraphQL\Souk\Mutations\Orders;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Dashboard\Actions\CreateOrderFromCartAction;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -13,6 +12,7 @@ use Kanvas\Social\Interactions\Actions\CreateInteraction;
 use Kanvas\Social\Interactions\Actions\CreateUserInteractionAction;
 use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
+use Kanvas\Souk\Orders\Actions\CreateOrderFromCartAction;
 use Kanvas\Souk\Orders\DataTransferObject\DirectOrder;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
 use Kanvas\Souk\Payments\DataTransferObject\PaymentFlag;
@@ -38,7 +38,7 @@ class OrderManagementMutation
             $cart
         );
 
-        if ($cart->isEmpty()) {
+        if ($cart->isEmpty() && (empty($request['input']['items']) || $paymentFlag->flag != false)) {
             return [
                 'error_code' => 'Cart is empty',
                 'error_message' => 'Cart is empty',
