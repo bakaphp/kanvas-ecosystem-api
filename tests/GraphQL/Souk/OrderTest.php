@@ -78,13 +78,12 @@ class OrderTest extends TestCase
                     'quantity' => 2,
                 ],
             ],
-            'paymentFlag' => false
         ];
 
         // Perform GraphQL mutation to create a draft order
         $response = $this->graphQL('
-            mutation createOrder($input: OrderInput!) {
-                createOrder(input: $input) {
+            mutation createOrderFromCart($input: OrderCartInput!) {
+                createOrderFromCart(input: $input) {
                     id
                 }
             }

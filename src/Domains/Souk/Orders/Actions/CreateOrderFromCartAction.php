@@ -13,38 +13,36 @@ use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
-use Kanvas\Souk\Orders\DataTransferObject\DirectOrder;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
-use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
+use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Spatie\LaravelData\DataCollection;
 
 class CreateOrderFromCartAction
 {
     public function __construct(
         private Cart $cart,
-        private CreditCard $creditCard,
-        private DirectOrder $order,
         private Companies $company,
         private Regions $region,
         private People $people,
         private Authenticatable $user,
         private Apps $app,
+        private ?CreditCardBilling $billingAddress,
         private ?array $request
     ) {
     }
 
     public function execute(): array
     {
-        $billingAddress = $this->creditCard?->billing;
-        if ($billingAddress !== null) {
+
+        if ($this->billingAddress !== null) {
             $billing = $this->people->addAddress(new Address(
-                address: $billingAddress->address,
+                address: $this->billingAddress->address,
                 address_2: null,
-                city: $billingAddress->city,
-                state: $billingAddress->state,
-                country: $billingAddress->country,
-                zipcode: $billingAddress->zip
+                city: $this->billingAddress->city,
+                state: $this->billingAddress->state,
+                country: $this->billingAddress->country,
+                zipcode: $this->billingAddress->zip
             ));
         }
 
@@ -87,7 +85,7 @@ class CreateOrderFromCartAction
             currency: $this->region->currency,
             fulfillmentStatus: null,
             items: $items,
-            metadata: json_encode($this->order ?? ''),
+            metadata: '',
             weight: 0.0,
             checkoutToken: '',
             paymentGatewayName: [],
