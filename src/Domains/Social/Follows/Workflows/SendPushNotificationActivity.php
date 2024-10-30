@@ -24,9 +24,7 @@ use Kanvas\Notifications\Enums\NotificationChannelEnum;
 class SendPushNotificationActivity extends Activity implements WorkflowActivityInterface
 {
     use KanvasJobsTrait;
-    public $tries = 10;
-
-    //    public function execute(Message $message, AppInterface $app, array $params): array
+    public $tries = 3;
 
     public function execute(Model $entity, AppInterface $app, array $params = []): array
     {
@@ -35,7 +33,7 @@ class SendPushNotificationActivity extends Activity implements WorkflowActivityI
         $toUsersArray = $params['toUsers'] ?? [];
         $distributionType = isset($params['toUsers']) && count($params['toUsers']) > 0  ? 'users' : 'followers';
         
-        if (!in_array(NotificationChannelEnum::PUSH->value,$notificationType->getChannelsInNotificationFormat())) {
+        if (!in_array(NotificationChannelEnum::PUSH->value, $notificationType->getChannelsInNotificationFormat())) {
             return [
                 'result' => false,
                 'message' => 'NotificationType does not have push notification enabled',
