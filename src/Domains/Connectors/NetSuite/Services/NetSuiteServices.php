@@ -10,8 +10,8 @@ use Kanvas\Connectors\NetSuite\Client;
 use Kanvas\Connectors\NetSuite\DataTransferObject\NetSuite as NetSuiteDto;
 use Kanvas\Connectors\NetSuite\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
-use NetSuite\Classes\SearchRequest;
 use NetSuite\Classes\CustomerSearchBasic;
+use NetSuite\Classes\SearchRequest;
 use NetSuite\Classes\SearchStringField;
 use NetSuite\NetSuiteService as NetSuiteSdkService;
 
@@ -23,14 +23,13 @@ class NetSuiteServices
         protected AppInterface $app,
         protected Companies $company
     ) {
-        $client = new Client($app, $company);
-        $this->service = $client->getService();
+        $this->service = (new Client($app, $company))->getService();
     }
 
     /**
      * Set the shopify credentials into companies custom fields.
      */
-    public static function netSuitSetup(NetSuiteDto $data): bool
+    public static function setup(NetSuiteDto $data): bool
     {
         $configData = [
             'account' => $data->account,

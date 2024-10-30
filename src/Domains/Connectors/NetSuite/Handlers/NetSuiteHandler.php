@@ -35,7 +35,7 @@ class NetSuiteHandler extends IntegrationInterfaces
             tokenSecret: $this->data['tokenSecret'],
         );
 
-        NetSuiteServices::netSuitSetup($netSuiteDto);
+        NetSuiteServices::setup($netSuiteDto);
         $client = new NetSuiteServices($this->app, $this->company);
         return ! empty($client->findExistingCustomer($this->company->email));
     }

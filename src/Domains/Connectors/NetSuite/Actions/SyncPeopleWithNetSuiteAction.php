@@ -6,19 +6,12 @@ namespace Kanvas\Connectors\NetSuite\Actions;
 
 use Baka\Contracts\AppInterface;
 use Exception;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Client;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
-use Kanvas\Connectors\NetSuite\Traits\IsNetSuiteCustomerTrait;
 use Kanvas\Connectors\NetSuite\Traits\UseNetSuiteCustomerTrait;
 use Kanvas\Guild\Customers\Models\People;
-use NetSuite\Classes\AddRequest;
 use NetSuite\Classes\Customer;
-use NetSuite\Classes\CustomerSearchBasic;
-use NetSuite\Classes\SearchRequest;
-use NetSuite\Classes\SearchStringField;
 use NetSuite\Classes\UpdateRequest;
-use NetSuite\NetSuiteService;
 
 class SyncPeopleWithNetSuiteAction
 {
@@ -38,7 +31,7 @@ class SyncPeopleWithNetSuiteAction
             return $this->updateExistingCustomer();
         }
 
-        $existingCustomer = $this->findExistingCustomer();
+        $existingCustomer = $this->findExistingCustomer($this->people->getEmails()->count() > 0 ? $this->people->getEmails()->first()->email : '');
 
         if ($existingCustomer) {
             // Update the found customer and store their ID
@@ -53,19 +46,6 @@ class SyncPeopleWithNetSuiteAction
     protected function hasExistingNetSuiteId(): bool
     {
         return ! empty($this->people->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value));
-    }
-
-    /**
-     * Create email search criteria for NetSuite.
-     */
-    protected function createEmailSearchCriteria(): CustomerSearchBasic
-    {
-        $customerSearch = new CustomerSearchBasic();
-        $customerSearch->email = new SearchStringField();
-        $customerSearch->email->operator = 'is';
-        $customerSearch->email->searchValue = $this->people->getEmails()->count() > 0 ? $this->people->getEmails()->first()->email : '';
-
-        return $customerSearch;
     }
 
     protected function updateExistingCustomer(): People

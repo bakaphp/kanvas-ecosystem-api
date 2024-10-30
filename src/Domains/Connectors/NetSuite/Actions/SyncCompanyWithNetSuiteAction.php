@@ -11,10 +11,7 @@ use Kanvas\Connectors\NetSuite\Client;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Traits\UseNetSuiteCustomerTrait;
 use NetSuite\Classes\Customer;
-use NetSuite\Classes\CustomerSearchBasic;
-use NetSuite\Classes\SearchStringField;
 use NetSuite\Classes\UpdateRequest;
-use NetSuite\NetSuiteService;
 
 class SyncCompanyWithNetSuiteAction
 {
@@ -34,7 +31,7 @@ class SyncCompanyWithNetSuiteAction
             return $this->updateExistingCustomer();
         }
 
-        $existingCustomer = $this->findExistingCustomer();
+        $existingCustomer = $this->findExistingCustomer($this->company->user->email);
 
         if ($existingCustomer) {
             // Update the found customer and store their ID
@@ -49,19 +46,6 @@ class SyncCompanyWithNetSuiteAction
     protected function hasExistingNetSuiteId(): bool
     {
         return ! empty($this->company->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value));
-    }
-
-    /**
-     * Create email search criteria for NetSuite.
-     */
-    protected function createEmailSearchCriteria(): CustomerSearchBasic
-    {
-        $customerSearch = new CustomerSearchBasic();
-        $customerSearch->email = new SearchStringField();
-        $customerSearch->email->operator = 'is';
-        $customerSearch->email->searchValue = $this->company->user->email;
-
-        return $customerSearch;
     }
 
     protected function updateExistingCustomer(): Companies

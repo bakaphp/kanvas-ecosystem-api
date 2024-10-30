@@ -10,18 +10,27 @@ use Kanvas\Guild\Customers\Models\People;
 use NetSuite\Classes\AddRequest;
 use NetSuite\Classes\CustomerSearchBasic;
 use NetSuite\Classes\SearchRequest;
+use NetSuite\Classes\SearchStringField;
 use NetSuite\NetSuiteService;
 
 trait UseNetSuiteCustomerTrait
 {
     protected NetSuiteService $service;
 
-    abstract protected function createEmailSearchCriteria(): CustomerSearchBasic;
+    protected function createEmailSearchCriteria(string $email): CustomerSearchBasic
+    {
+        $customerSearch = new CustomerSearchBasic();
+        $customerSearch->email = new SearchStringField();
+        $customerSearch->email->operator = 'is';
+        $customerSearch->email->searchValue = $email;
 
-    protected function findExistingCustomer(): ?object
+        return $customerSearch;
+    }
+
+    protected function findExistingCustomer(string $email): ?object
     {
         $searchRequest = new SearchRequest();
-        $searchRequest->searchRecord = $this->createEmailSearchCriteria();
+        $searchRequest->searchRecord = $this->createEmailSearchCriteria($email);
 
         $searchResponse = $this->service->search($searchRequest);
 

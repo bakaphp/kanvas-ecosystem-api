@@ -30,7 +30,7 @@ class NetSuite
     /**
      * fromArray.
      */
-    public static function viaRequest(array $data, AppInterface $app, CompanyInterface $company): self
+    public static function fromMultiple(array $data, AppInterface $app, CompanyInterface $company): self
     {
         return new self(
             $company,
