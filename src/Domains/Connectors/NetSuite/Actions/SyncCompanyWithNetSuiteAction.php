@@ -21,8 +21,7 @@ class SyncCompanyWithNetSuiteAction
         protected AppInterface $app,
         protected Companies $company
     ) {
-        $client = new Client($app, $company);
-        $this->service = $client->getService();
+        $this->service = (new Client($app, $company))->getService();
     }
 
     public function execute(): Companies

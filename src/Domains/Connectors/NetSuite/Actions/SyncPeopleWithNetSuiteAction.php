@@ -21,8 +21,7 @@ class SyncPeopleWithNetSuiteAction
         protected AppInterface $app,
         protected People $people
     ) {
-        $client = new Client($app, $people->company);
-        $this->service = $client->getService();
+        $this->service = (new Client($app, $people->company))->getService();
     }
 
     public function execute(): People
