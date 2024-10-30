@@ -16,7 +16,7 @@ class MessageObserver
     {
         $message->fireWorkflow(WorkflowEnum::CREATED->value, true, [
             'app' => $message->app,
-            'message'=> $message,
+            'message' => $message,
             'notification_name' => WorkflowEnum::CREATED->value . '-' . $message->messageType->name
         ]);
 
