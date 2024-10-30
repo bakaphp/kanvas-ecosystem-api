@@ -29,7 +29,8 @@ class CreateOrderFromCartAction
         private Regions $region,
         private People $people,
         private Authenticatable $user,
-        private Apps $app
+        private Apps $app,
+        private ?array $request
     ) {
     }
 
@@ -47,6 +48,22 @@ class CreateOrderFromCartAction
             ));
         }
 
+        if (!empty($this->cart)) {
+            $total = $this->cart->getTotal();
+            $totalTax = ($this->cart->getTotal()) - ($this->cart->getSubTotal());
+            $totalDiscount = 0.0;
+        } else {
+            $total = 0;
+            $totalTax = 0;
+            $totalDiscount = 0;
+            $lineItems = [];
+            foreach ($this->request['input']['items'] as $key => $lineItem) {
+                $lineItems[$key] = OrderItem::viaRequest($this->app, $this->company, $this->region, $lineItem);
+                $total += $lineItems[$key]->getTotal();
+                $totalTax = $lineItems[$key]->getTotalTax();
+                $totalDiscount = $lineItems[$key]->getTotalDiscount();
+            }
+        }
         $items = $this->getOrderItems($this->cart->getContent()->toArray(), $this->app);
 
         $orderObject = new Order(
@@ -60,14 +77,14 @@ class CreateOrderFromCartAction
             token: '',
             shippingAddress: null,
             billingAddress: $billing ?? null,
-            total: (float) $this->cart->getTotal(),
-            taxes: (float) (($this->cart->getTotal()) - ($this->cart->getSubTotal())),
-            totalDiscount: 0.0,
+            total: (float) $total,
+            taxes: (float) $totalTax,
+            totalDiscount: $totalDiscount,
             totalShipping: 0.0,
             status: 'completed',
             orderNumber: '',
             shippingMethod: null,
-            currency: Currencies::getByCode("USD"),
+            currency: $this->region->currency,
             fulfillmentStatus: null,
             items: $items,
             metadata: json_encode($this->order ?? ''),

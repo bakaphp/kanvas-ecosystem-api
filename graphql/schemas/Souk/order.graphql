@@ -89,6 +89,8 @@ input OrderInput {
     cartId: ID!
     payment: CreditCardInput!
     billing: CreditCardBillingInput
+    paymentFlag: Boolean
+    items: [OrderLineItemInput]
 }
 
 input DraftOrderInput {

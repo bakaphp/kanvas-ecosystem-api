@@ -48,4 +48,52 @@ class OrderTest extends TestCase
 
         $response->assertSuccessful();
     }
+
+    public function testReturnOrderFromCart()
+    {
+        $variantWarehouse = VariantsWarehouses::first();
+        $region = $variantWarehouse->warehouse->region;
+        $company = $region->company;
+        $user = $company->user;
+
+        // Prepare input data for the order
+        $data = [
+            'CreditCardInput' => [
+                'name' => fake()->name(),
+                'number' => fake()->creditCardNumber(null, false, ''),
+                'exp_month' => 12,
+                'exp_year' => 2026,
+            ],
+            'CreditCardBillingInput' => [
+                'address' => fake()->address(),
+                'address2' => fake()->address(),
+                'city' => fake()->city(),
+                'state' => 'MT',
+                'zip' => 59068,
+                'country' => 'US',
+            ],
+            'items' => [
+                [
+                    'variant_id' => $variantWarehouse->variant->getId(),
+                    'quantity' => 2,
+                ],
+            ],
+            'paymentFlag' => false
+        ];
+
+        // Perform GraphQL mutation to create a draft order
+        $response = $this->graphQL('
+            mutation createOrder($input: OrderInput!) {
+                createOrder(input: $input) {
+                    id
+                }
+            }
+        ', [
+            'input' => $data,
+        ], [], [
+            'X-Kanvas-Location' => $company->branch->uuid,
+        ]);
+
+        $response->assertSuccessful();
+    }
 }

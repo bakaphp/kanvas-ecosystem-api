@@ -6,7 +6,6 @@ namespace App\GraphQL\Souk\Mutations\Orders;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Dashboard\Actions\CreateOrderFromCartAction;
-use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -16,6 +15,7 @@ use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
 use Kanvas\Souk\Orders\DataTransferObject\DirectOrder;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
+use Kanvas\Souk\Payments\DataTransferObject\PaymentFlag;
 use Kanvas\Souk\Payments\Providers\AuthorizeNetPaymentProcessor;
 
 class OrderManagementMutation
@@ -24,6 +24,7 @@ class OrderManagementMutation
     {
         $user = auth()->user();
         $creditCard = CreditCard::viaRequest($request['input']);
+        $paymentFlag = PaymentFlag::viaRequest($request['input']);
         $cart = app('cart')->session($user->getId());
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentBranch()->company;
@@ -37,8 +38,6 @@ class OrderManagementMutation
             $cart
         );
 
-        $paymentFlag = $app->get(AppSettingsEnums::PAYMENT_FLAG->getValue());
-
         if ($cart->isEmpty()) {
             return [
                 'error_code' => 'Cart is empty',
@@ -46,7 +45,7 @@ class OrderManagementMutation
             ];
         }
 
-        if (empty($paymentFlag)) {
+        if ($paymentFlag == false) {
             $createOrder = new CreateOrderFromCartAction(
                 $cart,
                 $creditCard,
@@ -55,7 +54,8 @@ class OrderManagementMutation
                 $region,
                 $people,
                 $user,
-                $app
+                $app,
+                $request
             );
             return $createOrder->execute();
         } else {
