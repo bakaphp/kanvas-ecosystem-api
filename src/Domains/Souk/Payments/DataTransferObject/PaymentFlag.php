@@ -10,7 +10,7 @@ use Spatie\LaravelData\Data;
 class PaymentFlag extends Data
 {
     public function __construct(
-        public readonly string $flag
+        public readonly bool $flag
     ) {
     }
 
