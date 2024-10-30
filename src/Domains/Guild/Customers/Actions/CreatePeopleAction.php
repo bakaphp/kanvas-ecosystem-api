@@ -8,10 +8,14 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Validations\Date;
 use Kanvas\Companies\Enums\Defaults;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDataInput;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
+use Kanvas\Guild\Organizations\DataTransferObject\Organization;
+use Kanvas\Guild\Organizations\Models\OrganizationPeople;
 
 class CreatePeopleAction
 {
@@ -73,6 +77,10 @@ class CreatePeopleAction
             $contactsToAdd = [];
 
             foreach ($this->peopleData->contacts as $contact) {
+                if (empty($contact->value)) {
+                    continue;
+                }
+
                 if (! in_array($contact->value, $existingContacts)) {
                     $contactsToAdd[] = new Contact([
                         'contacts_types_id' => $contact->contacts_types_id,
@@ -114,31 +122,43 @@ class CreatePeopleAction
                     ]));
                 }
             }
-
-            if ($this->peopleData->peopleEmploymentHistory) {
-                foreach ($this->peopleData->peopleEmploymentHistory as $employmentHistory) {
-                    $people->employmentHistory()->updateOrCreate(
-                        [
-                            'organizations_id' => $employmentHistory['organizations_id'],
-                            'apps_id' => $this->peopleData->app->getId(),
-                            'position' => $employmentHistory['position'],
-                        ],
-                        [
-                            'position' => $employmentHistory['position'],
-                            'income' => $employmentHistory['income'],
-                            'start_date' => $employmentHistory['start_date'],
-                            'end_date' => $employmentHistory['end_date'],
-                            'status' => $employmentHistory['status'],
-                            'income_type' => $employmentHistory['income_type'] ?? null,
-                        ]
-                    );
-                }
-            }
-
-            if (! empty($addressesToAdd)) {
-                $people->address()->saveMany($addressesToAdd);
+        }
+        if ($this->peopleData->peopleEmploymentHistory) {
+            foreach ($this->peopleData->peopleEmploymentHistory as $employmentHistory) {
+                $people->employmentHistory()->updateOrCreate(
+                    [
+                        'organizations_id' => $employmentHistory['organizations_id'],
+                        'apps_id' => $this->peopleData->app->getId(),
+                        'position' => $employmentHistory['position'],
+                    ],
+                    [
+                        'position' => $employmentHistory['position'],
+                        'income' => $employmentHistory['income'],
+                        'start_date' => $employmentHistory['start_date'],
+                        'end_date' => $employmentHistory['end_date'],
+                        'status' => $employmentHistory['status'],
+                        'income_type' => $employmentHistory['income_type'] ?? null,
+                    ]
+                );
             }
         }
+
+        if ($this->peopleData->organization) {
+            $organization = (new CreateOrganizationAction(
+                new Organization(
+                    company: $this->peopleData->branch->company,
+                    user: $this->peopleData->user,
+                    app: $this->peopleData->app,
+                    name: $this->peopleData->organization,
+                )
+            ))->execute();
+            OrganizationPeople::addPeopleToOrganization($organization, $people);
+        }
+
+        if (! empty($addressesToAdd)) {
+            $people->address()->saveMany($addressesToAdd);
+        }
+
         $people->refresh();
 
         return $people;
@@ -148,6 +168,10 @@ class CreatePeopleAction
     {
         if ($this->peopleData->contacts->count()) {
             foreach ($this->peopleData->contacts as $contact) {
+                //only check for phone or email
+                if (! in_array($contact->contacts_types_id, [ContactTypeEnum::EMAIL->value, ContactTypeEnum::PHONE->value])) {
+                    continue;
+                }
                 $searchValue = $contact->value;
 
                 $people = PeoplesRepository::getByValue($searchValue, $company, $this->peopleData->app);

@@ -37,13 +37,13 @@ class ProductsRepository
             ->select('p.*')
             ->where('a.slug', '=', 'end-date')
             ->where('pa.value', '<=', Carbon::now())
-            ->where('p.is_published', '=', 1)
+            //->where('p.is_published', '=', 1)
             ->where('p.is_deleted', '=', 0)
             ->where('p.companies_id', '=', $company->getId())
             ->where('p.apps_id', '=', $app->getId());
     }
 
-    public static function getProductsWithPendingEndDate(AppInterface $app, CompanyInterface $company): Builder
+    public static function getProductWithUnPassedEndDate(AppInterface $app, CompanyInterface $company): Builder
     {
         return Products::from('products as p')
             ->withoutGlobalScopes()  // Disable global scopes
@@ -52,7 +52,7 @@ class ProductsRepository
             ->select('p.*')
             ->where('a.slug', '=', 'end-date')
             ->where('pa.value', '>', Carbon::now())
-            ->where('p.is_published', '=', 0)
+            ->where('p.is_published', '=', 1)
             ->where('p.is_deleted', '=', 0)
             ->where('p.companies_id', '=', $company->getId())
             ->where('p.apps_id', '=', $app->getId());

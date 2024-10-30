@@ -17,10 +17,12 @@ use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreateLeadAction
 {
     protected CompanyInterface $company;
+    protected bool $runWorkflow = true;
 
     /**
      * __construct.
@@ -98,6 +100,13 @@ class CreateLeadAction
             $this->leadAttempt->leads_id = $newLead->getId();
             $this->leadAttempt->processed = 1;
             $this->leadAttempt->saveOrFail();
+        }
+
+        if ($this->runWorkflow) {
+            $newLead->fireWorkflow(
+                WorkflowEnum::CREATED->value,
+                true
+            );
         }
 
         return $newLead;

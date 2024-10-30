@@ -765,6 +765,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             'total_like' => 0,
             'total_followers' => $socialCount['users_followers_count'] ?? 0,
             'total_following' => $socialCount['users_following_count'] ?? 0,
+            'total_blocked' => 0,
             'is_following' => $currentUser && ($currentUser->getId() !== $this->getId()) ? $currentUser->isFollowing($this, $app) : false,
             'is_blocked' => $currentUser && ($currentUser->getId() !== $this->getId()) ? $currentUser->isBlocked($this, $app) : false,
             'total_list' => 0,

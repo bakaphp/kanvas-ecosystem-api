@@ -9,6 +9,10 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Event\Events\Models\Event;
+use Kanvas\Event\Events\Models\EventVersion;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -43,15 +47,28 @@ class GenerateCompanyDashboardActivity extends Activity implements WorkflowActiv
         $totalActiveUsers = (clone $userAssociatedCompanyBuilder)->where('is_active', 1)->count();
         $suspendedUsers = (clone $userAssociatedCompanyBuilder)->where('is_active', 0)->count();
 
-        $totalProducts = Products::fromApp($app)->fromCompany($company)->notDeleted()->where('is_published', 1)->count();
+        $totalProducts = Products::fromApp($app)->fromCompany($company)->notDeleted()->count();
+        $totalPublishedProducts = Products::fromApp($app)->fromCompany($company)->notDeleted()->where('is_published', 1)->count();
         $totalUnpublishedProducts = Products::fromApp($app)->fromCompany($company)->notDeleted()->where('is_published', 0)->count();
+
+        $totalEvents = Event::fromApp($app)->fromCompany($company)->notDeleted()->count();
+        $totalEventVersions = EventVersion::fromApp($app)->fromCompany($company)->notDeleted()->count();
+
+        $totalPeople = People::fromApp($app)->fromCompany($company)->notDeleted()->count();
+        $totalLeads = Lead::fromApp($app)->fromCompany($company)->notDeleted()->count();
 
         $dashboard = [
             'total_users' => $totalUsers,
             'total_active_users' => $totalActiveUsers,
             'total_suspended_users' => $suspendedUsers,
             'total_products' => $totalProducts,
+            'total_published_products' => $totalPublishedProducts,
+            'total_unpublished_products' => $totalUnpublishedProducts,
             'total_expired_products' => $totalUnpublishedProducts,
+            'total_events' => $totalEvents,
+            'total_event_versions' => $totalEventVersions,
+            'total_people' => $totalPeople,
+            'total_leads' => $totalLeads,
         ];
 
         $company->set('dashboard', $dashboard, true);
