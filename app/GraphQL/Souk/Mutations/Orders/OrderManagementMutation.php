@@ -45,7 +45,7 @@ class OrderManagementMutation
             ];
         }
 
-        if ($paymentFlag == false) {
+        if ($paymentFlag->flag == false) {
             $createOrder = new CreateOrderFromCartAction(
                 $cart,
                 $creditCard,
