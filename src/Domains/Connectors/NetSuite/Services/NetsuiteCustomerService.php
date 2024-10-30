@@ -24,7 +24,7 @@ class NetSuiteCustomerService
         $this->service = (new Client($app, $company))->getService();
     }
 
-    public function getCustomerInfo(int|string $customerId): Customer
+    public function getCustomerById(int|string $customerId): Customer
     {
         $customerRef = new RecordRef();
         $customerRef->internalId = $customerId;
