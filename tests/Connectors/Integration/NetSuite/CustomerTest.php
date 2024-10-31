@@ -10,12 +10,33 @@ use Kanvas\Connectors\NetSuite\Actions\SyncCompanyWithNetSuiteAction;
 use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerWithCompanyAction;
 use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerWithPeopleAction;
 use Kanvas\Connectors\NetSuite\Client;
+use Kanvas\Connectors\NetSuite\DataTransferObject\NetSuite;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteCustomerService;
+use Kanvas\Connectors\NetSuite\Services\NetSuiteServices;
 use Tests\TestCase;
 
 final class CustomerTest extends TestCase
 {
+    public function testSetup()
+    {
+        $app = app(Apps::class);
+        $company = Companies::first();
+        $data = new NetSuite(
+            app: $app,
+            company: $company,
+            account: getenv('NET_SUITE_ACCOUNT'),
+            consumerKey: getenv('NET_SUITE_CONSUMER_KEY'),
+            consumerSecret: getenv('NET_SUITE_CONSUMER_SECRET'),
+            token: getenv('NET_SUITE_TOKEN'),
+            tokenSecret: getenv('NET_SUITE_TOKEN_SECRET')
+        );
+
+        $result = NetSuiteServices::setup($data);
+
+        $this->assertTrue($result);
+    }
+
     public function testSynCompanyWithNetSuite()
     {
         /*  $company = Companies::first();

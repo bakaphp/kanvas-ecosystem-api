@@ -66,11 +66,28 @@ class KanvasWorkflowSynActionCommand extends Command
             UnPublishExpiredProductActivity::class,
         ];
 
+        $createdActions = [];
+
         foreach ($actions as $action) {
-            Action::firstOrCreate([
+            $record = Action::firstOrCreate([
                 'name' => class_basename($action),
-                'class_name' => $action,
+                'model_name' => $action,
             ]);
+
+            // Check if the record was newly created
+            if ($record->wasRecentlyCreated) {
+                $createdActions[] = $record->name;
+            }
+        }
+
+        // Output the names of the newly created actions
+        if (! empty($createdActions)) {
+            $this->info('The following actions were created:');
+            foreach ($createdActions as $actionName) {
+                $this->line("- {$actionName}");
+            }
+        } else {
+            $this->info('No new actions were created.');
         }
 
         $this->info('Syncing Workflow Action Done!');

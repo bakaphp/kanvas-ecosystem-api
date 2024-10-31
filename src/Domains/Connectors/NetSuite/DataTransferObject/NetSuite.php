@@ -17,8 +17,6 @@ class NetSuite
     public function __construct(
         public CompanyInterface $company,
         public AppInterface $app,
-        public string $endpoint,
-        public string $apiUrl,
         public string $account,
         public string $consumerKey,
         public string $consumerSecret,
@@ -35,8 +33,6 @@ class NetSuite
         return new self(
             $company,
             $app,
-            $data['endPoint'],
-            $data['apiUrl'],
             $data['account'],
             $data['consumerKey'],
             $data['consumerSecret'],
