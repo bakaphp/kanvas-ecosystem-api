@@ -8,14 +8,13 @@ use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Branches\Factories\CompaniesBranchesFactory;
 use Kanvas\CustomFields\Traits\HasCustomFields;
-use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Filesystem\Models\FilesystemEntities;
-use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
@@ -62,6 +61,16 @@ class CompaniesBranches extends BaseModel
         return CompaniesBranchesFactory::new();
     }
 
+    
+    public function address(): HasMany
+    {
+        return $this->hasMany(
+            CompaniesBranchesAddress::class,
+            'companies_branches_id',
+            'id'
+        );
+    }
+
     /**
      * Companies relationship.
      */
@@ -77,7 +86,6 @@ class CompaniesBranches extends BaseModel
     {
         return $this->belongsTo(Users::class, 'users_id');
     }
-
 
     public function getPhoto(): ?FilesystemEntities
     {

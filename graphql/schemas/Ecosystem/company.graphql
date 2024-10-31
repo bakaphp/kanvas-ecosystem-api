@@ -68,7 +68,7 @@ type CompanyBranch {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
-    address: String
+    address: [Address!] @hasMany(relation: "address")
     user: User! @belongsTo(relation: "user")
     zipcode: Int
     total_users: Int!
@@ -119,7 +119,6 @@ input CompanyBranchInput {
     companies_id: ID!
     is_default: Boolean
     website: String
-    address: String
     zipcode: Int
     email: String
     country_code: String
@@ -127,6 +126,7 @@ input CompanyBranchInput {
     timezone: String
     phone: String
     files: [FilesystemInputUrl!]
+    address: [AddressInput!]
     is_active: Boolean
 }
 

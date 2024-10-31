@@ -106,6 +106,105 @@ class CompanyBranchTest extends TestCase
             ->assertSee('name', $branchData['name']);
     }
 
+    public function testCreateCompanyBranchAddress(): void
+    {
+        $company = auth()->user()->getCurrentCompany();
+        $userCompanyBranchCount = auth()->user()->branches()->count();
+        $branchData = $this->branchInputData($company->getId());
+        $branchData['address'][] = [
+            'address' => fake()->address,
+            'city' => fake()->city,
+            'state' => fake()->state,
+            'country' => fake()->country,
+        ];
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation createCompanyBranch($input: CompanyBranchInput!) {
+                createCompanyBranch(input: $input)
+                {
+                    id
+                    name,
+                    is_default,
+                    companies_id,
+                    email,
+                    phone,
+                    address {
+                        address,
+                        city,
+                        state
+                    }
+                }
+            }',
+            [
+                'input' => $branchData,
+            ]
+        )
+        ->assertSuccessful()
+        ->assertSee('name', $branchData['name'])
+        ->assertSee('email', $branchData['email'])
+        ->assertSee('phone', $branchData['phone'])
+        ->assertJsonFragment(['address' => [
+            [
+                'address' => $branchData['address'][0]['address'],
+                'city' => $branchData['address'][0]['city'],
+                'state' => $branchData['address'][0]['state']
+            ],
+        ]]);
+    }
+
+    public function testCreateCompanyBranchAddressStateRelation(): void
+    {
+        $company = auth()->user()->getCurrentCompany();
+        $userCompanyBranchCount = auth()->user()->branches()->count();
+        $branchData = $this->branchInputData($company->getId());
+        $branchData['address'][] = [
+            'address' => fake()->address,
+            'city' => fake()->city,
+            'state' => fake()->state,
+            'country' => fake()->country,
+            'state_id' => 1,
+        ];
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation createCompanyBranch($input: CompanyBranchInput!) {
+                createCompanyBranch(input: $input)
+                {
+                    id
+                    name,
+                    is_default,
+                    companies_id,
+                    email,
+                    phone,
+                    address {
+                        address,
+                        city,
+                        state
+                        states {
+                            id
+                        }
+                    }
+                }
+            }',
+            [
+                'input' => $branchData,
+            ]
+        )
+            ->assertSuccessful()
+            ->assertSee('name', $branchData['name'])
+            ->assertSee('email', $branchData['email'])
+            ->assertSee('phone', $branchData['phone'])
+        ->assertJsonFragment(['address' => [
+            [
+                'address' => $branchData['address'][0]['address'],
+                'city' => $branchData['address'][0]['city'],
+                'state' => $branchData['address'][0]['state'],
+                'states' => [
+                    'id' => (string) $branchData['address'][0]['state_id'],
+                ],
+            ],
+        ]]);
+    }
+
     public function testGetBranches()
     {
         $company = auth()->user()->getCurrentCompany();
