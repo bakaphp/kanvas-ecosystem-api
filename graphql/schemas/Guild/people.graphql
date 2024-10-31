@@ -132,6 +132,20 @@ extend type Query @guard {
         hasPhones: _
             @whereHasConditions(relation: "phones", columns: ["id", "value"])
         hasTags: _ @whereHasConditions(relation: "tags", columns: ["name"])
+        hasLeads: _
+            @whereHasConditions(
+                relation: "leads"
+                columns: [
+                    "id"
+                    "name"
+                    "uuid"
+                    "leads_receivers_id"
+                    "leads_owner_id"
+                    "leads_status_id"
+                    "leads_sources_id"
+                    "leads_types_id"
+                ]
+            )
         hasAddress: _
             @whereHasConditions(
                 relation: "address"
