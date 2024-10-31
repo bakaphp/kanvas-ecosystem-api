@@ -12,6 +12,7 @@ use Illuminate\Notifications\Notifiable;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Locations\Models\Countries;
@@ -75,6 +76,15 @@ class People extends BaseModel
     {
         return $this->hasMany(
             Contact::class,
+            'peoples_id',
+            'id'
+        );
+    }
+
+    public function leads(): HasMany
+    {
+        return $this->hasMany(
+            Lead::class,
             'peoples_id',
             'id'
         );
