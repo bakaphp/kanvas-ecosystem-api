@@ -61,7 +61,7 @@ class CompaniesBranches extends BaseModel
         return CompaniesBranchesFactory::new();
     }
 
-    
+
     public function address(): HasMany
     {
         return $this->hasMany(
