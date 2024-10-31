@@ -58,6 +58,9 @@ class SyncPeopleWithNetSuiteAction
         $updateRequest = new UpdateRequest();
         $updateRequest->record = $customer;
 
+        /**
+         * @todo update phone , email, address, custom fields
+         */
         $updateResponse = $this->service->update($updateRequest);
 
         if (! $updateResponse->writeResponse->status->isSuccess) {
