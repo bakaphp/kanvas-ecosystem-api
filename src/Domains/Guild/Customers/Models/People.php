@@ -76,7 +76,7 @@ class People extends BaseModel
     {
         return $this->hasMany(
             Contact::class,
-            'people_id',
+            'peoples_id',
             'id'
         );
     }
@@ -85,7 +85,7 @@ class People extends BaseModel
     {
         return $this->hasMany(
             Lead::class,
-            'peoples_id',
+            'people_id',
             'id'
         )->orderBy('created_at', 'desc');
     }
