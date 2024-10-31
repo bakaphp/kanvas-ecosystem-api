@@ -75,6 +75,9 @@ class SyncNetSuiteCustomerWithPeopleAction
             custom_fields: $this->convertCustomFields($customerInfo->customFieldList)
         );
 
+        /**
+         * @todo link custom customer price for the b2b store
+         */
         $createPeople = $linkPeople ? new UpdatePeopleAction($linkPeople, $peopleData) : new CreatePeopleAction($peopleData);
         $people = $createPeople->execute();
 
