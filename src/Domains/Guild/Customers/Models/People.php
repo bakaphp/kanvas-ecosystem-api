@@ -76,7 +76,7 @@ class People extends BaseModel
     {
         return $this->hasMany(
             Contact::class,
-            'peoples_id',
+            'people_id',
             'id'
         );
     }
