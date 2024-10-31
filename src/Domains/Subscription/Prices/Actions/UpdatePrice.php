@@ -34,4 +34,15 @@ class UpdatePrice
             ]);
         return $this->price;
     }
+
+    public static function import(Price $price, PriceDto $dto): Price    
+    {
+        $price->update([
+            'is_active' => $dto->is_active,
+            'amount' => $dto->amount,
+            'currency' => $dto->currency,
+            'interval' => $dto->interval,
+        ]);
+        return $price;
+    }
 }

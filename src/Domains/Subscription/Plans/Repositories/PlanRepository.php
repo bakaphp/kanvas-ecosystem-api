@@ -39,4 +39,19 @@ class PlanRepository
             throw new ExceptionsModelNotFoundException($e->getMessage());
         }
     }
+
+    public static function getByStripeId(string $stripeId, ?AppInterface $app = null): Model
+    {
+        try {
+            $query = self::getModel()::notDeleted()->where('stripe_id', $stripeId);
+
+            if ($app) {
+                $query = $query->fromApp($app);
+            }
+
+            return $query->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            throw new ExceptionsModelNotFoundException($e->getMessage());
+        }
+    }
 }

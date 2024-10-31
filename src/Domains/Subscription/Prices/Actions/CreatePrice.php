@@ -39,4 +39,17 @@ class CreatePrice
             'is_default' => $this->dto->is_default,
         ]);
     }
+
+    public static function import(PriceDto $dto): Price    
+    {
+        return Price::firstOrCreate([
+            'stripe_id' => $dto->stripe_id,
+            'apps_plans_id' => $dto->apps_plans_id,
+        ], [
+            'amount' => $dto->amount,
+            'currency' => $dto->currency,
+            'interval' => $dto->interval,
+            'is_default' => $dto->is_default,
+        ]);
+    }
 }
