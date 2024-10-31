@@ -145,8 +145,6 @@ extend type Query @guard {
                     "leads_sources_id"
                     "leads_types_id"
                 ]
-                orderBy: _
-                    @orderBy(columns: ["id", "created_at", "updated_at", "name"])
             )
         hasAddress: _
             @whereHasConditions(

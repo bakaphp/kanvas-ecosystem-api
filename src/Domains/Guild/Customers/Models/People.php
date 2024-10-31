@@ -87,7 +87,7 @@ class People extends BaseModel
             Lead::class,
             'peoples_id',
             'id'
-        );
+        )->orderBy('created_at', 'desc');
     }
 
     public function emails(): HasMany
