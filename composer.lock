@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "686c5462c0f656d868d1778d80fa0083",
+    "content-hash": "6133539dfa84064ba0424cc7b7d0cd91",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -1195,16 +1195,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.324.11",
+            "version": "3.325.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "a667ca29db288af083c3d8cff2e7f32d89fd4cf0"
+                "reference": "ea36e53745cff21519c2dadd808e2482f0bfadf5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/a667ca29db288af083c3d8cff2e7f32d89fd4cf0",
-                "reference": "a667ca29db288af083c3d8cff2e7f32d89fd4cf0",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/ea36e53745cff21519c2dadd808e2482f0bfadf5",
+                "reference": "ea36e53745cff21519c2dadd808e2482f0bfadf5",
                 "shasum": ""
             },
             "require": {
@@ -1287,9 +1287,9 @@
             "support": {
                 "forum": "https://forums.aws.amazon.com/forum.jspa?forumID=80",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.324.11"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.325.0"
             },
-            "time": "2024-10-25T18:07:16+00:00"
+            "time": "2024-10-30T18:11:21+00:00"
         },
         {
             "name": "berkayk/onesignal-laravel",
@@ -9152,6 +9152,68 @@
             "time": "2024-08-30T07:09:40+00:00"
         },
         {
+            "name": "ryanwinchester/netsuite-php",
+            "version": "v2023.2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/netsuitephp/netsuite-php.git",
+                "reference": "13c7e9bf68b1acb183da5ffb57d1bff9f6bf9ff6"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/netsuitephp/netsuite-php/zipball/13c7e9bf68b1acb183da5ffb57d1bff9f6bf9ff6",
+                "reference": "13c7e9bf68b1acb183da5ffb57d1bff9f6bf9ff6",
+                "shasum": ""
+            },
+            "require": {
+                "ext-openssl": "*",
+                "ext-simplexml": "*",
+                "ext-soap": "*",
+                "paragonie/random_compat": ">=1",
+                "php": ">=8.1",
+                "psr/log": "^1|^2|^3"
+            },
+            "require-dev": {
+                "mikey179/vfsstream": "^1.6",
+                "phpspec/phpspec": ">=5",
+                "phpunit/phpunit": "^9.5"
+            },
+            "suggest": {
+                "symfony/dotenv": "Provides loading a .env file for obtaining config variables",
+                "vlucas/phpdotenv": "Provides loading a .env file for obtaining config variables"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "src/includes/functions.php"
+                ],
+                "psr-4": {
+                    "NetSuite\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Ryan Winchester (fungku)",
+                    "email": "fungku@gmail.com"
+                }
+            ],
+            "description": "NetSuite PHP API wrapper",
+            "keywords": [
+                "api",
+                "netsuite",
+                "php"
+            ],
+            "support": {
+                "issues": "https://github.com/netsuitephp/netsuite-php/issues",
+                "source": "https://github.com/netsuitephp/netsuite-php/tree/v2023.2.0"
+            },
+            "time": "2024-08-14T04:52:43+00:00"
+        },
+        {
             "name": "sentry/sentry",
             "version": "4.9.0",
             "source": {
@@ -15474,16 +15536,16 @@
         },
         {
             "name": "sebastian/comparator",
-            "version": "6.1.1",
+            "version": "6.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/comparator.git",
-                "reference": "5ef523a49ae7a302b87b2102b72b1eda8918d686"
+                "reference": "df95a6e827808debe3dbe190022dd0f643d5d909"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/comparator/zipball/5ef523a49ae7a302b87b2102b72b1eda8918d686",
-                "reference": "5ef523a49ae7a302b87b2102b72b1eda8918d686",
+                "url": "https://api.github.com/repos/sebastianbergmann/comparator/zipball/df95a6e827808debe3dbe190022dd0f643d5d909",
+                "reference": "df95a6e827808debe3dbe190022dd0f643d5d909",
                 "shasum": ""
             },
             "require": {
@@ -15494,12 +15556,12 @@
                 "sebastian/exporter": "^6.0"
             },
             "require-dev": {
-                "phpunit/phpunit": "^11.3"
+                "phpunit/phpunit": "^11.4"
             },
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-main": "6.1-dev"
+                    "dev-main": "6.2-dev"
                 }
             },
             "autoload": {
@@ -15539,7 +15601,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/comparator/issues",
                 "security": "https://github.com/sebastianbergmann/comparator/security/policy",
-                "source": "https://github.com/sebastianbergmann/comparator/tree/6.1.1"
+                "source": "https://github.com/sebastianbergmann/comparator/tree/6.2.0"
             },
             "funding": [
                 {
@@ -15547,7 +15609,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-10-18T15:00:48+00:00"
+            "time": "2024-10-30T13:12:44+00:00"
         },
         {
             "name": "sebastian/complexity",
@@ -16286,6 +16348,6 @@
     "platform": {
         "php": "^8.2"
     },
-    "platform-dev": [],
+    "platform-dev": {},
     "plugin-api-version": "2.6.0"
 }
