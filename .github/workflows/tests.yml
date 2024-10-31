@@ -51,6 +51,7 @@ jobs:
       AWS_DEFAULT_REGION_CICD: ${{ secrets.AWS_DEFAULT_REGION_CICD }}
       AWS_BUCKET_CICD: ${{ secrets.AWS_BUCKET_CICD }}
       AWS_URL: ${{ secrets.AWS_URL }}
+      NET_SUITE_CUSTOMER_ID: ${{ secrets.NET_SUITE_CUSTOMER_ID }}
       MODEL_CACHE_STORE: model
       MODEL_CACHE_ENABLED: false
       LIGHTHOUSE_CACHE_ENABLE: true
