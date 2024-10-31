@@ -71,6 +71,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\Participants\\EventParticipantManagementMutation@addPeopleToEventVersion"
         )
+    removePeopleInEventVersion(input: PeopleEventVersionInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Participants\\EventParticipantManagementMutation@removePeopleFromEventVersion"
+        )
 }
 
 extend type Query @guard {
