@@ -26,8 +26,6 @@ class NetSuiteHandler extends IntegrationInterfaces
         $netSuiteDto = new NetSuiteDto(
             company: $this->company,
             app: $this->app,
-            endpoint: $this->data['endpoint'],
-            apiUrl: $this->data['host'],
             account: $this->data['account'],
             consumerKey: $this->data['consumerKey'],
             consumerSecret: $this->data['consumerSecret'],
