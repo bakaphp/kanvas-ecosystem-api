@@ -32,7 +32,7 @@ class NetSuiteCustomerService
 
         $getRequest = new GetRequest();
         $getRequest->baseRef = $customerRef;
-        
+
         $response = $this->service->get($getRequest);
 
         if ($response->readResponse->status->isSuccess) {
