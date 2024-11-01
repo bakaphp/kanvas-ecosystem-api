@@ -40,7 +40,7 @@ class PlanRepository
         }
     }
 
-    public static function getByStripeId(string $stripeId, ?AppInterface $app = null): Model
+    public static function getByStripeId(string $stripeId, AppInterface $app): Model
     {
         try {
             $query = self::getModel()::notDeleted()->where('stripe_id', $stripeId);

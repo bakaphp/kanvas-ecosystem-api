@@ -27,10 +27,10 @@ class PlanImporterAction
     public function __construct(
         public PlanImporter $importedPlan,
         public UserInterface $user,
-        public ?AppInterface $app = null,
+        public AppInterface $app,
         public bool $runWorkflow = true
     ) {
-        $this->app = $this->app ?? app(Apps::class);
+        $this->app = app(Apps::class);
     }
 
     public function execute(): Plan
