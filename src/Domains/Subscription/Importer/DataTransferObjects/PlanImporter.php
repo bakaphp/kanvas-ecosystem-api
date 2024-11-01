@@ -9,7 +9,6 @@ use Spatie\LaravelData\Data;
 class PlanImporter extends Data
 {
     public function __construct(
-
         public int $apps_id,
         public string $name,
         public string $stripe_id,
