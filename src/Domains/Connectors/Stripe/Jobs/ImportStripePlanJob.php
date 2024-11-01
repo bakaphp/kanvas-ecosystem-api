@@ -16,7 +16,7 @@ class ImportStripePlanJob extends ProcessWebhookJob
 
     public function execute(): array
     {
-        if (!in_array($this->webhookRequest->payload['type'], ['product.created', 'product.updated'])) {
+        if (! in_array($this->webhookRequest->payload['type'], ['product.created', 'product.updated'])) {
             Log::error('Webhook type not found', ['type' => $this->webhookRequest->payload['type']]);
             return [];
         }

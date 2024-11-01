@@ -30,7 +30,6 @@ final class ImportPlanFromStripeActivityTest extends TestCase
 
     public function testImportPlanWorkflow(): void
     {
-
         $app = app(Apps::class);
 
         $planData = $this->getPlanTestData();

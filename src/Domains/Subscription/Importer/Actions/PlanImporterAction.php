@@ -41,7 +41,7 @@ class PlanImporterAction
             $planDto = PlanDto::from([
                 'app' => $this->app,
                 'user' => $this->user,
-                'apps_id' =>$this->importedPlan->apps_id,
+                'apps_id' => $this->importedPlan->apps_id,
                 'name' => $this->importedPlan->name,
                 'description' => $this->importedPlan->description,
                 'stripe_id' => $this->importedPlan->stripe_id,

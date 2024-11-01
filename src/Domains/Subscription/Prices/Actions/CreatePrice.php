@@ -40,7 +40,7 @@ class CreatePrice
         ]);
     }
 
-    public static function import(PriceDto $dto): Price    
+    public static function import(PriceDto $dto): Price
     {
         return Price::firstOrCreate([
             'stripe_id' => $dto->stripe_id,

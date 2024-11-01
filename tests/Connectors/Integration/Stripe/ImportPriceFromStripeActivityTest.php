@@ -30,7 +30,6 @@ final class ImportPriceFromStripeActivityTest extends TestCase
 
     public function testImportPriceWorkflow(): void
     {
-
         $app = app(Apps::class);
 
         $priceData = $this->getPriceTestData();

@@ -16,7 +16,7 @@ class ImportStripePriceJob extends ProcessWebhookJob
 
     public function execute(): array
     {
-        if (!in_array($this->webhookRequest->payload['type'], ['price.created', 'price.updated'])) {
+        if (! in_array($this->webhookRequest->payload['type'], ['price.created', 'price.updated'])) {
             Log::error('Webhook type not found', ['type' => $this->webhookRequest->payload['type']]);
             return [];
         }

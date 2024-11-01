@@ -35,7 +35,7 @@ class UpdatePrice
         return $this->price;
     }
 
-    public static function import(Price $price, PriceDto $dto): Price    
+    public static function import(Price $price, PriceDto $dto): Price
     {
         $price->update([
             'is_active' => $dto->is_active,
