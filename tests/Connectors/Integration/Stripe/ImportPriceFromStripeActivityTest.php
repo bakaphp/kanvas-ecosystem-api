@@ -11,6 +11,7 @@ use Kanvas\Connectors\Stripe\Services\StripePriceService;
 use Kanvas\Subscription\Importer\Actions\PriceImporterAction;
 use Kanvas\Subscription\Importer\DataTransferObjects\PriceImporter;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 final class ImportPriceFromStripeActivityTest extends TestCase
@@ -23,6 +24,7 @@ final class ImportPriceFromStripeActivityTest extends TestCase
         parent::setUp();
         $this->appModel = app(Apps::class);
         $this->user = Users::factory()->create();
+        $this->seedAppPlans();
         if (empty($this->appModel->get(ConfigurationEnum::STRIPE_SECRET_KEY->value))) {
             $this->appModel->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, getenv('TEST_STRIPE_SECRET_KEY'));
         }
@@ -97,5 +99,24 @@ final class ImportPriceFromStripeActivityTest extends TestCase
         },
         "type": "price.created"
     }', true); // true to return as associative array
+    }
+
+    protected function seedAppPlans(){
+        $plan = [
+            'apps_id' => $this->appModel->id,
+            'name' => 'Test Plan',
+            'payment_interval' => 'year',
+            'description' => 'This is a test plan.',
+            'stripe_id' => 'prod_R7aFDqoZMlE1E7',
+            'free_trial_dates' => 15,
+            'is_default' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        DB::table('apps_plans')->updateOrInsert(
+            ['stripe_id' => $plan['stripe_id']],
+            $plan
+        );
     }
 }
