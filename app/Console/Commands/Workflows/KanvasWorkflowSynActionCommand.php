@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Workflows;
 
+use GPBMetadata\Google\Cloud\Recommendationengine\V1Beta1\Import;
 use Illuminate\Console\Command;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
 use Kanvas\Connectors\Google\Activities\SyncMessageToDocumentActivity;
@@ -20,6 +21,8 @@ use Kanvas\Connectors\ScrapperApi\Workflows\Activities\ScrapperSearchActivity;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyOrderWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyProductWebhookJob;
 use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyActivity;
+use Kanvas\Connectors\Stripe\Jobs\ImportStripePlanJob;
+use Kanvas\Connectors\Stripe\Jobs\ImportStripePriceJob;
 use Kanvas\Connectors\Stripe\Jobs\UpdatePeopleStripeSubscriptionJob;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
@@ -56,6 +59,8 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncMessageToDocumentActivity::class,
             SyncUserInteractionToEventActivity::class,
             ProcessShopifyProductWebhookJob::class,
+            ImportStripePlanJob::class,
+            ImportStripePriceJob::class,
             SetPlanWithoutPaymentActivity::class,
             GenerateCompanyDashboardActivity::class,
             SyncProductWithShopifyActivity::class,
