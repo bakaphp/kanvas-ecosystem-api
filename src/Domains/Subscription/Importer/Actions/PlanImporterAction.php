@@ -1,0 +1,69 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Subscription\Importer\Actions;
+
+use Baka\Contracts\AppInterface;
+use Baka\Users\Contracts\UserInterface;
+use Illuminate\Support\Facades\DB;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Subscription\Importer\DataTransferObjects\PlanImporter;
+use Kanvas\Subscription\Plans\Actions\CreatePlan;
+use Kanvas\Subscription\Plans\Actions\UpdatePlan;
+use Kanvas\Subscription\Plans\DataTransferObject\Plan as PlanDto;
+use Kanvas\Subscription\Plans\Models\Plan;
+use Kanvas\Subscription\Plans\Repositories\PlanRepository;
+use Kanvas\Exceptions\ModelNotFoundException;
+use Throwable;
+
+class PlanImporterAction
+{
+    protected ?Plan $plan = null;
+
+    /**
+     * __construct.
+     */
+    public function __construct(
+        public PlanImporter $importedPlan,
+        public ?AppInterface $app = null,
+        public UserInterface $user,
+        public bool $runWorkflow = true
+    ) {
+        $this->app = $this->app ?? app(Apps::class);
+    }
+
+    public function execute(): Plan
+    {
+        try {
+            DB::connection('mysql')->beginTransaction();
+
+            $planDto = PlanDto::from([
+                'app' => $this->app,
+                'user' => $this->user,
+                'apps_id' =>$this->importedPlan->apps_id,
+                'name' => $this->importedPlan->name,
+                'description' => $this->importedPlan->description,
+                'stripe_id' => $this->importedPlan->stripe_id,
+                'is_active' => $this->importedPlan->is_active,
+            ]);
+
+            try {
+                $existingPlan = PlanRepository::getByStripeId($planDto->stripe_id, $this->app);
+                $updateAction = new UpdatePlan($existingPlan, $planDto);
+                $this->plan = $updateAction->execute();
+            } catch (ModelNotFoundException $e) {
+                $createAction = new CreatePlan($planDto);
+                $this->plan = $createAction->execute();
+            }
+
+            DB::connection('mysql')->commit();
+        } catch (Throwable $e) {
+            DB::connection('mysql')->rollback();
+
+            throw $e;
+        }
+
+        return $this->plan;
+    }
+}
