@@ -101,7 +101,8 @@ final class ImportPriceFromStripeActivityTest extends TestCase
     }', true); // true to return as associative array
     }
 
-    protected function seedAppPlans(){
+    protected function seedAppPlans()
+    {
         $plan = [
             'apps_id' => $this->appModel->id,
             'name' => 'Test Plan',
