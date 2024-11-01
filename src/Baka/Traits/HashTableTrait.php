@@ -34,6 +34,19 @@ trait HashTableTrait
     }
 
     /**
+     * Get the foreign key used in the settings table for this model.
+     */
+    protected function getSettingsForeignKey(): string
+    {
+        return $this->getTable() === 'companies' ? 'companies_id' : 'apps_id';
+    }
+
+    protected function getSettingsTable(): string
+    {
+        return $this->getTable() . '_settings';
+    }
+
+    /**
      * Set the settings.
      */
     public function set(string $key, mixed $value, bool|int $isPublic = 0): bool
@@ -163,5 +176,19 @@ trait HashTableTrait
     public function del(string $key): bool
     {
         return $this->deleteHash($key);
+    }
+
+    public static function getByCustomField(string $name, mixed $value): ?Model
+    {
+        $instance = new static();
+        $settingsTable = $instance->getSettingsTable();
+        $foreignKey = $instance->getSettingsForeignKey();
+
+        return self::join($settingsTable, $instance->getTable() . '.id', '=', $settingsTable . '.' . $foreignKey)
+            ->where($settingsTable . '.name', $name)
+            ->where($settingsTable . '.value', $value)
+            ->where($instance->getTable() . '.is_deleted', 0)
+            ->select($instance->getTable() . '.*')
+            ->first();
     }
 }

@@ -27,17 +27,17 @@ class ProductService
             $price = (float)$product['price'];
             $discountPrice = $price - ($price * 0.1);
         }
-
+        $name = Str::limit($product['name'], 255);
         $product = [
-            'name' => $product['name'],
-            'description' => $product['full_description'],
+            'name' => $name,
+            'description' => $name ,
             'price' => $discountPrice,
             'discountPrice' => $discountPrice,
             'slug' => Str::slug($product['asin']),
             'sku' => $product['asin'],
             'source_id' => $product['asin'],
             'files' => $this->mapFilesystem(product: ['image' => $product['image'],'images' => $product['images']]),
-            'quantity' => 0,
+            'quantity' => $this->channels->app->get(ScrapperConfigEnum::DEFAULT_QUANTITY->value) ?? 1,
             'isPublished' => true,
             'categories' => $this->mapCategories($product),
             'warehouses' => [
@@ -45,7 +45,7 @@ class ProductService
                     'id' => $this->warehouse->id,
                     'price' => (float) $discountPrice,
                     'warehouse' => $this->warehouse->name,
-                    'quantity' => 0,
+                    'quantity' => 10,
                     'sku' => $product['asin'],
                     'is_new' => true,
                     'channel' => $this->channels->name,
@@ -163,9 +163,9 @@ class ProductService
     {
         $weight = $product['product_information']['item_weight'] ?? 0;
         if ($weight && str_contains($weight, 'ounces')) {
-            $weight = Str::before($weight, 'ounces') * 28.3495;
+            $weight = ((float)Str::before($weight, 'ounces')) * 28.3495;
         } elseif ($weight && str_contains($weight, 'pounds')) {
-            $weight = Str::before($weight, 'pounds') * 453.592;
+            $weight = ((float)Str::before($weight, 'pounds')) * 453.592;
         }
 
         return $weight;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Repositories;
 
+use Baka\Contracts\AppInterface;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -138,5 +139,16 @@ class CompaniesRepository
         } catch (ModelNotFoundException) {
             throw new ExceptionsModelNotFoundException('User doesn\'t belong to this company ' . $company->uuid . ' , talk to the Admin');
         }
+    }
+
+    public static function getCompanyByNameAndApp(string $name, AppInterface $app): ?Companies
+    {
+        return Companies::join('user_company_apps', 'companies.id', '=', 'user_company_apps.companies_id')
+            ->where('companies.name', $name)
+            ->where('user_company_apps.apps_id', $app->getId())
+            ->where('companies.is_deleted', 0)
+            ->where('user_company_apps.is_deleted', 0)
+            ->select('companies.*')
+            ->first();
     }
 }
