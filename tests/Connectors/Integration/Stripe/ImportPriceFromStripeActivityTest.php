@@ -42,8 +42,8 @@ final class ImportPriceFromStripeActivityTest extends TestCase
         $mappedPrice = $stripePriceService->mapPriceForImport($priceData);
         $price = (new PriceImporterAction(
             PriceImporter::from($mappedPrice),
-            $app,
-            $this->user
+            $this->user,
+            $app
         ))->execute();
 
         $this->assertEquals(

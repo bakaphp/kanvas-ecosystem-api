@@ -42,8 +42,8 @@ final class ImportPlanFromStripeActivityTest extends TestCase
         $mappedPlan = $stripePlanService->mapPlanForImport($planData);
         $plan = (new PlanImporterAction(
             PlanImporter::from($mappedPlan),
+            $this->user,
             $app,
-            $this->user
         ))->execute();
 
         $this->assertEquals(

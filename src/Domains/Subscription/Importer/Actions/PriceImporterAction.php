@@ -26,8 +26,8 @@ class PriceImporterAction
      */
     public function __construct(
         public PriceImporter $importedPrice,
-        public ?AppInterface $app = null,
         public UserInterface $user,
+        public ?AppInterface $app = null,
         public bool $runWorkflow = true
     ) {
         $this->app = $this->app ?? app(Apps::class);
