@@ -6,6 +6,7 @@ namespace App\GraphQL\Inventory\Builders\Products;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Inventory\Products\Models\Products;
@@ -36,6 +37,7 @@ class ProductBuilder
                 'companyBranch' => $companyBranch,
                 'region' => $region,
                 'search' => $args['search'],
+                'uuid' => Str::uuid(),
             ]
             );
         }
