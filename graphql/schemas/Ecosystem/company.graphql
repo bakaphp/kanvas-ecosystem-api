@@ -110,6 +110,15 @@ input CompanyInput {
     timezone: String
     address: String
     is_active: Boolean
+    countries_id: ID
+    states_id: ID
+    cities_id: ID
+    address: String
+    address_2: String
+    city: String
+    state: String
+    country: String
+    zip: String
 }
 
 ### @todo Split the create and update input.
@@ -126,7 +135,15 @@ input CompanyBranchInput {
     timezone: String
     phone: String
     files: [FilesystemInputUrl!]
-    address: [AddressInput!]
+    countries_id: ID
+    states_id: ID
+    cities_id: ID
+    address: String
+    address_2: String
+    city: String
+    state: String
+    country: String
+    zip: String
     is_active: Boolean
 }
 

@@ -6,6 +6,7 @@ namespace Kanvas\Companies\Models;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Traits\AddressTraitRelationship;
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\SoftDeletesTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
@@ -73,6 +74,7 @@ class Companies extends BaseModel implements CompanyInterface
     }
     use CascadeSoftDeletes;
     use SoftDeletesTrait;
+    use AddressTraitRelationship;
 
     protected $table = 'companies';
 

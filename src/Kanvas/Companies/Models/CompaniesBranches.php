@@ -20,6 +20,7 @@ use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
 use Laravel\Scout\Searchable;
+use Baka\Traits\AddressTraitRelationship;
 
 /**
  * Companies Model.
@@ -41,7 +42,8 @@ class CompaniesBranches extends BaseModel
     use Searchable;
     use NoAppRelationshipTrait;
     use HasCustomFields;
-
+    use AddressTraitRelationship;
+    
     /**
      * The table associated with the model.
      *
@@ -59,16 +61,6 @@ class CompaniesBranches extends BaseModel
     protected static function newFactory()
     {
         return CompaniesBranchesFactory::new();
-    }
-
-    
-    public function address(): HasMany
-    {
-        return $this->hasMany(
-            CompaniesBranchesAddress::class,
-            'companies_branches_id',
-            'id'
-        );
     }
 
     /**

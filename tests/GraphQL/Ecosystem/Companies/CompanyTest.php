@@ -22,6 +22,14 @@ class CompanyTest extends TestCase
             'zipcode' => 90120,
             'language' => 'en',
             'timezone' => 'UTC',
+            'countries_id' => 1,
+            'states_id' => 1,
+            'cities_id' => 1,
+            'address_2' => fake()->address(),
+            'city' => fake()->city(),
+            'state' => fake()->state(),
+            'country' => fake()->country(),
+            'zip' => 90120,
         ];
     }
 
