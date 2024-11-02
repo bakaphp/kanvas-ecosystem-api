@@ -29,7 +29,7 @@ class CompanyTest extends TestCase
             'city' => fake()->city(),
             'state' => fake()->state(),
             'country' => fake()->country(),
-            'zip' => 90120,
+            'zip' => fake()->postcode(),
         ];
     }
 
