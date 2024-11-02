@@ -28,7 +28,7 @@ class ProductBuilder
         $user = auth()->user();
 
         if ($companyBranch && key_exists('search', $args)) {
-            $region = Regions::getDefault($companyBranch->company, $app);
+            $region = Regions::getDefault($company, $app);
             $app->fireWorkflow(
                 event: WorkflowEnum::SEARCH->value,
                 params: [
