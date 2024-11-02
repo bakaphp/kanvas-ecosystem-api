@@ -17,6 +17,7 @@ class DiscoveryUserRecommendationService extends DiscoveryEngineService
     public function getRecommendation(
         UserInterface $user,
         UserEventEnum $userEventEventType,
+        int $pageSize = 25,
         bool $validateOnly = false
     ): RecommendResponse {
         $formattedServingConfig = RecommendationServiceClient::servingConfigName(
@@ -32,6 +33,7 @@ class DiscoveryUserRecommendationService extends DiscoveryEngineService
             ->setUserPseudoId((string) $user->getId());
 
         $request = (new RecommendRequest())
+            ->setPageSize($pageSize)
             ->setServingConfig($formattedServingConfig)
             ->setUserEvent($userEvent)
 
