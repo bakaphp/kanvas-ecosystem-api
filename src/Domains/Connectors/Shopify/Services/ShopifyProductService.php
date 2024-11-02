@@ -74,6 +74,7 @@ class ShopifyProductService
            ],
            'productType' => [
                 'name' => $shopifyProduct['product_type'],
+                'weight' => 0,
            ],
            'attributes' => [],
            'variants' => $this->mapVariantsForImport($shopifyProduct['variants'], $shopifyProduct['options']),
