@@ -73,7 +73,7 @@ class ShopifyProductService
                ],
            ],
            'productType' => [
-                'name' => $shopifyProduct['product_type'],
+                'name' => $shopifyProduct['product_type'] ?? 'Default',
                 'weight' => 0,
            ],
            'attributes' => [],
