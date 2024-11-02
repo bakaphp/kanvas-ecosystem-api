@@ -26,6 +26,9 @@ use Kanvas\Inventory\ProductsTypes\Actions\CreateProductTypeAction;
 use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes as ProductsTypesModel;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Inventory\Status\Actions\CreateStatusAction;
+use Kanvas\Inventory\Status\DataTransferObject\Status;
+use Kanvas\Inventory\Status\Models\Status as ModelsStatus;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction as ActionsAddAttributeAction;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction;
 use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
@@ -67,6 +70,7 @@ class ProductImporterAction
         try {
             DB::connection('inventory')->beginTransaction();
 
+            $status = $this->createStatus();
             $productDto = ProductsDto::from([
                 'app' => $this->app,
                 'company' => $this->company,
@@ -79,6 +83,7 @@ class ProductImporterAction
                 'warranty_terms' => $this->importedProduct->warrantyTerms,
                 'upc' => $this->importedProduct->upc,
                 'variants' => $this->importedProduct->variants,
+                'status_id' => $status ? $status->getId() : null,
                 'is_published' => $this->importedProduct->isPublished,
                 'attributes' => $this->importedProduct->attributes,
             ]);
@@ -113,6 +118,25 @@ class ProductImporterAction
         }
 
         return $this->product;
+    }
+
+    protected function createStatus(): ?ModelsStatus
+    {
+        if ($this->importedProduct->status) {
+            $createStatus = new CreateStatusAction(
+                new Status(
+                    $this->app,
+                    $this->company,
+                    $this->user,
+                    $this->importedProduct->status['name'],
+                ),
+                $this->user
+            );
+
+            return $createStatus->execute();
+        }
+
+        return null;
     }
 
     /**
