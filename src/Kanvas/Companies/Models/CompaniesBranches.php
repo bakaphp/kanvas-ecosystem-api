@@ -43,7 +43,7 @@ class CompaniesBranches extends BaseModel
     use NoAppRelationshipTrait;
     use HasCustomFields;
     use AddressTraitRelationship;
-    
+
     /**
      * The table associated with the model.
      *
