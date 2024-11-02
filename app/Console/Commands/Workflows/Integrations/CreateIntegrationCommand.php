@@ -65,7 +65,7 @@ class CreateIntegrationCommand extends Command
             'apps_id' => $appId,
         ], [
             'config' => $config,
-            'handler' => $handler
+            'handler' => $handler,
         ]);
 
         info('Integration created successfully - ' . $integration->getId() . ' - ' . $integration->name);
