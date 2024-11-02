@@ -128,7 +128,7 @@ class ProductImporterAction
                     $this->app,
                     $this->company,
                     $this->user,
-                    $this->importedProduct->status['name'],
+                    $this->importedProduct->status,
                 ),
                 $this->user
             );
