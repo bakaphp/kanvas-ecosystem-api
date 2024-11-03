@@ -56,7 +56,7 @@ class KanvasCreateReceiverCommand extends Command
         ]);
 
         $this->info('Receiver created successfully!');
-        $url = config('app.url') . '/receiver/' . $receiver->uuid;
+        $url = config('app.url') . '/v1/receiver/' . $receiver->uuid;
         $this->info('Webhook URL: ' . $url);
     }
 }
