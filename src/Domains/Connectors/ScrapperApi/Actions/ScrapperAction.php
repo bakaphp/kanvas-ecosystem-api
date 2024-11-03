@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\ScrapperApi\Actions;
 
 use Baka\Contracts\AppInterface;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Str;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
@@ -66,6 +67,10 @@ class ScrapperAction
                     app: $this->app
                 );
                 $importerProducts++;
+
+                if (App::environment('local')) {
+                    break;
+                }
             } catch (Throwable $e) {
                 captureException($e);
             }

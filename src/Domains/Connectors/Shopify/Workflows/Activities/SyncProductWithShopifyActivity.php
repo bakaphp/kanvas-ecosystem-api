@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Actions\SyncProductWithShopifyAction;
 use Kanvas\Connectors\Shopify\Enums\ConfigEnum;
 use Kanvas\Inventory\Products\Models\Products;
+use Laravel\Octane\Facades\Octane;
 
 use function Sentry\captureException;
 
@@ -23,12 +24,14 @@ class SyncProductWithShopifyActivity extends Activity
     {
         try {
             $syncProductWithShopify = new SyncProductWithShopifyAction($product);
-            $response = $syncProductWithShopify->execute();
+            Octane::concurrently([
+                fn () => $syncProductWithShopify->execute(),
+            ]);
 
             return [
                 'company' => $product->company->getId(),
                 'product' => $product->getId(),
-                'shopify_response' => $response,
+                // 'shopify_response' => $response,
             ];
         } catch (Throwable $e) {
             captureException($e);
