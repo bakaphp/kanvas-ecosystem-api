@@ -16,8 +16,12 @@ enum ConfigEnum: string
 
     case WORDLIST = 'wordlist_';
 
-    public static function getWordEnum(AppInterface $app, string $word): string
+    case SEARCHED_FIELD = 'searched_';
+
+    case SCRAPPER_SECONDS = 'scrapper_seconds';
+
+    public static function getWordEnum(AppInterface $app): string
     {
-        return ConfigEnum::WORDLIST->value . "{$app->getId()}_" . $word;
+        return ConfigEnum::WORDLIST->value . "{$app->getId()}";
     }
 }

@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\ScrapperApi\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Connectors\ScrapperApi\Actions\ScrapperAction;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum;
@@ -24,8 +25,8 @@ class ScrapperSearchActivity extends Activity
     public function execute(Model $model, AppInterface $app, array $params): array
     {
         try {
-            $word = ConfigEnum::getWordEnum($app, $params['search']);
-            if (Redis::exists($word)) {
+            $word = $params['search'];
+            if ($this->checkRecentlySearched($app, $word)) {
                 return [
                     'error' => 'Already searched this word recently',
                 ];
@@ -42,10 +43,7 @@ class ScrapperSearchActivity extends Activity
             [$results] = Octane::concurrently([
                 fn () => $action->execute(),
             ]);
-
-            $expiration = 3 * 24 * 60 * 60;
-
-            Redis::setex($word, $expiration, true);
+            $this->setRecentlySearched($app, $word);
 
             return [
                 'word' => $word,
@@ -58,5 +56,27 @@ class ScrapperSearchActivity extends Activity
                 'trace' => $e->getTraceAsString(),
             ];
         }
+    }
+
+    protected function checkRecentlySearched(AppInterface $app, string $word): bool
+    {
+        $key = ConfigEnum::getWordEnum($app);
+        $field = ConfigEnum::SEARCHED_FIELD->value . $word;
+        if (! Redis::hexists($key, $field)) {
+            return false;
+        }
+        $value = Redis::hget($key, $field);
+        $secondsApp = $app->get(ConfigEnum::SCRAPPER_SECONDS->value);
+        $seconds = Carbon::createFromFormat('Y-m-d H:i:s', $value)->floatDiffInSeconds(Carbon::now());
+
+        return $seconds < $secondsApp;
+    }
+
+    protected function setRecentlySearched(AppInterface $app, string $word): void
+    {
+        $key = ConfigEnum::getWordEnum($app);
+        $field = ConfigEnum::SEARCHED_FIELD->value . $word;
+
+        Redis::hset($key, $field, Carbon::now()->format('Y-m-d H:i:s'));
     }
 }
