@@ -9,8 +9,13 @@ use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
 use Kanvas\Connectors\Shopify\Services\ShopifyProductService;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Workflow\Enums\StatusEnum;
+use Kanvas\Workflow\Integrations\Actions\AddEntityIntegrationHistoryAction;
+use Kanvas\Workflow\Integrations\DataTransferObject\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
+use Kanvas\Workflow\Integrations\Models\Status;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Throwable;
 
 class ProcessShopifyInventoryLevelWebhookJob extends ProcessWebhookJob
 {
@@ -58,10 +63,31 @@ class ProcessShopifyInventoryLevelWebhookJob extends ProcessWebhookJob
             productId: $variant->product->getId()
         );
 
-        $variant->updateQuantityInWarehouse($warehouses, $this->webhookRequest->payload['available']);
+        $status = Status::getDefaultStatusByName(StatusEnum::CONNECTED->value);
+
+        $dto = new EntityIntegrationHistory(
+            app: $this->receiver->app,
+            integrationCompany: $integrationCompany,
+            status: $status,
+            entity: $variant->product,
+            response: $this->webhookRequest->payload
+        );
+
+        try {
+            $variant->updateQuantityInWarehouse($warehouses, $this->webhookRequest->payload['available']);
+        } catch (Throwable $e) {
+            $status = Status::getDefaultStatusByName(StatusEnum::FAILED->value);
+            $dto->exception = $e;
+        }
+
+        (new AddEntityIntegrationHistoryAction(
+            dto: $dto,
+            app: $this->receiver->app,
+            status: $status
+        ))->execute();
 
         return [
-            'message' => 'Inventory level updated successfully',
+            'message' => $dto->exception == null ? 'Inventory level updated successfully' : 'Failed to update inventory level',
             'location_id' => $this->webhookRequest->payload['location_id'],
             'inventory_item_id' => $this->webhookRequest->payload['inventory_item_id'],
         ];
