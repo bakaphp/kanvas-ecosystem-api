@@ -21,4 +21,15 @@ class RuleActionFactory extends Factory
            'weight' => 0,
         ];
     }
+
+    public function withAsync(bool $isAsync)
+    {
+        return $this->state(function (array $attributes) use ($isAsync) {
+            $rule = Rule::factory()->withAsync($isAsync)->create();
+
+            return [
+                'rules_id' => $rule->getId(),
+            ];
+        });
+    }
 }
