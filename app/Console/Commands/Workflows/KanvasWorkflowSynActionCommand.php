@@ -21,6 +21,7 @@ use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyInventoryLevelWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyOrderWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyProductWebhookJob;
 use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyActivity;
+use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyWithIntegrationActivity;
 use Kanvas\Connectors\Stripe\Jobs\UpdatePeopleStripeSubscriptionJob;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
@@ -66,6 +67,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ScrapperSearchActivity::class,
             UnPublishExpiredProductActivity::class,
             ProcessShopifyInventoryLevelWebhookJob::class,
+            SyncProductWithShopifyWithIntegrationActivity::class,
         ];
 
         $createdActions = [];
