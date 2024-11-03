@@ -28,6 +28,7 @@ class ProcessShopifyInventoryLevelWebhookJob extends ProcessWebhookJob
         $variant = Variants::getByCustomField(
             $shopifyVariantInventoryKey,
             $this->webhookRequest->payload['inventory_item_id'],
+            $integrationCompany->company
         );
 
         if (! $variant) {
