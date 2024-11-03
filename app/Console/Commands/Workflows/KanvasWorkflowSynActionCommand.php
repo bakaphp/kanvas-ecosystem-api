@@ -17,6 +17,7 @@ use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
 use Kanvas\Connectors\RainForest\Workflows\Activities\ImportProductActivity;
 use Kanvas\Connectors\ScrapperApi\Workflows\Activities\ScrapperSearchActivity;
+use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyInventoryLevelWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyOrderWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyProductWebhookJob;
 use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyActivity;
@@ -64,6 +65,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ExtractCompanyNameFromPeopleEmailActivity::class,
             ScrapperSearchActivity::class,
             UnPublishExpiredProductActivity::class,
+            ProcessShopifyInventoryLevelWebhookJob::class,
         ];
 
         $createdActions = [];

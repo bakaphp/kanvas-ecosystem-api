@@ -415,6 +415,36 @@ class Variants extends BaseModel implements EntityIntegrationInterface
         return (float)$price;
     }
 
+    public function updateQuantityInWarehouse(Warehouses $warehouse, float $quantity): void
+    {
+        $warehouseInfo = $this->variantWarehouses()->where('warehouses_id', $warehouse->getId())->first();
+
+        if ($warehouseInfo) {
+            $warehouseInfo->quantity = $quantity;
+            $warehouseInfo->saveOrFail();
+        }
+    }
+
+    public function updatePriceInWarehouse(Warehouses $warehouse, float $price): void
+    {
+        $warehouseInfo = $this->variantWarehouses()->where('warehouses_id', $warehouse->getId())->first();
+
+        if ($warehouseInfo) {
+            $warehouseInfo->price = $price;
+            $warehouseInfo->saveOrFail();
+        }
+    }
+
+    public function updatePriceInChannel(Channels $channel, float $price): void
+    {
+        $channelInfo = $this->variantChannels()->where('channels_id', $channel->getId())->first();
+
+        if ($channelInfo) {
+            $channelInfo->price = $price;
+            $channelInfo->saveOrFail();
+        }
+    }
+
     /**
      * Set the total amount of variants in all the warehouses.
      */
