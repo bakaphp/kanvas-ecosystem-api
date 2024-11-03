@@ -24,7 +24,7 @@ class RuleFactory extends Factory
 
         try {
             $ruleType = RuleType::getByName(WorkflowEnum::CREATED->value);
-        } catch(Throwable $e) {
+        } catch (Throwable $e) {
             $ruleType = RuleType::factory()->create();
         }
 

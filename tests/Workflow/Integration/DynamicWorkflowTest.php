@@ -36,7 +36,7 @@ final class DynamicWorkflowTest extends TestCase
 
         $processWorkflow = new ProcessWorkflowEventAction($app, $lead);
         $processWorkflow->execute(WorkflowEnum::CREATED->value, $params);
-        
+
         $this->assertEquals($totalWorkflows + Rule::count(), StoredWorkflow::count());
     }
 
