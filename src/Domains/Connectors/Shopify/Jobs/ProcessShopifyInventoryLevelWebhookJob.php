@@ -19,7 +19,12 @@ class ProcessShopifyInventoryLevelWebhookJob extends ProcessWebhookJob
         $integrationCompanyId = $this->receiver->configuration['integration_company_id'];
         $integrationCompany = IntegrationsCompany::getById($integrationCompanyId);
 
-        $shopifyVariantInventoryKey = ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_VARIANT_INVENTORY_ID->value, $integrationCompany->company, $this->receiver->app, $integrationCompany->region);
+        $shopifyVariantInventoryKey = ShopifyConfigurationService::getKey(
+            CustomFieldEnum::SHOPIFY_VARIANT_INVENTORY_ID->value,
+            $integrationCompany->company,
+            $this->receiver->app,
+            $integrationCompany->region
+        );
         $variant = Variants::getByCustomField(
             $shopifyVariantInventoryKey,
             $this->webhookRequest->payload['inventory_item_id'],
