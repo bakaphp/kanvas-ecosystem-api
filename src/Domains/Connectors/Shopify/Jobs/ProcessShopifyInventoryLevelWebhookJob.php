@@ -43,7 +43,13 @@ class ProcessShopifyInventoryLevelWebhookJob extends ProcessWebhookJob
         $warehouses = Warehouses::where('regions_id', $integrationCompany->region_id)
                                 ->fromCompany($integrationCompany->company)
                                 ->fromApp($this->receiver->app)
-                                ->get();
+                                ->first();
+
+        if (! $warehouses) {
+            return [
+                'message' => 'Warehouse not found for ' . $integrationCompany->region_id,
+            ];
+        }
 
         $shopifyProductService = new ShopifyProductService(
             app: $this->receiver->app,
