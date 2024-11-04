@@ -49,7 +49,6 @@ jobs:
             fi
             docker exec -i phpkanvas-ecosystem php artisan lighthouse:cache
             docker exec -i phpkanvas-ecosystem php artisan config:cache
-            docker restart php
             docker restart queue-scrapper
             docker restart queue
             docker restart queue-imports
