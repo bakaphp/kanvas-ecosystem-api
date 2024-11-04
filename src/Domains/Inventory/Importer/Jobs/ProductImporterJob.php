@@ -12,6 +12,7 @@ use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Importer\Events\ProductImportEvent;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
 
 use function Sentry\captureException;
@@ -32,9 +33,6 @@ class ProductImporterJob extends AbstractImporterJob
         $this->overwriteAppService($this->app);
         $this->overwriteAppServiceLocation($this->branch);
 
-        /**
-         * @var Companies
-         */
         $company = $this->branch->company()->firstOrFail();
         $totalItems = count($this->importer);
         $totalProcessSuccessfully = 0;
@@ -42,6 +40,7 @@ class ProductImporterJob extends AbstractImporterJob
         $created = 0;
         $updated = 0;
         $errors = [];
+        $processProductIds = [];
 
         //mark all variants as unsearchable for this company before running the import
         /*         Variants::fromCompany($company)->chunkById(100, function ($variants) {
@@ -66,6 +65,7 @@ class ProductImporterJob extends AbstractImporterJob
                     $updated++;
                 }
                 $totalProcessSuccessfully++;
+                $processProductIds[] = $product->getId();
 
                 //handle failed jobs
             } catch (Throwable $e) {
@@ -86,6 +86,21 @@ class ProductImporterJob extends AbstractImporterJob
             $totalProcessSuccessfully,
             $totalProcessFailed,
             $errors
+        );
+
+        $this->executeWorkflow(
+            $company,
+            [
+                'app' => $this->app,
+                'company' => $company,
+                'total_items' => $totalItems,
+                'total_process_successfully' => $totalProcessSuccessfully,
+                'total_process_failed' => $totalProcessFailed,
+                'created' => $created,
+                'updated' => $updated,
+                'errors' => $errors,
+                'process_product_ids' => $processProductIds,
+            ]
         );
 
         $this->notificationStatus(
@@ -130,5 +145,14 @@ class ProductImporterJob extends AbstractImporterJob
             $subscriptionData
         );
         Subscription::broadcast('filesystemImported', $subscriptionData);
+    }
+
+    protected function executeWorkflow(Companies $company, array $workflowData): void
+    {
+        $company->fireWorkflow(
+            WorkflowEnum::AFTER_PRODUCT_IMPORT->value,
+            true,
+            $workflowData
+        );
     }
 }

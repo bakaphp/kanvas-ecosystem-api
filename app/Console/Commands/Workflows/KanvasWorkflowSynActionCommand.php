@@ -12,6 +12,7 @@ use Kanvas\Connectors\Internal\Activities\ExtractCompanyNameFromPeopleEmailActiv
 use Kanvas\Connectors\Internal\Activities\GenerateCompanyDashboardActivity;
 use Kanvas\Connectors\Internal\Activities\GenerateMessageSlugActivity;
 use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductActivity;
+use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductsAfterImportActivity;
 use Kanvas\Connectors\Internal\Activities\UserCustomFieldActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
@@ -68,6 +69,7 @@ class KanvasWorkflowSynActionCommand extends Command
             UnPublishExpiredProductActivity::class,
             ProcessShopifyInventoryLevelWebhookJob::class,
             SyncProductWithShopifyWithIntegrationActivity::class,
+            UnPublishExpiredProductsAfterImportActivity::class
         ];
 
         $createdActions = [];
