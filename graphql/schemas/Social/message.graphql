@@ -218,6 +218,61 @@ extend type Query @guard {
             scopes: ["fromApp", "notDeleted"]
         )
 
+    forYouMessages(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "parent_id"
+                    "parent_unique_id"
+                    "companies_id"
+                    "uuid"
+                    "slug"
+                    "message_types_id"
+                    "message"
+                    "reactions_count"
+                    "comments_count"
+                    "total_liked"
+                    "total_children"
+                    "total_disliked"
+                    "total_saved"
+                    "total_view"
+                    "total_shared"
+                    "is_public"
+                ]
+            )
+        hasTags: _
+            @whereHasConditions(
+                relation: "tags"
+                columns: ["id", "name", "slug"]
+            )
+        hasType: _
+            @whereHasConditions(
+                relation: "messageType"
+                columns: ["id", "name", "verb"]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "created_at"
+                    "updated_at"
+                    "id"
+                    "total_view"
+                    "total_liked"
+                    "total_shared"
+                    "total_saved"
+                    "total_children"
+                    "total_disliked"
+                ]
+            )
+        search: String @search
+    ): [Message!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getUserFeed"
+            scopes: ["notDeleted"]
+        )
+
     channelMessages(
         channel_uuid: String!
         where: _

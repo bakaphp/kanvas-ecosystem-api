@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Models;
 
+use Baka\Contracts\AppInterface;
 use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Social\Messages\Observers\UserMessageObserver;
@@ -55,5 +58,14 @@ class UserMessage extends BaseModel
     public function activities(): HasMany
     {
         return $this->hasMany(UserMessageActivity::class, 'user_messages_id');
+    }
+
+    public static function getUserFeed(UserInterface $user, AppInterface $app): EloquentBuilder
+    {
+        return Message::query()
+                ->join('user_messages', 'messages.id', '=', 'user_messages.messages_id')
+                ->where('user_messages.users_id', $user->getId())
+                ->where('user_messages.apps_id', $app->getId())
+                ->select('messages.*');
     }
 }

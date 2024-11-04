@@ -12,6 +12,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Enums\AppEnum;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Models\UserMessage;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class MessageBuilder
@@ -28,7 +29,21 @@ class MessageBuilder
             return Message::fromCompany($user->getCurrentCompany());
         }
 
+        //if enable home-view interaction
+
         return Message::query();
+    }
+
+    public function getUserFeed(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): Builder {
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        return UserMessage::getUserFeed($user, $app);
     }
 
     public function getChannelMessages(
