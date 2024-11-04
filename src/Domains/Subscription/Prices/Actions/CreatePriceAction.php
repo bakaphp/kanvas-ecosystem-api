@@ -30,7 +30,7 @@ class CreatePriceAction
         }
 
         return Price::firstOrCreate([
-            'stripe_id' => $newPrice->id,
+            'stripe_id' => $newPrice ? $newPrice->id : $this->dto->stripe_id,
             'apps_plans_id' => $this->dto->apps_plans_id,
         ], [
             'amount' => $this->dto->amount,
