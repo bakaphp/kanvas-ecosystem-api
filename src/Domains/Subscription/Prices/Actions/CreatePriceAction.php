@@ -17,17 +17,17 @@ class CreatePriceAction
 
     /**
      * Execute the action to create or retrieve an existing price.
-     *
-     * @return Price
      */
-    public function execute(): Price
+    public function execute(bool $createInStripe = true): Price
     {
-        $newPrice = StripePrice::create([
-            'unit_amount' => $this->dto->amount * 100,
-            'currency' => $this->dto->currency,
-            'recurring' => ['interval' => $this->dto->interval],
-            'product' => $this->dto->stripe_id,
-        ]);
+        if ($createInStripe) {
+            $newPrice = StripePrice::create([
+                'unit_amount' => $this->dto->amount * 100,
+                'currency' => $this->dto->currency,
+                'recurring' => ['interval' => $this->dto->interval],
+                'product' => $this->dto->stripe_id,
+            ]);
+        }
 
         return Price::firstOrCreate([
             'stripe_id' => $newPrice->id,

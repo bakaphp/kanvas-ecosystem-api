@@ -18,20 +18,24 @@ class UpdatePriceAction
 
     /**
      * Execute the action to update an existing price.
-     *
-     * @return Price
      */
-    public function execute(): Price
+    public function execute(bool $updateInStripe = true): Price
     {
-        StripePrice::update(
-            $this->dto->stripe_id,
-            [
-                'active' => $this->dto->is_active,
-            ]
-        );
+        if ($updateInStripe) {
+            StripePrice::update(
+                $this->dto->stripe_id,
+                [
+                    'active' => $this->dto->is_active,
+                ]
+            );
+        }
         $this->price->update([
-                'is_active' => $this->dto->is_active,
-            ]);
+            'is_active' => $this->dto->is_active,
+            'amount' => $this->dto->amount,
+            'currency' => $this->dto->currency,
+            'interval' => $this->dto->interval,
+        ]);
+
         return $this->price;
     }
 
@@ -43,6 +47,7 @@ class UpdatePriceAction
             'currency' => $dto->currency,
             'interval' => $dto->interval,
         ]);
+
         return $price;
     }
 }
