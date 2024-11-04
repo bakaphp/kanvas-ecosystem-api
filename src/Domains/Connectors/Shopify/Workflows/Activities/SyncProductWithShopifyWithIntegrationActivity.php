@@ -17,7 +17,7 @@ use Kanvas\Workflow\Integrations\Models\Status;
 use Throwable;
 use Workflow\Activity;
 
-class ExportProductToShopifyActivity extends Activity
+class SyncProductWithShopifyWithIntegrationActivity extends Activity
 {
     public $tries = 5;
 

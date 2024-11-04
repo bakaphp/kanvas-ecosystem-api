@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Workflows;
 
-use GPBMetadata\Google\Cloud\Recommendationengine\V1Beta1\Import;
 use Illuminate\Console\Command;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
 use Kanvas\Connectors\Google\Activities\SyncMessageToDocumentActivity;
@@ -13,14 +12,17 @@ use Kanvas\Connectors\Internal\Activities\ExtractCompanyNameFromPeopleEmailActiv
 use Kanvas\Connectors\Internal\Activities\GenerateCompanyDashboardActivity;
 use Kanvas\Connectors\Internal\Activities\GenerateMessageSlugActivity;
 use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductActivity;
+use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductsAfterImportActivity;
 use Kanvas\Connectors\Internal\Activities\UserCustomFieldActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
 use Kanvas\Connectors\RainForest\Workflows\Activities\ImportProductActivity;
 use Kanvas\Connectors\ScrapperApi\Workflows\Activities\ScrapperSearchActivity;
+use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyInventoryLevelWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyOrderWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyProductWebhookJob;
 use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyActivity;
+use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyWithIntegrationActivity;
 use Kanvas\Connectors\Stripe\Jobs\ImportStripePlanJob;
 use Kanvas\Connectors\Stripe\Jobs\ImportStripePriceJob;
 use Kanvas\Connectors\Stripe\Jobs\UpdatePeopleStripeSubscriptionJob;
@@ -51,7 +53,6 @@ class KanvasWorkflowSynActionCommand extends Command
             CreateLeadsFromReceiverJob::class,
             CreateMessageFromReceiverJob::class,
             UpdatePeopleStripeSubscriptionJob::class,
-            ProcessShopifyOrderWebhookJob::class,
             SyncCompanyWithNetSuiteActivity::class,
             SyncPeopleWithNetSuiteActivity::class,
             GenerateMessageSlugActivity::class,
@@ -69,6 +70,9 @@ class KanvasWorkflowSynActionCommand extends Command
             ExtractCompanyNameFromPeopleEmailActivity::class,
             ScrapperSearchActivity::class,
             UnPublishExpiredProductActivity::class,
+            ProcessShopifyInventoryLevelWebhookJob::class,
+            SyncProductWithShopifyWithIntegrationActivity::class,
+            UnPublishExpiredProductsAfterImportActivity::class,
         ];
 
         $createdActions = [];

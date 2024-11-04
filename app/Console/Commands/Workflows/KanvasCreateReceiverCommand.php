@@ -27,12 +27,12 @@ class KanvasCreateReceiverCommand extends Command
         $this->info('Creating Receiver...');
         $app = select(
             label: 'Select the app for the receiver: ',
-            options: Apps::pluck('name', 'id'),
+            options: Apps::orderBy('id', 'ASC')->pluck('name', 'id')
         );
 
         $action = select(
             label: 'Select the action for the receiver: ',
-            options: WorkflowAction::pluck('name', 'id'),
+            options: WorkflowAction::orderBy('name', 'ASC')->pluck('name', 'id'),
         );
 
         $userId = $this->ask('Enter the user ID for the receiver: ');
@@ -56,7 +56,7 @@ class KanvasCreateReceiverCommand extends Command
         ]);
 
         $this->info('Receiver created successfully!');
-        $url = config('app.url') . '/receiver/' . $receiver->uuid;
+        $url = config('app.url') . '/v1/receiver/' . $receiver->uuid;
         $this->info('Webhook URL: ' . $url);
     }
 }

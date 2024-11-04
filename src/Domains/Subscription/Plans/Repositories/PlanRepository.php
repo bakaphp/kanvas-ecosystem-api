@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Subscription\Plans\Repositories;
 
-use Illuminate\Database\Eloquent\Model;
-use Kanvas\Subscription\Plans\Models\Plan;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Baka\Contracts\AppInterface;
 use Baka\Traits\SearchableTrait;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
+use Kanvas\Subscription\Plans\Models\Plan;
 
 class PlanRepository
 {
@@ -17,8 +17,6 @@ class PlanRepository
 
     /**
      * Get the model instance for Plan.
-     *
-     * @return Model
      */
     public static function getModel(): Model
     {
@@ -43,11 +41,7 @@ class PlanRepository
     public static function getByStripeId(string $stripeId, AppInterface $app): Model
     {
         try {
-            $query = self::getModel()::notDeleted()->where('stripe_id', $stripeId);
-
-            if ($app) {
-                $query = $query->fromApp($app);
-            }
+            $query = self::getModel()::notDeleted()->fromApp($app)->where('stripe_id', $stripeId);
 
             return $query->firstOrFail();
         } catch (ModelNotFoundException $e) {

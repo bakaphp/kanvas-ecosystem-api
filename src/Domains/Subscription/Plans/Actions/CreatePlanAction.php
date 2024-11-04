@@ -7,7 +7,7 @@ namespace Kanvas\Subscription\Plans\Actions;
 use Kanvas\Subscription\Plans\Models\Plan;
 use Kanvas\Subscription\Plans\DataTransferObject\Plan as PlanDto;
 
-class CreatePlan
+class CreatePlanAction
 {
     public function __construct(
         protected PlanDto $dto

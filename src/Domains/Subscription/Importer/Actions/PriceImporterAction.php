@@ -7,30 +7,25 @@ namespace Kanvas\Subscription\Importer\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Subscription\Importer\DataTransferObjects\PriceImporter;
 use Kanvas\Subscription\Prices\Actions\CreatePrice;
+use Kanvas\Subscription\Prices\Actions\CreatePriceAction;
 use Kanvas\Subscription\Prices\Actions\UpdatePrice;
+use Kanvas\Subscription\Prices\Actions\UpdatePriceAction;
 use Kanvas\Subscription\Prices\DataTransferObject\Price as PriceDto;
 use Kanvas\Subscription\Prices\Models\Price;
 use Kanvas\Subscription\Prices\Repositories\PriceRepository;
-use Kanvas\Exceptions\ModelNotFoundException;
 use Throwable;
 
 class PriceImporterAction
 {
-    protected ?Price $price = null;
-
-    /**
-     * __construct.
-     */
     public function __construct(
         public PriceImporter $importedPrice,
         public UserInterface $user,
-        public ?AppInterface $app = null,
+        public AppInterface $app,
         public bool $runWorkflow = true
     ) {
-        $this->app = $this->app ?? app(Apps::class);
     }
 
     public function execute(): Price
@@ -51,9 +46,9 @@ class PriceImporterAction
 
             try {
                 $existingPrice = PriceRepository::getByStripeId($priceDto->stripe_id, $this->app);
-                $this->price = UpdatePrice::import($existingPrice, $priceDto);
+                $price = UpdatePriceAction::import($existingPrice, $priceDto);
             } catch (ModelNotFoundException $e) {
-                $this->price = CreatePrice::import($priceDto);
+                $price = CreatePriceAction::import($priceDto);
             }
 
             DB::connection('mysql')->commit();
@@ -63,6 +58,6 @@ class PriceImporterAction
             throw $e;
         }
 
-        return $this->price;
+        return $price;
     }
 }

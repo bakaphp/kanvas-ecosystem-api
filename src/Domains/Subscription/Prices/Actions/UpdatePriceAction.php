@@ -8,7 +8,7 @@ use Kanvas\Subscription\Prices\DataTransferObject\Price as PriceDto;
 use Kanvas\Subscription\Prices\Models\Price;
 use Stripe\Price as StripePrice;
 
-class UpdatePrice
+class UpdatePriceAction
 {
     public function __construct(
         protected Price $price,

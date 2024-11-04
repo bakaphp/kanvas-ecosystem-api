@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Shopify\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -54,6 +55,7 @@ class ShopifyProductService
            'discountPrice' => 0,
            'quantity' => 1,
            'isPublished' => (int) ($shopifyProduct['status'] == 'active'),
+           'status' => $shopifyProduct['status'],
            'files' => $this->files['files'] ?? [],
            'source' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_PRODUCT_ID->value, $this->company, $this->app, $this->region),
            'sourceId' => $productId,
@@ -65,11 +67,15 @@ class ShopifyProductService
            ],
            'categories' => [
                [
-                   'name' => ! empty($shopifyProduct['product_type']) ? $shopifyProduct['product_type'] : 'Uncategorized',
-                   'code' => ! empty($shopifyProduct['product_type']) ? $shopifyProduct['product_type'] : 'Uncategorized',
+                   'name' => ! empty($shopifyProduct['category']) ? $shopifyProduct['category']['name'] : 'Uncategorized',
+                   'code' => ! empty($shopifyProduct['category']) ? Str::afterLast($shopifyProduct['category']['admin_graphql_api_id'], '/') : 'Uncategorized',
                    'is_published' => true,
                    'position' => 1,
                ],
+           ],
+           'productType' => [
+                'name' => $shopifyProduct['product_type'] ?? 'Default',
+                'weight' => 0,
            ],
            'attributes' => [],
            'variants' => $this->mapVariantsForImport($shopifyProduct['variants'], $shopifyProduct['options']),
@@ -106,6 +112,10 @@ class ShopifyProductService
                         'name' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_VARIANT_ID->value, $this->company, $this->app, $this->region),
                         'data' => $variant['id'],
                     ],
+                    [
+                        'name' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_VARIANT_INVENTORY_ID->value, $this->company, $this->app, $this->region),
+                        'data' => $variant['inventory_item_id'],
+                    ],
                 ],
                 'warehouse' => [
                     'id' => $this->warehouses->id,
@@ -140,10 +150,11 @@ class ShopifyProductService
 
             $path = parse_url($file['src'], PHP_URL_PATH);
             $filename = basename($path);
+            $cleanedFilename = Str::before($filename, '?'); //shopify name may have query string
 
             $shopifyImage = [
                 'url' => $file['src'],
-                'name' => $filename,
+                'name' => $cleanedFilename,
             ];
             $fileSystem[] = $shopifyImage;
             if (! empty($file['variant_ids'])) {
