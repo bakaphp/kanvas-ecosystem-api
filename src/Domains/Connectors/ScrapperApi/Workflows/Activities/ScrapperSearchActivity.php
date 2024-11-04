@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\ScrapperApi\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Connectors\ScrapperApi\Actions\ScrapperAction;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum;
@@ -39,10 +40,11 @@ class ScrapperSearchActivity extends Activity
                 $params['region'],
                 $params['search']
             );
-
+            Log::info('Before Octane::concurrently');
             [$results] = Octane::concurrently([
                 fn () => $action->execute(),
             ]);
+            Log::info('After Octane::concurrently');
             $this->setRecentlySearched($app, $word);
 
             return [
