@@ -8,7 +8,7 @@ return new class () extends Migration {
     public function up()
     {
         Schema::table('user_messages', function (Blueprint $table) {
-            $table->dropPrimary(['messages_id', 'users_id']);
+            //$table->dropPrimary(['messages_id', 'users_id']);
 
             // Add the new composite primary key
             $table->primary(['messages_id', 'users_id', 'apps_id']);
