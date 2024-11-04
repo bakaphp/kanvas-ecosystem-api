@@ -82,21 +82,21 @@ services:
     command: 
       - "sh"
       - "-c"
-      - "php artisan queue:work --queue=imports --tries=3 --timeout=3750"
+      - "php artisan config:cache && php artisan queue:work --queue=imports --tries=3 --timeout=3750"
   queue-scrapper:
     <<: *common-queue-settings
     container_name: queue-scrapper
     command: 
       - "sh"
       - "-c"
-      - "php artisan queue:work --queue=scrapper-queue --tries=3 --timeout=0"
+      - "php artisan config:cache && php artisan queue:work --queue=scrapper-queue --tries=3 --timeout=0"
   queue-sync-shopify:
     <<: *common-queue-settings
     container_name: queue-sync-shopify-queue
     command: 
       - "sh"
       - "-c"
-      - "php artisan queue:work --queue=sync-shopify-queue --tries=3 --timeout=0"
+      - "php artisan config:cache && php artisan queue:work --queue=sync-shopify-queue --tries=3 --timeout=0"
 
   laravel-scheduler:
     container_name: laravel-scheduler
