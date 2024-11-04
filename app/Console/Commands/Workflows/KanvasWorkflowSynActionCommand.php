@@ -23,8 +23,8 @@ use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyOrderWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyProductWebhookJob;
 use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyActivity;
 use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyWithIntegrationActivity;
-use Kanvas\Connectors\Stripe\Jobs\ImportStripePlanJob;
-use Kanvas\Connectors\Stripe\Jobs\ImportStripePriceJob;
+use Kanvas\Connectors\Stripe\Jobs\ImportStripePlanWebhookJob;
+use Kanvas\Connectors\Stripe\Jobs\ImportStripePriceWebhookJob;
 use Kanvas\Connectors\Stripe\Jobs\UpdatePeopleStripeSubscriptionJob;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
@@ -60,8 +60,8 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncMessageToDocumentActivity::class,
             SyncUserInteractionToEventActivity::class,
             ProcessShopifyProductWebhookJob::class,
-            ImportStripePlanJob::class,
-            ImportStripePriceJob::class,
+            ImportStripePlanWebhookJob::class,
+            ImportStripePriceWebhookJob::class,
             SetPlanWithoutPaymentActivity::class,
             GenerateCompanyDashboardActivity::class,
             SyncProductWithShopifyActivity::class,

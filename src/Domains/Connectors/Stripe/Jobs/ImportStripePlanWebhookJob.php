@@ -10,7 +10,7 @@ use Kanvas\Subscription\Importer\Actions\PlanImporterAction;
 use Kanvas\Subscription\Importer\DataTransferObjects\PlanImporter;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 
-class ImportStripePlanJob extends ProcessWebhookJob
+class ImportStripePlanWebhookJob extends ProcessWebhookJob
 {
     public array $data = [];
 
