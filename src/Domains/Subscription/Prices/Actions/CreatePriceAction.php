@@ -30,26 +30,13 @@ class CreatePriceAction
         }
 
         return Price::firstOrCreate([
-            'stripe_id' => $newPrice ? $newPrice->id : $this->dto->stripe_id,
+            'stripe_id' => $newPrice?->id ?? $this->dto->stripe_id,
             'apps_plans_id' => $this->dto->apps_plans_id,
         ], [
             'amount' => $this->dto->amount,
             'currency' => $this->dto->currency,
             'interval' => $this->dto->interval,
             'is_default' => $this->dto->is_default,
-        ]);
-    }
-
-    public static function import(PriceDto $dto): Price
-    {
-        return Price::firstOrCreate([
-            'stripe_id' => $dto->stripe_id,
-            'apps_plans_id' => $dto->apps_plans_id,
-        ], [
-            'amount' => $dto->amount,
-            'currency' => $dto->currency,
-            'interval' => $dto->interval,
-            'is_default' => $dto->is_default,
         ]);
     }
 }
