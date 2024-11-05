@@ -38,7 +38,7 @@ class SyncNetSuiteCustomerItemsListAction
 
     public function execute(): array
     {
-        $customerId = 846733; //$this->buyerCompany->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value);
+        $customerId = $this->buyerCompany->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value);
 
         if (! $customerId) {
             throw new Exception('Company not linked to NetSuite');
@@ -53,9 +53,9 @@ class SyncNetSuiteCustomerItemsListAction
                 app: $this->app,
                 company: $this->mainAppCompany,
                 user: $this->mainAppCompany->user,
-                name: $this->buyerCompany->uuid,
+                name: $this->buyerCompany->name,
                 description: $this->buyerCompany->name . ' channel',
-                slug: $this->buyerCompany->uuid
+                slug: (string) $this->buyerCompany->getId()
             ),
             $this->mainAppCompany->user
         );
