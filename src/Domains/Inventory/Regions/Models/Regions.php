@@ -12,6 +12,7 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Traits\DefaultTrait;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Models\BaseModel as KanvasBaseModel;
 
 /**
  * Class Regions.
@@ -30,7 +31,7 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
  * @property string $created_at
  * @property string $updated_at
  */
-class Regions extends BaseModel
+class Regions extends KanvasBaseModel
 {
     use UuidTrait;
     use SlugTrait;
