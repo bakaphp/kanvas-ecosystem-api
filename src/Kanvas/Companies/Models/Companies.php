@@ -237,7 +237,7 @@ class Companies extends BaseModel implements CompanyInterface
      */
     public function associateUser(
         Users $user,
-        int $isActive,
+        int|bool $isActive,
         CompaniesBranches $branch,
         ?int $userRoleId = null,
         string $companyUserIdentifier = null
@@ -251,7 +251,7 @@ class Companies extends BaseModel implements CompanyInterface
             'companies_id' => $this->getKey(),
             'companies_branches_id' => $branch->id,
             'identify_id' => $companyUserIdentifier ?? $user->id,
-            'user_active' => $isActive,
+            'user_active' => (int) $isActive,
             'user_role' => $userRoleId ?? $user->roles_id,
         ]);
     }
