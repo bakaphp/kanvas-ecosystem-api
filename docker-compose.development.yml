@@ -99,14 +99,14 @@ services:
       - "php artisan config:cache && php artisan queue:work --queue=sync-shopify-queue --tries=3 --timeout=0"
   queue-sync-shopify-worker-1:
     <<: *common-queue-settings
-    container_name: queue-sync-shopify-queue
+    container_name: queue-sync-shopify-queue-worker-1
     command:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue=sync-shopify-queue --tries=3 --timeout=0"
   queue-sync-shopify-worker-2:
     <<: *common-queue-settings
-    container_name: queue-sync-shopify-queue
+    container_name: queue-sync-shopify-queue-worker-2
     command:
       - "sh"
       - "-c"
