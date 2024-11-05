@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\ScrapperApi\Actions;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
@@ -36,6 +37,7 @@ class ScrapperAction
 
     public function execute(): array
     {
+        Log::info('Scrapper Started');
         $warehouse = $this->region->warehouses()->where('is_default', true)->first();
 
         $channels = Channels::getDefault($this->companyBranch->company);

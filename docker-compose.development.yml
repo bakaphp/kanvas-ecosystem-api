@@ -90,6 +90,34 @@ services:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue=scrapper-queue --tries=3 --timeout=0"
+  queue-scrapper-worker-1:
+    <<: *common-queue-settings
+    container_name: queue-scrapper-worker-1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=scrapper-queue --tries=3 --timeout=0"
+  queue-scrapper-worker-2:
+    <<: *common-queue-settings
+    container_name: queue-scrapper
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=scrapper-queue --tries=3 --timeout=0"
+  queue-scrapper-worker-3:
+    <<: *common-queue-settings
+    container_name: queue-scrapper
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=scrapper-queue --tries=3 --timeout=0"
+  queue-scrapper-worker-4:
+    <<: *common-queue-settings
+    container_name: queue-scrapper
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=scrapper-queue --tries=3 --timeout=0"
   queue-sync-shopify:
     <<: *common-queue-settings
     container_name: queue-sync-shopify-queue
