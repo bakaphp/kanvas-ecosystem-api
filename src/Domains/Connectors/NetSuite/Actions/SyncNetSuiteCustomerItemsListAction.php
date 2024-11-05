@@ -63,7 +63,10 @@ class SyncNetSuiteCustomerItemsListAction
 
         $totalProcessed = 0;
         foreach ($listOrProductVariantsBarCodeIds as $bardCodeId) {
-            $variant = Variants::fromApp($this->app)->fromCompany($this->mainAppCompany)->where('barcode', $bardCodeId->item->name)->first();
+            $variant = Variants::fromApp($this->app)
+                    ->fromCompany($this->mainAppCompany)
+                    ->where('barcode', $bardCodeId->item->name)
+                    ->first();
 
             if (! $variant) {
                 continue;
