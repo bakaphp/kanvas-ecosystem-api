@@ -25,10 +25,10 @@ class CompaniesBranchPostData extends Data
         public int $is_default = 0,
         public bool $is_active = true,
         public ?string $email = null,
-        public ?string $address = null,
         public ?string $phone = null,
         public ?int $zipcode = null,
-        public ?array $files = null
+        public ?array $files = null,
+        public ?array $address = null,
     ) {
     }
 

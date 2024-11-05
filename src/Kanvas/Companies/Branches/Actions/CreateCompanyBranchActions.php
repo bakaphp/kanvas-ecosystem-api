@@ -45,7 +45,6 @@ class CreateCompanyBranchActions
         $companyBranch->users_id = $this->data->users_id;
         $companyBranch->is_default = $this->data->is_default;
         $companyBranch->name = $this->data->name;
-        $companyBranch->address = $this->data->address;
         $companyBranch->email = $this->data->email;
         $companyBranch->phone = $this->data->phone;
         $companyBranch->zipcode = $this->data->zipcode;
