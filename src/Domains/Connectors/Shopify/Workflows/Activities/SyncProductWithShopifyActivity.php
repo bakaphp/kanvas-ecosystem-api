@@ -18,7 +18,7 @@ use Workflow\Activity;
 class SyncProductWithShopifyActivity extends Activity
 {
     public $tries = 3;
-    public $queue = ConfigEnum::ACTIVITY_QUEUE->value;
+    // public $queue = ConfigEnum::ACTIVITY_QUEUE->value;
 
     public function execute(Products $product, Apps $app, array $params): array
     {
