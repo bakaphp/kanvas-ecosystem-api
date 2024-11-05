@@ -279,7 +279,7 @@ class SyncWorkflowStub
             // already logged
         }
 
-        $this->dispatchSync();
+        $this->dispatch();
     }
 
     private function dispatch(): void
@@ -299,6 +299,8 @@ class SyncWorkflowStub
         /**
          * change , to make it run sync.
          */
+        \Illuminate\Support\Facades\Log::info('Test');
+        \Illuminate\Support\Facades\Log::debug('Class', [$this->storedWorkflow->class]);
         $this->storedWorkflow->class::dispatchSync(
             $this->storedWorkflow,
             ...Y::unserialize($this->storedWorkflow->arguments)
