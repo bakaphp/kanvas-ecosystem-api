@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\NetSuite\Workflow;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\SyncCompanyWithNetSuiteAction;
+use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerItemsListAction;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Workflow\Activity;
 
@@ -18,6 +19,16 @@ class SyncCompanyWithNetSuiteActivity extends Activity
     {
         $syncCompanyWithNetSuite = new SyncCompanyWithNetSuiteAction($app, $company);
         $company = $syncCompanyWithNetSuite->execute();
+
+        //update or create customer own channel price list
+        $mainCompanyId = $app->get('B2B_MAIN_COMPANY_ID');
+
+        if ($mainCompanyId) {
+            $mainCompany = Companies::getById($mainCompanyId);
+
+            $syncNetSuiteCustomerWithCompany = new SyncNetSuiteCustomerItemsListAction($app, $mainCompany, $company);
+            $syncNetSuiteCustomerWithCompany->execute();
+        }
 
         return [
             'company' => $company->getId(),
