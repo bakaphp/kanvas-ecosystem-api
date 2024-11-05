@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Regions\Models;
 
 use Baka\Traits\SlugTrait;
+use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -35,6 +36,7 @@ class Regions extends BaseModel
     use UuidTrait;
     use SlugTrait;
     use DefaultTrait;
+    use SoftDeletesTrait;
 
     protected $table = 'regions';
     protected $guarded = [];
