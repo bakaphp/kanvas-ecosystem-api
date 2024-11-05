@@ -53,9 +53,9 @@ class SyncNetSuiteCustomerItemsListAction
                 app: $this->app,
                 company: $this->mainAppCompany,
                 user: $this->mainAppCompany->user,
-                name: $this->buyerCompany->uuid,
+                name: $this->buyerCompany->name,
                 description: $this->buyerCompany->name . ' channel',
-                slug: $this->buyerCompany->uuid
+                slug: $this->buyerCompany->getId()
             ),
             $this->mainAppCompany->user
         );
