@@ -12,9 +12,9 @@ return new class () extends Migration {
     {
         Schema::table('companies', function (Blueprint $table) {
             //'
-            $table->integer('countries_id')->unsigned()->nullable()->after('currency_id');
-            $table->integer('states_id')->unsigned()->nullable()->after('currency_id');
-            $table->integer('cities_id')->unsigned()->nullable()->after('currency_id');
+            $table->integer('countries_id')->unsigned()->nullable()->after('currency_id')->index('countries_id');
+            $table->integer('states_id')->unsigned()->nullable()->after('currency_id')->index('states_id');
+            $table->integer('cities_id')->unsigned()->nullable()->after('currency_id')->index('cities_id');
             $table->string('address_2')->nullable()->after('phone');
             $table->string('city')->nullable()->after('phone');
             $table->string('state')->nullable()->after('phone');
