@@ -68,7 +68,10 @@ class UserManagement
                 return;
             }
             foreach ($roleIds as $roleId) {
-                $role = RolesRepository::getByMixedParamFromCompany($roleId);
+                $role = RolesRepository::getByMixedParamFromCompany(
+                    param: $roleId,
+                    app: $this->app
+                );
 
                 $assign = new AssignRoleAction(
                     $this->user,

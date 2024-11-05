@@ -44,7 +44,10 @@ class KanvasUserAddToCompany extends Command
 
         $email = $this->argument('email');
         $branchId = $this->argument('branch_id');
-        $role = RolesRepository::getByMixedParamFromCompany($this->argument('role') ?? RolesEnums::ADMIN->value);
+        $role = RolesRepository::getByMixedParamFromCompany(
+            param: $this->argument('role') ?? RolesEnums::ADMIN->value,
+            app: $app
+        );
 
         $branch = CompaniesBranches::findOrFail($branchId);
         $company = $branch->company()->first();

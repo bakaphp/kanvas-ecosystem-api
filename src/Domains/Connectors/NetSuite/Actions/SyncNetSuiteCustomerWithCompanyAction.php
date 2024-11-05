@@ -63,7 +63,10 @@ class SyncNetSuiteCustomerWithCompanyAction
         $company->set(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value, $customerId);
 
         $branch = $company->defaultBranch;
-        $role = RolesRepository::getByMixedParamFromCompany(RolesEnums::ADMIN->value);
+        $role = RolesRepository::getByMixedParamFromCompany(
+            param: RolesEnums::ADMIN->value,
+            app: $this->app
+        );
 
         $action = new AssignCompanyAction($company->user, $branch, $role);
         $action->execute();
