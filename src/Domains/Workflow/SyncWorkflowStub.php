@@ -279,7 +279,7 @@ class SyncWorkflowStub
             // already logged
         }
 
-        $this->dispatch();
+        $this->dispatchSync();
     }
 
     private function dispatch(): void
