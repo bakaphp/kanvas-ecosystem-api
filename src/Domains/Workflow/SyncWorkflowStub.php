@@ -299,6 +299,7 @@ class SyncWorkflowStub
         /**
          * change , to make it run sync.
          */
+        \Illuminate\Support\Facades\Log::debug('Class stored workflow', [$this->storedWorkflow->class]);
         $this->storedWorkflow->class::dispatchSync(
             $this->storedWorkflow,
             ...Y::unserialize($this->storedWorkflow->arguments)

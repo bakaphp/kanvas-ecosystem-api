@@ -71,6 +71,11 @@ class ScrapperAction
                 if (App::environment('local')) {
                     break;
                 }
+                if ($this->app->get('limit-product-scrapper')
+                    && ($importerProducts > $this->app->get('limit-product-scrapper'))
+                ) {
+                    break;
+                }
             } catch (Throwable $e) {
                 captureException($e);
             }
