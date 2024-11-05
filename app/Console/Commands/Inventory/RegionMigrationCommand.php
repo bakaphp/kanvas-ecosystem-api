@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Inventory;
 
 use Illuminate\Console\Command;
+use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Regions\Models\Regions as KanvasRegions;
 
@@ -31,7 +32,9 @@ class RegionMigrationCommand extends Command
      */
     public function handle()
     {
-        $regions = Regions::withTrashed()->get();
+        $inventoryConnection = (new BaseModel())->getConnectionName();
+
+        $regions = Regions::on($inventoryConnection)->withTrashed()->get();
 
         foreach ($regions as $region) {
             $newRegion = KanvasRegions::firstOrCreate([
