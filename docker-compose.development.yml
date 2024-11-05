@@ -99,21 +99,21 @@ services:
       - "php artisan config:cache && php artisan queue:work --queue=scrapper-queue --tries=3 --timeout=0"
   queue-scrapper-worker-2:
     <<: *common-queue-settings
-    container_name: queue-scrapper
+    container_name: queue-scrapper-worker-2
     command:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue=scrapper-queue --tries=3 --timeout=0"
   queue-scrapper-worker-3:
     <<: *common-queue-settings
-    container_name: queue-scrapper
+    container_name: queue-scrapper-worker-3
     command:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue=scrapper-queue --tries=3 --timeout=0"
   queue-scrapper-worker-4:
     <<: *common-queue-settings
-    container_name: queue-scrapper
+    container_name: queue-scrapper-worker-4
     command:
       - "sh"
       - "-c"
