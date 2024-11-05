@@ -55,7 +55,7 @@ class SyncNetSuiteCustomerItemsListAction
                 user: $this->mainAppCompany->user,
                 name: $this->buyerCompany->name,
                 description: $this->buyerCompany->name . ' channel',
-                slug: $this->buyerCompany->getId()
+                slug: (string) $this->buyerCompany->getId()
             ),
             $this->mainAppCompany->user
         );
