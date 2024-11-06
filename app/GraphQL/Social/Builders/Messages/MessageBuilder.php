@@ -8,8 +8,11 @@ use Algolia\AlgoliaSearch\SearchClient;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Enums\AppEnum;
+use Kanvas\Social\Enums\InteractionEnum;
+use Kanvas\Social\Interactions\Jobs\UserInteractionJob;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Models\UserMessage;
@@ -24,12 +27,29 @@ class MessageBuilder
         ResolveInfo $resolveInfo
     ): Builder {
         $user = auth()->user();
+        $app = app(Apps::class);
+
+        $viewingOneMessage = isset($args['where']['column']) && ($args['where']['column'] === 'id' || $args['where']['column'] === 'uuid') && isset($args['where']['value']);
+        //if enable home-view interaction , remove once , moved to getUserFeed
+        if ($app->get('TEMP_HOME_VIEW_EVENT') && ! app(AppKey::class) && ! $viewingOneMessage) {
+            UserInteractionJob::dispatch(
+                $app,
+                $user,
+                $app,
+                InteractionEnum::VIEW_HOME_PAGE->getValue()
+            );
+        } elseif ($app->get('TEMP_HOME_VIEW_EVENT') && $viewingOneMessage) {
+            UserInteractionJob::dispatch(
+                $app,
+                $user,
+                new Message(['id' => $args['where']['value']]),
+                InteractionEnum::VIEW_ITEM->getValue()
+            );
+        }
 
         if (! $user->isAppOwner()) {
             return Message::fromCompany($user->getCurrentCompany());
         }
-
-        //if enable home-view interaction
 
         return Message::query();
     }
@@ -42,6 +62,14 @@ class MessageBuilder
     ): Builder {
         $user = auth()->user();
         $app = app(Apps::class);
+
+        //generate home-view interaction
+        UserInteractionJob::dispatch(
+            $app,
+            $user,
+            $app,
+            InteractionEnum::VIEW_HOME_PAGE->getValue()
+        );
 
         return UserMessage::getUserFeed($user, $app);
     }
