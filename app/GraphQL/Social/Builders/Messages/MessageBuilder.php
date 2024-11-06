@@ -38,7 +38,7 @@ class MessageBuilder
                 $app,
                 InteractionEnum::VIEW_HOME_PAGE->getValue()
             );
-        } elseif ($viewingOneMessage) {
+        } elseif ($app->get('TEMP_HOME_VIEW_EVENT') && $viewingOneMessage) {
             UserInteractionJob::dispatch(
                 $app,
                 $user,
@@ -64,12 +64,14 @@ class MessageBuilder
         $app = app(Apps::class);
 
         //generate home-view interaction
-        UserInteractionJob::dispatch(
-            $app,
-            $user,
-            $app,
-            InteractionEnum::VIEW_HOME_PAGE->getValue()
-        );
+        if ($app->get('TEMP_HOME_VIEW_EVENT')) {
+            UserInteractionJob::dispatch(
+                $app,
+                $user,
+                $app,
+                InteractionEnum::VIEW_HOME_PAGE->getValue()
+            );
+        }
 
         return UserMessage::getUserFeed($user, $app);
     }
