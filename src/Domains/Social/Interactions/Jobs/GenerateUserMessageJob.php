@@ -15,7 +15,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Google\Actions\GenerateGoogleUserMessageAction;
 use Kanvas\Social\Messages\Models\Message;
@@ -61,28 +61,24 @@ class GenerateUserMessageJob implements ShouldQueue
 
     public function handle()
     {
-        try {
-            config(['laravel-model-caching.disabled' => true]);
-            $this->overwriteAppService($this->app);
+        config(['laravel-model-caching.disabled' => true]);
+        $this->overwriteAppService($this->app);
 
-            $recommendationEngine = $this->app->get('social-user-feed-recommendation-engine') ?? 'local';
-            $pageSize = $this->app->get('user-message-page-size') ?? 350;
-            $cleanUserFeed = $this->app->get('social-clean-user-feed') ?? true;
+        $recommendationEngine = $this->app->get('social-user-feed-recommendation-engine') ?? 'local';
+        $pageSize = $this->app->get('user-message-page-size') ?? 350;
+        $cleanUserFeed = $this->app->get('social-clean-user-feed') ?? true;
+        $isDevelopment = ! App::environment('production');
 
-            if ($recommendationEngine == 'google') {
-                $generateUserMessage = new GenerateGoogleUserMessageAction(
-                    $this->app,
-                    $this->company,
-                    $this->user,
-                    $cleanUserFeed
-                );
-                $generateUserMessage->execute($pageSize);
-            } else {
-                $this->executeRandomMessages($pageSize);
-            }
-        } finally {
-            // Release the cache key to allow subsequent jobs after 30 seconds
-            Cache::forget($this->uniqueId());
+        if ($recommendationEngine == 'google') {
+            $generateUserMessage = new GenerateGoogleUserMessageAction(
+                $this->app,
+                $this->company,
+                $this->user,
+                $cleanUserFeed
+            );
+            $generateUserMessage->execute($pageSize);
+        } elseif ($isDevelopment && $recommendationEngine == 'local') {
+            $this->executeRandomMessages($pageSize);
         }
     }
 
