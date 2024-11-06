@@ -41,6 +41,8 @@ class SyncUserInteractionToEventActivity extends Activity implements WorkflowAct
             [$userInteraction->id]
         );
 
+        //re-generate the home feed
+
         return [
             'result' => $result,
             'user_interaction_id' => $userInteraction->id,
