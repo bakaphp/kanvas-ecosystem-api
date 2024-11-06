@@ -8,7 +8,6 @@ use Algolia\AlgoliaSearch\SearchClient;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Enums\AppEnum;
 use Kanvas\Social\Enums\InteractionEnum;
@@ -31,14 +30,7 @@ class MessageBuilder
 
         $viewingOneMessage = isset($args['where']['column']) && ($args['where']['column'] === 'id' || $args['where']['column'] === 'uuid') && isset($args['where']['value']);
         //if enable home-view interaction , remove once , moved to getUserFeed
-        if ($app->get('TEMP_HOME_VIEW_EVENT') && ! app(AppKey::class) && ! $viewingOneMessage) {
-            UserInteractionJob::dispatch(
-                $app,
-                $user,
-                $app,
-                InteractionEnum::VIEW_HOME_PAGE->getValue()
-            );
-        } elseif ($app->get('TEMP_HOME_VIEW_EVENT') && $viewingOneMessage) {
+        if ($app->get('TEMP_HOME_VIEW_EVENT') && $viewingOneMessage) {
             UserInteractionJob::dispatch(
                 $app,
                 $user,
@@ -63,8 +55,9 @@ class MessageBuilder
         $user = auth()->user();
         $app = app(Apps::class);
 
+        $currentPage = (int) ($args['page'] ?? 1);
         //generate home-view interaction
-        if ($app->get('TEMP_HOME_VIEW_EVENT')) {
+        if ($app->get('TEMP_HOME_VIEW_EVENT') && $currentPage === 1) {
             UserInteractionJob::dispatch(
                 $app,
                 $user,
