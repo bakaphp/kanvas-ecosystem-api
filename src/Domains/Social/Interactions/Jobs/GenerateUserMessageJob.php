@@ -47,7 +47,7 @@ class GenerateUserMessageJob implements ShouldQueue
     {
         return 'generate_user_message_' . $this->user->getId() . '_' . $this->app->getId();
     }
-    
+
     public function middleware(): array
     {
         if (! $this->uniqueFor) {
