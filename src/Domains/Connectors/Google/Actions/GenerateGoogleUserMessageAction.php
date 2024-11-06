@@ -52,10 +52,17 @@ class GenerateGoogleUserMessageAction
 
             $totalSeconds = 200;
             $secondsInterval = $totalSeconds / count($userForYouFeed);
+            $messageTypeId = $this->app->get('social-user-message-filter-message-type');
 
             foreach ($userForYouFeed as $index => $messageId) {
                 // Check if the message still exists
-                if (Message::fromApp($this->app)->where('id', $messageId)->count() == 0) {
+                if (! Message::fromApp($this->app)
+                        ->where('id', $messageId)
+                        ->when($messageTypeId !== null, function ($query) use ($messageTypeId) {
+                            return $query->where('message_types_id', $messageTypeId);
+                        })
+                        ->exists()
+                ) {
                     continue;
                 }
 
