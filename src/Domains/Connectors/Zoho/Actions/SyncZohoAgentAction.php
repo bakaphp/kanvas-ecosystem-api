@@ -24,9 +24,6 @@ class SyncZohoAgentAction
     ) {
     }
 
-    /**
-     * @throws \Throwable
-     */
     public function execute(): Agent
     {
         return DB::transaction(function () {
