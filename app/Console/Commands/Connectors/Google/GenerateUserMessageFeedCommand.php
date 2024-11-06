@@ -5,14 +5,11 @@ declare(strict_types=1);
 namespace App\Console\Commands\Connectors\Google;
 
 use Baka\Traits\KanvasJobsTrait;
-use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Google\Enums\UserEventEnum;
+use Kanvas\Connectors\Google\Actions\GenerateGoogleUserMessageAction;
 use Kanvas\Connectors\Google\Services\DiscoveryUserRecommendationService;
-use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Messages\Models\UserMessage;
 use Kanvas\Users\Repositories\UserAppRepository;
 
 class GenerateUserMessageFeedCommand extends Command
@@ -63,35 +60,13 @@ class GenerateUserMessageFeedCommand extends Command
             $progress
         ) {
             foreach ($users as $user) {
-                $userForYouFeedRecommendation = $userRecommendation->getRecommendation(
+                $generateUserMessage = new GenerateGoogleUserMessageAction(
+                    $app,
+                    $company,
                     $user,
-                    UserEventEnum::VIEW_HOME_PAGE,
-                    $pageSize
+                    $cleanUserFeed
                 );
-                $userForYouFeed = iterator_to_array($userForYouFeedRecommendation->getResults()->getIterator());
-
-                if ($cleanUserFeed) {
-                    UserMessage::fromApp($app)->where('users_id', $user->getId())->delete();
-                }
-
-                $totalSeconds = 200;
-                $secondsInterval = $totalSeconds / count($userForYouFeed);
-
-                foreach ($userForYouFeed as $index => $message) {
-                    if (Message::fromApp($app)->where('id', $message->getId())->count() == 0) {
-                        continue;
-                    }
-
-                    $userMessage = new UserMessage();
-                    $userMessage->messages_id = $message->getId();
-                    $userMessage->users_id = $user->getId();
-                    $userMessage->apps_id = $app->getId();
-
-                    // Add seconds based on index - this will spread messages over the time period
-                    $userMessage->created_at = Carbon::now()->subSeconds($totalSeconds - ($index * $secondsInterval));
-
-                    $userMessage->saveOrFail();
-                }
+                $generateUserMessage->execute($pageSize);
 
                 $processedUsers++;
                 $progress->advance();

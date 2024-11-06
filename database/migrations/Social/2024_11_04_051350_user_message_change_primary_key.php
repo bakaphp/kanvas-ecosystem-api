@@ -12,6 +12,15 @@ return new class () extends Migration {
 
             // Add the new composite primary key
             $table->primary(['messages_id', 'users_id', 'apps_id']);
+            $table->index(
+                ['users_id', 'is_liked', 'is_disliked', 'is_saved', 'is_shared', 'is_reported'],
+                'user_interaction_full_index'
+            );
+
+            $table->index(
+                ['users_id', 'is_liked', 'is_disliked', 'is_saved', 'is_shared'],
+                'user_interaction_partial_index'
+            );
         });
     }
 

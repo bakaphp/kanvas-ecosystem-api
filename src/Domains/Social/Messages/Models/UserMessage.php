@@ -7,6 +7,7 @@ namespace Kanvas\Social\Messages\Models;
 use Baka\Contracts\AppInterface;
 use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
+use Baka\Traits\SoftDeletesTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
@@ -35,12 +36,13 @@ class UserMessage extends BaseModel
 {
     use NoCompanyRelationshipTrait;
     use HasCompositePrimaryKeyTrait;
+    use SoftDeletesTrait;
 
     protected $table = 'user_messages';
 
     protected $guarded = [];
 
-    protected $primaryKey = ['messages_id', 'users_id'];
+    protected $primaryKey = ['apps_id', 'messages_id', 'users_id'];
 
     public const UPDATED_AT = null;
 

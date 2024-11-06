@@ -64,5 +64,15 @@ class UserInteractionJob implements ShouldQueue
             allowDuplicate: true,
             addToCache: false
         );
+
+        //generate ser feed
+        $generateUserFeed = $this->app->get('social-generate-user-feed-after-interaction') ?? true;
+        if ($generateUserFeed) {
+            GenerateUserMessageJob::dispatch(
+                $this->app,
+                $this->user->getCurrentCompany(),
+                $this->user
+            );
+        }
     }
 }
