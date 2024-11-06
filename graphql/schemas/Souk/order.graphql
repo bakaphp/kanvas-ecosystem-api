@@ -59,6 +59,13 @@ type OrderItem {
     updated_at: String
 }
 
+type PaymentResult {
+    status: String!
+    transaction_id: ID!
+    order_status: String
+    message: Mixed
+}
+
 input CreditCardInput {
     name: String!
     number: String!
@@ -124,9 +131,15 @@ input OrderLineItemInput {
 
 input PaymentInput {
     orderId: ID!
-    paymentMethod: String! 
-    creditCard: CreditCardInput 
-    billing: OrderBillingInput 
+    paymentMethod: String!
+    creditCard: CreditCardInput
+    billing: OrderBillingInput
+}
+
+input ProcessPaymentInput {
+    order_id: ID!
+    payment_token: String! # Token from the payment provider (e.g., Stripe's paymentMethodId)
+    payment_provider: String! # e.g., "stripe", "paypal"
 }
 
 extend type Mutation @guard {
@@ -142,6 +155,10 @@ extend type Mutation @guard {
     createDraftOrder(input: DraftOrderInput!): Order!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\DraftOrderManagementMutation@create"
+        )
+    processOrderPayment(input: ProcessPaymentInput!): PaymentResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\PaymentManagementMutation@processPayment"
         )
     #createOrderFromCart(input: CartOrderInput!): Mixed!
     #    @field(
@@ -168,14 +185,7 @@ extend type Query @guard {
                 ]
             )
         orderBy: _
-            @orderBy(
-                columns: [
-                    "id"
-                    "created_at"
-                    "updated_at"
-                    "status"
-                ]
-            )
+            @orderBy(columns: ["id", "created_at", "updated_at", "status"])
     ): [Order!]!
         @paginate(
             model: "Kanvas\\Souk\\Orders\\Models\\Order"
