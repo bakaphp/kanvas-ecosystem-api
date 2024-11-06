@@ -78,7 +78,7 @@ class EventServiceProvider extends ServiceProvider
         UserMessageActivity::observe(UserMessageActivityObserver::class);
         UserList::observe(UsersListsObserver::class);
         Lead::observe(LeadObserver::class);
-        UserMessage::observe(UserMessageObserver::class);
+        #UserMessage::observe(UserMessageObserver::class);
         Warehouses::observe(WarehouseObserver::class);
         Regions::observe(RegionObserver::class);
         Status::observe(StatusObserver::class);

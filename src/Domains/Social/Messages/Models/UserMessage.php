@@ -4,15 +4,23 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Models;
 
+use Baka\Contracts\AppInterface;
+use Baka\Traits\HasCompositePrimaryKeyTrait;
+use Baka\Traits\NoCompanyRelationshipTrait;
+use Baka\Traits\SoftDeletesTrait;
+use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Social\Messages\Observers\UserMessageObserver;
 use Kanvas\Social\Models\BaseModel;
-use Kanvas\Users\Models\Users;
 
 /**
  *  Class UserMessage
  *  @property int $message_id
  *  @property int $users_id
+ *  @property int $apps_id
  *  @property int $is_liked
  *  @property int $is_disliked
  *  @property int $is_saved
@@ -23,21 +31,20 @@ use Kanvas\Users\Models\Users;
  *  @property string $saved_lists
  *  @property string $activities
  */
+#[ObservedBy([UserMessageObserver::class])]
 class UserMessage extends BaseModel
 {
+    use NoCompanyRelationshipTrait;
+    use HasCompositePrimaryKeyTrait;
+    use SoftDeletesTrait;
+
     protected $table = 'user_messages';
 
     protected $guarded = [];
 
-    public const UPDATED_AT = null;
+    protected $primaryKey = ['apps_id', 'messages_id', 'users_id'];
 
-    /**
-     * user
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(Users::class, 'users_id');
-    }
+    public const UPDATED_AT = null;
 
     /**
      * message
@@ -53,5 +60,15 @@ class UserMessage extends BaseModel
     public function activities(): HasMany
     {
         return $this->hasMany(UserMessageActivity::class, 'user_messages_id');
+    }
+
+    public static function getUserFeed(UserInterface $user, AppInterface $app): EloquentBuilder
+    {
+        return Message::query()
+                ->join('user_messages', 'messages.id', '=', 'user_messages.messages_id')
+                ->where('user_messages.users_id', $user->getId())
+                ->where('user_messages.apps_id', $app->getId())
+                ->orderBy('user_messages.created_at', 'desc') //for now always order by created_at in the user feed
+                ->select('messages.*');
     }
 }

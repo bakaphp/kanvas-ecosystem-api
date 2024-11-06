@@ -8,9 +8,13 @@ use Kanvas\Social\Follows\Models\UsersFollows;
 
 class UserFollowObserver
 {
-    public function created(UsersFollows $userFollow)
+    public function saved(UsersFollows $userFollow)
     {
-        $userFollow->updateSocialCount();
+        if ($userFollow->is_deleted == 0) {
+            $userFollow->updateSocialCount();
+        } else {
+            $userFollow->decreaseSocialCount();
+        }
     }
 
     public function deleted(UsersFollows $userFollow)

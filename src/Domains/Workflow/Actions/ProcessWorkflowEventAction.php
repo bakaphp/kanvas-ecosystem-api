@@ -11,6 +11,7 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Workflow\Rules\DynamicRuleWorkflow;
 use Kanvas\Workflow\Rules\Models\RuleType;
 use Kanvas\Workflow\Rules\Repositories\RuleRepository;
+use Kanvas\Workflow\SyncWorkflowStub;
 use Workflow\WorkflowStub;
 
 class ProcessWorkflowEventAction
@@ -33,7 +34,11 @@ class ProcessWorkflowEventAction
         $rules = RuleRepository::getRulesByModelAndType($this->app, $this->entity, $ruleType, $company);
         if ($rules->count() > 0) {
             foreach ($rules as $rule) {
-                $workflow = WorkflowStub::make(DynamicRuleWorkflow::class);
+                if ($rule->runAsync()) {
+                    $workflow = WorkflowStub::make(DynamicRuleWorkflow::class);
+                } else {
+                    $workflow = SyncWorkflowStub::make(DynamicRuleWorkflow::class);
+                }
                 $workflow->start($this->app, $rule, $this->entity, $params);
             }
         }

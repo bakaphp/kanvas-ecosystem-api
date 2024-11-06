@@ -6,15 +6,19 @@ namespace Kanvas\Connectors\Shopify\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Kanvas\Connectors\RainForest\Enums\ConfigurationEnum as RainForestConfigurationEnum;
-use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Shopify\Client;
+use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Enums\StatusEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use PHPShopify\ShopifySDK;
+
+use function Sentry\captureException;
+
 use Throwable;
 
 class ShopifyInventoryService
@@ -61,8 +65,9 @@ class ShopifyInventoryService
                 $variant = $product->variants('sku', $shopifyVariant['sku'])->first();
                 if ($variant->getShopifyId($this->warehouses->regions) === null) {
                     $variant->setShopifyId($this->warehouses->regions, $shopifyVariant['id']);
+                    $variant->setInventoryId($this->warehouses->regions, $shopifyVariant['inventory_item_id']);
+                    $this->setStock($variant, $channel);
                 }
-                // $this->setStock($variant, $channel);
             }
         } else {
             $shopifyProduct = $this->shopifySdk->Product($shopifyProductId);
@@ -70,7 +75,7 @@ class ShopifyInventoryService
 
             foreach ($product->variants as $variant) {
                 $this->saveVariant($variant, $channel);
-                // $this->setStock($variant, $channel);
+                $this->setStock($variant, $channel);
             }
         }
 
@@ -119,11 +124,12 @@ class ShopifyInventoryService
             'compare_at_price' => $discountedPrice ?? 0,
             'inventory_policy' => 'deny',
             'published' => $price > 0,
-            'grams' => $variant->get(RainForestConfigurationEnum::WEIGHT_UNIT->value) ?? 453.592,
+            'weight' => $variant->get(ConfigurationEnum::WEIGHT_UNIT->value) ?? 453.592,
+            'weight_unit' => 'g',
         ];
 
         if ($quantity > 0 && $this->app->get(CustomFieldEnum::SHOPIFY_INVENTORY_MANAGEMENT->value)) {
-            $this->setStock($variant, $channel);
+            // $this->setStock($variant, $channel);
         }
 
         if ($variant->product->getShopifyId($this->warehouses->regions)) {
@@ -145,13 +151,11 @@ class ShopifyInventoryService
             $response = $shopifyProduct->Variant->post($variantInfo);
             $shopifyProductVariantId = $response['id'];
             $shopifyProductVariantInventoryId = $response['inventory_item_id'];
-
             $variant->setShopifyId($this->warehouses->regions, $shopifyProductVariantId);
             $variant->setInventoryId($this->warehouses->regions, $shopifyProductVariantInventoryId);
         } else {
             unset($variantInfo['option1']);
             $response = $shopifyProduct->Variant($shopifyProductVariantId)->put($variantInfo);
-
             if ($variant->getInventoryId($this->warehouses->regions) === null) {
                 $variant->setInventoryId($this->warehouses->regions, $response['inventory_item_id']);
             }
@@ -174,23 +178,34 @@ class ShopifyInventoryService
             'inventory_management' => 'shopify',
         ]);
 
+        /**
+         * @todo tied location to the warehouse
+         */
         $defaultLocation = $this->shopifySdk->Shop->get()['primary_location_id'];
 
-        if ($isAdjustment) {
-            $shopifyInventory = $this->shopifySdk->InventoryLevel->adjust([
-                'inventory_item_id' => $variant->getInventoryId($this->warehouses->regions),
-                'location_id' => $defaultLocation,
-                'available_adjustment' => $warehouseInfo?->quantity ?? 0,
-            ]);
-        } else {
-            $shopifyInventory = $this->shopifySdk->InventoryLevel->set([
-                'inventory_item_id' => $variant->getInventoryId($this->warehouses->regions),
-                'location_id' => $defaultLocation,
-                'available' => $warehouseInfo?->quantity ?? 0,
-            ]);
-        }
+        try {
+            if ($isAdjustment) {
+                $shopifyInventory = $this->shopifySdk->InventoryLevel->adjust([
+                    'inventory_item_id' => $variant->getInventoryId($this->warehouses->regions),
+                    'location_id' => $defaultLocation,
+                    'available_adjustment' => $warehouseInfo?->quantity ?? 0,
+                ]);
+            } else {
+                $shopifyInventory = $this->shopifySdk->InventoryLevel->set([
+                    'inventory_item_id' => $variant->getInventoryId($this->warehouses->regions),
+                    'location_id' => $defaultLocation,
+                    'available' => $warehouseInfo?->quantity ?? 0,
+                ]);
+            }
 
-        return (int) $shopifyInventory['available'];
+            return (int) $shopifyInventory['available'];
+        } catch (Throwable $e) {
+            Log::error($e->getMessage());
+            Log::error($e->getTraceAsString());
+            captureException($e);
+
+            return 0;
+        }
     }
 
     protected function changeProductStatus(Products $product, StatusEnum $status): array

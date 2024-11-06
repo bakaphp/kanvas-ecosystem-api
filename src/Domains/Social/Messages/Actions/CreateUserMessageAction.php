@@ -12,26 +12,22 @@ use Kanvas\Users\Models\Users;
 
 class CreateUserMessageAction
 {
-    /**
-     * __construct
-     *
-     * @return void
-     */
     public function __construct(
         public Message $message,
         public Users|UsersFollows $user,
         public array $activity
     ) {
+        if ($user instanceof UsersFollows) {
+            $this->user = $user->user;
+        }
     }
 
-    /**
-     * execute
-     */
     public function execute(): UserMessage
     {
         $userMessage = UserMessage::firstOrCreate([
             'messages_id' => $this->message->getId(),
             'users_id' => $this->user->getId(),
+            'apps_id' => $this->message->apps_id,
         ]);
 
         if ($this->message->appModuleMessage && ! empty($this->activity)) {

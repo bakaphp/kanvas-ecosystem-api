@@ -12,6 +12,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Products\Repositories\ProductsRepository;
 use Kanvas\Users\Models\UserCompanyApps;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class InventoryDailyReportCommand extends Command
 {
@@ -56,6 +57,15 @@ class InventoryDailyReportCommand extends Command
     {
         $this->info('Sending Inventory Daily Report - ' . $company->name . ' - ' . date('Y-m-d'));
         $this->unPublishProductsByExpirationDate($app, $company);
+        //$this->publishProductsByExpirationDate($app, $company);
+
+        $company->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            true,
+            [
+                'company' => $company,
+            ]
+        );
     }
 
     protected function unPublishProductsByExpirationDate(AppInterface $app, CompanyInterface $company): void
@@ -65,6 +75,17 @@ class InventoryDailyReportCommand extends Command
         foreach ($productsToUnPublished as $product) {
             $product->unPublish();
             $this->info('Product ' . $product->id . ' has been unpublished');
+            //@todo send report to the company
+        }
+    }
+
+    protected function publishProductsByExpirationDate(AppInterface $app, CompanyInterface $company): void
+    {
+        $productsToPublished = ProductsRepository::getProductWithUnPassedEndDate($app, $company)->get();
+
+        foreach ($productsToPublished as $product) {
+            $product->publish();
+            $this->info('Product ' . $product->id . ' has been published');
             //@todo send report to the company
         }
     }

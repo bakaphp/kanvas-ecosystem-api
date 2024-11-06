@@ -24,6 +24,14 @@ class Company extends Data
         public ?array $files = null,
         public array $custom_fields = [],
         public bool $is_active = true,
+        public ?int $countries_id = null,
+        public ?int $states_id = null,
+        public ?int $cities_id = null,
+        public ?string $address_2 = null,
+        public ?string $city = null,
+        public ?string $state = null,
+        public ?string $country = null,
+        public ?string $zip = null
     ) {
     }
 
@@ -43,7 +51,15 @@ class Company extends Data
             country_code: $request['country_code'] ?? null,
             files: $request['files'] ?? null,
             custom_fields: $request['custom_fields'] ?? [],
-            is_active: $request['is_active'] ?? true
+            is_active: $request['is_active'] ?? true,
+            countries_id: ! empty($request['countries_id']) ? (int) $request['countries_id'] : null,
+            states_id: ! empty($request['states_id']) ? (int) $request['states_id'] : null,
+            cities_id: ! empty($request['cities_id']) ? (int) $request['cities_id'] : null,
+            address_2: $request['address_2'] ?? null,
+            city: $request['city'] ?? null,
+            state: $request['state'] ?? null,
+            country: $request['country'] ?? null,
+            zip: $request['zip'] ?? null
         );
     }
 }

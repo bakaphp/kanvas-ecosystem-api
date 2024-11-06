@@ -7,15 +7,20 @@ namespace Kanvas\Event\Events\Models;
 use Baka\Casts\Json;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Event\Events\Observers\EventVersionParticipantObserver;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Event\Participants\Models\ParticipantType;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 
+#[ObservedBy([EventVersionParticipantObserver::class])]
 class EventVersionParticipant extends BaseModel
 {
     use NoAppRelationshipTrait;
     use NoCompanyRelationshipTrait;
+    use CanUseWorkflow;
 
     protected $table = 'event_version_participants';
     protected $guarded = [];

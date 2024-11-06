@@ -6,6 +6,7 @@ namespace Kanvas\Companies\Models;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Traits\AddressTraitRelationship;
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\SoftDeletesTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
@@ -73,6 +74,7 @@ class Companies extends BaseModel implements CompanyInterface
     }
     use CascadeSoftDeletes;
     use SoftDeletesTrait;
+    use AddressTraitRelationship;
 
     protected $table = 'companies';
 
@@ -237,7 +239,7 @@ class Companies extends BaseModel implements CompanyInterface
      */
     public function associateUser(
         Users $user,
-        int $isActive,
+        int|bool $isActive,
         CompaniesBranches $branch,
         ?int $userRoleId = null,
         string $companyUserIdentifier = null
@@ -251,7 +253,7 @@ class Companies extends BaseModel implements CompanyInterface
             'companies_id' => $this->getKey(),
             'companies_branches_id' => $branch->id,
             'identify_id' => $companyUserIdentifier ?? $user->id,
-            'user_active' => $isActive,
+            'user_active' => (int) $isActive,
             'user_role' => $userRoleId ?? $user->roles_id,
         ]);
     }

@@ -39,4 +39,25 @@ final class DynamicWorkflowTest extends TestCase
 
         $this->assertEquals($totalWorkflows + Rule::count(), StoredWorkflow::count());
     }
+
+    public function testSyncDynamicWorkflow(): void
+    {
+        $totalWorkflows = StoredWorkflow::count();
+        $app = app(Apps::class);
+        $lead = Lead::count() > 0 ? Lead::first() : Lead::factory()->create();
+        $params = [];
+
+        $ruleWorkflowAction = RuleAction::factory()->withAsync(false)->create();
+        RuleCondition::factory()->create([
+            'rules_id' => $ruleWorkflowAction->rules_id,
+            'attribute_name' => 'id',
+            'operator' => '>=',
+            'value' => 0,
+        ]);
+
+        $processWorkflow = new ProcessWorkflowEventAction($app, $lead);
+        $processWorkflow->execute(WorkflowEnum::CREATED->value, $params);
+
+        $this->assertEquals($totalWorkflows + Rule::count(), StoredWorkflow::count());
+    }
 }

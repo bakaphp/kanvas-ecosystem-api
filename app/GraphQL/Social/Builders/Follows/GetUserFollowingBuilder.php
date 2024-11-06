@@ -18,6 +18,6 @@ class GetUserFollowingBuilder
         $app = app(Apps::class);
         $user = UsersRepository::getUserOfAppById((int) $request['user_id'], $app);
 
-        return UsersFollowsRepository::getFollowingUserBuilder($user, $app);
+        return UsersFollowsRepository::getUserFollowingBuilder($user, $app);
     }
 }

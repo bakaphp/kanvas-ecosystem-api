@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Zoho\Actions;
 
 use Baka\Contracts\AppInterface;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Connectors\Zoho\DataTransferObject\ZohoLead;
@@ -25,47 +26,49 @@ class SyncLeadToZohoAction
 
     public function execute(): array
     {
-        $zohoLead = ZohoLead::fromLead($this->lead);
-        $zohoData = $zohoLead->toArray();
-        $lead = $this->lead;
-        $company = $lead->company;
-        $usesAgentsModule = $company->get(CustomFieldEnum::ZOHO_HAS_AGENTS_MODULE->value);
+        return DB::transaction(function () {
+            $lead = Lead::where('id', $this->lead->id)->lockForUpdate()->first();
+            $zohoLead = ZohoLead::fromLead($this->lead);
+            $zohoData = $zohoLead->toArray();
+            $company = $lead->company;
+            $usesAgentsModule = $company->get(CustomFieldEnum::ZOHO_HAS_AGENTS_MODULE->value);
 
-        $zohoCrm = Client::getInstance($this->app, $company);
+            $zohoCrm = Client::getInstance($this->app, $company);
 
-        if (! $zohoLeadId = $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value)) {
-            if ($usesAgentsModule) {
-                $this->assignAgent($this->app, $zohoLead, $lead, $company, $zohoData);
-            }
+            if (! $zohoLeadId = $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value)) {
+                if ($usesAgentsModule) {
+                    $this->assignAgent($this->app, $zohoLead, $lead, $company, $zohoData);
+                }
 
-            $zohoData['Lead_Status'] = 'New Lead';
-            $organization = $lead->organization;
-            if ($organization) {
-                $zohoData['Company'] = $organization->name;
-            }
+                $zohoData['Lead_Status'] = 'New Lead';
+                $organization = $lead->organization;
+                if ($organization) {
+                    $zohoData['Company'] = $organization->name;
+                }
 
-            $zohoLead = $zohoCrm->leads->create($zohoData);
-            $zohoLeadId = $zohoLead->getId();
+                $zohoLead = $zohoCrm->leads->create($zohoData);
+                $zohoLeadId = $zohoLead->getId();
 
-            $lead->set(
-                CustomFieldEnum::ZOHO_LEAD_ID->value,
-                $zohoLeadId
-            );
-        } else {
-            $zohoLeadInfo = $zohoCrm->leads->get((string) $zohoLeadId)->getData();
-            if (! empty($zohoLeadInfo)) {
-                $zohoLead = $zohoCrm->leads->update(
-                    (string) $zohoLeadId,
-                    $zohoData
+                $lead->set(
+                    CustomFieldEnum::ZOHO_LEAD_ID->value,
+                    $zohoLeadId
                 );
             } else {
-                $lead->close();
+                $zohoLeadInfo = $zohoCrm->leads->get((string) $zohoLeadId)->getData();
+                if (! empty($zohoLeadInfo)) {
+                    $zohoLead = $zohoCrm->leads->update(
+                        (string) $zohoLeadId,
+                        $zohoData
+                    );
+                } else {
+                    $lead->close();
+                }
             }
-        }
 
-        $this->uploadAttachments($zohoCrm->leads, $lead);
+            $this->uploadAttachments($zohoCrm->leads, $lead);
 
-        return $zohoData;
+            return $zohoData;
+        });
     }
 
     protected function assignAgent(

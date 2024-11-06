@@ -113,7 +113,8 @@ class PeopleExportCommand extends Command
             'Email',
             'Location',
             'Title',
-            'Organization',
+            'Company',
+            'Company Type',
             'LinkedIn',
             'Tags',
             'Is VIP',
@@ -132,10 +133,16 @@ class PeopleExportCommand extends Command
             ->where('contacts_types_id', ContactType::getByName('LinkedIn')->getId())
             ->get();
 
-        $location = $person->get('location');
-        $location = is_array($location) ? ($location['state'] ?? null) : $location;
+        $location = $person->address->count() ? $person->address->first()->city : null;
+        if ($location == null) {
+            $location = $person->get('location');
+            $location = is_array($location) ? ($location['state'] ?? null) : $location;
+        }
 
         $tags = $person->tags()->count() ? $person->tags()->pluck('name')->join(', ') : 'N/A';
+        $companyPosition = $lastEmploymentHistory ? $lastEmploymentHistory->organization->name : ($person->get('company') ?? ($person->get('title') ?? 'N/A'));
+
+        //add title to people employment history
 
         $this->csv->insertOne([
             $person->getId(),
@@ -143,9 +150,10 @@ class PeopleExportCommand extends Command
             $person->lastname,
             $person->name,
             $person->getEmails()->first()->value ?? 'N/A',
-            $person->get('location') ?? 'N/A',
+            $location ?? 'N/A',
             $lastEmploymentHistory ? $lastEmploymentHistory->position : 'N/A',
-            $lastEmploymentHistory ? $lastEmploymentHistory->organization->name : 'N/A',
+            $companyPosition,
+            $person->get('company_type') ?? 'N/A',
             $linkedIn->count() ? $linkedIn->first()->value : 'N/A',
             $tags,
             $person->get('VIP') ? 'Yes' : 'No',

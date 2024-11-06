@@ -8,6 +8,9 @@ use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDataInput;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
+use Kanvas\Guild\Organizations\DataTransferObject\Organization;
+use Kanvas\Guild\Organizations\Models\OrganizationPeople;
 
 class UpdatePeopleAction
 {
@@ -92,6 +95,18 @@ class UpdatePeopleAction
             if (count($addresses) > 0) {
                 $this->people->address()->saveMany($addresses);
             }
+        }
+
+        if ($this->peopleData->organization) {
+            $organization = (new CreateOrganizationAction(
+                new Organization(
+                    company: $this->peopleData->branch->company,
+                    user: $this->peopleData->user,
+                    app: $this->peopleData->app,
+                    name: $this->peopleData->organization,
+                )
+            ))->execute();
+            OrganizationPeople::addPeopleToOrganization($organization, $this->people);
         }
 
         //$this->people->clearLightHouseCacheJob();

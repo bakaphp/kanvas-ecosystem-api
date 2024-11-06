@@ -67,7 +67,7 @@ class LeadObserver
 
     public function created(Lead $lead): void
     {
-        $lead->fireWorkflow(WorkflowEnum::CREATED->value);
+        //$lead->fireWorkflow(WorkflowEnum::CREATED->value);
         if ($lead->user) {
             (
                 new CreateChannelAction(
@@ -90,7 +90,7 @@ class LeadObserver
 
     public function updated(Lead $lead): void
     {
-        $lead->fireWorkflow(WorkflowEnum::UPDATED->value);
+        //$lead->fireWorkflow(WorkflowEnum::UPDATED->value);
         Subscription::broadcast('leadUpdate', $lead, true);
         //$lead->clearLightHouseCacheJob();
     }
