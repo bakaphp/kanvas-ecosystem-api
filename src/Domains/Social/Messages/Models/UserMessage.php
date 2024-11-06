@@ -68,6 +68,7 @@ class UserMessage extends BaseModel
                 ->join('user_messages', 'messages.id', '=', 'user_messages.messages_id')
                 ->where('user_messages.users_id', $user->getId())
                 ->where('user_messages.apps_id', $app->getId())
+                ->orderBy('user_messages.created_at', 'desc') //for now always order by created_at in the user feed
                 ->select('messages.*');
     }
 }
