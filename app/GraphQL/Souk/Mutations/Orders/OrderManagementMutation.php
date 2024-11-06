@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Souk\Mutations\Orders;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Guild\Customers\Actions\CreatePeopleFromUserAction;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Interactions\Actions\CreateInteraction;
@@ -14,44 +14,14 @@ use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
 use Kanvas\Souk\Orders\Actions\CreateOrderFromCartAction;
 use Kanvas\Souk\Orders\DataTransferObject\DirectOrder;
+use Kanvas\Souk\Orders\DataTransferObject\OrderCustomer;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Kanvas\Souk\Payments\Providers\AuthorizeNetPaymentProcessor;
 
 class OrderManagementMutation
 {
-    public function createFromCart(mixed $root, array $request): array
-    {
-        $user = auth()->user();
-        $cart = app('cart')->session($user->getId());
-        $app = app(Apps::class);
-        $billing = CreditCardBilling::viaRequest($request['input']);
-        $company = auth()->user()->getCurrentBranch()->company;
-        $region = Regions::getDefault($company);
-        $people = PeoplesRepository::getByEmail($user->email, $company);
-
-
-        if ($cart->isEmpty() && empty($request['input']['items'])) {
-            return [
-                'error_code' => 'Cart is empty',
-                'error_message' => 'Cart is empty',
-            ];
-        }
-
-        $createOrder = new CreateOrderFromCartAction(
-            $cart,
-            $company,
-            $region,
-            $people,
-            $user,
-            $app,
-            $billing,
-            $request
-        );
-
-        return $createOrder->execute();
-    }
-
     public function create(mixed $root, array $request): array
     {
         $user = auth()->user();
@@ -77,6 +47,46 @@ class OrderManagementMutation
         $response = $this->processPayment($order, $isSubscription);
 
         return $this->handlePaymentResponse($response, $isSubscription);
+    }
+
+    public function createFromCart(mixed $root, array $request): Order
+    {
+        $user = auth()->user();
+        $cart = app('cart')->session($user->getId());
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $region = Regions::getDefault($company);
+        $orderCustomer = OrderCustomer::from($request['input']['customer']);
+        $createPeople = new CreatePeopleFromUserAction(
+            $app,
+            $user->getCurrentBranch(),
+            $user
+        );
+
+        $people = $createPeople->execute();
+
+        $billing = isset($request['input']['billing']) ? CreditCardBilling::from($request['input']) : null;
+
+        if ($cart->isEmpty() && empty($request['input']['items'])) {
+            return [
+                'error_code' => 'Cart is empty',
+                'error_message' => 'Cart is empty',
+            ];
+        }
+
+        $createOrder = new CreateOrderFromCartAction(
+            $cart,
+            $company,
+            $region,
+            $orderCustomer,
+            $people,
+            $user,
+            $app,
+            $billing,
+            $request
+        );
+
+        return $createOrder->execute();
     }
 
     private function processPayment(DirectOrder $order, bool $isSubscription): mixed

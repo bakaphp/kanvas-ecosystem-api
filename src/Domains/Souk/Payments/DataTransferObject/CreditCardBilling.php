@@ -19,7 +19,7 @@ class CreditCardBilling extends Data
     ) {
     }
 
-    public static function viaRequest(array $orderInput): ?self
+    public static function fromArray(array $orderInput): ?self
     {
         $billingData = Arr::get($orderInput, 'billing', []);
 

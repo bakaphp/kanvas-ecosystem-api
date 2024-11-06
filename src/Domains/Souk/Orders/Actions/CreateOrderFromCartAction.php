@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Actions;
 
+use Baka\Support\Str;
+use Baka\Users\Contracts\UserInterface;
 use Darryldecode\Cart\Cart;
-use Illuminate\Contracts\Auth\Authenticatable;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Currencies\Models\Currencies;
@@ -14,27 +15,29 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
+use Kanvas\Souk\Orders\DataTransferObject\OrderCustomer;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
+use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Spatie\LaravelData\DataCollection;
 
 class CreateOrderFromCartAction
 {
     public function __construct(
-        private Cart $cart,
-        private Companies $company,
-        private Regions $region,
-        private People $people,
-        private Authenticatable $user,
-        private Apps $app,
-        private ?CreditCardBilling $billingAddress,
-        private ?array $request
+        protected Cart $cart,
+        protected Companies $company,
+        protected Regions $region,
+        protected OrderCustomer $orderCustomer,
+        protected People $people,
+        protected UserInterface $user,
+        protected Apps $app,
+        protected ?CreditCardBilling $billingAddress,
+        protected ?array $request,
     ) {
     }
 
-    public function execute(): array
+    public function execute(): ModelsOrder
     {
-
         if ($this->billingAddress !== null) {
             $billing = $this->people->addAddress(new Address(
                 address: $this->billingAddress->address,
@@ -46,7 +49,7 @@ class CreateOrderFromCartAction
             ));
         }
 
-        if (!empty($this->cart)) {
+        if (! empty($this->cart)) {
             $total = $this->cart->getTotal();
             $totalTax = ($this->cart->getTotal()) - ($this->cart->getSubTotal());
             $totalDiscount = 0.0;
@@ -64,15 +67,15 @@ class CreateOrderFromCartAction
         }
         $items = $this->getOrderItems($this->cart->getContent()->toArray(), $this->app);
 
-        $orderObject = new Order(
+        $order = new Order(
             app: $this->app,
             region: $this->region,
             company: $this->company,
             people: $this->people,
             user: $this->user ?? $this->company->user,
-            email: $order->user->email ?? null,
-            phone: $order->user->phone ?? null,
-            token: '',
+            email: $this->orderCustomer->email,
+            phone: $this->orderCustomer->phone,
+            token: Str::random(32),
             shippingAddress: null,
             billingAddress: $billing ?? null,
             total: (float) $total,
@@ -83,16 +86,16 @@ class CreateOrderFromCartAction
             orderNumber: '',
             shippingMethod: null,
             currency: $this->region->currency,
-            fulfillmentStatus: null,
+            fulfillmentStatus: 'pending',
             items: $items,
             metadata: '',
             weight: 0.0,
             checkoutToken: '',
-            paymentGatewayName: [],
+            paymentGatewayName: ['manual'],
             languageCode: null,
         );
 
-        return $orderObject->toArray();
+        return (new CreateOrderAction($order))->execute();
     }
 
     protected function getOrderItems($cartContent, $app): DataCollection
