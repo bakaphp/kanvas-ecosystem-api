@@ -19,7 +19,7 @@ return new class () extends Migration {
             $table->string('city')->nullable()->after('phone');
             $table->string('state')->nullable()->after('phone');
             $table->string('country')->nullable()->after('phone');
-            $table->string('zip')->nullable()->after('phone');
+            $table->string('zip', 10)->nullable()->after('phone');
         });
     }
 

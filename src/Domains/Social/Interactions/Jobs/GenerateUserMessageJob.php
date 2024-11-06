@@ -89,8 +89,15 @@ class GenerateUserMessageJob implements ShouldQueue
         // Get random message IDs for the app
         $randomMessages = Message::fromApp($this->app)
             ->inRandomOrder()
-            ->limit($pageSize)
-            ->get(['id']);
+            ->limit($pageSize);
+
+        $messageTypeId = $this->app->get('social-user-message-filter-message-type');
+
+        if ($messageTypeId !== null) {
+            $randomMessages->where('message_types_id', $messageTypeId);
+        }
+
+        $randomMessages = $randomMessages->get();
 
         DB::transaction(function () use ($randomMessages, $cleanUserFeed) {
             if ($cleanUserFeed) {
