@@ -23,7 +23,7 @@ class CompaniesBranchPutData extends Data
         public ?bool $is_default = null,
         public bool $is_active = true,
         public ?string $email = null,
-        public ?string $address = null,
+        public ?array $address = null,
         public ?string $phone = null,
         public ?int $zipcode = null,
         public ?array $files = null

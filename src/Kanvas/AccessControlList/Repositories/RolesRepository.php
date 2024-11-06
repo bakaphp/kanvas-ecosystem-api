@@ -16,9 +16,9 @@ use Silber\Bouncer\Database\Ability;
 
 class RolesRepository
 {
-    public static function getByMixedParamFromCompany(int|string $param, ?Companies $company = null): Role
+    public static function getByMixedParamFromCompany(int|string $param, ?Companies $company = null, ?AppInterface $app = null): Role
     {
-        return is_numeric($param) ? RolesRepository::getByIdFromCompany((int) $param) : RolesRepository::getByNameFromCompany($param);
+        return is_numeric($param) ? RolesRepository::getByIdFromCompany((int) $param, $company, $app) : RolesRepository::getByNameFromCompany($param, $company, $app);
     }
 
     /**

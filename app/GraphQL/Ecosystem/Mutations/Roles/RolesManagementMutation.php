@@ -32,7 +32,10 @@ class RolesManagementMutation
         $userId = (int) $request['userId'];
         $app = app(Apps::class);
 
-        $role = RolesRepository::getByMixedParamFromCompany($request['role']);
+        $role = RolesRepository::getByMixedParamFromCompany(
+            param: $request['role'],
+            app: $app
+        );
 
         if ($auth->isAppOwner()) {
             $user = UsersRepository::getUserOfAppById($userId, $app);
@@ -59,7 +62,10 @@ class RolesManagementMutation
         $userId = (int) $request['userId'];
         $app = app(Apps::class);
 
-        $role = RolesRepository::getByMixedParamFromCompany($request['role']);
+        $role = RolesRepository::getByMixedParamFromCompany(
+            param: $request['role'],
+            app: $app
+        );
 
         if ($auth->isAdmin()) {
             $user = UsersRepository::getUserOfAppById($userId, $app);

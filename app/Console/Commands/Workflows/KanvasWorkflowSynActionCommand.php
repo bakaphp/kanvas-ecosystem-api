@@ -12,6 +12,7 @@ use Kanvas\Connectors\Internal\Activities\ExtractCompanyNameFromPeopleEmailActiv
 use Kanvas\Connectors\Internal\Activities\GenerateCompanyDashboardActivity;
 use Kanvas\Connectors\Internal\Activities\GenerateMessageSlugActivity;
 use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductActivity;
+use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductsAfterImportActivity;
 use Kanvas\Connectors\Internal\Activities\UserCustomFieldActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
@@ -22,6 +23,8 @@ use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyOrderWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyProductWebhookJob;
 use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyActivity;
 use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyWithIntegrationActivity;
+use Kanvas\Connectors\Stripe\Jobs\ImportStripePlanWebhookJob;
+use Kanvas\Connectors\Stripe\Jobs\ImportStripePriceWebhookJob;
 use Kanvas\Connectors\Stripe\Jobs\UpdatePeopleStripeSubscriptionJob;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
@@ -50,7 +53,6 @@ class KanvasWorkflowSynActionCommand extends Command
             CreateLeadsFromReceiverJob::class,
             CreateMessageFromReceiverJob::class,
             UpdatePeopleStripeSubscriptionJob::class,
-            ProcessShopifyOrderWebhookJob::class,
             SyncCompanyWithNetSuiteActivity::class,
             SyncPeopleWithNetSuiteActivity::class,
             GenerateMessageSlugActivity::class,
@@ -58,6 +60,8 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncMessageToDocumentActivity::class,
             SyncUserInteractionToEventActivity::class,
             ProcessShopifyProductWebhookJob::class,
+            ImportStripePlanWebhookJob::class,
+            ImportStripePriceWebhookJob::class,
             SetPlanWithoutPaymentActivity::class,
             GenerateCompanyDashboardActivity::class,
             SyncProductWithShopifyActivity::class,
@@ -68,6 +72,7 @@ class KanvasWorkflowSynActionCommand extends Command
             UnPublishExpiredProductActivity::class,
             ProcessShopifyInventoryLevelWebhookJob::class,
             SyncProductWithShopifyWithIntegrationActivity::class,
+            UnPublishExpiredProductsAfterImportActivity::class,
         ];
 
         $createdActions = [];
