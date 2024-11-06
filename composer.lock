@@ -10427,16 +10427,16 @@
         },
         {
             "name": "swoole/ide-helper",
-            "version": "5.1.4",
+            "version": "5.1.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/swoole/ide-helper.git",
-                "reference": "e63299f488bf8332404ce4f80142a2ed1397edde"
+                "reference": "a4207701bb55fe0cea06f840d2054cbc4a90b943"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/swoole/ide-helper/zipball/e63299f488bf8332404ce4f80142a2ed1397edde",
-                "reference": "e63299f488bf8332404ce4f80142a2ed1397edde",
+                "url": "https://api.github.com/repos/swoole/ide-helper/zipball/a4207701bb55fe0cea06f840d2054cbc4a90b943",
+                "reference": "a4207701bb55fe0cea06f840d2054cbc4a90b943",
                 "shasum": ""
             },
             "type": "library",
@@ -10453,9 +10453,9 @@
             "description": "IDE help files for Swoole.",
             "support": {
                 "issues": "https://github.com/swoole/ide-helper/issues",
-                "source": "https://github.com/swoole/ide-helper/tree/5.1.4"
+                "source": "https://github.com/swoole/ide-helper/tree/5.1.5"
             },
-            "time": "2024-09-03T04:39:02+00:00"
+            "time": "2024-11-05T07:35:30+00:00"
         },
         {
             "name": "symfony/cache",
@@ -16348,6 +16348,6 @@
     "platform": {
         "php": "^8.2"
     },
-    "platform-dev": {},
+    "platform-dev": [],
     "plugin-api-version": "2.6.0"
 }
