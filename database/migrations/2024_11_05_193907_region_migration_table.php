@@ -49,7 +49,7 @@ return new class () extends Migration {
             $regions = DB::table('inventory.regions')->get()->map(function ($region) {
                 return (array) $region;
             })->toArray();
-        
+
             // Insert in chunks
             $chunkSize = 500; // Adjust based on size and available memory
             foreach (array_chunk($regions, $chunkSize) as $chunk) {
