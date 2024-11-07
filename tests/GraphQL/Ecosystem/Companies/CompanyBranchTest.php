@@ -19,6 +19,14 @@ class CompanyBranchTest extends TestCase
             'email' => fake()->email(),
             'country_code' => 'US',
             'is_active' => fake()->boolean(),
+            'countries_id' => 1,
+            'states_id' => 1,
+            'cities_id' => 1,
+            'address_2' => fake()->address(),
+            'city' => fake()->city(),
+            'state' => fake()->state(),
+            'country' => fake()->country(),
+            'zip' => fake()->postcode(),
         ];
     }
 
@@ -48,7 +56,13 @@ class CompanyBranchTest extends TestCase
         ->assertSuccessful()
         ->assertSee('name', $branchData['name'])
         ->assertSee('email', $branchData['email'])
-        ->assertSee('phone', $branchData['phone']);
+        ->assertSee('phone', $branchData['phone'])
+        ->assertSee('address', $branchData['address'])
+        ->assertSee('address_2', $branchData['address_2'])
+        ->assertSee('city', $branchData['city'])
+        ->assertSee('state', $branchData['state'])
+        ->assertSee('country', $branchData['country'])
+        ->assertSee('zip', $branchData['zip']);
 
         $this->assertEquals($userCompanyBranchCount + 1, auth()->user()->branches()->count());
     }
