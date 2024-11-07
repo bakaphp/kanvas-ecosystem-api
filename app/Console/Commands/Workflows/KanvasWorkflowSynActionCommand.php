@@ -6,6 +6,7 @@ namespace App\Console\Commands\Workflows;
 
 use Illuminate\Console\Command;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
+use Kanvas\Connectors\Google\Activities\GenerateUserForYouFeedActivity;
 use Kanvas\Connectors\Google\Activities\SyncMessageToDocumentActivity;
 use Kanvas\Connectors\Google\Activities\SyncUserInteractionToEventActivity;
 use Kanvas\Connectors\Internal\Activities\ExtractCompanyNameFromPeopleEmailActivity;
@@ -73,6 +74,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ProcessShopifyInventoryLevelWebhookJob::class,
             SyncProductWithShopifyWithIntegrationActivity::class,
             UnPublishExpiredProductsAfterImportActivity::class,
+            GenerateUserForYouFeedActivity::class,
         ];
 
         $createdActions = [];
