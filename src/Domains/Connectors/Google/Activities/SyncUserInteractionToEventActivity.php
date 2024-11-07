@@ -38,7 +38,7 @@ class SyncUserInteractionToEventActivity extends Activity implements WorkflowAct
 
         $syncUserInteraction = new SyncUserInteractionToEventAction(
             $app,
-            $interactionEntity->company,
+            $company,
             $userInteraction->user
         );
 
