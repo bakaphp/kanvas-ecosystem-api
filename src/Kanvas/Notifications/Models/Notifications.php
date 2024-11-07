@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Models;
 
+use Awobaz\Compoships\Database\Eloquent\Model;
 use Baka\Enums\StateEnums;
 use Baka\Support\Str;
+use Baka\Users\Contracts\UserInterface;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
