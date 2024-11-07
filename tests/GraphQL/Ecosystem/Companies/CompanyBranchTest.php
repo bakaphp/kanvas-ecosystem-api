@@ -22,6 +22,7 @@ class CompanyBranchTest extends TestCase
             'countries_id' => 1,
             'states_id' => 1,
             'cities_id' => 1,
+            'address' => fake()->address(),
             'address_2' => fake()->address(),
             'city' => fake()->city(),
             'state' => fake()->state(),
