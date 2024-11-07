@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Social\Integration;
 
+use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Social\Interactions\Jobs\GenerateUserMessageJob;
 use Kanvas\Social\Interactions\Models\EntityInteractions;
 use Kanvas\Social\Support\Setup;
 use Tests\TestCase;
@@ -97,5 +99,18 @@ final class InteractionsTest extends TestCase
             EntityInteractions::class,
             $people->addInteraction($product, 'view', 'This is a test note')
         );
+    }
+
+    public function testGenerateUserMessageJob(): void
+    {
+        Queue::fake();
+
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        GenerateUserMessageJob::dispatch($app, $company, $user);
+
+        Queue::assertPushed(GenerateUserMessageJob::class);
     }
 }

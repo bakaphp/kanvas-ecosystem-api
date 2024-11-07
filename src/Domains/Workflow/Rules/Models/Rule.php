@@ -10,6 +10,18 @@ use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Rules\Factories\RuleFactory;
 
+/**
+ * @param int $id
+ * @param int $systems_modules_id
+ * @param int $companies_id
+ * @param int $apps_id
+ * @param int $rules_types_id
+ * @param string $name
+ * @param string $description
+ * @param string $pattern
+ * @param array $params
+ * @param bool $is_async
+ */
 class Rule extends BaseModel
 {
     protected $table = 'rules';
@@ -39,6 +51,11 @@ class Rule extends BaseModel
     public function getRulesConditions(): HasMany
     {
         return $this->hasMany(RuleCondition::class, 'rules_id', 'id');
+    }
+
+    public function runAsync(): bool
+    {
+        return $this->is_async;
     }
 
     protected static function newFactory()

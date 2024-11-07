@@ -7,6 +7,7 @@ namespace Tests\Connectors\Integration\NetSuite;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\SyncCompanyWithNetSuiteAction;
+use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerItemsListAction;
 use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerWithCompanyAction;
 use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerWithPeopleAction;
 use Kanvas\Connectors\NetSuite\Client;
@@ -14,6 +15,7 @@ use Kanvas\Connectors\NetSuite\DataTransferObject\NetSuite;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteCustomerService;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteServices;
+use Kanvas\Users\Actions\AssignCompanyAction;
 use Tests\TestCase;
 
 final class CustomerTest extends TestCase
@@ -85,5 +87,30 @@ final class CustomerTest extends TestCase
         $result = $syncCustomer->execute($customerId);
 
         $this->assertEquals($result->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value), $customerId);
+    }
+
+    public function testSyncNetSuiteCustomerItemsList()
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = Companies::first();
+
+        $companyIdToSync = getenv('NET_SUITE_CUSTOMER_ID');
+        $syncCompany = new SyncNetSuiteCustomerWithCompanyAction($app, $company);
+        $buyerCompany = $syncCompany->execute($companyIdToSync);
+
+        $assignCompanyAction = new AssignCompanyAction(
+            user: $company->user,
+            branch: $company->defaultBranch,
+            app: $app
+        );
+        $assignCompanyAction->execute();
+
+        $company->associateUser($company->user, true, $company->defaultBranch);
+
+        $syncCustomerItemsList = new SyncNetSuiteCustomerItemsListAction($app, $company, $buyerCompany);
+        $result = $syncCustomerItemsList->execute();
+
+        $this->assertIsArray($result);
     }
 }

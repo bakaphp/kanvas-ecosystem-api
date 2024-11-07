@@ -169,7 +169,10 @@ class CreateUserAction
         }
 
         foreach ($roles as $role) {
-            $userRole = RolesRepository::getByMixedParamFromCompany($role);
+            $userRole = RolesRepository::getByMixedParamFromCompany(
+                param: $role,
+                app: $this->app
+            );
 
             $assignRole = new AssignRoleAction(
                 $user,
@@ -189,9 +192,15 @@ class CreateUserAction
         try {
             $selectedRoleId = ! empty($this->data->role_ids) ? $this->data->role_ids[0] : $defaultRole;
 
-            $role = RolesRepository::getByMixedParamFromCompany($selectedRoleId);
+            $role = RolesRepository::getByMixedParamFromCompany(
+                param: $selectedRoleId,
+                app: $this->app
+            );
         } catch (Throwable $e) {
-            $role = RolesRepository::getByMixedParamFromCompany($defaultRole);
+            $role = RolesRepository::getByMixedParamFromCompany(
+                param: $defaultRole,
+                app: $this->app
+            );
         }
 
         (new AssignCompanyAction(

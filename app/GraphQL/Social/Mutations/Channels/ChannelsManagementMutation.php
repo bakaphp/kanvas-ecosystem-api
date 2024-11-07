@@ -67,11 +67,11 @@ class ChannelsManagementMutation
     {
         $channel = ChannelRepository::getById((int)$request['input']['channel_id'], auth()->user());
         $user = Users::getByIdFromCompany($request['input']['user_id'], auth()->user()->getCurrentCompany());
-
+        $app = app(Apps::class);
         try {
-            $roles = RolesRepository::getByMixedParamFromCompany($request['input']['roles_id'], auth()->user()->getCurrentCompany());
+            $roles = RolesRepository::getByMixedParamFromCompany($request['input']['roles_id'], auth()->user()->getCurrentCompany(), $app);
         } catch (Exception $e) {
-            $roles = RolesRepository::getByMixedParamFromCompany(RolesEnums::USER->value, auth()->user()->getCurrentCompany());
+            $roles = RolesRepository::getByMixedParamFromCompany(RolesEnums::USER->value, auth()->user()->getCurrentCompany(), $app);
         }
         $channel->users()->attach($user->id, ['roles_id' => $roles->id]);
 

@@ -7,6 +7,7 @@ namespace Kanvas\ActionEngine\Tasks\Observers;
 use Kanvas\ActionEngine\Tasks\DataTransferObject\TaskEngagementItem as DataTransferObjectTaskEngagementItem;
 use Kanvas\ActionEngine\Tasks\Events\TaskEngagementItemEvent;
 use Kanvas\ActionEngine\Tasks\Models\TaskEngagementItem;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
 
 class TaskEngagementItemObserver
@@ -21,6 +22,15 @@ class TaskEngagementItemObserver
             'leadId' => $taskEngagementItem->lead_id,
             'taskListItemId' => $taskEngagementItem->task_list_item_id,
         ])
+        );
+
+        $taskEngagementItem->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            true,
+            [
+                'app' => $taskEngagementItem->item->app,
+                'company' => $taskEngagementItem->item->company,
+            ]
         );
     }
 }

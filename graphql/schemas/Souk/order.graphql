@@ -59,6 +59,19 @@ type OrderItem {
     updated_at: String
 }
 
+type PaymentResult {
+    status: String!
+    transaction_id: ID!
+    order_status: String
+    message: Mixed
+}
+
+type GeneratePaymentIntentResult {
+    client_secret: String!
+    status: String
+    message: Mixed
+}
+
 input CreditCardInput {
     name: String!
     number: String!
@@ -67,7 +80,7 @@ input CreditCardInput {
     cvv: Int!
 }
 
-input CreditCardBillingInput {
+input OrderBillingInput {
     address: String!
     address2: String
     city: String!
@@ -80,7 +93,7 @@ input CartOrderInput {
     cartId: ID!
     email: String!
     customer: PeopleInput!
-    billing: CreditCardBillingInput!
+    billing: OrderBillingInput!
     address: AddressInput
     note: String
 }
@@ -88,7 +101,21 @@ input CartOrderInput {
 input OrderInput {
     cartId: ID!
     payment: CreditCardInput!
-    billing: CreditCardBillingInput
+    billing: OrderBillingInput
+}
+
+input OrderCustomerInput {
+    email: String!
+    phone: String
+    note: String
+}
+
+input OrderCartInput {
+    cartId: ID!
+    customer: OrderCustomerInput!
+    billing: OrderBillingInput
+    items: [OrderLineItemInput]
+    metadata: Mixed
 }
 
 input DraftOrderInput {
@@ -96,7 +123,7 @@ input DraftOrderInput {
     phone: String
     customer: PeopleInput!
     region_id: ID!
-    billing_address: CreditCardBillingInput
+    billing_address: OrderBillingInput
     shipping_address: AddressInput
     items: [OrderLineItemInput!]!
     note: String
@@ -110,9 +137,15 @@ input OrderLineItemInput {
 
 input PaymentInput {
     orderId: ID!
-    paymentMethod: String! 
-    creditCard: CreditCardInput 
-    billing: CreditCardBillingInput 
+    paymentMethod: String!
+    creditCard: CreditCardInput
+    billing: OrderBillingInput
+}
+
+input ProcessPaymentInput {
+    order_id: ID!
+    payment_token: String! # Token from the payment provider (e.g., Stripe's paymentMethodId)
+    payment_provider: String! # e.g., "stripe", "paypal"
 }
 
 extend type Mutation @guard {
@@ -121,9 +154,21 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@create"
         )
+    createOrderFromCart(input: OrderCartInput!): Order!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@createFromCart"
+        )
     createDraftOrder(input: DraftOrderInput!): Order!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\DraftOrderManagementMutation@create"
+        )
+    processOrderPayment(input: ProcessPaymentInput!): PaymentResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\PaymentManagementMutation@processPayment"
+        )
+    generateOrderPaymentIntent(id: ID!): GeneratePaymentIntentResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\PaymentManagementMutation@generatePaymentIntent"
         )
     #createOrderFromCart(input: CartOrderInput!): Mixed!
     #    @field(
@@ -150,14 +195,7 @@ extend type Query @guard {
                 ]
             )
         orderBy: _
-            @orderBy(
-                columns: [
-                    "id"
-                    "created_at"
-                    "updated_at"
-                    "status"
-                ]
-            )
+            @orderBy(columns: ["id", "created_at", "updated_at", "status"])
     ): [Order!]!
         @paginate(
             model: "Kanvas\\Souk\\Orders\\Models\\Order"

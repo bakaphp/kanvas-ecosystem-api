@@ -6,6 +6,8 @@ namespace Kanvas\Connectors\NetSuite\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\Company;
 use Kanvas\Companies\Models\Companies;
@@ -61,8 +63,12 @@ class SyncNetSuiteCustomerWithCompanyAction
         $company->set(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value, $customerId);
 
         $branch = $company->defaultBranch;
+        $role = RolesRepository::getByMixedParamFromCompany(
+            param: RolesEnums::ADMIN->value,
+            app: $this->app
+        );
 
-        $action = new AssignCompanyAction($company->user, $branch);
+        $action = new AssignCompanyAction($company->user, $branch, $role);
         $action->execute();
 
         return $company;

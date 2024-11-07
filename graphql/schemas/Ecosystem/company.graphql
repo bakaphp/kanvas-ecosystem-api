@@ -13,6 +13,9 @@ type Company {
     groups: [CompanyGroup!]! @hasMany(relation: "groups")
     branches: [CompanyBranch!]! @hasMany(relation: "branches") #need to filter by the branches the user has access to
     photo: Filesystem @method(name: "getPhoto")
+    countries: Country @belongsTo(relation: "country")
+    states: States @belongsTo(relation: "state")
+    cities: States @belongsTo(relation: "city")
     is_active: Boolean!
     users: [User] @HasManyThrough
     files: [Filesystem!]!
@@ -68,8 +71,11 @@ type CompanyBranch {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
-    address: String
+    address: [Address!] @hasMany(relation: "address")
     user: User! @belongsTo(relation: "user")
+    countries: Country @belongsTo(relation: "country")
+    states: States @belongsTo(relation: "state")
+    cities: States @belongsTo(relation: "city")
     zipcode: Int
     total_users: Int!
     is_active: Boolean!
@@ -110,6 +116,15 @@ input CompanyInput {
     timezone: String
     address: String
     is_active: Boolean
+    countries_id: ID
+    states_id: ID
+    cities_id: ID
+    address: String
+    address_2: String
+    city: String
+    state: String
+    country: String
+    zip: String
 }
 
 ### @todo Split the create and update input.
@@ -119,7 +134,6 @@ input CompanyBranchInput {
     companies_id: ID!
     is_default: Boolean
     website: String
-    address: String
     zipcode: Int
     email: String
     country_code: String
@@ -127,6 +141,15 @@ input CompanyBranchInput {
     timezone: String
     phone: String
     files: [FilesystemInputUrl!]
+    countries_id: ID
+    states_id: ID
+    cities_id: ID
+    address: String
+    address_2: String
+    city: String
+    state: String
+    country: String
+    zip: String
     is_active: Boolean
 }
 

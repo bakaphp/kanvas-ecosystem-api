@@ -15,9 +15,20 @@ class CreateUserInteractionAction
     ) {
     }
 
-    public function execute(): UsersInteractions
-    {
-        $userInteraction = UsersInteractions::firstOrCreate([
+    public function execute(
+        bool $allowDuplicate = false,
+        bool $addToCache = true
+    ): UsersInteractions {
+        $userInteraction = $allowDuplicate
+        ? UsersInteractions::create([
+            'users_id' => $this->userInteractionData->user->getId(),
+            'apps_id' => $this->userInteractionData->interaction->apps_id,
+            'entity_id' => $this->userInteractionData->entity_id,
+            'entity_namespace' => $this->userInteractionData->entity_namespace,
+            'interactions_id' => $this->userInteractionData->interaction->getId(),
+            'notes' => $this->userInteractionData->notes,
+        ])
+        : UsersInteractions::firstOrCreate([
             'users_id' => $this->userInteractionData->user->getId(),
             'apps_id' => $this->userInteractionData->interaction->apps_id,
             'entity_id' => $this->userInteractionData->entity_id,
@@ -27,7 +38,9 @@ class CreateUserInteractionAction
             'notes' => $this->userInteractionData->notes,
         ]);
 
-        $this->addToCache($userInteraction);
+        if ($addToCache) {
+            $this->addToCache($userInteraction);
+        }
 
         return $userInteraction;
     }
