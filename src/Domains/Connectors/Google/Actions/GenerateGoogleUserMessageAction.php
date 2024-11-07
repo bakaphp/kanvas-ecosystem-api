@@ -57,7 +57,7 @@ class GenerateGoogleUserMessageAction
             foreach ($userForYouFeed as $index => $messageId) {
                 // Check if the message still exists
                 if (! Message::fromApp($this->app)
-                        ->where('id', $messageId)
+                        ->where('id', $messageId->getId())
                         ->when($messageTypeId !== null, function ($query) use ($messageTypeId) {
                             return $query->where('message_types_id', $messageTypeId);
                         })
@@ -67,7 +67,7 @@ class GenerateGoogleUserMessageAction
                 }
 
                 $existingUserMessage = UserMessage::withTrashed()->where([
-                    'messages_id' => $messageId,
+                    'messages_id' => $messageId->getId(),
                     'users_id' => $this->user->getId(),
                     'apps_id' => $this->app->getId(),
                 ])
@@ -81,7 +81,7 @@ class GenerateGoogleUserMessageAction
                     ]);
                 } else {
                     UserMessage::create([
-                        'messages_id' => $messageId,
+                        'messages_id' => $messageId->getId(),
                         'users_id' => $this->user->getId(),
                         'apps_id' => $this->app->getId(),
                         'is_deleted' => 0,
