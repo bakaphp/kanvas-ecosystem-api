@@ -9,6 +9,8 @@ use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Google\Actions\SyncMessageToDocumentAction;
+use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
 
 class GoogleSyncAllMessageDocumentCommand extends Command
@@ -43,7 +45,12 @@ class GoogleSyncAllMessageDocumentCommand extends Command
         $user = Users::getById((int) $this->argument('user_id'));
 
         $syncMessageToDocumentAction = new SyncMessageToDocumentAction($app, $company, $user);
-        $results = $syncMessageToDocumentAction->execute();
+
+        try {
+            $results = $syncMessageToDocumentAction->execute(MessageType::getById($app->get('social-user-message-filter-message-type')));
+        } catch (ModelNotFoundException $e) {
+            $results = $syncMessageToDocumentAction->execute();
+        }
 
         $this->info(json_encode($results, JSON_PRETTY_PRINT) . ' Messages sent to google recommendation as documents.');
 
