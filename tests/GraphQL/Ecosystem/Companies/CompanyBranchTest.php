@@ -47,7 +47,16 @@ class CompanyBranchTest extends TestCase
                     is_default,
                     companies_id,
                     email,
-                    phone
+                    phone,
+                    address,
+                    address_2,
+                    city,
+                    state,
+                    country,
+                    zip,
+                    countries {
+                        id
+                    }
                 }
             }',
             [
@@ -64,7 +73,6 @@ class CompanyBranchTest extends TestCase
         ->assertSee('state', $branchData['state'])
         ->assertSee('country', $branchData['country'])
         ->assertSee('zip', $branchData['zip']);
-
         $this->assertEquals($userCompanyBranchCount + 1, auth()->user()->branches()->count());
     }
 
