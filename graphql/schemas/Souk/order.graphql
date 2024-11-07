@@ -66,6 +66,12 @@ type PaymentResult {
     message: Mixed
 }
 
+type GeneratePaymentIntentResult {
+    client_secret: String!
+    status: String
+    message: Mixed
+}
+
 input CreditCardInput {
     name: String!
     number: String!
@@ -159,6 +165,10 @@ extend type Mutation @guard {
     processOrderPayment(input: ProcessPaymentInput!): PaymentResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\PaymentManagementMutation@processPayment"
+        )
+    generateOrderPaymentIntent(id: ID!): GeneratePaymentIntentResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\PaymentManagementMutation@generatePaymentIntent"
         )
     #createOrderFromCart(input: CartOrderInput!): Mixed!
     #    @field(

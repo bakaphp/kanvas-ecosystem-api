@@ -207,6 +207,11 @@ class Order extends BaseModel
         return $query->where('status', 'draft');
     }
 
+    public function isFulfilled(): bool
+    {
+        return $this->fulfillment_status === 'fulfilled';
+    }
+
     public function generateOrderNumber(): int
     {
         // Lock the orders table while retrieving the last order
