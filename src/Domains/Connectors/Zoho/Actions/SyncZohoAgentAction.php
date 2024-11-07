@@ -69,36 +69,48 @@ class SyncZohoAgentAction
                 ))->execute();
             }
 
-            // Use updateOrCreate with additional locking
+            // Attempt to find an existing agent with the same member number for this company
+            $agentWithTheSameMemberNumber = Agent::where([
+                    'apps_id' => $this->app->getId(),
+                    'companies_id' => $this->company->getId(),
+                    'member_id' => $memberNumber,
+                ])->lockForUpdate()->first();
+
+            // If the member number is already used by a different user, get a new unique member number
+            if ($agentWithTheSameMemberNumber && $agentWithTheSameMemberNumber->users_id !== $user->getId()) {
+                $currentMaxMemberNumber = Agent::fromCompany($this->company)->fromApp($this->app)
+                                    ->lockForUpdate()
+                                    ->max('member_id');
+                $memberNumber = $currentMaxMemberNumber + 1;
+            }
+
+            // Find or create an agent record for the user within the company with the verified member number
             $agent = Agent::where([
+                'apps_id' => $this->app->getId(),
                 'users_id' => $user->getId(),
                 'companies_id' => $this->company->getId(),
                 'member_id' => $memberNumber,
-            ])
-            ->lockForUpdate()
-            ->first();
+            ])->lockForUpdate()->first();
+
+            // Update the agent if it exists, otherwise create a new record
+            $agentData = [
+                'name' => $record->Name,
+                'owner_linked_source_id' => $owner['id'],
+                'users_linked_source_id' => $zohoId,
+                'owner_id' => $ownerAgent ? $ownerAgent->member_id : null,
+                'status_id' => 1,
+                'updated_at' => now(),
+            ];
 
             if ($agent) {
-                $agent->update([
-                    'name' => $record->Name,
-                    'owner_linked_source_id' => $owner['id'],
-                    'users_linked_source_id' => $zohoId,
-                    'owner_id' => $ownerAgent ? $ownerAgent->member_id : null,
-                    'status_id' => 1,
-                    'updated_at' => date('Y-m-d H:i:s'),
-                ]);
+                $agent->update($agentData);
             } else {
-                $agent = Agent::create([
-                    'users_id' => $user->getId(),
-                    'companies_id' => $this->company->getId(),
-                    'member_id' => $memberNumber,
-                    'name' => $record->Name,
-                    'owner_linked_source_id' => $owner['id'],
-                    'users_linked_source_id' => $zohoId,
-                    'owner_id' => $ownerAgent ? $ownerAgent->member_id : null,
-                    'status_id' => 1,
-                    'updated_at' => date('Y-m-d H:i:s'),
-                ]);
+                $agentData['apps_id'] = $this->app->getId();
+                $agentData['users_id'] = $user->getId();
+                $agentData['companies_id'] = $this->company->getId();
+                $agentData['member_id'] = $memberNumber;
+
+                $agent = Agent::create($agentData);
             }
 
             return $agent;
