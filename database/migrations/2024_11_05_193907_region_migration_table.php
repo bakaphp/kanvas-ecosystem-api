@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class () extends Migration {
@@ -42,6 +43,18 @@ return new class () extends Migration {
             $table->index('users_id');
             $table->index('created_at');
             $table->index('updated_at');
+        });
+
+        DB::transaction(function () {
+            $regions = DB::table('inventory.regions')->get()->map(function ($region) {
+                return (array) $region;
+            })->toArray();
+        
+            // Insert in chunks
+            $chunkSize = 500; // Adjust based on size and available memory
+            foreach (array_chunk($regions, $chunkSize) as $chunk) {
+                DB::table('regions')->insert($chunk);
+            }
         });
     }
 
