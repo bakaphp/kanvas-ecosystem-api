@@ -13,6 +13,9 @@ type Company {
     groups: [CompanyGroup!]! @hasMany(relation: "groups")
     branches: [CompanyBranch!]! @hasMany(relation: "branches") #need to filter by the branches the user has access to
     photo: Filesystem @method(name: "getPhoto")
+    countries: Country @belongsTo(relation: "country")
+    states: States @belongsTo(relation: "state")
+    cities: States @belongsTo(relation: "city")
     is_active: Boolean!
     users: [User] @HasManyThrough
     files: [Filesystem!]!
@@ -70,6 +73,9 @@ type CompanyBranch {
         )
     address: [Address!] @hasMany(relation: "address")
     user: User! @belongsTo(relation: "user")
+    countries: Country @belongsTo(relation: "country")
+    states: States @belongsTo(relation: "state")
+    cities: States @belongsTo(relation: "city")
     zipcode: Int
     total_users: Int!
     is_active: Boolean!
