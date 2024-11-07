@@ -7,7 +7,9 @@ namespace Kanvas\Connectors\Google\Activities;
 use Baka\Contracts\AppInterface;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Google\Actions\SyncUserInteractionToEventAction;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Workflow\Activity;
 
@@ -22,7 +24,11 @@ class SyncUserInteractionToEventActivity extends Activity implements WorkflowAct
 
         $interactionEntity = $userInteraction->entityData();
 
-        if (! $interactionEntity->company) {
+        $companyBranchId = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
+        $globalAppCompany = CompaniesBranches::where('id', $companyBranchId)->first();
+
+        $company = $interactionEntity->company ?? ($globalAppCompany ? $globalAppCompany->company : null);
+        if (! $company) {
             return [
                 'result' => false,
                 'message' => 'Company not found',
@@ -32,7 +38,7 @@ class SyncUserInteractionToEventActivity extends Activity implements WorkflowAct
 
         $syncUserInteraction = new SyncUserInteractionToEventAction(
             $app,
-            $interactionEntity->company,
+            $company,
             $userInteraction->user
         );
 
