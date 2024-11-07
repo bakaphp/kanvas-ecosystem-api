@@ -46,14 +46,16 @@ return new class () extends Migration {
         });
 
         DB::transaction(function () {
-            $regions = DB::table('inventory.regions')->get()->map(function ($region) {
-                return (array) $region;
-            })->toArray();
+            if (Schema::hasTable('inventory.regions')) {
+                $regions = DB::table('inventory.regions')->get()->map(function ($region) {
+                    return (array) $region;
+                })->toArray();
 
-            // Insert in chunks
-            $chunkSize = 500; // Adjust based on size and available memory
-            foreach (array_chunk($regions, $chunkSize) as $chunk) {
-                DB::table('regions')->insert($chunk);
+                // Insert in chunks
+                $chunkSize = 500; // Adjust based on size and available memory
+                foreach (array_chunk($regions, $chunkSize) as $chunk) {
+                    DB::table('regions')->insert($chunk);
+                }
             }
         });
     }
