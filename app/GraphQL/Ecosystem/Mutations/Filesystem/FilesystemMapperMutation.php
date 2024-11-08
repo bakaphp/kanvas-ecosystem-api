@@ -100,14 +100,13 @@ class FilesystemMapperMutation
             'extra' => $input['extra'] ?? null,
         ]);
 
-        $fileSystemService = new FilesystemServices($app, $company);
-        $path = $fileSystemService->getFilePath($filesystem);
-
-        $reader = Reader::createFromPath($path, 'r');
-        $reader->setHeaderOffset(0);
-        $records = $reader->getHeader();
-
         if ($app->has(AppSettingsEnums::FILESYSTEM_MAPPER_HEADER_VALIDATION->getValue())) {
+            $fileSystemService = new FilesystemServices($app, $company);
+            $path = $fileSystemService->getFilePath($filesystem);
+
+            $reader = Reader::createFromPath($path, 'r');
+            $reader->setHeaderOffset(0);
+            $records = $reader->getHeader();
             $this->validateFields($mapper, $records);
         }
 
@@ -116,7 +115,7 @@ class FilesystemMapperMutation
         return $import;
     }
 
-    public function validateFields(ModelsFilesystemMapper $fileMapper, $fileHeader)
+    private function validateFields(ModelsFilesystemMapper $fileMapper, $fileHeader)
     {
         $mappingHeader = array_map('strtolower', array_map('trim', $fileMapper->file_header));
         $fileHeaderFields = array_map('strtolower', array_map('trim', $fileHeader));
