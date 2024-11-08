@@ -222,7 +222,7 @@ class ImportDataFromFilesystemAction
     {
         $service = (new FilesystemServices($this->filesystemImports->app));
 
-        return $service->getFilePath($filesystem);
+        return $service->getFileLocalPath($filesystem);
     }
 
     public function getJob(string $className): string

@@ -117,7 +117,7 @@ class FilesystemServices
         return $this->storage->delete($file->path);
     }
 
-    public function getFilePath(ModelsFilesystem $filesystem): string
+    public function getFileLocalPath(ModelsFilesystem $filesystem): string
     {
         $path = $filesystem->path;
         $diskS3 = $this->buildS3Storage();

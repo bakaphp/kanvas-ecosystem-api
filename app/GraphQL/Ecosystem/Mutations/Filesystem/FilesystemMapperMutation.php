@@ -102,7 +102,7 @@ class FilesystemMapperMutation
 
         if ($app->has(AppSettingsEnums::FILESYSTEM_MAPPER_HEADER_VALIDATION->getValue())) {
             $fileSystemService = new FilesystemServices($app, $company);
-            $path = $fileSystemService->getFilePath($filesystem);
+            $path = $fileSystemService->getFileLocalPath($filesystem);
 
             $reader = Reader::createFromPath($path, 'r');
             $reader->setHeaderOffset(0);
