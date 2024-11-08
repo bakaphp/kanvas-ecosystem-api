@@ -41,6 +41,8 @@ class SyncZohoAgentAction
             $memberNumber = $record->Member_Number;
             $zohoId = $record->id;
             $owner = $record->Owner;
+            $updatedMemberNumber = false;
+            $newMemberNumber = false;
 
             // Lock the owner user row
             $ownerUser = Users::where('email', $owner['email'])
@@ -78,10 +80,8 @@ class SyncZohoAgentAction
 
             // If the member number is already used by a different user, get a new unique member number
             if ($agentWithTheSameMemberNumber && $agentWithTheSameMemberNumber->users_id !== $user->getId()) {
-                $currentMaxMemberNumber = Agent::fromCompany($this->company)->fromApp($this->app)
-                                    ->lockForUpdate()
-                                    ->max('member_id');
-                $memberNumber = $currentMaxMemberNumber + 1;
+                $memberNumber = $this->getUniqueAgentMemberNumber();
+                $newMemberNumber = true;
             }
 
             // Find or create an agent record for the user within the company with the verified member number
@@ -89,22 +89,30 @@ class SyncZohoAgentAction
                 'apps_id' => $this->app->getId(),
                 'users_id' => $user->getId(),
                 'companies_id' => $this->company->getId(),
-                'member_id' => $memberNumber,
+                'users_linked_source_id' => $zohoId,
+                //'member_id' => $memberNumber,
             ])->lockForUpdate()->first();
+
+            if ($agent && $agent->member_id != $memberNumber && !$newMemberNumber) {
+                $updatedMemberNumber = true;
+            }
 
             // Update the agent if it exists, otherwise create a new record
             $agentData = [
                 'name' => $record->Name,
                 'owner_linked_source_id' => $owner['id'],
-                'users_linked_source_id' => $zohoId,
                 'owner_id' => $ownerAgent ? $ownerAgent->member_id : null,
                 'status_id' => 1,
                 'updated_at' => now(),
             ];
 
             if ($agent) {
+                if ($updatedMemberNumber) {
+                    $agentData['member_id'] = $memberNumber;
+                }
                 $agent->update($agentData);
             } else {
+                $agentData['users_linked_source_id'] = $zohoId;
                 $agentData['apps_id'] = $this->app->getId();
                 $agentData['users_id'] = $user->getId();
                 $agentData['companies_id'] = $this->company->getId();
@@ -115,5 +123,15 @@ class SyncZohoAgentAction
 
             return $agent;
         }, 5); // 5 attempts for deadlock cases
+    }
+
+    protected function getUniqueAgentMemberNumber(): int
+    {
+        $currentMaxMemberNumber = Agent::fromCompany($this->company)
+                                ->fromApp($this->app)
+                                ->lockForUpdate()
+                                ->max('member_id');
+
+        return $currentMaxMemberNumber + 1;
     }
 }
