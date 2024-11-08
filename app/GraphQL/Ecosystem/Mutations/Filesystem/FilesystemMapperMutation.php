@@ -7,6 +7,8 @@ namespace App\GraphQL\Ecosystem\Mutations\Filesystem;
 use Exception;
 use Illuminate\Auth\AuthenticationException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Actions\CreateFileSystemImportAction;
 use Kanvas\Filesystem\Actions\CreateFilesystemMapperAction;
 use Kanvas\Filesystem\Actions\UpdateFilesystemMapperAction;
@@ -16,8 +18,10 @@ use Kanvas\Filesystem\DataTransferObject\FilesystemMapperUpdate;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Filesystem\Models\FilesystemMapper as ModelsFilesystemMapper;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\SystemModules\Models\SystemModules;
+use League\Csv\Reader;
 
 class FilesystemMapperMutation
 {
@@ -96,8 +100,41 @@ class FilesystemMapperMutation
             'extra' => $input['extra'] ?? null,
         ]);
 
+        $fileSystemService = new FilesystemServices($app, $company);
+        $path = $fileSystemService->getFilePath($filesystem);
+
+        $reader = Reader::createFromPath($path, 'r');
+        $reader->setHeaderOffset(0);
+        $records = $reader->getHeader();
+
+        if ($app->has(AppSettingsEnums::FILESYSTEM_MAPPER_HEADER_VALIDATION->getValue())) {
+            $this->validateFields($mapper, $records);
+        }
+
         $import = (new CreateFilesystemImportAction($dto))->execute();
 
         return $import;
+    }
+
+    public function validateFields(ModelsFilesystemMapper $fileMapper, $fileHeader)
+    {
+        $mappingHeader = array_map('strtolower', array_map('trim', $fileMapper->file_header));
+        $fileHeaderFields = array_map('strtolower', array_map('trim', $fileHeader));
+
+        $invalidFile = array_filter($fileHeaderFields, function ($field) use ($mappingHeader) {
+            return ! in_array($field, $mappingHeader);
+        });
+
+        if (! empty($invalidFile)) {
+            $errorMessage = sprintf(
+                "Validation failed for mapping '%s'. The following fields were not found: %s",
+                $fileMapper->name,
+                implode(', ', $mappingHeader),
+            );
+
+            throw new ValidationException($errorMessage);
+        }
+
+        return true;
     }
 }
