@@ -93,7 +93,7 @@ class SyncZohoAgentAction
                 //'member_id' => $memberNumber,
             ])->lockForUpdate()->first();
 
-            if ($agent && $agent->member_id != $memberNumber && !$newMemberNumber) {
+            if ($agent && $agent->member_id != $memberNumber && ! $newMemberNumber) {
                 $updatedMemberNumber = true;
             }
 
