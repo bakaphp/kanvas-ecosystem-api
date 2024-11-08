@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Inventory\Regions\Models;
+namespace Kanvas\Regions\Models;
 
 use Baka\Traits\SlugTrait;
 use Baka\Traits\SoftDeletesTrait;
@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
-use Kanvas\Models\BaseModel as KanvasBaseModel;
+use Kanvas\Models\BaseModel;
 use Kanvas\Traits\DefaultTrait;
 
 /**
@@ -31,7 +31,7 @@ use Kanvas\Traits\DefaultTrait;
  * @property string $created_at
  * @property string $updated_at
  */
-class Regions extends KanvasBaseModel
+class Regions extends BaseModel
 {
     use UuidTrait;
     use SlugTrait;
