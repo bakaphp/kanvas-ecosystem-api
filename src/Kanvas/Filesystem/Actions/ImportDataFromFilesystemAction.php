@@ -32,7 +32,9 @@ class ImportDataFromFilesystemAction
 
         $reader = Reader::createFromPath($path, 'r');
         $reader->setHeaderOffset(0);
-        $records = $reader->getRecords();
+        $headers = array_map('trim', $reader->getHeader());
+        $records = $reader->getRecords($headers);
+
         $listOfVariants = [];
         $listOfProducts = [];
         $modelName = $this->filesystemImports->filesystemMapper->systemModule->model_name;

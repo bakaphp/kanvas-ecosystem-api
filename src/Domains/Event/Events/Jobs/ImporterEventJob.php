@@ -56,6 +56,12 @@ class ImporterEventJob extends ProductImporterJob
 
         foreach ($this->importer as $request) {
             try {
+                if (empty(trim($request['name']))) {
+                    $totalProcessFailed++;
+
+                    continue;
+                }
+
                 $request['slug'] = key_exists('slug', $request) ? $request['slug'] : Str::slug($request['name']);
                 if (! key_exists('type_id', $request)) {
                     $type = EventType::firstOrCreate([
