@@ -46,8 +46,9 @@ return new class () extends Migration {
         });
 
         DB::transaction(function () {
-            if (Schema::hasTable('inventory.regions')) {
-                $regions = DB::table('inventory.regions')->get()->map(function ($region) {
+            $database = env('DB_INVENTORY_DATABASE', 'inventory');
+            if (Schema::hasTable($database.'.regions')) {
+                $regions = DB::table($database.'.regions')->get()->map(function ($region) {
                     return (array) $region;
                 })->toArray();
 
