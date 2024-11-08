@@ -84,6 +84,7 @@ class OrderTest extends TestCase
         $response = $this->graphQL('
             mutation createOrderFromCart($input: OrderCartInput!) {
                 createOrderFromCart(input: $input) {
+                    order {
                     id
                 }
             }
