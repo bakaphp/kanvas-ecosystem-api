@@ -14,6 +14,6 @@ final class UserNotificationTest extends TestCase
         $user = auth()->user();
         $lead = Lead::factory()->create();
 
-        $this->assertFalse($lead->hasUserBeenNotified($user));
+        $this->assertFalse($user->hasBeenNotified($lead));
     }
 }
