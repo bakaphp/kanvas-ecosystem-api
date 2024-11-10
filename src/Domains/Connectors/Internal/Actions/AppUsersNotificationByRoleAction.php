@@ -32,6 +32,7 @@ class AppUsersNotificationByRoleAction
         $role = $this->params['role'] ?? RolesEnums::USER->value;
         $appUsers = UsersRepository::getAppUserByRole($this->app, $role);
         $notificationVias = $this->params['notificationVia'] ?? [NotificationChannelEnum::getNotificationChannelBySlug('mail')];
+        $params['entity'] = $this->entity;
 
         if ($filterByCompany && $company) {
             $appUsers->where('users_associated_apps.companies_id', $company->getId());
@@ -70,6 +71,7 @@ class AppUsersNotificationByRoleAction
         $totalNotificationSent = 0;
         $totalSkipped = 0;
         foreach ($appUsers->get() as $userApp) {
+            //@todo since all notification type are base on blank, this can cause issues of diff notification types not being sent
             if ($userApp->hasBeenNotified($this->entity, $notification->getType())) {
                 $totalSkipped++;
 
