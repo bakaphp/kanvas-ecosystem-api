@@ -22,7 +22,6 @@ use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
-use Kanvas\Notifications\Traits\CanBeNotifiedTrait;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
@@ -67,7 +66,6 @@ class Lead extends BaseModel
     use HasTagsTrait;
     use FollowersTrait;
     use CanUseWorkflow;
-    use CanBeNotifiedTrait;
     use HasLightHouseCache;
 
     protected $table = 'leads';

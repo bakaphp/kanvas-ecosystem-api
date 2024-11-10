@@ -14,7 +14,6 @@ use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Models\BaseModel;
 use Kanvas\ActionEngine\Tasks\Observers\TaskEngagementItemObserver;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Notifications\Traits\CanBeNotifiedTrait;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
@@ -34,7 +33,6 @@ class TaskEngagementItem extends BaseModel
 {
     use HasCompositePrimaryKeyTrait;
     use CanUseWorkflow;
-    use CanBeNotifiedTrait;
 
     protected $table = 'company_task_engagement_items';
     protected $guarded = [];

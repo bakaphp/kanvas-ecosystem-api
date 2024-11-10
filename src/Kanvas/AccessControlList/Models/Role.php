@@ -25,7 +25,7 @@ class Role extends SilberRole
         $count = Redis::get('role:' . $this->id . ':users_count');
         if (! $count) {
             $count = $this->users()->count();
-            Redis::setex('role:' . $this->id . ':users_count', 120, $count);
+            Redis::set('role:' . $this->id . ':users_count', 120, $count);
         }
 
         return (int)$count;
@@ -36,7 +36,7 @@ class Role extends SilberRole
         $count = Redis::get('role:' . $this->id . ':abilities_count');
         if (! $count) {
             $count = $this->abilities()->count();
-            Redis::setex('role:' . $this->id . ':abilities_count', 120, $count);
+            Redis::set('role:' . $this->id . ':abilities_count', 120, $count);
         }
 
         return (int)$count;
