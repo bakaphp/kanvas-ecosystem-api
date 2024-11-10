@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Workflows;
 
 use Illuminate\Console\Command;
+use Kanvas\Apps\Activities\AppUsersNotificationByRoleActivity;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
 use Kanvas\Connectors\Google\Activities\GenerateUserForYouFeedActivity;
 use Kanvas\Connectors\Google\Activities\SyncMessageToDocumentActivity;
@@ -75,6 +76,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncProductWithShopifyWithIntegrationActivity::class,
             UnPublishExpiredProductsAfterImportActivity::class,
             GenerateUserForYouFeedActivity::class,
+            AppUsersNotificationByRoleActivity::class,
         ];
 
         $createdActions = [];

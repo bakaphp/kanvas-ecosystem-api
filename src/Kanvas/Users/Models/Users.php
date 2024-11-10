@@ -47,6 +47,7 @@ use Kanvas\Locations\Models\Cities;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Locations\Models\States;
 use Kanvas\Notifications\Models\Notifications;
+use Kanvas\Notifications\Traits\CanBeNotifiedTrait;
 use Kanvas\Notifications\Traits\HasNotificationSettings;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\Social\Channels\Models\Channel;
@@ -126,6 +127,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     use KanvasModelTrait;
     use HasNotificationSettings;
     use CanBlockUser;
+    use CanBeNotifiedTrait;
     use Searchable {
         search as public traitSearch;
     }
