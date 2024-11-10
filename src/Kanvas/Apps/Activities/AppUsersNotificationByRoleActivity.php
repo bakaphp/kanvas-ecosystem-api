@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Internal\Activities;
+namespace Kanvas\Apps\Activities;
 
 use Baka\Contracts\AppInterface;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Connectors\Internal\Actions\AppUsersNotificationByRoleAction;
+use Kanvas\Apps\Actions\AppUsersNotificationByRoleAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Workflow\Activity;
 

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Internal\Actions;
+namespace Kanvas\Apps\Actions;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
@@ -32,7 +32,8 @@ class AppUsersNotificationByRoleAction
         $role = $this->params['role'] ?? RolesEnums::USER->value;
         $appUsers = UsersRepository::getAppUserByRole($this->app, $role);
         $notificationVias = $this->params['notificationVia'] ?? [NotificationChannelEnum::getNotificationChannelBySlug('mail')];
-        $params['entity'] = $this->entity;
+        $this->params['entity'] = $this->entity;
+        $this->params['app'] = $this->app;
 
         if ($filterByCompany && $company) {
             $appUsers->where('users_associated_apps.companies_id', $company->getId());
@@ -65,8 +66,6 @@ class AppUsersNotificationByRoleAction
 
         $user = Users::getById($fromUserId);
         $notification->setFromUser($user);
-
-        $appUsers->where('users.id', 2);
 
         $totalNotificationSent = 0;
         $totalSkipped = 0;

@@ -2,16 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Integration\Internal;
+namespace Tests\Ecosystem\Integration\Notifications;
 
 use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\Apps\Actions\AppUsersNotificationByRoleAction;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Internal\Actions\AppUsersNotificationByRoleAction;
 use Kanvas\Templates\Enums\EmailTemplateEnum;
-use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
-final class NotificationTest extends TestCase
+final class AppUserNotificationTest extends TestCase
 {
     public function testAppUserNotificationByRoleActivity()
     {
@@ -27,6 +26,6 @@ final class NotificationTest extends TestCase
         $result = $action->execute();
 
         $this->assertArrayHasKey('totalNotificationSent', $result);
-        $this->assertEquals(1, $result['totalNotificationSent']);
+        $this->assertGreaterThanOrEqual(1, $result['totalNotificationSent']);
     }
 }
