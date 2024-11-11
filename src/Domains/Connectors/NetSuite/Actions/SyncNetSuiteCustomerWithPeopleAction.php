@@ -82,7 +82,7 @@ class SyncNetSuiteCustomerWithPeopleAction
         if ($linkPeople) {
             $createPeople->runWorkflow = false;
         }
-        
+
         $people = $createPeople->execute();
 
         if (! $linkPeople) {
