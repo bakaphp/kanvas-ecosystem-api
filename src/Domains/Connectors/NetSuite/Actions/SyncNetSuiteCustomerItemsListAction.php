@@ -46,7 +46,7 @@ class SyncNetSuiteCustomerItemsListAction
 
         $customerInfo = $this->service->getCustomerById($customerId);
 
-        $listOrProductVariantsBarCodeIds = $customerInfo->itemPricingList->itemPricing;
+        $listOrProductVariantsBarCodeIds = $customerInfo->itemPricingList?->itemPricing ?? [];
 
         $createNewChannel = new CreateChannel(
             new Channels(
