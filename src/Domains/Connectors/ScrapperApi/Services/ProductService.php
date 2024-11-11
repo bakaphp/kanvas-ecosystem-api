@@ -22,17 +22,14 @@ class ProductService
     {
         if (key_exists('original_price', $product)) {
             $price = (float)$product['original_price']['price'];
-            $discountPrice = $price - ($price * 0.1);
-        } else {
-            $price = (float)$product['price'];
-            $discountPrice = $price - ($price * 0.1);
+            $product['price'] = $price;
         }
         $name = Str::limit($product['name'], 255);
         $product = [
             'name' => $name,
             'description' => $name ,
-            'price' => $discountPrice,
-            'discountPrice' => $discountPrice,
+            'price' => $product['price'],
+            'discountPrice' => $product['price'],
             'slug' => Str::slug($product['asin']),
             'sku' => $product['asin'],
             'source_id' => $product['asin'],
@@ -43,12 +40,22 @@ class ProductService
             'warehouses' => [
                 [
                     'id' => $this->warehouse->id,
-                    'price' => (float) $discountPrice,
+                    'price' => (float) $product['price'],
                     'warehouse' => $this->warehouse->name,
                     'quantity' => 10,
                     'sku' => $product['asin'],
                     'is_new' => true,
                     'channel' => $this->channels->name,
+                ],
+            ],
+            'attributes' => [
+                [
+                    'name' => ScrapperConfigEnum::AMAZON_PRICE->value,
+                    'value' => $product['price'],
+                ],
+                [
+                    'name' => ConfigurationEnum::WEIGHT_UNIT->value,
+                    'value' => $this->calcWeight($product),
                 ],
             ],
             'custom_fields' => [
@@ -58,12 +65,12 @@ class ProductService
                 ],
                 [
                     'name' => ScrapperConfigEnum::AMAZON_PRICE->value,
-                    'data' => $price,
+                    'data' => $product['price'],
                 ],
                 [
                     'name' => ConfigurationEnum::WEIGHT_UNIT->value,
                     'data' => $this->calcWeight($product),
-                ]
+                ],
             ],
         ];
         $product['variants'][] = $product;
@@ -125,53 +132,48 @@ class ProductService
         return $mapCategories;
     }
 
-    public function mapVariants(array $product, float $price, float $discountPrice): array
-    {
-        // To do: Some products have variants, some don't.
-        // Need to handle both cases.
-        return [
-            'name' => $product['name'],
-            'description' => $product['full_description'],
-            'sku' => $product['asin'],
-            'price' => $discountPrice,
-            'discountPrice' => $discountPrice,
-            'is_published' => true,
-            'source_id' => (string) $product['asin'],
-            'slug' => (string) $product['asin'],
-            'files' => $this->mapFilesystem($product),
-            'warehouses' => [
-                [
-                    'id' => $this->warehouse->id,
-                    'price' => (float) $discountPrice,
-                    'quantity' => 0,
-                    'sku' => $product['asin'],
-                    'is_new' => true,
-                ],
-            ],
-            'attributes' => [
-            ],
-            'custom_fields' => [
-                [
-                    'name' => 'AMAZON_ID',
-                    'data' => $product['asin'],
-                ],
-                [
-                    'name' => ConfigurationEnum::WEIGHT_UNIT->value,
-                    'data' => $this->calcWeight($product),
-                ],
-            ],
-        ];
-    }
-
     public function calcWeight(array $product): float
     {
-        $weight = $product['product_information']['item_weight'] ?? 0;
+        $weight = null;
+
+        if (key_exists('product_dimensions', $product['product_information'])) {
+            $productDimensions = $product['product_information']['product_dimensions'];
+            if (preg_match('/([\d.]+) x ([\d.]+) x ([\d.]+) inches; ([\d.]+) (Pounds|Ounces)/', $productDimensions, $matches)) {
+                $weight = (float) $matches[4];
+                $unit = $matches[5];
+                if ($unit == 'Ounces') {
+                    $weight = $weight * 28.3495;
+                } else {
+                    $weight = $weight * 453.592;
+                }
+            }
+        }
+
+        if (! $weight) {
+            $weight = $product['product_information']['item_weight'] ?? 0;
+        }
+
         if ($weight && str_contains($weight, 'ounces')) {
             $weight = ((float)Str::before($weight, 'ounces')) * 28.3495;
         } elseif ($weight && str_contains($weight, 'pounds')) {
             $weight = ((float)Str::before($weight, 'pounds')) * 453.592;
+        } elseif ($weight && str_contains($weight, 'Pounds')) {
+            $weight = ((float)Str::before($weight, 'Pounds')) * 453.592;
+        } elseif ($weight && str_contains($weight, 'Ounces')) {
+            $weight = ((float)Str::before($weight, 'Ounces')) * 28.3495;
         }
 
-        return $weight;
+        if ($weight <= 0) {
+            $weight = 453.592;
+        }
+
+        return (float)$weight;
+    }
+
+    public function calcDiscountPrice(array $product): float
+    {
+        $discount = (float)$product['price'];
+
+        return $discount;
     }
 }

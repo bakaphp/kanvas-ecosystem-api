@@ -53,13 +53,9 @@ class ScrapperAction
             try {
                 $asin = $result['asin'];
                 $productModel = Products::getBySlug($asin, $this->companyBranch->company);
-                if ($productModel && $productModel->updated_at->addDays(3)->isPast()) {
-                    continue;
-                }
                 $product = $repository->getByAsin($asin);
                 $product = array_merge($product, $result);
                 $mappedProduct = $service->mapProduct($product);
-
                 ProductImporterJob::dispatch(
                     jobUuid: Str::uuid(),
                     importer: [$mappedProduct],
@@ -79,6 +75,7 @@ class ScrapperAction
                     break;
                 }
             } catch (Throwable $e) {
+                Log::error($e->getMessage());
                 captureException($e);
             }
         }
