@@ -29,7 +29,7 @@ class ProcessNetSuiteCompanyCustomerWebhookJob extends ProcessWebhookJob
         //update or create customer own channel price list
         $mainCompanyId = $this->receiver->app->get('B2B_MAIN_COMPANY_ID');
 
-        if ($isCompany) {
+        if ($isCompany && $mainCompanyId) {
             $mainCompany = Companies::getById($mainCompanyId);
 
             $syncNetSuiteCustomerWithCompany = new SyncNetSuiteCustomerItemsListAction(
