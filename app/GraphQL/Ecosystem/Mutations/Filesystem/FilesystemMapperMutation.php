@@ -100,7 +100,7 @@ class FilesystemMapperMutation
             'extra' => $input['extra'] ?? null,
         ]);
 
-        if ($app->has(AppSettingsEnums::FILESYSTEM_MAPPER_HEADER_VALIDATION->getValue())) {
+        if ($app->get(AppSettingsEnums::FILESYSTEM_MAPPER_HEADER_VALIDATION->getValue())) {
             $fileSystemService = new FilesystemServices($app, $company);
             $path = $fileSystemService->getFileLocalPath($filesystem);
 
