@@ -196,9 +196,10 @@ class PeopleTest extends TestCase
                     'status' => 1,
                 ],
             ],
+            'organization' => fake()->company(),
         ];
 
-        $this->graphQL('
+        $response = $this->graphQL('
         mutation($input: PeopleInput!) {
             createPeople(input: $input) {                
                 employment_history {
@@ -208,17 +209,18 @@ class PeopleTest extends TestCase
         }
     ', [
              'input' => $input,
-    ])->assertJsonStructure([
-                 'data' => [
-                     'createPeople' => [
-                         'employment_history' => [
-                             [
-                                 'id',
+    ]);
+        $response->assertJsonStructure([
+                     'data' => [
+                         'createPeople' => [
+                             'employment_history' => [
+                                 [
+                                     'id',
+                                 ],
                              ],
                          ],
                      ],
-                 ],
-             ]);
+                 ]);
     }
 
     public function testUpdatePeople()
@@ -257,7 +259,6 @@ class PeopleTest extends TestCase
         ];
 
         $response = $this->createPeopleAndResponse($input);
-
         $peopleId = $response['data']['createPeople']['id'];
         $firstname = fake()->firstName();
         $lastname = fake()->lastName();
@@ -269,7 +270,7 @@ class PeopleTest extends TestCase
             'address' => [],
             'custom_fields' => [],
         ];
-        $this->graphQL('
+        $response = $this->graphQL('
         mutation($id: ID!, $input: PeopleInput!) {
             updatePeople(id: $id, input: $input) {
                 id
@@ -279,7 +280,8 @@ class PeopleTest extends TestCase
     ', [
             'id' => $peopleId,
             'input' => $input,
-        ])->assertJson([
+    ]);
+    $response->assertJson([
             'data' => [
                 'updatePeople' => [
                     'id' => $peopleId,
