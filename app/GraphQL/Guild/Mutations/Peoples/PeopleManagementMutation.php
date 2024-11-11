@@ -77,7 +77,7 @@ class PeopleManagementMutation
             'linkedin_contact_id' => $data['linkedin_contact_id'] ?? null,
             'tags' => $data['tags'] ?? [],
             'custom_fields' => $data['custom_fields'] ?? [],
-            'organizations' => $data['organization'] ?? [],
+            'organization' => $data['organization'] ?? [],
         ]);
 
         $updatePeople = new UpdatePeopleAction($people, $peopleData);
