@@ -14,8 +14,8 @@ class ProcessNetSuiteCompanyCustomerWebhookJob extends ProcessWebhookJob
     public function execute(): array
     {
         //$regionId = $this->receiver->configuration['region_id'];
-        $isCompany = ! empty($this->receiver->webhookRequest->payload['fields']['companyname']);
-        $netSuiteCompanyId = $this->receiver->webhookRequest->payload['id'];
+        $isCompany = ! empty($this->webhookRequest->payload['fields']['companyname']);
+        $netSuiteCompanyId = $this->webhookRequest->payload['id'];
 
         if (! $isCompany) {
             return [
