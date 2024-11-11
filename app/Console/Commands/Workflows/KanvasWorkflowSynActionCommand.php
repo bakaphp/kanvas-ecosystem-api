@@ -16,6 +16,7 @@ use Kanvas\Connectors\Internal\Activities\GenerateMessageSlugActivity;
 use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductActivity;
 use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductsAfterImportActivity;
 use Kanvas\Connectors\Internal\Activities\UserCustomFieldActivity;
+use Kanvas\Connectors\NetSuite\Webhooks\ProcessNetSuiteCompanyCustomerWebhookJob;
 use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
 use Kanvas\Connectors\RainForest\Workflows\Activities\ImportProductActivity;
@@ -77,6 +78,7 @@ class KanvasWorkflowSynActionCommand extends Command
             UnPublishExpiredProductsAfterImportActivity::class,
             GenerateUserForYouFeedActivity::class,
             AppUsersNotificationByRoleActivity::class,
+            ProcessNetSuiteCompanyCustomerWebhookJob::class,
         ];
 
         $createdActions = [];
