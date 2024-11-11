@@ -79,6 +79,10 @@ class SyncNetSuiteCustomerWithPeopleAction
          * @todo link custom customer price for the b2b store
          */
         $createPeople = $linkPeople ? new UpdatePeopleAction($linkPeople, $peopleData) : new CreatePeopleAction($peopleData);
+        if ($linkPeople) {
+            $createPeople->runWorkflow = false;
+        }
+
         $people = $createPeople->execute();
 
         if (! $linkPeople) {

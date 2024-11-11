@@ -34,11 +34,16 @@ class SyncNetSuiteCustomerWithCompanyAction
             $customerId
         );
 
+        $customerInfo = $this->service->getCustomerById($customerId);
+
         if ($linkCompany) {
+            $linkCompany->name = $customerInfo->companyName;
+            $linkCompany->email = $customerInfo->email;
+            $linkCompany->disableWorkflows();
+            $linkCompany->saveOrFail();
+
             return $linkCompany;
         }
-
-        $customerInfo = $this->service->getCustomerById($customerId);
 
         $company = CompaniesRepository::getCompanyByNameAndApp(
             $customerInfo->companyName,
