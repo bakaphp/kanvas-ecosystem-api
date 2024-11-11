@@ -95,6 +95,14 @@ services:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue notifications --tries=3 --timeout=3750"
+
+  queue-user-interactions:
+    <<: *common-queue-settings
+    container_name: queue-user-interactions
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=user-interactions --tries=3 --timeout=3750"
   
   batch-logger-queue:
     <<: *common-queue-settings

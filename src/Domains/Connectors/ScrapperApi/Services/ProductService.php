@@ -57,9 +57,13 @@ class ProductService
                     'data' => $product['asin'],
                 ],
                 [
+                    'name' => ScrapperConfigEnum::AMAZON_PRICE->value,
+                    'data' => $price,
+                ],
+                [
                     'name' => ConfigurationEnum::WEIGHT_UNIT->value,
                     'data' => $this->calcWeight($product),
-                ],
+                ]
             ],
         ];
         $product['variants'][] = $product;

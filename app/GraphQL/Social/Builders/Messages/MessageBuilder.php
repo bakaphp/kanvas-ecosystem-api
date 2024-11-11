@@ -10,8 +10,11 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Enums\AppEnum;
+use Kanvas\Social\Enums\InteractionEnum;
+use Kanvas\Social\Interactions\Jobs\UserInteractionJob;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Models\UserMessage;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class MessageBuilder
@@ -23,12 +26,47 @@ class MessageBuilder
         ResolveInfo $resolveInfo
     ): Builder {
         $user = auth()->user();
+        $app = app(Apps::class);
+
+        $viewingOneMessage = isset($args['where']['column']) && ($args['where']['column'] === 'id' || $args['where']['column'] === 'uuid') && isset($args['where']['value']);
+        //if enable home-view interaction , remove once , moved to getUserFeed
+        if ($app->get('TEMP_HOME_VIEW_EVENT') && $viewingOneMessage) {
+            UserInteractionJob::dispatch(
+                $app,
+                $user,
+                new Message(['id' => $args['where']['value']]),
+                InteractionEnum::VIEW_ITEM->getValue()
+            );
+        }
 
         if (! $user->isAppOwner()) {
             return Message::fromCompany($user->getCurrentCompany());
         }
 
         return Message::query();
+    }
+
+    public function getUserFeed(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): Builder {
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        $currentPage = (int) ($args['page'] ?? 1);
+        //generate home-view interaction
+        if ($app->get('TEMP_HOME_VIEW_EVENT') && $currentPage === 1) {
+            UserInteractionJob::dispatch(
+                $app,
+                $user,
+                $app,
+                InteractionEnum::VIEW_HOME_PAGE->getValue()
+            );
+        }
+
+        return UserMessage::getUserFeed($user, $app);
     }
 
     public function getChannelMessages(

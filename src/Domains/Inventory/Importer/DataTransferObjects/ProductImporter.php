@@ -27,6 +27,7 @@ class ProductImporter extends Data
         public ?string $upc = null,
         public ?string $source = null,
         public ?string $sourceId = null,
+        public ?string $status = null,
         public array $files = [],
         public array $productType = [],
         public array $attributes = [],

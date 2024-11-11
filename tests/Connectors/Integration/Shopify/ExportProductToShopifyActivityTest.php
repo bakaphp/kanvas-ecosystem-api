@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\Shopify;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Shopify\Workflows\Activities\ExportProductToShopifyActivity;
+use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyWithIntegrationActivity;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Services\EntityIntegrationHistoryService;
@@ -26,7 +26,7 @@ final class ExportProductToShopifyActivityTest extends TestCase
 
         $this->setupShopifyIntegration($product, $warehouse->region);
 
-        $exportActivity = new ExportProductToShopifyActivity(
+        $exportActivity = new SyncProductWithShopifyWithIntegrationActivity(
             0,
             now()->toDateTimeString(),
             StoredWorkflow::make(),
@@ -57,7 +57,7 @@ final class ExportProductToShopifyActivityTest extends TestCase
 
         $this->setupShopifyIntegration($product, $warehouse->region);
 
-        $exportActivity = new ExportProductToShopifyActivity(
+        $exportActivity = new SyncProductWithShopifyWithIntegrationActivity(
             0,
             now()->toDateTimeString(),
             StoredWorkflow::make(),

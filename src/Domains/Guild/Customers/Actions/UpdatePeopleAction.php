@@ -11,9 +11,12 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class UpdatePeopleAction
 {
+    public bool $runWorkflow = true;
+
     /**
      * __construct.
      */
@@ -107,6 +110,16 @@ class UpdatePeopleAction
                 )
             ))->execute();
             OrganizationPeople::addPeopleToOrganization($organization, $this->people);
+        }
+
+        if ($this->runWorkflow) {
+            $this->people->fireWorkflow(
+                WorkflowEnum::UPDATED->value,
+                true,
+                [
+                    'app' => $this->people->app,
+                ]
+            );
         }
 
         //$this->people->clearLightHouseCacheJob();

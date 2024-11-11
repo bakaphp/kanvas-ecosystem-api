@@ -178,6 +178,9 @@ class ShopifyInventoryService
             'inventory_management' => 'shopify',
         ]);
 
+        /**
+         * @todo tied location to the warehouse
+         */
         $defaultLocation = $this->shopifySdk->Shop->get()['primary_location_id'];
 
         try {

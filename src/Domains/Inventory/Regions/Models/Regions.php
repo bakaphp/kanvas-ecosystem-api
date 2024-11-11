@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Regions\Models;
 
 use Baka\Traits\SlugTrait;
+use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Currencies\Models\Currencies;
-use Kanvas\Inventory\Models\BaseModel;
-use Kanvas\Inventory\Traits\DefaultTrait;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Models\BaseModel as KanvasBaseModel;
+use Kanvas\Traits\DefaultTrait;
 
 /**
  * Class Regions.
@@ -30,11 +31,12 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
  * @property string $created_at
  * @property string $updated_at
  */
-class Regions extends BaseModel
+class Regions extends KanvasBaseModel
 {
     use UuidTrait;
     use SlugTrait;
     use DefaultTrait;
+    use SoftDeletesTrait;
 
     protected $table = 'regions';
     protected $guarded = [];

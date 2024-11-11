@@ -33,4 +33,18 @@ class PriceRepository
             throw new ExceptionsModelNotFoundException('No stripe price configure for this app');
         }
     }
+
+    public static function getByStripeId(string $stripeId, AppInterface $app): Price
+    {
+        try {
+            return self::getModel()::notDeleted()
+                ->select('apps_plans_prices.*')
+                ->join('apps_plans', 'apps_plans.id', '=', 'apps_plans_prices.apps_plans_id')
+                ->where('apps_plans_prices.stripe_id', $stripeId)
+                ->where('apps_plans.apps_id', $app->getId())
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            throw new ExceptionsModelNotFoundException('No stripe price configure for this app');
+        }
+    }
 }

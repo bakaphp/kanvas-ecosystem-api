@@ -17,7 +17,7 @@ use Tests\TestCase;
 
 final class DynamicNotificationTest extends TestCase
 {
-    public function testDynamicNotificationTypeNotfication()
+    public function testDynamicNotificationTypeNotification()
     {
         $user = auth()->user();
         $createParentTemplate = new CreateTemplateAction(

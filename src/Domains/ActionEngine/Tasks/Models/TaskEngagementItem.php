@@ -14,6 +14,7 @@ use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Models\BaseModel;
 use Kanvas\ActionEngine\Tasks\Observers\TaskEngagementItemObserver;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
  * Class TaskEngagementItem.
@@ -31,6 +32,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 class TaskEngagementItem extends BaseModel
 {
     use HasCompositePrimaryKeyTrait;
+    use CanUseWorkflow;
 
     protected $table = 'company_task_engagement_items';
     protected $guarded = [];

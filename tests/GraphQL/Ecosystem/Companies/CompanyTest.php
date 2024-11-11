@@ -22,6 +22,14 @@ class CompanyTest extends TestCase
             'zipcode' => 90120,
             'language' => 'en',
             'timezone' => 'UTC',
+            'countries_id' => 1,
+            'states_id' => 1,
+            'cities_id' => 1,
+            'address_2' => fake()->address(),
+            'city' => fake()->city(),
+            'state' => fake()->state(),
+            'country' => fake()->country(),
+            'zip' => fake()->postcode(),
         ];
     }
 
@@ -39,7 +47,13 @@ class CompanyTest extends TestCase
                     address,
                     zipcode,
                     email,
-                    language
+                    language,
+                    address,
+                    address_2,
+                    city,
+                    state,
+                    country,
+                    zip
                 }
             }',
             [
@@ -49,10 +63,15 @@ class CompanyTest extends TestCase
         ->assertSuccessful()
         ->assertSee('name', $companyData['name'])
         ->assertSee('website', $companyData['website'])
-        ->assertSee('address', $companyData['address'])
         ->assertSee('zipcode', $companyData['zipcode'])
         ->assertSee('email', $companyData['email'])
-        ->assertSee('language', $companyData['language']);
+        ->assertSee('language', $companyData['language'])
+        ->assertSee('address', $companyData['address'])
+        ->assertSee('address_2', $companyData['address_2'])
+        ->assertSee('city', $companyData['city'])
+        ->assertSee('state', $companyData['state'])
+        ->assertSee('country', $companyData['country'])
+        ->assertSee('zip', $companyData['zip']);
     }
 
     public function testUpdateCompany(): void
