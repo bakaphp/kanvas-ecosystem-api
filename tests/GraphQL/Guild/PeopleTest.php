@@ -54,6 +54,7 @@ class PeopleTest extends TestCase
                     ],
                 ],
                 'custom_fields' => [],
+                'organization' => fake()->company(),
             ];
         }
 
@@ -107,6 +108,7 @@ class PeopleTest extends TestCase
                 ],
             ],
             'custom_fields' => [],
+            'organization' => fake()->company(),
         ];
 
         $this->graphQL('

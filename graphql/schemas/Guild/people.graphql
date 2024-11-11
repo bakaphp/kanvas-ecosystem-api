@@ -94,7 +94,9 @@ input PeopleInput {
     custom_fields: [CustomFieldEntityInput!]
     tags: [TagInput!]
     peopleEmploymentHistory: [EmploymentPeopleHistoryInput!]
+    organization: String
     created_at: DateTime
+    
 }
 
 input PeopleParticipantInput {
