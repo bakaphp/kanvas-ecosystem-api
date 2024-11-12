@@ -40,6 +40,7 @@ class ShopifyInventoryService
      */
     public function saveProduct(Products $product, StatusEnum $status, ?Channels $channel = null): array
     {
+        $variantLimit = 100;
         $shopifyProductId = $product->getShopifyId($this->warehouses->regions);
 
         $productInfo = [
@@ -52,8 +53,9 @@ class ShopifyInventoryService
             'published_scope' => 'web',
         ];
 
+        $limitedVariants = $product->variants->take($variantLimit);
         if ($shopifyProductId === null) {
-            foreach ($product->variants as $variant) {
+            foreach ($limitedVariants as $variant) {
                 $productInfo['variants'][] = $this->mapVariant($variant);
             }
 
@@ -73,7 +75,7 @@ class ShopifyInventoryService
             $shopifyProduct = $this->shopifySdk->Product($shopifyProductId);
             $response = $shopifyProduct->put($productInfo);
 
-            foreach ($product->variants as $variant) {
+            foreach ($limitedVariants as $variant) {
                 $this->saveVariant($variant, $channel);
                 $this->setStock($variant, $channel);
             }
