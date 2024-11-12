@@ -33,8 +33,8 @@ class ProductService
         $product = [
             'name' => $name,
             'description' => $name ,
-            'price' => $product['price'],
-            'discountPrice' => $product['price'],
+            'price' => $price,
+            'discountPrice' => $price,
             'slug' => Str::slug($product['asin']),
             'sku' => $product['asin'],
             'source_id' => $product['asin'],
@@ -45,7 +45,7 @@ class ProductService
             'warehouses' => [
                 [
                     'id' => $this->warehouse->id,
-                    'price' => (float) $product['price'],
+                    'price' => (float) $price,
                     'warehouse' => $this->warehouse->name,
                     'quantity' => 10,
                     'sku' => $product['asin'],
@@ -56,7 +56,7 @@ class ProductService
             'attributes' => [
                 [
                     'name' => ScrapperConfigEnum::AMAZON_PRICE->value,
-                    'value' => $product['price'],
+                    'value' => $amazonPrice,
                 ],
                 [
                     'name' => ConfigurationEnum::WEIGHT_UNIT->value,
@@ -70,7 +70,7 @@ class ProductService
                 ],
                 [
                     'name' => ScrapperConfigEnum::AMAZON_PRICE->value,
-                    'data' => $product['price'],
+                    'data' => $amazonPrice,
                 ],
                 [
                     'name' => ConfigurationEnum::WEIGHT_UNIT->value,
