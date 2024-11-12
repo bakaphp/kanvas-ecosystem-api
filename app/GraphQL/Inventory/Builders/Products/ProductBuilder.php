@@ -6,6 +6,7 @@ namespace App\GraphQL\Inventory\Builders\Products;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -24,6 +25,9 @@ class ProductBuilder
     ): Builder {
         $app = app(Apps::class);
         $companyBranch = app(CompaniesBranches::class);
+        if (! auth()->user()) {
+            Auth::loginUsingId($companyBranch->company->users_id);
+        }
         $company = auth()->user()->getCurrentCompany();
         $user = auth()->user();
 

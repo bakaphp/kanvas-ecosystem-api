@@ -186,8 +186,8 @@ class ProductService
         $dga = 0.15 * $weight;
         $airport = 0.07 * $weight;
         $insurance = 0;
-        if ($product['price'] > 100) {
-            $insurance = 0.011 * (float)$product['price'];
+        if ($amazonPrice > 100) {
+            $insurance = 0.011 * (float)$amazonPrice;
         }
         $flete = $courierCost;
         $serviceFee = 1 * $weight;
@@ -202,6 +202,7 @@ class ProductService
         $gpo = $payPerUser - $cpo;
         $discountAmount = ($gpo * 0.75);
         $discount = $amazonPrice - $discountAmount;
+        $discount = round($discount, 2);
 
         return $discount;
     }

@@ -57,9 +57,7 @@ class ShopifyVariantMetafieldService
                 'type' => $this->types[$type],
                 'variant_id' => $shopifyProductVariantId,
             ];
-            Log::debug('Metafield', $mutationGraphql);
             $metaField = $shopifyProduct->Variant($shopifyProductVariantId)->Metafield->post($mutationGraphql);
-            Log::debug('Metafield Response', $metaField);
             $shopifyMetaFields[$this->region->id][$attribute->id] = $metaField['id'];
             $i++;
         }
