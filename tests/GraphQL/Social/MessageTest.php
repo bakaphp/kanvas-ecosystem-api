@@ -192,6 +192,62 @@ class MessageTest extends TestCase
         ]);
     }
 
+    public function testRestoreMessage()
+    {
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+        $response = $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        id
+                        message
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => $message,
+                    'message_verb' => $messageType->verb,
+                    'system_modules_id' => 1,
+                    'entity_id' => '1',
+                ],
+            ]
+        );
+
+        $createdMessageId = $response['data']['createMessage']['id'];
+
+        $this->graphQL(
+            '
+                mutation deleteMessage($id: ID!) {
+                    deleteMessage(id: $id) 
+                }
+            ',
+            [
+                'id' => $createdMessageId,
+            ]
+        )->assertJson([
+            'data' => [
+                'deleteMessage' => true,
+            ],
+        ]);
+
+        $this->graphQL(
+            '
+                mutation restoreMessage($id: ID!) {
+                    restoreMessage(id: $id) 
+                }
+            ',
+            [
+                'id' => $createdMessageId,
+            ]
+        )->assertJson([
+            'data' => [
+                'restoreMessage' => true,
+            ],
+        ]);
+    }
+
     public function testDeleteMultipleMessage()
     {
         $messageType = MessageType::factory()->create();
