@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Exceptions\AuthenticationException;
-use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -196,5 +195,15 @@ class MessageManagementMutation
             user: auth()->user(),
             request: $request
         );
+    }
+
+    public function recoverMessage(mixed $root, array $request): Message
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $message = Message::withTrashed()->where('id', $request['id'])->where('users_id', $user->getId())->fromApp($app)->firstOrFail();
+        $message->restore();
+
+        return $message;
     }
 }
