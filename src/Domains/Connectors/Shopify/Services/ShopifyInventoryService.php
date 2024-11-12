@@ -68,6 +68,10 @@ class ShopifyInventoryService
                     $variant->setInventoryId($this->warehouses->regions, $shopifyVariant['inventory_item_id']);
                     $this->setStock($variant, $channel);
                 }
+
+                $shopifyVariantMetafieldService = new ShopifyVariantMetafieldService($this->app, $this->company, $this->warehouses->regions, $variant);
+
+                $shopifyVariantMetafieldService->setMetaField();
             }
         } else {
             $shopifyProduct = $this->shopifySdk->Product($shopifyProductId);

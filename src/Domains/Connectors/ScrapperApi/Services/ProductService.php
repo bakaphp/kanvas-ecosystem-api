@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ScrapperApi\Services;
 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum as ScrapperConfigEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -20,11 +21,15 @@ class ProductService
 
     public function mapProduct(array $product): array
     {
+        $weight = $this->calcWeight($product);
         if (key_exists('original_price', $product)) {
             $price = (float)$product['original_price']['price'];
             $product['price'] = $price;
         }
+        $amazonPrice = $product['price'];
+        $price = $this->calcDiscountPrice($product);
         $name = Str::limit($product['name'], 255);
+        Log::info('Product Name: ' . $product['asin']);
         $product = [
             'name' => $name,
             'description' => $name ,
@@ -172,7 +177,31 @@ class ProductService
 
     public function calcDiscountPrice(array $product): float
     {
-        $discount = (float)$product['price'];
+        $discount = 0;
+        $amazonPrice = (float)$product['price'];
+        $weight = $this->calcWeight($product) / 453.592;
+        $deliveryCostMile = 2.50;
+        $courierCost = $weight * 1.3;
+        $gas = 1.02 * $weight;
+        $dga = 0.15 * $weight;
+        $airport = 0.07 * $weight;
+        $insurance = 0;
+        if ($product['price'] > 100) {
+            $insurance = 0.011 * (float)$product['price'];
+        }
+        $flete = $courierCost;
+        $serviceFee = 1 * $weight;
+        $otherFee = $gas + $dga + $airport + $insurance;
+        $markUp = ((float)$amazonPrice * 1.15) - $amazonPrice;
+
+        $payPerUser = $flete + $serviceFee + $otherFee + $markUp;
+        $total = $amazonPrice + $payPerUser;
+
+        $paymentFee = ($total * 0.029) + 0.3;
+        $cpo = $deliveryCostMile + $courierCost + $gas + $dga + $airport + $insurance + $paymentFee;
+        $gpo = $payPerUser - $cpo;
+        $discountAmount = ($gpo * 0.75);
+        $discount = $amazonPrice - $discountAmount;
 
         return $discount;
     }
