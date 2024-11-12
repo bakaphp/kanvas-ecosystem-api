@@ -116,7 +116,7 @@ class ShopifyInventoryService
 
         $quantity = $warehouseInfo?->quantity ?? 0;
         $shopifyVariantInfo = [
-            'option1' => $variant->sku ?? $variant->name,
+            'option1' => $variant->name ?? $variant->sku,
             'sku' => $variant->sku,
             'barcode' => $variant->barcode,
             'price' => $price,
