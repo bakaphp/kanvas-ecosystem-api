@@ -281,14 +281,14 @@ class PeopleTest extends TestCase
             'id' => $peopleId,
             'input' => $input,
     ]);
-    $response->assertJson([
-            'data' => [
-                'updatePeople' => [
-                    'id' => $peopleId,
-                    'name' => $name,
+        $response->assertJson([
+                'data' => [
+                    'updatePeople' => [
+                        'id' => $peopleId,
+                        'name' => $name,
+                    ],
                 ],
-            ],
-        ]);
+            ]);
     }
 
     public function testDeletePeople()
