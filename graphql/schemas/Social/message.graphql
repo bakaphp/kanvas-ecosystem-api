@@ -20,7 +20,7 @@ type Message {
     parent: Message @cacheRedis
     user: User! @cacheRedis
     children: [Message!] @hasMany(type: PAGINATOR)
-    messageType: MessageType!
+    messageType: MessageType! @cacheRedis
     appModuleMessage: AppModuleMessage @cacheRedis
     myInteraction: myInteraction @method(name: "getMyInteraction")
     comments: [MessageComments!]! @hasMany(type: PAGINATOR)
