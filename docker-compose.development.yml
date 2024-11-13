@@ -147,6 +147,27 @@ services:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue=sync-shopify-queue --tries=3 --timeout=0"
+  queue-scout-worker-1:
+    <<: *common-queue-settings
+    container_name: queue-scout-queue-worker-1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=scout --tries=3 --timeout=0"
+  queue-scout-worker-2:
+    <<: *common-queue-settings
+    container_name: queue-scout-queue-worker-2
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=scout --tries=3 --timeout=0"
+  queue-scout-worker-3:
+    <<: *common-queue-settings
+    container_name: queue-scout-queue-worker-3
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=scout --tries=3 --timeout=0"
 
   laravel-scheduler:
     container_name: laravel-scheduler
