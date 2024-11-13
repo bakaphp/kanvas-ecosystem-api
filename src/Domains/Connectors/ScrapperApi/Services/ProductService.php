@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ScrapperApi\Services;
 
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum as ScrapperConfigEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -29,12 +28,11 @@ class ProductService
         $amazonPrice = $product['price'];
         $price = $this->calcDiscountPrice($product);
         $name = Str::limit($product['name'], 255);
-        Log::info('Product Name: ' . $product['asin']);
         $product = [
             'name' => $name,
             'description' => $name ,
-            'price' => $price,
-            'discountPrice' => $price,
+            'price' => $price['total'],
+            'discountPrice' => $price['discount'],
             'slug' => Str::slug($product['asin']),
             'sku' => $product['asin'],
             'source_id' => $product['asin'],
@@ -45,7 +43,7 @@ class ProductService
             'warehouses' => [
                 [
                     'id' => $this->warehouse->id,
-                    'price' => (float) $price,
+                    'price' => (float) $price['total'],
                     'warehouse' => $this->warehouse->name,
                     'quantity' => 10,
                     'sku' => $product['asin'],
@@ -120,7 +118,7 @@ class ProductService
 
     public function mapCategories(array $product): array
     {
-        $categories = explode('>', $product['product_category']);
+        $categories = explode(' › ', $product['product_category']);
         $mapCategories = [];
         $position = 1;
         foreach ($categories as $category) {
@@ -175,7 +173,7 @@ class ProductService
         return (float)$weight;
     }
 
-    public function calcDiscountPrice(array $product): float
+    public function calcDiscountPrice(array $product): array
     {
         $discount = 0;
         $amazonPrice = (float)$product['price'];
@@ -204,6 +202,6 @@ class ProductService
         $discount = $amazonPrice - $discountAmount;
         $discount = round($discount, 2);
 
-        return $discount;
+        return ['total' => $total, 'discount' => $discount];
     }
 }
