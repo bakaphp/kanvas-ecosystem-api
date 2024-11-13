@@ -16,6 +16,7 @@
         "awobaz/compoships": "^2.2",
         "berkayk/onesignal-laravel": "^2.0",
         "darryldecode/cart": "dev-l11-compatibility",
+        "doctrine/dbal": "^4.2",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
         "genealabs/laravel-model-caching": "^11.0",
         "google/apiclient": "^2.16",
