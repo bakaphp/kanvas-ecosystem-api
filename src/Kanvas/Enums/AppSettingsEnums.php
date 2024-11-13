@@ -37,6 +37,7 @@ enum AppSettingsEnums implements EnumsInterface
     case FILESYSTEM_ALLOW_DUPLICATE_FILES_BY_NAME;
     case FILESYSTEM_MAPPER_HEADER_VALIDATION;
     case NOTIFICATION_FROM_USER_ID;
+    case USE_LEGACY_ROLES;
 
     /**
      * Get value.
@@ -73,6 +74,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::FILESYSTEM_ALLOW_DUPLICATE_FILES_BY_NAME => 'filesystem_allow_duplicate_files_by_name',
             self::FILESYSTEM_MAPPER_HEADER_VALIDATION => 'filesystem_mapper_header_validation',
             self::NOTIFICATION_FROM_USER_ID => 'notification_from_user_id',
+            self::USE_LEGACY_ROLES => 'app_use_legacy_roles',
         };
     }
 }

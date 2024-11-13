@@ -68,12 +68,17 @@ class AssignCompanyAction
         );
         $assignRole->execute();
 
-        if (! $roleLegacy = $app->get(AppSettingsEnums::DEFAULT_ROLE_NAME->getValue())) {
-            $roleLegacy = $app->name . '.' . $this->user->role()->first()->name;
-        }
+        /**
+         * @todo after migration to niche, remove
+         */
+        if ($app->get(AppSettingsEnums::USE_LEGACY_ROLES->getValue(), false)) {
+            if (! $roleLegacy = $app->get(AppSettingsEnums::DEFAULT_ROLE_NAME->getValue())) {
+                $roleLegacy = $app->name . '.' . $this->user->role()->notDeleted()->first()->name;
+            }
 
-        $assignRoleLegacy = new ActionsAssignRoleAction($this->user, $this->company, $app);
-        $assignRoleLegacy->execute($roleLegacy);
+            $assignRoleLegacy = new ActionsAssignRoleAction($this->user, $this->company, $app);
+            $assignRoleLegacy->execute($roleLegacy);
+        }
         (new CompaniesSetUsersCountAction($this->company))->execute();
     }
 }
