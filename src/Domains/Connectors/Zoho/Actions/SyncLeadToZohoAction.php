@@ -26,6 +26,7 @@ class SyncLeadToZohoAction
 
     public function execute(): array
     {
+        /** @return array */
         return DB::transaction(function () {
             $lead = Lead::where('id', $this->lead->id)->lockForUpdate()->first();
             $zohoLead = ZohoLead::fromLead($this->lead);
