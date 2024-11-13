@@ -1,11 +1,11 @@
-version: '3.8'
+version: "3.8"
 
 x-common-queue-settings: &common-queue-settings
   restart: always
   image: php-app-image # Reuse the same built image
   extra_hosts:
     - "host.docker.internal:host-gateway"
-  command: 
+  command:
     - "sh"
     - "-c"
     - "php artisan config:cache && php artisan queue:work --tries=3 --timeout=3750"
@@ -27,15 +27,15 @@ services:
     build:
       context: .
       dockerfile: 1.x.Dockerfile
-    image: php-app-image  # Build the image here
+    image: php-app-image # Build the image here
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
       - "8000:8000"
-    command: 
-    - "sh"
-    - "-c"
-    - "php artisan octane:start --server=swoole"
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan octane:start --server=swoole"
     environment:
       WWWUSER: "${WWWUSER}"
       LARAVEL_SAIL: 1
@@ -71,11 +71,11 @@ services:
   queue6:
     <<: *common-queue-settings
     container_name: queue6
-  
+
   queue7:
     <<: *common-queue-settings
     container_name: queue7
-  
+
   queue8:
     <<: *common-queue-settings
     container_name: queue8
@@ -83,7 +83,7 @@ services:
   queue-social:
     <<: *common-queue-settings
     container_name: queue-social
-    command: 
+    command:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue kanvas-social --tries=3 --timeout=3750"
@@ -91,7 +91,7 @@ services:
   queue-notifications:
     <<: *common-queue-settings
     container_name: queue-notifications
-    command: 
+    command:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue notifications --tries=3 --timeout=3750"
@@ -103,19 +103,19 @@ services:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue=user-interactions --tries=3 --timeout=3750"
-  
+
   batch-logger-queue:
     <<: *common-queue-settings
     container_name: batch-logger-queue
-    command: 
-        - "sh"
-        - "-c"
-        - "php artisan config:cache && php artisan queue:work --queue=batch-logger --tries=3 --timeout=3750"
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=batch-logger --tries=3 --timeout=3750"
 
   queue-imports:
     <<: *common-queue-settings
     container_name: queue-imports
-    command: 
+    command:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue imports --tries=3 --timeout=3750"
@@ -123,15 +123,39 @@ services:
   queue-imports2:
     <<: *common-queue-settings
     container_name: queue-imports2
-    command: 
+    command:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue imports --tries=3 --timeout=3750"
 
+  queue-scout-worker-1:
+    <<: *common-queue-settings
+    container_name: queue-scout-worker-1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue scout --tries=3 --timeout=3750"
+
+  queue-scout-worker-2:
+    <<: *common-queue-settings
+    container_name: queue-scout-worker-2
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue scout --tries=3 --timeout=3750"
+
+  queue-scout-worker-3:
+    <<: *common-queue-settings
+    container_name: queue-scout-worker-3
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue scout --tries=3 --timeout=3750"
+
   laravel-scheduler:
     container_name: laravel-scheduler
     restart: always
-    image: php-app-image  # Reuse the same image here
+    image: php-app-image # Reuse the same image here
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command:
