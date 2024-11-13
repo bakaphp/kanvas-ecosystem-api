@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -26,7 +27,7 @@ class ProductBuilder
         $app = app(Apps::class);
         $companyBranch = app(CompaniesBranches::class);
         if (! auth()->user()) {
-            Auth::loginUsingId($companyBranch->company->users_id);
+            Auth::loginUsingId($app->get(AppEnums::fromName('DEFAULT_PUBLIC_SEARCH_USER_ID')));
         }
         $company = auth()->user()->getCurrentCompany();
         $user = auth()->user();
