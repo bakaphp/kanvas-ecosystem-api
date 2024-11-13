@@ -154,7 +154,7 @@ trait HasCustomFields
     /**
      * Get the Custom Field.
      */
-    public function get(string $name): mixed
+    public function get(string $name, mixed $defaultValue = null): mixed
     {
         if ($value = $this->getFromRedis($name)) {
             return $value;
@@ -164,7 +164,7 @@ trait HasCustomFields
             return $field->value;
         }
 
-        return null;
+        return $defaultValue;
     }
 
     /**
