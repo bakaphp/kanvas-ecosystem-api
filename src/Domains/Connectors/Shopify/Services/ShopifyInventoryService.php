@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Shopify\Client;
+use Kanvas\Connectors\Shopify\Enums\ConfigEnum;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Enums\StatusEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -40,6 +41,7 @@ class ShopifyInventoryService
      */
     public function saveProduct(Products $product, StatusEnum $status, ?Channels $channel = null): array
     {
+        $variantLimit = $this->app->get(ConfigEnum::VARIANT_LIMIT->value, 100);
         $shopifyProductId = $product->getShopifyId($this->warehouses->regions);
 
         $productInfo = [
@@ -52,8 +54,9 @@ class ShopifyInventoryService
             'published_scope' => 'web',
         ];
 
+        $limitedVariants = $product->variants()->limit($variantLimit)->get();
         if ($shopifyProductId === null) {
-            foreach ($product->variants as $variant) {
+            foreach ($limitedVariants as $variant) {
                 $productInfo['variants'][] = $this->mapVariant($variant);
             }
 
@@ -73,7 +76,7 @@ class ShopifyInventoryService
             $shopifyProduct = $this->shopifySdk->Product($shopifyProductId);
             $response = $shopifyProduct->put($productInfo);
 
-            foreach ($product->variants as $variant) {
+            foreach ($limitedVariants as $variant) {
                 $this->saveVariant($variant, $channel);
                 $this->setStock($variant, $channel);
             }

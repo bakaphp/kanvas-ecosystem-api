@@ -7,4 +7,5 @@ namespace Kanvas\Connectors\Shopify\Enums;
 enum ConfigEnum: string
 {
     case ACTIVITY_QUEUE = 'sync-shopify-queue';
+    case VARIANT_LIMIT = 'variant-limit';
 }
