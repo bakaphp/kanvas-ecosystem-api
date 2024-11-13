@@ -17,13 +17,13 @@ trait KanvasJobsTrait
      * Given a app model overwrite the default laravel app service
      * so the queue doesn't use the default one
      */
-    public function overwriteAppService(AppInterface $ap): void
+    public function overwriteAppService(AppInterface $app): void
     {
-        $this->overWriteAppPermissionService($app);
-
         App::scoped(Apps::class, function () use ($app) {
             return $app;
         });
+
+        $this->overWriteAppPermissionService($app);
     }
 
     public function overwriteAppServiceLocation(CompaniesBranches $branch): void
