@@ -11,7 +11,6 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Agents\Models\Agent;
@@ -81,16 +80,9 @@ class Lead extends BaseModel
         return 'Lead';
     }
 
-    public function participants(): HasManyThrough
+    public function participants(): HasMany
     {
-        return $this->hasManyThrough(
-            People::class,
-            LeadParticipant::class,
-            'peoples_id',
-            'leads_id',
-            'id',
-            'id'
-        );
+        return $this->hasMany(LeadParticipant::class, 'leads_id', 'id');
     }
 
     public function systemModule(): BelongsTo
