@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleRelationship;
 use Kanvas\Guild\Models\BaseModel;
-use Laravel\Scout\Searchable;
 
 /**
  * Class Leads.
@@ -19,7 +18,6 @@ use Laravel\Scout\Searchable;
  * @property int $leads_id
  * @property int $peoples_id
  * @property int $participants_types_id
- *
  */
 class LeadParticipant extends BaseModel
 {
@@ -35,7 +33,7 @@ class LeadParticipant extends BaseModel
     {
         return $this->belongsTo(
             People::class,
-            'people_id',
+            'peoples_id',
             'id'
         );
     }
