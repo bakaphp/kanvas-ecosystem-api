@@ -24,28 +24,7 @@ class ProductBuilder
         GraphQLContext $context,
         ResolveInfo $resolveInfo
     ): Builder {
-        $app = app(Apps::class);
-        $companyBranch = app(CompaniesBranches::class);
-        if (! auth()->user()) {
-            Auth::loginUsingId($app->get(AppEnums::fromName('DEFAULT_PUBLIC_SEARCH_USER_ID')));
-        }
-        $company = auth()->user()->getCurrentCompany();
-        $user = auth()->user();
 
-        if ($companyBranch && key_exists('search', $args)) {
-            $region = Regions::getDefault($company, $app);
-            $app->fireWorkflow(
-                event: WorkflowEnum::SEARCH->value,
-                params: [
-                'app' => $app,
-                'user' => auth()->user(),
-                'companyBranch' => $companyBranch,
-                'region' => $region,
-                'search' => $args['search'],
-                'uuid' => Str::uuid(),
-            ]
-            );
-        }
 
         if (! $user->isAppOwner()) {
             //Products::setSearchIndex($company->getId());
