@@ -121,19 +121,6 @@ extend type Mutation @guard {
         )
 }
 
-extend type Query {
-    publicProducts(
-        search: String @search
-        where: _ @whereConditions(columns: ["id", "name", "slug", "code"])
-        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
-    ): [Product!]!
-        @paginate(
-            scopes: ["fromApp", "fromCompany", "notDeleted"]
-            builder: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProducts"
-            defaultCount: 25
-        )
-}
-
 extend type Query @guard {
     products(
         search: String @search

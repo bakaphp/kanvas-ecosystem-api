@@ -12,9 +12,9 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 /**
- * Trait SearchWorkflowTrait.
+ * Trait SearchProductWorkflowTrait.
  */
-trait SearchWorkflowTrait
+trait SearchProductWorkflowTrait
 {
     public function fireSearch(
         Apps $app,

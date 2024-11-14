@@ -14,19 +14,19 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Channels\Models\Channels;
-use Kanvas\Inventory\Products\Traits\SearchWorkflowTrait;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Products\Traits\SearchProductWorkflowTrait;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants as ModelsVariants;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Variants\Repositories\VariantsChannelRepository;
-use Kanvas\Users\Models\Users;
+use Kanvas\Users\Repositories\UsersRepository;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 use stdClass;
-use Kanvas\Users\Repositories\UsersRepository;
 
 class VariantChannelBuilder
 {
-    use SearchWorkflowTrait;
+    use SearchProductWorkflowTrait;
 
     public function allVariantsPublishedInChannel(
         mixed $root,
@@ -39,23 +39,6 @@ class VariantChannelBuilder
         $channel = Channels::getByUuid($channelUuid);
         $variants = new ModelsVariants();
         $variantsChannel = new VariantsChannels();
-        $app = app(Apps::class);
-        $companyBranch = app(CompaniesBranches::class);
-        $region = Regions::getDefault($companyBranch->company, $app);
-        if (! $userId = $app->get(AppEnums::fromName('DEFAULT_PUBLIC_SEARCH_USER_ID'))) {
-            throw new ModelNotFoundException('User not found');
-        }
-        $user = UsersRepository::getUserOfAppById($userId, $app->getId());
-
-        //set index
-        //ModelsVariants::setSearchIndex((int) $channel->companies_id);
-        $this->fireSearch(
-            $app,
-            $user,
-            $companyBranch,
-            $region,
-            $args['search'] ?? ''
-        );
 
         /**
          * @var Builder
