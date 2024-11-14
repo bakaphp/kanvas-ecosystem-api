@@ -56,6 +56,9 @@ class ScrapperAction
                 $product = $repository->getByAsin($asin);
                 $product = array_merge($product, $result);
                 $mappedProduct = $service->mapProduct($product);
+                if ($mappedProduct['price'] >= 230) {
+                    continue;
+                }
                 ProductImporterJob::dispatch(
                     jobUuid: Str::uuid(),
                     importer: [$mappedProduct],
