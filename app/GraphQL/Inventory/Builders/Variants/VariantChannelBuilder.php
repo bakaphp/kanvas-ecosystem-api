@@ -22,6 +22,7 @@ use Kanvas\Inventory\Variants\Repositories\VariantsChannelRepository;
 use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 use stdClass;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class VariantChannelBuilder
 {
@@ -44,7 +45,7 @@ class VariantChannelBuilder
         if (! $userId = $app->get(AppEnums::fromName('DEFAULT_PUBLIC_SEARCH_USER_ID'))) {
             throw new ModelNotFoundException('User not found');
         }
-        $user = Users::getById($userId);
+        $user = UsersRepository::getUserOfAppById($userId, $app->getId());
 
         //set index
         //ModelsVariants::setSearchIndex((int) $channel->companies_id);
