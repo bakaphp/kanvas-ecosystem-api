@@ -93,7 +93,6 @@ class ShopifyInventoryService
         }
 
         $this->shopifyImageService->processEntityImage($product);
-
         return $response;
     }
 
@@ -157,7 +156,6 @@ class ShopifyInventoryService
             $variant->setShopifyId($this->warehouses->regions, $shopifyProductVariantId);
             $variant->setInventoryId($this->warehouses->regions, $shopifyProductVariantInventoryId);
         } else {
-            unset($variantInfo['option1']);
             $response = $shopifyProduct->Variant($shopifyProductVariantId)->put($variantInfo);
             if ($variant->getInventoryId($this->warehouses->regions) === null) {
                 $variant->setInventoryId($this->warehouses->regions, $response['inventory_item_id']);
