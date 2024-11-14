@@ -24,7 +24,6 @@ class ProductBuilder
         GraphQLContext $context,
         ResolveInfo $resolveInfo
     ): Builder {
-
         $user = auth()->user();
         if (! $user->isAppOwner()) {
             //Products::setSearchIndex($company->getId());
