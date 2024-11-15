@@ -40,7 +40,7 @@ class AllProductsPublishedOnChannel
         $companyBranch = app(CompaniesBranches::class);
         $region = Regions::getDefault($companyBranch->company, $app);
         if (! $userId = $app->get(AppEnums::fromName('DEFAULT_PUBLIC_SEARCH_USER_ID'))) {
-            throw new ModelNotFoundException('User not found');
+            throw new ModelNotFoundException('User default search not configured');
         }
         $user = UsersRepository::getUserOfAppById($userId, $app);
         $this->fireSearch(
