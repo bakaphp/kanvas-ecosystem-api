@@ -40,11 +40,7 @@ class ScrapperSearchActivity extends Activity
                 $params['region'],
                 $params['search']
             );
-            Log::info('Before Octane::concurrently');
-            [$results] = Octane::concurrently([
-                fn () => $action->execute(),
-            ]);
-            Log::info('After Octane::concurrently');
+            $action->execute();
             $this->setRecentlySearched($app, $word);
 
             return [
