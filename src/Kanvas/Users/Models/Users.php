@@ -62,6 +62,13 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
+use Bavix\Wallet\Traits\HasWallet;
+use Bavix\Wallet\Traits\HasWallets;
+use Bavix\Wallet\Interfaces\Wallet;
+use Bavix\Wallet\Traits\CanConfirm;
+use Bavix\Wallet\Interfaces\Confirmable;
+use Bavix\Wallet\Traits\CanPay;
+use Bavix\Wallet\Interfaces\Customer;
 
 /**
  * Users Model.
@@ -113,7 +120,7 @@ use Silber\Bouncer\Database\HasRolesAndAbilities;
  * @property int    $user_recover_code
  * @property int    $is_deleted
  */
-class Users extends Authenticatable implements UserInterface, ContractsAuthenticatable
+class Users extends Authenticatable implements UserInterface, ContractsAuthenticatable, Wallet, Confirmable, Customer
 {
     use HashTableTrait;
     use Notifiable;
@@ -131,6 +138,11 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     use CanUseWorkflow;
+    use HasWallet;
+    use HasWallets;
+    use CanConfirm;
+    use CanPay;
+
 
     protected ?string $defaultCompanyName = null;
     protected ?string $currentDeviceId = null;

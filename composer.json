@@ -14,6 +14,7 @@
         "algolia/algoliasearch-client-php": "^3.4",
         "algolia/scout-extended": "^3.0",
         "awobaz/compoships": "^2.2",
+        "bavix/laravel-wallet": "^11.3",
         "berkayk/onesignal-laravel": "^2.0",
         "darryldecode/cart": "dev-l11-compatibility",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
@@ -86,6 +87,7 @@
             "Kanvas\\Dashboard\\": "src/Domains/Dashboard",
             "Kanvas\\ActionEngine\\": "src/Domains/ActionEngine",
             "Kanvas\\Event\\": "src/Domains/Event",
+            "Kanvas\\Wallet\\": "src/Domains/Wallet",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }
@@ -153,12 +155,6 @@
         ],
         "pre-autoload-dump": "Google\\Task\\Composer::cleanup"
     },
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/laravel-shift/laravelshoppingcart.git"
-        }
-    ],
     "extra": {
         "laravel": {
             "dont-discover": []
