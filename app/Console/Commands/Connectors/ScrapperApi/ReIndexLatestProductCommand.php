@@ -12,9 +12,12 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum;
+use Baka\Traits\KanvasJobsTrait;
 
 class ReIndexLatestProductCommand extends Command
 {
+    use KanvasJobsTrait;
+
     /**
      * The name and signature of the console command.
      *
@@ -37,6 +40,7 @@ class ReIndexLatestProductCommand extends Command
     public function handle()
     {
         $app = Apps::getById((int) $this->argument('app_id'));
+        $this->overwriteAppService($app);
         $branch = CompaniesBranches::getById((int) $this->argument('branch_id'));
         $regions = Regions::getById((int) $this->argument('region_id'));
         $user = Users::getById((int) $this->argument('userId'));
