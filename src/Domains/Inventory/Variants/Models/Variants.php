@@ -32,6 +32,9 @@ use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
+use Bavix\Wallet\Interfaces\ProductInterface;
+use Bavix\Wallet\Traits\HasWallet;
+use Bavix\Wallet\Interfaces\Customer;
 
 /**
  * Class Attributes.
@@ -51,7 +54,7 @@ use Laravel\Scout\Searchable;
  * @property string barcode
  * @property string serial_number
  */
-class Variants extends BaseModel implements EntityIntegrationInterface
+class Variants extends BaseModel implements EntityIntegrationInterface, ProductInterface
 {
     use SlugTrait;
     use UuidTrait;
@@ -65,6 +68,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
 
     use CascadeSoftDeletes;
     use Compoships;
+    use HasWallet;
 
     protected $is_deleted;
     protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];
@@ -91,6 +95,19 @@ class Variants extends BaseModel implements EntityIntegrationInterface
 
     protected $guarded = [];
     protected static ?string $overWriteSearchIndex = null;
+
+    public function getAmountProduct(Customer $customer): int|string
+    {
+        return 100;
+    }
+
+    public function getMetaProduct(): ?array
+    {
+        return [
+            'title' => $this->title, 
+            'description' => 'Purchase of Product #' . $this->id,
+        ];
+    }
 
     public function getGraphTypeName(): string
     {
