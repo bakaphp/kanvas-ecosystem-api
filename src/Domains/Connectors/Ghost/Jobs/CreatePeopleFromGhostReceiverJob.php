@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Ghost\Jobs;
 
+use Kanvas\Connectors\Ghost\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
@@ -54,6 +55,14 @@ class CreatePeopleFromGhostReceiverJob extends ProcessWebhookJob
             [
                 'key' => 'subscribed_to_emails',
                 'value' => true,
+            ],
+            [
+                'key' => CustomFieldEnum::GHOST_MEMBER_ID->value,
+                'value' => $payload['id'],
+            ],
+            [
+                'key' => CustomFieldEnum::GHOST_MEMBER_UUID->value,
+                'value' => $payload['uuid'],
             ],
         ];
         $newsletters = [];

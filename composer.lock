@@ -1195,16 +1195,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.326.0",
+            "version": "3.327.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "5420284de9aad84e375fa8012cefd834bebfd623"
+                "reference": "3d52ec587989b136e486f94eff3dd316465aeb42"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/5420284de9aad84e375fa8012cefd834bebfd623",
-                "reference": "5420284de9aad84e375fa8012cefd834bebfd623",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/3d52ec587989b136e486f94eff3dd316465aeb42",
+                "reference": "3d52ec587989b136e486f94eff3dd316465aeb42",
                 "shasum": ""
             },
             "require": {
@@ -1287,9 +1287,9 @@
             "support": {
                 "forum": "https://forums.aws.amazon.com/forum.jspa?forumID=80",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.326.0"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.327.1"
             },
-            "time": "2024-11-13T19:07:44+00:00"
+            "time": "2024-11-15T01:53:30+00:00"
         },
         {
             "name": "berkayk/onesignal-laravel",
@@ -13775,16 +13775,16 @@
         },
         {
             "name": "twilio/sdk",
-            "version": "8.3.7",
+            "version": "8.3.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/twilio/twilio-php.git",
-                "reference": "d2eba45cdc483fde10527ce44811d6bbeea3c82e"
+                "reference": "d05c08d0b9ed017f61ebbc31bc4e5f4d758a0326"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/d2eba45cdc483fde10527ce44811d6bbeea3c82e",
-                "reference": "d2eba45cdc483fde10527ce44811d6bbeea3c82e",
+                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/d05c08d0b9ed017f61ebbc31bc4e5f4d758a0326",
+                "reference": "d05c08d0b9ed017f61ebbc31bc4e5f4d758a0326",
                 "shasum": ""
             },
             "require": {
@@ -13822,9 +13822,9 @@
             ],
             "support": {
                 "issues": "https://github.com/twilio/twilio-php/issues",
-                "source": "https://github.com/twilio/twilio-php/tree/8.3.7"
+                "source": "https://github.com/twilio/twilio-php/tree/8.3.8"
             },
-            "time": "2024-10-28T12:15:00+00:00"
+            "time": "2024-11-15T07:19:40+00:00"
         },
         {
             "name": "typesense/typesense-php",
@@ -16458,6 +16458,6 @@
     "platform": {
         "php": "^8.2"
     },
-    "platform-dev": [],
+    "platform-dev": {},
     "plugin-api-version": "2.6.0"
 }
