@@ -16,7 +16,7 @@ class CreatePeopleFromGhostReceiverJob extends ProcessWebhookJob
 {
     public function execute(): array
     {
-        $payload = $this->webhookRequest->payload['members'][0];
+        $payload = $this->webhookRequest->payload['member']['current'] ?? [];
 
         if (empty($payload)) {
             return [
