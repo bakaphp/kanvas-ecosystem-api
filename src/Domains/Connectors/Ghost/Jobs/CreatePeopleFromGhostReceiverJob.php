@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Ghost\Jobs;
 
+use Baka\Support\Str;
 use Kanvas\Connectors\Ghost\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
@@ -39,10 +40,6 @@ class CreatePeopleFromGhostReceiverJob extends ProcessWebhookJob
         ];
 
         $tags = [];
-        foreach ($payload['labels'] as $label) {
-            $tags[] = $label['name'];
-        }
-
         $customFields = [
             [
                 'key' => 'status',
@@ -65,6 +62,20 @@ class CreatePeopleFromGhostReceiverJob extends ProcessWebhookJob
                 'value' => $payload['uuid'],
             ],
         ];
+
+        foreach ($payload['labels'] as $label) {
+            if (Str::contains($label['name'], ':')) {
+                // Split "key:value" into key and value for custom fields
+                [$key, $value] = explode(':', $label['name'], 2);
+                $customFields[] = [
+                    'key' => $key,
+                    'value' => $value,
+                ];
+            } else {
+                $tags[] = $label['name'];
+            }
+        }
+
         $newsletters = [];
         foreach ($payload['newsletters'] as $newsletter) {
             $newsletters[] = [
