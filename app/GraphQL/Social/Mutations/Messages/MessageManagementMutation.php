@@ -121,7 +121,7 @@ class MessageManagementMutation
         $message->update($request['input']);
 
         if (array_key_exists('tags', $request['input']) && ! empty($request['input']['tags'])) {
-            $message->syncTags(array_column($request['input']['tags'], 'name'));
+            $message->syncTags($request['input']['tags']);
         }
 
         return $message;
