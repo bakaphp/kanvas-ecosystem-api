@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\CMLink\Services;
 
+use Kanvas\Connectors\CMLink\DataTransferObject\CMLink;
 use Kanvas\Connectors\CMLink\Enums\ConfigurationEnum;
-use Kanvas\Connectors\NetSuite\DataTransferObject\CMLink;
 
 class CMLinkSetupService
 {
