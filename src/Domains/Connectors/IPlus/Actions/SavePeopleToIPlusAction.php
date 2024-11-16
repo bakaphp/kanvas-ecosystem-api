@@ -11,7 +11,7 @@ use Kanvas\Connectors\IPlus\Enums\CustomFieldEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 
-class SyncPeopleWithIPlusAction
+class SavePeopleToIPlusAction
 {
     protected Client $client;
 

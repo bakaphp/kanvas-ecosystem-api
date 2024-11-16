@@ -11,7 +11,7 @@ use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 
-class SyncOrderWithIPlusAction
+class SaveOrderToIPlusAction
 {
     protected Client $client;
 

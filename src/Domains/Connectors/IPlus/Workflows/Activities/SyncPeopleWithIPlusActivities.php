@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\IPlus\Workflows\Activities;
 
 use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\IPlus\Actions\SavePeopleToIPlusAction;
 use Kanvas\Connectors\IPlus\Actions\SyncPeopleWithIPlusAction;
 use Kanvas\Guild\Customers\Models\People;
 use Workflow\Activity;
@@ -17,7 +18,7 @@ class SyncPeopleWithIPlusActivities extends Activity
     public function execute(People $people, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);
-        $createPeopleAction = new SyncPeopleWithIPlusAction($people);
+        $createPeopleAction = new SavePeopleToIPlusAction($people);
         $response = $createPeopleAction->execute();
 
         return [

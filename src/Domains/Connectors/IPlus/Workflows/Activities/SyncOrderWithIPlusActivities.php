@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\IPlus\Workflows\Activities;
 
 use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\IPlus\Actions\SaveOrderToIPlusAction;
 use Kanvas\Connectors\IPlus\Actions\SyncOrderWithIPlusAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Workflow\Activity;
@@ -17,7 +18,7 @@ class SyncOrderWithIPlusActivities extends Activity
     public function execute(Order $order, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);
-        $createOrder = new SyncOrderWithIPlusAction($order);
+        $createOrder = new SaveOrderToIPlusAction($order);
         $response = $createOrder->execute();
 
         return [
