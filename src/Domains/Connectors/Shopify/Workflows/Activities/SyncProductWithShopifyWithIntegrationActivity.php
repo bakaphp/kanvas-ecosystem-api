@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Workflows\Activities;
 
+use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Enums\StatusEnum as ShopifyStatusEnum;
 use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
@@ -19,10 +20,11 @@ use Workflow\Activity;
 
 class SyncProductWithShopifyWithIntegrationActivity extends Activity
 {
-    public $tries = 5;
+    use KanvasJobsTrait;
 
     public function execute(Products $product, Apps $app, array $params): array
     {
+        $this->overwriteAppService($app);
         $response = [];
         $exception = null;
         $status = Status::where('slug', StatusEnum::ACTIVE->value)
