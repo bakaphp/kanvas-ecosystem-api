@@ -2,18 +2,20 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\IPlus\DataTransferObject;
+namespace Kanvas\Connectors\NetSuite\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 
-class IPlus
+class CMLink
 {
     public function __construct(
         public CompanyInterface $company,
         public AppInterface $app,
-        public string $client_id,
-        public string $client_secret
+        public string $app_key,
+        public string $app_secret,
+        public string $app_account_id,
+        public string $app_account_type
     ) {
     }
 
@@ -25,8 +27,10 @@ class IPlus
         return new self(
             $company,
             $app,
-            $data['client_id'],
-            $data['client_secret']
+            $data['app_key'],
+            $data['app_secret'],
+            $data['app_account_id'],
+            $data['app_account_type']
         );
     }
 }

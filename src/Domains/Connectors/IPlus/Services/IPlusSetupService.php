@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+namespace Kanvas\Connectors\IPlus\Services;
+
+use Kanvas\Connectors\IPlus\DataTransferObject\IPlus;
 use Kanvas\Connectors\IPlus\Enums\ConfigurationEnum;
-use Kanvas\Connectors\NetSuite\DataTransferObject\IPlus;
 
 class IPlusSetupService
 {
