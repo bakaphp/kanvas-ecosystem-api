@@ -41,7 +41,7 @@ class Client
         ]);
     }
 
-    protected function getValidAccessToken(): AccessTokenInterface
+    public function getValidAccessToken(): AccessTokenInterface
     {
         // Try to get token from Redis
         $cachedToken = Redis::get('iplus_access_token');
@@ -58,12 +58,12 @@ class Client
         return $this->requestNewAccessToken();
     }
 
-    protected function isTokenValid(array $tokenData): bool
+    public function isTokenValid(array $tokenData): bool
     {
         return isset($tokenData['expires']) && $tokenData['expires'] > time();
     }
 
-    protected function requestNewAccessToken(): AccessTokenInterface
+    public function requestNewAccessToken(): AccessTokenInterface
     {
         try {
             $accessToken = $this->provider->getAccessToken('client_credentials');

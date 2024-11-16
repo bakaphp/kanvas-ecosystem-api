@@ -33,6 +33,10 @@ class SyncProductWithShopifyWithIntegrationActivity extends Activity
 
         foreach ($product->variants as $variant) {
             foreach ($variant->warehouses as $warehouse) {
+                /**
+                 * @todo create a ActivityWorkflow so we don`t have to call
+                 * getting integration and its history
+                 */
                 $integrationCompany = IntegrationsCompany::getByIntegration(
                     company: $product->company,
                     status: $status,
