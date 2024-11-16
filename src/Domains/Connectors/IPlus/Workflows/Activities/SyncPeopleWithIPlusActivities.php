@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\IPlus\Workflows\Activities;
 use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\IPlus\Actions\SavePeopleToIPlusAction;
-use Kanvas\Connectors\IPlus\Actions\SyncPeopleWithIPlusAction;
 use Kanvas\Guild\Customers\Models\People;
 use Workflow\Activity;
 

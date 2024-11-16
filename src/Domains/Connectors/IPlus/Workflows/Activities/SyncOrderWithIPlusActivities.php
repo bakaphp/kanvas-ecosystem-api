@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\IPlus\Workflows\Activities;
 use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\IPlus\Actions\SaveOrderToIPlusAction;
-use Kanvas\Connectors\IPlus\Actions\SyncOrderWithIPlusAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Workflow\Activity;
 
