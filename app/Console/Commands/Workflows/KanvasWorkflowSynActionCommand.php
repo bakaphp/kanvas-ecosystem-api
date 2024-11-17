@@ -30,6 +30,7 @@ use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyWithInt
 use Kanvas\Connectors\Stripe\Jobs\ImportStripePlanWebhookJob;
 use Kanvas\Connectors\Stripe\Jobs\ImportStripePriceWebhookJob;
 use Kanvas\Connectors\Stripe\Jobs\UpdatePeopleStripeSubscriptionJob;
+use Kanvas\Connectors\Stripe\Webhooks\CashierStripeWebhookJob;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
 use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
@@ -81,6 +82,7 @@ class KanvasWorkflowSynActionCommand extends Command
             AppUsersNotificationByRoleActivity::class,
             ProcessNetSuiteCompanyCustomerWebhookJob::class,
             CreatePeopleFromGhostReceiverJob::class,
+            CashierStripeWebhookJob::class,
         ];
 
         $createdActions = [];
