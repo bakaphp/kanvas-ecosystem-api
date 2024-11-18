@@ -48,7 +48,7 @@ class ShopifyImageService
             // Check if the image already exists
             $existingImages = $shopifyProduct->Image->get();
             foreach ($existingImages as $image) {
-                if ($image['alt'] === $fileName) {
+                if ($image['alt'] === $fileName || $image['src'] === $imageUrl) {
                     return null; // Image already exists, no need to upload
                 }
             }

@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Exceptions\AuthenticationException;
-use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -122,7 +121,7 @@ class MessageManagementMutation
         $message->update($request['input']);
 
         if (array_key_exists('tags', $request['input']) && ! empty($request['input']['tags'])) {
-            $message->syncTags(array_column($request['input']['tags'], 'name'));
+            $message->syncTags($request['input']['tags']);
         }
 
         return $message;
@@ -196,5 +195,15 @@ class MessageManagementMutation
             user: auth()->user(),
             request: $request
         );
+    }
+
+    public function recoverMessage(mixed $root, array $request): Message
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $message = Message::withTrashed()->where('id', $request['id'])->where('users_id', $user->getId())->fromApp($app)->firstOrFail();
+        $message->restore();
+
+        return $message;
     }
 }

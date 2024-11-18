@@ -16,9 +16,12 @@ use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreatePeopleAction
 {
+    public bool $runWorkflow = true;
+
     /**
      * __construct.
      */
@@ -69,7 +72,7 @@ class CreatePeopleAction
         $people->saveCustomFields();
 
         if (count($this->peopleData->tags)) {
-            $people->syncTags(array_column($this->peopleData->tags, 'name'));
+            $people->syncTags($this->peopleData->tags);
         }
 
         if ($this->peopleData->contacts->count()) {
@@ -157,6 +160,16 @@ class CreatePeopleAction
 
         if (! empty($addressesToAdd)) {
             $people->address()->saveMany($addressesToAdd);
+        }
+
+        if ($this->runWorkflow) {
+            $people->fireWorkflow(
+                WorkflowEnum::CREATED->value,
+                true,
+                [
+                    'app' => $this->peopleData->app,
+                ]
+            );
         }
 
         $people->refresh();

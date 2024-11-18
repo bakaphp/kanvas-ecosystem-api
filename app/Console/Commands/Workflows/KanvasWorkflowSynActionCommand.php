@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Console\Commands\Workflows;
 
 use Illuminate\Console\Command;
+use Kanvas\Apps\Activities\AppUsersNotificationByRoleActivity;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
+use Kanvas\Connectors\Ghost\Jobs\CreatePeopleFromGhostReceiverJob;
 use Kanvas\Connectors\Google\Activities\GenerateUserForYouFeedActivity;
 use Kanvas\Connectors\Google\Activities\SyncMessageToDocumentActivity;
 use Kanvas\Connectors\Google\Activities\SyncUserInteractionToEventActivity;
@@ -15,6 +17,7 @@ use Kanvas\Connectors\Internal\Activities\GenerateMessageSlugActivity;
 use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductActivity;
 use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductsAfterImportActivity;
 use Kanvas\Connectors\Internal\Activities\UserCustomFieldActivity;
+use Kanvas\Connectors\NetSuite\Webhooks\ProcessNetSuiteCompanyCustomerWebhookJob;
 use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
 use Kanvas\Connectors\RainForest\Workflows\Activities\ImportProductActivity;
@@ -27,6 +30,7 @@ use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyWithInt
 use Kanvas\Connectors\Stripe\Jobs\ImportStripePlanWebhookJob;
 use Kanvas\Connectors\Stripe\Jobs\ImportStripePriceWebhookJob;
 use Kanvas\Connectors\Stripe\Jobs\UpdatePeopleStripeSubscriptionJob;
+use Kanvas\Connectors\Stripe\Webhooks\CashierStripeWebhookJob;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
 use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
@@ -75,6 +79,10 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncProductWithShopifyWithIntegrationActivity::class,
             UnPublishExpiredProductsAfterImportActivity::class,
             GenerateUserForYouFeedActivity::class,
+            AppUsersNotificationByRoleActivity::class,
+            ProcessNetSuiteCompanyCustomerWebhookJob::class,
+            CreatePeopleFromGhostReceiverJob::class,
+            CashierStripeWebhookJob::class,
         ];
 
         $createdActions = [];

@@ -61,8 +61,13 @@ jobs:
             docker restart laravel-scheduler
             docker restart queue-sync-shopify
             docker restart queue-sync-shopify-worker-1
-            docker restart queue-sync-shopify-worker-2
+            docker restart queue-sync-shopify-queue-worker-1
+            docker restart queue-sync-shopify-queue-worker-2
+            docker restart queue-scout-queue-worker-1
+            docker restart queue-scout-queue-worker-2
+            docker restart queue-scout-queue-worker-3
             docker restart batch-logger-queue
+            docker restart queue-user-interactions
             if [ "docker-compose.${{ github.ref_name }}.yml" == "docker-compose.1.x.yml" ]; then
               docker restart queue-imports2
               docker restart queue2

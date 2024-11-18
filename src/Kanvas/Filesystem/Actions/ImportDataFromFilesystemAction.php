@@ -222,15 +222,9 @@ class ImportDataFromFilesystemAction
 
     private function getFilePath(Filesystem $filesystem): string
     {
-        $path = $filesystem->path;
-        $diskS3 = (new FilesystemServices($this->filesystemImports->app))->buildS3Storage();
+        $service = (new FilesystemServices($this->filesystemImports->app));
 
-        $fileContent = $diskS3->get($path);
-        $filename = basename($path);
-        $path = storage_path('app/csv/' . $filename);
-        file_put_contents($path, $fileContent);
-
-        return $path;
+        return $service->getFileLocalPath($filesystem);
     }
 
     public function getJob(string $className): string

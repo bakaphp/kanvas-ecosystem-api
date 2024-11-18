@@ -16,6 +16,11 @@ type Company {
     countries: Country @belongsTo(relation: "country")
     states: States @belongsTo(relation: "state")
     cities: States @belongsTo(relation: "city")
+    address_2: String
+    city: String
+    state: String
+    country: String
+    zip: String
     is_active: Boolean!
     users: [User] @HasManyThrough
     files: [Filesystem!]!
@@ -71,11 +76,16 @@ type CompanyBranch {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
-    address: [Address!] @hasMany(relation: "address")
+    address: String
     user: User! @belongsTo(relation: "user")
     countries: Country @belongsTo(relation: "country")
     states: States @belongsTo(relation: "state")
     cities: States @belongsTo(relation: "city")
+    address_2: String
+    city: String
+    state: String
+    country: String
+    zip: String
     zipcode: Int
     total_users: Int!
     is_active: Boolean!

@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Shopify\Client;
+use Kanvas\Connectors\Shopify\Enums\ConfigEnum;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Enums\StatusEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -40,6 +41,7 @@ class ShopifyInventoryService
      */
     public function saveProduct(Products $product, StatusEnum $status, ?Channels $channel = null): array
     {
+        $variantLimit = $this->app->get(ConfigEnum::VARIANT_LIMIT->value, 100);
         $shopifyProductId = $product->getShopifyId($this->warehouses->regions);
 
         $productInfo = [
@@ -50,10 +52,12 @@ class ShopifyInventoryService
             'vendor' => 'default' , //$product->categ->name , setup vendor as a attribute and add a wy to look for a attribute $product->attribute('vendor')
             'status' => $product->hasPrice($this->warehouses, $channel) ? $status->value : StatusEnum::ARCHIVED->value,
             'published_scope' => 'web',
+            'tags' => $product->categories->pluck('name')->implode(','),
         ];
 
+        $limitedVariants = $product->variants()->limit($variantLimit)->get();
         if ($shopifyProductId === null) {
-            foreach ($product->variants as $variant) {
+            foreach ($limitedVariants as $variant) {
                 $productInfo['variants'][] = $this->mapVariant($variant);
             }
 
@@ -68,12 +72,16 @@ class ShopifyInventoryService
                     $variant->setInventoryId($this->warehouses->regions, $shopifyVariant['inventory_item_id']);
                     $this->setStock($variant, $channel);
                 }
+
+                $shopifyVariantMetafieldService = new ShopifyVariantMetafieldService($this->app, $this->company, $this->warehouses->regions, $variant);
+
+                $shopifyVariantMetafieldService->setMetaField();
             }
         } else {
             $shopifyProduct = $this->shopifySdk->Product($shopifyProductId);
             $response = $shopifyProduct->put($productInfo);
 
-            foreach ($product->variants as $variant) {
+            foreach ($limitedVariants as $variant) {
                 $this->saveVariant($variant, $channel);
                 $this->setStock($variant, $channel);
             }
@@ -90,7 +98,6 @@ class ShopifyInventoryService
         }
 
         $this->shopifyImageService->processEntityImage($product);
-
         return $response;
     }
 
@@ -116,7 +123,7 @@ class ShopifyInventoryService
 
         $quantity = $warehouseInfo?->quantity ?? 0;
         $shopifyVariantInfo = [
-            'option1' => $variant->sku ?? $variant->name,
+            'option1' => $variant->name ?? $variant->sku,
             'sku' => $variant->sku,
             'barcode' => $variant->barcode,
             'price' => $price,
@@ -154,7 +161,6 @@ class ShopifyInventoryService
             $variant->setShopifyId($this->warehouses->regions, $shopifyProductVariantId);
             $variant->setInventoryId($this->warehouses->regions, $shopifyProductVariantInventoryId);
         } else {
-            unset($variantInfo['option1']);
             $response = $shopifyProduct->Variant($shopifyProductVariantId)->put($variantInfo);
             if ($variant->getInventoryId($this->warehouses->regions) === null) {
                 $variant->setInventoryId($this->warehouses->regions, $response['inventory_item_id']);

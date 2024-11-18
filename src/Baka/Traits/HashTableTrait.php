@@ -148,7 +148,7 @@ trait HashTableTrait
     /**
      * Get the settings base on the key.
      */
-    public function get(string $key): mixed
+    public function get(string $key, mixed $defaultValue = null): mixed
     {
         $this->createSettingsModel();
         $value = $this->getSettingsByKey($key);
@@ -157,7 +157,7 @@ trait HashTableTrait
             return $value->value;
         }
 
-        return null;
+        return $defaultValue;
     }
 
     /**

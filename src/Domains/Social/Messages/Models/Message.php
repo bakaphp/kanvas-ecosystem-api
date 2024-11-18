@@ -70,7 +70,7 @@ class Message extends BaseModel
     use AsTree;
     use CanUseWorkflow;
     use HasLightHouseCache;
-    use Cachable;
+    //use Cachable;
     use HasFilesystemTrait;
 
     protected $table = 'messages';

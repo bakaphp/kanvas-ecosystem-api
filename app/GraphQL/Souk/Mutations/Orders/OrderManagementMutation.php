@@ -49,7 +49,7 @@ class OrderManagementMutation
         return $this->handlePaymentResponse($response, $isSubscription);
     }
 
-    public function createFromCart(mixed $root, array $request): Order
+    public function createFromCart(mixed $root, array $request): array
     {
         $user = auth()->user();
         $cart = app('cart')->session($user->getId());
@@ -69,8 +69,11 @@ class OrderManagementMutation
 
         if ($cart->isEmpty() && empty($request['input']['items'])) {
             return [
-                'error_code' => 'Cart is empty',
-                'error_message' => 'Cart is empty',
+                'order' => null,
+                'message' => [
+                    'error_code' => 'Cart is empty',
+                    'error_message' => 'Cart is empty',
+                ],
             ];
         }
 
@@ -86,7 +89,10 @@ class OrderManagementMutation
             $request
         );
 
-        return $createOrder->execute();
+        return [
+            'order' => $createOrder->execute(),
+            'message' => 'Order created successfully',
+        ];
     }
 
     private function processPayment(DirectOrder $order, bool $isSubscription): mixed

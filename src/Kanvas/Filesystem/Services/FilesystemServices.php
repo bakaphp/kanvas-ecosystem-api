@@ -95,6 +95,7 @@ class FilesystemServices
         if (empty($aws['key']) || empty($aws['secret']) || empty($aws['region'])) {
             throw new ValidationException('Missing AWS credentials');
         }
+
         return Storage::build([
             'driver' => 's3',
             'key' => $aws['key'],
@@ -114,5 +115,18 @@ class FilesystemServices
     public function delete(ModelsFilesystem $file): bool
     {
         return $this->storage->delete($file->path);
+    }
+
+    public function getFileLocalPath(ModelsFilesystem $filesystem): string
+    {
+        $path = $filesystem->path;
+        $diskS3 = $this->buildS3Storage();
+
+        $fileContent = $diskS3->get($path);
+        $filename = basename($path);
+        $path = storage_path('app/csv/' . $filename);
+        file_put_contents($path, $fileContent);
+
+        return $path;
     }
 }

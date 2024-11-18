@@ -4,33 +4,22 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Handlers;
 
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
-use Kanvas\Inventory\Regions\Models\Regions;
-use Kanvas\Connectors\Interfaces\IntegrationInterfaces;
+use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\Shopify\Client;
-use Kanvas\Connectors\Shopify\ShopifyService;
 use Kanvas\Connectors\Shopify\DataTransferObject\Shopify as ShopifyDto;
+use Kanvas\Connectors\Shopify\ShopifyService;
 
-class ShopifyHandler extends IntegrationInterfaces
+class ShopifyHandler extends BaseIntegration
 {
-    public function __construct(
-        public Apps $app,
-        public Companies $company,
-        public Regions $region,
-        public array $data
-    ) {
-    }
-
     public function setup(): bool
     {
         $shopifyDto = new ShopifyDto(
             company: $this->company,
             app: $this->app,
             region: $this->region,
-            apiKey:$this->data['client_id'],
-            apiSecret:$this->data['client_secret'],
-            shopUrl:$this->data['shop_url'],
+            apiKey: $this->data['client_id'],
+            apiSecret: $this->data['client_secret'],
+            shopUrl: $this->data['shop_url'],
         );
 
         ShopifyService::shopifySetup($shopifyDto);

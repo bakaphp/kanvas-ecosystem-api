@@ -52,6 +52,9 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
             $payload['status_id'] = $leadReceiver->app->get(AppEnum::APP_DEFAULT_RECEIVER_LEAD_STATUS->value);
         }
 
+        $payload['type_id'] = $payload['type_id'] ?? $leadReceiver->lead_types_id;
+        $payload['source_id'] = $payload['source_id'] ?? $leadReceiver->leads_sources_id;
+
         $createLead = new CreateLeadAction(
             Lead::viaRequest(
                 $user ?? $leadReceiver->user,

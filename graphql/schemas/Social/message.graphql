@@ -73,6 +73,8 @@ input MessageInput {
 
 input MessageUpdateInput {
     message: Mixed
+    is_public: Int
+    is_deleted: Int
     tags: [TagInput!]
 }
 
@@ -107,6 +109,10 @@ extend type Mutation @guard {
     deleteMessage(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@delete"
+        )
+    restoreMessage(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@recoverMessage"
         )
     deleteMultipleMessages(ids: [ID!]!): Boolean!
         @field(
