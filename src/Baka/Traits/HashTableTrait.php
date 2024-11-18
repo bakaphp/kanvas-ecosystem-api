@@ -52,6 +52,7 @@ trait HashTableTrait
      */
     public function set(string $key, mixed $value, bool|int $isPublic = 0, ?Apps $app = null): bool
     {
+        $app = $app ?? app(Apps::class);
         $this->createSettingsModel();
 
         if ($value === null) {
@@ -92,6 +93,7 @@ trait HashTableTrait
      */
     public function setAll(array $settings, bool|int $isPublic = false, ?Apps $app = null): bool
     {
+        $app = $app ?? app(Apps::class);
         if (empty($settings)) {
             return false;
         }
@@ -109,13 +111,15 @@ trait HashTableTrait
      */
     protected function getSettingsByKey(string $key, ?Apps $app = null): mixed
     {
-        $query = $this->settingsModel
+        $app = $app ?? app(Apps::class);
+        return $this->settingsModel
             ->where($this->getSettingsPrimaryKey(), $this->getKey())
             ->when($app, function ($query) use ($app) {
                 return $query->where('apps_id', $app->getId());
             })
             ->where('name', $key)
             ->first();
+        
     }
 
     /**
@@ -124,7 +128,7 @@ trait HashTableTrait
     public function getAllSettings(bool $onlyPublicSettings = false, bool $publicFormat = false, ?Apps $app = null): array
     {
         $this->createSettingsModel();
-
+        $app = $app ?? app(Apps::class);
         $allSettings = [];
         if ($onlyPublicSettings) {
             $settings = $this->settingsModel::where($this->getSettingsPrimaryKey(), $this->getId())
@@ -180,6 +184,7 @@ trait HashTableTrait
      */
     public function deleteHash(string $key, ?Apps $app = null): bool
     {
+        $app = $app ?? app(Apps::class);
         $this->createSettingsModel();
         if ($record = $this->getSettingsByKey($key, $app)) {
             return $record->delete();
@@ -195,6 +200,7 @@ trait HashTableTrait
 
     public static function getByCustomField(string $name, mixed $value, ?Apps $app = null): ?Model
     {
+        $app = $app ?? app(Apps::class);
         $instance = new static();
         $settingsTable = $instance->getSettingsTable();
         $foreignKey = $instance->getSettingsForeignKey();
