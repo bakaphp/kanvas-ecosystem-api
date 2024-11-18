@@ -222,6 +222,8 @@ extend type Query @guard {
             @whereHasConditions(relation: "pipeline", columns: ["name"])
         hasReceiver: _
             @whereHasConditions(relation: "receiver", columns: ["name", "uuid"])
+        hasOwner: _
+            @whereHasConditions(relation: "owner", columns: ["id", "uuid"])
         orderBy: _
             @orderBy(
                 columns: [
