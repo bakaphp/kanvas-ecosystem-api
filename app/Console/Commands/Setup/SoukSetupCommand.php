@@ -24,7 +24,7 @@ class SoukSetupCommand extends Command
      *
      * @var string|null
      */
-    protected $description = 'Initializes the social system';
+    protected $description = 'Initializes the commerce system';
 
     /**
      * Execute the console command.
