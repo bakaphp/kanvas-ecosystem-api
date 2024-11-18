@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Domains\Connectors\CMLink;
+namespace Kanvas\Connectors\CMLink;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;

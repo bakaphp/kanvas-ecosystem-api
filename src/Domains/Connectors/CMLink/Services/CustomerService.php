@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\CMLink\Services;
 
-use Domains\Connectors\CMLink\Client;
+use Kanvas\Connectors\CMLink\Client;
 use Kanvas\Guild\Customers\Models\People;
 
 class CustomerService
