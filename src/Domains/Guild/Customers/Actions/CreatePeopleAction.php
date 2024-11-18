@@ -106,6 +106,8 @@ class CreatePeopleAction
 
             $addressesToAdd = [];
 
+            $isDefaultSet = false;
+
             foreach ($this->peopleData->address as $address) {
                 $newAddress = [
                     'address' => $address->address,
@@ -120,9 +122,13 @@ class CreatePeopleAction
                 ];
 
                 if (! in_array($newAddress, $existingAddresses)) {
-                    $addressesToAdd[] = new Address(array_merge($newAddress, [
-                        'is_default' => $address->is_default,
+                    $addressesToAdd[] = $addressesToAdd[] = new Address(array_merge($newAddress, [
+                        'is_default' => $isDefaultSet ? 0 : ($address->is_default ? 1 : 0),
                     ]));
+
+                    if ($address->is_default && ! $isDefaultSet) {
+                        $isDefaultSet = true; // Ensure only one is marked as default
+                    }
                 }
             }
         }
