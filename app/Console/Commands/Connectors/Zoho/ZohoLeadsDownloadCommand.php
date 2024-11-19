@@ -14,6 +14,7 @@ use Kanvas\Guild\Leads\Models\LeadReceiver;
 class ZohoLeadsDownloadCommand extends Command
 {
     use KanvasJobsTrait;
+
     /**
      * The name and signature of the console command.
      *
@@ -43,13 +44,22 @@ class ZohoLeadsDownloadCommand extends Command
         $leadsPerPage = (int) $this->argument('leadsPerPage');
 
         $downloadAllLeads = new DownloadAllZohoLeadAction($app, $company, $leadReceiver);
+        $totalLeads = $page * $leadsPerPage;
+
+        // Initialize the progress bar
+        $this->output->progressStart($totalLeads);
+
         $leads = $downloadAllLeads->execute($page, $leadsPerPage);
 
         foreach ($leads as $lead) {
-            echo 'Lead ' . $lead->id . ' downloaded' . PHP_EOL;
+            // Process the lead and advance the progress bar
+            $this->output->progressAdvance();
         }
 
-        $this->info($downloadAllLeads->getTotalLeadsProcessed() . ' leads downloaded from Zoho to ' . $leadReceiver->name);
+        // Finish the progress bar
+        $this->output->progressFinish();
+
+        $this->info(PHP_EOL . $downloadAllLeads->getTotalLeadsProcessed() . ' leads downloaded from Zoho to ' . $leadReceiver->name);
 
         return;
     }
