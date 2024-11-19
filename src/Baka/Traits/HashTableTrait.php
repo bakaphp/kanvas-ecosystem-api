@@ -119,7 +119,6 @@ trait HashTableTrait
             })
             ->where('name', $key)
             ->first();
-        
     }
 
     /**
