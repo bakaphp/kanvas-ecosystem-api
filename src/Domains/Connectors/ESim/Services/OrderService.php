@@ -27,9 +27,15 @@ class OrderService
         $channelId = $this->order->app->get(ConfigurationEnum::APP_CHANNEL_ID->value);
 
         return $this->client->post('/v2/esimgo/create/order', [
-            'type' => $esimBundle->value,
-            'quantity' => $item->quantity,
-            'item' => $item->product_sku,
+            'bundles' => [
+                [
+                    'type' => 'bundle',
+                    'quantity' => $item->quantity,
+                    'item' => $item->product_sku,
+                ],
+            ],
+            //'quantity' => $item->quantity,
+            //'item' => $item->product_sku,
             'total' => $this->order->total_net_amount,
             'total_days' => $totalDays->value,
             'wc_order_id' => 0,
