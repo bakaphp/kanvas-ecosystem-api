@@ -31,7 +31,7 @@ class OrderService
                 [
                     'type' => 'bundle',
                     'quantity' => $item->quantity,
-                    'item' => $item->product_sku,
+                    'item' => $esimBundle->value,
                 ],
             ],
             //'quantity' => $item->quantity,
