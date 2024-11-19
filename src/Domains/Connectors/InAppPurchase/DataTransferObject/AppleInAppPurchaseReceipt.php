@@ -39,7 +39,7 @@ class AppleInAppPurchaseReceipt extends Data
             $data['product_id'],
             $data['transaction_id'],
             $data['receipt'],
-            $data['transaction_date']
+            (int) $data['transaction_date']
         );
     }
 }
