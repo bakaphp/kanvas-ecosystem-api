@@ -26,7 +26,7 @@ class OrderService
         $totalDays = $item->variant->getAttributeByName('esim_days');
         $channelId = $this->order->app->get(ConfigurationEnum::APP_CHANNEL_ID->value);
 
-        return $this->client->post('/v2/esimgo/create/order', [
+        return $this->client->post('/api/v2/esimgo/create/order', [
             'bundles' => [
                 [
                     'type' => 'bundle',
