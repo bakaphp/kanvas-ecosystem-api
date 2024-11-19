@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Kanvas\Connectors\ScrapperApi\Jobs;
@@ -37,7 +38,6 @@ class IndexProductJob implements ShouldQueue
         public Users $user,
         public int $limit = 2000
     ) {
-
     }
 
     public function handle()
@@ -55,6 +55,5 @@ class IndexProductJob implements ShouldQueue
             );
             $action->execute();
         }
-
     }
 }
