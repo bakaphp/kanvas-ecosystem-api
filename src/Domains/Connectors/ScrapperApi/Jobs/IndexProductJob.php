@@ -54,8 +54,6 @@ class IndexProductJob implements ShouldQueue
                 $product->variants()->first()->slug
             );
             $action->execute();
-            echo "Product {$product->name} has been reindexed\n";
-            sleep(5);
         }
 
     }
