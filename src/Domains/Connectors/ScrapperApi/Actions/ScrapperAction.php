@@ -16,7 +16,7 @@ use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
-
+use Exception;
 use function Sentry\captureException;
 
 use Throwable;
@@ -51,7 +51,11 @@ class ScrapperAction
             $scrapperProducts++;
 
             try {
-                $asin = $result['asin'];
+                if (preg_match('/(?:asin=|dp\/)([A-Z0-9]{10})/', $result['url'], $matches)) {
+                    $asin = $matches[1];
+                } else {
+                    throw new Exception('ASIN not found');
+                }
                 $productModel = Products::getBySlug($asin, $this->companyBranch->company);
                 $product = $repository->getByAsin($asin);
                 $product = array_merge($product, $result);
