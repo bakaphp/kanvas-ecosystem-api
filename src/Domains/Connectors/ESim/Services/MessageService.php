@@ -23,6 +23,6 @@ class MessageService
         $esimBundle = $messageData['data']['plan'];
         $iccid = $messageData['data']['iccid'];
 
-        return $this->client->get('/v1/esimgo/check/status/' . $iccid . '/' . $esimBundle);
+        return $this->client->get('/api/v1/esimgo/check/status/' . $iccid . '/' . $esimBundle);
     }
 }
