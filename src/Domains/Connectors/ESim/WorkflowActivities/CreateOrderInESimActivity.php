@@ -12,6 +12,7 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Workflow\Activity;
 
 class CreateOrderInESimActivity extends Activity
@@ -26,6 +27,8 @@ class CreateOrderInESimActivity extends Activity
 
         $order->metadata = $response;
         $order->saveOrFail();
+
+        $response['order_id'] = $order->id;
 
         //create the esim for the user
         $messageType = (new CreateMessageTypeAction(
@@ -43,7 +46,9 @@ class CreateOrderInESimActivity extends Activity
                 $order->user,
                 $messageType,
                 $response
-            )
+            ),
+            SystemModulesRepository::getByModelName(Order::class, $app),
+            $order->getId()
         );
 
         $message = $createMessage->execute();

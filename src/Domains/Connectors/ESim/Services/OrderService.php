@@ -18,7 +18,7 @@ class OrderService
         $this->client = new Client($order->app, $order->company);
     }
 
-    public function createOrder()
+    public function createOrder(): array
     {
         $item = $this->order->items()->first();
 
