@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Mutations\Orders;
 
-use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\InAppPurchase\Actions\CreateOrderFromAppleReceiptAction;
 use Kanvas\Connectors\InAppPurchase\DataTransferObject\AppleInAppPurchaseReceipt;
 use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 
@@ -25,7 +25,7 @@ class AppleInAppPurchaseMutation
         try {
             $branch = CompaniesBranches::getById($defaultAppCompanyBranch);
             $company = $branch->company;
-        } catch (EloquentModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             $company = $user->getCurrentCompany();
         }
 

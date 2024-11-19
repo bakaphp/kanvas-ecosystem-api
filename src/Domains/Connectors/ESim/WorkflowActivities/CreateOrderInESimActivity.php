@@ -14,7 +14,7 @@ use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Souk\Orders\Models\Order;
 use Workflow\Activity;
 
-class UpdateOrderWithESimMetaDataActivity extends Activity
+class CreateOrderInESimActivity extends Activity
 {
     use KanvasJobsTrait;
 

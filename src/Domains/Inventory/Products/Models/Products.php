@@ -114,6 +114,13 @@ class Products extends BaseModel implements EntityIntegrationInterface
         );
     }
 
+    public function getAttributeByName(string $name): ?Attributes
+    {
+        return $this->attributes()
+            ->where('attributes.name', $name)
+            ->first();
+    }
+
     /**
      * attributes.
      */

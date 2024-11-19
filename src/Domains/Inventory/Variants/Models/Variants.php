@@ -176,6 +176,13 @@ class Variants extends BaseModel implements EntityIntegrationInterface
         return $this->buildAttributesQuery(['is_visible' => true]);
     }
 
+    public function getAttributeByName(string $name): ?Attributes
+    {
+        return $this->attributes()
+            ->where('attributes.name', $name)
+            ->first();
+    }
+
     public function searchableAttributes(): BelongsToMany
     {
         return $this->buildAttributesQuery(['is_searchable' => true]);
