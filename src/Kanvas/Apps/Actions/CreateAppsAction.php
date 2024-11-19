@@ -120,7 +120,7 @@ class CreateAppsAction
         ];
 
         foreach ($settings as $key => $value) {
-            $app->set($value['name'], $value['value']);
+            $app->set($value['name'], $value['value'], false, $app);
         }
     }
 
