@@ -17,6 +17,7 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use Exception;
+
 use function Sentry\captureException;
 
 use Throwable;
