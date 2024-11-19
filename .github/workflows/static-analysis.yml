@@ -1,6 +1,6 @@
 name: static analysis
 
-on: [ "push" ]
+on: ["push"]
 
 jobs:
   run-tests:
@@ -70,6 +70,7 @@ jobs:
       NET_SUITE_CONSUMER_SECRET: ${{ secrets.NET_SUITE_CONSUMER_SECRET }}
       NET_SUITE_TOKEN: ${{ secrets.NET_SUITE_TOKEN }}
       NET_SUITE_TOKEN_SECRET: ${{ secrets.NET_SUITE_TOKEN_SECRET }}
+      TEST_APPLE_PAYMENT_SHARED_SECRET: ${{ secrets.TEST_APPLE_PAYMENT_SHARED_SECRET }}
     strategy:
       fail-fast: false
       matrix:

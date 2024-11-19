@@ -8,7 +8,7 @@ type Order {
     billing_address_id: Int
     shipping_address_id: Int
     order_number: Int
-    user_id: Int
+    user_id: Int @deprecated(reason: "Use user field instead")
     user: User! @belongsTo
     people: People! @belongsTo
     company: Company! @belongsTo
@@ -153,6 +153,14 @@ input ProcessPaymentInput {
     payment_provider: String! # e.g., "stripe", "paypal"
 }
 
+input AppleInAppPurchaseReceipt {
+    product_id: ID!
+    transaction_id: String!
+    receipt: String!
+    transaction_date: Mixed!
+    region_id: ID
+}
+
 extend type Mutation @guard {
     # @deprecated(reason: "Use createOrderFromCart instead")
     createOrder(input: OrderInput!): Mixed!
@@ -166,6 +174,10 @@ extend type Mutation @guard {
     createDraftOrder(input: DraftOrderInput!): Order!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\DraftOrderManagementMutation@create"
+        )
+    createOrderFromAppleInAppPurchase(input: AppleInAppPurchaseReceipt!): Order!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\AppleInAppPurchaseMutation@create"
         )
     processOrderPayment(input: ProcessPaymentInput!): PaymentResult!
         @field(
