@@ -6,9 +6,11 @@ namespace App\Console\Commands\Setup;
 
 use Illuminate\Console\Command;
 use Kanvas\Apps\Repositories\AppsRepository;
+use Baka\Traits\KanvasJobsTrait;
 
 class FilesystemSetupCommand extends Command
 {
+    use KanvasJobsTrait;
     /**
      * The name and signature of the console command.
      *
@@ -27,7 +29,7 @@ class FilesystemSetupCommand extends Command
     {
         $appId = $this->argument('app_uuid') ?? config('kanvas.app.id');
         $app = AppsRepository::findFirstByKey($appId);
-
+        $this->overwriteAppService($app);
         $app->set('filesystem-service', 's3');
         $app->set('cloud-bucket', config('filesystems.disks.s3.bucket'));
         $app->set('cloud-cdn', config('filesystems.disks.s3.url'));
