@@ -72,7 +72,7 @@ class CreatePeopleAction
         $people->saveCustomFields();
 
         if (count($this->peopleData->tags)) {
-            $people->syncTags(array_column($this->peopleData->tags, 'name'));
+            $people->syncTags($this->peopleData->tags);
         }
 
         if ($this->peopleData->contacts->count()) {
@@ -104,6 +104,8 @@ class CreatePeopleAction
                 ->get()
                 ->toArray();
 
+            $hasDefaultAddress = $people->address()->where('is_default', 1)->exists();
+
             $addressesToAdd = [];
 
             foreach ($this->peopleData->address as $address) {
@@ -120,8 +122,8 @@ class CreatePeopleAction
                 ];
 
                 if (! in_array($newAddress, $existingAddresses)) {
-                    $addressesToAdd[] = new Address(array_merge($newAddress, [
-                        'is_default' => $address->is_default,
+                    $addressesToAdd[] = $addressesToAdd[] = new Address(array_merge($newAddress, [
+                        'is_default' => $hasDefaultAddress ? 0 : ($address->is_default ? 1 : 0),
                     ]));
                 }
             }

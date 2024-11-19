@@ -7,6 +7,8 @@ namespace App\Console\Commands\Workflows;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Activities\AppUsersNotificationByRoleActivity;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
+use Kanvas\Connectors\ESim\WorkflowActivities\UpdateOrderWithESimMetaDataActivity;
+use Kanvas\Connectors\Ghost\Jobs\CreatePeopleFromGhostReceiverJob;
 use Kanvas\Connectors\Google\Activities\GenerateUserForYouFeedActivity;
 use Kanvas\Connectors\Google\Activities\SyncMessageToDocumentActivity;
 use Kanvas\Connectors\Google\Activities\SyncUserInteractionToEventActivity;
@@ -29,6 +31,7 @@ use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyWithInt
 use Kanvas\Connectors\Stripe\Jobs\ImportStripePlanWebhookJob;
 use Kanvas\Connectors\Stripe\Jobs\ImportStripePriceWebhookJob;
 use Kanvas\Connectors\Stripe\Jobs\UpdatePeopleStripeSubscriptionJob;
+use Kanvas\Connectors\Stripe\Webhooks\CashierStripeWebhookJob;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
 use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
@@ -79,6 +82,9 @@ class KanvasWorkflowSynActionCommand extends Command
             GenerateUserForYouFeedActivity::class,
             AppUsersNotificationByRoleActivity::class,
             ProcessNetSuiteCompanyCustomerWebhookJob::class,
+            CreatePeopleFromGhostReceiverJob::class,
+            CashierStripeWebhookJob::class,
+            UpdateOrderWithESimMetaDataActivity::class
         ];
 
         $createdActions = [];

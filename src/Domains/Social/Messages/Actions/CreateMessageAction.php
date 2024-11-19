@@ -56,7 +56,7 @@ class CreateMessageAction
         $message = Message::create($data);
 
         if (count($this->messageInput->tags)) {
-            $message->syncTags(array_column($this->messageInput->tags, 'name'));
+            $message->syncTags($this->messageInput->tags);
         }
 
         if ($this->systemModule && $this->entityId !== null) {

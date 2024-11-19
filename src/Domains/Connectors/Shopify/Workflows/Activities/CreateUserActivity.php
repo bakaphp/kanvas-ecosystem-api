@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Workflows\Activities;
 
+use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -17,7 +18,7 @@ use Workflow\Activity;
 
 class CreateUserActivity extends Activity
 {
-    public $tries = 5;
+    use KanvasJobsTrait;
 
     public function execute(Users $user, Apps $app, array $params): array
     {
@@ -29,6 +30,7 @@ class CreateUserActivity extends Activity
             ];
         }
 
+        $this->overwriteAppService($app);
         $defaultCompanyBranchId = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
         $company = $defaultCompanyBranchId ? CompaniesBranches::getById($defaultCompanyBranchId)->company : $params['company'];
         $defaultRegion = Regions::getDefault($company);

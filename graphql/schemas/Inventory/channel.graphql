@@ -51,28 +51,46 @@ extend type Query @guard {
         search: String @search
         where: _
             @whereConditions(
-                columns: [
-                    "id"
-                    "name"
-                    "uuid"
-                    "is_published"
-                    "slug"
-                ]
+                columns: ["id", "name", "uuid", "is_published", "slug"]
             )
         orderBy: _
             @orderBy(
-                columns: [
-                    "id"
-                    "name"
-                    "slug"
-                    "created_at"
-                    "updated_at"
-                ]
+                columns: ["id", "name", "slug", "created_at", "updated_at"]
             )
     ): [Channel!]
         @paginate(
             model: "Kanvas\\Inventory\\Channels\\Models\\Channels"
             scopes: ["fromApp", "fromCompany"]
+            defaultCount: 25
+        )
+}
+
+extend type Query {
+    channelProducts(
+        id: String!
+        search: String @search
+        visitor: VisitorEntityInput
+        where: _ @whereConditions(columns: ["slug", "uuid", "name", "sku"])
+        hasAttributesValues: _
+            @whereHasConditions(
+                relation: "attributeValues"
+                columns: ["products_variants_id", "value", "attributes_id"]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "products_id"
+                    "status_id"
+                    "is_published"
+                ]
+            )
+    ): [Product!]
+        @paginate(
+            builder: "App\\GraphQL\\Inventory\\Builders\\Channels\\AllProductsPublishedOnChannel@allProductsPublishedInChannel"
             defaultCount: 25
         )
 }

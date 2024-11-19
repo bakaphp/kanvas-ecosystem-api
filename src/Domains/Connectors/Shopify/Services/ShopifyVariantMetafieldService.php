@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Exception;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Inventory\Regions\Models\Regions;
@@ -39,14 +40,13 @@ class ShopifyVariantMetafieldService
         $shopifyProductVariantId = $this->variant->getShopifyId($this->region);
         $shopifyProduct = $this->shopifySdk->Product($this->variant->product->getShopifyId($this->region));
         $shopifyMetaFields = $this->variant->get(CustomFieldEnum::SHOPIFY_META_FIELD_ID->value) ?? [];
-
         $i = 0;
         foreach ($attributes as $attribute) {
-            if (! $attribute->is_filterable) {
+            if (! $attribute->is_filtrable) {
                 $this->deleteMetaFieldIfExists($shopifyMetaFields, $attribute, $shopifyProduct, $shopifyProductVariantId);
+
                 continue;
             }
-
             $type = $this->determineType($attribute->value);
             $attributeValue = $type === 'json' ? json_encode($attribute->value) : $attribute->value;
 
@@ -55,10 +55,9 @@ class ShopifyVariantMetafieldService
                 'key' => $attribute->name,
                 'value' => $attributeValue,
                 'type' => $this->types[$type],
+                'variant_id' => $shopifyProductVariantId,
             ];
-
             $metaField = $shopifyProduct->Variant($shopifyProductVariantId)->Metafield->post($mutationGraphql);
-
             $shopifyMetaFields[$this->region->id][$attribute->id] = $metaField['id'];
             $i++;
         }

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9baa23547846dc46a3a607b09fe19321",
+    "content-hash": "176c92541fc8b6defbb61da223882e47",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -3809,6 +3809,189 @@
             "time": "2021-07-21T13:50:14+00:00"
         },
         {
+            "name": "imdhemy/appstore-iap",
+            "version": "1.7.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/imdhemy/appstore-iap.git",
+                "reference": "c82aa2ad083c8029121ca4062c0bd494c09746c1"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/imdhemy/appstore-iap/zipball/c82aa2ad083c8029121ca4062c0bd494c09746c1",
+                "reference": "c82aa2ad083c8029121ca4062c0bd494c09746c1",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "ext-openssl": "*",
+                "ext-sodium": "*",
+                "guzzlehttp/guzzle": "^7.6.0",
+                "lcobucci/clock": "^3.0",
+                "lcobucci/jwt": "^5.3",
+                "nesbot/carbon": "^2.66|^3.1",
+                "php": ">=8.1"
+            },
+            "require-dev": {
+                "fakerphp/faker": "^1.22",
+                "friendsofphp/php-cs-fixer": "^3.16",
+                "phpunit/phpunit": "^9.6",
+                "roave/security-advisories": "dev-latest",
+                "vimeo/psalm": "^5.11"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Imdhemy\\AppStore\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "imdhemy",
+                    "email": "imdhemy@gmail.com"
+                }
+            ],
+            "description": "PHP Appstore In-App Purchase implementation",
+            "support": {
+                "issues": "https://github.com/imdhemy/appstore-iap/issues",
+                "source": "https://github.com/imdhemy/appstore-iap/tree/1.7.0"
+            },
+            "time": "2024-06-30T18:08:57+00:00"
+        },
+        {
+            "name": "imdhemy/google-play-billing",
+            "version": "1.5.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/imdhemy/google-play-billing.git",
+                "reference": "5528bdff8eff5c4711e157541caa29283b632ae4"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/imdhemy/google-play-billing/zipball/5528bdff8eff5c4711e157541caa29283b632ae4",
+                "reference": "5528bdff8eff5c4711e157541caa29283b632ae4",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "google/auth": "^1.26",
+                "guzzlehttp/guzzle": "^7.5.1",
+                "nesbot/carbon": "^2.66|^3.0",
+                "php": ">=8.0"
+            },
+            "require-dev": {
+                "fakerphp/faker": "^1.21",
+                "friendsofphp/php-cs-fixer": "^3.16",
+                "phpunit/phpunit": "^9.6.7",
+                "roave/security-advisories": "dev-latest",
+                "vimeo/psalm": "^5.9"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Imdhemy\\GooglePlay\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "imdhemy",
+                    "email": "imdhemy@gmail.com"
+                }
+            ],
+            "description": "Google Play Billing",
+            "support": {
+                "issues": "https://github.com/imdhemy/google-play-billing/issues",
+                "source": "https://github.com/imdhemy/google-play-billing/tree/1.5.3"
+            },
+            "time": "2024-11-09T11:08:22+00:00"
+        },
+        {
+            "name": "imdhemy/laravel-purchases",
+            "version": "1.14.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/imdhemy/laravel-in-app-purchases.git",
+                "reference": "5504d2ab800c5bf68009b86185b5482b2b6fdfcc"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/imdhemy/laravel-in-app-purchases/zipball/5504d2ab800c5bf68009b86185b5482b2b6fdfcc",
+                "reference": "5504d2ab800c5bf68009b86185b5482b2b6fdfcc",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "ext-openssl": "*",
+                "imdhemy/appstore-iap": "^1.6",
+                "imdhemy/google-play-billing": "^1.5",
+                "laravel/framework": ">=8.0",
+                "php": ">=8.1"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": "^3.14",
+                "orchestra/testbench": "^6.24",
+                "psalm/plugin-laravel": "^2.0",
+                "psalm/plugin-phpunit": "^0.19.0",
+                "roave/security-advisories": "dev-latest",
+                "vimeo/psalm": "^5.11"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Imdhemy\\Purchases\\ServiceProviders\\LiapServiceProvider"
+                    ],
+                    "aliases": {
+                        "Product": "\\Imdhemy\\Purchases\\Facades\\Product",
+                        "Subscription": "\\Imdhemy\\Purchases\\Facades\\Subscription"
+                    }
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Imdhemy\\Purchases\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "imdhemy",
+                    "email": "imdhemy@gmail.com"
+                }
+            ],
+            "description": "The top-notch Laravel receipt validator.",
+            "homepage": "https://imdhemy.com/laravel-iap-docs",
+            "keywords": [
+                "app_store",
+                "google_play",
+                "in_app_purchases",
+                "laravel",
+                "laravel-in-app-purchases"
+            ],
+            "support": {
+                "issues": "https://github.com/imdhemy/laravel-in-app-purchases/issues",
+                "source": "https://github.com/imdhemy/laravel-in-app-purchases/tree/1.14.1"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/imdhemy",
+                    "type": "github"
+                }
+            ],
+            "time": "2024-11-07T08:52:08+00:00"
+        },
+        {
             "name": "jean85/pretty-package-versions",
             "version": "2.1.0",
             "source": {
@@ -4914,6 +5097,70 @@
                 "source": "https://github.com/laravel/tinker/tree/v2.10.0"
             },
             "time": "2024-09-23T13:32:56+00:00"
+        },
+        {
+            "name": "lcobucci/clock",
+            "version": "3.3.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/lcobucci/clock.git",
+                "reference": "db3713a61addfffd615b79bf0bc22f0ccc61b86b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/lcobucci/clock/zipball/db3713a61addfffd615b79bf0bc22f0ccc61b86b",
+                "reference": "db3713a61addfffd615b79bf0bc22f0ccc61b86b",
+                "shasum": ""
+            },
+            "require": {
+                "php": "~8.2.0 || ~8.3.0 || ~8.4.0",
+                "psr/clock": "^1.0"
+            },
+            "provide": {
+                "psr/clock-implementation": "1.0"
+            },
+            "require-dev": {
+                "infection/infection": "^0.29",
+                "lcobucci/coding-standard": "^11.1.0",
+                "phpstan/extension-installer": "^1.3.1",
+                "phpstan/phpstan": "^1.10.25",
+                "phpstan/phpstan-deprecation-rules": "^1.1.3",
+                "phpstan/phpstan-phpunit": "^1.3.13",
+                "phpstan/phpstan-strict-rules": "^1.5.1",
+                "phpunit/phpunit": "^11.3.6"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Lcobucci\\Clock\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Luís Cobucci",
+                    "email": "lcobucci@gmail.com"
+                }
+            ],
+            "description": "Yet another clock abstraction",
+            "support": {
+                "issues": "https://github.com/lcobucci/clock/issues",
+                "source": "https://github.com/lcobucci/clock/tree/3.3.1"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/lcobucci",
+                    "type": "github"
+                },
+                {
+                    "url": "https://www.patreon.com/lcobucci",
+                    "type": "patreon"
+                }
+            ],
+            "time": "2024-09-24T20:45:14+00:00"
         },
         {
             "name": "lcobucci/jwt",
@@ -6994,6 +7241,97 @@
             "time": "2024-09-09T07:06:30+00:00"
         },
         {
+            "name": "openai-php/client",
+            "version": "v0.10.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/openai-php/client.git",
+                "reference": "4a565d145e0fb3ea1baba8fffe39d86c56b6dc2c"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/openai-php/client/zipball/4a565d145e0fb3ea1baba8fffe39d86c56b6dc2c",
+                "reference": "4a565d145e0fb3ea1baba8fffe39d86c56b6dc2c",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1.0",
+                "php-http/discovery": "^1.20.0",
+                "php-http/multipart-stream-builder": "^1.4.2",
+                "psr/http-client": "^1.0.3",
+                "psr/http-client-implementation": "^1.0.1",
+                "psr/http-factory-implementation": "*",
+                "psr/http-message": "^1.1.0|^2.0.0"
+            },
+            "require-dev": {
+                "guzzlehttp/guzzle": "^7.9.2",
+                "guzzlehttp/psr7": "^2.7.0",
+                "laravel/pint": "^1.18.1",
+                "mockery/mockery": "^1.6.12",
+                "nunomaduro/collision": "^7.11.0|^8.5.0",
+                "pestphp/pest": "^2.36.0|^3.5.0",
+                "pestphp/pest-plugin-arch": "^2.7|^3.0",
+                "pestphp/pest-plugin-type-coverage": "^2.8.7|^3.1.0",
+                "phpstan/phpstan": "^1.12.7",
+                "symfony/var-dumper": "^6.4.11|^7.1.5"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "src/OpenAI.php"
+                ],
+                "psr-4": {
+                    "OpenAI\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Nuno Maduro",
+                    "email": "enunomaduro@gmail.com"
+                },
+                {
+                    "name": "Sandro Gehri"
+                }
+            ],
+            "description": "OpenAI PHP is a supercharged PHP API client that allows you to interact with the Open AI API",
+            "keywords": [
+                "GPT-3",
+                "api",
+                "client",
+                "codex",
+                "dall-e",
+                "language",
+                "natural",
+                "openai",
+                "php",
+                "processing",
+                "sdk"
+            ],
+            "support": {
+                "issues": "https://github.com/openai-php/client/issues",
+                "source": "https://github.com/openai-php/client/tree/v0.10.3"
+            },
+            "funding": [
+                {
+                    "url": "https://www.paypal.com/paypalme/enunomaduro",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/gehrisandro",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nunomaduro",
+                    "type": "github"
+                }
+            ],
+            "time": "2024-11-12T20:51:16+00:00"
+        },
+        {
             "name": "paragonie/constant_time_encoding",
             "version": "v3.0.0",
             "source": {
@@ -7555,6 +7893,62 @@
                 "source": "https://github.com/php-http/message/tree/1.16.2"
             },
             "time": "2024-10-02T11:34:13+00:00"
+        },
+        {
+            "name": "php-http/multipart-stream-builder",
+            "version": "1.4.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-http/multipart-stream-builder.git",
+                "reference": "10086e6de6f53489cca5ecc45b6f468604d3460e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-http/multipart-stream-builder/zipball/10086e6de6f53489cca5ecc45b6f468604d3460e",
+                "reference": "10086e6de6f53489cca5ecc45b6f468604d3460e",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.1 || ^8.0",
+                "php-http/discovery": "^1.15",
+                "psr/http-factory-implementation": "^1.0"
+            },
+            "require-dev": {
+                "nyholm/psr7": "^1.0",
+                "php-http/message": "^1.5",
+                "php-http/message-factory": "^1.0.2",
+                "phpunit/phpunit": "^7.5.15 || ^8.5 || ^9.3"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Http\\Message\\MultipartStream\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Tobias Nyholm",
+                    "email": "tobias.nyholm@gmail.com"
+                }
+            ],
+            "description": "A builder class that help you create a multipart stream",
+            "homepage": "http://php-http.org",
+            "keywords": [
+                "factory",
+                "http",
+                "message",
+                "multipart stream",
+                "stream"
+            ],
+            "support": {
+                "issues": "https://github.com/php-http/multipart-stream-builder/issues",
+                "source": "https://github.com/php-http/multipart-stream-builder/tree/1.4.2"
+            },
+            "time": "2024-09-04T13:22:54+00:00"
         },
         {
             "name": "php-http/promise",
@@ -16458,6 +16852,6 @@
     "platform": {
         "php": "^8.2"
     },
-    "platform-dev": {},
+    "platform-dev": [],
     "plugin-api-version": "2.6.0"
 }

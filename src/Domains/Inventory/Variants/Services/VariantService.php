@@ -135,6 +135,12 @@ class VariantService
         } else {
             $variant['warehouse']['status_id'] = Status::getDefault($company)->getId();
         }
+
+        if (! empty($productDto->warehouses) && isset($productDto->warehouses[0]['quantity']) && isset($productDto->warehouses[0]['price'])) {
+            $variant['warehouse']['quantity'] = $productDto->warehouses[0]['quantity'];
+            $variant['warehouse']['price'] = $productDto->warehouses[0]['price'];
+        }
+
         $variantWarehouses = VariantsWarehouses::viaRequest($variantModel, $warehouse, $variant['warehouse'] ?? []);
 
         (new AddToWarehouse($variantModel, $warehouse, $variantWarehouses))->execute();
