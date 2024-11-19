@@ -104,11 +104,6 @@ class Order extends BaseModel
         return $this->hasMany(OrderItem::class, 'order_id', 'id');
     }
 
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(Users::class, 'user_id', 'id');
-    }
-
     public function scopeFilterByUser(Builder $query, mixed $user = null): Builder
     {
         $user = $user instanceof UserInterface ? $user : auth()->user();
