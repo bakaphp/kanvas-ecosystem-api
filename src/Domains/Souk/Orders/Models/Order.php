@@ -94,6 +94,11 @@ class Order extends BaseModel
         return $this->belongsTo(Regions::class, 'region_id', 'id');
     }
 
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'users_id', 'id');
+    }
+
     public function people(): BelongsTo
     {
         return $this->belongsTo(People::class, 'people_id', 'id');
