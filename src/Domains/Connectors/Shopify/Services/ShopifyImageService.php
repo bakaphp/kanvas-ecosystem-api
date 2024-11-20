@@ -33,7 +33,7 @@ class ShopifyImageService
             return $totalUploaded;
         }
 
-        return $entity->files->sortBy('id')->reduce(function ($totalUploaded, $file) use ($entity) {
+        return $entity->files->sortByDesc('id')->reduce(function ($totalUploaded, $file) use ($entity) {
             $method = $entity instanceof Products ? 'addImage' : 'addVariantImage';
             return $totalUploaded + ($this->$method($entity, $file->url) ? 1 : 0);
         }, 0);
