@@ -7,6 +7,7 @@ type Cart {
 type CartItem {
     id: ID!
     name: String!
+    variant: Variant!
     price: Float!
     quantity: Int!
     attributes: Mixed
