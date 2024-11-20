@@ -1195,16 +1195,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.328.1",
+            "version": "3.328.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "52d8219935146c3261181de2da4d36bf04c76298"
+                "reference": "63a6366a8011dffec3d1ef838c97ca6b6ddb17a2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/52d8219935146c3261181de2da4d36bf04c76298",
-                "reference": "52d8219935146c3261181de2da4d36bf04c76298",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/63a6366a8011dffec3d1ef838c97ca6b6ddb17a2",
+                "reference": "63a6366a8011dffec3d1ef838c97ca6b6ddb17a2",
                 "shasum": ""
             },
             "require": {
@@ -1287,9 +1287,9 @@
             "support": {
                 "forum": "https://forums.aws.amazon.com/forum.jspa?forumID=80",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.328.1"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.328.2"
             },
-            "time": "2024-11-18T19:13:28+00:00"
+            "time": "2024-11-19T20:28:51+00:00"
         },
         {
             "name": "berkayk/onesignal-laravel",
@@ -4401,16 +4401,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v11.33.1",
+            "version": "v11.33.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "8b139ac898a5c32657dcdce66549f299f282b7a7"
+                "reference": "6b9832751cf8eed18b3c73df5071f78f0682aa5d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/8b139ac898a5c32657dcdce66549f299f282b7a7",
-                "reference": "8b139ac898a5c32657dcdce66549f299f282b7a7",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/6b9832751cf8eed18b3c73df5071f78f0682aa5d",
+                "reference": "6b9832751cf8eed18b3c73df5071f78f0682aa5d",
                 "shasum": ""
             },
             "require": {
@@ -4606,7 +4606,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2024-11-19T21:08:12+00:00"
+            "time": "2024-11-19T22:47:13+00:00"
         },
         {
             "name": "laravel/octane",
