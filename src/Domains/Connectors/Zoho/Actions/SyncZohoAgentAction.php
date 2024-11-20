@@ -64,6 +64,7 @@ class SyncZohoAgentAction
                         displayname: Random::generateDisplayNameFromEmail($this->email),
                         email: $this->email,
                         password: Str::random(11),
+                        branch: $this->company->defaultBranch //assign user to default branch
                     )
                 ))->execute();
             }
@@ -163,6 +164,7 @@ class SyncZohoAgentAction
                     displayname: Random::generateDisplayNameFromEmail($owner['email']),
                     email: $owner['email'],
                     password: Str::random(11),
+                    branch: $this->company->defaultBranch //assign user to default branch
                 )
             ))->execute();
         }
