@@ -20,6 +20,7 @@ class CreateOrderInESimActivity extends Activity
 {
     use KanvasJobsTrait;
     public $tries = 3;
+    public $timeout = 60;
 
     public function execute(Order $order, Apps $app, array $params): array
     {
