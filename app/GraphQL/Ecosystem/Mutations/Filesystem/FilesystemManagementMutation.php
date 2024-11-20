@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Filesystem;
 
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\DataTransferObject\FilesystemAttachInput;
@@ -111,52 +114,90 @@ class FilesystemManagementMutation
     }
 
     /**
-     * Upload a file, store it on the server and return the path.
+     * Handle file validation logic.
+     */
+    protected function validateFileSize(\Illuminate\Http\UploadedFile $file, int $defaultSize = 20480): void
+    {
+        $app = app(Apps::class);
+        $maxFileSize = $app->get(AppSettingsEnums::DEFAULT_FILESYSTEM_UPLOAD_FILE_SIZE->getValue()) ?? $defaultSize;
+
+        $validator = Validator::make(
+            ['file' => $file],
+            ['file' => "required|file|max:$maxFileSize"]
+        );
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator);
+        }
+    }
+
+    /**
+     * Upload a single file, store it on the server, and return the path.
      */
     public function singleFile(mixed $rootValue, array $request): Filesystem
     {
         /** @var \Illuminate\Http\UploadedFile $file */
         $file = $request['file'];
+
+        // Validate file
+        $this->validateFileSize($file);
+
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
         $filesystem = new FilesystemServices(app(Apps::class), $company);
 
-        return $filesystem->upload($file, auth()->user());
+        return $filesystem->upload($file, $user);
     }
 
+    /**
+     * Upload and process a CSV file, returning its metadata and the filesystem record.
+     */
     public function uploadCsv(mixed $rootValue, array $request): array
     {
+        /** @var \Illuminate\Http\UploadedFile $file */
         $file = $request['file'];
-        $path = $file->store('csv/' . $file->getClientOriginalName() . uniqid(), 'local');
-        $path = storage_path('app/' . $path);
-        $csv = Reader::createFromPath($path, 'r');
 
+        // Validate file
+        $this->validateFileSize($file);
+
+        // Save file locally
+        $uniqueName = 'csv/' . $file->getClientOriginalName() . uniqid();
+        $path = $file->store($uniqueName, 'local');
+        $storagePath = storage_path('app/' . $path);
+
+        // Process CSV
+        $csv = Reader::createFromPath($storagePath, 'r');
         $csv->setHeaderOffset(0);
-        $header = $csv->getHeader();
 
-        $fileSystems = $this->singleFile($rootValue, $request);
+        $header = $csv->getHeader();
+        $row = $csv->nth(0);
+
+        // Upload to filesystem
+        $fileSystem = $this->singleFile($rootValue, $request);
 
         return [
-            'filesystem_id' => $fileSystems->id,
-            'row' => $csv->nth(0),
+            'filesystem_id' => $fileSystem->id,
+            'row' => $row,
             'header' => $header,
         ];
     }
 
     /**
-     * Multiple Upload a file, store it on the server and return the path.
+     * Upload multiple files, store them on the server, and return their paths.
      */
     public function multiFile(mixed $rootValue, array $request): array
     {
-        /** @var \Illuminate\Http\UploadedFile $file */
+        /** @var \Illuminate\Http\UploadedFile[] $files */
         $files = $request['files'];
+
         $fileSystems = [];
-
         foreach ($files as $file) {
-            $uploadFile = new FilesystemServices(app(Apps::class));
+            // Validate file
+            $this->validateFileSize($file);
 
-            $fileSystems[] = $uploadFile->upload($file, auth()->user());
+            $filesystemService = new FilesystemServices(app(Apps::class));
+            $fileSystems[] = $filesystemService->upload($file, auth()->user());
         }
 
         return $fileSystems;

@@ -38,6 +38,7 @@ enum AppSettingsEnums implements EnumsInterface
     case FILESYSTEM_MAPPER_HEADER_VALIDATION;
     case NOTIFICATION_FROM_USER_ID;
     case USE_LEGACY_ROLES;
+    case DEFAULT_FILESYSTEM_UPLOAD_FILE_SIZE;
 
     /**
      * Get value.
@@ -75,6 +76,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::FILESYSTEM_MAPPER_HEADER_VALIDATION => 'filesystem_mapper_header_validation',
             self::NOTIFICATION_FROM_USER_ID => 'notification_from_user_id',
             self::USE_LEGACY_ROLES => 'app_use_legacy_roles',
+            self::DEFAULT_FILESYSTEM_UPLOAD_FILE_SIZE => 'default_filesystem_upload_file_size',
         };
     }
 }
