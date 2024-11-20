@@ -15,12 +15,12 @@ class CartQuery
 
         $cartItems = array_map(function ($item) {
             return [
-                'id' => $item->id,
-                'name' => $item->name,
-                'price' => $item->price,
-                'variant' => Variants::getById($item->id),
-                'quantity' => $item->quantity,
-                'attributes' => $item->attributes,
+                'id' => $item['id'],
+                'name' => $item['name'],
+                'price' => $item['price'],
+                'variant' => Variants::getById($item['id']),
+                'quantity' => $item['quantity'],
+                'attributes' => $item['attributes'],
             ];
         }, $cart->getContent()->toArray());
 
