@@ -139,38 +139,33 @@ class ProductService
     {
         $weight = null;
 
-        if (key_exists('product_dimensions', $product['product_information'])) {
+        if (isset($product['product_information']['product_dimensions'])) {
             $productDimensions = $product['product_information']['product_dimensions'];
-            if (preg_match('/([\d.]+) x ([\d.]+) x ([\d.]+) inches; ([\d.]+) (Pounds|Ounces)/', $productDimensions, $matches)) {
+            if (preg_match('/([\d.]+) x ([\d.]+) x ([\d.]+) inches; ([\d.]+) (Pounds|Ounces)/i', $productDimensions, $matches)) {
                 $weight = (float) $matches[4];
-                $unit = $matches[5];
-                if ($unit == 'Ounces') {
-                    $weight = $weight * 28.3495;
-                } else {
-                    $weight = $weight * 453.592;
-                }
+                $unit = strtolower($matches[5]);
+
+                $weight = $unit === 'ounces'
+                    ? $weight * 28.3495
+                    : $weight * 453.592;
             }
         }
 
-        if (! $weight) {
-            $weight = $product['product_information']['item_weight'] ?? 0;
+        if (! $weight && isset($product['product_information']['item_weight'])) {
+            $itemWeight = $product['product_information']['item_weight'];
+
+            if (str_contains($itemWeight, 'ounces') || str_contains($itemWeight, 'Ounces')) {
+                $weight = ((float) Str::before($itemWeight, 'ounces')) * 28.3495;
+            } elseif (str_contains($itemWeight, 'pounds') || str_contains($itemWeight, 'Pounds')) {
+                $weight = ((float) Str::before($itemWeight, 'pounds')) * 453.592;
+            }
         }
 
-        if ($weight && str_contains($weight, 'ounces')) {
-            $weight = ((float)Str::before($weight, 'ounces')) * 28.3495;
-        } elseif ($weight && str_contains($weight, 'pounds')) {
-            $weight = ((float)Str::before($weight, 'pounds')) * 453.592;
-        } elseif ($weight && str_contains($weight, 'Pounds')) {
-            $weight = ((float)Str::before($weight, 'Pounds')) * 453.592;
-        } elseif ($weight && str_contains($weight, 'Ounces')) {
-            $weight = ((float)Str::before($weight, 'Ounces')) * 28.3495;
-        }
-
-        if ($weight <= 0) {
+        if (! $weight || $weight <= 0) {
             $weight = 453.592;
         }
 
-        return (float)$weight;
+        return (float) $weight;
     }
 
     public function calcDiscountPrice(array $product): array

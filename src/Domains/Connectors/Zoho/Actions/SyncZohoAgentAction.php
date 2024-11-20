@@ -44,13 +44,10 @@ class SyncZohoAgentAction
             $updatedMemberNumber = false;
             $newMemberNumber = false;
 
-            // Lock the owner user row
-            $ownerUser = Users::where('email', $owner['email'])
-                ->firstOrFail();
-
-            $ownerAgent = Agent::where('users_id', $ownerUser->getId())
-                ->fromCompany($this->company)
-                ->first();
+            // Get or create owner and their agent record
+            $ownerData = $this->getOrCreateOwner($owner);
+            $ownerUser = $ownerData['user'];
+            $ownerAgent = $ownerData['agent'];
 
             if ($existingUser) {
                 $user = $existingUser;
@@ -67,6 +64,7 @@ class SyncZohoAgentAction
                         displayname: Random::generateDisplayNameFromEmail($this->email),
                         email: $this->email,
                         password: Str::random(11),
+                        branch: $this->company->defaultBranch //assign user to default branch
                     )
                 ))->execute();
             }
@@ -90,7 +88,6 @@ class SyncZohoAgentAction
                 'users_id' => $user->getId(),
                 'companies_id' => $this->company->getId(),
                 'users_linked_source_id' => $zohoId,
-                //'member_id' => $memberNumber,
             ])->lockForUpdate()->first();
 
             if ($agent && $agent->member_id != $memberNumber && ! $newMemberNumber) {
@@ -123,6 +120,73 @@ class SyncZohoAgentAction
 
             return $agent;
         }, 5); // 5 attempts for deadlock cases
+    }
+
+    protected function getOrCreateOwner(array $owner): array
+    {
+        $zohoService = new ZohoService($this->app, $this->company);
+        $record = $zohoService->getAgentByEmail($owner['email']);
+
+        // First try to find the existing agent by member number
+        $existingAgent = Agent::where([
+            'apps_id' => $this->app->getId(),
+            'companies_id' => $this->company->getId(),
+            'member_id' => $record->Member_Number,
+        ])->lockForUpdate()->first();
+
+        if ($existingAgent) {
+            // If agent exists but email different, update the user's email
+            $ownerUser = Users::find($existingAgent->users_id);
+            if ($ownerUser->email !== $owner['email']) {
+                $ownerUser->email = $owner['email'];
+                $ownerUser->saveOrFail();
+            }
+
+            return [
+                'user' => $ownerUser,
+                'agent' => $existingAgent,
+            ];
+        }
+
+        // If no agent found with that member number, check if user exists by email
+        $ownerUser = Users::where('email', $owner['email'])->first();
+
+        if (! $ownerUser) {
+            // Create owner user
+            $ownerName = explode(' ', $owner['name']);
+            $ownerFirstName = $ownerName[0];
+            $ownerLastName = implode(' ', array_slice($ownerName, 1));
+
+            $ownerUser = (new CreateUserAction(
+                new RegisterInput(
+                    firstname: $ownerFirstName,
+                    lastname: $ownerLastName,
+                    displayname: Random::generateDisplayNameFromEmail($owner['email']),
+                    email: $owner['email'],
+                    password: Str::random(11),
+                    branch: $this->company->defaultBranch //assign user to default branch
+                )
+            ))->execute();
+        }
+
+        // Create owner agent record with the specified member number
+        $ownerAgent = Agent::create([
+            'users_linked_source_id' => $owner['id'],
+            'apps_id' => $this->app->getId(),
+            'users_id' => $ownerUser->getId(),
+            'companies_id' => $this->company->getId(),
+            'member_id' => $record->Member_Number, // Use the provided member number
+            'owner_linked_source_id' => $record->Owner['id'],
+            'name' => $owner['name'],
+            'owner_id' => $record->Sponsor,
+            'status_id' => 1,
+            'updated_at' => now(),
+        ]);
+
+        return [
+            'user' => $ownerUser,
+            'agent' => $ownerAgent,
+        ];
     }
 
     protected function getUniqueAgentMemberNumber(): int
