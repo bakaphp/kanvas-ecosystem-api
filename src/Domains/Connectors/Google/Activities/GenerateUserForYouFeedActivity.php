@@ -10,9 +10,9 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Google\Actions\GenerateGoogleUserMessageAction;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Kanvas\Workflow\KanvasActivities;
+use Kanvas\Workflow\KanvasActivity;
 
-class GenerateUserForYouFeedActivity extends KanvasActivities implements WorkflowActivityInterface
+class GenerateUserForYouFeedActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public $tries = 10;
 

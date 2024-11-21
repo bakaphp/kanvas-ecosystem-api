@@ -22,10 +22,10 @@ use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Locations\Models\States;
-use Kanvas\Workflow\KanvasActivities;
+use Kanvas\Workflow\KanvasActivity;
 use Spatie\LaravelData\DataCollection;
 
-class ScreeningPeopleActivity extends KanvasActivities
+class ScreeningPeopleActivity extends KanvasActivity
 {
     public function execute(Model $people, AppInterface $app, array $params): array
     {

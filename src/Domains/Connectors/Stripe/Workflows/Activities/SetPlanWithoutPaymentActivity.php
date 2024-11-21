@@ -9,10 +9,10 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Subscription\Plans\Models\Plan;
-use Kanvas\Workflow\KanvasActivities;
+use Kanvas\Workflow\KanvasActivity;
 use Throwable;
 
-class SetPlanWithoutPaymentActivity extends KanvasActivities
+class SetPlanWithoutPaymentActivity extends KanvasActivity
 {
     public $tries = 5;
 

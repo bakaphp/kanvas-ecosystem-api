@@ -17,9 +17,9 @@ use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersInvite;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Kanvas\Workflow\KanvasActivities;
+use Kanvas\Workflow\KanvasActivity;
 
-class ZohoAgentActivity extends KanvasActivities implements WorkflowActivityInterface
+class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public $tries = 10;
 

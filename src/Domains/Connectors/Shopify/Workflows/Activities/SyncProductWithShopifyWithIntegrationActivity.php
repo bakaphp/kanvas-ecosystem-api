@@ -14,10 +14,10 @@ use Kanvas\Workflow\Integrations\Actions\AddEntityIntegrationHistoryAction;
 use Kanvas\Workflow\Integrations\DataTransferObject\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
-use Kanvas\Workflow\KanvasActivities;
+use Kanvas\Workflow\KanvasActivity;
 use Throwable;
 
-class SyncProductWithShopifyWithIntegrationActivity extends KanvasActivities
+class SyncProductWithShopifyWithIntegrationActivity extends KanvasActivity
 {
     public function execute(Products $product, Apps $app, array $params): array
     {

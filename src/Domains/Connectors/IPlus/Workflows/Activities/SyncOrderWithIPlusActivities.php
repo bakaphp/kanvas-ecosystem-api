@@ -7,9 +7,9 @@ namespace Kanvas\Connectors\IPlus\Workflows\Activities;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\IPlus\Actions\SaveOrderToIPlusAction;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Workflow\KanvasActivities;
+use Kanvas\Workflow\KanvasActivity;
 
-class SyncOrderWithIPlusActivities extends KanvasActivities
+class SyncOrderWithIPlusActivities extends KanvasActivity
 {
     public function execute(Order $order, Apps $app, array $params): array
     {

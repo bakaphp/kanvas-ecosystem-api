@@ -8,13 +8,13 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Actions\SyncProductWithShopifyAction;
 use Kanvas\Connectors\Shopify\Enums\ConfigEnum;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Workflow\KanvasActivities;
+use Kanvas\Workflow\KanvasActivity;
 
 use function Sentry\captureException;
 
 use Throwable;
 
-class SyncProductWithShopifyActivity extends KanvasActivities
+class SyncProductWithShopifyActivity extends KanvasActivity
 {
     public $queue = ConfigEnum::ACTIVITY_QUEUE->value;
 

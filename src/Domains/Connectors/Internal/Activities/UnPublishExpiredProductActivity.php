@@ -8,9 +8,9 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Kanvas\Workflow\KanvasActivities;
+use Kanvas\Workflow\KanvasActivity;
 
-class UnPublishExpiredProductActivity extends KanvasActivities implements WorkflowActivityInterface
+class UnPublishExpiredProductActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     /**
      * @param Products $product

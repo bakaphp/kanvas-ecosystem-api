@@ -8,12 +8,12 @@ use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Kanvas\Workflow\KanvasActivities;
+use Kanvas\Workflow\KanvasActivity;
 
 /**
  * @todo move to the social domain
  */
-class GenerateMessageSlugActivity extends KanvasActivities implements WorkflowActivityInterface
+class GenerateMessageSlugActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public function execute(Model $message, AppInterface $app, array $params): array
     {

@@ -12,9 +12,9 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Kanvas\Workflow\KanvasActivities;
+use Kanvas\Workflow\KanvasActivity;
 
-class ExtractCompanyNameFromPeopleEmailActivity extends KanvasActivities implements WorkflowActivityInterface
+class ExtractCompanyNameFromPeopleEmailActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     /**
      * @param People $people

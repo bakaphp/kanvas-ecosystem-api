@@ -13,9 +13,9 @@ use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
-use Kanvas\Workflow\KanvasActivities;
+use Kanvas\Workflow\KanvasActivity;
 
-class CreateOrderInESimActivity extends KanvasActivities
+class CreateOrderInESimActivity extends KanvasActivity
 {
     public function execute(Order $order, Apps $app, array $params): array
     {

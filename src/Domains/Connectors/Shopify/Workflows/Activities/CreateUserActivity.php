@@ -13,9 +13,9 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
-use Kanvas\Workflow\KanvasActivities;
+use Kanvas\Workflow\KanvasActivity;
 
-class CreateUserActivity extends KanvasActivities
+class CreateUserActivity extends KanvasActivity
 {
     public function execute(Users $user, Apps $app, array $params): array
     {

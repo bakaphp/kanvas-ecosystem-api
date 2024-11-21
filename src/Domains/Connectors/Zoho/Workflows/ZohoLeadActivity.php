@@ -11,12 +11,12 @@ use Kanvas\Connectors\Zoho\Actions\SyncLeadToZohoAction;
 use Kanvas\Connectors\Zoho\DataTransferObject\ZohoLead;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Kanvas\Workflow\KanvasActivities;
+use Kanvas\Workflow\KanvasActivity;
 
 /**
  * @todo refactor move core logic to SyncLeadWithZohoAction
  */
-class ZohoLeadActivity extends KanvasActivities implements WorkflowActivityInterface
+class ZohoLeadActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public $tries = 5;
 

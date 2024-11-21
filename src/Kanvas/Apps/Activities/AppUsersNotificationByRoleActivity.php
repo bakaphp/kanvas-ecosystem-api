@@ -8,9 +8,9 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Actions\AppUsersNotificationByRoleAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Kanvas\Workflow\KanvasActivities;
+use Kanvas\Workflow\KanvasActivity;
 
-class AppUsersNotificationByRoleActivity extends KanvasActivities implements WorkflowActivityInterface
+class AppUsersNotificationByRoleActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public $tries = 2;
 

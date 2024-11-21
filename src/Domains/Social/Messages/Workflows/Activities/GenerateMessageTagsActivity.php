@@ -8,9 +8,9 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Kanvas\Workflow\KanvasActivities;
+use Kanvas\Workflow\KanvasActivity;
 
-class GenerateMessageTagsActivity extends KanvasActivities implements WorkflowActivityInterface
+class GenerateMessageTagsActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public function execute(Model $entity, AppInterface $app, array $params): array
     {

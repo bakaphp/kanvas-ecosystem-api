@@ -11,9 +11,9 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Kanvas\Workflow\KanvasActivities;
+use Kanvas\Workflow\KanvasActivity;
 
-class SendEmailActivity extends KanvasActivities implements WorkflowActivityInterface
+class SendEmailActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public function execute(Model $entity, AppInterface $app, array $params): array
     {

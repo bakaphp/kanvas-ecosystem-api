@@ -15,9 +15,9 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Kanvas\Workflow\KanvasActivities;
+use Kanvas\Workflow\KanvasActivity;
 
-class GenerateCompanyDashboardActivity extends KanvasActivities implements WorkflowActivityInterface
+class GenerateCompanyDashboardActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public function execute(Model $entity, AppInterface $app, array $params): array
     {

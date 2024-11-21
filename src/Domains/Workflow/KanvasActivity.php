@@ -11,7 +11,7 @@ use Workflow\Activity;
  * hate this , but since the parent class is final we
  * cant extend , need to contact the package owner
  */
-class KanvasActivities extends Activity
+class KanvasActivity extends Activity
 {
     use KanvasJobsTrait;
     public $tries = 3;

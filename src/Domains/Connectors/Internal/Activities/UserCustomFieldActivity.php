@@ -7,9 +7,9 @@ namespace Kanvas\Connectors\Internal\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Kanvas\Workflow\KanvasActivities;
+use Kanvas\Workflow\KanvasActivity;
 
-class UserCustomFieldActivity extends KanvasActivities implements WorkflowActivityInterface
+class UserCustomFieldActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public function execute(Model $user, AppInterface $app, array $params): array
     {

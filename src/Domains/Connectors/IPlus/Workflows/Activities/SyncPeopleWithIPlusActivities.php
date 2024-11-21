@@ -7,9 +7,9 @@ namespace Kanvas\Connectors\IPlus\Workflows\Activities;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\IPlus\Actions\SavePeopleToIPlusAction;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Workflow\KanvasActivities;
+use Kanvas\Workflow\KanvasActivity;
 
-class SyncPeopleWithIPlusActivities extends KanvasActivities
+class SyncPeopleWithIPlusActivities extends KanvasActivity
 {
     public function execute(People $people, Apps $app, array $params): array
     {

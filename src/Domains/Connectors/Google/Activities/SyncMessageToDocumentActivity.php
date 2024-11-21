@@ -8,9 +8,9 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Google\Actions\SyncMessageToDocumentAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Kanvas\Workflow\KanvasActivities;
+use Kanvas\Workflow\KanvasActivity;
 
-class SyncMessageToDocumentActivity extends KanvasActivities implements WorkflowActivityInterface
+class SyncMessageToDocumentActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public function execute(Model $message, AppInterface $app, array $params): array
     {

@@ -10,13 +10,13 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Connectors\ScrapperApi\Actions\ScrapperAction;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum;
-use Kanvas\Workflow\KanvasActivities;
+use Kanvas\Workflow\KanvasActivity;
 
 use function Sentry\captureException;
 
 use Throwable;
 
-class ScrapperSearchActivity extends KanvasActivities
+class ScrapperSearchActivity extends KanvasActivity
 {
     public $tries = 3;
     public $queue = ConfigEnum::ACTIVITY_QUEUE->value;
