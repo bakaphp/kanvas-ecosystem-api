@@ -30,6 +30,6 @@ return new class () extends Migration {
      */
     public function down(): void
     {
-        Schema::dropIfExists('admin_invite_table_migration');
+        Schema::dropIfExists('admin_invite');
     }
 };
