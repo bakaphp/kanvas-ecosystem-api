@@ -30,6 +30,7 @@ use Kanvas\Users\DataTransferObject\Invite as InviteDto;
 use Kanvas\Users\Models\AdminInvite;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersInvite;
+use Kanvas\Users\Repositories\AdminInviteRepository;
 use Kanvas\Users\Repositories\UsersInviteRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 
@@ -142,6 +143,23 @@ class UserManagementMutation
         $invite = UsersInviteRepository::getById(
             (int) $request['id'],
             auth()->user()->getCurrentCompany()
+        );
+
+        $invite->softDelete();
+
+        return true;
+    }
+
+    /**
+     * deleteInvite.
+     *
+     * @param  mixed $rootValue
+     */
+    public function deleteAdminInvite($rootValue, array $request): bool
+    {
+        $invite = AdminInviteRepository::getById(
+            id: (int) $request['id'],
+            app: app(Apps::class)
         );
 
         $invite->softDelete();
