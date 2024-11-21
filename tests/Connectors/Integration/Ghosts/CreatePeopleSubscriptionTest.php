@@ -147,7 +147,7 @@ final class CreatePeopleSubscriptionTest extends TestCase
                       'action_id' => $workflowAction->getId(),
                ]);
 
-        $request = Request::create('https://192.168.1.241/ghosttest', 'POST', $payload);
+        $request = Request::create('https://localhost/ghosttest', 'POST', $payload);
 
         // Execute the action and get the webhook request
         $webhookRequest = (new ProcessWebhookAttemptAction($receiverWebhook, $request))->execute();
