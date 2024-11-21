@@ -595,9 +595,9 @@ class LeadTest extends TestCase
 
         $message = $this->graphQL(
             '
-            query($uuid: String!) {
+            query($channel_uuid: String!) {
                 channelMessages(
-                    uuid: $uuid
+                    channel_uuid: $channel_uuid
                 ) {
                     data {
                         message
@@ -606,7 +606,7 @@ class LeadTest extends TestCase
             }
         ',
             [
-            'uuid' => $channel['uuid'],
+            'channel_uuid' => $channel['uuid'],
         ]
         );
         $message->assertJsonStructure([

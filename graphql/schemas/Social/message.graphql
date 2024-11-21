@@ -285,7 +285,7 @@ extend type Query @guard {
         )
 
     channelMessages(
-        uuid: String!
+        channel_uuid: String!
         where: _
             @whereConditions(
                 columns: [
