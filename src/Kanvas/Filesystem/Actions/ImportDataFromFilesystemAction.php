@@ -210,20 +210,6 @@ class ImportDataFromFilesystemAction
         return $date->getTimestamp();
     }
 
-    public function formatDate(string $date): string
-    {
-        $csvFormat = $this->filesystemImports->app->get(AppEnums::fromName('CSV_DATE_FORMAT'));
-        if (! $csvFormat) {
-            Log::debug('strotime ' . strtotime($date));
-            $date = date('Y-m-d', strtotime($date));
-
-            return $date;
-        }
-        $date = DateTime::createFromFormat($csvFormat, $date);
-
-        return $date->format('Y-m-d');
-    }
-
     public function explodeFileStringBasedOnDelimiter(string $value): array
     {
         $delimiter = match (true) {
