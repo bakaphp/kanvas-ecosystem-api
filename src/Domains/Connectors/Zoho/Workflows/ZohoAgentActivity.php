@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Zoho\Workflows;
 
 use Baka\Contracts\AppInterface;
-use Baka\Traits\KanvasJobsTrait;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
@@ -18,11 +17,10 @@ use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersInvite;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Workflow\Activity;
+use Kanvas\Workflow\KanvasActivities;
 
-class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
+class ZohoAgentActivity extends KanvasActivities implements WorkflowActivityInterface
 {
-    use KanvasJobsTrait;
     public $tries = 10;
 
     public function execute(Model $user, AppInterface $app, array $params): array

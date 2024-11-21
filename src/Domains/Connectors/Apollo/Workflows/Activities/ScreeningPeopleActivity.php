@@ -22,15 +22,14 @@ use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Locations\Models\States;
+use Kanvas\Workflow\KanvasActivities;
 use Spatie\LaravelData\DataCollection;
-use Workflow\Activity;
 
-class ScreeningPeopleActivity extends Activity
+class ScreeningPeopleActivity extends KanvasActivities
 {
-    public $tries = 20;
-
     public function execute(Model $people, AppInterface $app, array $params): array
     {
+        $this->overwriteAppService($app);
         if ($this->hasReachedLimit($people)) {
             return $this->limitReachedResponse($people);
         }

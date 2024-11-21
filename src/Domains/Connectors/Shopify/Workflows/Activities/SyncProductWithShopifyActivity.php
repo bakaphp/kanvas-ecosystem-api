@@ -4,21 +4,18 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Workflows\Activities;
 
-use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Actions\SyncProductWithShopifyAction;
 use Kanvas\Connectors\Shopify\Enums\ConfigEnum;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Workflow\KanvasActivities;
 
 use function Sentry\captureException;
 
 use Throwable;
-use Workflow\Activity;
 
-class SyncProductWithShopifyActivity extends Activity
+class SyncProductWithShopifyActivity extends KanvasActivities
 {
-    use KanvasJobsTrait;
-
     public $queue = ConfigEnum::ACTIVITY_QUEUE->value;
 
     public function execute(Products $product, Apps $app, array $params): array

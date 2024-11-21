@@ -8,9 +8,9 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Repositories\AppsRepository;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Models\Users;
-use Workflow\Activity;
+use Kanvas\Workflow\KanvasActivities;
 
-class AssignToDefaultCompanyActivity extends Activity
+class AssignToDefaultCompanyActivity extends KanvasActivities
 {
     public function execute(Users $user, Apps $app, array $param): void
     {

@@ -5,15 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Zoho\Workflows;
 
 use Baka\Contracts\AppInterface;
-use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
-use Workflow\Activity;
+use Kanvas\Workflow\KanvasActivities;
 
-class ZohoLeadOwnerActivity extends Activity
+class ZohoLeadOwnerActivity extends KanvasActivities
 {
-    use KanvasJobsTrait;
     public $tries = 10;
 
     public function execute(
@@ -52,7 +50,7 @@ class ZohoLeadOwnerActivity extends Activity
 
         return [
             'message' => 'Owner updated successfully',
-            'lead' => $zohoLead->toArray()
+            'lead' => $zohoLead->toArray(),
         ];
     }
 }

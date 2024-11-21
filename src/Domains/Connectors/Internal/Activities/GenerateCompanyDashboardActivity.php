@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\Internal\Activities;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
-use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventVersion;
@@ -16,13 +15,10 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Workflow\Activity;
+use Kanvas\Workflow\KanvasActivities;
 
-class GenerateCompanyDashboardActivity extends Activity implements WorkflowActivityInterface
+class GenerateCompanyDashboardActivity extends KanvasActivities implements WorkflowActivityInterface
 {
-    use KanvasJobsTrait;
-    public $tries = 5;
-
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);

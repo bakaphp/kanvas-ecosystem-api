@@ -5,15 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Apps\Activities;
 
 use Baka\Contracts\AppInterface;
-use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Actions\AppUsersNotificationByRoleAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Workflow\Activity;
+use Kanvas\Workflow\KanvasActivities;
 
-class AppUsersNotificationByRoleActivity extends Activity implements WorkflowActivityInterface
+class AppUsersNotificationByRoleActivity extends KanvasActivities implements WorkflowActivityInterface
 {
-    use KanvasJobsTrait;
     public $tries = 2;
 
     public function execute(Model $entity, AppInterface $app, array $params): array

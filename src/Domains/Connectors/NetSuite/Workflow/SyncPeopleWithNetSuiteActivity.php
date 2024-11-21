@@ -8,12 +8,10 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\NetSuite\Actions\SyncPeopleWithNetSuiteAction;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
-use Workflow\Activity;
+use Kanvas\Workflow\KanvasActivities;
 
-class SyncPeopleWithNetSuiteActivity extends Activity
+class SyncPeopleWithNetSuiteActivity extends KanvasActivities
 {
-    public $tries = 3;
-
     public function execute(People $people, Apps $app, array $params): array
     {
         $syncPeopleWithNetSuite = new SyncPeopleWithNetSuiteAction($app, $people->company);

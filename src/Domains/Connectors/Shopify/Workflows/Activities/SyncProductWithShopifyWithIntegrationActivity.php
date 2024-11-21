@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Workflows\Activities;
 
-use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Enums\StatusEnum as ShopifyStatusEnum;
 use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
@@ -15,13 +14,11 @@ use Kanvas\Workflow\Integrations\Actions\AddEntityIntegrationHistoryAction;
 use Kanvas\Workflow\Integrations\DataTransferObject\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
+use Kanvas\Workflow\KanvasActivities;
 use Throwable;
-use Workflow\Activity;
 
-class SyncProductWithShopifyWithIntegrationActivity extends Activity
+class SyncProductWithShopifyWithIntegrationActivity extends KanvasActivities
 {
-    use KanvasJobsTrait;
-
     public function execute(Products $product, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);

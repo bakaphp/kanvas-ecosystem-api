@@ -4,16 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\IPlus\Workflows\Activities;
 
-use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\IPlus\Actions\SavePeopleToIPlusAction;
 use Kanvas\Guild\Customers\Models\People;
-use Workflow\Activity;
+use Kanvas\Workflow\KanvasActivities;
 
-class SyncPeopleWithIPlusActivities extends Activity
+class SyncPeopleWithIPlusActivities extends KanvasActivities
 {
-    use KanvasJobsTrait;
-
     public function execute(People $people, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);
