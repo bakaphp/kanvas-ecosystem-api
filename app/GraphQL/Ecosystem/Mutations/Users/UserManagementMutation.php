@@ -19,11 +19,15 @@ use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Notifications\Templates\ChangeEmailUserLogged;
 use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
+use Kanvas\Users\Actions\CreateAdminInviteAction;
 use Kanvas\Users\Actions\CreateInviteAction;
+use Kanvas\Users\Actions\ProcessAdminInviteAction;
 use Kanvas\Users\Actions\ProcessInviteAction;
 use Kanvas\Users\Actions\RequestDeleteAccountAction as RequestDeleteAction;
+use Kanvas\Users\DataTransferObject\AdminInvite as AdminInviteDto;
 use Kanvas\Users\DataTransferObject\CompleteInviteInput;
 use Kanvas\Users\DataTransferObject\Invite as InviteDto;
+use Kanvas\Users\Models\AdminInvite;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersInvite;
 use Kanvas\Users\Repositories\UsersInviteRepository;
@@ -74,7 +78,7 @@ class UserManagementMutation
      *
      * @param  mixed $rootValue
      */
-    public function insertInvite($rootValue, array $request): UsersInvite
+    public function insertUserInvite($rootValue, array $request): UsersInvite
     {
         $request = $request['input'];
         $company = auth()->user()->getCurrentCompany();
@@ -93,6 +97,34 @@ class UserManagementMutation
                 $request['description'] ?? null,
                 $request['email_template'] ?? null,
                 $request['custom_fields'] ?? []
+            ),
+            auth()->user()
+        );
+
+        return $invite->execute();
+    }
+
+    /**
+     * insertAdminInvite.
+     *
+     * @param  mixed $rootValue
+     */
+    public function insertAdminInvite($rootValue, array $request): AdminInvite
+    {
+        $request = $request['input'];
+        $company = auth()->user()->getCurrentCompany();
+        $app = app(Apps::class);
+
+        $branch = isset($request['companies_branches_id']) ? CompaniesBranches::getById($request['companies_branches_id']) : auth()->user()->getCurrentBranch();
+
+        $invite = new CreateAdminInviteAction(
+            new AdminInviteDto(
+                app: $app,
+                email: $request['email'],
+                firstname: $request['firstname'] ?? null,
+                lastname: $request['lastname'] ?? null,
+                description: $request['description'] ?? null,
+                customFields: $request['custom_fields'] ?? []
             ),
             auth()->user()
         );
@@ -136,6 +168,17 @@ class UserManagementMutation
     public function process($rootValue, array $request): array
     {
         $action = new ProcessInviteAction(
+            CompleteInviteInput::from($request['input'])
+        );
+
+        $user = $action->execute();
+
+        return $user->createToken('kanvas-login')->toArray();
+    }
+
+    public function processAdmin($rootValue, array $request): array
+    {
+        $action = new ProcessAdminInviteAction(
             CompleteInviteInput::from($request['input'])
         );
 
