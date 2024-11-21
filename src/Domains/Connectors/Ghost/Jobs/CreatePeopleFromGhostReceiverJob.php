@@ -72,7 +72,7 @@ class CreatePeopleFromGhostReceiverJob extends ProcessWebhookJob
                     'value' => $value,
                 ];
                 if ($key === 'report') {
-                    $tags[]= $label['name'];
+                    $tags[] = $label['name'];
                 }
             } else {
                 $tags[] = $label['name'];
