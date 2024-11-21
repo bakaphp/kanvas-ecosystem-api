@@ -21,9 +21,18 @@ type ExternalInvite {
     description: String
 }
 
-input InviteInput {
+input UserInviteInput {
     role_id: Int
     companies_branches_id: Int
+    email: String!
+    firstname: String
+    lastname: String
+    description: String
+    email_template: String
+    custom_fields: [CustomFieldEntityInput!]
+}
+
+input AdminInviteInput {
     email: String!
     firstname: String
     lastname: String
@@ -41,10 +50,14 @@ input CompleteInviteInput {
 }
 
 extend type Mutation @guard {
-    inviteUser(input: InviteInput!): Invite!
+    inviteUser(input: UserInviteInput!): Invite!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@insertInvite"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@insertUserInvite"
         )
+    inviteAdmin(input: AdminInviteInput!): Invite!
+    @field(
+        resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@insertAdminInvite"
+    )
     deleteInvite(id: Int!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@deleteInvite"
@@ -60,6 +73,10 @@ extend type Mutation {
     processInvite(input: CompleteInviteInput!): TokenResponse!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@process"
+        )
+    processAdminInvite(input: CompleteInviteInput!): TokenResponse!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@processAdmin"
         )
 }
 extend type Query @guard {
