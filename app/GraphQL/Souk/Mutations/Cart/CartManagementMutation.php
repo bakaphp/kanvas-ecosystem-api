@@ -27,7 +27,7 @@ class CartManagementMutation
             $cart->add([
                 'id' => $variant->getId(),
                 'name' => $variant->name,
-                'price' => $useCompanySpecificPrice ? $variant->variantChannels('uuid', $company->uuid)->firstOrFail()->price : $variant->variantWarehouses()->firstOrFail()->price, //@todo modify to use channel instead of warehouse
+                'price' => $useCompanySpecificPrice ? $variant->variantChannels('slug', $company->uuid)->firstOrFail()->price : $variant->variantWarehouses()->firstOrFail()->price, //@todo modify to use channel instead of warehouse
                 'quantity' => $item['quantity'],
                 'attributes' => $variant->product->attributes ? $variant->product->attributes->map(function ($attribute) {
                     return [
