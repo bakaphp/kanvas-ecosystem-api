@@ -98,6 +98,13 @@ final class CreatePeopleSubscriptionTest extends TestCase
                             "slug": "title-front",
                             "created_at": "2024-05-16T19:10:58.000Z",
                             "updated_at": "2024-05-16T19:10:58.000Z"
+                        },
+                        {
+                            "id": "66f56adf8d99370001b93e80",
+                            "name": "report:the-state-of-sus",
+                            "slug": "report-the-state-of-sus",
+                            "created_at": "2024-09-26T14:08:31.000Z",
+                            "updated_at": "2024-09-26T14:08:31.000Z"
                         }
                     ],
                     "status": "free",
