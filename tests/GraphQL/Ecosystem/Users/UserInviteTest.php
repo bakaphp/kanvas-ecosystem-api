@@ -17,7 +17,7 @@ class UserInviteTest extends TestCase
 
         $this->graphQL( /** @lang GraphQL */
             '
-            mutation inviteUser($data: InviteInput!) {
+            mutation inviteUser($data: UserInviteInput!) {
                 inviteUser(input: $data)
                 {
                    id,
@@ -45,7 +45,7 @@ class UserInviteTest extends TestCase
 
         $this->graphQL( /** @lang GraphQL */
             '
-            mutation inviteUser($data: InviteInput!) {
+            mutation inviteUser($data: UserInviteInput!) {
                 inviteUser(input: $data)
                 {
                    id,
@@ -72,7 +72,7 @@ class UserInviteTest extends TestCase
 
         $response = $this->graphQL( /** @lang GraphQL */
             '
-            mutation inviteUser($data: InviteInput!) {
+            mutation inviteUser($data: UserInviteInput!) {
                 inviteUser(input: $data)
                 {
                    id,
@@ -127,7 +127,7 @@ class UserInviteTest extends TestCase
 
         $response = $this->graphQL( /** @lang GraphQL */
             '
-            mutation inviteUser($data: InviteInput!) {
+            mutation inviteUser($data: UserInviteInput!) {
                 inviteUser(input: $data)
                 {
                    id,
@@ -180,7 +180,7 @@ class UserInviteTest extends TestCase
 
         $response = $this->graphQL( /** @lang GraphQL */
             '
-            mutation inviteUser($data: InviteInput!) {
+            mutation inviteUser($data: UserInviteInput!) {
                 inviteUser(input: $data)
                 {
                    id,
@@ -218,7 +218,7 @@ class UserInviteTest extends TestCase
 
         $response = $this->graphQL( /** @lang GraphQL */
             '
-            mutation inviteUser($data: InviteInput!) {
+            mutation inviteUser($data: UserInviteInput!) {
                 inviteUser(input: $data)
                 {
                    id,
@@ -266,7 +266,7 @@ class UserInviteTest extends TestCase
 
         $response = $this->graphQL( /** @lang GraphQL */
             '
-            mutation inviteUser($data: InviteInput!) {
+            mutation inviteUser($data: UserInviteInput!) {
                 inviteUser(input: $data)
                 {
                    id,
@@ -314,7 +314,7 @@ class UserInviteTest extends TestCase
 
         $this->graphQL( /** @lang GraphQL */
             '
-            mutation inviteUser($data: InviteInput!) {
+            mutation inviteUser($data: UserInviteInput!) {
                 inviteUser(input: $data)
                 {
                    id,
