@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Mutations\Cart;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Enums\ConfigurationEnum;
 
 class CartManagementMutation
 {
@@ -14,8 +16,10 @@ class CartManagementMutation
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $cart = app('cart')->session($user->getId());
+        $app = app(Apps::class);
 
         //@todo send warehouse via header
+        $useCompanySpecificPrice = $app->get(ConfigurationEnum::COMPANY_CUSTOM_CHANNEL_PRICING->value) ?? false;
 
         foreach ($items as $item) {
             $variant = Variants::getByIdFromCompany($item['variant_id'], $company);
@@ -23,7 +27,7 @@ class CartManagementMutation
             $cart->add([
                 'id' => $variant->getId(),
                 'name' => $variant->name,
-                'price' => $variant->variantWarehouses()->firstOrFail()->price, //@todo modify to use channel instead of warehouse
+                'price' => $useCompanySpecificPrice ? $variant->variantChannels('uuid', $company->uuid)->firstOrFail()->price : $variant->variantWarehouses()->firstOrFail()->price, //@todo modify to use channel instead of warehouse
                 'quantity' => $item['quantity'],
                 'attributes' => $variant->product->attributes ? $variant->product->attributes->map(function ($attribute) {
                     return [
@@ -48,7 +52,6 @@ class CartManagementMutation
 
         $cart->update($request['variant_id'], [
             'quantity' => $request['quantity'],
-
         ]);
 
         return $cart->getContent()->toArray();
