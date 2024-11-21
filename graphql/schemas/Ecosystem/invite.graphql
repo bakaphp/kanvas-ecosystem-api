@@ -21,7 +21,7 @@ type ExternalInvite {
     description: String
 }
 
-input UserInviteInput {
+input InviteInput {
     role_id: Int
     companies_branches_id: Int
     email: String!
@@ -50,7 +50,7 @@ input CompleteInviteInput {
 }
 
 extend type Mutation @guard {
-    inviteUser(input: UserInviteInput!): Invite!
+    inviteUser(input: InviteInput!): Invite!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@insertUserInvite"
         )
