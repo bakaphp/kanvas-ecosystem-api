@@ -6,4 +6,3 @@ parameters:
   ignoreErrors:
     - "#^Unsafe usage of new static#"
     - "#unknown class Bouncer#"
-    - "#DB::transaction\\(\\) \\(void\\) is used#"

@@ -148,7 +148,7 @@ class CreatePeopleAction
             }
         }
 
-        if ($this->peopleData->organization) {
+        if (! empty($this->peopleData->organization)) {
             $organization = (new CreateOrganizationAction(
                 new Organization(
                     company: $this->peopleData->branch->company,

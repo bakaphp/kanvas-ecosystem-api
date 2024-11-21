@@ -5,17 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Internal\Activities;
 
 use Baka\Contracts\AppInterface;
-use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Workflow\Activity;
+use Kanvas\Workflow\KanvasActivity;
 
-class UnPublishExpiredProductsAfterImportActivity extends Activity implements WorkflowActivityInterface
+class UnPublishExpiredProductsAfterImportActivity extends KanvasActivity implements WorkflowActivityInterface
 {
-    use KanvasJobsTrait;
-    public $tries = 3;
-
     /**
      * @param Products $product
      */

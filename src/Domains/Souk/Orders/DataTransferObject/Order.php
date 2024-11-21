@@ -11,6 +11,7 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Regions\Models\Regions as ModelsRegions;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
@@ -19,7 +20,7 @@ class Order extends Data
 {
     public function __construct(
         public readonly Apps $app,
-        public readonly Regions $region,
+        public readonly Regions|ModelsRegions $region,
         public readonly CompanyInterface $company,
         public readonly People $people,
         public readonly UserInterface $user,

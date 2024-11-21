@@ -24,6 +24,7 @@
         "google/cloud-recommendations-ai": "^0.7.5",
         "guzzlehttp/guzzle": "^7.6",
         "http-interop/http-factory-guzzle": "^1.0",
+        "imdhemy/laravel-purchases": "^1.14",
         "laravel-workflow/laravel-workflow": "^1.0.24",
         "laravel/cashier": "^15.4.0",
         "laravel/framework": "^11.0",

@@ -4,19 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Stripe\Workflows\Activities;
 
-use Baka\Traits\KanvasJobsTrait;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Subscription\Plans\Models\Plan;
+use Kanvas\Workflow\KanvasActivity;
 use Throwable;
-use Workflow\Activity;
 
-class SetPlanWithoutPaymentActivity extends Activity
+class SetPlanWithoutPaymentActivity extends KanvasActivity
 {
-    use KanvasJobsTrait;
-
     public $tries = 5;
 
     /**
