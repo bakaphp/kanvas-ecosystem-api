@@ -55,9 +55,9 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@insertUserInvite"
         )
     inviteAdmin(input: AdminInviteInput!): Invite!
-    @field(
-        resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@insertAdminInvite"
-    )
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@insertAdminInvite"
+        )
     deleteInvite(id: Int!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@deleteInvite"
