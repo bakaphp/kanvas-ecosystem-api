@@ -62,7 +62,7 @@ class CreatePeopleFromGhostReceiverJob extends ProcessWebhookJob
                 'value' => $payload['uuid'],
             ],
         ];
-
+        $unlockedReports = [];
         foreach ($payload['labels'] as $label) {
             if (Str::contains($label['name'], ':')) {
                 // Split "key:value" into key and value for custom fields
@@ -73,11 +73,16 @@ class CreatePeopleFromGhostReceiverJob extends ProcessWebhookJob
                 ];
                 if ($key === 'report') {
                     $tags[] = $label['name'];
+                    $unlockedReports[] = $label['name'];
                 }
             } else {
                 $tags[] = $label['name'];
             }
         }
+        $customFields[] = [
+            'key' => CustomFieldEnum::GHOST_UNLOCK_CUSTOM_FIELD->value,
+            'value' => $unlockedReports
+        ];
 
         $newsletters = [];
         foreach ($payload['newsletters'] as $newsletter) {
