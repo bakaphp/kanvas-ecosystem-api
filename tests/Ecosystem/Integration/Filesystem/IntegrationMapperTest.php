@@ -61,6 +61,10 @@ final class IntegrationMapperTest extends TestCase
                     'name' => 'Default Value',
                     'value' => '_Default Value',
                 ],
+                [
+                    'name' => '_Start Date',
+                    'value' => "Listing Date"
+                ]
             ],
             'variants' => [
                 [
@@ -147,6 +151,7 @@ final class IntegrationMapperTest extends TestCase
                     'Style' => fake()->word,
                     'Position' => fake()->numberBetween(1, 10),
                     'Compensation Comments' => fake()->sentence,
+                    "Listing Date" => "14/2/25",
             ];
 
         $importDataFromFilesystemAction = new ImportDataFromFilesystemAction(new FilesystemImports());
