@@ -6,6 +6,7 @@ namespace Kanvas\Filesystem\Actions;
 
 use Baka\Enums\StateEnums;
 use DateTime;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Event\Events\Jobs\ImporterEventJob;
@@ -18,6 +19,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Products\Models\Products;
 use League\Csv\Reader;
+use Exception;
 
 class ImportDataFromFilesystemAction
 {
@@ -154,7 +156,7 @@ class ImportDataFromFilesystemAction
             $result[$key] = match (true) {
                 is_array($value) => $this->mapper($value, $data),
                 is_string($value) && Str::startsWith($value, '_') => Str::after($value, '_'),
-                is_string($value) && Str::startsWith($value, 'date_') => $this->formatDate($data[Str::after($value, 'date_')]),
+                is_string($value) && Str::startsWith($value, 'date_') => $this->createFromFormat($data[Str::after($value, 'date_')]),
                 is_string($value) => $data[$value] ?? null,
                 default => $value,
             };
@@ -164,7 +166,7 @@ class ImportDataFromFilesystemAction
             }
 
             if (is_string($result[$key]) && $this->isValidDate($result[$key])) {
-                $result[$key] = $this->formatDate($result[$key]);
+                $result[$key] = $this->createFromFormat($result[$key]);
             }
         }
 
@@ -185,17 +187,26 @@ class ImportDataFromFilesystemAction
         return $date !== false;
     }
 
-    public function formatDate(string $date): string
+    protected function createFromFormat(string $dateString): ?int
     {
-        $csvFormat = $this->filesystemImports->app->get(AppEnums::fromName('CSV_DATE_FORMAT'));
-        if (! $csvFormat) {
-            $date = date('Y-m-d', strtotime($date));
+        $date = DateTime::createFromFormat('Y-m-d H:i:s', $dateString) ?:
+                DateTime::createFromFormat('Y-m-d', $dateString) ?:
+                DateTime::createFromFormat('m/d/Y', $dateString) ?:
+                DateTime::createFromFormat('d/m/Y', $dateString) ?:
+                DateTime::createFromFormat('m/d/y', $dateString) ?:
+                DateTime::createFromFormat('d-m-Y', $dateString) ?:
+                DateTime::createFromFormat('j/n/Y', $dateString);
 
-            return $date;
+        if (! $date) {
+            $timestamp = strtotime($dateString);
+            if ($timestamp !== false) {
+                return $timestamp;
+            } else {
+                throw new Exception('Invalid date format');
+            }
         }
-        $date = DateTime::createFromFormat($csvFormat, $date);
 
-        return $date->format('Y-m-d');
+        return $date->getTimestamp();
     }
 
     public function explodeFileStringBasedOnDelimiter(string $value): array
