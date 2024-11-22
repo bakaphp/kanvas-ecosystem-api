@@ -166,7 +166,6 @@ class ImportDataFromFilesystemAction
             }
 
             if (is_string($result[$key]) && $this->isValidDate($result[$key])) {
-                Log::debug("Date is valid: $result[$key]");
                 $result[$key] = $this->createFromFormat($result[$key]);
             }
         }
