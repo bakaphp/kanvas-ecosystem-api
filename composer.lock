@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "678dd0bce0fd327cfd2b12ba89cb14c0",
+    "content-hash": "9d1d752db453aadf9118004d0b735500",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -9473,63 +9473,6 @@
             "time": "2024-05-24T10:39:05+00:00"
         },
         {
-            "name": "reedware/laravel-composite-relations",
-            "version": "v4.0.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/tylernathanreed/laravel-composite-relations.git",
-                "reference": "4aee57cb4577be114ceed6384a03e6b0ce26dff3"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/tylernathanreed/laravel-composite-relations/zipball/4aee57cb4577be114ceed6384a03e6b0ce26dff3",
-                "reference": "4aee57cb4577be114ceed6384a03e6b0ce26dff3",
-                "shasum": ""
-            },
-            "require": {
-                "illuminate/database": "^10.48|^11.0",
-                "illuminate/support": "^10.48|^11.0",
-                "php": "^8.1"
-            },
-            "require-dev": {
-                "laravel/pint": "^1.5",
-                "mockery/mockery": "^1.6.6",
-                "php-coveralls/php-coveralls": "^2.4",
-                "phpstan/phpstan": "^1.10",
-                "phpunit/phpunit": "^10.5",
-                "reedware/laravel-relation-joins": "^6.0",
-                "symfony/var-dumper": "^6.4.4|^7.0"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "Reedware\\LaravelCompositeRelations\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Tyler Reed",
-                    "email": "tylernathanreed@gmail.com"
-                }
-            ],
-            "description": "Adds the ability define composite eloquent relations.",
-            "keywords": [
-                "composite",
-                "eloquent",
-                "laravel",
-                "relation"
-            ],
-            "support": {
-                "issues": "https://github.com/tylernathanreed/laravel-composite-relations/issues",
-                "source": "https://github.com/tylernathanreed/laravel-composite-relations/tree/v4.0.0"
-            },
-            "time": "2024-03-22T20:51:55+00:00"
-        },
-        {
             "name": "revolt/event-loop",
             "version": "v1.0.6",
             "source": {
@@ -14170,6 +14113,53 @@
                 "source": "https://github.com/thecodingmachine/safe/tree/v2.5.0"
             },
             "time": "2023-04-05T11:54:14+00:00"
+        },
+        {
+            "name": "thiagoprz/eloquent-composite-key",
+            "version": "1.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/thiagoprz/eloquent-composite-key.git",
+                "reference": "43012fa195db8517a5344355aa83cd39aaa466aa"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/thiagoprz/eloquent-composite-key/zipball/43012fa195db8517a5344355aa83cd39aaa466aa",
+                "reference": "43012fa195db8517a5344355aa83cd39aaa466aa",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.1 || ^8.0 || ^8.1"
+            },
+            "require-dev": {
+                "orchestra/testbench": "6",
+                "squizlabs/php_codesniffer": "4.0.x-dev"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Thiagoprz\\CompositeKey\\": "src"
+                },
+                "classmap": [
+                    "src/"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Thiago Przyczynski",
+                    "email": "przyczynski@gmail.com"
+                }
+            ],
+            "description": "Eloquent Composite Key Support Package",
+            "support": {
+                "issues": "https://github.com/thiagoprz/eloquent-composite-key/issues",
+                "source": "https://github.com/thiagoprz/eloquent-composite-key/tree/1.0.1"
+            },
+            "time": "2022-04-20T19:12:31+00:00"
         },
         {
             "name": "tijsverkoyen/css-to-inline-styles",

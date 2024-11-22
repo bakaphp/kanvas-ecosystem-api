@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleRelationship;
 use Kanvas\Guild\Models\BaseModel;
-use Reedware\LaravelCompositeRelations\HasCompositeRelations;
 
 /**
  * Class Leads.
@@ -22,9 +21,7 @@ use Reedware\LaravelCompositeRelations\HasCompositeRelations;
  */
 class LeadParticipant extends BaseModel
 {
-    use HasCompositeRelations;
-
-    #use HasCompositePrimaryKeyTrait;
+    use HasCompositePrimaryKeyTrait;
     use NoAppRelationshipTrait;
     use NoCompanyRelationshipTrait;
 
