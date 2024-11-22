@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\CMLink\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Domains\Connectors\CMLink\Client;
+use Kanvas\Connectors\CMLink\Client;
 
 class CarrierService
 {

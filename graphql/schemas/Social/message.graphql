@@ -190,6 +190,11 @@ extend type Query @guard {
                 relation: "user"
                 columns: ["id", "displayname"]
             )
+        hasChannel: _
+            @whereHasConditions(
+                relation: "channels"
+                columns: ["id", "name", "slug"]
+            )
         hasTags: _
             @whereHasConditions(
                 relation: "tags"

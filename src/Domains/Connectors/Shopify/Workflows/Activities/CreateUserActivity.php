@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Workflows\Activities;
 
-use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -14,12 +13,10 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
-use Workflow\Activity;
+use Kanvas\Workflow\KanvasActivity;
 
-class CreateUserActivity extends Activity
+class CreateUserActivity extends KanvasActivity
 {
-    use KanvasJobsTrait;
-
     public function execute(Users $user, Apps $app, array $params): array
     {
         if (! isset($params['company']) || ! $params['company'] instanceof Companies) {

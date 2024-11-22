@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
-use Kanvas\Models\BaseModel as KanvasBaseModel;
+use Kanvas\Regions\Models\Regions as ModelsRegions;
 use Kanvas\Traits\DefaultTrait;
 
 /**
@@ -31,7 +31,7 @@ use Kanvas\Traits\DefaultTrait;
  * @property string $created_at
  * @property string $updated_at
  */
-class Regions extends KanvasBaseModel
+class Regions extends ModelsRegions
 {
     use UuidTrait;
     use SlugTrait;

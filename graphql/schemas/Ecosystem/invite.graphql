@@ -32,6 +32,15 @@ input InviteInput {
     custom_fields: [CustomFieldEntityInput!]
 }
 
+input AdminInviteInput {
+    email: String!
+    firstname: String
+    lastname: String
+    description: String
+    email_template: String
+    custom_fields: [CustomFieldEntityInput!]
+}
+
 input CompleteInviteInput {
     invite_hash: String!
     password: String!
@@ -43,11 +52,19 @@ input CompleteInviteInput {
 extend type Mutation @guard {
     inviteUser(input: InviteInput!): Invite!
         @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@insertInvite"
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@insertUserInvite"
+        )
+    inviteAdmin(input: AdminInviteInput!): Invite!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@insertAdminInvite"
         )
     deleteInvite(id: Int!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@deleteInvite"
+        )
+    deleteAdminInvite(id: Int!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@deleteAdminInvite"
         )
 }
 
@@ -60,6 +77,10 @@ extend type Mutation {
     processInvite(input: CompleteInviteInput!): TokenResponse!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@process"
+        )
+    processAdminInvite(input: CompleteInviteInput!): TokenResponse!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@processAdmin"
         )
 }
 extend type Query @guard {
@@ -88,6 +109,29 @@ extend type Query @guard {
         @paginate(
             model: "Kanvas\\Users\\Models\\UsersInvite"
             scopes: ["fromCompany", "fromApp"]
+        )
+    adminInvites(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "users_id"
+                    "apps_id"
+                    "email"
+                    "firstname"
+                    "lastname"
+                    "description"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: ["id", "firstname", "lastname"]
+                direction: "DESC"
+            )
+    ): [Invite!]!
+        @paginate(
+            model: "Kanvas\\Users\\Models\\AdminInvite"
+            scopes: ["fromApp"]
         )
 }
 

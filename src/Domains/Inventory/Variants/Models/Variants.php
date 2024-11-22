@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Variants\Models;
 
 use Awobaz\Compoships\Compoships;
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
 use Baka\Support\Str;
 use Baka\Traits\HasLightHouseCache;
@@ -172,6 +174,13 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     public function visibleAttributes(): BelongsToMany
     {
         return $this->buildAttributesQuery(['is_visible' => true]);
+    }
+
+    public function getAttributeByName(string $name): ?Attributes
+    {
+        return $this->attributes()
+            ->where('attributes.name', $name)
+            ->first();
     }
 
     public function searchableAttributes(): BelongsToMany
@@ -460,5 +469,13 @@ class Variants extends BaseModel implements EntityIntegrationInterface
         );
 
         return (int) $total;
+    }
+
+    public static function getBySku(string $sku, CompanyInterface $company, AppInterface $app): self
+    {
+        return self::fromApp($app)
+            ->fromCompany($company)
+            ->where('sku', $sku)
+            ->firstOrFail();
     }
 }

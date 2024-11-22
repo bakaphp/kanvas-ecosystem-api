@@ -5,17 +5,15 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Google\Activities;
 
 use Baka\Contracts\AppInterface;
-use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Google\Actions\GenerateGoogleUserMessageAction;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Workflow\Activity;
+use Kanvas\Workflow\KanvasActivity;
 
-class GenerateUserForYouFeedActivity extends Activity implements WorkflowActivityInterface
+class GenerateUserForYouFeedActivity extends KanvasActivity implements WorkflowActivityInterface
 {
-    use KanvasJobsTrait;
     public $tries = 10;
 
     public function execute(Model $user, AppInterface $app, array $params): array

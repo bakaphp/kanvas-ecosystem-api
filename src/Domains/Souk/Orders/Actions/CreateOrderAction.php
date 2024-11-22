@@ -6,14 +6,16 @@ namespace Kanvas\Souk\Orders\Actions;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use Kanvas\Connectors\Shopify\Notifications\NewManualPaidOrderNotification;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Orders\Validations\UniqueOrderNumber;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreateOrderAction
 {
+    protected bool $runWorkflow = true;
+
     public function __construct(
         protected Order $orderData
     ) {
@@ -41,7 +43,7 @@ class CreateOrderAction
             $order->user_phone = $this->orderData->phone;
             $order->token = $this->orderData->token;
             $order->order_number = $this->orderData->orderNumber;
-            $order->shipping_address_id =  $this->orderData?->shippingAddress?->getId() ?? null;
+            $order->shipping_address_id = $this->orderData?->shippingAddress?->getId() ?? null;
             $order->billing_address_id = $this->orderData?->billingAddress?->getId() ?? null;
             $order->total_gross_amount = $this->orderData->total;
             $order->total_net_amount = $this->orderData->total - $this->orderData->taxes;
@@ -60,6 +62,16 @@ class CreateOrderAction
             $order->saveOrFail();
 
             $order->addItems($this->orderData->items);
+
+            if ($this->runWorkflow) {
+                $order->fireWorkflow(
+                    WorkflowEnum::CREATED->value,
+                    true,
+                    [
+                        'app' => $this->orderData->app,
+                    ]
+                );
+            }
 
             return $order;
         });

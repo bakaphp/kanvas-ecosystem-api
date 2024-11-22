@@ -10,7 +10,6 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoAgentAction;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoLeadAction;
@@ -42,7 +41,18 @@ class ReceiverController extends BaseController
 
             $webhookRequest = (new ProcessWebhookAttemptAction($receiver, $request))->execute();
             $job = new $receiver->action->model_name($webhookRequest);
-            dispatch($job);
+
+            if ($receiver->runAsync()) {
+                dispatch($job);
+            } else {
+                $response = dispatch_sync($job);
+                $status = $response['status'] ?? 200;
+
+                return response()->json(array_merge(
+                    ['message' => 'Receiver processed'],
+                    $response
+                ), $status);
+            }
 
             return response()->json(['message' => 'Receiver processed']);
         }
