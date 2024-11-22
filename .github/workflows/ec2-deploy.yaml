@@ -59,13 +59,13 @@ jobs:
             docker restart queue-notifications
             docker restart queue-social
             docker restart laravel-scheduler
-            docker restart queue-sync-shopify
-            docker restart queue-sync-shopify-worker-1
+            docker restart queue-sync-shopify-queue
+            docker restart queue-sync-shopify-queue-worker-1
             docker restart queue-sync-shopify-queue-worker-1
             docker restart queue-sync-shopify-queue-worker-2
-            docker restart queue-scout-queue-worker-1
-            docker restart queue-scout-queue-worker-2
-            docker restart queue-scout-queue-worker-3
+            docker restart queue-scout-worker-1
+            docker restart queue-scout-worker-2
+            docker restart queue-scout-worker-3
             docker restart queue-workflow-1
             docker restart queue-workflow-2
             docker restart queue-workflow-3
