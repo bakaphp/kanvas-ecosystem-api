@@ -4,19 +4,48 @@ declare(strict_types=1);
 
 namespace Baka\Traits;
 
-use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 /**
- * https://laracasts.com/discuss/channels/laravel/override-method-setkeysforsavequery-error?page=1&replyId=658568.
+ * https://github.com/thiagoprz/eloquent-composite-key
  *
  * Trait to handle composite keys
  */
 trait HasCompositePrimaryKeyTrait
 {
     /**
-     * Disable auto-incrementing for primary key.
+     * Set the keys for a save update query.
      *
-     * @return void
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    protected function setKeysForSaveQuery($query)
+    {
+        $keys = $this->getKeyName();
+
+        return ! is_array($keys) ? parent::setKeysForSaveQuery($query) : $query->where(function ($q) use ($keys) {
+            foreach ($keys as $key) {
+                $q->where($key, '=', $this->getAttribute($key));
+            }
+        });
+    }
+
+    /**
+     * Get the casts array.
+     *
+     * @return array
+     */
+    public function getCasts()
+    {
+        if ($this->getIncrementing()) {
+            return array_merge([$this->getKeyName() => $this->getKeyType()], $this->casts);
+        }
+
+        return $this->casts;
+    }
+
+    /**
+     * @return false
      */
     public function getIncrementing()
     {
@@ -24,43 +53,57 @@ trait HasCompositePrimaryKeyTrait
     }
 
     /**
-     * Override the method to set keys for save query.
-     *
-     * @param object $query
-     *
-     * @return object
-     */
-    protected function setKeysForSaveQuery($query)
-    {
-        foreach ($this->getKeyName() as $key) {
-            // UPDATE: Added isset() per overflow's comment.
-            if (isset($this->$key)) {
-                $query->where($key, '=', $this->$key);
-            } else {
-                throw new Exception(__METHOD__ . 'Missing part of the primary key: ' . $key);
-            }
-        }
-
-        return $query;
-    }
-
-    /**
-     * Override the method to get key for save query.
-     *
-     * @param string|null $keyName
+     * Get the value of the model's primary key.
      *
      * @return mixed
      */
-    protected function getKeyForSaveQuery($keyName = null)
+    public function getKey()
     {
-        if (is_null($keyName)) {
-            $keyName = $this->getKeyName();
+        $fields = $this->getKeyName();
+        $keys = [];
+        array_map(function ($key) use (&$keys) {
+            $keys[] = $this->getAttribute($key);
+        }, $fields);
+
+        return $keys;
+    }
+
+    /**
+     * Finds model by primary keys
+     *
+     * @return mixed
+     */
+    public static function find(array $ids)
+    {
+        $modelClass = get_called_class();
+        $model = new $modelClass();
+        $keys = $model->primaryKey;
+
+        return $model->where(function ($query) use ($ids, $keys) {
+            foreach ($keys as $idx => $key) {
+                if (isset($ids[$idx])) {
+                    $query->where($key, $ids[$idx]);
+                } else {
+                    $query->whereNull($key);
+                }
+            }
+        })->first();
+    }
+
+    /**
+     * Find model by primary key or throws ModelNotFoundException
+     *
+     * @return mixed
+     */
+    public static function findOrFail(array $ids)
+    {
+        $modelClass = get_called_class();
+        $model = new $modelClass();
+        $record = $model->find($ids);
+        if (! $record) {
+            throw new ModelNotFoundException();
         }
 
-        if (isset($this->original[$keyName])) {
-            return $this->original[$keyName];
-        }
-
-        return $this->getAttribute($keyName);
+        return $record;
     }
 }
