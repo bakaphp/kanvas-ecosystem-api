@@ -49,7 +49,7 @@ final class CreatePeopleSubscriptionTest extends TestCase
                       'action_id' => $workflowAction->getId(),
                ]);
 
-        $request = Request::create('https://172.23.240.1/ghosttest', 'POST', $payload);
+        $request = Request::create('https://localhost/ghosttest', 'POST', $payload);
 
         // Execute the action and get the webhook request
         $webhookRequest = (new ProcessWebhookAttemptAction($receiverWebhook, $request))->execute();
@@ -103,13 +103,6 @@ final class CreatePeopleSubscriptionTest extends TestCase
                             "id": "66f56adf8d99370001b93e80",
                             "name": "report:the-state-of-sus",
                             "slug": "report-the-state-of-sus",
-                            "created_at": "2024-09-26T14:08:31.000Z",
-                            "updated_at": "2024-09-26T14:08:31.000Z"
-                        },
-                        {
-                            "id": "66f56adf8d993700011b93e80",
-                            "name": "report:the-state-of-a-sus",
-                            "slug": "report-the-state-of-a-sus",
                             "created_at": "2024-09-26T14:08:31.000Z",
                             "updated_at": "2024-09-26T14:08:31.000Z"
                         }
