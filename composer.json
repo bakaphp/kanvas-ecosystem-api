@@ -12,7 +12,7 @@
     "require": {
         "php": "^8.2",
         "algolia/algoliasearch-client-php": "^3.4",
-        "algolia/scout-extended": "^3.0",
+        "algolia/scout-extended": "^3.1",
         "awobaz/compoships": "^2.2",
         "berkayk/onesignal-laravel": "^2.0",
         "darryldecode/cart": "dev-l11-compatibility",
@@ -30,7 +30,6 @@
         "laravel/framework": "^11.0",
         "laravel/octane": "^2.3",
         "laravel/sanctum": "^4.0",
-        "laravel/scout": "10.11.5",
         "laravel/socialite": "^5.14.0",
         "laravel/tinker": "^2.7",
         "lcobucci/jwt": "^5.2",

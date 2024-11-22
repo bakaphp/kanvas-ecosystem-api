@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9d1d752db453aadf9118004d0b735500",
+    "content-hash": "17d4569c83e0e758db5fa66f00f00738",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -82,16 +82,16 @@
         },
         {
             "name": "algolia/scout-extended",
-            "version": "v3.1.0",
+            "version": "v3.1.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/algolia/scout-extended.git",
-                "reference": "74d8c73955c07ce52633f74005624545239a9522"
+                "reference": "dc325a3106da9271b7f0554739d873ded134d114"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/algolia/scout-extended/zipball/74d8c73955c07ce52633f74005624545239a9522",
-                "reference": "74d8c73955c07ce52633f74005624545239a9522",
+                "url": "https://api.github.com/repos/algolia/scout-extended/zipball/dc325a3106da9271b7f0554739d873ded134d114",
+                "reference": "dc325a3106da9271b7f0554739d873ded134d114",
                 "shasum": ""
             },
             "require": {
@@ -102,7 +102,7 @@
                 "illuminate/database": "^9.0|^10.0|^11.0",
                 "illuminate/filesystem": "^9.0|^10.0|^11.0",
                 "illuminate/support": "^9.0|^10.0|^11.0",
-                "laravel/scout": "^9.0|^10.0",
+                "laravel/scout": "^9.0|^10.0 <10.11.6",
                 "php": "^8.0",
                 "riimu/kit-phpencoder": "^2.4"
             },
@@ -157,9 +157,9 @@
             ],
             "support": {
                 "issues": "https://github.com/algolia/scout-extended/issues",
-                "source": "https://github.com/algolia/scout-extended/tree/v3.1.0"
+                "source": "https://github.com/algolia/scout-extended/tree/v3.1.1"
             },
-            "time": "2024-03-21T14:34:08+00:00"
+            "time": "2024-11-22T12:09:41+00:00"
         },
         {
             "name": "amphp/amp",
@@ -6316,23 +6316,23 @@
         },
         {
             "name": "moneyphp/money",
-            "version": "v4.5.1",
+            "version": "v4.6.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/moneyphp/money.git",
-                "reference": "142107bec4870ac2586057dc2fe917d25c92a91e"
+                "reference": "ddf6a86b574808f8844777ed4e8c4f92a10dac9b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/moneyphp/money/zipball/142107bec4870ac2586057dc2fe917d25c92a91e",
-                "reference": "142107bec4870ac2586057dc2fe917d25c92a91e",
+                "url": "https://api.github.com/repos/moneyphp/money/zipball/ddf6a86b574808f8844777ed4e8c4f92a10dac9b",
+                "reference": "ddf6a86b574808f8844777ed4e8c4f92a10dac9b",
                 "shasum": ""
             },
             "require": {
                 "ext-bcmath": "*",
                 "ext-filter": "*",
                 "ext-json": "*",
-                "php": "~8.1.0 || ~8.2.0 || ~8.3.0"
+                "php": "~8.1.0 || ~8.2.0 || ~8.3.0 || ~8.4.0"
             },
             "require-dev": {
                 "cache/taggable-cache": "^1.1.0",
@@ -6398,9 +6398,9 @@
             ],
             "support": {
                 "issues": "https://github.com/moneyphp/money/issues",
-                "source": "https://github.com/moneyphp/money/tree/v4.5.1"
+                "source": "https://github.com/moneyphp/money/tree/v4.6.0"
             },
-            "time": "2024-09-27T12:04:27+00:00"
+            "time": "2024-11-22T10:59:03+00:00"
         },
         {
             "name": "monolog/monolog",
