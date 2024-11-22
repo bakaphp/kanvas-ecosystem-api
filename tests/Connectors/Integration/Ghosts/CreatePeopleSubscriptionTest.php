@@ -158,6 +158,6 @@ final class CreatePeopleSubscriptionTest extends TestCase
         $result = $job->handle();
 
         $this->assertArrayHasKey('people', $result);
-        $this->assertInstanceOf(People::class, People::getById($result['people']));  
+        $this->assertInstanceOf(People::class, People::getById($result['people']));
     }
 }
