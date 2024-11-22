@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Internal\Activities;
 
 use Baka\Contracts\AppInterface;
-use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Internal\Actions\ExtractCompanyNameFromEmailAction;
 use Kanvas\Connectors\Internal\Enums\ConfigurationEnum;
@@ -13,13 +12,10 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Workflow\Activity;
+use Kanvas\Workflow\KanvasActivity;
 
-class ExtractCompanyNameFromPeopleEmailActivity extends Activity implements WorkflowActivityInterface
+class ExtractCompanyNameFromPeopleEmailActivity extends KanvasActivity implements WorkflowActivityInterface
 {
-    use KanvasJobsTrait;
-    public $tries = 5;
-
     /**
      * @param People $people
      */

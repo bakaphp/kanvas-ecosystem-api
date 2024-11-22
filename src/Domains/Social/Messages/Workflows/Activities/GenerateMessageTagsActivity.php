@@ -5,16 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
-use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Workflow\Activity;
+use Kanvas\Workflow\KanvasActivity;
 
-class GenerateMessageTagsActivity extends Activity implements WorkflowActivityInterface
+class GenerateMessageTagsActivity extends KanvasActivity implements WorkflowActivityInterface
 {
-    use KanvasJobsTrait;
-
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);

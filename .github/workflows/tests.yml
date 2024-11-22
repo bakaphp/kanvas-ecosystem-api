@@ -1,6 +1,6 @@
 name: CI
 
-on: [ "push" ]
+on: ["push"]
 
 jobs:
   run-tests:
@@ -51,12 +51,6 @@ jobs:
       AWS_DEFAULT_REGION_CICD: ${{ secrets.AWS_DEFAULT_REGION_CICD }}
       AWS_BUCKET_CICD: ${{ secrets.AWS_BUCKET_CICD }}
       AWS_URL: ${{ secrets.AWS_URL }}
-      NET_SUITE_CUSTOMER_ID: ${{ secrets.NET_SUITE_CUSTOMER_ID }}
-      NET_SUITE_ACCOUNT: ${{ secrets.NET_SUITE_ACCOUNT }}
-      NET_SUITE_CONSUMER_KEY: ${{ secrets.NET_SUITE_CONSUMER_KEY }}
-      NET_SUITE_CONSUMER_SECRET: ${{ secrets.NET_SUITE_CONSUMER_SECRET }}
-      NET_SUITE_TOKEN: ${{ secrets.NET_SUITE_TOKEN }}
-      NET_SUITE_TOKEN_SECRET: ${{ secrets.NET_SUITE_TOKEN_SECRET }}
       MODEL_CACHE_STORE: model
       MODEL_CACHE_ENABLED: false
       LIGHTHOUSE_CACHE_ENABLE: true
@@ -79,6 +73,14 @@ jobs:
       TEST_STRIPE_SECRET_KEY: ${{ secrets.TEST_STRIPE_SECRET_KEY }}
       TEST_AMPLITUDE_KEY: ${{ secrets.TEST_AMPLITUDE_KEY }}
       TEST_AMPLITUDE_SECRET: ${{ secrets.TEST_AMPLITUDE_SECRET }}
+      NET_SUITE_CUSTOMER_ID: ${{ secrets.NET_SUITE_CUSTOMER_ID }}
+      NET_SUITE_INVOICE_NUMBER: ${{ secrets.NET_SUITE_INVOICE_NUMBER }}
+      NET_SUITE_ACCOUNT: ${{ secrets.NET_SUITE_ACCOUNT }}
+      NET_SUITE_CONSUMER_KEY: ${{ secrets.NET_SUITE_CONSUMER_KEY }}
+      NET_SUITE_CONSUMER_SECRET: ${{ secrets.NET_SUITE_CONSUMER_SECRET }}
+      NET_SUITE_TOKEN: ${{ secrets.NET_SUITE_TOKEN }}
+      NET_SUITE_TOKEN_SECRET: ${{ secrets.NET_SUITE_TOKEN_SECRET }}
+      TEST_APPLE_PAYMENT_SHARED_SECRET: ${{ secrets.TEST_APPLE_PAYMENT_SHARED_SECRET }}
     strategy:
       fail-fast: false
       matrix:
@@ -91,7 +93,7 @@ jobs:
           MYSQL_DATABASE: kanvas
         ports:
           - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3 
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
       redis:
         # Docker Hub image
         image: redis
@@ -152,11 +154,11 @@ jobs:
       - name: Setup WORKFLOW DB
         run: |
           mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS workflow;'
-          
+
       - name: Setup ACTION ENGINE DB
         run: |
           mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS action_engine;'
-          
+
       - name: Setup COMMERCE DB
         run: |
           mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS commerce;'
@@ -167,7 +169,7 @@ jobs:
 
       - name: Configure MySQL
         run: |
-          mysql -uroot -h127.0.0.1 -ppassword -e "SET GLOBAL max_connections = 1000;"  
+          mysql -uroot -h127.0.0.1 -ppassword -e "SET GLOBAL max_connections = 1000;"
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
@@ -184,7 +186,7 @@ jobs:
       - name: Run Tests
         if: success()
         run: php artisan test
-      
+
       - name: Upload artifacts
         uses: actions/upload-artifact@master
         if: failure()

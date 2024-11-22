@@ -4,16 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\IPlus\Workflows\Activities;
 
-use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\IPlus\Actions\SaveOrderToIPlusAction;
 use Kanvas\Souk\Orders\Models\Order;
-use Workflow\Activity;
+use Kanvas\Workflow\KanvasActivity;
 
-class SyncOrderWithIPlusActivities extends Activity
+class SyncOrderWithIPlusActivities extends KanvasActivity
 {
-    use KanvasJobsTrait;
-
     public function execute(Order $order, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);

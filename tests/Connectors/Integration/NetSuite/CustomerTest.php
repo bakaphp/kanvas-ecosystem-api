@@ -113,4 +113,16 @@ final class CustomerTest extends TestCase
 
         $this->assertIsArray($result);
     }
+
+    public function testGetCustomerInvoiceByNumber()
+    {
+        $company = Companies::first();
+        $app = app(Apps::class);
+
+        $netSuiteService = new NetSuiteCustomerService($app, $company);
+        $invoiceNumber = getenv('NET_SUITE_INVOICE_NUMBER');
+        $customerInvoices = $netSuiteService->getInvoiceByNumber($invoiceNumber);
+
+        $this->assertIsArray($customerInvoices);
+    }
 }

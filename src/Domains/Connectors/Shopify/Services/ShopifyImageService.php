@@ -33,13 +33,14 @@ class ShopifyImageService
             return $totalUploaded;
         }
 
-        return $entity->files->sortByDesc('id')->reduce(function ($totalUploaded, $file) use ($entity) {
+        return $entity->files->sortBy('id')->reduce(function ($totalUploaded, $file, $index) use ($entity) {
             $method = $entity instanceof Products ? 'addImage' : 'addVariantImage';
-            return $totalUploaded + ($this->$method($entity, $file->url) ? 1 : 0);
+            $position = $index + 1;
+            return $totalUploaded + ($this->$method($entity, $file->url, $position) ? 1 : 0);
         }, 0);
     }
 
-    public function addImage(Products $product, string $imageUrl): ?array
+    public function addImage(Products $product, string $imageUrl, int $position = 1): ?array
     {
         try {
             $shopifyProduct = $this->shopifySdk->Product($product->getShopifyId($this->region));
@@ -67,7 +68,7 @@ class ShopifyImageService
         }
     }
 
-    public function addVariantImage(Variants $variant, string $imageUrl): bool
+    public function addVariantImage(Variants $variant, string $imageUrl, int $position = 1): bool
     {
         try {
             $shopifyProduct = $this->shopifySdk->Product($variant->product->getShopifyId($this->region));
@@ -84,7 +85,7 @@ class ShopifyImageService
             }
 
             // Add the image if it does not exist
-            $image = $this->addImage($variant->product, $imageUrl);
+            $image = $this->addImage($variant->product, $imageUrl, $position);
 
             if ($image) {
                 $shopifyVariantData = $shopifyVariant->get();

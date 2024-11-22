@@ -7,9 +7,9 @@ namespace Kanvas\Connectors\RainForest\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\RainForest\Actions\ImportAction;
-use Workflow\Activity;
+use Kanvas\Workflow\KanvasActivity;
 
-class ImportProductActivity extends Activity
+class ImportProductActivity extends KanvasActivity
 {
     public function execute(Model $model, AppInterface $app, array $params)
     {

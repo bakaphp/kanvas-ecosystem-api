@@ -7,18 +7,16 @@ namespace Kanvas\Connectors\ScrapperApi\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Connectors\ScrapperApi\Actions\ScrapperAction;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum;
-use Laravel\Octane\Facades\Octane;
+use Kanvas\Workflow\KanvasActivity;
 
 use function Sentry\captureException;
 
 use Throwable;
-use Workflow\Activity;
 
-class ScrapperSearchActivity extends Activity
+class ScrapperSearchActivity extends KanvasActivity
 {
     public $tries = 3;
     public $queue = ConfigEnum::ACTIVITY_QUEUE->value;

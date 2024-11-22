@@ -6,8 +6,9 @@ namespace Kanvas\Connectors\CMLink\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Spatie\LaravelData\Data;
 
-class CMLink
+class CMLink extends Data
 {
     public function __construct(
         public CompanyInterface $company,
