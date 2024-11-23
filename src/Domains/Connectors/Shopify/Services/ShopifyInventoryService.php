@@ -73,7 +73,12 @@ class ShopifyInventoryService
                     $this->setStock($variant, $channel);
                 }
 
-                $shopifyVariantMetafieldService = new ShopifyVariantMetafieldService($this->app, $this->company, $this->warehouses->regions, $variant);
+                $shopifyVariantMetafieldService = new ShopifyVariantMetafieldService(
+                    $this->app,
+                    $this->company,
+                    $this->warehouses->regions,
+                    $variant
+                );
 
                 $shopifyVariantMetafieldService->setMetaField();
             }
@@ -98,6 +103,7 @@ class ShopifyInventoryService
         }
 
         $this->shopifyImageService->processEntityImage($product);
+
         return $response;
     }
 

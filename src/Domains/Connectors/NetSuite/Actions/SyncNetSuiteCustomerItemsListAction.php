@@ -78,7 +78,7 @@ class SyncNetSuiteCustomerItemsListAction
                 VariantChannel::fromArray([
                     'price' => $bardCodeId->price,
                     'discounted_price' => $bardCodeId->price,
-                    'is_published' => true,
+                    'is_published' => $bardCodeId->price > 0,
                 ])
             );
             $addVariantToChannel->execute();
