@@ -187,7 +187,7 @@ class ImportDataFromFilesystemAction
         return $date !== false;
     }
 
-    protected function createFromFormat(string $dateString): ?int
+    protected function createFromFormat(string $dateString): ?string
     {
         $date = DateTime::createFromFormat('Y-m-d H:i:s', $dateString) ?:
                 DateTime::createFromFormat('Y-m-d', $dateString) ?:
@@ -206,7 +206,7 @@ class ImportDataFromFilesystemAction
             }
         }
 
-        return $date->getTimestamp();
+        return $date->format('Y-m-d H:i:s');
     }
 
     public function explodeFileStringBasedOnDelimiter(string $value): array
