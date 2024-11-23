@@ -1195,16 +1195,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.329.0",
+            "version": "3.330.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "37249799204e04cf3686d2b361cfd417d3dab123"
+                "reference": "dd1b65a4329f91d5e282a92fab2be7bdf6e2adea"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/37249799204e04cf3686d2b361cfd417d3dab123",
-                "reference": "37249799204e04cf3686d2b361cfd417d3dab123",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/dd1b65a4329f91d5e282a92fab2be7bdf6e2adea",
+                "reference": "dd1b65a4329f91d5e282a92fab2be7bdf6e2adea",
                 "shasum": ""
             },
             "require": {
@@ -1287,9 +1287,9 @@
             "support": {
                 "forum": "https://forums.aws.amazon.com/forum.jspa?forumID=80",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.329.0"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.330.0"
             },
-            "time": "2024-11-21T19:16:09+00:00"
+            "time": "2024-11-22T19:10:26+00:00"
         },
         {
             "name": "berkayk/onesignal-laravel",
@@ -8055,21 +8055,21 @@
         },
         {
             "name": "phpdocumentor/reflection",
-            "version": "6.0.0",
+            "version": "6.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpDocumentor/Reflection.git",
-                "reference": "61e2f1fe7683e9647b9ed8d9e53d08699385267d"
+                "reference": "bb4dea805a645553d6d989b23dad9f8041f39502"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpDocumentor/Reflection/zipball/61e2f1fe7683e9647b9ed8d9e53d08699385267d",
-                "reference": "61e2f1fe7683e9647b9ed8d9e53d08699385267d",
+                "url": "https://api.github.com/repos/phpDocumentor/Reflection/zipball/bb4dea805a645553d6d989b23dad9f8041f39502",
+                "reference": "bb4dea805a645553d6d989b23dad9f8041f39502",
                 "shasum": ""
             },
             "require": {
                 "nikic/php-parser": "~4.18 || ^5.0",
-                "php": "8.1.*|8.2.*|8.3.*",
+                "php": "8.1.*|8.2.*|8.3.*|8.4.*",
                 "phpdocumentor/reflection-common": "^2.1",
                 "phpdocumentor/reflection-docblock": "^5",
                 "phpdocumentor/type-resolver": "^1.2",
@@ -8116,9 +8116,9 @@
             ],
             "support": {
                 "issues": "https://github.com/phpDocumentor/Reflection/issues",
-                "source": "https://github.com/phpDocumentor/Reflection/tree/6.0.0"
+                "source": "https://github.com/phpDocumentor/Reflection/tree/6.1.0"
             },
-            "time": "2024-05-23T19:28:12+00:00"
+            "time": "2024-11-22T15:11:54+00:00"
         },
         {
             "name": "phpdocumentor/reflection-common",
