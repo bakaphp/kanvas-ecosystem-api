@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Connectors\Shopify\Enums\ConfigEnum;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Regions\Models\Regions;
@@ -45,6 +46,13 @@ class ShopifyProductService
         $productTags = ! empty($shopifyProduct['tags']) ? explode($shopifyProduct['tags'], ',') : [];
         $productAttributes = [];
 
+        $productType = $shopifyProduct['product_type'] ?? 'Default';
+        $productCategory = ! empty($shopifyProduct['category']) ? $shopifyProduct['category']['name'] : 'Uncategorized';
+
+        if ($this->app->get(ConfigEnum::SHOPIFY_PRODUCT_TYPE_AS_CATEGORY->value)) {
+            $productCategory = $productType;
+        }
+
         return [
            'name' => $name,
            'description' => $description ?? '',
@@ -67,14 +75,14 @@ class ShopifyProductService
            ],
            'categories' => [
                [
-                   'name' => ! empty($shopifyProduct['category']) ? $shopifyProduct['category']['name'] : 'Uncategorized',
+                   'name' => $productCategory,
                    'code' => ! empty($shopifyProduct['category']) ? Str::afterLast($shopifyProduct['category']['admin_graphql_api_id'], '/') : 'Uncategorized',
                    'is_published' => true,
                    'position' => 1,
                ],
            ],
            'productType' => [
-                'name' => $shopifyProduct['product_type'] ?? 'Default',
+                'name' => $productType,
                 'weight' => 0,
            ],
            'attributes' => [],
