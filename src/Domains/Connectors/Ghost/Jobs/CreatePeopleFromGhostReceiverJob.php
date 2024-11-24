@@ -27,9 +27,16 @@ class CreatePeopleFromGhostReceiverJob extends ProcessWebhookJob
             ];
         }
 
-        $name = explode(' ', $payload['name']);
-        $firstname = $name[0];
-        $lastname = $name[1] ?? null;
+        if ($payload['name']) {
+            $name = explode(' ', $payload['name']);
+            $firstname = $name[0];
+            $lastname = $name[1] ?? null;
+        } else {
+            $name = explode('@', $payload['email']);
+            $firstname = $name[0];
+            $lastname =  null;
+        }
+
 
         $customerEmail = [
             [
