@@ -27,7 +27,7 @@ class CreatePeopleFromGhostReceiverJob extends ProcessWebhookJob
             ];
         }
 
-        if ($payload['name']) {
+        if (! empty($payload['name'])) {
             $name = explode(' ', $payload['name']);
             $firstname = $name[0];
             $lastname = $name[1] ?? null;
@@ -86,6 +86,11 @@ class CreatePeopleFromGhostReceiverJob extends ProcessWebhookJob
                     $tags[] = $label['name'];
                 }
             }
+
+            $customFields[] = [
+                'key' => CustomFieldEnum::GHOST_UNLOCK_CUSTOM_FIELD->value,
+                'value' => $unlockedReports,
+            ];
         }
         $customFields[] = [
             'key' => CustomFieldEnum::GHOST_UNLOCK_CUSTOM_FIELD->value,
