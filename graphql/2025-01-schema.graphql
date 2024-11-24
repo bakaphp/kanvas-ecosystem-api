@@ -18,19 +18,4 @@ scalar Email @scalar(class: "MLL\\GraphQLScalars\\Email")
 scalar JSON @scalar(class: "MLL\\GraphQLScalars\\JSON")
 scalar Null @scalar(class: "MLL\\GraphQLScalars\\NullScalar")
 
-#import hello.graphql
-#import schemas/*.graphql
-#import schemas/Ecosystem/*.graphql
-#import schemas/Ecosystem/Filesystem/*.graphql
-#import schemas/Inventory/*.graphql
-#import schemas/Connector/*.graphql
-#import schemas/Inventory/Admin/*.graphql
-#import schemas/Guild/*.graphql
-#import schemas/Social/*.graphql
-#import schemas/ContentEngine/*.graphql
-#import schemas/Souk/*.graphql
-#import schemas/ActionEngine/*.graphql
-#import schemas/Ecosystem/Admin/*.graphql
-#import schemas/WorkFlow/*.graphql
-#import schemas/Subscription/*.graphql
-#import schemas/Event/*.graphql
+#import schemas-2025/*.graphql

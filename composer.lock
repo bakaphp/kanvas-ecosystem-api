@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "17d4569c83e0e758db5fa66f00f00738",
+    "content-hash": "ba86339ee90deefc36d404ab4a533a4d",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -14811,6 +14811,63 @@
                 }
             ],
             "time": "2024-11-13T16:21:54+00:00"
+        },
+        {
+            "name": "yakovenko/laravel-lighthouse-graphql-multi-schema",
+            "version": "v1.5.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/as-yakovenko/laravel-lighthouse-graphql-multi-schema.git",
+                "reference": "33303bfdb865b5e8ce32cd8c11a01eff75884ca3"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/as-yakovenko/laravel-lighthouse-graphql-multi-schema/zipball/33303bfdb865b5e8ce32cd8c11a01eff75884ca3",
+                "reference": "33303bfdb865b5e8ce32cd8c11a01eff75884ca3",
+                "shasum": ""
+            },
+            "require": {
+                "laravel/framework": "^9.0 || ^10.0 || ^11.0",
+                "nuwave/lighthouse": "^6.0",
+                "php": "^8"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Yakovenko\\LighthouseGraphqlMultiSchema\\LighthouseMultiSchemaServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Yakovenko\\LighthouseGraphqlMultiSchema\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Alexander Yakovenko",
+                    "email": "paffen.web@gmail.com",
+                    "homepage": "https://github.com/as-yakovenko"
+                }
+            ],
+            "description": "A Laravel package that provides multi-schema support for Lighthouse GraphQL.",
+            "keywords": [
+                "graphql",
+                "laravel",
+                "laravel-graphql",
+                "lighthouse",
+                "multi-schema"
+            ],
+            "support": {
+                "issues": "https://github.com/as-yakovenko/laravel-lighthouse-graphql-multi-schema/issues",
+                "source": "https://github.com/as-yakovenko/laravel-lighthouse-graphql-multi-schema/tree/v1.5.0"
+            },
+            "time": "2024-11-15T13:53:57+00:00"
         }
     ],
     "packages-dev": [
@@ -16899,6 +16956,6 @@
     "platform": {
         "php": "^8.2"
     },
-    "platform-dev": {},
+    "platform-dev": [],
     "plugin-api-version": "2.6.0"
 }
