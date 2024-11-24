@@ -63,7 +63,8 @@
         "typesense/typesense-php": "^4.9",
         "vladimir-yuldashev/laravel-queue-rabbitmq": "^14.0",
         "vlucas/phpdotenv": "^5.5",
-        "webleit/zohocrmapi": "^5.3"
+        "webleit/zohocrmapi": "^5.3",
+        "yakovenko/laravel-lighthouse-graphql-multi-schema": "^1.5"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",
