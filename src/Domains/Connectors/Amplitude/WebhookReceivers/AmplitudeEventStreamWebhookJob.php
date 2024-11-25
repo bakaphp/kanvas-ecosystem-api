@@ -21,27 +21,17 @@ class AmplitudeEventStreamWebhookJob extends ProcessWebhookJob
     {
         $payload = $this->webhookRequest->payload;
 
-        /*        {
-                   "event_type": "Button Clicked",
-                   "event_time": "2022-10-24T20:07:32.123Z",
-                   "user_id": "user_one@example.com",
-                   "device_id": "device123",
-                   "user_properties": {
-                     "email": "user_one@example.com"
-                     // Additional user properties
-                   },
-                   "event_properties": {
-                     "button_color": "red"
-                     // Additional event properties
-                   }
-                   // Additional event fields
-                 } */
-
         //create the user interaction so its uses the workflow to stream to the diff distribution source
         $allowInteractions = [
           'View Explore' => InteractionEnum::VIEW_HOME_PAGE->getValue(),
         ];
-        $eventType = $payload['event_type'];
+        $eventType = $payload['event_type'] ?? null;
+
+        if (! $eventType) {
+            return [
+              'message' => 'Event type not found',
+            ];
+        }
 
         if (! isset($payload['user_id'])) {
             return [
