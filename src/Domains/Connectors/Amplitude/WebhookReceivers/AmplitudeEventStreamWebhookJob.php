@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Kanvas\Connectors\Amplitude\WebhookReceivers;
+
 use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Interactions\Actions\CreateInteraction;
 use Kanvas\Social\Interactions\Actions\CreateUserInteractionAction;
