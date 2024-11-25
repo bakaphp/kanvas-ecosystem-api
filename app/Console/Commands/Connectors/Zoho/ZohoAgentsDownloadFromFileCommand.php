@@ -73,6 +73,7 @@ class ZohoAgentsDownloadFromFileCommand extends Command
 
             if ($user && Agent::where('users_id', $user->getId())->fromApp($app)->exists()) {
                 $progressBar->advance();
+
                 continue;
             }
 
