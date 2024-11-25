@@ -30,6 +30,14 @@ type ExternalInvite {
     description: String
 }
 
+type ExternalAdminInvite {
+    invite_hash: String!
+    users_id: Int!
+    email: String!
+    firstname: String
+    lastname: String
+}
+
 input InviteInput {
     role_id: Int
     companies_branches_id: Int
@@ -148,5 +156,9 @@ extend type Query {
     getInvite(hash: String!): ExternalInvite!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Users\\UserInviteQuery@getInvite"
+        )
+    getAdminInvite(hash: String!): ExternalAdminInvite!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Users\\AdminInviteQuery@getInvite"
         )
 }

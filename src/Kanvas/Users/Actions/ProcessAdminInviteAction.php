@@ -48,7 +48,7 @@ class ProcessAdminInviteAction
             $app = $invite->app()->get()->first();
             $company = $user->companies()->get()->first();
 
-            $appDefault = Apps::getByUuid(env('KANVAS_APP_ID'));
+            $appDefault = Apps::getByUuid(config('kanvas.app.id'));
             $appDefault->associateUser(
                 user: $user,
                 isActive: StateEnums::YES->getValue()
