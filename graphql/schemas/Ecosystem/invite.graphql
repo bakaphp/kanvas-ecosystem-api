@@ -140,7 +140,7 @@ extend type Query @guard {
     ): [AdminInvite!]!
         @paginate(
             model: "Kanvas\\Users\\Models\\AdminInvite"
-            scopes: ["fromApp"]
+            scopes: ["fromApp", "notDeleted"]
         )
 }
 
