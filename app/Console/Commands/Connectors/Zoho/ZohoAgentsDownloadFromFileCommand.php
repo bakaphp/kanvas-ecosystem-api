@@ -47,8 +47,10 @@ class ZohoAgentsDownloadFromFileCommand extends Command
         // Read CSV file
         $csv = Reader::createFromPath($file, 'r');
         $csv->setHeaderOffset(0);
-        $records = iterator_to_array($csv->getRecords()); // Convert to array for counting
-        $totalRecords = count($records);
+        $header = $csv->getHeader(); //returns the CSV header record
+        $records = $csv->getRecords(); //returns all the CSV records as an Iterator object
+
+        $totalRecords = count(iterator_to_array($csv->getRecords()));
 
         if ($totalRecords === 0) {
             $this->error('The provided file has no records.');
