@@ -10,6 +10,15 @@ type Invite {
     description: String
 }
 
+type AdminInvite {
+    id: ID!
+    invite_hash: String!
+    users_id: Int!
+    email: String!
+    firstname: String
+    lastname: String
+}
+
 type ExternalInvite {
     invite_hash: String!
     users_id: Int!
@@ -54,7 +63,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@insertUserInvite"
         )
-    inviteAdmin(input: AdminInviteInput!): Invite!
+    inviteAdmin(input: AdminInviteInput!): AdminInvite!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@insertAdminInvite"
         )
@@ -128,7 +137,7 @@ extend type Query @guard {
                 columns: ["id", "firstname", "lastname"]
                 direction: "DESC"
             )
-    ): [Invite!]!
+    ): [AdminInvite!]!
         @paginate(
             model: "Kanvas\\Users\\Models\\AdminInvite"
             scopes: ["fromApp"]
