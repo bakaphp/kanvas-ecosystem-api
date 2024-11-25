@@ -350,7 +350,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
     public function addAttributes(UserInterface $user, array $attributes): void
     {
         foreach ($attributes as $attribute) {
-            if (! isset($attribute['value'])) {
+            if (empty($attribute['value'])) {
                 continue;
             }
 
