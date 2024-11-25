@@ -69,7 +69,7 @@ class CreatePeopleFromGhostReceiverJob extends ProcessWebhookJob
             ],
         ];
         $unlockedReports = [];
-        if (isset($payload['labels']) && empty($payload['labels'])) {
+        if (isset($payload['labels']) && !empty($payload['labels'])) {
             foreach ($payload['labels'] as $label) {
                 if (Str::contains($label['name'], ':')) {
                     // Split "key:value" into key and value for custom fields
