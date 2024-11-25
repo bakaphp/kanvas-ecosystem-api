@@ -83,6 +83,14 @@ class AmplitudeEventStreamWebhookJob extends ProcessWebhookJob
             addToCache: false
         );
 
-        return [];
+        return [
+          'message' => 'Event streamed successfully',
+          'event' => $eventType,
+          'data' => [
+            'user' => $user->getId(),
+            'interaction' => $internalEventName,
+            'message' => $userMessages->toArray(),
+          ],
+        ];
     }
 }
