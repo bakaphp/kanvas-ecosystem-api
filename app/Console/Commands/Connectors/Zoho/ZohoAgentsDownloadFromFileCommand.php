@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoAgentAction;
+use Kanvas\Guild\Agents\Models\Agent;
+use Kanvas\Users\Models\Users;
 use League\Csv\Reader;
 
 class ZohoAgentsDownloadFromFileCommand extends Command
@@ -66,6 +68,13 @@ class ZohoAgentsDownloadFromFileCommand extends Command
 
         foreach ($records as $record) {
             $email = $record['Email'];
+
+            $user = Users::where('email', $email)->first();
+
+            if ($user && Agent::where('users_id', $user->getId())->fromApp($app)->exists()) {
+                $progressBar->advance();
+                continue;
+            }
 
             try {
                 $syncZohoAgent = new SyncZohoAgentAction(
