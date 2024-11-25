@@ -43,6 +43,12 @@ class AmplitudeEventStreamWebhookJob extends ProcessWebhookJob
         ];
         $eventType = $payload['event_type'];
 
+        if (! isset($payload['user_id'])) {
+            return [
+              'message' => 'User not found',
+            ];
+        }
+
         $user = Users::getById($payload['user_id']);
 
         UsersRepository::belongsToThisApp($user, $this->receiver->app);
