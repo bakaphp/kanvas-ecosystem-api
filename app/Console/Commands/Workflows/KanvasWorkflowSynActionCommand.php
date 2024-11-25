@@ -6,6 +6,7 @@ namespace App\Console\Commands\Workflows;
 
 use Illuminate\Console\Command;
 use Kanvas\Apps\Activities\AppUsersNotificationByRoleActivity;
+use Kanvas\Connectors\Amplitude\WebhookReceivers\AmplitudeEventStreamWebhookJob;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\CreateOrderInESimActivity;
 use Kanvas\Connectors\Ghost\Jobs\CreatePeopleFromGhostReceiverJob;
@@ -85,6 +86,7 @@ class KanvasWorkflowSynActionCommand extends Command
             CreatePeopleFromGhostReceiverJob::class,
             CashierStripeWebhookJob::class,
             CreateOrderInESimActivity::class,
+            AmplitudeEventStreamWebhookJob::class,
         ];
 
         $createdActions = [];
