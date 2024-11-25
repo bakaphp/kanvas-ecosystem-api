@@ -13,7 +13,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 
-class EventStreamWebhookJob extends ProcessWebhookJob
+class AmplitudeEventStreamWebhookJob extends ProcessWebhookJob
 {
     public function execute(): array
     {

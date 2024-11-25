@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Workflows;
 
-use EventStreamWebhookJob;
+use AmplitudeEventStreamWebhookJob;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Activities\AppUsersNotificationByRoleActivity;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
@@ -86,7 +86,7 @@ class KanvasWorkflowSynActionCommand extends Command
             CreatePeopleFromGhostReceiverJob::class,
             CashierStripeWebhookJob::class,
             CreateOrderInESimActivity::class,
-            EventStreamWebhookJob::class,
+            AmplitudeEventStreamWebhookJob::class,
         ];
 
         $createdActions = [];
