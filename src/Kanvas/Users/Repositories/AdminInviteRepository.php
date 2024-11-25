@@ -35,9 +35,7 @@ class AdminInviteRepository
      */
     public static function getByHash(string $hash, ?AppInterface $app = null): AdminInviteModel
     {
-        $app = $app ?: app(Apps::class);
         return AdminInviteModel::where('invite_hash', $hash)
-            ->fromApp($app)
             ->notDeleted()
             ->firstOrFail();
     }
