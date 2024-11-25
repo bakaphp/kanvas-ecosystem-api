@@ -217,5 +217,4 @@ class AdminInviteTest extends TestCase
 
         $this->assertEquals($response->json('data.getAdminInvite.email'), $invite['email']);
     }
-
 }
