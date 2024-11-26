@@ -6,9 +6,8 @@ namespace Kanvas\Filesystem\Actions;
 
 use Baka\Enums\StateEnums;
 use DateTime;
-use Illuminate\Support\Facades\Log;
+use Exception;
 use Illuminate\Support\Str;
-use Kanvas\Enums\AppEnums;
 use Kanvas\Event\Events\Jobs\ImporterEventJob;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -19,7 +18,6 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Products\Models\Products;
 use League\Csv\Reader;
-use Exception;
 
 class ImportDataFromFilesystemAction
 {
@@ -50,6 +48,7 @@ class ImportDataFromFilesystemAction
             );
             if (Products::class == $modelName) {
                 $variant['productSlug'] = $variant['slug'];
+                $variant['price'] = filter_var($variant['price'], FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
                 $listOfVariants[$variant['productSlug']][] = $variant;
             } else {
                 $listOfProducts[] = $variant;
