@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Workflow\Factories\ReceiverWebhookFactory;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
  * @property int $id
@@ -32,6 +33,7 @@ class ReceiverWebhook extends BaseModel
 {
     use UuidTrait;
     use HasFactory;
+    use CanUseWorkflow;
 
     protected $table = 'receiver_webhooks';
 

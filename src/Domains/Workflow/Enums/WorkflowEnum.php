@@ -20,4 +20,5 @@ enum WorkflowEnum: string
     case SEARCH = 'search';
     case AFTER_PRODUCT_IMPORT = 'after-product-import';
     case SYNC_SHOPIFY = 'sync-shopify';
+    case AFTER_PROCESS_WEBHOOK = 'after-process-webhook';
 }

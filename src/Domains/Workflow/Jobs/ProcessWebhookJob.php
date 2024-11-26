@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Jobs;
 
 use Baka\Traits\KanvasJobsTrait;
-use Bouncer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -13,7 +12,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
 
@@ -52,6 +51,16 @@ abstract class ProcessWebhookJob implements ShouldQueue
                 'status' => 'success',
                 'results' => $results,
             ]);
+
+            $this->receiver->fireWorkflow(
+                WorkflowEnum::AFTER_PROCESS_WEBHOOK->value,
+                true,
+                [
+                    'app' => $this->receiver->app,
+                    'company' => $this->receiver->company,
+                    'user' => $this->receiver->user,
+                ]
+            );
 
             return $results;
         } catch (Throwable $e) {

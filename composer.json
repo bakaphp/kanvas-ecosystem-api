@@ -54,6 +54,7 @@
         "spatie/laravel-health": "^1.27",
         "spatie/laravel-queueable-action": "^2.15",
         "spatie/laravel-webhook-server": "^3.8",
+        "square/square": "^39.0",
         "stripe/stripe-php": "^13.0",
         "swoole/ide-helper": "*",
         "symfony/expression-language": "^7.0",
