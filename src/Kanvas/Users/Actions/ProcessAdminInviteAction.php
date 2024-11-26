@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Users\Actions;
 
 use Illuminate\Support\Facades\DB;
+use Kanvas\Apps\Actions\CreateAppKeyAction;
+use Kanvas\Apps\DataTransferObject\AppKeyInput;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\CreateUserAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput as RegisterPostDataDto;
@@ -59,6 +61,15 @@ class ProcessAdminInviteAction
                 app: $appDefault,
                 isActive: StateEnums::YES->getValue()
             );
+
+            //create user admin key
+            (new CreateAppKeyAction(
+                new AppKeyInput(
+                    $app->name . ' ' . $user->displayname . ' Key',
+                    $app,
+                    $user
+                )
+            ))->execute();
 
             //Set password to null to avoid auto-assign.
             $user->password = null;
