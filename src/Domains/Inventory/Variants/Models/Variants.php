@@ -32,6 +32,7 @@ use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
 
@@ -67,6 +68,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
 
     use CascadeSoftDeletes;
     use Compoships;
+    use CanUseWorkflow;
 
     protected $is_deleted;
     protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];
