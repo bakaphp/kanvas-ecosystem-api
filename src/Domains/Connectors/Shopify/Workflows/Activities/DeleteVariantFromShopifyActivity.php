@@ -28,7 +28,6 @@ class DeleteVariantFromShopifyActivity extends KanvasActivity
         ->first();
 
         foreach ($variant->warehouses as $warehouse) {
-
             $integrationCompany = IntegrationsCompany::getByIntegration(
                 company: $variant->product->company,
                 status: $status,
