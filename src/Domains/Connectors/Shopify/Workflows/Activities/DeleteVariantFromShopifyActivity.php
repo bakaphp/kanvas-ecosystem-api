@@ -27,57 +27,57 @@ class DeleteVariantFromShopifyActivity extends KanvasActivity
         ->where('apps_id', 0)
         ->first();
 
-            foreach ($variant->warehouses as $warehouse) {
+        foreach ($variant->warehouses as $warehouse) {
 
-                $integrationCompany = IntegrationsCompany::getByIntegration(
+            $integrationCompany = IntegrationsCompany::getByIntegration(
+                company: $variant->product->company,
+                status: $status,
+                region: $warehouse->region,
+                name: IntegrationsEnum::SHOPIFY->value
+            );
+
+            if ($integrationCompany) {
+                // Sending warehouses instead of region, until integration is migrated on all the code.
+                $shopifyService = new ShopifyInventoryService(
+                    app: $app,
                     company: $variant->product->company,
+                    warehouses: $warehouse
+                );
+                $shopifyVariantId = $variant->getShopifyId($warehouse->regions);
+
+                if(!$shopifyVariantId) {
+                    return [];
+                }
+
+                try {
+                    $response = $shopifyService->deleteVariant($variant);
+                    $historyResponse = json_encode($response);
+                    $status = Status::where('slug', StatusEnum::CONNECTED->value)
+                    ->where('apps_id', 0)
+                    ->first();
+                } catch (Throwable $exception) {
+                    $status = Status::where('slug', StatusEnum::FAILED->value)
+                    ->where('apps_id', 0)
+                    ->first();
+                }
+
+                $dto = new EntityIntegrationHistory(
+                    app: $app,
+                    integrationCompany: $integrationCompany,
                     status: $status,
-                    region: $warehouse->region,
-                    name: IntegrationsEnum::SHOPIFY->value
+                    entity: $variant,
+                    response: $historyResponse ?? null,
+                    exception: $exception,
+                    workflowId: $this->workflowId()
                 );
 
-                if ($integrationCompany) {
-                    // Sending warehouses instead of region, until integration is migrated on all the code.
-                    $shopifyService = new ShopifyInventoryService(
-                        app: $app,
-                        company: $variant->product->company,
-                        warehouses: $warehouse
-                    );
-                    $shopifyVariantId = $variant->getShopifyId($warehouse->regions);
-
-                    if(!$shopifyVariantId) {
-                        return [];
-                    }
-
-                    try {
-                        $response = $shopifyService->deleteVariant($variant);
-                        $historyResponse = json_encode($response);
-                        $status = Status::where('slug', StatusEnum::CONNECTED->value)
-                        ->where('apps_id', 0)
-                        ->first();
-                    } catch (Throwable $exception) {
-                        $status = Status::where('slug', StatusEnum::FAILED->value)
-                        ->where('apps_id', 0)
-                        ->first();
-                    }
-
-                    $dto = new EntityIntegrationHistory(
-                        app: $app,
-                        integrationCompany: $integrationCompany,
-                        status: $status,
-                        entity: $variant,
-                        response: $historyResponse ?? null,
-                        exception: $exception,
-                        workflowId: $this->workflowId()
-                    );
-
-                    (new AddEntityIntegrationHistoryAction(
-                        dto: $dto,
-                        app: $app,
-                        status: $status
-                    ))->execute();
-                }
+                (new AddEntityIntegrationHistoryAction(
+                    dto: $dto,
+                    app: $app,
+                    status: $status
+                ))->execute();
             }
+        }
 
         return [
             'shopify_response' => $response ?? [],
