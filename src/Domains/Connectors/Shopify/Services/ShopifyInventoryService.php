@@ -179,6 +179,16 @@ class ShopifyInventoryService
         return $response;
     }
 
+    public function deleteVariant(Variants $variant): array
+    {
+        $shopifyProductVariantId = $variant->getShopifyId($this->warehouses->regions);
+
+        $shopifyProduct = $this->shopifySdk->Product($variant->product->getShopifyId($this->warehouses->regions));
+        $response = $shopifyProduct->Variant($shopifyProductVariantId)->delete();
+
+        return $response;
+    }
+
     public function setStock(Variants $variant, ?Channels $channel = null, bool $isAdjustment = false): int
     {
         $shopifyVariant = $this->shopifySdk->ProductVariant($variant->getShopifyId($this->warehouses->regions));

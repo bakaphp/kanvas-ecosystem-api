@@ -6,11 +6,13 @@ namespace Kanvas\Inventory\Variants\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Repositories\CompaniesRepository;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class DeleteVariantsAction
 {
+    protected bool $runWorkflow = true;
+
     /**
      * __construct.
      */
@@ -30,6 +32,15 @@ class DeleteVariantsAction
             $this->user
         );
 
-        return $this->variant->delete();
+        $response = $this->variant->delete();
+
+        if ($this->runWorkflow) {
+            $this->variant->fireWorkflow(
+                WorkflowEnum::DELETED->value,
+                true
+            );
+        }
+
+        return $response;
     }
 }
