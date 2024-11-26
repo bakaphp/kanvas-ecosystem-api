@@ -12,7 +12,7 @@ use Kanvas\Connectors\Zoho\Actions\SyncZohoLeadAction;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use League\Csv\Reader;
 
-class ZohoLeadsDownloadCommand extends Command
+class ZohoLeadsDownloadFromFileCommand extends Command
 {
     use KanvasJobsTrait;
 
