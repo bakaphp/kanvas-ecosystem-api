@@ -31,7 +31,7 @@ class DestinationService
             'provider' => $provider,
             'coverage' => $coverage,
             'page' => $page,
-            'limit' => $limit
+            'limit' => $limit,
         ]);
 
         return $this->client->get('/api/v1/esimgo/plans?' . $query);
