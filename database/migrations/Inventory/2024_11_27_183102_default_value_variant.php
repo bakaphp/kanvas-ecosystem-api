@@ -11,9 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('attributes', function (Blueprint $table) {
+        Schema::table('attributes_values', function (Blueprint $table) {
             //
-            $table->string('default_value')->nullable()->after('weight');
+            $table->boolean('is_default')->default(0)->after('value');
         });
     }
 
@@ -22,9 +22,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('attributes', function (Blueprint $table) {
+        Schema::table('attributes_values', function (Blueprint $table) {
             //
-            $table->dropColumn('default_value');
+            $table->dropColumn('is_default');
         });
     }
 };

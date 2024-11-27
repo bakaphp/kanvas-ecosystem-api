@@ -24,7 +24,11 @@ class AddDefaultAttributeValueToVariant
                         ->whereNotIn('id', $variantAttribute)
                         ->get();
         foreach ($attributes as $attribute) {
-            $this->variant->attributes()->attach($attribute->id, ['value' => $attribute->default_value]);
+            $attributeValue = $attribute->defaultValues->where('is_default', 1)->first();
+            if (! $attributeValue) {
+                continue;
+            }
+            $this->variant->attributes()->attach($attribute->id, ['value' => $attributeValue->value]);
         }
     }
 }
