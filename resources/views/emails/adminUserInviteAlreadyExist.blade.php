@@ -4,7 +4,7 @@
         </h2>
 
         <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
-            You have been invited to {{ $app->name }} by {{ $fromUser->firstname}} {{ $fromUser->lastname}}. Please click the button below to create your account.
+            You have been invited to {{ $app->name }} by {{ $fromUser->firstname }} {{ $fromUser->lastname }}. Your account is already active. Please click the button below to log in and access the app.
         </p>
     </td>
 </tr>
@@ -14,8 +14,8 @@
         <table style="margin: 17px 0 0px" cellspacing="0" cellpadding="0">
             <tr>
                 <td>
-                    <a href="{{ config('kanvas.app.frontend_url') }}/invite/{{ $entity->invite_hash }}" target="_blank" style="display: inline-block;">
-                        <img style="border-radius: 4px;" src="https://cdn.salesassist.io/emails/create-account.png" alt="Join Now">
+                    <a href="{{ config('kanvas.app.frontend_url') }}" target="_blank" style="display: inline-block;">
+                        Login
                     </a>
                 </td>
             </tr>
