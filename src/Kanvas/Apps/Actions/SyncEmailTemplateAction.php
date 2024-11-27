@@ -50,7 +50,7 @@ class SyncEmailTemplateAction
             ],
             [
                 'name' => EmailTemplateEnum::ADMIN_USER_INVITE->value,
-                'template' => File::get(resource_path('views/emails/userInvite.blade.php')),
+                'template' => File::get(resource_path('views/emails/adminUserInvite.blade.php')),
             ],
             [
                 'name' => EmailTemplateEnum::CHANGE_PASSWORD->value,
