@@ -6,5 +6,5 @@ namespace Kanvas\Connectors\ESimGo;
 
 enum ConfigurationEnum: string
 {
-    case ESIM_GO_APP_KEY = 'X-API-Key';
+    case ESIM_GO_APP_KEY = 'ESIM_GO_APP_KEY';
 }
