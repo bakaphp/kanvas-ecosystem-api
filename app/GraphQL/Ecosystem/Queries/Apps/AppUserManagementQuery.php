@@ -41,7 +41,7 @@ class AppUserManagementQuery
                 ->groupBy('companies.id');
     }
 
-    public function getAdminUsers(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
+    public function getAppAdminUsers(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
     {
         $appUuid = app(Apps::class)->getId();
 
