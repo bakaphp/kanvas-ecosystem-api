@@ -106,7 +106,7 @@ class TemplateSeeder extends Seeder
         ]);
 
         Templates::create([
-            'id' => 8,
+            'id' => 9,
             'apps_id' => 0,
             'users_id' => 1,
             'companies_id' => 0,
