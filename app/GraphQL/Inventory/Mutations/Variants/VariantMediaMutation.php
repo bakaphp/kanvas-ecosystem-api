@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Inventory\Mutations\Products;
+namespace App\GraphQL\Inventory\Mutations\Variants;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
