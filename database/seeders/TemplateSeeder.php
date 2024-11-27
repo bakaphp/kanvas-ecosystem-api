@@ -101,7 +101,7 @@ class TemplateSeeder extends Seeder
             'companies_id' => 0,
             'name' => EmailTemplateEnum::ADMIN_USER_INVITE->value,
             'parent_template_id' => $defaultTemplate->id,
-            'template' => File::get(resource_path('views/emails/userInvite.blade.php')),
+            'template' => File::get(resource_path('views/emails/adminUserInvite.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
     }
