@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\ESim\WorkflowActivities;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\ESim\Services\OrderService;
+use Kanvas\Connectors\ESimGo\Services\ESimService;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
@@ -37,6 +38,10 @@ class CreateOrderInESimActivity extends KanvasActivity
         $order->set(CustomFieldEnum::ORDER_ESIM_METADATA->value, $response);
 
         $response['order_id'] = $order->id;
+
+        $esimGo = new ESimService($app);
+        $esimData = $esimGo->getAppliedBundleStatus($response['data']['iccid'], $response['data']['plan']);
+        $response['esim_status'] = $esimData;
 
         //create the esim for the user
         $messageType = (new CreateMessageTypeAction(

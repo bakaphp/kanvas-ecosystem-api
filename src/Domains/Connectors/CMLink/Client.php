@@ -17,7 +17,7 @@ class Client
     protected string $appKey;
     protected string $appSecret;
     protected string $appId;
-    protected string $appType;
+    protected string|int $appType;
 
     public function __construct(
         protected AppInterface $app,
