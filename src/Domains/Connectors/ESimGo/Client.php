@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\ESimGo;
 
 use Baka\Contracts\AppInterface;
 use GuzzleHttp\Client as GuzzleClient;
+use Kanvas\Connectors\ESimGo\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 
 class Client
