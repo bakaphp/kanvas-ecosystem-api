@@ -17,13 +17,11 @@ class CreateAdminInviteAction
 {
     public function __construct(
         public AdminInviteDto $inviteDto,
-        public Users $user
+        public Users $user,
+        public bool $userAlreadyExist = false
     ) {
     }
 
-    /**
-     * execute.
-     */
     public function execute(): AdminInvite
     {
         // Still figuring out this validation.
@@ -56,7 +54,8 @@ class CreateAdminInviteAction
         $inviteEmail = new InviteTemplate($invite, [
             'fromUser' => $this->user,
             'subject' => $emailTitle,
-            'template' => EmailTemplateEnum::ADMIN_USER_INVITE->value,
+            'app' => $this->inviteDto->app,
+            'template' => ! $this->userAlreadyExist ? EmailTemplateEnum::ADMIN_USER_INVITE->value : EmailTemplateEnum::ADMIN_USER_INVITE_EXISTING_USER->value,
         ]);
 
         Notification::route('mail', $this->inviteDto->email)

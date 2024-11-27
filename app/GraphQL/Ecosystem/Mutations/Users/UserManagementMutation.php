@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Users;
 
-use Baka\Enums\StateEnums;
 use Exception;
 use Illuminate\Support\Facades\Auth as AuthFacade;
 use Illuminate\Support\Facades\Hash;
@@ -132,7 +131,8 @@ class UserManagementMutation
                 description: $request['description'] ?? null,
                 customFields: $request['custom_fields'] ?? []
             ),
-            auth()->user()
+            auth()->user(),
+            (bool) $userAssociation
         );
 
         $invite = $invite->execute();
