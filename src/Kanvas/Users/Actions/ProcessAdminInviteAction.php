@@ -24,7 +24,8 @@ class ProcessAdminInviteAction
      * @return void
      */
     public function __construct(
-        protected CompleteInviteInput $adminInvite
+        protected CompleteInviteInput $adminInvite,
+        protected ?Users $user = null
     ) {
     }
 
@@ -46,9 +47,9 @@ class ProcessAdminInviteAction
         DB::beginTransaction();
 
         try {
-            $user = (new CreateUserAction($dto))->execute();
+            $user = $this->user ?? (new CreateUserAction($dto))->execute();
             $app = $invite->app()->get()->first();
-            $company = $user->companies()->get()->first();
+            $company = $user->getCurrentCompany();
 
             $appDefault = Apps::getByUuid(config('kanvas.app.id'));
             $appDefault->associateUser(
@@ -62,17 +63,18 @@ class ProcessAdminInviteAction
                 isActive: StateEnums::YES->getValue()
             );
 
+            //Set password to null to avoid auto-assign.
+            $user->password = null;
+
             //create user admin key
             (new CreateAppKeyAction(
                 new AppKeyInput(
                     $app->name . ' ' . $user->displayname . ' Key',
                     $app,
                     $user
-                )
+                ),
+                $user
             ))->execute();
-
-            //Set password to null to avoid auto-assign.
-            $user->password = null;
 
             //associate admin to global company
             $app->associateUser(
