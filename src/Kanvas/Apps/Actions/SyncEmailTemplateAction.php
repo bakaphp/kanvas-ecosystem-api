@@ -49,6 +49,10 @@ class SyncEmailTemplateAction
                 'template' => File::get(resource_path('views/emails/userInvite.blade.php')),
             ],
             [
+                'name' => EmailTemplateEnum::ADMIN_USER_INVITE->value,
+                'template' => File::get(resource_path('views/emails/userInvite.blade.php')),
+            ],
+            [
                 'name' => EmailTemplateEnum::CHANGE_PASSWORD->value,
                 'template' => File::get(resource_path('views/emails/passwordUpdated.blade.php')),
             ],

@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Notifications\Templates\Invite as InviteTemplate;
+use Kanvas\Templates\Enums\EmailTemplateEnum;
 use Kanvas\Users\DataTransferObject\AdminInvite as AdminInviteDto;
 use Kanvas\Users\Models\AdminInvite;
 use Kanvas\Users\Models\Users;
@@ -55,7 +56,7 @@ class CreateAdminInviteAction
         $inviteEmail = new InviteTemplate($invite, [
             'fromUser' => $this->user,
             'subject' => $emailTitle,
-            'template' => $this->inviteDto->email_template,
+            'template' => EmailTemplateEnum::ADMIN_USER_INVITE->value,
         ]);
 
         Notification::route('mail', $this->inviteDto->email)

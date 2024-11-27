@@ -13,22 +13,15 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\DataTransferObject\AppKeyInput;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Auth\Actions\RegisterUsersAppAction;
-use Kanvas\Users\Models\Users;
 
 class CreateAppKeyAction
 {
-    /**
-     * Construct function.
-     */
     public function __construct(
         protected AppKeyInput $data,
-        protected ?Users $user = null
+        protected bool $createUserInApp = true
     ) {
     }
 
-    /**
-     * Invoke function.
-     */
     public function execute(): AppKey
     {
         $data = [
@@ -61,11 +54,10 @@ class CreateAppKeyAction
         Bouncer::scope()->to(RolesEnums::getScope($this->data->app));
         $this->data->user->assign(RolesEnums::OWNER->value);
 
-        if ($this->user) {
-            return $app;
+        if ($this->createUserInApp) {
+            $userRegisterInApp = new RegisterUsersAppAction($this->data->user);
+            $userRegisterInApp->execute($this->data->user->password);
         }
-        $userRegisterInApp = new RegisterUsersAppAction($this->data->user);
-        $userRegisterInApp->execute($this->data->user->password);
 
         return $app;
     }

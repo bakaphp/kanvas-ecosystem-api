@@ -68,12 +68,12 @@ class ProcessAdminInviteAction
 
             //create user admin key
             (new CreateAppKeyAction(
-                new AppKeyInput(
+                data: new AppKeyInput(
                     $app->name . ' ' . $user->displayname . ' Key',
                     $app,
                     $user
                 ),
-                $user
+                createUserInApp: false
             ))->execute();
 
             //associate admin to global company

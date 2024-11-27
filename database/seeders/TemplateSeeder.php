@@ -17,7 +17,6 @@ class TemplateSeeder extends Seeder
      */
     public function run()
     {
-
         $defaultTemplate = Templates::create([
             'id' => 1,
             'apps_id' => 0,
@@ -84,7 +83,6 @@ class TemplateSeeder extends Seeder
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
-
         Templates::create([
             'id' => 7,
             'apps_id' => 0,
@@ -93,6 +91,17 @@ class TemplateSeeder extends Seeder
             'name' => PushNotificationTemplateEnum::DEFAULT->value,
             'parent_template_id' => 0,
             'template' => File::get(resource_path('views/emails/pushNotification.blade.php')),
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        Templates::create([
+            'id' => 8,
+            'apps_id' => 0,
+            'users_id' => 1,
+            'companies_id' => 0,
+            'name' => EmailTemplateEnum::ADMIN_USER_INVITE->value,
+            'parent_template_id' => $defaultTemplate->id,
+            'template' => File::get(resource_path('views/emails/userInvite.blade.php')),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
     }
