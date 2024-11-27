@@ -13,6 +13,7 @@ use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Validations\UniqueSkuRule;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Kanvas\Inventory\Attributes\Actions\AddDefaultAttributeValueToVariant;
 
 class CreateVariantsAction
 {
@@ -68,6 +69,7 @@ class CreateVariantsAction
                 'serial_number' => $this->variantDto->serial_number,
             ]
         );
+        (new AddDefaultAttributeValueToVariant($variant))->execute();
 
         if ($this->runWorkflow) {
             $variant->product->fireWorkflow(

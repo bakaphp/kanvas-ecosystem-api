@@ -9,6 +9,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Inventory\Attributes\Actions\AddDefaultAttributeValueToVariant;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Validations\UniqueSkuRule;
@@ -65,6 +66,8 @@ class UpdateVariantsAction
 
         //update product searchable index
         $this->variant->product->searchable();
+
+        (new AddDefaultAttributeValueToVariant($this->variant))->execute();
 
         if ($this->runWorkflow) {
             $this->variant->product->fireWorkflow(
