@@ -16,17 +16,12 @@ use Kanvas\Auth\Actions\RegisterUsersAppAction;
 
 class CreateAppKeyAction
 {
-    /**
-     * Construct function.
-     */
     public function __construct(
         protected AppKeyInput $data,
+        protected bool $createUserInApp = true
     ) {
     }
 
-    /**
-     * Invoke function.
-     */
     public function execute(): AppKey
     {
         $data = [
@@ -42,7 +37,6 @@ class CreateAppKeyAction
                 }),
             ],
         ]);
-
         if ($validator->fails()) {
             throw new ValidationException($validator);
         }
@@ -60,8 +54,10 @@ class CreateAppKeyAction
         Bouncer::scope()->to(RolesEnums::getScope($this->data->app));
         $this->data->user->assign(RolesEnums::OWNER->value);
 
-        $userRegisterInApp = new RegisterUsersAppAction($this->data->user);
-        $userRegisterInApp->execute($this->data->user->password);
+        if ($this->createUserInApp) {
+            $userRegisterInApp = new RegisterUsersAppAction($this->data->user);
+            $userRegisterInApp->execute($this->data->user->password);
+        }
 
         return $app;
     }

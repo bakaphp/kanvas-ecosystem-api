@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Notifications\Templates\Invite as InviteTemplate;
+use Kanvas\Templates\Enums\EmailTemplateEnum;
 use Kanvas\Users\DataTransferObject\AdminInvite as AdminInviteDto;
 use Kanvas\Users\Models\AdminInvite;
 use Kanvas\Users\Models\Users;
@@ -49,12 +50,13 @@ class CreateAdminInviteAction
         }
 
         //@todo allow it to be customized
+        //@todo send different email if the user is already in the admin
         $emailTitle = $this->inviteDto->app->get(AppSettingsEnums::INVITE_EMAIL_SUBJECT->getValue()) ?? 'You\'ve been invited to join Kanvas Admin';
 
         $inviteEmail = new InviteTemplate($invite, [
             'fromUser' => $this->user,
             'subject' => $emailTitle,
-            'template' => $this->inviteDto->email_template,
+            'template' => EmailTemplateEnum::ADMIN_USER_INVITE->value,
         ]);
 
         Notification::route('mail', $this->inviteDto->email)
