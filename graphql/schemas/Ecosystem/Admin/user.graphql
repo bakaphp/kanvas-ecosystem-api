@@ -71,6 +71,25 @@ extend type Query @guardByAppKey {
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\AppUserManagementQuery@getAllAppUsers"
             defaultCount: 25
         )
+    appAdmins(
+        search: String @search
+        where: _ @whereConditions(columnsEnum: UserAppEnumColumn)
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "firstname"
+                    "lastname"
+                    "displayname"
+                    "email"
+                    "created_at"
+                ]
+            )
+    ): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Apps\\AppUserManagementQuery@getAdminUsers"
+            defaultCount: 25
+        )
 
     adminUserCompanies(user_id: ID!): [Company!]!
         @paginate(
