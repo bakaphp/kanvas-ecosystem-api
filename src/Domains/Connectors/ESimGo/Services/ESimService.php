@@ -34,6 +34,8 @@ class ESimService
 
     public function getAppliedBundleStatus(string $iccid, string $bundle): array
     {
-        return $this->client->get('/v2.4/esims/' . $iccid . '/bundles/' . $bundle);
+        $response = $this->client->get('/v2.4/esims/' . $iccid . '/bundles/' . $bundle);
+
+        return $response['assignments'][0] ?? [];
     }
 }
