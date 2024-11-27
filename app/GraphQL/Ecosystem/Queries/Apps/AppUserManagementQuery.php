@@ -40,4 +40,20 @@ class AppUserManagementQuery
                 ->where('users.id', $args['user_id'])
                 ->groupBy('companies.id');
     }
+
+    public function getAppAdminUsers(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
+    {
+        $appUuid = app(Apps::class)->getId();
+
+        return Users::select('*')
+        ->join('users_associated_apps', 'users.id', '=', 'users_associated_apps.users_id')
+        ->join('apps_keys', function ($join) {
+            $join->on('users_associated_apps.apps_id', '=', 'apps_keys.apps_id')
+                 ->on('users.id', '=', 'apps_keys.users_id');
+        })
+        ->join('apps', 'users_associated_apps.apps_id', '=', 'apps.id')
+        ->where('apps.id', $appUuid)
+        ->select('users.*')
+        ->distinct();
+    }
 }
