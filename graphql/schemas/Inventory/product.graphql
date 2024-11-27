@@ -87,13 +87,17 @@ input ProductInputUpdate {
 }
 
 extend type Mutation @guard {
-    createProduct(input: ProductInput!): Product
+    createProduct(input: ProductInput!): Product!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@create"
         )
-    updateProduct(id: ID!, input: ProductInputUpdate): Product
+    updateProduct(id: ID!, input: ProductInputUpdate): Product!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@update"
+        )
+    uploadFileToProduct(id: ID!, file: Upload!): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\ProductMediaMutation@attachFileToProduct"
         )
     deleteProduct(id: ID!): Boolean
         @field(
