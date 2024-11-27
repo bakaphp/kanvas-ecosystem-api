@@ -49,7 +49,7 @@ class CreateAdminInviteAction
         }
 
         //@todo allow it to be customized
-        //@todo send different email if the user is already in the admin 
+        //@todo send different email if the user is already in the admin
         $emailTitle = $this->inviteDto->app->get(AppSettingsEnums::INVITE_EMAIL_SUBJECT->getValue()) ?? 'You\'ve been invited to join Kanvas Admin';
 
         $inviteEmail = new InviteTemplate($invite, [
