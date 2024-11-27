@@ -34,6 +34,6 @@ class DestinationService
             'limit' => $limit,
         ]);
 
-        return $this->client->get('/api/v1/esimgo/plans?' . $query);
+        return $this->client->get('/api/v2/destinations/plans?' . $query);
     }
 }
