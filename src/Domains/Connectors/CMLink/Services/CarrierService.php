@@ -20,7 +20,7 @@ class CarrierService
     }
 
     public function getAll(
-        string $language,
+        string $language = 'en',
         ?string $mcc = null,
         ?string $continent = null
     ): array {
@@ -34,14 +34,24 @@ class CarrierService
     }
 
     public function getAllDataBundle(
-        string $language,
+        string $language = 'en',
         int $beginIndex = 0,
         int $count = 50
     ): array {
         $body = [
+            'accessToken' => $this->client->getAccessToken(),
+            'Partner' => '',
+            'dataBundleId' => '',
+            'dataBundleName' => '',
+            'Group_id' => '',
             'language' => $language,
-            'beginIndex' => $beginIndex,
-            'count' => $count,
+            'country' => 'US',
+            'mcc' => '310',
+            'status' => '1',
+            'currency' => ['USD'],
+            'beginIndex' => 0,
+            'count' => 50,
+            'cooperationMode' => '1',
         ];
 
         return $this->client->post('/aep/app_getDataBundle_SBO/v1', $body);
