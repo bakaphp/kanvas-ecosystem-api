@@ -35,9 +35,7 @@ class Client
 
     protected function request($method, $uri, $body): array
     {
-        $response = $this->client->request($method, $uri, [
-            'json' => $body,
-        ]);
+        $response = $this->client->request($method, $uri, ! empty($body) ? ['json' => $body] : []);
 
         return json_decode($response->getBody()->getContents(), true);
     }
