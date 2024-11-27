@@ -54,7 +54,7 @@ class SyncEmailTemplateAction
             ],
             [
                 'name' => EmailTemplateEnum::ADMIN_USER_INVITE_EXISTING_USER->value,
-                'template' => File::get(resource_path('views/emails/adminUserInviteAlreadyExist.blade')),
+                'template' => File::get(resource_path('views/emails/adminUserInviteAlreadyExist.blade.php')),
             ],
             [
                 'name' => EmailTemplateEnum::CHANGE_PASSWORD->value,
