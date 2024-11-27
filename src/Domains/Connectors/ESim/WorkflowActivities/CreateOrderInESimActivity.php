@@ -15,6 +15,7 @@ use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\KanvasActivity;
+use Throwable;
 
 class CreateOrderInESimActivity extends KanvasActivity
 {
@@ -39,9 +40,12 @@ class CreateOrderInESimActivity extends KanvasActivity
 
         $response['order_id'] = $order->id;
 
-        $esimGo = new ESimService($app);
-        $esimData = $esimGo->getAppliedBundleStatus($response['data']['iccid'], $response['data']['plan']);
-        $response['esim_status'] = $esimData;
+        try {
+            $esimGo = new ESimService($app);
+            $esimData = $esimGo->getAppliedBundleStatus($response['data']['iccid'], $response['data']['plan']);
+            $response['esim_status'] = $esimData;
+        } catch (Throwable $e) {
+        }
 
         //create the esim for the user
         $messageType = (new CreateMessageTypeAction(
