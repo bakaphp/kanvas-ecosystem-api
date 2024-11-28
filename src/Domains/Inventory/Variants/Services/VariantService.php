@@ -66,7 +66,7 @@ class VariantService
             $attributes = $product->app->get(AttributeConfigEnum::DEFAULT_VARIANT_ATTRIBUTE->value);
             $attributes = $attributes && is_array($attributes) ? $attributes : [];
             if (isset($variant['attributes'])) {
-                $attributes = [...$attributes, ...$variant['attributes']];
+                $attributes = array_merge($attributes, $variant['attributes']); // to do: refactor for default attributes variant
                 $variantModel->addAttributes($user, $attributes);
             }
 
