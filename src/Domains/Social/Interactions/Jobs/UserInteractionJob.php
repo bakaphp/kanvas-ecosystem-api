@@ -48,7 +48,7 @@ class UserInteractionJob implements ShouldQueue
         if ($this->entity instanceof $this->app) {
             $pageNumber = 1; // Replace with the page number you want (starting from 1)
             $userMessages = UserMessage::getFirstMessageFromPage($this->user, $this->app, $pageNumber);
-            $this->entity = $userMessages ?: $this->entity;
+            $this->entity = $userMessages ? $userMessages->message : $this->entity;
         }
 
         $interaction = (new CreateInteraction(
