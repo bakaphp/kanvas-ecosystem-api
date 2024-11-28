@@ -20,7 +20,7 @@ class CarrierService
     }
 
     public function getAll(
-        string $language = 'en',
+        string|int $language = 2,
         ?string $mcc = null,
         ?string $continent = null
     ): array {
