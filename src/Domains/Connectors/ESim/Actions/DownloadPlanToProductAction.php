@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\ESim\Services\DestinationService;
 use Kanvas\Connectors\ESim\Services\ESimProductService;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Regions\Models\Regions;
@@ -31,7 +32,7 @@ class DownloadPlanToProductAction
         $destination = new DestinationService($this->region->app, $this->region->company);
 
         if (! isset($destinationPlans[0]['code'])) {
-            throw new Exception('Invalid plan list');
+            throw new ValidationException('Invalid plan list missing code');
         }
 
         $productsToImport = [];
