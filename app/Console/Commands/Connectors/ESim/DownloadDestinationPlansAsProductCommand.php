@@ -20,14 +20,14 @@ class DownloadDestinationPlansAsProductCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:esim-connector-download-destination-plans {app_id} {company_id} {region_id} {warehouse_id?} {channel_id?}';
+    protected $signature = 'kanvas:esim-connector-download-destination-plans {app_id} {company_id} {region_id} {destination_plans} {warehouse_id?} {channel_id?}';
 
     /**
      * The console command description.
      *
      * @var string|null
      */
-    protected $description = 'Download all destination plan as products';
+    protected $description = 'Download all destination plan as products example: [{"code":"us","limit":25,"page":1}] ';
 
     /**
      * Execute the console command.
@@ -47,7 +47,7 @@ class DownloadDestinationPlansAsProductCommand extends Command
             $region->company->user
         );
 
-        $downloadPlanProducts->execute($app->get('esim_destination_plans') ?? []);
+        $downloadPlanProducts->execute(json_decode($this->argument('destination_plans'), true));
 
         return;
     }

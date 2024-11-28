@@ -27,7 +27,7 @@ class DownloadPlanToProductAction
         $this->channel = $channel ?? Channels::fromCompany($this->region->company)->where('is_default', 1)->firstOrFail();
     }
 
-    public function execute(array $destinationPlans)
+    public function execute(array $destinationPlans): void
     {
         $destination = new DestinationService($this->region->app, $this->region->company);
 
@@ -44,10 +44,15 @@ class DownloadPlanToProductAction
         );
 
         foreach ($destinationPlans as $destinationPlan) {
-            $destinationPlanResult = $destination->getPlans($destinationPlan['code'], $destinationPlan['provider'], $destinationPlan['coverage']);
+            $destinationPlanResult = $destination->getPlans(
+                code: $destinationPlan['code'],
+                limit: $destinationPlan['limit'] ?? 25,
+                page: $destinationPlan['page'] ?? 1
+            );
+
             $jobUuid = Str::uuid()->toString();
 
-            foreach ($destinationPlanResult as $plan) {
+            foreach ($destinationPlanResult['data'] as $plan) {
                 $productsToImport[] = $esimProductService->mapProductToImport($plan);
             }
 
