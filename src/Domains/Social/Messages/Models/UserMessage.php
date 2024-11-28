@@ -71,4 +71,17 @@ class UserMessage extends BaseModel
                 ->orderBy('user_messages.created_at', 'desc') //for now always order by created_at in the user feed
                 ->select('messages.*');
     }
+
+    public static function getFirstMessageFromPage(UserInterface $user, AppInterface $app, int $pageNumber, int $limit = 25): ?UserMessage
+    {
+        $offset = ($pageNumber - 1) * $limit;
+
+        return self::fromApp($app)
+            ->where('users_id', $user->getId())
+            ->notDeleted()
+            ->orderBy('created_at', 'desc')
+            ->skip($offset)
+            ->take(1)
+            ->first();
+    }
 }
