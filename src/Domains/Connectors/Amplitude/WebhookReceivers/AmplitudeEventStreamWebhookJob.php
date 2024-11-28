@@ -51,7 +51,13 @@ class AmplitudeEventStreamWebhookJob extends ProcessWebhookJob
         }
 
         $pageNumber = 1; // Replace with the page number you want (starting from 1)
-        $userMessages = UserMessage::getFirstMessageFromPage($user, $this->receiver->app, $pageNumber);
+        $userMessages = UserMessage::getFirstMessageFromPage($user, $this->receiver->app, $pageNumber)?->message;
+
+        if (! $userMessages) {
+            return [
+              'message' => 'User message not found',
+            ];
+        }
 
         $internalEventName = $allowInteractions[$eventType];
         $interaction = (new CreateInteraction(
