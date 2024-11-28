@@ -12,6 +12,10 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Products\Models\Products;
 
+/**
+ * THIS IS A TEMPORARY CONTROLLER , PLEASE REMOVE IT ASAP
+ * thi is is not the way -_- Fuck!
+ */
 class TempProductController extends BaseController
 {
     public function index(Request $request): JsonResponse
