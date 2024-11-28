@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Kanvas\Connectors\ESim\Actions;
+
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\ESim\Services\DestinationService;
