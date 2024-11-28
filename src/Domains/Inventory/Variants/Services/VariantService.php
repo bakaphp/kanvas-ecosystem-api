@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Variants\Services;
 
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Inventory\Attributes\Enums\ConfigEnum as AttributeConfigEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
@@ -62,9 +63,11 @@ class VariantService
             if (isset($variant['custom_fields']) && ! empty($variant['custom_fields'])) {
                 $variantModel->setAllCustomFields($variant['custom_fields']);
             }
-
+            $attributes = $product->app->get(AttributeConfigEnum::DEFAULT_VARIANT_ATTRIBUTE->value);
+            $attributes = $attributes && is_array($attributes) ? $attributes : [];
             if (isset($variant['attributes'])) {
-                $variantModel->addAttributes($user, $variant['attributes']);
+                $attributes = [...$attributes, ...$variant['attributes']];
+                $variantModel->addAttributes($user, $attributes);
             }
 
             if (isset($variant['status']['id'])) {
