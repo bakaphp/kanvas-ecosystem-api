@@ -88,8 +88,26 @@ class ESimProductService
 
     protected function mapVariant(array $plans): array
     {
+        $productVariants = [];
         foreach ($plans as $variant) {
             $variantName = $variant['name'];
+
+            $attributes = [
+                [
+                    'name' => 'esim_bundle_type',
+                    'value' => $variant['sku'],
+                ],[
+                    'name' => 'esim_days',
+                    'value' => $variant['duration'],
+                ],
+            ];
+
+            if (! empty($variant['price_range'])) {
+                $attributes[] = [
+                    'name' => 'esim_price_range',
+                    'value' => $variant['price_range'],
+                ];
+            }
 
             $productVariants[] = [
                 'name' => $variantName,
@@ -116,15 +134,7 @@ class ESimProductService
                     'sku' => $variant['sku'],
                     'is_new' => true,
                 ],
-                'attributes' => [
-                    [
-                        'name' => 'esim_bundle_type',
-                        'value' => $variant['sku'],
-                    ],[
-                        'name' => 'esim_days',
-                        'value' => $variant['duration'],
-                    ],
-                ],
+                'attributes' => $attributes,
             ];
         }
 
