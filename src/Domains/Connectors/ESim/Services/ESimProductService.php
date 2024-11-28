@@ -10,6 +10,7 @@ use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Locations\Models\Countries;
 
 class ESimProductService
 {
@@ -37,6 +38,20 @@ class ESimProductService
 
         $category = 'esim';
         $productType = $destination['type'];
+
+        $attributes = [
+            [
+                'name' => 'provider',
+                'value' => $destination['provider'],
+            ],
+        ];
+
+        if (! empty($destination['countries'])) {
+            $attributes[] = [
+                'name' => 'countries',
+                'value' => $this->mapCountriesAttribute($destination['countries']),
+            ];
+        }
 
         return [
             'name' => $destination['name'],
@@ -70,12 +85,7 @@ class ESimProductService
                  'name' => $productType,
                  'weight' => 0,
             ],
-            'attributes' => [
-                [
-                    'name' => 'provider',
-                    'value' => $destination['provider'],
-                ],
-            ],
+            'attributes' => $attributes,
             'variants' => $this->mapVariant($destination['plans']) ?? [],
             'warehouses' => [
                  [
@@ -139,5 +149,12 @@ class ESimProductService
         }
 
         return $productVariants;
+    }
+
+    protected function mapCountriesAttribute(array $countries): array
+    {
+        $countryCodes = array_map(fn ($country) => strtolower($country['country_code']), $countries);
+
+        return Countries::whereIn('code', $countryCodes)->pluck('id')->toArray();
     }
 }

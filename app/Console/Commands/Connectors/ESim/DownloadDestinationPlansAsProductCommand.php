@@ -27,7 +27,7 @@ class DownloadDestinationPlansAsProductCommand extends Command
      *
      * @var string|null
      */
-    protected $description = 'Download all destination plan as products example: [{"code":"us","limit":25,"page":1}] ';
+    protected $description = 'Download all destination plan as products example: [{\"code\":\"us\",\"limit\":25,\"page\":1}] ';
 
     /**
      * Execute the console command.
