@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
-use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\ESim\Services\DestinationService;
 use Kanvas\Connectors\ESim\Services\ESimProductService;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -59,6 +58,4 @@ class DownloadPlanToProductAction
             );
         }
     }
-
-        
 }
