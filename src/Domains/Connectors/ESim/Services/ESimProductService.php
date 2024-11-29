@@ -100,7 +100,7 @@ class ESimProductService
     {
         $productVariants = [];
         foreach ($plans as $variant) {
-            $variantName = $variant['name'];
+            $variantName = $variant['data'];
 
             $attributes = [
                 [
