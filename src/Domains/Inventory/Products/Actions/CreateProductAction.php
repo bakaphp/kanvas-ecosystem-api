@@ -119,6 +119,7 @@ class CreateProductAction
 
             throw $e;
         }
+        $products->searchable();
 
         if ($this->runWorkflow) {
             $products->fireWorkflow(
