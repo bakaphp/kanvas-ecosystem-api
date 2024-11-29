@@ -27,6 +27,7 @@ use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
@@ -278,6 +279,20 @@ class Variants extends BaseModel implements EntityIntegrationInterface
 
             if ($attributeModel) {
                 (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
+
+                if ($this->product?->productsType) {
+                    ProductTypeService::addAttributes(
+                        $this->product->productsType,
+                        $this->user,
+                        [
+                            [
+                                'id' => $attributeModel->getId(),
+                                'value' => $attribute['value'],
+                            ],
+                        ],
+                        toVariant: true
+                    );
+                }
             }
         }
     }

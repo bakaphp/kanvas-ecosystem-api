@@ -17,9 +17,6 @@ class AddAttributeAction
     ) {
     }
 
-    /**
-     * execute.
-     */
     public function execute(): Variants
     {
         if ($this->value === null || $this->value === '') {
@@ -34,20 +31,6 @@ class AddAttributeAction
             $this->variant->attributes()->attach(
                 $this->attribute->getId(),
                 ['value' => is_array($this->value) ? json_encode($this->value) : $this->value]
-            );
-        }
-
-        if ($this->variant->product?->productsType) {
-            ProductTypeService::addAttributes(
-                $this->variant->product->productsType,
-                $this->variant->product->user,
-                [
-                    [
-                        'id' => $this->attribute->getId(),
-                        'value' => $this->value,
-                    ],
-                ],
-                toVariant: true
             );
         }
 

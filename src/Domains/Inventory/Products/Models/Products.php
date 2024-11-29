@@ -26,6 +26,7 @@ use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Actions\AddAttributeAction;
 use Kanvas\Inventory\Products\Factories\ProductFactory;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
+use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Services\VariantService;
@@ -350,9 +351,6 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     /**
      * Add/create new attributes from a product.
-     * @psalm-suppress MixedAssignment
-     * @psalm-suppress MixedArrayAccess
-     * @psalm-suppress MixedPropertyFetch
      */
     public function addAttributes(UserInterface $user, array $attributes): void
     {
@@ -382,6 +380,19 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
             if ($attributeModel) {
                 (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
+
+                if ($this?->productsType) {
+                    ProductTypeService::addAttributes(
+                        $this?->productsType,
+                        $this->user,
+                        [
+                            [
+                                'id' => $attributeModel->getId(),
+                                'value' => $attribute['value'],
+                            ],
+                        ]
+                    );
+                }
             }
         }
     }

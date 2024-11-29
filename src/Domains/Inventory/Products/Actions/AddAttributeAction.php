@@ -6,7 +6,6 @@ namespace Kanvas\Inventory\Products\Actions;
 
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 
 class AddAttributeAction
 {
@@ -27,19 +26,6 @@ class AddAttributeAction
             $this->product->attributes()->syncWithoutDetaching([$this->attribute->getId() => ['value' => is_array($this->value) ? json_encode($this->value) : $this->value]]);
         } else {
             $this->product->attributes()->attach($this->attribute->getId(), ['value' => is_array($this->value) ? json_encode($this->value) : $this->value]);
-        }
-
-        if ($this->product?->productsType) {
-            ProductTypeService::addAttributes(
-                $this->product->productsType,
-                $this->product->user,
-                [
-                    [
-                        'id' => $this->attribute->getId(),
-                        'value' => $this->value,
-                    ],
-                ]
-            );
         }
 
         return $this->product;
