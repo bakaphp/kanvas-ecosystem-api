@@ -26,6 +26,7 @@ use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Actions\AddAttributeAction;
 use Kanvas\Inventory\Products\Factories\ProductFactory;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
+use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Services\VariantService;
@@ -44,6 +45,7 @@ use Laravel\Scout\Searchable;
  * @property int $apps_id
  * @property int $companies_id
  * @property int $products_types_id
+ * @property int $users_id
  * @property string $uuid
  * @property string $name
  * @property string $slug
@@ -198,8 +200,14 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     /**
      * productsTypes.
+     * @deprecated
      */
     public function productsTypes(): BelongsTo
+    {
+        return $this->productsType();
+    }
+
+    public function productsType(): BelongsTo
     {
         return $this->belongsTo(ProductsTypes::class, 'products_types_id');
     }
@@ -343,16 +351,15 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     /**
      * Add/create new attributes from a product.
-     * @psalm-suppress MixedAssignment
-     * @psalm-suppress MixedArrayAccess
-     * @psalm-suppress MixedPropertyFetch
      */
     public function addAttributes(UserInterface $user, array $attributes): void
     {
         foreach ($attributes as $attribute) {
             if (! isset($attribute['value'])) {
-                continue;
+                continue; // Skip attributes without a value
             }
+
+            $attributeModel = null;
 
             if (isset($attribute['id'])) {
                 $attributeModel = Attributes::getById((int) $attribute['id'], $this->app);
@@ -371,7 +378,22 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
             }
 
-            (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
+            if ($attributeModel) {
+                (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
+
+                if ($this?->productsType) {
+                    ProductTypeService::addAttributes(
+                        $this->productsType,
+                        $this->user,
+                        [
+                            [
+                                'id' => $attributeModel->getId(),
+                                'value' => $attribute['value'],
+                            ],
+                        ]
+                    );
+                }
+            }
         }
     }
 

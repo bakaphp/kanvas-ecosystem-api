@@ -89,6 +89,7 @@ class ProcessAdminInviteAction
             );
 
             $invite->softDelete();
+            $app->update(); //clear cache
             DB::commit();
         } catch (Throwable $e) {
             DB::rollBack();
