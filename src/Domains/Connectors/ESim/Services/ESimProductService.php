@@ -117,10 +117,10 @@ class ESimProductService
                     'value' => $variant['duration'],
                 ],[
                     'name' => 'Variant Network',
-                    'value' => $variant['coverages'][0]['networks'][0]['name'] ?? null,
+                    'value' => $variant['coverages'][0]['networks'][0]['name'] ?? $destination['provider'] ?? null,
                 ],[
                     'name' => 'Variant Speed',
-                    'value' => $variant['coverages'][0]['networks'][0]['types'][0] ?? null,
+                    'value' => $variant['coverages'][0]['networks'][0]['types'][0] ?? 'LTE', //change to custom setting per app
                 ],
             ];
 
