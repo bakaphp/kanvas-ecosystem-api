@@ -41,7 +41,7 @@ class ESimProductService
 
         $attributes = [
             [
-                'name' => 'provider',
+                'name' => 'product-provider',
                 'value' => $destination['provider'],
             ],
         ];
@@ -86,7 +86,7 @@ class ESimProductService
                  'weight' => 0,
             ],
             'attributes' => $attributes,
-            'variants' => $this->mapVariant($destination['plans']) ?? [],
+            'variants' => $this->mapVariant($destination, $destination['plans']) ?? [],
             'warehouses' => [
                  [
                       'warehouse' => $this->warehouses->name,
@@ -96,7 +96,7 @@ class ESimProductService
          ];
     }
 
-    protected function mapVariant(array $plans): array
+    protected function mapVariant($destination, array $plans): array
     {
         $productVariants = [];
         foreach ($plans as $variant) {
@@ -109,6 +109,18 @@ class ESimProductService
                 ],[
                     'name' => 'esim_days',
                     'value' => $variant['duration'],
+                ], [
+                    'name' => 'Variant Type',
+                    'value' => $variant['is_unlimited'] == 0 ? 'basic' : 'unlimited',
+                ],[
+                    'name' => 'Variant Duration',
+                    'value' => $variant['duration'],
+                ],[
+                    'name' => 'Variant Network',
+                    'value' => $variant['coverages'][0]['networks'][0]['name'] ?? null,
+                ],[
+                    'name' => 'Variant Speed',
+                    'value' => $variant['coverages'][0]['networks'][0]['types'][0] ?? null,
                 ],
             ];
 
