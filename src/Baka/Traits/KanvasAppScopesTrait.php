@@ -6,7 +6,7 @@ namespace Baka\Traits;
 
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
-
+use Illuminate\Database\Eloquent\Model;
 trait KanvasAppScopesTrait
 {
     /**
@@ -16,8 +16,7 @@ trait KanvasAppScopesTrait
      */
     public function scopeFromApp(Builder $query, mixed $app = null): Builder
     {
-        
-$table = $this->getTable() . '.';
+        $table = $this instanceof Model ? $this->getTable() . '.': '';
 
         $app = $app instanceof Apps ? $app : app(Apps::class);
 
