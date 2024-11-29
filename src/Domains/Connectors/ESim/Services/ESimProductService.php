@@ -111,7 +111,7 @@ class ESimProductService
                     'value' => $variant['duration'],
                 ], [
                     'name' => 'Variant Type',
-                    'value' => $destination['type'],
+                    'value' => $variant['is_unlimited'] == 0 ? 'basic' : 'unlimited',
                 ],[
                     'name' => 'Variant Duration',
                     'value' => $variant['duration'],
@@ -121,7 +121,7 @@ class ESimProductService
                 ],[
                     'name' => 'Variant Speed',
                     'value' => $variant['coverages'][0]['networks'][0]['types'][0] ?? null,
-                ]
+                ],
             ];
 
             if (! empty($variant['price_range'])) {
