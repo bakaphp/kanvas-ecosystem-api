@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Variants\Actions;
 
 use Kanvas\Inventory\Attributes\Models\Attributes;
-use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Variants\Models\Variants;
 
 class AddAttributeAction
