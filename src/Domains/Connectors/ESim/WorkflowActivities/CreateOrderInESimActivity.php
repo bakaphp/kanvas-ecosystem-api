@@ -43,6 +43,8 @@ class CreateOrderInESimActivity extends KanvasActivity
         try {
             $esimGo = new ESimService($app);
             $esimData = $esimGo->getAppliedBundleStatus($response['data']['iccid'], $response['data']['plan']);
+            $esimData['expiration_date'] = null;
+            $esimData['phone_number'] = null;
             $response['esim_status'] = $esimData;
         } catch (Throwable $e) {
         }
