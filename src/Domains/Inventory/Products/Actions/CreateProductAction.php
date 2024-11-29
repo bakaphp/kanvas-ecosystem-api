@@ -46,21 +46,27 @@ class CreateProductAction
                 'apps_id' => $this->productDto->app->getId(),
                 'companies_id' => $this->productDto->company->getId(),
             ];
+
+            $updateData = [
+                'products_types_id' => $productType,
+                'name' => $this->productDto->name,
+                'description' => $this->productDto->description,
+                'short_description' => $this->productDto->short_description,
+                'html_description' => $this->productDto->html_description,
+                'warranty_terms' => $this->productDto->warranty_terms,
+                'upc' => $this->productDto->upc,
+                'status_id' => $this->productDto->status_id,
+                'users_id' => $this->user->getId(),
+                'is_published' => $this->productDto->is_published,
+                'published_at' => Carbon::now(),
+            ];
+
+            if ($productType == null) {
+                unset($updateData['products_types_id']);
+            }
             $products = Products::updateOrCreate(
                 $search,
-                [
-                    'products_types_id' => $productType,
-                    'name' => $this->productDto->name,
-                    'description' => $this->productDto->description,
-                    'short_description' => $this->productDto->short_description,
-                    'html_description' => $this->productDto->html_description,
-                    'warranty_terms' => $this->productDto->warranty_terms,
-                    'upc' => $this->productDto->upc,
-                    'status_id' => $this->productDto->status_id,
-                    'users_id' => $this->user->getId(),
-                    'is_published' => $this->productDto->is_published,
-                    'published_at' => Carbon::now(),
-                ]
+                $updateData
             );
 
             if (! empty($this->productDto->files)) {
