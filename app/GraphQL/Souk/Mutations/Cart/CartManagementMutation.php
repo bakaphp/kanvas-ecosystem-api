@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Souk\Mutations\Cart;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 
@@ -17,6 +18,14 @@ class CartManagementMutation
         $company = $user->getCurrentCompany();
         $cart = app('cart')->session($user->getId());
         $app = app(Apps::class);
+
+        /**
+         * @todo for now for b2b store clients
+         * change this to use company group?
+         */
+        if ($app->get('USE_B2B_COMPANY_GROUP')) {
+            $company = Companies::getById($app->get('B2B_GLOBAL_COMPANY'));
+        }
 
         //@todo send warehouse via header
         $useCompanySpecificPrice = $app->get(ConfigurationEnum::COMPANY_CUSTOM_CHANNEL_PRICING->value) ?? false;
