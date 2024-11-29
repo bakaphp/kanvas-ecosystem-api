@@ -202,7 +202,10 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     ->where('a.name', '=', $name);
             })
             ->orderByRaw(
-                "CASE WHEN a.name = ? THEN CAST(pva.value AS DECIMAL(10,2)) ELSE 0 END {$sort}, products.id ASC",
+                "CASE WHEN a.name = ? THEN
+                    CASE WHEN CAST(pva.value AS DECIMAL) = 0 THEN 0
+                        ELSE CAST(pva.value AS DECIMAL) END
+                ELSE 0 END {$sort}, products.id ASC",
                 [$name]
             )
             ->select('products.*');
