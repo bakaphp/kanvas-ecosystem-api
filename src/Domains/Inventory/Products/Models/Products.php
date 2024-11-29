@@ -185,6 +185,19 @@ class Products extends BaseModel implements EntityIntegrationInterface
             });
     }
 
+    public function scopeOrderByVariantAttribute(Builder $query, string $name, string $sort = 'asc'): Builder
+    {
+        return $query->join('products_variants', 'products_variants.products_id', '=', 'products.id')
+            ->join('products_variants_attributes as pva', 'pva.products_variants_id', '=', 'products_variants.id')
+            ->leftJoin('attributes as a', function ($join) use ($name) {
+                $join->on('a.id', '=', 'pva.attributes_id')
+                    ->where('a.name', '=', $name);
+            })
+            ->orderByRaw(
+                "CASE WHEN a.name = '{$name}' THEN CAST(pva.value AS DECIMAL(10,2)) ELSE NULL END {$sort}, products.id DESC"
+            )->select('products.*');
+    }
+
     /**
      * variants.
      */

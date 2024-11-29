@@ -13,17 +13,17 @@ trait KanvasCompanyScopesTrait
 {
     /**
      * scopeCompany.
-     *
-     * @param mixed $company
      */
     public function scopeFromCompany(Builder $query, mixed $company = null): Builder
     {
         $company = $company instanceof Companies ? $company : auth()->user()->getCurrentCompany();
 
+        $table = $this->getTable() . '.';
+
         if (app()->bound(AppKey::class) && ! app()->bound(CompaniesBranches::class)) {
-            return $query->where('companies_id', '>', 0);
+            return $query->where($table . 'companies_id', '>', 0);
         }
 
-        return $query->where('companies_id', $company->getId());
+        return $query->where($table . 'companies_id', $company->getId());
     }
 }
