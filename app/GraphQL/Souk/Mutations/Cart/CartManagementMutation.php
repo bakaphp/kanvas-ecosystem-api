@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Enums\ConfigurationEnum;
+use Kanvas\Users\Models\UserCompanyApps;
 
 class CartManagementMutation
 {
@@ -24,7 +25,9 @@ class CartManagementMutation
          * change this to use company group?
          */
         if ($app->get('USE_B2B_COMPANY_GROUP')) {
-            $company = Companies::getById($app->get('B2B_GLOBAL_COMPANY'));
+            if (UserCompanyApps::where('companies_id', $app->get('B2B_GLOBAL_COMPANY'))->where('apps_id', $app->getId())->first()) {
+                $company = Companies::getById($app->get('B2B_GLOBAL_COMPANY'));
+            }
         }
 
         //@todo send warehouse via header
