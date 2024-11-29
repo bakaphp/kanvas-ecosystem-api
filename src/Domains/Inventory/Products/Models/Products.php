@@ -44,6 +44,7 @@ use Laravel\Scout\Searchable;
  * @property int $apps_id
  * @property int $companies_id
  * @property int $products_types_id
+ * @property int $users_id
  * @property string $uuid
  * @property string $name
  * @property string $slug
@@ -198,8 +199,14 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     /**
      * productsTypes.
+     * @deprecated
      */
     public function productsTypes(): BelongsTo
+    {
+        return $this->productsType();
+    }
+
+    public function productsType(): BelongsTo
     {
         return $this->belongsTo(ProductsTypes::class, 'products_types_id');
     }
