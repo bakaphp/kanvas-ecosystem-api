@@ -10,9 +10,6 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Repositories\CompaniesRepository;
-use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
-use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
-use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Jobs\IndexProductJob;
@@ -81,28 +78,7 @@ class CreateProductAction
             }
 
             if ($this->productDto->attributes) {
-                foreach ($this->productDto->attributes as $attribute) {
-                    if (isset($attribute['id'])) {
-                        $attributeModel = Attributes::getById((int) $attribute['id'], $products->app);
-                    } elseif (! empty($attribute['name'])) {
-                        $attributesDto = AttributesDto::from([
-                            'app' => $this->productDto->app,
-                            'user' => $this->user,
-                            'company' => $this->productDto->company,
-                            'name' => $attribute['name'],
-                            'isVisible' => true,
-                            'isSearchable' => true,
-                            'isFiltrable' => true,
-                            'slug' => Str::slug($attribute['name']),
-                        ]);
-
-                        $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
-                    }
-
-                    if ($attributeModel) {
-                        (new AddAttributeAction($products, $attributeModel, $attribute['value']))->execute();
-                    }
-                }
+                $products->addAttributes($this->productDto->user, $this->productDto->attributes);
             }
 
             if ($this->productDto->variants) {
