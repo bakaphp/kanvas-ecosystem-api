@@ -192,7 +192,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
         $sort = strtoupper($sort);
 
         if (! in_array($sort, $allowedSorts)) {
-            throw new InvalidArgumentException('Valor de orden inválido.');
+            throw new InvalidArgumentException('Invalid sort value');
         }
 
         return $query->join('products_variants', 'products_variants.products_id', '=', 'products.id')
