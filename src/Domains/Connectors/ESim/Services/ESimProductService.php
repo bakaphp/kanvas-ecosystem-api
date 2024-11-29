@@ -31,7 +31,7 @@ class ESimProductService
 
         $files = [
             [
-                'name' => basename($destination['image_url']),
+                'name' => 'flag.png',
                 'url' => $destination['image_url'],
             ],
         ];
@@ -121,6 +121,12 @@ class ESimProductService
                 ],[
                     'name' => 'Variant Speed',
                     'value' => $variant['coverages'][0]['networks'][0]['types'][0] ?? 'LTE', //change to custom setting per app
+                ],[
+                    'name' => 'Rechargeability',
+                    'value' => $variant['rechargeability'],
+                ],[
+                    'name' => 'Has Phone Number',
+                    'value' => 0
                 ],
             ];
 
