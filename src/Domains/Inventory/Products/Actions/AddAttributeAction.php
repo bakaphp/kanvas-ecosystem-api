@@ -10,11 +10,6 @@ use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 
 class AddAttributeAction
 {
-    /**
-     * __construct.
-     *
-     * @return void
-     */
     public function __construct(
         private Products $product,
         private Attributes $attribute,
@@ -22,9 +17,6 @@ class AddAttributeAction
     ) {
     }
 
-    /**
-     * execute.
-     */
     public function execute(): Products
     {
         if ($this->value === null || $this->value === '') {
@@ -37,7 +29,7 @@ class AddAttributeAction
             $this->product->attributes()->attach($this->attribute->getId(), ['value' => is_array($this->value) ? json_encode($this->value) : $this->value]);
         }
 
-        if ($this->product->productsType) {
+        if ($this->product?->productsType) {
             ProductTypeService::addAttributes(
                 $this->product->productsType,
                 $this->product->user,

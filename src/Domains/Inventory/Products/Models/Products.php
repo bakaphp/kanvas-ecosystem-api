@@ -358,8 +358,10 @@ class Products extends BaseModel implements EntityIntegrationInterface
     {
         foreach ($attributes as $attribute) {
             if (! isset($attribute['value'])) {
-                continue;
+                continue; // Skip attributes without a value
             }
+
+            $attributeModel = null;
 
             if (isset($attribute['id'])) {
                 $attributeModel = Attributes::getById((int) $attribute['id'], $this->app);
@@ -378,7 +380,9 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
             }
 
-            (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
+            if ($attributeModel) {
+                (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
+            }
         }
     }
 

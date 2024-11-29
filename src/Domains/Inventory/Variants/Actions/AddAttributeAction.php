@@ -37,7 +37,7 @@ class AddAttributeAction
             );
         }
 
-        if ($this->variant->product->productsType) {
+        if ($this->variant->product?->productsType) {
             ProductTypeService::addAttributes(
                 $this->variant->product->productsType,
                 $this->variant->product->user,
@@ -46,7 +46,8 @@ class AddAttributeAction
                         'id' => $this->attribute->getId(),
                         'value' => $this->value,
                     ],
-                ]
+                ],
+                toVariant: true
             );
         }
 

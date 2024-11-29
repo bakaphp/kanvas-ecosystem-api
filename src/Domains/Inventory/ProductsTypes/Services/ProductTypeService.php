@@ -16,8 +16,12 @@ class ProductTypeService
     /**
      * Add a new attribute to a product type.
      */
-    public static function addAttributes(ProductsTypes $productsTypes, UserInterface $user, array $attributes, bool $toVariant = false): ProductsTypes
-    {
+    public static function addAttributes(
+        ProductsTypes $productsTypes,
+        UserInterface $user,
+        array $attributes,
+        bool $toVariant = false
+    ): ProductsTypes {
         foreach ($attributes as $attribute) {
             $attributeObject = Attributes::getById((int) $attribute['id']);
             $productsAttributesDto = (
@@ -29,7 +33,7 @@ class ProductTypeService
 
             (new CreateProductTypeAttributeAction($productsAttributesDto, $user))->execute();
 
-            if ($attributeObject->attributeType->isList()) {
+            if ($attributeObject?->attributeType?->isList()) {
                 (new AddAttributeValue($attributeObject, [$attribute]))->execute();
             }
         }

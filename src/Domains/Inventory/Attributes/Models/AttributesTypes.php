@@ -44,6 +44,6 @@ class AttributesTypes extends BaseModel
      */
     public function isList(): bool
     {
-        return $this->name === AttributeTypeEnum::CHECKBOX->value;
+        return $this->slug === AttributeTypeEnum::CHECKBOX->value;
     }
 }

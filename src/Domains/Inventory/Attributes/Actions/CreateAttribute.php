@@ -17,11 +17,6 @@ class CreateAttribute
     ) {
     }
 
-    /**
-     * execute.
-     *
-     * @return Attributes
-     */
     public function execute(): Attributes
     {
         CompaniesRepository::userAssociatedToCompany(
