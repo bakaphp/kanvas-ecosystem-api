@@ -27,7 +27,7 @@ class ProductBuilder
             $query->filterByVariantAttributeValue($args['variantAttributeValue']);
         }
 
-        if(! empty($args['variantAttributeOrderBy'])){
+        if (! empty($args['variantAttributeOrderBy'])) {
             $order = $args['variantAttributeOrderBy'];
             $query->orderByVariantAttribute(
                 $order['name'],
