@@ -188,8 +188,8 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     public function scopeOrderByVariantAttribute(Builder $query, string $name, string $sort = 'asc'): Builder
     {
-        $allowedSorts = ['asc', 'desc', 'ASC', 'DESC'];
-        $sort = strtolower($sort);
+        $allowedSorts = ['ASC', 'DESC'];
+        $sort = strtoupper($sort);
 
         if (! in_array($sort, $allowedSorts)) {
             throw new InvalidArgumentException('Valor de orden inválido.');
