@@ -47,11 +47,12 @@ class SyncEsimWithProviderCommand extends Command
         $eSimService = new ESimService($app);
 
         foreach ($messages as $message) {
-            $iccid = $messages->message['data']['iccid'] ?? null;
-            $bundle = $messages->metadata['data']['plan'] ?? null;
+            $iccid = $message->message['data']['iccid'] ?? null;
+            $bundle = $message->message['data']['plan'] ?? null;
 
             if ($iccid == null) {
                 $this->info("Message ID: {$message->id} does not have an ICCID.");
+                $message->setPrivate();
 
                 continue;
             }
@@ -65,11 +66,15 @@ class SyncEsimWithProviderCommand extends Command
                     IccidStatusEnum::COMPLETED->value,
                 ];
 
-                $message->message['esim_status'] = $response;
+                $messageData = $message->message;
+                $messageData['esim_status'] = $response;
+                $message->message = $messageData;
                 $message->saveOrFail();
 
+                $this->info("Message ID: {$message->id} has been updated with the eSIM status.");
                 if (in_array($response['bundleState'], $inactiveStatuses, true)) {
                     $message->setPrivate();
+                    $this->info("Message ID: {$message->id} has been set to private.");
                 }
             }
         }
