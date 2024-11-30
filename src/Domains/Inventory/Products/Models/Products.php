@@ -15,6 +15,7 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
@@ -183,6 +184,31 @@ class Products extends BaseModel implements EntityIntegrationInterface
                               ->where('products_variants_attributes.is_deleted', 0);
                     });
             });
+    }
+
+    public function scopeOrderByVariantAttribute(Builder $query, string $name, string $sort = 'asc'): Builder
+    {
+        $allowedSorts = ['ASC', 'DESC'];
+        $sort = strtoupper($sort);
+
+        if (! in_array($sort, $allowedSorts)) {
+            throw new InvalidArgumentException('Invalid sort value');
+        }
+
+        return $query->join('products_variants', 'products_variants.products_id', '=', 'products.id')
+            ->join('products_variants_attributes as pva', 'pva.products_variants_id', '=', 'products_variants.id')
+            ->leftJoin('attributes as a', function ($join) use ($name) {
+                $join->on('a.id', '=', 'pva.attributes_id')
+                    ->where('a.name', '=', $name);
+            })
+            ->orderByRaw(
+                "CASE WHEN a.name = ? THEN
+                    CASE WHEN CAST(pva.value AS DECIMAL) = 0 THEN 0
+                        ELSE CAST(pva.value AS DECIMAL) END
+                ELSE 0 END {$sort}, products.id ASC",
+                [$name]
+            )
+            ->select('products.*');
     }
 
     /**

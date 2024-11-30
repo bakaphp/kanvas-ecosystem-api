@@ -86,6 +86,11 @@ input ProductInputUpdate {
     categories: [ProductCategoriesReferenceInput!]
 }
 
+input ProductAttributeOrderBy {
+    name: String
+    sort: String
+}
+
 extend type Mutation @guard {
     createProduct(input: ProductInput!): Product!
         @field(
@@ -129,6 +134,7 @@ extend type Query @guard {
     products(
         search: String @search
         variantAttributeValue: String
+        variantAttributeOrderBy: ProductAttributeOrderBy
         where: _
             @whereConditions(
                 columns: [
