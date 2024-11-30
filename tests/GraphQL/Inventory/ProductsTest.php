@@ -56,8 +56,8 @@ class ProductsTest extends TestCase
                     'sku' => $sku,
                     'attributes' => [
                         [
-                            'name'=> $attributeName,
-                            'value'=> 0,
+                            'name' => $attributeName,
+                            'value' => 0,
                         ]
                     ]
                 ]
@@ -67,7 +67,8 @@ class ProductsTest extends TestCase
         $response = $this->createProduct($data);
         unset($data['id']);
         unset($data['sku']);
-        $response = $this->graphQL("
+        $response = $this->graphQL(
+            "
             query {
                 products(
                     variantAttributeOrderBy: {
