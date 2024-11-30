@@ -65,6 +65,9 @@ class SyncEsimWithProviderCommand extends Command
                     IccidStatusEnum::COMPLETED->value,
                 ];
 
+                $message->message['esim_status'] = $response;
+                $message->saveOrFail();
+
                 if (in_array($response['bundleState'], $inactiveStatuses, true)) {
                     $message->setPrivate();
                 }
