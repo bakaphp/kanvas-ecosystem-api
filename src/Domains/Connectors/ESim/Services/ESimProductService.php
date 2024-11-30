@@ -31,7 +31,7 @@ class ESimProductService
 
         $files = [
             [
-                'name' => 'flag.png',
+                'name' => 'flag.svg',
                 'url' => $destination['image_url'],
             ],
         ];
