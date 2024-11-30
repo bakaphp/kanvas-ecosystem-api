@@ -6,9 +6,9 @@ namespace App\Console\Commands\Connectors\ESim;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\ESimGo\Services\ESimService;
 use Kanvas\Souk\Orders\Models\Order;
 
 class SyncOrdersWithProviderCommand extends Command
@@ -41,46 +41,34 @@ class SyncOrdersWithProviderCommand extends Command
 
         $company = Companies::getById((int) $this->argument('company_id'));
 
-        $orders = Order::fromApp($app)->fromCompany($company)->notDeleted()->whereNotCompleted()->get();
+        $orders = Order::fromApp($app)->fromCompany($company)->notDeleted()->whereNotFulfilled()->orderBy('id', 'desc')->get();
 
-        $authHeaderToken = $app->get('esim_auth_header_token');
-        if (empty($authHeaderToken)) {
-            $this->info("No auth token found for app ID: {$app->id}");
-
-            return;
-        }
-
-        $apiUrl = $app->get('esim_api_url');
+        $eSimService = new ESimService($app);
 
         foreach ($orders as $order) {
             $iccid = $order->metadata['data']['iccid'] ?? null;
-            $bundle = $order->metadata['data']['bundle'] ?? null;
+            $bundle = $order->metadata['data']['plan'] ?? null;
 
             if ($iccid == null) {
                 $this->info("Order ID: {$order->id} does not have an ICCID.");
-
+                $order->cancel();
+                $order->fulfillCancelled();
                 continue;
             }
 
             #$api = $apiUrl . "/{$iccid}/esims_1GB_7D_IT_V2";
-            $api = $apiUrl . "/esims/{$iccid}/bundles/" . $bundle;
+            //$api = $apiUrl . "/esims/{$iccid}/bundles/" . $bundle;
 
-            $response = Http::withHeaders([
-                #'Authorization' => 'Bearer ' . $authHeaderToken,
-                'X-API-KEY' => $authHeaderToken,
-                'Accept' => 'application/json',
-            ])->get($api);
+            $response = $eSimService->getAppliedBundleStatus($iccid, $bundle);
 
-            if ($response->successful()) {
-                $data = $response->json();
-
-                if ($data['assignments'][0]['bundleState'] === 'active') {
+            if (! empty($response)) {
+                if ($response['bundleState'] === 'active') {
                     $order->fulfill();
                     $order->completed();
+                    $this->info("Syncing order ID: {$order->id}");
                 } else {
                     $this->info("Order ID: {$order->id} is not active.");
                 }
-                $this->info("Syncing order ID: {$order->id}");
             }
         }
 

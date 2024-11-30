@@ -161,7 +161,7 @@ class Order extends BaseModel
 
     public function fulfillCancelled(): void
     {
-        $this->fulfillment_status = 'cancelled';
+        $this->fulfillment_status = 'canceled';
         $this->saveOrFail();
     }
 
@@ -173,7 +173,7 @@ class Order extends BaseModel
 
     public function cancel(): void
     {
-        $this->status = 'cancelled';
+        $this->status = 'canceled';
         $this->saveOrFail();
     }
 
@@ -199,7 +199,7 @@ class Order extends BaseModel
 
     public function scopeWhereNotFulfilled(Builder $query): Builder
     {
-        return $query->where('fulfillment_status', '!=', 'fulfilled');
+        return $query->whereNotIn('fulfillment_status', ['fulfilled', 'canceled']);
     }
 
     public function scopeWhereDraft(Builder $query): Builder
