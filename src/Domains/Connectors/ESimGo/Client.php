@@ -11,9 +11,9 @@ use Kanvas\Exceptions\ValidationException;
 
 class Client
 {
-    protected GuzzleClient $client;
-    protected string $baseUri = 'https://api.esim-go.com';
-    protected string $appToken;
+    public GuzzleClient $client;
+    public string $baseUri = 'https://api.esim-go.com';
+    public string $appToken;
 
     public function __construct(
         protected AppInterface $app
