@@ -9,8 +9,6 @@ use Kanvas\Connectors\Shopify\Actions\CreateShopifyCustomerAction;
 use Kanvas\Connectors\Shopify\Actions\SyncShopifyCustomerAction;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
-use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
-use Kanvas\Guild\Customers\Models\ContactType;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
