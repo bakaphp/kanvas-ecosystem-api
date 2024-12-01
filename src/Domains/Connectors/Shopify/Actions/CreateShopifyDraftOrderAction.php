@@ -28,18 +28,32 @@ class CreateShopifyDraftOrderAction
         $this->shopifySdk = Client::getInstance(
             $order->app,
             $order->company,
-            $order->region->defaultWarehouse
+            $order->region
         );
     }
 
-    public function execute(): array
+    public function execute(): int
     {
         // Prepare draft order data
+        if ($this->order->get(ShopifyConfigurationService::getKey(
+            CustomFieldEnum::SHOPIFY_DRAFT_ORDER_ID->value,
+            $this->company,
+            $this->app,
+            $this->order->region
+        ))) {
+            return $this->order->get(ShopifyConfigurationService::getKey(
+                CustomFieldEnum::SHOPIFY_DRAFT_ORDER_ID->value,
+                $this->company,
+                $this->app,
+                $this->order->region
+            ));
+        }
+
         $draftOrderData = $this->prepareDraftOrderData();
-        $draftOrder = $this->shopifySdk->DraftOrder->create($draftOrderData);
+        $draftOrder = $this->shopifySdk->DraftOrder->post($draftOrderData);
         $this->saveDraftOrderId($draftOrder['id']);
 
-        return $draftOrder;
+        return $draftOrder['id'];
     }
 
     protected function prepareDraftOrderData(): array
@@ -63,20 +77,34 @@ class CreateShopifyDraftOrderAction
                 throw new EntityNotIntegratedException($item->variant, 'Shopify');
             }
 
+            $applyDiscount = $item->getPrice() !== $item->variant->getPrice($this->order->region->defaultWarehouse);
+            $discount = $applyDiscount ? [
+                'description' => 'Custom Price',
+                'value_type' => 'fixed_amount',
+                'value' => $item->getPrice(),
+                'amount' => $item->getPrice(),
+                'title' => 'Custom Price',
+            ] : null;
+
             $lineItems[] = [
                 'variant_id' => $shopifyVariantId,
                 'quantity' => $item->quantity,
-                'price' => $item->price,
+                'price' => $item->getPrice(),
+                'applied_discount' => $discount,
+                //'title' => $item->variant->product->name,
             ];
         }
 
-        // Prepare customer data
-        $customerData = [
-            'first_name' => $this->order->people->firstname,
-            'last_name' => $this->order->people->lastname,
-            'email' => $this->order->email,
-            'phone' => $this->order->phone,
-        ];
+        if (! $this->order->people->getEmails()->count() && $this->order->getEmail()) {
+            $this->order->people->addEmail($this->order->getEmail());
+        }
+
+        if (! $this->order->people->getPhones()->count() && $this->order->getPhone()) {
+            $this->order->people->addPhone($this->order->getPhone());
+        }
+
+        $createCustomer = new CreateShopifyCustomerAction($this->order->people,  $this->order->region);
+        $customer = $createCustomer->execute();
 
         // Prepare shipping address
         $shippingAddress = $this->order->shippingAddress ? [
@@ -90,16 +118,16 @@ class CreateShopifyDraftOrderAction
 
         // Prepare draft order payload
         return [
-            'draft_order' => [
                 'line_items' => $lineItems,
-                'customer' => $customerData,
+                'customer' => [
+                    'id' => $customer,
+                ],
                 'shipping_address' => $shippingAddress,
-                'note' => "Order #{$this->order->orderNumber} from our system",
-                'total_price' => $this->order->total,
-                'subtotal_price' => $this->order->total - $this->order->taxes,
-                'total_tax' => $this->order->taxes,
-                'currency' => $this->order->region->currency->code,
-            ],
+                'note' => "Kanvas Order #{$this->order->order_number}",
+                'total_price' => $this->order->getTotalAmount(),
+                'subtotal_price' => $this->order->getSubTotalAmount(),
+                'total_tax' => $this->order->getTotalTaxAmount(),
+                'currency' => 'USD', //$this->order->region->currency->code,
         ];
     }
 
@@ -108,7 +136,7 @@ class CreateShopifyDraftOrderAction
      */
     protected function saveDraftOrderId(int $shopifyDraftOrderId): void
     {
-        $this->order->setCustomField(
+        $this->order->set(
             ShopifyConfigurationService::getKey(
                 CustomFieldEnum::SHOPIFY_DRAFT_ORDER_ID->value,
                 $this->company,

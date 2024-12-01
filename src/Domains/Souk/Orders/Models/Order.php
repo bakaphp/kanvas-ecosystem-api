@@ -125,6 +125,16 @@ class Order extends BaseModel
         return (float) $this->total_gross_amount;
     }
 
+    public function getSubTotalAmount(): float
+    {
+        return (float) $this->total_net_amount;
+    }
+
+    public function getTotalTaxAmount(): float
+    {
+        return $this->getTotalAmount() - $this->getSubTotalAmount();
+    }
+
     public function addItems(DataCollection $items): void
     {
         foreach ($items as $item) {
@@ -225,5 +235,15 @@ class Order extends BaseModel
         $newOrderNumber = $lastOrderNumber + 1;
 
         return $newOrderNumber;
+    }
+
+    public function getEmail(): ?string
+    {
+        return $this->user_email ?? $this->people->getEmails()->first()?->email;
+    }
+
+    public function getPhone(): ?string
+    {
+        return $this->user_phone ?? $this->people->getPhones()->first()?->phone;
     }
 }

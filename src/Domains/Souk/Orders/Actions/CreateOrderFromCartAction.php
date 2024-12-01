@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Actions;
 
+use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Darryldecode\Cart\Cart;
@@ -61,7 +62,7 @@ class CreateOrderFromCartAction
             foreach ($this->request['input']['items'] as $key => $lineItem) {
                 $lineItems[$key] = OrderItem::viaRequest($this->app, $this->company, $this->region, $lineItem);
                 $total += $lineItems[$key]->getTotal();
-                $totalTax = $lineItems[$key]->getTotalTax();
+                $totalTax += $lineItems[$key]->getTotalTax();
                 $totalDiscount = $lineItems[$key]->getTotalDiscount();
             }
         }
@@ -98,7 +99,7 @@ class CreateOrderFromCartAction
         return (new CreateOrderAction($order))->execute();
     }
 
-    protected function getOrderItems($cartContent, $app): DataCollection
+    protected function getOrderItems(array $cartContent, AppInterface $app): DataCollection
     {
         $orderItems = [];
 
