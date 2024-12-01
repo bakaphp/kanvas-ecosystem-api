@@ -69,7 +69,8 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         return [
             'message' => 'Lead created successfully via receiver ' . $leadReceiver->uuid,
             'receiver' => $leadReceiver->getId(),
-            'lead' => $lead->getId(),
+            'lead_id' => $lead->getId(),
+            'lead' => $lead->toArray()
         ];
     }
 
