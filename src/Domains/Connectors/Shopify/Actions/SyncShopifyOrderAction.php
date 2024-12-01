@@ -148,6 +148,9 @@ class SyncShopifyOrderAction
         }
     }
 
+    /**
+     * @todo move ot use the DTO method
+     */
     protected function getOrderItems(): DataCollection
     {
         $orderItems = [];
