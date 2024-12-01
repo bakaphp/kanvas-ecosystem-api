@@ -102,7 +102,6 @@ final class CustomerTest extends TestCase
 
     public function testCreateCustomer()
     {
-        print_R(ContactTypeEnum::EMAIL->getName()); die();
         $app = app(Apps::class);
         $product = Products::fromApp($app)->first();
         $channel = Channels::fromApp($app)->fromCompany($product->company)->first();
