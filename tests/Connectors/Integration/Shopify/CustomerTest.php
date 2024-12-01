@@ -9,6 +9,7 @@ use Kanvas\Connectors\Shopify\Actions\CreateShopifyCustomerAction;
 use Kanvas\Connectors\Shopify\Actions\SyncShopifyCustomerAction;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
@@ -101,6 +102,7 @@ final class CustomerTest extends TestCase
 
     public function testCreateCustomer()
     {
+        print_R(ContactTypeEnum::EMAIL->getName()); die();
         $app = app(Apps::class);
         $product = Products::fromApp($app)->first();
         $channel = Channels::fromApp($app)->fromCompany($product->company)->first();
