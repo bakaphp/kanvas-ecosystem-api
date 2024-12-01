@@ -45,7 +45,7 @@ class ReceiverController extends BaseController
             if ($receiver->runAsync()) {
                 dispatch($job);
             } else {
-                $response = dispatch_sync($job);
+                $response = $job->handle();
                 $status = $response['status'] ?? 200;
 
                 return response()->json(array_merge(
