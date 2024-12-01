@@ -118,6 +118,7 @@ final class CustomerTest extends TestCase
 
         $people->addEmail(fake()->email);
         $people->addPhone(fake()->phoneNumber);
+        print_R($people->getEmails()->get()->toArray());
 
         $createShopifyCustomer = new CreateShopifyCustomerAction(
             $people,
