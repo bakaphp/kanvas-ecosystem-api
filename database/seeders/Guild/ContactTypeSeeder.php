@@ -17,13 +17,20 @@ class ContactTypeSeeder extends Seeder
     {
         DB::table('contacts_types')->insert([
             [
+                'id' => 1,
                 'companies_id' => 0,
                 'users_id' => 0,
                 'name' => 'Email',
             ],[
+                'id' => 2,
                 'companies_id' => 0,
                 'users_id' => 0,
                 'name' => 'Phone',
+            ],[
+                'id' => 3,
+                'companies_id' => 0,
+                'users_id' => 0,
+                'name' => 'Cellphone',
             ],
         ]);
     }
