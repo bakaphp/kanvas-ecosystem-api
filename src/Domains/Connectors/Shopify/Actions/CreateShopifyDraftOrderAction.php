@@ -103,7 +103,7 @@ class CreateShopifyDraftOrderAction
             $this->order->people->addPhone($this->order->getPhone());
         }
 
-        $createCustomer = new CreateShopifyCustomerAction($this->order->people,  $this->order->region);
+        $createCustomer = new CreateShopifyCustomerAction($this->order->people, $this->order->region);
         $customer = $createCustomer->execute();
 
         // Prepare shipping address
