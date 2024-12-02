@@ -1,0 +1,102 @@
+type Wallet {
+  id: BigInt!
+  holder_type: String!
+  holder_id: BigInt!
+  name: String!
+  slug: String!
+  uuid: String!
+  description: String!
+  meta: JSON
+  balance: Decimal!
+  decimal_places: Int!
+  created_at: Timestamp!
+  updated_at: Timestamp!
+  deleted_at: Timestamp
+}
+
+type WalletsTransactions {
+  id: BigInt!
+  payable_type: String!
+  payable_id: BigInt!
+  wallet_id: BigInt!
+  type: PaymentTransactionType!
+  amount: Decimal!
+  after_transaction_amount: Decimal!
+  confirmed: Boolean!
+  meta: JSON
+  uuid: String!
+  created_at: Timestamp!
+  updated_at: Timestamp!
+  deleted_at: Timestamp
+}
+
+enum PaymentTransactionType {
+  DEPOSIT
+  WITHDRAWAL
+}
+
+type WalletsTransactionsLogs {
+  id: BigInt!
+  from_id: BigInt!
+  to_id: BigInt!
+  status: WalletsTransactionsLogsStatus!
+  status_last: WalletsTransactionsLogsStatus!
+  deposit_id: BigInt!
+  withdraw_id: BigInt!
+  discount: Decimal!
+  fee: Decimal!
+  extra: JSON
+  uuid: String!
+  created_at: Timestamp!
+  updated_at: Timestamp!
+  deleted_at: Timestamp
+}
+
+enum WalletsTransactionsLogsStatus {
+  TRANSFER
+  REFUND
+  PAID
+}
+
+scalar BigInt
+scalar Decimal
+scalar Timestamp
+scalar JSON
+
+type WalletBalance {
+  balance: Int!
+}
+
+input GetWalletBalanceInput {
+    users_id: Int!
+}
+
+input PayInput {
+    product_variant_id: Int!
+}
+
+input RefundInput {
+    product_variant_id: Int!
+}
+
+extend type Mutation @guard {
+    payItem(input: PayInput!): Plan!
+        @field(
+            resolver: "App\\GraphQL\\Wallet\\Mutations\\WalletTransactionsMutation@pay"
+        )
+    refund(input: RefundInput!): Plan!
+        @field(
+            resolver: "App\\GraphQL\\Wallet\\Mutations\\WalletTransactionsMutation@refund"
+        )
+}
+
+extend type Query @guard {
+    getWalletBalance(userId: ID!): WalletBalance
+        @field(
+            resolver: "App\\GraphQL\\Wallet\\Queries\\WalletTransactionsQueries@getWalletBalance"
+        )
+    getWalletBalanceHistory(userId: ID!): WalletsTransactions
+        @field(
+            resolver: "App\\GraphQL\\Wallet\\Queries\\PlanQuery@getByUserId"
+        )
+}
