@@ -58,6 +58,7 @@ class SyncEsimWithProviderCommand extends Command
             }
 
             $response = $eSimService->getAppliedBundleStatus($iccid, $bundle);
+            $iccidStatus = $eSimService->checkStatus($iccid);
 
             if (! empty($response)) {
                 $inactiveStatuses = [
@@ -67,6 +68,7 @@ class SyncEsimWithProviderCommand extends Command
                 ];
 
                 $messageData = $message->message;
+                $response['bundleState'] = IccidStatusEnum::getStatus($iccidStatus['profileStatus']);
                 $messageData['esim_status'] = $response;
                 $message->message = $messageData;
                 $message->saveOrFail();

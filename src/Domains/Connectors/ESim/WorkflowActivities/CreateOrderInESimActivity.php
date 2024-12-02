@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\ESim\Services\OrderService;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
@@ -39,6 +40,14 @@ class CreateOrderInESimActivity extends KanvasActivity
         $order->set(CustomFieldEnum::ORDER_ESIM_METADATA->value, $response);
 
         $response['order_id'] = $order->id;
+        $response['order'] = $order->toArray();
+        foreach ($order->items as $item) {
+            $variant = Variants::where('id', $item->variant_id)->first();
+            $detail['variant'] = $variant->toArray();
+            $detail['variant']['attributes'] = $variant->attributes()->pluck('value', 'name')->toArray();
+
+            $response['items'][] = $detail;
+        }
 
         try {
             $esimGo = new ESimService($app);
