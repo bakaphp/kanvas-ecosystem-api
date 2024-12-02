@@ -96,7 +96,11 @@ class CreateOrderFromCartAction
             languageCode: null,
         );
 
-        return (new CreateOrderAction($order))->execute();
+        $order = (new CreateOrderAction($order))->execute();
+
+        $this->cart->clear();
+
+        return $order;
     }
 
     protected function getOrderItems(array $cartContent, AppInterface $app): DataCollection

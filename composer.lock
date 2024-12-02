@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ba86339ee90deefc36d404ab4a533a4d",
+    "content-hash": "94535942b556f9545c7676ef9c332c70",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -1195,16 +1195,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.331.0",
+            "version": "3.332.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "0f8b3f63ba7b296afedcb3e6a43ce140831b9400"
+                "reference": "3b4972a465b66fe3da461a3febdcc363954a0969"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/0f8b3f63ba7b296afedcb3e6a43ce140831b9400",
-                "reference": "0f8b3f63ba7b296afedcb3e6a43ce140831b9400",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/3b4972a465b66fe3da461a3febdcc363954a0969",
+                "reference": "3b4972a465b66fe3da461a3febdcc363954a0969",
                 "shasum": ""
             },
             "require": {
@@ -1287,9 +1287,9 @@
             "support": {
                 "forum": "https://forums.aws.amazon.com/forum.jspa?forumID=80",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.331.0"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.332.0"
             },
-            "time": "2024-11-27T19:12:58+00:00"
+            "time": "2024-12-02T03:48:16+00:00"
         },
         {
             "name": "berkayk/onesignal-laravel",
@@ -1553,67 +1553,6 @@
                 }
             ],
             "time": "2023-12-20T15:40:13+00:00"
-        },
-        {
-            "name": "darryldecode/cart",
-            "version": "dev-l11-compatibility",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/laravel-shift/laravelshoppingcart.git",
-                "reference": "8ea3c581ed3c6ca840128160fcaa480365bea6a5"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/laravel-shift/laravelshoppingcart/zipball/8ea3c581ed3c6ca840128160fcaa480365bea6a5",
-                "reference": "8ea3c581ed3c6ca840128160fcaa480365bea6a5",
-                "shasum": ""
-            },
-            "require": {
-                "illuminate/support": "5.0.*|5.1.*|5.2.*|5.3.*|5.4.*|5.5.*|5.6.*|5.7.*|5.8.*|^6.0|^7.0|^8.0|^9.0|^10.0|^11.0",
-                "illuminate/translation": "5.0.*|5.1.*|5.2.*|5.3.*|5.4.*|5.5.*|5.6.*|5.7.*|5.8.*|^6.0|^7.0|^8.0|^9.0|^10.0|^11.0",
-                "illuminate/validation": "5.0.*|5.1.*|5.2.*|5.3.*|5.4.*|5.5.*|5.6.*|5.7.*|5.8.*|^6.0|^7.0|^8.0|^9.0|^10.0|^11.0",
-                "php": ">=7.3"
-            },
-            "require-dev": {
-                "mockery/mockery": "^1.4.2",
-                "phpunit/phpunit": "^9.0|^10.5",
-                "symfony/var-dumper": "5.1.5.*@dev"
-            },
-            "type": "library",
-            "extra": {
-                "laravel": {
-                    "providers": [
-                        "Darryldecode\\Cart\\CartServiceProvider"
-                    ],
-                    "aliases": {
-                        "Cart": "Darryldecode\\Cart\\Facades\\CartFacade"
-                    }
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Darryldecode\\": "src/Darryldecode"
-                }
-            },
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Darryl Fernandez",
-                    "email": "engrdarrylfernandez@gmail.com"
-                }
-            ],
-            "description": "Laravel 5 Shopping cart",
-            "keywords": [
-                "cart",
-                "laravel",
-                "shopping cart"
-            ],
-            "support": {
-                "source": "https://github.com/laravel-shift/laravelshoppingcart/tree/l11-compatibility"
-            },
-            "time": "2024-02-27T01:03:17+00:00"
         },
         {
             "name": "daverandom/libdns",
@@ -2618,16 +2557,16 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.383.0",
+            "version": "v0.384.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
-                "reference": "0da092376837d363ef0cfa5ef56e43308f7c3763"
+                "reference": "fcb190bb02cea2c939e67867bf9122fd8d02c351"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/0da092376837d363ef0cfa5ef56e43308f7c3763",
-                "reference": "0da092376837d363ef0cfa5ef56e43308f7c3763",
+                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/fcb190bb02cea2c939e67867bf9122fd8d02c351",
+                "reference": "fcb190bb02cea2c939e67867bf9122fd8d02c351",
                 "shasum": ""
             },
             "require": {
@@ -2656,9 +2595,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.383.0"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.384.0"
             },
-            "time": "2024-11-20T01:10:23+00:00"
+            "time": "2024-11-27T01:08:46+00:00"
         },
         {
             "name": "google/auth",
@@ -2922,9 +2861,9 @@
             "extra": {
                 "component": {
                     "id": "cloud-storage",
-                    "target": "googleapis/google-cloud-php-storage.git",
                     "path": "Storage",
-                    "entry": "src/StorageClient.php"
+                    "entry": "src/StorageClient.php",
+                    "target": "googleapis/google-cloud-php-storage.git"
                 }
             },
             "autoload": {
@@ -3946,13 +3885,13 @@
             "type": "library",
             "extra": {
                 "laravel": {
-                    "providers": [
-                        "Imdhemy\\Purchases\\ServiceProviders\\LiapServiceProvider"
-                    ],
                     "aliases": {
                         "Product": "\\Imdhemy\\Purchases\\Facades\\Product",
                         "Subscription": "\\Imdhemy\\Purchases\\Facades\\Subscription"
-                    }
+                    },
+                    "providers": [
+                        "Imdhemy\\Purchases\\ServiceProviders\\LiapServiceProvider"
+                    ]
                 }
             },
             "autoload": {
@@ -14569,6 +14508,74 @@
             "time": "2024-11-21T01:49:47+00:00"
         },
         {
+            "name": "wearepixel/laravel-cart",
+            "version": "1.0.11",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/wearepixel/laravel-cart.git",
+                "reference": "b3ef4c38fc04a6a1100b0991dd576e3cd7651b60"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/wearepixel/laravel-cart/zipball/b3ef4c38fc04a6a1100b0991dd576e3cd7651b60",
+                "reference": "b3ef4c38fc04a6a1100b0991dd576e3cd7651b60",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/support": "^9.0|^10.0|^11.0",
+                "illuminate/translation": "^9.0|^10.0|^11.0",
+                "illuminate/validation": "^9.0|^10.0|^11.0",
+                "php": ">=8.1"
+            },
+            "require-dev": {
+                "larapack/dd": "1.1",
+                "laravel/pint": "^1.17",
+                "mockery/mockery": "^1.4.2",
+                "pestphp/pest": "2.35.1"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Wearepixel\\Cart\\CartServiceProvider"
+                    ],
+                    "aliases": {
+                        "Cart": "Wearepixel\\Cart\\Facades\\CartFacade"
+                    }
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Wearepixel\\Cart\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Darryl Fernandez",
+                    "email": "engrdarrylfernandez@gmail.com"
+                },
+                {
+                    "name": "Joel Male",
+                    "email": "joel@wearepixel.com.au"
+                }
+            ],
+            "description": "A cart implementation for Laravel",
+            "keywords": [
+                "cart",
+                "laravel",
+                "shopping cart"
+            ],
+            "support": {
+                "issues": "https://github.com/wearepixel/laravel-cart/issues",
+                "source": "https://github.com/wearepixel/laravel-cart/tree/1.0.11"
+            },
+            "time": "2024-09-22T21:48:27+00:00"
+        },
+        {
             "name": "weble/zohoclient",
             "version": "4.3.0",
             "source": {
@@ -16958,9 +16965,7 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "darryldecode/cart": 20
-    },
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
