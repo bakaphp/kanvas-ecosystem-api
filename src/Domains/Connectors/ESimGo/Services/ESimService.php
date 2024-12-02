@@ -17,7 +17,7 @@ class ESimService
         $this->client = new Client($app);
     }
 
-    public function getDetails(string $iccid): array
+    public function checkStatus(string $iccid): array
     {
         return $this->client->get('/v2.4/esims/' . $iccid);
     }
