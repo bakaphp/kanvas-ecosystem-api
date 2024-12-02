@@ -15,7 +15,6 @@
         "algolia/scout-extended": "^3.1",
         "awobaz/compoships": "^2.2",
         "berkayk/onesignal-laravel": "^2.0",
-        "darryldecode/cart": "dev-l11-compatibility",
         "doctrine/dbal": "^4.2",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
         "genealabs/laravel-model-caching": "^11.0",
@@ -63,6 +62,7 @@
         "typesense/typesense-php": "^4.9",
         "vladimir-yuldashev/laravel-queue-rabbitmq": "^14.0",
         "vlucas/phpdotenv": "^5.5",
+        "wearepixel/laravel-cart": "^1.0",
         "webleit/zohocrmapi": "^5.3",
         "yakovenko/laravel-lighthouse-graphql-multi-schema": "^1.5"
     },
