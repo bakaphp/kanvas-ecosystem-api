@@ -42,7 +42,6 @@ class CreateOrderInESimActivity extends KanvasActivity
         $response['order_id'] = $order->id;
         $response['order'] = $order->toArray();
         foreach ($order->items as $item) {
-
             $variant = Variants::where('id', $item->variant_id)->first();
             $detail['variant'] = $variant->toArray();
             $detail['variant']['attributes'] = $variant->attributes()->pluck('value', 'name')->toArray();
