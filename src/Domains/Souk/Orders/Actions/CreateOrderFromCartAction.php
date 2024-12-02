@@ -7,7 +7,7 @@ namespace Kanvas\Souk\Orders\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
-use Darryldecode\Cart\Cart;
+use Wearepixel\Cart\Cart;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Currencies\Models\Currencies;
