@@ -13,6 +13,7 @@ use Kanvas\Inventory\Attributes\DataTransferObject\Attributes;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
+use Kanvas\Inventory\Variants\Services\VariantService;
 use Tests\Connectors\Traits\HasShopifyConfiguration;
 use Tests\TestCase;
 
@@ -169,5 +170,42 @@ final class VariantTest extends TestCase
             $this->assertTrue($shopifyImageService->addVariantImage($variant, $url));
             //$shopifyVariantResponse = $shopify->addImages($variant, $url);
         }
+    }
+
+    public function testDeleteVariant()
+    {
+        $product = Products::first();
+        $channel = Channels::fromCompany($product->company)->first();
+        $variant = $product->variants()->first();
+        $warehouse = $variant->warehouses()->first();
+        $this->setupShopifyConfiguration($product, $warehouse);
+
+        $shopify = new ShopifyInventoryService(
+            $product->app,
+            $product->company,
+            $warehouse
+        );
+        VariantService::createDefaultVariant($product, $product->user);
+
+        $shopify->saveProduct($product, StatusEnum::ACTIVE);
+
+        foreach ($product->variants as $variant) {
+            $shopifyVariantResponse = $shopify->saveVariant($variant);
+
+            $this->assertEquals(
+                $variant->sku,
+                $shopifyVariantResponse['sku']
+            );
+
+            $this->assertEquals(
+                $variant->getShopifyId($warehouse->regions),
+                $shopifyVariantResponse['id']
+            );
+        }
+        $product->name = fake()->name;
+
+        $variant = $product->variants->first();
+        $shopify->deleteVariant($variant);
+        $this->assertEmpty($shopify->deleteVariant($variant));
     }
 }
