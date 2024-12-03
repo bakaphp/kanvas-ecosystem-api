@@ -185,7 +185,6 @@ final class VariantTest extends TestCase
             $product->company,
             $warehouse
         );
-        VariantService::createDefaultVariant($product, $product->user);
 
         $shopify->saveProduct($product, StatusEnum::ACTIVE);
 
