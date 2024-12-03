@@ -47,4 +47,14 @@ class AppModuleMessage extends BaseModel
     {
         return $this->belongTo(Message::class, 'message_id');
     }
+
+    public function entity(): BelongsTo
+    {
+        return $this->belongsTo($this->system_modules, 'entity_id');
+    }
+
+    public function hasEntityOfClass(string $className): bool
+    {
+        return (bool)$this->entity::class == $className;
+    }
 }

@@ -28,7 +28,8 @@ class MessageBuilder
         $user = auth()->user();
         $app = app(Apps::class);
 
-        $viewingOneMessage = isset($args['where']['column']) && ($args['where']['column'] === 'id' || $args['where']['column'] === 'uuid') && isset($args['where']['value']);
+        $viewingOneMessage = isset($args['where']['column']) && ($args['where']['column'] === 'id' || $args['where']['column'] === 'uuid' || $args['where']['column'] === 'slug') && isset($args['where']['value']);
+        
         //if enable home-view interaction , remove once , moved to getUserFeed
         if ($app->get('TEMP_HOME_VIEW_EVENT') && $viewingOneMessage) {
             UserInteractionJob::dispatch(
@@ -39,8 +40,16 @@ class MessageBuilder
             );
         }
 
+        //Check in this condition if the message is an item and if then check if it has been bought by the current user via status=completed on Order
         if (! $user->isAppOwner()) {
-            return Message::fromCompany($user->getCurrentCompany());
+
+            $messages = Message::fromCompany($user->getCurrentCompany());
+
+            if ($viewingOneMessage) {
+                $messages->first()->isLocked();
+            }
+
+            return $messages;
         }
 
         return Message::query();
