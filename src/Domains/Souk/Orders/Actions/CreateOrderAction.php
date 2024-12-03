@@ -6,11 +6,14 @@ namespace Kanvas\Souk\Orders\Actions;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Souk\Orders\Notifications\NewOrderNotification;
+use Kanvas\Souk\Orders\Notifications\NewOrderStoreOwnerNotification;
 use Kanvas\Souk\Orders\Validations\UniqueOrderNumber;
+use Kanvas\Users\Services\UserRoleNotificationService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreateOrderAction
@@ -78,6 +81,18 @@ class CreateOrderAction
                 'app' => $this->orderData->app,
                 'company' => $this->orderData->company,
             ]));
+
+            UserRoleNotificationService::sendNotification(
+                RolesEnums::ADMIN->value,
+                new NewOrderStoreOwnerNotification(
+                    $order,
+                    [
+                        'app' => $this->orderData->app,
+                        'company' => $this->orderData->company,
+                    ]
+                ),
+                $this->orderData->app
+            );
 
             return $order;
         });
