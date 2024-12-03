@@ -51,7 +51,7 @@ class Client
     {
         // Try to get token from Redis using the app-specific key
         $cachedToken = Redis::get($this->redisKeyPrefix);
-        if (false){ //$cachedToken) {
+        if ($cachedToken) {
             $tokenData = json_decode($cachedToken, true);
             if ($this->isTokenValid($tokenData)) {
                 return $tokenData['access_token'];
