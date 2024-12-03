@@ -82,7 +82,7 @@ class CreateOrderAction
                 'company' => $this->orderData->company,
             ]));
 
-            UserRoleNotificationService::sendNotification(
+            UserRoleNotificationService::notify(
                 RolesEnums::ADMIN->value,
                 new NewOrderStoreOwnerNotification(
                     $order,

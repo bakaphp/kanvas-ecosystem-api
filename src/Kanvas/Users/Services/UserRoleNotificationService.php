@@ -11,7 +11,7 @@ use Kanvas\Users\Repositories\UserRoleRepository;
 
 class UserRoleNotificationService
 {
-    public static function sendNotification(
+    public static function notify(
         string $role,
         Notification $notification,
         AppInterface $app
