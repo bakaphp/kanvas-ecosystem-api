@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Validator;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
+use Kanvas\Souk\Orders\Notifications\NewOrderNotification;
 use Kanvas\Souk\Orders\Validations\UniqueOrderNumber;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -72,6 +73,11 @@ class CreateOrderAction
                     ]
                 );
             }
+
+            $order->user->notify(new NewOrderNotification($order, [
+                'app' => $this->orderData->app,
+                'company' => $this->orderData->company,
+            ]));
 
             return $order;
         });
