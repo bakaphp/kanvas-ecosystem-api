@@ -69,6 +69,8 @@ class SyncEsimWithProviderCommand extends Command
 
                 $messageData = $message->message;
                 $response['bundleState'] = IccidStatusEnum::getStatus($iccidStatus['profileStatus']);
+                $response['expiration_date'] = $messageData['esim_status']['expiration_date'] ?? null;
+                $response['phone_number'] = $messageData['esim_status']['phone_number'] ?? null;
                 $messageData['esim_status'] = $response;
                 $message->message = $messageData;
                 $message->saveOrFail();
