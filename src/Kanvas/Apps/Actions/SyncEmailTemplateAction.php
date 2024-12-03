@@ -13,6 +13,7 @@ use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
 use Kanvas\Notifications\Templates\Invite;
 use Kanvas\Notifications\Templates\ResetPassword;
 use Kanvas\Notifications\Templates\Welcome;
+use Kanvas\Souk\Orders\Enums\EmailTemplateEnum as EnumsEmailTemplateEnum;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Templates\Actions\CreateTemplateAction;
 use Kanvas\Templates\DataTransferObject\TemplateInput;
@@ -71,6 +72,14 @@ class SyncEmailTemplateAction
             [
                 'name' => PushNotificationTemplateEnum::DEFAULT->value,
                 'template' => File::get(resource_path('views/emails/pushNotification.blade.php')),
+            ],
+            [
+                'name' => EnumsEmailTemplateEnum::NEW_ORDER->value,
+                'template' => File::get(resource_path('views/emails/newOrder.blade.php')),
+            ],
+            [
+                'name' => EnumsEmailTemplateEnum::NEW_ORDER_STORE_OWNER->value,
+                'template' => File::get(resource_path('views/emails/newOrderStoreOwner.blade.php')),
             ],
         ];
 
