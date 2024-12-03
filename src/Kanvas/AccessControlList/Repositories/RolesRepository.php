@@ -80,10 +80,11 @@ class RolesRepository
             ->orderBy('module_id')
             ->select('abilities.*', 'permissions.entity_id as roleId', 'abilities_modules.module_id as module')
         ->get();
+
         return self::mapPermissionsToStructure($abilities);
     }
 
-    protected static function mapPermissionsToStructure($permissions)
+    protected static function mapPermissionsToStructure($permissions): array
     {
         $mappedPermissions = [];
 
