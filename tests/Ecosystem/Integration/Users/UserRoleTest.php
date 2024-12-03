@@ -17,7 +17,7 @@ final class UserRoleTest extends TestCase
         $app = app(Apps::class);
 
         $role = RolesRepository::getByNameFromCompany(
-            name: RolesEnums::USER->value,
+            name: RolesEnums::ADMIN->value,
             app: $app
         );
 
