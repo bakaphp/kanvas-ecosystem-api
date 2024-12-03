@@ -114,7 +114,7 @@
             "@php artisan key:generate --ansi"
         ],
         "test": "php artisan test",
-        "migrate-kanvas-all": [
+        "migrate-all-kanvas": [
             "php artisan migrate",
             "php artisan migrate --path database/migrations/Inventory/ --database inventory",
             "php artisan migrate --path database/migrations/Social/ --database social",
