@@ -15,7 +15,7 @@ class NewOrderNotification extends Notification
         array $data,
     ) {
         parent::__construct($order, $data);
-        $this->setType('Order');
+        $this->setType('blank');
         $this->setTemplateName('new-order');
         $this->setData($data);
 
