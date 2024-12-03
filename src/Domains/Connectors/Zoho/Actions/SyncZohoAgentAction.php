@@ -98,7 +98,7 @@ class SyncZohoAgentAction
             $agentData = [
                 'name' => $record->Name,
                 'owner_linked_source_id' => $owner['id'],
-                'owner_id' => $ownerAgent ? $ownerAgent->member_id : null,
+                'owner_id' => $record->Sponsor ?? ($ownerAgent ? $ownerAgent->member_id : null),
                 'status_id' => 1,
                 'updated_at' => now(),
             ];
