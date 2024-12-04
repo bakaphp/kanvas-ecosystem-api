@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Mutations\Cart;
 
-use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -41,7 +40,7 @@ class CartManagementMutation
             //$variantPrice = $variant->variantWarehouses()->firstOrFail()->price;
             $variantPrice = $useCompanySpecificPrice
                     ? $variant->variantChannels()
-                        ->whereHas('channel', fn($query) => $query->where('slug', $currentUserCompany->uuid))
+                        ->whereHas('channel', fn ($query) => $query->where('slug', $currentUserCompany->uuid))
                         ->firstOrFail()->price
                     : $variant->variantWarehouses()
                         ->firstOrFail()->price;
