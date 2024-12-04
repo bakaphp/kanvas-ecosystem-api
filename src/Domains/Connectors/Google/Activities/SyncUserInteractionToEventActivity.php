@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Google\Actions\SyncUserInteractionToEventAction;
 use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 
@@ -18,7 +19,15 @@ class SyncUserInteractionToEventActivity extends KanvasActivity implements Workf
     {
         $this->overwriteAppService($app);
 
-        $interactionEntity = $userInteraction->entityData();
+        try {
+            $interactionEntity = $userInteraction->entityData();
+        } catch (ModelNotFoundException $e) {
+            return [
+                'result' => false,
+                'message' => 'Entity not found',
+                'user_interaction' => $userInteraction->toArray(),
+            ];
+        }
 
         $companyBranchId = $app->get(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
         $globalAppCompany = CompaniesBranches::where('id', $companyBranchId)->first();
