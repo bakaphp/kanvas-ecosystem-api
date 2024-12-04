@@ -115,7 +115,8 @@ trait HashTableTrait
         return $this->settingsModel
             ->where($this->getSettingsPrimaryKey(), $this->getKey())
             ->when($app, function ($query) use ($app) {
-                return $query->where('apps_id', $app->getId());
+                return $query->where('apps_id', $app->getId())
+                        ->orWhereNull(column: 'apps_id');
             })
             ->where('name', $key)
             ->first();
@@ -132,14 +133,17 @@ trait HashTableTrait
         if ($onlyPublicSettings) {
             $settings = $this->settingsModel::where($this->getSettingsPrimaryKey(), $this->getId())
                 ->when($app, function ($query) use ($app) {
-                    return $query->where('apps_id', $app->getId());
+                    return $query->where('apps_id', $app->getId())
+                            ->orWhereNull(column: 'apps_id');
+
                 })
                 ->isPublic()
                 ->get();
         } else {
             $settings = $this->settingsModel::where($this->getSettingsPrimaryKey(), $this->getId())
             ->when($app, function ($query) use ($app) {
-                return $query->where('apps_id', $app->getId());
+                return $query->where('apps_id', $app->getId())
+                        ->orWhereNull(column: 'apps_id');
             })
             ->get();
         }
