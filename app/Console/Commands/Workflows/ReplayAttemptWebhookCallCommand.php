@@ -30,7 +30,7 @@ class ReplayAttemptWebhookCallCommand extends Command
             })->when($limit, function ($query) use ($limit) {
                 return $query->limit($limit);
             })
-            ->orderBy('id','desc')
+            ->orderBy('id', 'desc')
             ->get();
 
         $progressBar = $this->output->createProgressBar($webhookCalls->count());
