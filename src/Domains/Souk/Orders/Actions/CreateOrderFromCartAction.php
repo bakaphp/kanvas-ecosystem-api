@@ -120,7 +120,7 @@ class CreateOrderFromCartAction
                 variant: $variant,
                 name: $lineItem['name'],
                 sku: (string) ($variant->sku ?? $lineItem['id']),
-                quantity: $lineItem['quantity'],
+                quantity: (int) floor($lineItem['quantity']),
                 price: (float) $lineItem['price'],
                 tax: $lineItem['tax'] ?? 0,
                 discount: (float) ($lineItem['total_discount'] ?? 0),
