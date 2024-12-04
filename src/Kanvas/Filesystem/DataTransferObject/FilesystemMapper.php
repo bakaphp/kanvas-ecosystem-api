@@ -20,7 +20,8 @@ class FilesystemMapper extends Data
         public string $name,
         public array $header,
         public array $mapping,
-        public ?string $configuration = null
+        public ?string $configuration = null,
+        public bool $is_default = false
     ) {
     }
 
@@ -39,7 +40,8 @@ class FilesystemMapper extends Data
             $data['name'],
             $data['header'] ?? $data['file_header'],
             $data['mapping'],
-            $data['configuration'] ?? null
+            $data['configuration'] ?? null,
+            $data['is_default'] ?? false
         );
     }
 }
