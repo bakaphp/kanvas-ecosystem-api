@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ConfigurationException;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * @todo implement redis hashtable for speed
@@ -47,6 +48,12 @@ trait HashTableTrait
         return $this->getTable() . '_settings';
     }
 
+    public function hasAppsIdColumn(): bool
+    {
+        return Schema::hasColumn($this->getTable(), 'apps_id');
+
+    }
+
     /**
      * Set the settings.
      */
@@ -79,7 +86,7 @@ trait HashTableTrait
         $this->settingsModel->name = $key;
         $this->settingsModel->value = $value;
         $this->settingsModel->is_public = (int) $isPublic;
-        if ($app) {
+        if ($app && $this->hasAppsIdColumn()) {
             $this->settingsModel->apps_id = $app->getId();
         }
         $this->settingsModel->save();
@@ -114,7 +121,7 @@ trait HashTableTrait
         $app = $app ?? app(Apps::class);
         return $this->settingsModel
             ->where($this->getSettingsPrimaryKey(), $this->getKey())
-            ->when($app, function ($query) use ($app) {
+            ->when($this->hasAppsIdColumn(), function ($query) use ($app) {
                 return $query->where('apps_id', $app->getId())
                         ->orWhereNull(column: 'apps_id');
             })
@@ -132,7 +139,7 @@ trait HashTableTrait
         $allSettings = [];
         if ($onlyPublicSettings) {
             $settings = $this->settingsModel::where($this->getSettingsPrimaryKey(), $this->getId())
-                ->when($app, function ($query) use ($app) {
+                ->when($this->hasAppsIdColumn(), function ($query) use ($app) {
                     return $query->where('apps_id', $app->getId())
                             ->orWhereNull(column: 'apps_id');
 
