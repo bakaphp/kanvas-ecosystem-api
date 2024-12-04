@@ -122,7 +122,7 @@ class CreateOrderFromCartAction
                 sku: (string) ($variant->sku ?? $lineItem['id']),
                 quantity: (int) $lineItem['quantity'],
                 price: (float) $lineItem['price'],
-                tax: $lineItem['tax'] ?? 0,
+                tax: (float) ($lineItem['tax'] ?? 0),
                 discount: (float) ($lineItem['total_discount'] ?? 0),
                 currency: Currencies::getByCode('USD'),
                 quantityShipped: 0
