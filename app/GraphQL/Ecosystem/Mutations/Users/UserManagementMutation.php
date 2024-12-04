@@ -19,13 +19,19 @@ use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Notifications\Templates\ChangeEmailUserLogged;
 use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
+use Kanvas\Users\Actions\CreateAdminInviteAction;
 use Kanvas\Users\Actions\CreateInviteAction;
+use Kanvas\Users\Actions\ProcessAdminInviteAction;
 use Kanvas\Users\Actions\ProcessInviteAction;
 use Kanvas\Users\Actions\RequestDeleteAccountAction as RequestDeleteAction;
+use Kanvas\Users\DataTransferObject\AdminInvite as AdminInviteDto;
 use Kanvas\Users\DataTransferObject\CompleteInviteInput;
 use Kanvas\Users\DataTransferObject\Invite as InviteDto;
+use Kanvas\Users\Models\AdminInvite;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersInvite;
+use Kanvas\Users\Repositories\AdminInviteRepository;
 use Kanvas\Users\Repositories\UsersInviteRepository;
 use Kanvas\Users\Repositories\UsersRepository;
 
@@ -74,7 +80,7 @@ class UserManagementMutation
      *
      * @param  mixed $rootValue
      */
-    public function insertInvite($rootValue, array $request): UsersInvite
+    public function insertUserInvite($rootValue, array $request): UsersInvite
     {
         $request = $request['input'];
         $company = auth()->user()->getCurrentCompany();
@@ -101,6 +107,51 @@ class UserManagementMutation
     }
 
     /**
+     * insertAdminInvite.
+     *
+     * @param  mixed $rootValue
+     */
+    public function insertAdminInvite($rootValue, array $request): AdminInvite
+    {
+        $request = $request['input'];
+        $app = app(Apps::class);
+        $appDefault = Apps::getByUuid(config('kanvas.app.id'));
+
+        $userAssociation = UsersAssociatedApps::where('email', $request['email'])
+            ->fromApp($appDefault)
+            ->notDeleted()
+            ->first();
+
+        $invite = new CreateAdminInviteAction(
+            new AdminInviteDto(
+                app: $app,
+                email: $request['email'],
+                firstname: $request['firstname'] ?? null,
+                lastname: $request['lastname'] ?? null,
+                description: $request['description'] ?? null,
+                customFields: $request['custom_fields'] ?? []
+            ),
+            auth()->user(),
+            (bool) $userAssociation
+        );
+
+        $invite = $invite->execute();
+
+        if ($userAssociation) {
+            (new ProcessAdminInviteAction(
+                new CompleteInviteInput(
+                    invite_hash: $invite->invite_hash,
+                    password: $userAssociation->password,
+                    firstname: $invite->firstname
+                ),
+                $userAssociation->user
+            ))->execute();
+        }
+
+        return $invite;
+    }
+
+    /**
      * deleteInvite.
      *
      * @param  mixed $rootValue
@@ -110,6 +161,23 @@ class UserManagementMutation
         $invite = UsersInviteRepository::getById(
             (int) $request['id'],
             auth()->user()->getCurrentCompany()
+        );
+
+        $invite->softDelete();
+
+        return true;
+    }
+
+    /**
+     * deleteInvite.
+     *
+     * @param  mixed $rootValue
+     */
+    public function deleteAdminInvite($rootValue, array $request): bool
+    {
+        $invite = AdminInviteRepository::getById(
+            id: (int) $request['id'],
+            app: app(Apps::class)
         );
 
         $invite->softDelete();
@@ -136,6 +204,17 @@ class UserManagementMutation
     public function process($rootValue, array $request): array
     {
         $action = new ProcessInviteAction(
+            CompleteInviteInput::from($request['input'])
+        );
+
+        $user = $action->execute();
+
+        return $user->createToken('kanvas-login')->toArray();
+    }
+
+    public function processAdmin($rootValue, array $request): array
+    {
+        $action = new ProcessAdminInviteAction(
             CompleteInviteInput::from($request['input'])
         );
 

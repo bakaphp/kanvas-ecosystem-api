@@ -457,4 +457,35 @@ class UserManagementTest extends TestCase
             ],
         ]);
     }
+
+    public function testGetAllAppAdminUsers()
+    {
+        $app = app(Apps::class);
+        $app->keys()->first()->user()->firstOrFail()->assign(RolesEnums::OWNER->value);
+
+        $response = $this->graphQL(
+            /** @lang GraphQL */
+            '
+            query {
+                appAdmins(first: 10) {
+                    data {
+                        id,
+                        email,
+                        created_at
+                    },
+                    paginatorInfo {
+                      currentPage
+                      lastPage
+                    }
+                }
+            }
+            ',
+            [],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        );
+        $this->assertArrayHasKey('data', $response);
+    }
 }

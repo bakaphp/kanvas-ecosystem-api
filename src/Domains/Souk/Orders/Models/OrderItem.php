@@ -56,4 +56,35 @@ class OrderItem extends BaseModel
     {
         return $this->belongsTo(Variants::class, 'variant_id', 'id');
     }
+
+    public function casts(): array
+    {
+        return [
+            'id' => 'integer',
+            'apps_id' => 'integer',
+            'uuid' => 'string',
+            'product_name' => 'string',
+            'product_sku' => 'string',
+            'quantity' => 'integer',
+            'unit_price_net_amount' => 'float',
+            'unit_price_gross_amount' => 'float',
+            'is_shipping_required' => 'boolean',
+            'order_id' => 'integer',
+            'quantity_fulfilled' => 'integer',
+            'variant_id' => 'integer',
+            'tax_rate' => 'float',
+            'translated_product_name' => 'string',
+            'currency' => 'string',
+            'translated_variant_name' => 'string',
+            'variant_name' => 'string',
+            'is_deleted' => 'boolean',
+            'created_at' => 'datetime',
+            'updated_at' => 'datetime'
+        ];
+    }
+
+    public function getPrice(): float
+    {
+        return (float) $this->unit_price_net_amount;
+    }
 }

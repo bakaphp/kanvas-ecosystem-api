@@ -20,7 +20,7 @@ type Lead {
     reason_lost: String
     pipeline: LeadPipeline @belongsTo
     stage: LeadPipelineStage @belongsTo(relation: "stage")
-    participants: [LeadsParticipants!]! @hasMany
+    participants: [LeadsParticipants!]! @hasMany(relation: "participants")
     channels: [SocialChannel]! @hasMany(relation: "socialChannels")
     systemModule: SystemModule
     tags: [Tag!]
@@ -49,8 +49,8 @@ type Lead {
 }
 
 type LeadsParticipants {
-    people: People! @belongsTo
-    relationship: PeopleRelationship @belongsTo
+    people: People! @belongsTo(relation: "people")
+    relationship: PeopleRelationship @belongsTo(relation: "type")
 }
 type Rotation {
     id: ID!

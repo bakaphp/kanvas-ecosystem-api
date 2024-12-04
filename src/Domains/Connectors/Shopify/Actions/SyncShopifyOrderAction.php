@@ -17,6 +17,7 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Orders\Actions\CreateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Spatie\LaravelData\DataCollection;
@@ -76,7 +77,7 @@ class SyncShopifyOrderAction
             taxes: (float)  $this->orderData['current_total_tax'],
             totalDiscount: (float)  $this->orderData['total_discounts'],
             totalShipping: (float)   $this->orderData['total_shipping_price_set']['shop_money']['amount'],
-            status: ! empty($this->orderData['cancelled_at']) ? 'cancelled' : 'completed',
+            status: ! empty($this->orderData['cancelled_at']) ? OrderStatusEnum::CANCELED->value : OrderStatusEnum::COMPLETED->value,
             orderNumber: (string) $this->orderData['order_number'],
             shippingMethod: $this->orderData['shipping_lines'][0]['title'] ?? null,
             currency: Currencies::getByCode($this->orderData['currency']),
@@ -147,6 +148,9 @@ class SyncShopifyOrderAction
         }
     }
 
+    /**
+     * @todo move ot use the DTO method
+     */
     protected function getOrderItems(): DataCollection
     {
         $orderItems = [];

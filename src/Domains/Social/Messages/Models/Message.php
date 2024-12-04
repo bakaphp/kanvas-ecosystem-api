@@ -11,6 +11,7 @@ use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,8 +20,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\AccessControlList\Traits\HasPermissions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Factories\MessageFactory;
+use Kanvas\Social\Messages\Observers\MessageObserver;
 use Kanvas\Social\MessagesComments\Models\MessageComment;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
@@ -31,8 +34,6 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 use Nevadskiy\Tree\AsTree;
-use Kanvas\Filesystem\Traits\HasFilesystemTrait;
-use Kanvas\Social\Messages\Observers\MessageObserver;
 
 /**
  *  Class Message
@@ -178,8 +179,30 @@ class Message extends BaseModel
         return ! $filterByMessageType || $this->messageType->verb === $filterByMessageType;
     }
 
+    public function setPublic(): void
+    {
+        $this->is_public = 1;
+        $this->saveOrFail();
+    }
+
+    public function setPrivate(): void
+    {
+        $this->is_public = 0;
+        $this->saveOrFail();
+    }
+
     protected static function newFactory(): Factory
     {
         return MessageFactory::new();
+    }
+
+    public function scopeWhereIsPublic(Builder $query): Builder
+    {
+        return $query->where('is_public', 1);
+    }
+
+    public function scopeWhereIsNotPublic(Builder $query): Builder
+    {
+        return $query->where('is_public', 0);
     }
 }

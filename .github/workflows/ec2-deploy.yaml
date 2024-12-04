@@ -48,6 +48,7 @@ jobs:
               docker exec -i phpkanvas-ecosystem composer install --optimize-autoloader
             fi
             docker exec -i phpkanvas-ecosystem php artisan lighthouse:cache
+            docker exec -i phpkanvas-ecosystem php artisan lighthouse:clear-cache all
             docker exec -i phpkanvas-ecosystem php artisan config:cache
             docker restart queue-scrapper
             docker restart queue-scrapper-worker-1
@@ -59,13 +60,16 @@ jobs:
             docker restart queue-notifications
             docker restart queue-social
             docker restart laravel-scheduler
-            docker restart queue-sync-shopify
-            docker restart queue-sync-shopify-worker-1
+            docker restart queue-sync-shopify-queue
+            docker restart queue-sync-shopify-queue-worker-1
             docker restart queue-sync-shopify-queue-worker-1
             docker restart queue-sync-shopify-queue-worker-2
-            docker restart queue-scout-queue-worker-1
-            docker restart queue-scout-queue-worker-2
-            docker restart queue-scout-queue-worker-3
+            docker restart queue-scout-worker-1
+            docker restart queue-scout-worker-2
+            docker restart queue-scout-worker-3
+            docker restart queue-workflow-1
+            docker restart queue-workflow-2
+            docker restart queue-workflow-3
             docker restart batch-logger-queue
             docker restart queue-user-interactions
             if [ "docker-compose.${{ github.ref_name }}.yml" == "docker-compose.1.x.yml" ]; then
@@ -77,6 +81,7 @@ jobs:
               docker restart queue6
               docker restart queue7
               docker restart queue8
+              docker restart queue-workflow-4
             fi
 
             docker exec -i phpkanvas-ecosystem php artisan octane:reload

@@ -9,6 +9,7 @@ use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Models\BaseModel;
@@ -54,6 +55,11 @@ class Regions extends BaseModel
     public function warehouses(): HasMany
     {
         return $this->hasMany(Warehouses::class, 'regions_id');
+    }
+
+    public function defaultWarehouse(): HasOne
+    {
+        return $this->hasOne(Warehouses::class, 'regions_id')->where('is_default', 1);
     }
 
     public function hasDependencies(): bool

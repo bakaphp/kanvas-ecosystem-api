@@ -30,7 +30,7 @@ class ProductService
         $name = Str::limit($product['name'], 255);
         $product = [
             'name' => $name,
-            'description' => $name ,
+            'description' => $this->getDescription($product),
             'price' => $price['total'],
             'discountPrice' => $price['discount'],
             'slug' => Str::slug($product['asin']),
@@ -199,5 +199,10 @@ class ProductService
         $discount = round($discount, 2);
 
         return ['total' => $total, 'discount' => $discount];
+    }
+
+    public function getDescription(array $product): string
+    {
+        return $product['full_description'] ?? $product['short_description'] ?? '';
     }
 }

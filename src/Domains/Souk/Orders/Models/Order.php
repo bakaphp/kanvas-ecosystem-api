@@ -94,6 +94,11 @@ class Order extends BaseModel
         return $this->belongsTo(Regions::class, 'region_id', 'id');
     }
 
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'users_id', 'id');
+    }
+
     public function people(): BelongsTo
     {
         return $this->belongsTo(People::class, 'people_id', 'id');
@@ -118,6 +123,16 @@ class Order extends BaseModel
     public function getTotalAmount(): float
     {
         return (float) $this->total_gross_amount;
+    }
+
+    public function getSubTotalAmount(): float
+    {
+        return (float) $this->total_net_amount;
+    }
+
+    public function getTotalTaxAmount(): float
+    {
+        return $this->getTotalAmount() - $this->getSubTotalAmount();
     }
 
     public function addItems(DataCollection $items): void
@@ -156,7 +171,7 @@ class Order extends BaseModel
 
     public function fulfillCancelled(): void
     {
-        $this->fulfillment_status = 'cancelled';
+        $this->fulfillment_status = 'canceled';
         $this->saveOrFail();
     }
 
@@ -168,7 +183,7 @@ class Order extends BaseModel
 
     public function cancel(): void
     {
-        $this->status = 'cancelled';
+        $this->status = 'canceled';
         $this->saveOrFail();
     }
 
@@ -194,7 +209,7 @@ class Order extends BaseModel
 
     public function scopeWhereNotFulfilled(Builder $query): Builder
     {
-        return $query->where('fulfillment_status', '!=', 'fulfilled');
+        return $query->whereNotIn('fulfillment_status', ['fulfilled', 'canceled']);
     }
 
     public function scopeWhereDraft(Builder $query): Builder
@@ -220,5 +235,15 @@ class Order extends BaseModel
         $newOrderNumber = $lastOrderNumber + 1;
 
         return $newOrderNumber;
+    }
+
+    public function getEmail(): ?string
+    {
+        return $this->user_email ?? $this->people->getEmails()->first()?->email;
+    }
+
+    public function getPhone(): ?string
+    {
+        return $this->user_phone ?? $this->people->getPhones()->first()?->phone;
     }
 }

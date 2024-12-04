@@ -27,9 +27,15 @@ class CreatePeopleFromGhostReceiverJob extends ProcessWebhookJob
             ];
         }
 
-        $name = explode(' ', $payload['name']);
-        $firstname = $name[0];
-        $lastname = $name[1] ?? null;
+        if (! empty($payload['name'])) {
+            $name = explode(' ', $payload['name']);
+            $firstname = $name[0];
+            $lastname = $name[1] ?? null;
+        } else {
+            $name = explode('@', $payload['email']);
+            $firstname = $name[0];
+            $lastname = null;
+        }
 
         $customerEmail = [
             [
@@ -62,28 +68,45 @@ class CreatePeopleFromGhostReceiverJob extends ProcessWebhookJob
                 'value' => $payload['uuid'],
             ],
         ];
-
-        foreach ($payload['labels'] as $label) {
-            if (Str::contains($label['name'], ':')) {
-                // Split "key:value" into key and value for custom fields
-                [$key, $value] = explode(':', $label['name'], 2);
-                $customFields[] = [
-                    'key' => $key,
-                    'value' => $value,
-                ];
-            } else {
-                $tags[] = $label['name'];
+        $unlockedReports = [];
+        if (isset($payload['labels']) && ! empty($payload['labels'])) {
+            foreach ($payload['labels'] as $label) {
+                if (Str::contains($label['name'], ':')) {
+                    // Split "key:value" into key and value for custom fields
+                    [$key, $value] = explode(':', $label['name'], 2);
+                    $customFields[] = [
+                        'key' => $key,
+                        'value' => $value,
+                    ];
+                    if ($key === 'report') {
+                        $tags[] = $label['name'];
+                        $unlockedReports[] = $value;
+                    }
+                } else {
+                    $tags[] = $label['name'];
+                }
             }
+
+            $customFields[] = [
+                'key' => CustomFieldEnum::GHOST_UNLOCK_CUSTOM_FIELD->value,
+                'value' => $unlockedReports,
+            ];
         }
+        $customFields[] = [
+            'key' => CustomFieldEnum::GHOST_UNLOCK_CUSTOM_FIELD->value,
+            'value' => $unlockedReports,
+        ];
 
         $newsletters = [];
-        foreach ($payload['newsletters'] as $newsletter) {
-            $newsletters[] = [
-                'id' => $newsletter['id'],
-                'name' => $newsletter['name'],
-                'description' => $newsletter['description'],
-                'status' => $newsletter['status'],
-            ];
+        if (isset($payload['newsletters']) && ! empty($payload['newsletters'])) {
+            foreach ($payload['newsletters'] as $newsletter) {
+                $newsletters[] = [
+                    'id' => $newsletter['id'],
+                    'name' => $newsletter['name'],
+                    'description' => $newsletter['description'],
+                    'status' => $newsletter['status'],
+                ];
+            }
         }
 
         if (! empty($newsletters)) {

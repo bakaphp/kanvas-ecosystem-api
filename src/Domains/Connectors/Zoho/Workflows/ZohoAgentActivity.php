@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Zoho\Workflows;
 
 use Baka\Contracts\AppInterface;
-use Baka\Traits\KanvasJobsTrait;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
@@ -18,11 +17,10 @@ use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersInvite;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Workflow\Activity;
+use Kanvas\Workflow\KanvasActivity;
 
-class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
+class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterface
 {
-    use KanvasJobsTrait;
     public $tries = 10;
 
     public function execute(Model $user, AppInterface $app, array $params): array
@@ -40,6 +38,7 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
 
         $zohoService = new ZohoService($app, $company);
         $newAgentRecord = null;
+        $newAgent = null;
 
         try {
             $record = $zohoService->getAgentByEmail($user->email);
@@ -51,6 +50,15 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
 
         $owner = $record->Owner;
         $name = ($record->Name ?? $record->Vendor_Name) ?? $newAgent->name;
+
+        if (empty($record->Member_Number) && $newAgent == null) {
+            return [
+                'error' => 'Error Member Number not found',
+                'record' => $record,
+                'newAgent' => $newAgent,
+            ];
+        }
+
         $memberNumber = $record->Member_Number ?? $newAgent->member_id;
         $zohoId = $record->id;
         $ownerAgent = null;
@@ -70,7 +78,7 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
         $companyDefaultOwnerMemberId = $company->get(CustomFieldEnum::ZOHO_USER_OWNER_MEMBER_NUMBER->value) ?? 1001;
 
         //if the owner is the company default owner, set it
-        if ($ownerAgent && $newAgentRecord && $newAgentRecord->member_id == $companyDefaultOwnerMemberId) {
+        if ($ownerAgent && $newAgentRecord && $newAgentRecord['member_id'] == $companyDefaultOwnerMemberId) {
             $agentUpdateData['owner_id'] = $ownerAgent->member_id;
         }
 
@@ -191,6 +199,7 @@ class ZohoAgentActivity extends Activity implements WorkflowActivityInterface
 
         return [
             'agent' => $agent,
+            'member_id' => $agent->member_id,
             'zohoAgent' => $zohoAgent,
             'agentOwner' => $ownerInfo,
         ];

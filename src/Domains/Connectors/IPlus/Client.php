@@ -5,52 +5,56 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\IPlus;
 
 use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
+use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Connectors\IPlus\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
-use League\OAuth2\Client\Provider\GenericProvider;
-use League\OAuth2\Client\Token\AccessTokenInterface;
 
 class Client
 {
-    protected string $baseUrl;
-    protected GenericProvider $provider;
-    protected ?AccessTokenInterface $accessToken = null;
+    protected string $authBaseUrl;
+    protected string $apiBaseUrl = 'https://api.iplus.tech';
+    protected GuzzleClient $httpClient;
+    protected string $clientId;
+    protected string $clientSecret;
+    protected string $username;
+    protected string|int $password;
+    protected string $redisKeyPrefix;
 
     public function __construct(
-        protected AppInterface $app,
-        protected CompanyInterface $company
+        protected AppInterface $app
     ) {
-        $this->baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value);
-        $clientId = $this->app->get(ConfigurationEnum::CLIENT_ID->value);
-        $clientSecret = $this->app->get(ConfigurationEnum::CLIENT_SECRET->value);
+        $this->authBaseUrl = $this->app->get(ConfigurationEnum::AUTH_BASE_URL->value);
+        $this->clientId = $this->app->get(ConfigurationEnum::CLIENT_ID->value);
+        $this->username = $this->app->get(ConfigurationEnum::USERNAME->value);
+        $this->password = $this->app->get(ConfigurationEnum::PASSWORD->value);
+        $this->clientSecret = $this->app->get(ConfigurationEnum::CLIENT_SECRET->value);
 
-        if (empty($clientId) || empty($clientSecret)) {
+        if (empty($this->clientId) || empty($this->clientSecret)) {
             throw new ValidationException('IPlus keys are not set for ' . $this->app->name);
         }
 
-        $this->provider = new GenericProvider([
-            'clientId' => $clientId,
-            'clientSecret' => $clientSecret,
-            'urlAuthorize' => $this->baseUrl . '/oauth2/authorize',
-            'urlAccessToken' => $this->baseUrl . '/oauth2/token',
-            'urlResourceOwnerDetails' => '',
-            'scopes' => [], // Add your required scopes here
+        // Define a unique Redis key prefix based on the app ID
+        $this->redisKeyPrefix = ConfigurationEnum::I_PLUS_REDIS_KEY_PREFIX->value . $this->app->getId();
+
+        $this->httpClient = new GuzzleClient([
+            'timeout' => 10,
+            'headers' => [
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json',
+            ],
         ]);
     }
 
-    public function getValidAccessToken(): AccessTokenInterface
+    public function getValidAccessToken(): string
     {
-        // Try to get token from Redis
-        $cachedToken = Redis::get('iplus_access_token');
+        // Try to get token from Redis using the app-specific key
+        $cachedToken = Redis::get($this->redisKeyPrefix);
         if ($cachedToken) {
             $tokenData = json_decode($cachedToken, true);
-            if ($tokenData && $this->isTokenValid($tokenData)) {
-                return $this->provider->getAccessToken('refresh_token', [
-                    'refresh_token' => $tokenData['refresh_token'],
-                ]);
+            if ($this->isTokenValid($tokenData)) {
+                return $tokenData['access_token'];
             }
         }
 
@@ -58,28 +62,38 @@ class Client
         return $this->requestNewAccessToken();
     }
 
-    public function isTokenValid(array $tokenData): bool
+    protected function isTokenValid(array $tokenData): bool
     {
         return isset($tokenData['expires']) && $tokenData['expires'] > time();
     }
 
-    public function requestNewAccessToken(): AccessTokenInterface
+    protected function requestNewAccessToken(): string
     {
         try {
-            $accessToken = $this->provider->getAccessToken('client_credentials');
+            $response = $this->httpClient->post($this->authBaseUrl . '/oauth2/token', [
+                'form_params' => [
+                    'grant_type' => 'password',
+                    'client_id' => $this->clientId,
+                    'client_secret' => $this->clientSecret,
+                    'username' => $this->username,
+                    'password' => $this->password,
+                    'scope' => 'iplus.read iplus.write',
+                ],
+            ]);
 
-            // Cache the token
-            $tokenData = [
-                'access_token' => $accessToken->getToken(),
-                'refresh_token' => $accessToken->getRefreshToken(),
-                'expires' => $accessToken->getExpires(),
+            $tokenData = json_decode($response->getBody()->getContents(), true);
+
+            // Cache the token with the app-specific key
+            $token = [
+                'access_token' => $tokenData['access_token'],
+                'expires' => time() + $tokenData['expires_in'],
             ];
 
-            Redis::set('iplus_access_token', json_encode($tokenData));
-            Redis::expire('iplus_access_token', $accessToken->getExpires() - time());
+            Redis::set($this->redisKeyPrefix, json_encode($token), $tokenData['expires_in']);
+            // Redis::expire($this->redisKeyPrefix, $tokenData['expires_in']);
 
-            return $accessToken;
-        } catch (\League\OAuth2\Client\Provider\Exception\IdentityProviderException $e) {
+            return $token['access_token'];
+        } catch (RequestException $e) {
             throw new ValidationException('Failed to obtain access token: ' . $e->getMessage());
         }
     }
@@ -87,15 +101,14 @@ class Client
     public function get(string $path, array $params = []): array
     {
         try {
-            $token = $this->getValidAccessToken();
+            $accessToken = $this->getValidAccessToken();
 
-            $request = $this->provider->getAuthenticatedRequest(
-                'GET',
-                $this->baseUrl . $path . ($params ? '?' . http_build_query($params) : ''),
-                $token
-            );
-
-            $response = $this->provider->getHttpClient()->send($request);
+            $response = $this->httpClient->get($this->apiBaseUrl . $path, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $accessToken,
+                ],
+                'query' => $params,
+            ]);
 
             return json_decode($response->getBody()->getContents(), true) ?? [];
         } catch (RequestException $e) {
@@ -106,16 +119,15 @@ class Client
     public function post(string $path, array $data = [], array $params = []): array
     {
         try {
-            $token = $this->getValidAccessToken();
+            $accessToken = $this->getValidAccessToken();
 
-            $request = $this->provider->getAuthenticatedRequest(
-                'POST',
-                $this->baseUrl . $path . ($params ? '?' . http_build_query($params) : ''),
-                $token,
-                ['body' => json_encode($data)]
-            );
-
-            $response = $this->provider->getHttpClient()->send($request);
+            $response = $this->httpClient->post($this->apiBaseUrl . $path, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $accessToken,
+                ],
+                'json' => $data,
+                'query' => $params,
+            ]);
 
             return json_decode($response->getBody()->getContents(), true) ?? [];
         } catch (RequestException $e) {

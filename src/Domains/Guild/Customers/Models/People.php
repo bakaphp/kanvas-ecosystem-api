@@ -151,7 +151,7 @@ class People extends BaseModel
         return $this->contacts()
                 ->where(
                     'contacts_types_id',
-                    ContactType::getById(ContactTypeEnum::EMAIL->value)->getId()
+                    ContactType::getByName(ContactTypeEnum::EMAIL->getName())->getId()
                 )
                 ->get();
     }
@@ -164,7 +164,7 @@ class People extends BaseModel
         return $this->contacts()
                 ->where(
                     'contacts_types_id',
-                    ContactType::getById(ContactTypeEnum::PHONE->value)->getId()
+                    ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId()
                 )
                 ->get();
     }
@@ -174,7 +174,7 @@ class People extends BaseModel
         return $this->contacts()
                 ->where(
                     'contacts_types_id',
-                    ContactType::getById(ContactTypeEnum::CELLPHONE->value)->getId()
+                    ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId()
                 )
                 ->get();
     }
@@ -217,7 +217,7 @@ class People extends BaseModel
             [
                 'peoples_id' => $this->id,
                 'value' => $email,
-                'contacts_types_id' => ContactType::getByName('Email')->getId(),
+                'contacts_types_id' => ContactType::getByName(ContactTypeEnum::EMAIL->getName())->getId(),
             ]
         );
     }
@@ -228,7 +228,7 @@ class People extends BaseModel
             [
                 'peoples_id' => $this->id,
                 'value' => $phone,
-                'contacts_types_id' => ContactType::getByName('Phone')->getId(),
+                'contacts_types_id' => ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId(),
             ]
         );
     }

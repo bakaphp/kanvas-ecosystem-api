@@ -12,9 +12,12 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Validations\UniqueSkuRule;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class UpdateVariantsAction
 {
+    protected bool $runWorkflow = true;
+
     /**
      * __construct.
      */
@@ -62,6 +65,13 @@ class UpdateVariantsAction
 
         //update product searchable index
         $this->variant->product->searchable();
+
+        if ($this->runWorkflow) {
+            $this->variant->product->fireWorkflow(
+                WorkflowEnum::UPDATED->value,
+                true
+            );
+        }
 
         return $this->variant;
     }

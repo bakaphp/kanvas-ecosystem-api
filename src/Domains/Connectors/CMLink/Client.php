@@ -17,7 +17,7 @@ class Client
     protected string $appKey;
     protected string $appSecret;
     protected string $appId;
-    protected string $appType;
+    protected string|int $appType;
 
     public function __construct(
         protected AppInterface $app,
@@ -26,7 +26,7 @@ class Client
         $this->baseUri = $this->app->get(ConfigurationEnum::BASE_URL->value);
         $this->appKey = $this->app->get(ConfigurationEnum::APP_KEY->value);
         $this->appSecret = $this->app->get(ConfigurationEnum::APP_SECRET->value);
-        $this->appId = $this->app->get(ConfigurationEnum::APP_ID->value);
+        $this->appId = $this->app->get(ConfigurationEnum::APP_KEY->value);
         $this->appType = $this->app->get(ConfigurationEnum::APP_TYPE->value);
 
         if (empty($this->baseUri) || empty($this->appKey) || empty($this->appSecret)) {
@@ -59,12 +59,12 @@ class Client
         ];
     }
 
-    public function getAccessToken(): array
+    public function getAccessToken(): string
     {
         return $this->post('/aep/APP_getAccessToken_SBO/v1', [
             'id' => $this->appId,
             'type' => $this->appType,
-        ]);
+        ])['accessToken'];
     }
 
     public function request($method, $uri, $body = []): array

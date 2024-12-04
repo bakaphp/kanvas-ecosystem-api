@@ -12,10 +12,9 @@
     "require": {
         "php": "^8.2",
         "algolia/algoliasearch-client-php": "^3.4",
-        "algolia/scout-extended": "^3.0",
+        "algolia/scout-extended": "^3.1",
         "awobaz/compoships": "^2.2",
         "berkayk/onesignal-laravel": "^2.0",
-        "darryldecode/cart": "dev-l11-compatibility",
         "doctrine/dbal": "^4.2",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
         "genealabs/laravel-model-caching": "^11.0",
@@ -30,7 +29,6 @@
         "laravel/framework": "^11.0",
         "laravel/octane": "^2.3",
         "laravel/sanctum": "^4.0",
-        "laravel/scout": "10.11.5",
         "laravel/socialite": "^5.14.0",
         "laravel/tinker": "^2.7",
         "lcobucci/jwt": "^5.2",
@@ -59,11 +57,14 @@
         "symfony/expression-language": "^7.0",
         "symfony/http-client": "^7.0",
         "symfony/mailgun-mailer": "^7.0",
+        "thiagoprz/eloquent-composite-key": "^1.0",
         "twilio/sdk": "^8.0",
         "typesense/typesense-php": "^4.9",
         "vladimir-yuldashev/laravel-queue-rabbitmq": "^14.0",
         "vlucas/phpdotenv": "^5.5",
-        "webleit/zohocrmapi": "^5.3"
+        "wearepixel/laravel-cart": "^1.0",
+        "webleit/zohocrmapi": "^5.3",
+        "yakovenko/laravel-lighthouse-graphql-multi-schema": "^1.5"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",
@@ -113,7 +114,7 @@
             "@php artisan key:generate --ansi"
         ],
         "test": "php artisan test",
-        "migrate-kanvas-all": [
+        "migrate-all-kanvas": [
             "php artisan migrate",
             "php artisan migrate --path database/migrations/Inventory/ --database inventory",
             "php artisan migrate --path database/migrations/Social/ --database social",

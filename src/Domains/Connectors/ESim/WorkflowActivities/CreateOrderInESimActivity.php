@@ -4,23 +4,22 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ESim\WorkflowActivities;
 
-use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\ESim\Services\OrderService;
+use Kanvas\Connectors\ESimGo\Services\ESimService;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
-use Workflow\Activity;
+use Kanvas\Workflow\KanvasActivity;
+use Throwable;
 
-class CreateOrderInESimActivity extends Activity
+class CreateOrderInESimActivity extends KanvasActivity
 {
-    use KanvasJobsTrait;
-    public $tries = 2;
-
     public function execute(Order $order, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);
@@ -41,6 +40,23 @@ class CreateOrderInESimActivity extends Activity
         $order->set(CustomFieldEnum::ORDER_ESIM_METADATA->value, $response);
 
         $response['order_id'] = $order->id;
+        $response['order'] = $order->toArray();
+        foreach ($order->items as $item) {
+            $variant = Variants::where('id', $item->variant_id)->first();
+            $detail['variant'] = $variant->toArray();
+            $detail['variant']['attributes'] = $variant->attributes()->pluck('value', 'name')->toArray();
+
+            $response['items'][] = $detail;
+        }
+
+        try {
+            $esimGo = new ESimService($app);
+            $esimData = $esimGo->getAppliedBundleStatus($response['data']['iccid'], $response['data']['plan']);
+            $esimData['expiration_date'] = null;
+            $esimData['phone_number'] = null;
+            $response['esim_status'] = $esimData;
+        } catch (Throwable $e) {
+        }
 
         //create the esim for the user
         $messageType = (new CreateMessageTypeAction(

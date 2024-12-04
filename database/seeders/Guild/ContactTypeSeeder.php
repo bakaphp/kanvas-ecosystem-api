@@ -4,7 +4,6 @@ namespace Database\Seeders\Guild;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Guild\Customers\Models\ContactType;
 
 class ContactTypeSeeder extends Seeder
 {
@@ -17,13 +16,20 @@ class ContactTypeSeeder extends Seeder
     {
         DB::table('contacts_types')->insert([
             [
+                'id' => 1,
                 'companies_id' => 0,
-                'users_id' => 0,
+                'users_id' => 1,
                 'name' => 'Email',
             ],[
+                'id' => 2,
                 'companies_id' => 0,
-                'users_id' => 0,
+                'users_id' => 1,
                 'name' => 'Phone',
+            ],[
+                'id' => 3,
+                'companies_id' => 0,
+                'users_id' => 1,
+                'name' => 'Cellphone',
             ],
         ]);
     }

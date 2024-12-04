@@ -9,11 +9,6 @@ use Kanvas\Inventory\Products\Models\Products;
 
 class AddAttributeAction
 {
-    /**
-     * __construct.
-     *
-     * @return void
-     */
     public function __construct(
         private Products $product,
         private Attributes $attribute,
@@ -21,9 +16,6 @@ class AddAttributeAction
     ) {
     }
 
-    /**
-     * execute.
-     */
     public function execute(): Products
     {
         if ($this->value === null || $this->value === '') {

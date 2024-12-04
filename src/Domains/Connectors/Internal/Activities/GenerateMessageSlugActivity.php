@@ -6,19 +6,15 @@ namespace Kanvas\Connectors\Internal\Activities;
 
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
-use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Workflow\Activity;
+use Kanvas\Workflow\KanvasActivity;
 
 /**
  * @todo move to the social domain
  */
-class GenerateMessageSlugActivity extends Activity implements WorkflowActivityInterface
+class GenerateMessageSlugActivity extends KanvasActivity implements WorkflowActivityInterface
 {
-    use KanvasJobsTrait;
-    public $tries = 3;
-
     public function execute(Model $message, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
