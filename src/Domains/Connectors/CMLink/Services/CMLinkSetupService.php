@@ -18,9 +18,6 @@ class CMLinkSetupService
             ConfigurationEnum::APP_SECRET->value,
             $configuration->app_secret
         ) && $configuration->app->set(
-            ConfigurationEnum::APP_ID->value,
-            $configuration->app_account_id
-        ) && $configuration->app->set(
             ConfigurationEnum::APP_TYPE->value,
             $configuration->app_account_type
         );

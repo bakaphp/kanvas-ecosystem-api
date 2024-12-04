@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Cart\Support;
 
 use Carbon\Carbon;
-use Darryldecode\Cart\CartCollection;
+use Wearepixel\Cart\CartCollection;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
 

@@ -15,7 +15,7 @@ extend type Query @guard {
         orderBy: _ @orderBy(columns: ["created_at", "id"])
     ): [User!]!
         @paginate(
-            scopes: ["fromApp", "fromUser", "notDeleted"]
+            scopes: [ "fromUser", "notDeleted"]
             builder: "App\\GraphQL\\Social\\Builders\\Users\\BlockUserBuilder@getUsers"
             defaultCount: 25
         )

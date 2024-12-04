@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Users\Actions;
 
 use Illuminate\Support\Facades\DB;
+use Kanvas\Apps\Actions\CreateAppKeyAction;
+use Kanvas\Apps\DataTransferObject\AppKeyInput;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\CreateUserAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput as RegisterPostDataDto;
@@ -22,7 +24,8 @@ class ProcessAdminInviteAction
      * @return void
      */
     public function __construct(
-        protected CompleteInviteInput $adminInvite
+        protected CompleteInviteInput $adminInvite,
+        protected ?Users $user = null
     ) {
     }
 
@@ -44,11 +47,11 @@ class ProcessAdminInviteAction
         DB::beginTransaction();
 
         try {
-            $user = (new CreateUserAction($dto))->execute();
+            $user = $this->user ?? (new CreateUserAction($dto))->execute();
             $app = $invite->app()->get()->first();
-            $company = $user->companies()->get()->first();
+            $company = $user->getCurrentCompany();
 
-            $appDefault = Apps::getByUuid(env('KANVAS_APP_ID'));
+            $appDefault = Apps::getByUuid(config('kanvas.app.id'));
             $appDefault->associateUser(
                 user: $user,
                 isActive: StateEnums::YES->getValue()
@@ -63,6 +66,16 @@ class ProcessAdminInviteAction
             //Set password to null to avoid auto-assign.
             $user->password = null;
 
+            //create user admin key
+            (new CreateAppKeyAction(
+                data: new AppKeyInput(
+                    $app->name . ' ' . $user->displayname . ' Key',
+                    $app,
+                    $user
+                ),
+                createUserInApp: false
+            ))->execute();
+
             //associate admin to global company
             $app->associateUser(
                 user: $user,
@@ -76,6 +89,7 @@ class ProcessAdminInviteAction
             );
 
             $invite->softDelete();
+            $app->update(); //clear cache
             DB::commit();
         } catch (Throwable $e) {
             DB::rollBack();

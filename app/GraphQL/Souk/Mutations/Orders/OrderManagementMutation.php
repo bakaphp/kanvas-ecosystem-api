@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Souk\Mutations\Orders;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Actions\CreatePeopleFromUserAction;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -15,10 +16,10 @@ use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
 use Kanvas\Souk\Orders\Actions\CreateOrderFromCartAction;
 use Kanvas\Souk\Orders\DataTransferObject\DirectOrder;
 use Kanvas\Souk\Orders\DataTransferObject\OrderCustomer;
-use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Kanvas\Souk\Payments\Providers\AuthorizeNetPaymentProcessor;
+use Kanvas\Users\Models\UserCompanyApps;
 
 class OrderManagementMutation
 {
@@ -55,6 +56,17 @@ class OrderManagementMutation
         $cart = app('cart')->session($user->getId());
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
+
+        /**
+         * @todo for now for b2b store clients
+         * change this to use company group?
+         */
+        if ($app->get('USE_B2B_COMPANY_GROUP')) {
+            if (UserCompanyApps::where('companies_id', $app->get('B2B_GLOBAL_COMPANY'))->where('apps_id', $app->getId())->first()) {
+                $company = Companies::getById($app->get('B2B_GLOBAL_COMPANY'));
+            }
+        }
+
         $region = Regions::getDefault($company);
         $orderCustomer = OrderCustomer::from($request['input']['customer']);
         $createPeople = new CreatePeopleFromUserAction(

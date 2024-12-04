@@ -119,6 +119,7 @@ input OrderCartInput {
     cartId: ID!
     customer: OrderCustomerInput!
     billing: OrderBillingInput
+    shipping_address: AddressInput
     items: [OrderLineItemInput]
     metadata: Mixed
 }

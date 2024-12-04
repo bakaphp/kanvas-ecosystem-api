@@ -91,6 +91,7 @@ class Variants
                 );
             }
         }
+        $variantModel->products->searchable();
 
         return $variantModel;
     }
@@ -121,6 +122,7 @@ class Variants
         if (isset($req['input']['channels'])) {
             ChannelService::updateChannelVariant($variantModel, $req['input']['channels']);
         }
+        $variantModel->products->searchable();
 
         return $variantModel;
     }

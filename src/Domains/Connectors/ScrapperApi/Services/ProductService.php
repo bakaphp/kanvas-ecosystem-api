@@ -202,12 +202,6 @@ class ProductService
 
     public function getDescription(array $product): string
     {
-        if (isset($product['full_description'])) {
-            return $product['full_description'];
-        } elseif (isset($product['short_description'])) {
-            return $product['short_description'];
-        }
-
-        return '';
+        return $product['full_description'] ?? $product['short_description'] ?? '';
     }
 }

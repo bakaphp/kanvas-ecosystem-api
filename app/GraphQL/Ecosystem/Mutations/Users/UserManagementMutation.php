@@ -29,6 +29,7 @@ use Kanvas\Users\DataTransferObject\CompleteInviteInput;
 use Kanvas\Users\DataTransferObject\Invite as InviteDto;
 use Kanvas\Users\Models\AdminInvite;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersInvite;
 use Kanvas\Users\Repositories\AdminInviteRepository;
 use Kanvas\Users\Repositories\UsersInviteRepository;
@@ -113,10 +114,13 @@ class UserManagementMutation
     public function insertAdminInvite($rootValue, array $request): AdminInvite
     {
         $request = $request['input'];
-        $company = auth()->user()->getCurrentCompany();
         $app = app(Apps::class);
+        $appDefault = Apps::getByUuid(config('kanvas.app.id'));
 
-        $branch = isset($request['companies_branches_id']) ? CompaniesBranches::getById($request['companies_branches_id']) : auth()->user()->getCurrentBranch();
+        $userAssociation = UsersAssociatedApps::where('email', $request['email'])
+            ->fromApp($appDefault)
+            ->notDeleted()
+            ->first();
 
         $invite = new CreateAdminInviteAction(
             new AdminInviteDto(
@@ -127,10 +131,24 @@ class UserManagementMutation
                 description: $request['description'] ?? null,
                 customFields: $request['custom_fields'] ?? []
             ),
-            auth()->user()
+            auth()->user(),
+            (bool) $userAssociation
         );
 
-        return $invite->execute();
+        $invite = $invite->execute();
+
+        if ($userAssociation) {
+            (new ProcessAdminInviteAction(
+                new CompleteInviteInput(
+                    invite_hash: $invite->invite_hash,
+                    password: $userAssociation->password,
+                    firstname: $invite->firstname
+                ),
+                $userAssociation->user
+            ))->execute();
+        }
+
+        return $invite;
     }
 
     /**

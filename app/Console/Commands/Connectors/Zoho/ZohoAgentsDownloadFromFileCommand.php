@@ -40,6 +40,8 @@ class ZohoAgentsDownloadFromFileCommand extends Command
      */
     public function handle()
     {
+        //ini_set('memory_limit', '1512M');
+
         $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
         $company = Companies::getById((int) $this->argument('company_id'));
@@ -65,14 +67,17 @@ class ZohoAgentsDownloadFromFileCommand extends Command
         // Create progress bar
         $progressBar = $this->output->createProgressBar($totalRecords);
         $progressBar->start();
+        $i = 0;
 
         foreach ($records as $record) {
             $email = $record['Email'];
 
             $user = Users::where('email', $email)->first();
+            $progressBar->advance();
 
             if ($user && Agent::where('users_id', $user->getId())->fromApp($app)->exists()) {
-                $progressBar->advance();
+                $i++;
+
                 continue;
             }
 
@@ -90,8 +95,7 @@ class ZohoAgentsDownloadFromFileCommand extends Command
                 continue;
             }
 
-            // Advance the progress bar
-            $progressBar->advance();
+            $i++;
         }
 
         // Finish the progress bar

@@ -11,13 +11,12 @@ use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 
 /**
- * Cities Class.
+ * States Class.
  *
  * @property int $countries_id
  * @property string $name
  * @property string $code
  */
-
 class States extends BaseModel
 {
     use Cachable;

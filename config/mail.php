@@ -35,6 +35,7 @@ return [
 
     'mailers' => [
         'smtp' => [
+            'scheme' => 'smtp',
             'transport' => 'smtp',
             'host' => env('MAIL_HOST', 'smtp.mailgun.org'),
             'port' => env('MAIL_PORT', 587),
@@ -44,6 +45,7 @@ return [
             'timeout' => null,
         ],
         'appSmtp' => [
+            'scheme' => 'smtp',
             'transport' => 'smtp',
             'host' => env('MAIL_HOST', 'smtp.mailgun.org'),
             'port' => env('MAIL_PORT', 587),
@@ -53,6 +55,7 @@ return [
             'timeout' => null,
         ],
         'companySmtp' => [
+            'scheme' => 'smtp',
             'transport' => 'smtp',
             'host' => env('MAIL_HOST', 'smtp.mailgun.org'),
             'port' => env('MAIL_PORT', 587),

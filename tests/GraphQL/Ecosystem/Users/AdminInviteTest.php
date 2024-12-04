@@ -171,4 +171,50 @@ class AdminInviteTest extends TestCase
         ->assertSeeText('email')
         ->assertSeeText('invite_hash');
     }
+
+    public function testGetAdminInvite(): void
+    {
+        Notification::fake();
+
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            mutation inviteAdmin($data: AdminInviteInput!) {
+                inviteAdmin(input: $data)
+                {
+                   id,
+                   email,
+                   invite_hash,
+                }
+            }',
+            [
+                'data' => [
+                    'email' => fake()->email(),
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                ],
+            ]
+        );
+
+        $invite = $response->json('data.inviteAdmin');
+
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+                query getAdminInvite($hash: String!) {
+                    getAdminInvite(hash: $hash)
+                    {
+                        email,
+                        invite_hash,
+                    }
+                }',
+            [
+
+                    'hash' => $invite['invite_hash'],
+            ]
+        )
+        ->assertSuccessful()
+        ->assertSeeText('email')
+        ->assertSeeText('invite_hash');
+
+        $this->assertEquals($response->json('data.getAdminInvite.email'), $invite['email']);
+    }
 }

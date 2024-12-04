@@ -5,10 +5,8 @@ use Kanvas\Souk\Cart\Support\RedisStorage;
 return [
     /*
      * ---------------------------------------------------------------
-     * formatting
+     * Formatting
      * ---------------------------------------------------------------
-     *
-     * the formatting of shopping cart values
      */
     'format_numbers' => env('SHOPPING_FORMAT_VALUES', false),
 
@@ -29,10 +27,8 @@ return [
 
     /*
      * ---------------------------------------------------------------
-     * events
+     * Events
      * ---------------------------------------------------------------
-     *
-     * the configuration for cart events
      */
     'events' => null,
 ];

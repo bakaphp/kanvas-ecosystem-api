@@ -92,6 +92,10 @@ class CreatePeopleFromGhostReceiverJob extends ProcessWebhookJob
                 'value' => $unlockedReports,
             ];
         }
+        $customFields[] = [
+            'key' => CustomFieldEnum::GHOST_UNLOCK_CUSTOM_FIELD->value,
+            'value' => $unlockedReports,
+        ];
 
         $newsletters = [];
         if (isset($payload['newsletters']) && ! empty($payload['newsletters'])) {

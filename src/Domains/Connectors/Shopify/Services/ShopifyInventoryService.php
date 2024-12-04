@@ -73,7 +73,12 @@ class ShopifyInventoryService
                     $this->setStock($variant, $channel);
                 }
 
-                $shopifyVariantMetafieldService = new ShopifyVariantMetafieldService($this->app, $this->company, $this->warehouses->regions, $variant);
+                $shopifyVariantMetafieldService = new ShopifyVariantMetafieldService(
+                    $this->app,
+                    $this->company,
+                    $this->warehouses->regions,
+                    $variant
+                );
 
                 $shopifyVariantMetafieldService->setMetaField();
             }
@@ -98,6 +103,7 @@ class ShopifyInventoryService
         }
 
         $this->shopifyImageService->processEntityImage($product);
+
         return $response;
     }
 
@@ -169,6 +175,16 @@ class ShopifyInventoryService
 
         $this->shopifyImageService->processEntityImage($variant);
         $shopifyVariantMetafieldService->setMetaField();
+
+        return $response;
+    }
+
+    public function deleteVariant(Variants $variant): array
+    {
+        $shopifyProductVariantId = $variant->getShopifyId($this->warehouses->regions);
+
+        $shopifyProduct = $this->shopifySdk->Product($variant->product->getShopifyId($this->warehouses->regions));
+        $response = $shopifyProduct->Variant($shopifyProductVariantId)->delete();
 
         return $response;
     }
