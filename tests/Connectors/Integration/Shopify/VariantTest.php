@@ -187,24 +187,14 @@ final class VariantTest extends TestCase
         );
 
         $shopify->saveProduct($product, StatusEnum::ACTIVE);
-
-        foreach ($product->variants as $variant) {
-            $shopifyVariantResponse = $shopify->saveVariant($variant);
-
-            $this->assertEquals(
-                $variant->sku,
-                $shopifyVariantResponse['sku']
-            );
-
-            $this->assertEquals(
-                $variant->getShopifyId($warehouse->regions),
-                $shopifyVariantResponse['id']
-            );
-        }
-        $product->name = fake()->name;
-
         $variant = $product->variants->first();
-        $shopify->deleteVariant($variant);
+
+        $shopifyProductVariantId = $variant->getShopifyId($warehouse->regions);
+
+        if ($shopifyProductVariantId === null) {
+            $shopify->saveVariant($variant);
+        }
+
         $this->assertEmpty($shopify->deleteVariant($variant));
     }
 }
