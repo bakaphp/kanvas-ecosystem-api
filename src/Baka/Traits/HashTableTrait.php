@@ -51,7 +51,6 @@ trait HashTableTrait
     public function hasAppsIdColumn(): bool
     {
         return Schema::hasColumn($this->getTable(), 'apps_id');
-
     }
 
     /**
@@ -142,7 +141,6 @@ trait HashTableTrait
                 ->when($this->hasAppsIdColumn(), function ($query) use ($app) {
                     return $query->where('apps_id', $app->getId())
                             ->orWhereNull(column: 'apps_id');
-
                 })
                 ->isPublic()
                 ->get();
