@@ -23,6 +23,9 @@ use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Social\Messages\Actions\SetForReviewAction;
+use Kanvas\Notifications\Jobs\SendEmailToUserJob;
+use Kanvas\Users\Models\Users;
 
 class MessageManagementMutation
 {
@@ -79,6 +82,11 @@ class MessageManagementMutation
             $messageData['entity_id'] ?? null
         );
         $message = $action->execute();
+
+        // $setMessageForReview = (new SetForReviewAction($message))->execute();
+
+        // print_r($setMessageForReview);
+        // die();
 
         if (! key_exists('distribution', $messageData)) {
             return $message;
@@ -205,5 +213,34 @@ class MessageManagementMutation
         $message->restore();
 
         return $message;
+    }
+
+    protected function reviewPendingMessage(mixed $root, array $request): bool
+    {
+        $message = Message::getById((int)$request['id'], app(Apps::class));
+        if (!$request['is_reviewed']) {
+            SendEmailToUserJob::dispatch(
+                $message->user,
+                "Your post has been declined",
+                [
+                    "body" => "Your post {$message->message['title']} has been declined for the following reasons: {$request['reason']}"
+                ]
+            );
+
+            return true;
+        }
+
+        $message->setUnlock();
+        $message->setPublic();
+
+        SendEmailToUserJob::dispatch(
+            $message->user,
+            "Your post has been approved",
+            [
+                "body" => "Your post {$message->message['title']} has been approved!"
+            ]
+        );
+
+        return true;
     }
 }

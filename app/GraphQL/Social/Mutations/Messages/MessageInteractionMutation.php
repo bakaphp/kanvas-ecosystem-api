@@ -14,8 +14,6 @@ use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\Enums\ActivityTypeEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Services\MessageInteractionService;
-use Kanvas\Notifications\Jobs\SendEmailToUserJob;
-use Kanvas\Users\Models\Users;
 
 class MessageInteractionMutation
 {
@@ -87,34 +85,5 @@ class MessageInteractionMutation
         );
 
         return $interaction->execute();
-    }
-
-    protected function reviewPendingMessage(mixed $root, array $request): bool
-    {
-        $message = Message::getById((int)$request['id'], app(Apps::class));
-        if (!$request['is_reviewed']) {
-            SendEmailToUserJob::dispatch(
-                $message->user,
-                "Your post has been declined",
-                [
-                    "body" => "Your post {$message->message['title']} has been declined for the following reasons: {$request['reason']}"
-                ]
-            );
-
-            return true;
-        }
-
-        $message->setUnlock();
-        $message->setPublic();
-
-        SendEmailToUserJob::dispatch(
-            $message->user,
-            "Your post has been approved",
-            [
-                "body" => "Your post {$message->message['title']} has been approved!"
-            ]
-        );
-
-        return true;
     }
 }
