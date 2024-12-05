@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Zoho\Jobs;
 
 use Kanvas\Connectors\Zoho\Actions\SyncZohoAgentAction;
-use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 
 class SyncZohoAgentFromReceiverJob extends ProcessWebhookJob
@@ -13,7 +12,7 @@ class SyncZohoAgentFromReceiverJob extends ProcessWebhookJob
     public function execute(): array
     {
         $email = $this->webhookRequest->payload['email'] ?? null;
- 
+
         if (! $email) {
             return [
                 'message' => 'Email not found',
