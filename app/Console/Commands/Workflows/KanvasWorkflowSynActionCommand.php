@@ -39,6 +39,7 @@ use Kanvas\Connectors\Stripe\Jobs\ImportStripePriceWebhookJob;
 use Kanvas\Connectors\Stripe\Jobs\UpdatePeopleStripeSubscriptionJob;
 use Kanvas\Connectors\Stripe\Webhooks\CashierStripeWebhookJob;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
+use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
 use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
 use Kanvas\Social\Messages\Workflows\Activities\GenerateMessageTagsActivity;
@@ -97,6 +98,7 @@ class KanvasWorkflowSynActionCommand extends Command
             CreateUserActivity::class,
             SyncOrderWithIPlusActivities::class,
             SyncPeopleWithIPlusActivities::class,
+            SyncZohoAgentFromReceiverJob::class,
         ];
 
         $createdActions = [];
