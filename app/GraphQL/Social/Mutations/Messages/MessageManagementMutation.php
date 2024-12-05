@@ -223,7 +223,7 @@ class MessageManagementMutation
                 $message->user,
                 "Your post has been declined",
                 [
-                    "body" => "Your post {$message->message['title']} has been declined for the following reasons: {$request['reason']}"
+                    "body" => "Your post {$message->message['title']} has been declined for the following reasons: {$request['declined_reason']}"
                 ]
             );
 
