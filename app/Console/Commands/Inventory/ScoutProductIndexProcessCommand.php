@@ -10,7 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Products\Models\Products;
 use function Laravel\Prompts\select;
 
-class ScoutProductIndexCleanUpCommand extends Command
+class ScoutProductIndexProcessCommand extends Command
 {
     use KanvasJobsTrait;
     /**
