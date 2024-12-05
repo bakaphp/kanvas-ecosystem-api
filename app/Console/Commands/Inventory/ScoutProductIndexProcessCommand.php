@@ -52,8 +52,8 @@ class ScoutProductIndexProcessCommand extends Command
     protected function executeAction(int $option, Apps $app)
     {
         $actions = [
-            1 => fn() => $this->delete($app),
-            2 => fn() => $this->reindex($app),
+            1 => fn () => $this->delete($app),
+            2 => fn () => $this->reindex($app),
         ];
 
         if (isset($actions[$option])) {
