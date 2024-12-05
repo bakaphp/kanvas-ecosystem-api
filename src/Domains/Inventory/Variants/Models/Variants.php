@@ -358,7 +358,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
                 return [
                     'id' => $channels->getId(),
                     'name' => $channels->name,
-                    'price' => $channels->price,
+                    'price' => (float) $channels->price,
                     'is_published' => $channels->is_published,
                 ];
             }),
