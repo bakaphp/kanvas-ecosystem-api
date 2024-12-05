@@ -8,6 +8,7 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Products\Models\Products;
+
 use function Laravel\Prompts\select;
 
 class ScoutProductIndexProcessCommand extends Command
