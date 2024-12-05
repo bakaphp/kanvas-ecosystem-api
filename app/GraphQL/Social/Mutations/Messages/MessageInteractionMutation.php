@@ -92,10 +92,20 @@ class MessageInteractionMutation
     protected function reviewPendingMessage(mixed $root, array $request): bool
     {
         $message = Message::getById((int)$request['id'], app(Apps::class));
-        if ($request['is_reviewed']) {
-            $message->setUnlock();
-            $message->setPublic();
+        if (!$request['is_reviewed']) {
+            SendEmailToUserJob::dispatch(
+                $message->user,
+                "Your post has been declined",
+                [
+                    "body" => "Your post {$message->message['title']} has been declined for the following reasons: {$request['reason']}"
+                ]
+            );
+
+            return true;
         }
+
+        $message->setUnlock();
+        $message->setPublic();
 
         SendEmailToUserJob::dispatch(
             $message->user,
@@ -104,7 +114,6 @@ class MessageInteractionMutation
                 "body" => "Your post {$message->message['title']} has been approved!"
             ]
         );
-        
 
         return true;
     }
