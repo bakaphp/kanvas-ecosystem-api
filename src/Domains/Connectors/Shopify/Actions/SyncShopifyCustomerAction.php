@@ -73,7 +73,7 @@ class SyncShopifyCustomerAction
             app: $this->app,
             branch: $this->company->defaultBranch,
             user: $this->company->user,
-            firstname: $this->customerData['first_name'],
+            firstname: $this->customerData['first_name'] ?? '', //shopify does not require first name
             contacts: Contact::collect($contact, DataCollection::class),
             address: Address::collect($address, DataCollection::class),
             lastname: $this->customerData['last_name'],

@@ -278,6 +278,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     'id' => $category->id,
                     'name' => $category->name,
                     'slug' => $category->slug,
+                    'position' => $category->position
                   ];
             }),
             'variants' => $this->variants->take(15)->map(function ($variant) {

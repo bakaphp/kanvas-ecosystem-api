@@ -227,12 +227,13 @@ class ESimProductService
                 ];
             }
 
+            $price = number_format($variant['public_price'], 2, '.', '');
             $productVariants[] = [
                 'name' => $variantName,
                 'description' => $variant['description'],
                 'sku' => $variant['sku'],
-                'price' => (float) $variant['public_price'],
-                'discountPrice' => (float) $variant['public_price'],
+                'price' => $price,
+                'discountPrice' => $price,
                 'is_published' => true,
                 'slug' => Str::slug(str_replace('_', '-', $variant['sku'])),
                 'files' => [],
@@ -247,7 +248,7 @@ class ESimProductService
                 ],
                 'warehouse' => [
                     'id' => $this->warehouses->id,
-                    'price' => (float) $variant['public_price'],
+                    'price' => $price,
                     'quantity' => 100000,
                     'sku' => $variant['sku'],
                     'is_new' => true,

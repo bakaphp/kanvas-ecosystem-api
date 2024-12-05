@@ -35,6 +35,7 @@ class CreateFilesystemMapperAction
             'file_header' => $this->filesystemMapping->header,
             'mapping' => $this->filesystemMapping->mapping,
             'configuration' => $this->filesystemMapping->configuration,
+            'is_default' => $this->filesystemMapping->is_default,
         ]);
     }
 }

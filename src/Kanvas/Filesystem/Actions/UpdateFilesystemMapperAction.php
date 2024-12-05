@@ -22,6 +22,7 @@ class UpdateFilesystemMapperAction
             'header' => $this->filesystemMapping->header,
             'mapping' => $this->filesystemMapping->mapping,
             'configuration' => $this->filesystemMapping->configuration,
+            'is_default' => $this->filesystemMapping->is_default,
         ]);
         $this->filesystemMapper->refresh();
 
