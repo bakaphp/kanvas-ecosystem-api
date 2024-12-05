@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Connectors\ESim;
 
 use Baka\Traits\KanvasJobsTrait;
+use Exception;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -57,8 +58,15 @@ class SyncEsimWithProviderCommand extends Command
                 continue;
             }
 
-            $response = $eSimService->getAppliedBundleStatus($iccid, $bundle);
-            $iccidStatus = $eSimService->checkStatus($iccid);
+            try {
+                $response = $eSimService->getAppliedBundleStatus($iccid, $bundle);
+                $iccidStatus = $eSimService->checkStatus($iccid);
+            } catch (Exception $e) {
+                $this->info("Message ID: {$message->id} has an error: {$e->getMessage()}");
+                $message->setPrivate();
+
+                continue;
+            }
 
             if (! empty($response)) {
                 $inactiveStatuses = [
