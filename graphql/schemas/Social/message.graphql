@@ -97,6 +97,12 @@ input DistributionInput {
     followers: [ID!]!
 }
 
+input ReviewPendingMessageInput {
+    message_id: Int!
+    is_reviewed: Int!
+    declined_reason: String
+}
+
 extend type Mutation @guard {
     createMessage(input: MessageInput!): Message
         @field(
@@ -157,6 +163,10 @@ extend type Mutation @guard {
     uploadFileToMessage(message_id: ID!, file: Upload!): Message!
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@attachFileToMessage"
+        )
+    reviewPendingMessage(input: ReviewPendingMessageInput): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@reviewPendingMessage"
         )
 }
 
