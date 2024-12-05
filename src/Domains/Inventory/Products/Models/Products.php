@@ -15,6 +15,7 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
@@ -195,7 +196,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
             throw new InvalidArgumentException('Invalid sort value');
         }
 
-        return $query->join('products_variants', 'products_variants.products_id', '=', 'products.id')
+        $query = $query->join('products_variants', 'products_variants.products_id', '=', 'products.id')
             ->join('products_variants_attributes as pva', 'pva.products_variants_id', '=', 'products_variants.id')
             ->leftJoin('attributes as a', function ($join) use ($name) {
                 $join->on('a.id', '=', 'pva.attributes_id')
@@ -209,6 +210,8 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 [$name]
             )
             ->select('products.*');
+        Log::debug($query->toRawSql());
+        return $query;
     }
 
     /**
