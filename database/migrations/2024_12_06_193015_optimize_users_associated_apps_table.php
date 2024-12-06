@@ -14,7 +14,7 @@ return new class () extends Migration {
             //$table->dropIndex('apps_id');
             //$table->dropIndex('apps_id_2');
             //$table->dropIndex('apps_id_3');
-            $table->dropIndex('users_id');
+            //$table->dropIndex('users_id');
             $table->dropIndex('users_associated_deleted_index');
             $table->dropIndex('users_associated_active_deleted_index');
             $table->dropIndex('users_associated_apps_apps_id_companies_id_index');
