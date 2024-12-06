@@ -382,8 +382,9 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     public function searchableAs(): string
     {
         $variant = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
+        $app = $variant->app ?? app(Apps::class);
 
-        $customIndex = isset($variant->app) ? $variant->app->get('app_custom_product_variant_index') : null;
+        $customIndex = $app->get('app_custom_product_variant_index') ?? null;
 
         return config('scout.prefix') . ($customIndex ?? 'product_variant_index');
     }
