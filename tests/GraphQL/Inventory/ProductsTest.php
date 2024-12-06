@@ -50,18 +50,6 @@ class ProductsTest extends TestCase
                     'value' => 0,
                 ],
             ],
-            'variants' => [
-                [
-                    'name' => fake()->name,
-                    'sku' => $sku,
-                    'attributes' => [
-                        [
-                            'name' => $attributeName,
-                            'value' => 0,
-                        ]
-                    ]
-                ]
-            ]
         ];
 
         $response = $this->createProduct($data);
@@ -71,9 +59,10 @@ class ProductsTest extends TestCase
             "
             query {
                 products(
-                    variantAttributeOrderBy: {
+                    attributeOrderBy: {
                      name: \"$attributeName\", 
-                     sort: \"DESC\" 
+                     sort: \"DESC\" ,
+                     format: NUMERIC
                 }                    
                 ) {
                     data {
@@ -83,7 +72,6 @@ class ProductsTest extends TestCase
                 }
             }"
         );
-
         $this->assertEquals($data['name'], $response->json()['data']['products']['data'][0]['name']);
         // $this->assertArrayHasKey('name', $response->json()['data']['products']['data'][0]);
     }
