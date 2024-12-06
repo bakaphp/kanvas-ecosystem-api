@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\Shopify\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
