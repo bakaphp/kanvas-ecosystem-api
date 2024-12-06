@@ -35,6 +35,15 @@ class ProductBuilder
             );
         }
 
+        if (! empty($args['attributeOrderBy']) && empty($args['variantAttributeOrderBy'])) {
+            $order = $args['attributeOrderBy'];
+            $query->orderByAttribute(
+                $order['name'],
+                $order['format'],
+                $order['sort']
+            );
+        }
+
         return $query;
     }
 }
