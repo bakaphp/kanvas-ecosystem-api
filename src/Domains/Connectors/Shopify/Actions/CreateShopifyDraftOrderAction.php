@@ -78,11 +78,12 @@ class CreateShopifyDraftOrderAction
             }
 
             $applyDiscount = $item->getPrice() !== $item->variant->getPrice($this->order->region->defaultWarehouse);
+            $price = $applyDiscount ? ($item->variant->getPrice($this->order->region->defaultWarehouse) - $item->getPrice()) : $item->getPrice();
             $discount = $applyDiscount ? [
                 'description' => 'Custom Price',
                 'value_type' => 'fixed_amount',
-                'value' => $item->getPrice(),
-                'amount' => $item->getPrice(),
+                'value' => $price,
+                'amount' => $price,
                 'title' => 'Custom Price',
             ] : null;
 
