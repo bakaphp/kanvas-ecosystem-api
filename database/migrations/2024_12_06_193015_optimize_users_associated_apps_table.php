@@ -31,7 +31,7 @@ return new class () extends Migration {
         });
 
         // Optionally run an optimize table command
-       // DB::statement('OPTIMIZE TABLE `users_associated_apps`;');
+        // DB::statement('OPTIMIZE TABLE `users_associated_apps`;');
     }
 
     /**
