@@ -313,8 +313,10 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     public function searchableAs(): string
     {
+        // As for this stage, the code doesn't know in which app need to set the index.
         $product = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
-        $customIndex = isset($product->app) ? $product->app->get('app_custom_product_index') : null;
+        $app = $product->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_product_index') ?? null;
 
         return config('scout.prefix') . ($customIndex ?? 'product_index');
     }
