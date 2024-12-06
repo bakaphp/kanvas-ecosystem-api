@@ -15,7 +15,6 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
@@ -187,13 +186,57 @@ class Products extends BaseModel implements EntityIntegrationInterface
             });
     }
 
-    public function scopeOrderByVariantAttribute(Builder $query, string $name, string $sort = 'asc'): Builder
-    {
+    public function scopeOrderByVariantAttribute(
+        Builder $query,
+        string $name,
+        string $format = 'STRING',
+        string $sort = 'asc'
+    ): Builder {
         $allowedSorts = ['ASC', 'DESC'];
         $sort = strtoupper($sort);
 
         if (! in_array($sort, $allowedSorts)) {
             throw new InvalidArgumentException('Invalid sort value');
+        }
+
+        $orderRaw = "
+            CASE     
+                WHEN a.name = ? THEN a.name
+                ELSE NULL
+            END {$sort}, 
+        ";
+        switch ($format) {
+            case 'STRING':
+                $orderRaw .= "  CASE 
+                    WHEN pva.value IS NOT NULL THEN pva.value
+                    ELSE ''
+                END {$sort}";
+
+                break;
+            case 'NUMERIC':
+                $orderRaw .= "
+                CASE 
+                    WHEN pva.value REGEXP '^[0-9]+$' THEN CAST(pva.value AS UNSIGNED)
+                ELSE NULL
+                END {$sort}";
+
+                break;
+            case 'DATE':
+                $orderRaw .= "
+                  CASE 
+                    WHEN STR_TO_DATE(value, '%Y-%m-%d') IS NOT NULL THEN STR_TO_DATE(value, '%Y-%m-%d')
+                    ELSE NULL
+                  END {$sort}
+                ";
+
+                break;
+            default:
+                $orderRaw = "  CASE 
+                    WHEN pva.value IS NOT NULL THEN pva.value
+                    ELSE ''
+                END {$sort}";
+
+                break;
         }
 
         $query = $query->join('products_variants', 'products_variants.products_id', '=', 'products.id')
@@ -203,17 +246,74 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     ->where('a.name', '=', $name);
             })
             ->orderByRaw(
-                "CASE WHEN a.name = ? THEN
-                    CASE WHEN CAST(pva.value AS DECIMAL) = 0 THEN 0
-                        ELSE CAST(pva.value AS DECIMAL) END
-                ELSE 0 END {$sort}, products.id ASC",
+                $orderRaw ,
                 [$name]
             )
             ->select('products.*');
-        Log::debug($query->toRawSql());
+
         return $query;
     }
 
+    public function scopeOrderByAttribute(
+        Builder $query,
+        string $name,
+        string $format = 'STRING',
+        string $sort = 'asc'
+    ) {
+        $orderRaw = "
+            CASE     
+                WHEN a.name = ? THEN a.name
+                ELSE NULL
+            END {$sort}, 
+        ";
+        switch ($format) {
+            case 'STRING':
+                $orderRaw .= "  CASE 
+                    WHEN pva.value IS NOT NULL THEN pva.value
+                    ELSE ''
+                END {$sort}";
+
+                break;
+            case 'NUMERIC':
+                $orderRaw .= "
+                CASE 
+                    WHEN pva.value REGEXP '^[0-9]+$' THEN CAST(pva.value AS UNSIGNED)
+                ELSE NULL
+                END {$sort}";
+
+                break;
+            case 'DATE':
+                $orderRaw .= "
+                  CASE 
+                    WHEN STR_TO_DATE(value, '%Y-%m-%d') IS NOT NULL THEN STR_TO_DATE(value, '%Y-%m-%d')
+                    ELSE NULL
+                  END {$sort}
+                ";
+
+                break;
+            default:
+                $orderRaw = "  CASE 
+                    WHEN pva.value IS NOT NULL THEN pva.value
+                    ELSE ''
+                END {$sort}";
+
+                break;
+        }
+        $orderRaw .= ' ,products.id ASC';
+        $query = $query->join('products_attributes as pva', 'pva.products_id', '=', 'products.id')
+            ->leftJoin('attributes as a', function ($join) use ($name) {
+                $join->on('a.id', '=', 'pva.attributes_id')
+                    ->where('a.name', '=', $name);
+            })
+            ->orderByRaw(
+                $orderRaw,
+                [$name]
+            )
+            ->select('products.*');
+
+        return $query;
+    }
+    
     /**
      * variants.
      */
@@ -281,7 +381,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     'id' => $category->id,
                     'name' => $category->name,
                     'slug' => $category->slug,
-                    'position' => $category->position
+                    'position' => $category->position,
                   ];
             }),
             'variants' => $this->variants->take(15)->map(function ($variant) {
