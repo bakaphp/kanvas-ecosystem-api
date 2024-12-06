@@ -58,7 +58,7 @@ class CompaniesRepository
                        'companies.id'
                    );
                    $query->where('users_associated_company.users_id', $user->getId());
-               })->firstOrFail();
+               })->select('companies.*')->firstOrFail();
     }
 
     /**
