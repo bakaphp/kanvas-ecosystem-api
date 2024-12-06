@@ -25,6 +25,7 @@ class AmplitudeEventStreamWebhookJob extends ProcessWebhookJob
         $allowInteractions = [
           'View Explore' => InteractionEnum::VIEW_HOME_PAGE->getValue(),
         ];
+
         $eventType = $payload['event_type'] ?? null;
 
         if (! $eventType) {
@@ -49,7 +50,14 @@ class AmplitudeEventStreamWebhookJob extends ProcessWebhookJob
             ];
         }
 
-        $userMessages = UserMessage::fromApp($this->receiver->app)->where('users_id', $user->getId())->notDeleted()->orderBy('created_at', 'desc')->first();
+        $pageNumber = 1; // Replace with the page number you want (starting from 1)
+        $userMessages = UserMessage::getFirstMessageFromPage($user, $this->receiver->app, $pageNumber)?->message;
+
+        if (! $userMessages) {
+            return [
+              'message' => 'User message not found',
+            ];
+        }
 
         $internalEventName = $allowInteractions[$eventType];
         $interaction = (new CreateInteraction(
@@ -69,7 +77,7 @@ class AmplitudeEventStreamWebhookJob extends ProcessWebhookJob
         );
 
         $createUserInteraction->execute(
-            allowDuplicate: false,
+            allowDuplicate: true,
             addToCache: false
         );
 

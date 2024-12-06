@@ -79,7 +79,7 @@ class UpdateProductAction
 
             throw $e;
         }
-
+        $this->product->searchable();
         if ($this->runWorkflow) {
             $this->product->fireWorkflow(
                 WorkflowEnum::UPDATED->value,

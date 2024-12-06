@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Actions;
 
+use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
-use Darryldecode\Cart\Cart;
+use Wearepixel\Cart\Cart;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Currencies\Models\Currencies;
@@ -61,7 +62,7 @@ class CreateOrderFromCartAction
             foreach ($this->request['input']['items'] as $key => $lineItem) {
                 $lineItems[$key] = OrderItem::viaRequest($this->app, $this->company, $this->region, $lineItem);
                 $total += $lineItems[$key]->getTotal();
-                $totalTax = $lineItems[$key]->getTotalTax();
+                $totalTax += $lineItems[$key]->getTotalTax();
                 $totalDiscount = $lineItems[$key]->getTotalDiscount();
             }
         }
@@ -95,10 +96,14 @@ class CreateOrderFromCartAction
             languageCode: null,
         );
 
-        return (new CreateOrderAction($order))->execute();
+        $order = (new CreateOrderAction($order))->execute();
+
+        $this->cart->clear();
+
+        return $order;
     }
 
-    protected function getOrderItems($cartContent, $app): DataCollection
+    protected function getOrderItems(array $cartContent, AppInterface $app): DataCollection
     {
         $orderItems = [];
 
@@ -115,9 +120,9 @@ class CreateOrderFromCartAction
                 variant: $variant,
                 name: $lineItem['name'],
                 sku: (string) ($variant->sku ?? $lineItem['id']),
-                quantity: $lineItem['quantity'],
+                quantity: (int) $lineItem['quantity'],
                 price: (float) $lineItem['price'],
-                tax: $lineItem['tax'] ?? 0,
+                tax: (float) ($lineItem['tax'] ?? 0),
                 discount: (float) ($lineItem['total_discount'] ?? 0),
                 currency: Currencies::getByCode('USD'),
                 quantityShipped: 0

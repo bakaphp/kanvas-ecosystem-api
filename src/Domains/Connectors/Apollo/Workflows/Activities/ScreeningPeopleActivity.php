@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Apollo\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Exception;
+use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Apollo\Actions\ScreeningAction;
 use Kanvas\Connectors\Apollo\Enums\ConfigurationEnum;
@@ -38,7 +39,16 @@ class ScreeningPeopleActivity extends KanvasActivity
             return $this->alreadyScreenedResponse($people);
         }
 
-        $peopleData = (new ScreeningAction($people, $app))->execute();
+        try {
+            $peopleData = (new ScreeningAction($people, $app))->execute();
+        } catch (GuzzleException $e) {
+            return [
+                'status' => 'failed',
+                'message' => $e->getMessage(),
+                'people_id' => $people->id,
+                'data' => [],
+            ];
+        }
 
         $this->processPeopleData($people, $app, $peopleData);
 

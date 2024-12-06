@@ -24,7 +24,8 @@ type Variant {
     product: Product
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
-    attributes: [VariantsAttributes!]! @BelongsToMany(relation: "visibleAttributes")
+    attributes: [VariantsAttributes!]!
+        @BelongsToMany(relation: "visibleAttributes")
     companies: Company! @belongsTo(relation: "company")
     channels: [VariantChannelRelationship!]!
         @BelongsToMany(relation: "channels")
@@ -111,6 +112,10 @@ extend type Mutation @guard {
     updateVariant(input: VariantsUpdateInput!, id: ID!): Variant
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\Variants@update"
+        )
+    uploadFileToVariant(id: ID!, file: Upload!): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Variants\\VariantMediaMutation@attachFileToVariant"
         )
     deleteVariant(id: ID!): Boolean
         @field(

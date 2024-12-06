@@ -12,6 +12,7 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Attributes\Actions\CreateAttributeType;
 use Kanvas\Inventory\Attributes\DataTransferObject\AttributesType;
+use Kanvas\Inventory\Attributes\Enums\AttributeTypeEnum;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Attributes\Models\AttributesTypes as ModelAttributesTypes;
 use Kanvas\Inventory\Categories\Actions\CreateCategory;
@@ -40,10 +41,6 @@ class Setup
 {
     /**
      * Constructor.
-     *
-     * @param AppInterface $app
-     * @param UserInterface $user
-     * @param CompanyInterface $company
      */
     public function __construct(
         protected AppInterface $app,
@@ -54,8 +51,6 @@ class Setup
 
     /**
      * Setup all the default inventory data for this current company.
-     *
-     * @return bool
      */
     public function run(): bool
     {
@@ -146,7 +141,7 @@ class Setup
                 $this->app,
                 $this->company,
                 $this->user,
-                "Default",
+                'Default',
                 true
             ),
             $this->user
@@ -158,8 +153,8 @@ class Setup
             new AttributesType(
                 $this->company,
                 $this->app,
-                "Input",
-                "input",
+                ucfirst(AttributeTypeEnum::INPUT->value),
+                AttributeTypeEnum::INPUT->value,
                 true
             ),
             $this->user
@@ -169,8 +164,8 @@ class Setup
             new AttributesType(
                 $this->company,
                 $this->app,
-                "Checkbox",
-                "checkbox",
+                ucfirst(AttributeTypeEnum::CHECKBOX->value),
+                AttributeTypeEnum::CHECKBOX->value,
                 false
             ),
             $this->user

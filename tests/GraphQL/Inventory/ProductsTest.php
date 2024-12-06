@@ -10,6 +10,7 @@ use Tests\TestCase;
 class ProductsTest extends TestCase
 {
     use InventoryCases;
+
     /**
      * testSave.
      */
@@ -33,6 +34,58 @@ class ProductsTest extends TestCase
         $response->assertJson([
             'data' => ['createProduct' => $data],
         ]);
+    }
+
+    public function testSortByAttributes(): void
+    {
+        $attributeName = fake()->name;
+        $sku = fake()->time;
+        $data = [
+            'name' => fake()->name,
+            'description' => fake()->text,
+            'sku' => $sku,
+            'attributes' => [
+                [
+                    'name' => $attributeName,
+                    'value' => 0,
+                ],
+            ],
+            'variants' => [
+                [
+                    'name' => fake()->name,
+                    'sku' => $sku,
+                    'attributes' => [
+                        [
+                            'name' => $attributeName,
+                            'value' => 0,
+                        ]
+                    ]
+                ]
+            ]
+        ];
+
+        $response = $this->createProduct($data);
+        unset($data['id']);
+        unset($data['sku']);
+        $response = $this->graphQL(
+            "
+            query {
+                products(
+                    variantAttributeOrderBy: {
+                     name: \"$attributeName\", 
+                     sort: \"DESC\" 
+                }                    
+                ) {
+                    data {
+                        name
+                        description
+                    }
+                }
+            }"
+        );
+
+        $this->assertEquals($data['name'], $response->json()['data']['products']['data'][0]['name']);
+        // $this->assertArrayHasKey('name', $response->json()['data']['products']['data'][0]);
     }
 
     /**
@@ -200,10 +253,10 @@ class ProductsTest extends TestCase
                     'name',
                     'description',
                     'variants' => [
-                        ['id']
-                    ]
-                ]
-            ]
+                        ['id'],
+                    ],
+                ],
+            ],
         ]);
 
         $productId = $productResponse->json()['data']['createProduct']['id'];

@@ -30,7 +30,7 @@ class SyncCompanyWithNetSuiteAction
             return $this->updateExistingCustomer();
         }
 
-        $existingCustomer = $this->findExistingCustomer($this->company->user->email);
+        $existingCustomer = $this->findExistingCustomer($this->company->email ?: $this->company->user->email);
 
         if ($existingCustomer) {
             // Update the found customer and store their ID
@@ -77,8 +77,8 @@ class SyncCompanyWithNetSuiteAction
         $customer = new Customer();
         $customer->companyName = $this->company->name;
         $customer->isPerson = false;
-        $customer->email = $this->company->user->email;
-        $customer->phone = $this->company->user->phone;
+        $customer->email = $this->company->email ?? $this->company->user->email;
+        $customer->phone = $this->company->phone ?? $this->company->user->phone;
 
         return $customer;
     }

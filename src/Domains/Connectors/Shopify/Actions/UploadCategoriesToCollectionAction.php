@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Shopify\Actions;
 
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
-use Kanvas\Apps\Models\Apps;
-use PHPShopify\ShopifySDK;
-use Kanvas\Connectors\Shopify\Client;
-use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
-use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 
 class UploadCategoriesToCollectionAction
 {

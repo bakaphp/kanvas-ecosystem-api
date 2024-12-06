@@ -15,6 +15,8 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
@@ -26,6 +28,7 @@ use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Actions\AddAttributeAction;
 use Kanvas\Inventory\Products\Factories\ProductFactory;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
+use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Services\VariantService;
@@ -44,6 +47,7 @@ use Laravel\Scout\Searchable;
  * @property int $apps_id
  * @property int $companies_id
  * @property int $products_types_id
+ * @property int $users_id
  * @property string $uuid
  * @property string $name
  * @property string $slug
@@ -183,6 +187,33 @@ class Products extends BaseModel implements EntityIntegrationInterface
             });
     }
 
+    public function scopeOrderByVariantAttribute(Builder $query, string $name, string $sort = 'asc'): Builder
+    {
+        $allowedSorts = ['ASC', 'DESC'];
+        $sort = strtoupper($sort);
+
+        if (! in_array($sort, $allowedSorts)) {
+            throw new InvalidArgumentException('Invalid sort value');
+        }
+
+        $query = $query->join('products_variants', 'products_variants.products_id', '=', 'products.id')
+            ->join('products_variants_attributes as pva', 'pva.products_variants_id', '=', 'products_variants.id')
+            ->leftJoin('attributes as a', function ($join) use ($name) {
+                $join->on('a.id', '=', 'pva.attributes_id')
+                    ->where('a.name', '=', $name);
+            })
+            ->orderByRaw(
+                "CASE WHEN a.name = ? THEN
+                    CASE WHEN CAST(pva.value AS DECIMAL) = 0 THEN 0
+                        ELSE CAST(pva.value AS DECIMAL) END
+                ELSE 0 END {$sort}, products.id ASC",
+                [$name]
+            )
+            ->select('products.*');
+        Log::debug($query->toRawSql());
+        return $query;
+    }
+
     /**
      * variants.
      */
@@ -198,8 +229,14 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     /**
      * productsTypes.
+     * @deprecated
      */
     public function productsTypes(): BelongsTo
+    {
+        return $this->belongsTo(ProductsTypes::class, 'products_types_id');
+    }
+
+    public function productsType(): BelongsTo
     {
         return $this->belongsTo(ProductsTypes::class, 'products_types_id');
     }
@@ -244,6 +281,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     'id' => $category->id,
                     'name' => $category->name,
                     'slug' => $category->slug,
+                    'position' => $category->position
                   ];
             }),
             'variants' => $this->variants->take(15)->map(function ($variant) {
@@ -278,8 +316,10 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     public function searchableAs(): string
     {
+        // As for this stage, the code doesn't know in which app need to set the index.
         $product = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
-        $customIndex = isset($product->app) ? $product->app->get('app_custom_product_index') : null;
+        $app = $product->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_product_index') ?? null;
 
         return config('scout.prefix') . ($customIndex ?? 'product_index');
     }
@@ -343,16 +383,15 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     /**
      * Add/create new attributes from a product.
-     * @psalm-suppress MixedAssignment
-     * @psalm-suppress MixedArrayAccess
-     * @psalm-suppress MixedPropertyFetch
      */
     public function addAttributes(UserInterface $user, array $attributes): void
     {
         foreach ($attributes as $attribute) {
-            if (empty($attribute['value'])) {
-                continue;
+            if (! isset($attribute['value']) || $attribute['name'] === null) {
+                continue; // Skip attributes without a value
             }
+
+            $attributeModel = null;
 
             if (isset($attribute['id'])) {
                 $attributeModel = Attributes::getById((int) $attribute['id'], $this->app);
@@ -371,7 +410,22 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
             }
 
-            (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
+            if ($attributeModel) {
+                (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
+
+                if ($this?->productsType) {
+                    ProductTypeService::addAttributes(
+                        $this->productsType,
+                        $this->user,
+                        [
+                            [
+                                'id' => $attributeModel->getId(),
+                                'value' => $attribute['value'],
+                            ],
+                        ]
+                    );
+                }
+            }
         }
     }
 

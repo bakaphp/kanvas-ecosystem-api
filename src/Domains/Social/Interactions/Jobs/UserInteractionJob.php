@@ -17,6 +17,7 @@ use Kanvas\Social\Interactions\Actions\CreateInteraction;
 use Kanvas\Social\Interactions\Actions\CreateUserInteractionAction;
 use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
+use Kanvas\Social\Messages\Models\UserMessage;
 
 class UserInteractionJob implements ShouldQueue
 {
@@ -42,6 +43,13 @@ class UserInteractionJob implements ShouldQueue
     {
         config(['laravel-model-caching.disabled' => true]);
         $this->overwriteAppService($this->app);
+
+        //if its homepage we do the shit for now , where we get the top page user msg
+        if ($this->entity instanceof $this->app) {
+            $pageNumber = 1; // Replace with the page number you want (starting from 1)
+            $userMessages = UserMessage::getFirstMessageFromPage($this->user, $this->app, $pageNumber);
+            $this->entity = $userMessages ? $userMessages->message : $this->entity;
+        }
 
         $interaction = (new CreateInteraction(
             new Interaction(

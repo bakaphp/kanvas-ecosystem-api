@@ -9,6 +9,7 @@ return [
     ],
     'app' => [
         'id' => env('KANVAS_APP_ID'),
+        'frontend_url' => env('KANVAS_FRONTEND_URL'),
     ],
     'jwt' => [
         'secretKey' => env('APP_JWT_TOKEN'),

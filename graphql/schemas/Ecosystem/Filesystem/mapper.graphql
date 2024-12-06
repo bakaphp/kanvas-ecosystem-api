@@ -6,6 +6,7 @@ type FilesystemMapper {
     file_header: Mixed!
     mapping: Mixed!
     configuration: Mixed
+    is_default: Boolean
     system_module: SystemModule! @belongsTo(relation: "systemModule")
     created_at: DateTime!
     updated_at: DateTime
@@ -17,6 +18,7 @@ input FilesystemMapperInput {
     file_header: Mixed!
     mapping: Mixed!
     configuration: Mixed
+    is_default: Boolean
 }
 
 input FilesystemImportInput {

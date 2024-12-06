@@ -38,6 +38,7 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
 
         $zohoService = new ZohoService($app, $company);
         $newAgentRecord = null;
+        $newAgent = null;
 
         try {
             $record = $zohoService->getAgentByEmail($user->email);
@@ -49,6 +50,15 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
 
         $owner = $record->Owner;
         $name = ($record->Name ?? $record->Vendor_Name) ?? $newAgent->name;
+
+        if (empty($record->Member_Number) && $newAgent == null) {
+            return [
+                'error' => 'Error Member Number not found',
+                'record' => $record,
+                'newAgent' => $newAgent,
+            ];
+        }
+
         $memberNumber = $record->Member_Number ?? $newAgent->member_id;
         $zohoId = $record->id;
         $ownerAgent = null;
@@ -68,7 +78,7 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
         $companyDefaultOwnerMemberId = $company->get(CustomFieldEnum::ZOHO_USER_OWNER_MEMBER_NUMBER->value) ?? 1001;
 
         //if the owner is the company default owner, set it
-        if ($ownerAgent && $newAgentRecord && $newAgentRecord->member_id == $companyDefaultOwnerMemberId) {
+        if ($ownerAgent && $newAgentRecord && $newAgentRecord['member_id'] == $companyDefaultOwnerMemberId) {
             $agentUpdateData['owner_id'] = $ownerAgent->member_id;
         }
 
@@ -189,6 +199,7 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
 
         return [
             'agent' => $agent,
+            'member_id' => $agent->member_id,
             'zohoAgent' => $zohoAgent,
             'agentOwner' => $ownerInfo,
         ];

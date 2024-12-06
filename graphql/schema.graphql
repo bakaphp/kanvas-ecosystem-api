@@ -15,8 +15,8 @@ scalar Upload
 
 scalar Mixed @scalar(class: "MLL\\GraphQLScalars\\MixedScalar")
 scalar Email @scalar(class: "MLL\\GraphQLScalars\\Email")
-scalar JSON  @scalar(class: "MLL\\GraphQLScalars\\JSON")
-scalar Null  @scalar(class: "MLL\\GraphQLScalars\\NullScalar")
+scalar JSON @scalar(class: "MLL\\GraphQLScalars\\JSON")
+scalar Null @scalar(class: "MLL\\GraphQLScalars\\NullScalar")
 
 #import hello.graphql
 #import schemas/*.graphql
