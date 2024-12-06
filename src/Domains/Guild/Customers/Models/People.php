@@ -9,6 +9,7 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
@@ -242,8 +243,8 @@ class People extends BaseModel
     {
         //$people = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
         $people = ! $this->searchableDeleteRecord() ? $this : $this->find($this->id);
-
-        $customIndex = isset($people->app) ? $people->app->get('app_custom_people_index') : null;
+        $app = $people->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_people_index') ?? null;
 
         return config('scout.prefix') . ($customIndex ?? 'peoples');
     }
