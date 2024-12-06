@@ -11,9 +11,9 @@ return new class () extends Migration {
         Schema::table('users_associated_apps', function (Blueprint $table) {
             // Drop the existing primary key and redundant indexes
             $table->dropPrimary(['users_id', 'apps_id', 'companies_id']);
-            $table->dropIndex('apps_id');
-            $table->dropIndex('apps_id_2');
-            $table->dropIndex('apps_id_3');
+            //$table->dropIndex('apps_id');
+            //$table->dropIndex('apps_id_2');
+            //$table->dropIndex('apps_id_3');
             $table->dropIndex('users_id');
             $table->dropIndex('users_associated_deleted_index');
             $table->dropIndex('users_associated_active_deleted_index');
