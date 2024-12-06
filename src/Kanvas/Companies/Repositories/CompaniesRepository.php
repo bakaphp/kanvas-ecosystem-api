@@ -113,13 +113,13 @@ class CompaniesRepository
     public static function getAllCompanyUserBuilder(Companies $company): Builder
     {
         $ecosystemConnection = config('database.connections.ecosystem');
-        $columns = Schema::Connection('ecosystem')->getColumnListing('users');
+       // $columns = Schema::Connection('ecosystem')->getColumnListing('users');
 
         return UsersAssociatedCompanies::join($ecosystemConnection['database'] . '.users', 'users.id', '=', 'users_associated_company.users_id')
                                 ->where('companies_id', $company->getKey())
                                 ->where('users_associated_company.is_deleted', StateEnums::NO->getValue())
                                 ->where('users.is_deleted', StateEnums::NO->getValue())
-                                ->groupBy($columns)
+                              //  ->groupBy($columns)
                                 ->select('users.*');
     }
 

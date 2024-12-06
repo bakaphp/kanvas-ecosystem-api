@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace Kanvas\Users\Models;
 
 use Baka\Support\Str;
-use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Users\Contracts\UserAppInterface;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Auth\Contracts\Authenticatable;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Enums\StatusEnums;
+use Kanvas\Users\Observers\UsersAssociatedAppsObserver;
 
 /**
  * UsersAssociatedApps Model.
@@ -43,9 +44,9 @@ use Kanvas\Users\Enums\StatusEnums;
  * @property  string $timezone
  * @property int $is_deleted
  */
+#[ObservedBy([UsersAssociatedAppsObserver::class])]
 class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppInterface
 {
-    use HasCompositePrimaryKeyTrait;
     // use SoftDeletesTrait;
     // public const DELETED_AT = 'is_deleted';
 
@@ -55,12 +56,6 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
      * @var string
      */
     protected $table = 'users_associated_apps';
-
-    protected $primaryKey = [
-        'users_id',
-        'apps_id',
-        'companies_id',
-    ];
 
     protected $fillable = [
         'users_id',
@@ -92,7 +87,7 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
         'configuration' => 'array',
         'is_active' => 'boolean',
         'is_deleted' => 'boolean',
-        'welcome' => 'boolean'
+        'welcome' => 'boolean',
     ];
 
     public function role(): BelongsTo

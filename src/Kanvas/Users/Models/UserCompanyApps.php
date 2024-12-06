@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Users\Models;
 
 use Baka\Traits\HasCompositePrimaryKeyTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
+use Kanvas\Users\Observers\UsersAssociatedCompaniesObserver;
 
 /**
  * UserCompanyApps Model.
@@ -16,6 +18,7 @@ use Kanvas\Models\BaseModel;
  * @property int $companies_id
  * @property int $apps_id
  */
+#[ObservedBy([UsersAssociatedCompaniesObserver::class])]
 class UserCompanyApps extends BaseModel
 {
     use HasCompositePrimaryKeyTrait;
