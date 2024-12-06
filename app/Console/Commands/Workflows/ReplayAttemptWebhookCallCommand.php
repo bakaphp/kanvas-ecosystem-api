@@ -7,13 +7,13 @@ namespace App\Console\Commands\Workflows;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Workflow\Actions\ReplayAttemptWebhookCallAction;
+use Kanvas\Workflow\Actions\RetryWebhookCallAction;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
 
-class ReplayAttemptWebhookCallCommand extends Command
+class RetryWebhookCallCommand extends Command
 {
     use KanvasJobsTrait;
-    protected $signature = 'kanvas:replay-webhook {appsId} {--callId=} {--limit}';
+    protected $signature = 'kanvas:retry-webhook-call {appsId} {--callId=} {--limit}';
 
     public function handle()
     {
@@ -38,13 +38,13 @@ class ReplayAttemptWebhookCallCommand extends Command
         $progressBar->start();
 
         foreach ($webhookCalls as $webhookCall) {
-            $action = new ReplayAttemptWebhookCallAction($webhookCall);
+            $action = new RetryWebhookCallAction($webhookCall);
             $action->execute();
 
             $progressBar->advance();
 
             $progressBar->finish();
         }
-        $this->info('\n Webhook calls replayed successfully');
+        $this->info('Webhook calls replayed successfully');
     }
 }

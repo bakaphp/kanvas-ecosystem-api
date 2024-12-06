@@ -6,7 +6,7 @@ namespace Kanvas\Workflow\Actions;
 
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
 
-class ReplayAttemptWebhookCallAction
+class RetryWebhookCallAction
 {
     public function __construct(
         public ReceiverWebhookCall $receiverWebhookCall
