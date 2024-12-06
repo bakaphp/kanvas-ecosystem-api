@@ -23,7 +23,6 @@ return new class () extends Migration {
             $table->dropIndex('companies_branches_id');
             $table->dropIndex('user_role');
             $table->dropIndex('identify_id');
-            $table->dropIndex('companies_id');
             $table->dropIndex('users_associated_company_companies_id_is_deleted_index');
 
             // Add a new surrogate primary key
