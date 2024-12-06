@@ -246,7 +246,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     ->where('a.name', '=', $name);
             })
             ->orderByRaw(
-                $orderRaw ,
+                $orderRaw,
                 [$name]
             )
             ->select('products.*');
@@ -313,7 +313,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
         return $query;
     }
-    
+
     /**
      * variants.
      */
