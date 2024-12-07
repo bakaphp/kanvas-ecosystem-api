@@ -34,7 +34,7 @@ class CarrierService
     }
 
     public function getAllDataBundle(
-        string $language = 'en',
+        string $language = '2',
         int $beginIndex = 0,
         int $count = 50
     ): array {

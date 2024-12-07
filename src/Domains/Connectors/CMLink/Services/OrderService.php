@@ -13,23 +13,69 @@ class OrderService
     protected Client $client;
 
     public function __construct(
-        AppInterface $app,
-        CompanyInterface $company
+        protected AppInterface $app,
+        protected CompanyInterface $company
     ) {
         $this->client = new Client($app, $company);
     }
 
+    /**
+     * Create an order.
+     *
+     * @param string $thirdOrderId Unique order ID from the client.
+     * @param string $iccid ICCID of the target SIM card.
+     * @param int $quantity Number of bundles to purchase.
+     * @param int $isRefuel Indicates whether this is an add-on package (0 = yes, 1 = no).
+     * @param string $dataBundleId ID of the data package to purchase.
+     * @return array
+     */
     public function createOrder(
         string $thirdOrderId,
         string $iccid,
         int $quantity,
-        int $isRefuel = 0
+        int $isRefuel,
+        string $dataBundleId
     ): array {
         return $this->client->post('/aep/APP_createOrder_SBO/v1', [
-            'third_order_id' => $thirdOrderId,
-            'iccid' => $iccid,
+            'thirdOrderId' => $thirdOrderId,
+            'ICCID' => $iccid,
             'quantity' => $quantity,
-            'is_refuel' => $isRefuel,
+            'is_Refuel' => $isRefuel,
+            'includeCard' => 0, // Assuming 0 means no physical card
+            'dataBundleId' => $dataBundleId,
+            'accessToken' => $this->client->getAccessToken(),
         ]);
+    }
+
+    /**
+     * Create an order and ensure activation.
+     *
+     * @param string $thirdOrderId Unique order ID from the client.
+     * @param string $iccid ICCID of the target SIM card.
+     * @param int $quantity Number of bundles to purchase.
+     * @param int $isRefuel Indicates whether this is an add-on package (0 = yes, 1 = no).
+     * @param string $dataBundleId ID of the data package to purchase.
+     * @return array
+     */
+    public function createOrderWithActivation(
+        string $thirdOrderId,
+        string $iccid,
+        int $quantity,
+        int $isRefuel,
+        string $dataBundleId
+    ): array {
+        $orderResponse = $this->createOrder(
+            $thirdOrderId,
+            $iccid,
+            $quantity,
+            $isRefuel,
+            $dataBundleId
+        );
+
+        // Step 2: Activate the package immediately after order creation
+        $planService = new PlanService($this->app, $this->company);
+        $planService->activatePlan($dataBundleId, $iccid);
+
+        return $orderResponse;
     }
 }
