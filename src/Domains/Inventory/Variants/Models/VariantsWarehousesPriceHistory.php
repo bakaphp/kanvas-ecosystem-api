@@ -27,4 +27,11 @@ class VariantsWarehousesPriceHistory extends BaseModel
     public $timestamps = false;
     protected $guarded = [];
     protected $forceDeleting = true;
+
+    protected function casts(): array
+    {
+        return [
+            'price' => 'decimal:2',
+        ];
+    }
 }

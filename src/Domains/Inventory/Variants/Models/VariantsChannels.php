@@ -42,6 +42,14 @@ class VariantsChannels extends BaseModel
     protected $primaryKey = ['product_variants_warehouse_id', 'channels_id'];
     protected $forceDeleting = true;
 
+    protected function casts(): array
+    {
+        return [
+            'price' => 'decimal:2',
+            'discount_price' => 'decimal:2',
+        ];
+    }
+
     public function channel(): BelongsTo
     {
         return $this->belongsTo(Channels::class, 'channels_id');
