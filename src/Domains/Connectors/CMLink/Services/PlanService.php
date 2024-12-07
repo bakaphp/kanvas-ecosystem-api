@@ -24,7 +24,6 @@ class PlanService
      *
      * @param string $dataBundleId ID of the data bundle to activate.
      * @param string $iccid ICCID of the SIM card.
-     * @return array
      */
     public function activatePlan(
         string $dataBundleId,
@@ -42,7 +41,6 @@ class PlanService
      *
      * @param string $iccid ICCID of the SIM card.
      * @param string $dataBundleId ID of the data bundle to terminate.
-     * @return array
      */
     public function terminatePlan(string $iccid, string $dataBundleId): array
     {

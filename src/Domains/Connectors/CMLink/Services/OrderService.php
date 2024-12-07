@@ -27,7 +27,6 @@ class OrderService
      * @param int $quantity Number of bundles to purchase.
      * @param int $isRefuel Indicates whether this is an add-on package (0 = yes, 1 = no).
      * @param string $dataBundleId ID of the data package to purchase.
-     * @return array
      */
     public function createOrder(
         string $thirdOrderId,
@@ -55,7 +54,6 @@ class OrderService
      * @param int $quantity Number of bundles to purchase.
      * @param int $isRefuel Indicates whether this is an add-on package (0 = yes, 1 = no).
      * @param string $dataBundleId ID of the data package to purchase.
-     * @return array
      */
     public function createOrderWithActivation(
         string $thirdOrderId,
