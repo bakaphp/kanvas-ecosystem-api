@@ -46,8 +46,8 @@ type Variant {
 }
 
 type VariantPricingInfo {
-    price: Float! @decimalFormat
-    discounted_price: Float! @decimalFormat
+    price: Money!
+    discounted_Decimal: Money!
     quantity: Int!
     is_best_seller: Boolean
     is_on_sale: Boolean
