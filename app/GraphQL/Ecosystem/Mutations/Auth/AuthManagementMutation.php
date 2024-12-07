@@ -125,7 +125,7 @@ class AuthManagementMutation
 
         $branch = AuthenticationService::getAppDefaultAssignCompanyBranch($app);
         $data = RegisterInput::fromArray($request['data'], $branch);
-        $user = new RegisterUsersAction($data);
+        $user = new RegisterUsersAction($data, $app);
         $request = request();
 
         $registeredUser = $user->execute();

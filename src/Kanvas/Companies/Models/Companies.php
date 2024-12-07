@@ -249,9 +249,6 @@ class Companies extends BaseModel implements CompanyInterface
             'companies_id' => $this->getKey(),
             'companies_branches_id' => $branch->id,
         ], [
-            'users_id' => $user->getKey(),
-            'companies_id' => $this->getKey(),
-            'companies_branches_id' => $branch->id,
             'identify_id' => $companyUserIdentifier ?? $user->id,
             'user_active' => (int) $isActive,
             'user_role' => $userRoleId ?? $user->roles_id,
