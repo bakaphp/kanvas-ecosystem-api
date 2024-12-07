@@ -249,7 +249,8 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 $orderRaw,
                 [$name]
             )
-            ->select('products.*');
+            ->select('products.*')
+            ->groupBy('products.id');
 
         return $query;
     }
@@ -309,7 +310,8 @@ class Products extends BaseModel implements EntityIntegrationInterface
                 $orderRaw,
                 [$name]
             )
-            ->select('products.*');
+            ->select('products.*')
+            ->groupBy('products.id');
 
         return $query;
     }
