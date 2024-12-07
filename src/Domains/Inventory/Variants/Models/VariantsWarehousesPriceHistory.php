@@ -34,4 +34,9 @@ class VariantsWarehousesPriceHistory extends BaseModel
             'price' => 'decimal:2',
         ];
     }
+
+    public function getPriceAttribute(string|int $value): float
+    {
+        return (float) $value;
+    }
 }

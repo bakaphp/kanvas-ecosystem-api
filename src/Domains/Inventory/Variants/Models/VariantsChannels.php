@@ -50,6 +50,16 @@ class VariantsChannels extends BaseModel
         ];
     }
 
+    public function getPriceAttribute(string|int $value): float
+    {
+        return (float) $value;
+    }
+
+    public function getDiscountPriceAttribute(string|int $value): float
+    {
+        return (float) $value;
+    }
+
     public function channel(): BelongsTo
     {
         return $this->belongsTo(Channels::class, 'channels_id');

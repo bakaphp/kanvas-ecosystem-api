@@ -60,6 +60,11 @@ class VariantsWarehouses extends BaseModel
         ];
     }
 
+    public function getPriceAttribute(string|int $value): float
+    {
+        return (float) $value;
+    }
+
     /**
      * channels.
      */
