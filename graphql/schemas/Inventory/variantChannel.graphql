@@ -33,8 +33,8 @@ type VariantChannelRelationship {
     channels_id: ID! @rename(attribute: "id")
     name: String
     description: String
-    price: Float
-    discounted_price: Float
+    price: Float @decimalFormat
+    discounted_price: Float @decimalFormat
     warehouses_id: ID
     slug: String
     is_published: Boolean
