@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Connectors\ESim;
+namespace App\Console\Commands\Connectors\CMLink;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\ESim\Actions\DownloadPlanToProductAction;
+use Kanvas\Connectors\CMLink\Actions\DownloadPlanToProductAction;
 use Kanvas\Regions\Models\Regions;
 
 class DownloadDestinationPlansAsProductCommand extends Command
@@ -20,7 +20,7 @@ class DownloadDestinationPlansAsProductCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:esim-connector-download-destination-plans {app_id} {company_id} {region_id} {destination_plans} {warehouse_id?} {channel_id?}';
+    protected $signature = 'kanvas:esim-connector-download-destination-plans {app_id} {company_id} {region_id} {language=2} {warehouse_id?} {channel_id?}';
 
     /**
      * The console command description.
@@ -41,13 +41,14 @@ class DownloadDestinationPlansAsProductCommand extends Command
 
         $company = Companies::getById((int) $this->argument('company_id'));
         $region = Regions::getById((int) $this->argument('region_id'), $app);
+        $language = $this->argument('language');
 
         $downloadPlanProducts = new DownloadPlanToProductAction(
             $region,
             $region->company->user
         );
 
-        $downloadPlanProducts->execute(json_decode($this->argument('destination_plans'), true));
+        $downloadPlanProducts->execute($language);
 
         return;
     }
