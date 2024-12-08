@@ -158,6 +158,12 @@ class CMLinkProductService
                 'name' => 'Has Phone Number',
                 'value' => 0,
             ],
+            [
+                'name' => 'Data',
+                'value' => isset($bundle['name'][0]['value'])
+                            ? (preg_match('/\b(\d+)(MB|GB)\b/i', $bundle['name'][0]['value'], $matches) ? $matches[0] : 'unknown')
+                            : 'unknown',
+            ],
         ];
     }
 
@@ -170,10 +176,17 @@ class CMLinkProductService
             ],
         ];
 
-        if (! empty($bundle['countries'])) {
+        //mobile country codes
+        $mccs = $this->extractMCCs($bundle['cardPools'] ?? []);
+
+        if (! empty($mccs)) {
             $attributes[] = [
-                'name' => 'countries',
-                'value' => $this->mapCountriesAttribute($bundle['countries']),
+                'name' => 'Countries',
+                'value' => $this->mapCountriesAttribute($mccs),
+            ];
+            $attributes[] = [
+                'name' => 'Countries Code',
+                'value' => $this->mapCountriesAttribute($mccs, 'code'),
             ];
         }
 
@@ -187,11 +200,13 @@ class CMLinkProductService
         return $attributes;
     }
 
-    protected function mapCountriesAttribute(array $countries): array
+    protected function mapCountriesAttribute(array $countries, string $returnField = 'id'): array
     {
-        $countryCodes = array_map(fn ($country) => strtolower($country['country_code']), $countries);
+        // Convert the MCC array to a lowercase string array
+        $mccCodes = array_map(fn ($mcc) => strtolower($mcc), $countries);
 
-        return Countries::whereIn('code', $countryCodes)->pluck('id')->toArray();
+        // Query the database to find matching countries by MCC
+        return Countries::whereIn('mcc', $mccCodes)->pluck($returnField)->toArray();
     }
 
     protected function extractBaseName(string $fullName): string
