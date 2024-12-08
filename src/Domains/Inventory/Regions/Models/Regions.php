@@ -17,7 +17,7 @@ use Kanvas\Traits\DefaultTrait;
 /**
  * Class Regions.
  * @deprecated v2.0
- * 
+ *
  * @property int $id
  * @property int $companies_id
  * @property int $apps_id
