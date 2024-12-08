@@ -13,7 +13,9 @@ use Kanvas\Users\Models\Users;
  * Countries Class.
  *
  * @property string $name
- * @property string $code
+ * @property string $code (ISO 3166-1 alpha-2)
+ * @property string $mcc
+ * @property string $region
  * @property string $flag
  */
 class Countries extends BaseModel
