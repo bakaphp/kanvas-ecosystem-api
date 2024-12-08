@@ -20,7 +20,7 @@ class DownloadDestinationPlansAsProductCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:esim-connector-download-destination-plans {app_id} {company_id} {region_id} {language=2} {warehouse_id?} {channel_id?}';
+    protected $signature = 'kanvas:cmlink-connector-download-destination-plans {app_id} {company_id} {region_id} {language=2} {warehouse_id?} {channel_id?}';
 
     /**
      * The console command description.
