@@ -39,6 +39,7 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
 use Kanvas\Inventory\Products\Builders\ProductSortAttributeBuilder;
+
 /**
  * Class Products.
  *
@@ -261,7 +262,6 @@ class Products extends BaseModel implements EntityIntegrationInterface
         string $format = 'STRING',
         string $sort = 'asc'
     ) {
-
         $query = ProductSortAttributeBuilder::sortProductByAttribute(
             $query,
             $name,
