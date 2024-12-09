@@ -22,6 +22,7 @@ use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
+use Kanvas\Services\SetupService;
 use Kanvas\Users\Actions\AssignRoleAction;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -49,9 +50,15 @@ class CompanyManagementMutation
             $user = auth()->user();
         }
         $dto = Company::viaRequest($request['input'], $user);
-        $action = new CreateCompaniesAction($dto);
+        $company = (new CreateCompaniesAction($dto))->execute();
 
-        return $action->execute();
+        (new SetupService())->onBoarding(
+            $user,
+            app(Apps::class),
+            $company
+        );
+
+        return $company;
     }
 
     /**
