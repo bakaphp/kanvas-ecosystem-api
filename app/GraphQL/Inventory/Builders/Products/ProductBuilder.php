@@ -31,6 +31,7 @@ class ProductBuilder
             $order = $args['variantAttributeOrderBy'];
             $query->orderByVariantAttribute(
                 $order['name'],
+                $order['format'],
                 $order['sort']
             );
         }
