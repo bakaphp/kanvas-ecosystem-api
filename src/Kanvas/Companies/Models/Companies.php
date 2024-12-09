@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Traits\AddressTraitRelationship;
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\SoftDeletesTrait;
+use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
@@ -42,6 +43,7 @@ use Kanvas\Users\Models\UsersAssociatedCompanies;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
+use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 
 /**
  * Companies Model.
@@ -373,5 +375,12 @@ class Companies extends BaseModel implements CompanyInterface
             'companies_id' => $this->getId(),
             'apps_id' => $app->getId(),
         ]);
+    }
+
+    public function hasCompanyPermission(UserInterface $user): void
+    {
+        if (! $user->isAdmin() && $this->users_id != $user->getId()) {
+            throw new AuthorizationException('Your are not allowed to perform this action for company ' . $this->name);
+        }
     }
 }

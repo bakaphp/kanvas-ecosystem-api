@@ -64,12 +64,7 @@ class CompanyManagementMutation
     /**
      * @todo move to service ?
      */
-    protected function hasCompanyPermission(Companies $company, UserInterface $user): void
-    {
-        if (! $user->isAdmin() && $company->users_id != $user->getId()) {
-            throw new AuthorizationException('Your are not allowed to perform this action for company ' . $company->name);
-        }
-    }
+
 
     /**
      * updateCompany
@@ -78,7 +73,7 @@ class CompanyManagementMutation
     {
         $company = Companies::getById((int) $request['id']);
 
-        $this->hasCompanyPermission($company, auth()->user());
+        $company->hasCompanyPermission(auth()->user());
 
         if (auth()->user()->isAdmin() && key_exists('users_id', $request['input'])) {
             $user = Users::getById($request['input']['users_id']);
@@ -98,7 +93,7 @@ class CompanyManagementMutation
         $app = app(Apps::class);
         $company = Companies::getById((int) $request['id']);
 
-        $this->hasCompanyPermission($company, auth()->user());
+        $company->hasCompanyPermission(auth()->user());
 
         return $this->uploadFileToEntity(
             model: $company,
@@ -112,7 +107,7 @@ class CompanyManagementMutation
     {
         $company = Companies::getById($request['id']);
 
-        $this->hasCompanyPermission($company, auth()->user());
+        $company->hasCompanyPermission(auth()->user());
 
         if (! auth()->user()->isAdmin()) {
             $company = Companies::getById($request['id']);
@@ -167,7 +162,7 @@ class CompanyManagementMutation
             auth()->user()
         );
 
-        $this->hasCompanyPermission($company, auth()->user());
+        $company->hasCompanyPermission(auth()->user());
 
         $branch = app(CompaniesBranches::class);
 
@@ -228,7 +223,7 @@ class CompanyManagementMutation
             auth()->user()
         );
 
-        $this->hasCompanyPermission($company, auth()->user());
+        $company->hasCompanyPermission(auth()->user());
 
         $branch = app(CompaniesBranches::class);
 
