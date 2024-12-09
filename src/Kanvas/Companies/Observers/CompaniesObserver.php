@@ -96,7 +96,7 @@ class CompaniesObserver
 
     public function updated(Companies $company): void
     {
-        //(new CompaniesSetUsersCountAction($company))->execute();
+        (new CompaniesSetUsersCountAction($company))->execute();
         $company->fireWorkflow(
             WorkflowEnum::UPDATED->value,
             true,
