@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Products\Builders;
 
+use Baka\Traits\KanvasAppScopesTrait;
+use Baka\Traits\KanvasCompanyScopesTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Inventory\Products\Models\Products;
 
 class ProductSortAttributeBuilder
 {
-    public array $orderValue = [
+    use KanvasAppScopesTrait;
+    use KanvasCompanyScopesTrait;
+
+    public array $castValue = [
         'STRING' => "
             CASE 
                 WHEN pva.value IS NOT NULL THEN pva.value
@@ -42,23 +47,35 @@ class ProductSortAttributeBuilder
         string $sort = 'asc'
     ): Builder {
         $self = new self();
-        $order = $self->orderValue[$format];
 
-        $orderRaw = 'products.id ASC,' . $self->caseAttribute . ' ' . $sort . ' ,' . $order . ' ' . $sort ;
-        $subquery = Products::query()
-                    ->join('products_attributes as pva', 'pva.products_id', '=', 'products.id')
-            ->leftJoin('attributes as a', function ($join) use ($name) {
+        $attributeName = Products::query()
+            ->from('products as subProductAttributeName')
+            ->join('products_attributes as pva', 'pva.products_id', '=', 'subProductAttributeName.id')
+            ->join('attributes as a', function ($join) use ($name) {
                 $join->on('a.id', '=', 'pva.attributes_id')
                     ->where('a.name', '=', $name);
             })
-            ->orderByRaw(
-                $orderRaw,
-                [$name]
-            )
-            ->select('products.*');
-        $query->fromSub($subquery, 'products')
-                ->groupBy('products.id')
-                ->select('products.*');
+            ->whereColumn('subProductAttributeName.id', 'products.id')
+            ->selectRaw("'{$name}' as attribute_name")
+            ->limit(1);
+        $attributeValue = Products::query()
+                    ->from('products as subProductAttributeName')
+
+            ->join('products_attributes as pva', 'pva.products_id', '=', 'subProductAttributeName.id')
+            ->join('attributes as a', function ($join) use ($name) {
+                $join->on('a.id', '=', 'pva.attributes_id')
+                    ->where('a.name', '=', $name);
+            })
+            ->whereColumn('subProductAttributeName.id', 'products.id')
+            ->selectRaw($self->castValue[$format] . ' as attribute_value')
+            ->limit(1);
+
+        $query->addSelect([
+            'attribute_name' => $attributeName,
+            'attribute_value' => $attributeValue,
+        ]);
+        $query->orderBy('attribute_name', 'ASC');
+        $query->orderBy('attribute_value', $sort);
 
         return $query;
     }
@@ -70,25 +87,43 @@ class ProductSortAttributeBuilder
         string $sort = 'asc'
     ): Builder {
         $self = new self();
-        $order = $self->orderValue[$format];
 
-        $orderRaw = 'products.id ASC,' . $self->caseAttribute . ' ' . $sort . ' ,' . $order . ' ' . $sort ;
-        $subquery = Products::query()
-            ->join('products_variants as variants', 'variants.products_id', '=', 'products.id')
-            ->join('products_variants_attributes as pva', 'pva.products_variants_id', '=', 'variants.id')
-            ->leftJoin('attributes as a', function ($join) use ($name) {
+        $attributeName = Products::query()
+            ->from('products as subProductAttributeName')
+            ->join('products_variants as pv', 'subProductAttributeName.id', 'pv.products_id')
+            ->join('products_variants_attributes as pva', 'pva.products_variants_id', '=', 'pv.id')
+            ->join('attributes as a', function ($join) use ($name) {
                 $join->on('a.id', '=', 'pva.attributes_id')
                     ->where('a.name', '=', $name);
             })
-            ->orderByRaw(
-                $orderRaw,
-                [$name]
-            )
-            ->select('products.*');
+            ->whereColumn('subProductAttributeName.id', 'products.id')
+            ->selectRaw("'{$name}' as attribute_name")
+            ->limit(1);
+        $attributeValue = Products::query()
+            ->from('products as subProductAttributeName')
+            ->join('products_variants as pv', 'subProductAttributeName.id', 'pv.products_id')
+            ->join('products_variants_attributes as pva', 'pva.products_variants_id', '=', 'pv.id')
+            ->join('attributes as a', function ($join) use ($name) {
+                $join->on('a.id', '=', 'pva.attributes_id')
+                    ->where('a.name', '=', $name);
+            })
+            ->whereColumn('subProductAttributeName.id', 'products.id')
+            ->selectRaw($self->castValue[$format] . ' as attribute_value')
+            ->limit(1);
 
-        $query = $query->fromSub($subquery, 'products')
-                ->groupBy('products.id')
-                ->select('products.*');
+        $query->addSelect([
+            'attribute_name' => $attributeName,
+            'attribute_value' => $attributeValue,
+        ]);
+        $query->orderBy('attribute_name', 'ASC');
+        $query->orderBy('attribute_value', $sort);
+
+        $query->addSelect([
+            'attribute_name' => $attributeName,
+            'attribute_value' => $attributeValue,
+        ]);
+        $query->orderBy('attribute_name', 'ASC');
+        $query->orderBy('attribute_value', $sort);
 
         return $query;
     }
