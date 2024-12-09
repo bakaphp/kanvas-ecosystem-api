@@ -38,6 +38,7 @@ use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
+use Kanvas\Inventory\Products\Builders\ProductSortAttributeBuilder;
 
 /**
  * Class Products.
@@ -199,57 +200,12 @@ class Products extends BaseModel implements EntityIntegrationInterface
             throw new InvalidArgumentException('Invalid sort value');
         }
 
-        $orderRaw = "
-            CASE     
-                WHEN a.name = ? THEN a.name
-                ELSE NULL
-            END {$sort}, 
-        ";
-        switch ($format) {
-            case 'STRING':
-                $orderRaw .= "  CASE 
-                    WHEN pva.value IS NOT NULL THEN pva.value
-                    ELSE ''
-                END {$sort}";
-
-                break;
-            case 'NUMERIC':
-                $orderRaw .= "
-                CASE 
-                    WHEN pva.value REGEXP '^[0-9]+$' THEN CAST(pva.value AS UNSIGNED)
-                ELSE NULL
-                END {$sort}";
-
-                break;
-            case 'DATE':
-                $orderRaw .= "
-                  CASE 
-                    WHEN STR_TO_DATE(value, '%Y-%m-%d') IS NOT NULL THEN STR_TO_DATE(value, '%Y-%m-%d')
-                    ELSE NULL
-                  END {$sort}
-                ";
-
-                break;
-            default:
-                $orderRaw = "  CASE 
-                    WHEN pva.value IS NOT NULL THEN pva.value
-                    ELSE ''
-                END {$sort}";
-
-                break;
-        }
-
-        $query = $query->join('products_variants', 'products_variants.products_id', '=', 'products.id')
-            ->join('products_variants_attributes as pva', 'pva.products_variants_id', '=', 'products_variants.id')
-            ->leftJoin('attributes as a', function ($join) use ($name) {
-                $join->on('a.id', '=', 'pva.attributes_id')
-                    ->where('a.name', '=', $name);
-            })
-            ->orderByRaw(
-                $orderRaw,
-                [$name]
-            )
-            ->select('products.*');
+        $query = ProductSortAttributeBuilder::sortProductByVariantAttribute(
+            $query,
+            $name,
+            $format,
+            $sort
+        );
 
         return $query;
     }
@@ -259,57 +215,18 @@ class Products extends BaseModel implements EntityIntegrationInterface
         string $name,
         string $format = 'STRING',
         string $sort = 'asc'
-    ) {
-        $orderRaw = "
-            CASE     
-                WHEN a.name = ? THEN a.name
-                ELSE NULL
-            END {$sort}, 
-        ";
-        switch ($format) {
-            case 'STRING':
-                $orderRaw .= "  CASE 
-                    WHEN pva.value IS NOT NULL THEN pva.value
-                    ELSE ''
-                END {$sort}";
+    ): Builder {
+        $allowedSorts = ['ASC', 'DESC'];
 
-                break;
-            case 'NUMERIC':
-                $orderRaw .= "
-                CASE 
-                    WHEN pva.value REGEXP '^[0-9]+$' THEN CAST(pva.value AS UNSIGNED)
-                ELSE NULL
-                END {$sort}";
-
-                break;
-            case 'DATE':
-                $orderRaw .= "
-                  CASE 
-                    WHEN STR_TO_DATE(value, '%Y-%m-%d') IS NOT NULL THEN STR_TO_DATE(value, '%Y-%m-%d')
-                    ELSE NULL
-                  END {$sort}
-                ";
-
-                break;
-            default:
-                $orderRaw = "  CASE 
-                    WHEN pva.value IS NOT NULL THEN pva.value
-                    ELSE ''
-                END {$sort}";
-
-                break;
+        if (! in_array($sort, $allowedSorts)) {
+            throw new InvalidArgumentException('Invalid sort value');
         }
-        $orderRaw .= ' ,products.id ASC';
-        $query = $query->join('products_attributes as pva', 'pva.products_id', '=', 'products.id')
-            ->leftJoin('attributes as a', function ($join) use ($name) {
-                $join->on('a.id', '=', 'pva.attributes_id')
-                    ->where('a.name', '=', $name);
-            })
-            ->orderByRaw(
-                $orderRaw,
-                [$name]
-            )
-            ->select('products.*');
+        $query = ProductSortAttributeBuilder::sortProductByAttribute(
+            $query,
+            $name,
+            $format,
+            $sort
+        );
 
         return $query;
     }
