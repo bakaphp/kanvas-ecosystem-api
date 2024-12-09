@@ -79,6 +79,6 @@ class AssignCompanyAction
             $assignRoleLegacy = new ActionsAssignRoleAction($this->user, $this->company, $app);
             $assignRoleLegacy->execute($roleLegacy);
         }
-        (new CompaniesSetUsersCountAction($this->company))->execute();
+        //(new CompaniesSetUsersCountAction($this->company))->execute();
     }
 }
