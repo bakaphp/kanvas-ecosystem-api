@@ -43,7 +43,8 @@ class ProductSortAttributeBuilder
     ): Builder {
         $self = new self();
         $order = $self->orderValue[$format];
-        $orderRaw = $order . ' ' . $sort . ' ,' . $self->caseAttribute . ' ' . $sort . ', products.id ASC';
+
+        $orderRaw = 'products.id ASC,' . $self->caseAttribute . ' ' . $sort . ' ,' . $order . ' ' . $sort ;
         $subquery = Products::query()
                     ->join('products_attributes as pva', 'pva.products_id', '=', 'products.id')
             ->leftJoin('attributes as a', function ($join) use ($name) {
@@ -58,6 +59,7 @@ class ProductSortAttributeBuilder
         $query->fromSub($subquery, 'products')
                 ->groupBy('products.id')
                 ->select('products.*');
+
         return $query;
     }
 
@@ -69,7 +71,8 @@ class ProductSortAttributeBuilder
     ): Builder {
         $self = new self();
         $order = $self->orderValue[$format];
-        $orderRaw = $order . ' ' . $sort . ' ,' . $self->caseAttribute . ' ' . $sort . ', products.id ASC';
+
+        $orderRaw = 'products.id ASC,' . $self->caseAttribute . ' ' . $sort . ' ,' . $order . ' ' . $sort ;
         $subquery = Products::query()
             ->join('products_variants as variants', 'variants.products_id', '=', 'products.id')
             ->join('products_variants_attributes as pva', 'pva.products_variants_id', '=', 'variants.id')
