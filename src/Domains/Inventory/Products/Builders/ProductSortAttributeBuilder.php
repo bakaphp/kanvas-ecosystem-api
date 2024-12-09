@@ -44,7 +44,8 @@ class ProductSortAttributeBuilder
         $self = new self();
         $order = $self->orderValue[$format];
         $orderRaw = $order . ' ' . $sort . ' ,' . $self->caseAttribute . ' ' . $sort . ', products.id ASC';
-        $subquery = $query->join('products_attributes as pva', 'pva.products_id', '=', 'products.id')
+        $subquery = Products::query()
+                    ->join('products_attributes as pva', 'pva.products_id', '=', 'products.id')
             ->leftJoin('attributes as a', function ($join) use ($name) {
                 $join->on('a.id', '=', 'pva.attributes_id')
                     ->where('a.name', '=', $name);
@@ -54,11 +55,10 @@ class ProductSortAttributeBuilder
                 [$name]
             )
             ->select('products.*');
-
-        return Products::query()
-                ->fromSub($subquery, 'products')
+        $query->fromSub($subquery, 'products')
                 ->groupBy('products.id')
                 ->select('products.*');
+        return $query;
     }
 
     public static function sortProductByVariantAttribute(
@@ -70,7 +70,8 @@ class ProductSortAttributeBuilder
         $self = new self();
         $order = $self->orderValue[$format];
         $orderRaw = $order . ' ' . $sort . ' ,' . $self->caseAttribute . ' ' . $sort . ', products.id ASC';
-        $subquery = $query->join('products_variants as variants', 'variants.products_id', '=', 'products.id')
+        $subquery = Products::query()
+            ->join('products_variants as variants', 'variants.products_id', '=', 'products.id')
             ->join('products_variants_attributes as pva', 'pva.products_variants_id', '=', 'variants.id')
             ->leftJoin('attributes as a', function ($join) use ($name) {
                 $join->on('a.id', '=', 'pva.attributes_id')
@@ -82,9 +83,10 @@ class ProductSortAttributeBuilder
             )
             ->select('products.*');
 
-        return Products::query()
-                ->fromSub($subquery, 'products')
+        $query = $query->fromSub($subquery, 'products')
                 ->groupBy('products.id')
                 ->select('products.*');
+
+        return $query;
     }
 }
