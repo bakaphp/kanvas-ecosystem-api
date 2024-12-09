@@ -42,6 +42,7 @@ class OrderService
             'is_Refuel' => $isRefuel,
             'includeCard' => 0, // Assuming 0 means no physical card
             'dataBundleId' => $dataBundleId,
+            'setActiveTime' => date('YYYYMMDD'),
             'accessToken' => $this->client->getAccessToken(),
         ]);
     }

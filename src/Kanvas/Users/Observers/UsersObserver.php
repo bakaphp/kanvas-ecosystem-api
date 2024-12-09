@@ -8,7 +8,6 @@ use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\RegisterUsersAppAction;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
-use Kanvas\Companies\DataTransferObject\CompaniesPostData;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\SystemModules\Models\SystemModules;
@@ -18,11 +17,6 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class UsersObserver
 {
-    /**
-     * Handle the Apps "saving" event.
-     *
-     * @param  Apps $app
-     */
     public function creating(Users $user): void
     {
         $user->uuid = Str::uuid()->toString();
@@ -66,7 +60,7 @@ class UsersObserver
 
         try {
             $appUser = $user->getAppProfile($app);
-        } catch(ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             $userRegisterInApp = new RegisterUsersAppAction($user, $app);
             $appUser = $userRegisterInApp->execute($user->password);
         }
@@ -77,6 +71,10 @@ class UsersObserver
             'email' => $user->email,
         ]);
 
-        $user->fireWorkflow(WorkflowEnum::UPDATED->value, true, ['company' => $user->getCurrentCompany()]);
+        $user->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            true,
+            ['company' => $user->getCurrentCompany()]
+        );
     }
 }
