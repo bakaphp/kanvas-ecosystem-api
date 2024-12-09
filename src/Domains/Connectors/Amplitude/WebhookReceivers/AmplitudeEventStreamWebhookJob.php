@@ -21,12 +21,21 @@ class AmplitudeEventStreamWebhookJob extends ProcessWebhookJob
     {
         $payload = $this->webhookRequest->payload;
 
-        //create the user interaction so its uses the workflow to stream to the diff distribution source
+        /**
+         * create the user interaction so its uses the workflow to stream to the diff distribution source
+         * @todo make this dynamic , cant be hardcoded
+         */
         $allowInteractions = [
           'View Explore' => InteractionEnum::VIEW_HOME_PAGE->getValue(),
+          'Clicking Output Icon' => InteractionEnum::VIEW_ITEM->getValue(),
+          'Page Viewed' => InteractionEnum::VIEW_ITEM->getValue(),
+          'Clicking AI Nugget Preview' => InteractionEnum::VIEW_ITEM->getValue(),
+          'Select Prompt' => InteractionEnum::VIEW_ITEM->getValue(),
         ];
 
         $eventType = $payload['event_type'] ?? null;
+        //$entityIdField = $this->receiver->app->get('amplitude_entity_id_field');
+        $entityId = $payload['event_properties']['message_id'] ?? null;
 
         if (! $eventType) {
             return [
@@ -51,7 +60,11 @@ class AmplitudeEventStreamWebhookJob extends ProcessWebhookJob
         }
 
         $pageNumber = 1; // Replace with the page number you want (starting from 1)
-        $userMessages = UserMessage::getFirstMessageFromPage($user, $this->receiver->app, $pageNumber)?->message;
+        if ((int) $entityId > 0) {
+            $userMessages = Message::getById($entityId);
+        } else {
+            $userMessages = UserMessage::getFirstMessageFromPage($user, $this->receiver->app, $pageNumber)?->message;
+        }
 
         if (! $userMessages) {
             return [
