@@ -3852,16 +3852,16 @@
         },
         {
             "name": "imdhemy/laravel-purchases",
-            "version": "1.14.1",
+            "version": "1.14.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/imdhemy/laravel-in-app-purchases.git",
-                "reference": "5504d2ab800c5bf68009b86185b5482b2b6fdfcc"
+                "reference": "9a46fd4cf748efd2e1fdd1e7389a3190c340615f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/imdhemy/laravel-in-app-purchases/zipball/5504d2ab800c5bf68009b86185b5482b2b6fdfcc",
-                "reference": "5504d2ab800c5bf68009b86185b5482b2b6fdfcc",
+                "url": "https://api.github.com/repos/imdhemy/laravel-in-app-purchases/zipball/9a46fd4cf748efd2e1fdd1e7389a3190c340615f",
+                "reference": "9a46fd4cf748efd2e1fdd1e7389a3190c340615f",
                 "shasum": ""
             },
             "require": {
@@ -3918,7 +3918,7 @@
             ],
             "support": {
                 "issues": "https://github.com/imdhemy/laravel-in-app-purchases/issues",
-                "source": "https://github.com/imdhemy/laravel-in-app-purchases/tree/1.14.1"
+                "source": "https://github.com/imdhemy/laravel-in-app-purchases/tree/1.14.2"
             },
             "funding": [
                 {
@@ -3926,7 +3926,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-11-07T08:52:08+00:00"
+            "time": "2024-12-10T12:45:19+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
