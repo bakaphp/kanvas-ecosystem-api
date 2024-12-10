@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Workflow\Mutations;
+namespace App\GraphQL\Workflow\Mutations\Receivers;
 
 use Exception;
 use Kanvas\Apps\Models\Apps;
@@ -15,7 +15,7 @@ class ReceiverWebhookMutationManagement
     public function retryWebhookCall(mixed $root, array $args, GraphQLContext $context): bool
     {
         $app = app(Apps::class);
-        $receiverWebhookCall = ReceiverWebhookCall::whereRelation(
+        $receiverWebhookCall = ReceiverWebhookCall::query()->whereRelation(
             'receiverWebhook',
             'apps_id',
             $app->getId()

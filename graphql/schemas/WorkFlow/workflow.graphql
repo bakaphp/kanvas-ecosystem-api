@@ -14,6 +14,6 @@ extend type Mutation @guardByAppKey {
     retryWebhookCall(
         id: ID!
     ): Boolean! @field(
-        resolver: "App\\GraphQL\\WorkFlow\\Mutations\\ReceiverWebhookMutationManagement@retryWebhookCall"
+        resolver: "App\\GraphQL\\WorkFlow\\Mutations\\Receivers\\ReceiverWebhookMutationManagement@retryWebhookCall"
     )
 }
