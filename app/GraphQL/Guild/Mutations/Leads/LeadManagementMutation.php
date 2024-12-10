@@ -109,7 +109,7 @@ class LeadManagementMutation
     {
         $user = auth()->user();
         $app = app(Apps::class);
-        
+
         $lead = ModelsLead::where('id', (int) $req['id']);
 
         if (! $user->isAppOwner()) {
