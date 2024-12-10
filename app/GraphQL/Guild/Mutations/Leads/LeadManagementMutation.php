@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Guild\Mutations\Leads;
 
+use Baka\Contracts\AppInterface;
+use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadAttemptAction;
@@ -43,15 +46,29 @@ class LeadManagementMutation
         return $lead;
     }
 
+    public function getLeadById(int $id, UserInterface $user, CompaniesBranches $branch, AppInterface $app): ModelsLead
+    {
+        if (! $user->isAppOwner()) {
+            return ModelsLead::getByIdFromBranch($id, $branch, $app);
+        }
+
+        return ModelsLead::getById(
+            id: $id,
+            app: $app,
+        );
+    }
+
     public function update(mixed $root, array $req): ModelsLead
     {
         $user = auth()->user();
         $app = app(Apps::class);
 
         //@todo get from app
-        $lead = ModelsLead::getByIdFromBranch(
+        $lead = $this->getLeadById(
             $req['id'],
-            $user->getCurrentBranch()
+            $user,
+            $user->getCurrentBranch(),
+            $app
         );
 
         $leadAttempt = new CreateLeadAttemptAction(
@@ -78,9 +95,11 @@ class LeadManagementMutation
     public function delete(mixed $root, array $req): bool
     {
         $user = auth()->user();
-        $lead = ModelsLead::getByIdFromBranch(
+        $lead = $this->getLeadById(
             $req['id'],
-            $user->getCurrentBranch()
+            $user,
+            $user->getCurrentBranch(),
+            app(Apps::class)
         );
 
         return $lead->softDelete();
@@ -89,9 +108,12 @@ class LeadManagementMutation
     public function restore(mixed $root, array $req): bool
     {
         $user = auth()->user();
-        $lead = ModelsLead::where('id', $req['id'])
-                            ->where('companies_branches_id', $user->getCurrentBranch()->getId())
-                            ->firstOrFail();
+        $lead = $this->getLeadById(
+            $req['id'],
+            $user,
+            $user->getCurrentBranch(),
+            app(Apps::class)
+        );
 
         return $lead->restoreRecord();
     }
@@ -100,7 +122,13 @@ class LeadManagementMutation
     {
         $app = app(Apps::class);
         $user = auth()->user();
-        $lead = ModelsLead::getByIdFromCompanyApp((int) $request['id'], $user->getCurrentCompany(), $app);
+        //$lead = ModelsLead::getByIdFromCompanyApp((int) $request['id'], $user->getCurrentCompany(), $app);
+        $lead = $this->getLeadById(
+            $request['id'],
+            $user,
+            $user->getCurrentBranch(),
+            $app
+        );
 
         return $this->uploadFileToEntity(
             model: $lead,
