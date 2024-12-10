@@ -137,7 +137,7 @@ class PeopleManagementMutation
         $user = auth()->user();
         $app = app(Apps::class);
 
-        $peopleQuery = ModelsPeople::where('id', (int) $req['id']);
+        $peopleQuery = ModelsPeople::query()->where('id', (int) $req['id']);
 
         if (! $user->isAppOwner()) {
             $peopleQuery->where('companies_id', $user->getCurrentCompany()->getId());

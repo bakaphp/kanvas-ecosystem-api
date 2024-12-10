@@ -110,7 +110,7 @@ class LeadManagementMutation
         $user = auth()->user();
         $app = app(Apps::class);
 
-        $lead = ModelsLead::where('id', (int) $req['id']);
+        $lead = ModelsLead::query()->where('id', (int) $req['id']);
 
         if (! $user->isAppOwner()) {
             $lead->where('companies_branches_id', $user->getCurrentBranch()->getId());
