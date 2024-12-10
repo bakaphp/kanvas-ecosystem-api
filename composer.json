@@ -71,8 +71,8 @@
         "kitloong/laravel-migrations-generator": "^7.0",
         "mockery/mockery": "^1.4.4",
         "nunomaduro/collision": "^8.1",
-        "phpunit/phpunit": "^11.1",
-        "phpstan/phpstan": "^2.0.1"
+        "phpstan/phpstan": "^2.0.1",
+        "phpunit/phpunit": "^11.1"
     },
     "autoload": {
         "psr-4": {

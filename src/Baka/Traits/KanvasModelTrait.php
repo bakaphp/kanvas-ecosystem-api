@@ -135,12 +135,15 @@ trait KanvasModelTrait
         }
     }
 
-    public static function getByIdFromBranch(mixed $id, CompaniesBranches $branch): self
+    public static function getByIdFromBranch(mixed $id, CompaniesBranches $branch, ?AppInterface $app = null): self
     {
         try {
             return self::where('id', $id)
                 ->notDeleted()
                 ->where('companies_branches_id', $branch->getId())
+                ->when($app, function ($query, $app) {
+                    $query->fromApp($app);
+                })
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             // Custom error message for branch lookup by ID
