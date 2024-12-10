@@ -74,7 +74,7 @@ class PeopleManagementMutation
         $data = $req['input'];
         $app = app(Apps::class);
 
-        $people = $this->getPeopleById((int) $data['id'], $user, $app, $user->getCurrentCompany());
+        $people = $this->getPeopleById((int) $req['id'], $user, $app, $user->getCurrentCompany());
 
         $peopleData = People::from([
             'app' => app(Apps::class),
@@ -137,8 +137,14 @@ class PeopleManagementMutation
         $user = auth()->user();
         $app = app(Apps::class);
 
-        $people = $this->getPeopleById((int) $req['id'], $user, $app, $user->getCurrentCompany());
+        $peopleQuery = ModelsPeople::where('id', (int) $req['id']);
 
-        return $people->restoreRecord();
+        if (! $user->isAppOwner()) {
+            $peopleQuery->where('companies_id', $user->getCurrentCompany()->getId());
+        } else {
+            $peopleQuery->where('apps_id', $app->getId());
+        }
+
+        return $peopleQuery->firstOrFail()->restoreRecord();
     }
 }

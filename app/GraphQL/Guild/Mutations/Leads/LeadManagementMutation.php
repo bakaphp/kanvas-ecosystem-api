@@ -65,7 +65,7 @@ class LeadManagementMutation
 
         //@todo get from app
         $lead = $this->getLeadById(
-            $req['id'],
+            (int) $req['id'],
             $user,
             $user->getCurrentBranch(),
             $app
@@ -96,7 +96,7 @@ class LeadManagementMutation
     {
         $user = auth()->user();
         $lead = $this->getLeadById(
-            $req['id'],
+            (int) $req['id'],
             $user,
             $user->getCurrentBranch(),
             app(Apps::class)
@@ -108,14 +108,17 @@ class LeadManagementMutation
     public function restore(mixed $root, array $req): bool
     {
         $user = auth()->user();
-        $lead = $this->getLeadById(
-            $req['id'],
-            $user,
-            $user->getCurrentBranch(),
-            app(Apps::class)
-        );
+        $app = app(Apps::class);
+        
+        $lead = ModelsLead::where('id', (int) $req['id']);
 
-        return $lead->restoreRecord();
+        if (! $user->isAppOwner()) {
+            $lead->where('companies_branches_id', $user->getCurrentBranch()->getId());
+        } else {
+            $lead->where('apps_id', $app->getId());
+        }
+
+        return $lead->firstOrFail()->restoreRecord();
     }
 
     public function attachFile(mixed $root, array $request): ModelsLead
@@ -124,7 +127,7 @@ class LeadManagementMutation
         $user = auth()->user();
         //$lead = ModelsLead::getByIdFromCompanyApp((int) $request['id'], $user->getCurrentCompany(), $app);
         $lead = $this->getLeadById(
-            $request['id'],
+            (int) $request['id'],
             $user,
             $user->getCurrentBranch(),
             $app
