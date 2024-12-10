@@ -129,6 +129,11 @@ extend type Query @guard {
                     "lastname"
                 ]
             )
+        hasEventsVersions: _
+            @whereHasConditions(
+                columns: ["id"]
+                handler: "App\\GraphQL\\Event\\Builders\\Events\\EventVersionBuilder@getHasEventVersion"
+            )
         hasEmails: _
             @whereHasConditions(relation: "emails", columns: ["id", "value"])
         hasPhones: _
@@ -157,11 +162,6 @@ extend type Query @guard {
             @whereHasConditions(
                 relation: "customFields"
                 columns: ["name", "value"]
-            )
-        hasEventsVersions: _
-            @whereHasConditions(
-                columns: ["id"]
-                handler: "App\\GraphQL\\Event\\Builders\\Events\\EventVersionBuilder@getHasEventVersion"
             )
         orderBy: _
             @orderBy(columns: ["id", "created_at", "updated_at", "name", "dob"])

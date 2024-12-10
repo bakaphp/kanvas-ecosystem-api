@@ -6,7 +6,6 @@ namespace App\GraphQL\Event\Builders\Events;
 
 use Baka\Enums\StateEnums;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Events\Models\EventVersionParticipant;
@@ -45,19 +44,26 @@ class EventVersionBuilder
 
     public function getHasEventVersion(mixed $root, array $args): Builder
     {
-        $eventVersionId = $args['HAS']['condition']['value'];
-        $participant = Participant::getFullTableName();
         $eventVersionParticipant = EventVersionParticipant::getFullTableName();
+        $participant = Participant::getFullTableName();
 
         $peoples = People::select('*')
             ->join($participant, 'peoples.id', '=', $participant . '.people_id')
             ->join($eventVersionParticipant, $participant . '.id', '=', $eventVersionParticipant . '.participant_id')
-            ->when($eventVersionId, fn ($query) =>
-                $query->where($eventVersionParticipant . '.event_version_id', $eventVersionId)
-            )
-            ->where($eventVersionParticipant . '.event_version_id', $eventVersionId)
             ->distinct();
 
+        if (isset($args['HAS']['conditions'])) {
+            foreach ($args['HAS']['conditions'] as $key => $condition) {
+                $column = $condition['column'] ?? null;
+                $value = $condition['value'] ?? null;
+
+                if ($column && $value) {
+                    $peoples->when($value, fn($query) => 
+                        $query->where($eventVersionParticipant . '.' . $column, $value)
+                    );
+                }
+            }
+        }
         return $peoples;
     }
 }
