@@ -158,6 +158,11 @@ extend type Query @guard {
                 relation: "customFields"
                 columns: ["name", "value"]
             )
+        hasEventsVersions: _
+            @whereHasConditions(
+                columns: ["id"]
+                handler: "App\\GraphQL\\Event\\Builders\\Events\\EventVersionBuilder@getHasEventVersion"
+            )
         orderBy: _
             @orderBy(columns: ["id", "created_at", "updated_at", "name", "dob"])
     ): [People!]!
