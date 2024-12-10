@@ -54,7 +54,7 @@ class SyncEsimWithProviderCommand extends Command
 
             if ($iccid == null) {
                 $this->info("Message ID: {$message->id} does not have an ICCID.");
-                $message->setPrivate();
+                //$message->setPrivate();
 
                 continue;
             }
@@ -64,7 +64,7 @@ class SyncEsimWithProviderCommand extends Command
                 $iccidStatus = $eSimService->checkStatus($iccid);
             } catch (Exception $e) {
                 $this->info("Message ID: {$message->id} has an error: {$e->getMessage()}");
-                $message->setPrivate();
+                //$message->setPrivate();
 
                 continue;
             }
