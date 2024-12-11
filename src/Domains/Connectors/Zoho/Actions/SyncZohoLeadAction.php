@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Zoho\ZohoService;
+use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
@@ -40,12 +41,20 @@ class SyncZohoLeadAction
     public function execute(?Record $zohoLead = null): ?Lead
     {
         $zohoService = new ZohoService($this->app, $this->company);
+        $rejectLeadsWithoutAgents = $this->app->get('dont_allow_leads_without_agents');
 
         try {
             $zohoLead = $zohoLead === null ? $zohoService->getLeadById($this->zohoLeadId) : $zohoLead;
         } catch (Exception $e) {
             Log::error('Error getting Zoho Lead', ['error' => $e->getMessage()]);
 
+            return null;
+        }
+
+        $member = $zohoLead->Member;
+        $agent = Agent::query()->where('member_id', $member)->fromApp($this->app)->fromCompany($this->company)->first();
+
+        if ($rejectLeadsWithoutAgents && ! $agent) {
             return null;
         }
 
@@ -57,7 +66,7 @@ class SyncZohoLeadAction
 
         if (! $localLead) {
             $table = (new Lead())->getTable();
-            $localLead = Lead::join(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table . '.id')
+            $localLead = Lead::query()->join(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table . '.id')
                 ->where('apps_custom_fields.companies_id', $this->company->getId())
                 ->where('apps_custom_fields.model_name', 'Gewaer\\Models\\Leads') //legacy
                 ->where('apps_custom_fields.name', CustomFieldEnum::ZOHO_LEAD_ID->value)
@@ -81,11 +90,12 @@ class SyncZohoLeadAction
             default => LeadStatus::getByName('active'),
         };
 
-        $user = UsersAssociatedApps::fromApp($this->app)->where('email', $zohoLead->Owner['email'])->first()?->user;
+        $ownerUser = UsersAssociatedApps::query()->fromApp($this->app)->where('email', $zohoLead->Owner['email'])->first()?->user;
+        $user = $agent?->user ?? $this->company->user;
 
         if (! $localLead) {
             //create lead
-            $pipelineStage = Pipeline::fromApp($this->app)->fromCompany($this->company)->where('is_default', 1)->first()->stages()->first();
+            $pipelineStage = Pipeline::query()->fromApp($this->app)->fromCompany($this->company)->where('is_default', 1)->first()->stages()->first();
 
             $contact = [];
 
@@ -123,7 +133,7 @@ class SyncZohoLeadAction
                     Address::collect([], DataCollection::class),
                     $zohoLead->Last_Name
                 ),
-                leads_owner_id: $user ? $user->getId() : 0,
+                leads_owner_id: $ownerUser ? $ownerUser->getId() : 0,
                 status_id: $leadStatus->getId(),
                 receiver_id: $this->receiver->getId(),
                 custom_fields: [
@@ -135,10 +145,13 @@ class SyncZohoLeadAction
             return (new CreateLeadAction($lead))->execute();
         }
 
-        if ($user) {
-            $localLead->leads_owner_id = $user->getId();
+        if ($ownerUser) {
+            $localLead->leads_owner_id = $ownerUser->getId();
         }
 
+        if ($user) {
+            $localLead->users_id = $user->getId();
+        }
         /*         if ($user) {
                     $localLead->leads_owner_id = $user->getId();
                     $localLead->users_id = $user->getId();
@@ -156,7 +169,7 @@ class SyncZohoLeadAction
             $localLead->organization_id = $organization->getId();
         }
 
-        $localLead->people->firstname = $zohoLead->First_Name;
+        $localLead->people->firstname = $zohoLead->First_Name ?? $zohoLead->Full_Name;
         $localLead->people->lastname = $zohoLead->Last_Name;
         $localLead->firstname = $zohoLead->First_Name;
         $localLead->lastname = $zohoLead->Last_Name;

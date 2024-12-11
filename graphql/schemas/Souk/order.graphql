@@ -14,9 +14,9 @@ type Order {
     company: Company! @belongsTo
     total_gross_amount: Float
     total_net_amount: Float
-    shipping_price_gross_amount: Float
-    shipping_price_net_amount: Float
-    discount_amount: Float
+    shipping_price_gross_amount: Money!
+    shipping_price_net_amount: Money!
+    discount_amount: Money!
     discount_name: String
     voucher_id: Int
     language_code: String
@@ -27,7 +27,7 @@ type Order {
     display_gross_prices: Boolean
     translated_discount_name: String
     customer_note: String
-    weight: Float
+    weight: Money!
     checkout_token: String
     currency: String
     metadata: Mixed
@@ -44,12 +44,12 @@ type OrderItem {
     product_name: String!
     product_sku: String!
     quantity: Int!
-    unit_price_net_amount: Float
-    unit_price_gross_amount: Float
+    unit_price_net_amount: Money!
+    unit_price_gross_amount: Money!
     is_shipping_required: Boolean
     quantity_fulfilled: Int
     variant: Variant! @belongsTo
-    tax_rate: Float
+    tax_rate: Money!
     translated_product_name: String
     currency: String
     translated_variant_name: String

@@ -11,8 +11,8 @@ use Kanvas\Connectors\ESim\Services\ESimProductService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
-use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Regions\Models\Regions;
 
 class DownloadPlanToProductAction
 {

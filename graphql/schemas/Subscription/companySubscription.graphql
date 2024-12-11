@@ -2,7 +2,7 @@ type CompanySubscription {
     id: ID!
     stripe_id: ID!
     stripe_status: String!
-    stripe_price: Int
+    stripe_price: Money
     items: [SubscriptionItem!]! @hasMany(relation: "items")
     quantity: Int!
     trial_ends_at: DateTime

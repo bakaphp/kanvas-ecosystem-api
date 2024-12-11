@@ -34,11 +34,11 @@ class SavePeopleToIPlusAction
         $clientData = [
             'companiaID' => $this->people->company->get(ConfigurationEnum::COMPANY_ID->value),
             'contrasena' => Str::random(10),
-            'referencia' => $this->people->app->get(ConfigurationEnum::CUSTOMER_DEFAULT_REFERENCE->value),
+            'referencia' => $this->people->app->get(ConfigurationEnum::CUSTOMER_DEFAULT_REFERENCE->value) ?? 'Kanvas',
             'clienteNombre' => $this->people->firstname,
             'clienteApellido' => $this->people->lastname,
             'identificacion' => null,
-            'direccion' => $this->people->address ? $this->people->address->address : null,
+            'direccion' => $this->people->address()?->count() ? $this->people->address()->first()->address : null,
             'telCelular' => $this->people->getPhones()->count() ? $this->people->getPhones()->first()->value : null,
             'email' => $this->people->getEmails()->count() ? $this->people->getEmails()->first()->value : null,
         ];

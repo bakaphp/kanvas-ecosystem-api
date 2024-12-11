@@ -38,6 +38,7 @@ use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
+use Kanvas\Inventory\Products\Builders\ProductSortAttributeBuilder;
 
 /**
  * Class Products.
@@ -186,8 +187,12 @@ class Products extends BaseModel implements EntityIntegrationInterface
             });
     }
 
-    public function scopeOrderByVariantAttribute(Builder $query, string $name, string $sort = 'asc'): Builder
-    {
+    public function scopeOrderByVariantAttribute(
+        Builder $query,
+        string $name,
+        string $format = 'STRING',
+        string $sort = 'asc'
+    ): Builder {
         $allowedSorts = ['ASC', 'DESC'];
         $sort = strtoupper($sort);
 
@@ -195,20 +200,35 @@ class Products extends BaseModel implements EntityIntegrationInterface
             throw new InvalidArgumentException('Invalid sort value');
         }
 
-        return $query->join('products_variants', 'products_variants.products_id', '=', 'products.id')
-            ->join('products_variants_attributes as pva', 'pva.products_variants_id', '=', 'products_variants.id')
-            ->leftJoin('attributes as a', function ($join) use ($name) {
-                $join->on('a.id', '=', 'pva.attributes_id')
-                    ->where('a.name', '=', $name);
-            })
-            ->orderByRaw(
-                "CASE WHEN a.name = ? THEN
-                    CASE WHEN CAST(pva.value AS DECIMAL) = 0 THEN 0
-                        ELSE CAST(pva.value AS DECIMAL) END
-                ELSE 0 END {$sort}, products.id ASC",
-                [$name]
-            )
-            ->select('products.*');
+        $query = ProductSortAttributeBuilder::sortProductByVariantAttribute(
+            $query,
+            $name,
+            $format,
+            $sort
+        );
+
+        return $query;
+    }
+
+    public function scopeOrderByAttribute(
+        Builder $query,
+        string $name,
+        string $format = 'STRING',
+        string $sort = 'asc'
+    ): Builder {
+        $allowedSorts = ['ASC', 'DESC'];
+
+        if (! in_array($sort, $allowedSorts)) {
+            throw new InvalidArgumentException('Invalid sort value');
+        }
+        $query = ProductSortAttributeBuilder::sortProductByAttribute(
+            $query,
+            $name,
+            $format,
+            $sort
+        );
+
+        return $query;
     }
 
     /**
@@ -278,7 +298,7 @@ class Products extends BaseModel implements EntityIntegrationInterface
                     'id' => $category->id,
                     'name' => $category->name,
                     'slug' => $category->slug,
-                    'position' => $category->position
+                    'position' => $category->position,
                   ];
             }),
             'variants' => $this->variants->take(15)->map(function ($variant) {
@@ -313,8 +333,10 @@ class Products extends BaseModel implements EntityIntegrationInterface
 
     public function searchableAs(): string
     {
+        // As for this stage, the code doesn't know in which app need to set the index.
         $product = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
-        $customIndex = isset($product->app) ? $product->app->get('app_custom_product_index') : null;
+        $app = $product->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_product_index') ?? null;
 
         return config('scout.prefix') . ($customIndex ?? 'product_index');
     }

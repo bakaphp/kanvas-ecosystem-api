@@ -54,8 +54,8 @@ class Tag extends BaseModel
     {
         //$tag = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
         $tag = ! $this->searchableDeleteRecord() ? $this : $this->find($this->id);
-
-        $customIndex = isset($tag->app) ? $tag->app->get('app_custom_tag_index') : null;
+        $app = $tag->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_tag_index') ?? null;
 
         return config('scout.prefix') . ($customIndex ?? 'tag_index');
     }

@@ -8,9 +8,9 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
-use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Locations\Models\Countries;
+use Kanvas\Regions\Models\Regions;
 
 class ESimProductService
 {

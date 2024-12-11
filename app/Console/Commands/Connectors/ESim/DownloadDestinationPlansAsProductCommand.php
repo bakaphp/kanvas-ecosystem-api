@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\ESim\Actions\DownloadPlanToProductAction;
-use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Regions\Models\Regions;
 
 class DownloadDestinationPlansAsProductCommand extends Command
 {
