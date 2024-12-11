@@ -115,7 +115,7 @@ class SyncShopifyOrderAction
         $order->setShopifyId($this->region, $this->orderData['id']);
 
         $order->fireWorkflow(
-            WorkflowEnum::AFTER_IMPORT->value,
+            WorkflowEnum::AFTER_PULL->value,
             true,
             [
                 'app' => $this->app,
