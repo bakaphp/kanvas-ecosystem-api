@@ -35,10 +35,23 @@ final class CreateEventFromReceiverTest extends TestCase
         $payload = [
             "posts" => [
                 [
+                    'title' => fake()->name,
                     "primary_tag" => [
                         "slug" => fake()->slug,
                         "name" => fake()->name,
                         'is_report' => true
+                    ],
+                    "published_at" => fake()->dateTime->format('Y-m-d'),
+                    "tags" => [
+                        [
+                            "name" => fake()->name,
+                            "slug" => fake()->slug,
+                            "description" => null,
+                            "meta_description"=> null,
+                            "meta_title" => null,
+                            "url" => fake()->url,
+                            "visibility" => "public",
+                        ]
                     ]
                 ]
             ]
@@ -48,7 +61,10 @@ final class CreateEventFromReceiverTest extends TestCase
             'model_name' => CreatePeopleFromGhostReceiverJob::class,
         ]);
         $eventTypeName = fake()->name;
-        $app->set(CustomFieldEnum::WEBHOOK_IS_REPORT_EVENT->value, $eventTypeName);
+        $eventsTypeWebhook = [
+            $eventTypeName
+        ];
+        $app->set(CustomFieldEnum::WEBHOOK_IS_REPORT_EVENT->value, $eventsTypeWebhook);
         $eventType = EventType::create([
             'companies_id' => $company->getId(),
             'apps_id' => $app->getId(),

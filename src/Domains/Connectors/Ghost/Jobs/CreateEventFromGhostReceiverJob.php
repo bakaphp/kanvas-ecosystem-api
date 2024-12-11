@@ -22,12 +22,16 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
         }
         $category = EventCategory::where('companies_id', $company->getId())
                     ->first();
-            
         $data = [
             'name' => $payload['primary_tag']['name'],
             'slug' => Str::slug($payload['primary_tag']['name']),
             'type_id' => $eventType->getId(),
             'category_id' => $category->getId(),
+            'dates' => [
+                [
+                    'date' => $payload['published_at'],
+                ]
+            ]
         ];
         $dto = Event::fromMultiple(
             $this->webhookRequest->receiverWebhook->app,
@@ -41,9 +45,11 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
 
     public function getType(array $payload): ?EventType
     {
+        
         $eventTypeQuery = EventType::where('apps_id', $this->webhookRequest->receiverWebhook->app->getId())
             ->where('companies_id', $this->webhookRequest->receiverWebhook->company->getId());
-        if (isset($payload['primary_tag']['is_report'])  && $payload['primary_tag']['is_report']) {
+         $this->webhookRequest->receiverWebhook->app->get(CustomFieldEnum::WEBHOOK_IS_REPORT_EVENT->value);
+            if (isset($payload['primary_tag']['is_report'])  && $payload['primary_tag']['is_report']) {
             $eventTypeName = $this->webhookRequest->receiverWebhook->app->get(CustomFieldEnum::WEBHOOK_IS_REPORT_EVENT->value);
             return $eventTypeQuery->where('name', $eventTypeName)
                 ->first();
