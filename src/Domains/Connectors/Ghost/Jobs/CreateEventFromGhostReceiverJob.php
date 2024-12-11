@@ -8,6 +8,7 @@ use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Events\DataTransferObject\Event;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Connectors\Ghost\Enums\CustomFieldEnum;
+use Illuminate\Support\Str;
 
 class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
 {
@@ -21,9 +22,10 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
         }
         $category = EventCategory::where('companies_id', $company->getId())
                     ->first();
+            
         $data = [
             'name' => $payload['primary_tag']['name'],
-            'slug' => $payload['primary_tag'],
+            'slug' => Str::slug($payload['primary_tag']['name']),
             'type_id' => $eventType->getId(),
             'category_id' => $category->getId(),
         ];

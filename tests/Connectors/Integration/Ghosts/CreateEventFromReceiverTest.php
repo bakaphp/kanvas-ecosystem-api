@@ -18,6 +18,11 @@ use Kanvas\Connectors\Ghost\Jobs\CreateEventFromGhostReceiverJob;
 use Kanvas\Event\Events\DataTransferObject\Event;
 use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Connectors\Ghost\Enums\CustomFieldEnum;
+use Kanvas\Event\Events\Models\EventCategory;
+use Kanvas\Event\Events\Models\EventClass;
+use Kanvas\Event\Themes\Models\Theme;
+use Kanvas\Event\Themes\Models\ThemeArea;
+use Kanvas\Event\Events\Models\EventStatus;
 
 final class CreateEventFromReceiverTest extends TestCase
 {
@@ -44,11 +49,49 @@ final class CreateEventFromReceiverTest extends TestCase
         ]);
         $eventTypeName = fake()->name;
         $app->set(CustomFieldEnum::WEBHOOK_IS_REPORT_EVENT->value, $eventTypeName);
-        EventType::create([
+        $eventType = EventType::create([
             'companies_id' => $company->getId(),
             'apps_id' => $app->getId(),
             'users_id' => $user->getId(),
             'name' => $eventTypeName
+        ]);
+        $eventClass = EventClass::create([
+            'name' => 'Default',
+            'is_default' => 1,
+            'companies_id' => $company->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $user->getId(),
+            
+        ]);
+        $eventCategory = EventCategory::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+            'event_type_id' => $eventType->getId(),
+            'event_class_id' => $eventClass->getId(),
+            'name' => 'Default',
+            'slug' => 'default',
+        ]);
+        Theme::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+            'name' => 'Default',
+            'is_default' => 1,
+        ]);
+        ThemeArea::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+            'name' => 'Default',
+            'is_default' => 1,
+        ]);
+        EventStatus::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+            'name' => 'Default',
+            'is_default' => 1,
         ]);
         $receiverWebhook = ReceiverWebhook::factory()
             ->app($app->getId())
@@ -66,6 +109,6 @@ final class CreateEventFromReceiverTest extends TestCase
         Queue::fake();
         $job = new CreateEventFromGhostReceiverJob($webhookRequest);
         $result = $job->handle();
-        dump($result);
+        $this->assertEquals($payload["posts"][0]["primary_tag"]["name"], $result['name']);
     }
 }
