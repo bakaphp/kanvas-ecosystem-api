@@ -62,6 +62,8 @@ enum UserEventEnum: string
             InteractionEnum::REPLY->getValue() => self::VIEW_ITEM->value,
             InteractionEnum::PIN->getValue() => self::PURCHASE->value,
             InteractionEnum::VIEW->getValue() => self::VIEW_ITEM->value,
+            self::VIEW_HOME_PAGE->value => self::VIEW_HOME_PAGE->value,
+            self::VIEW_ITEM->value => self::VIEW_ITEM->value,
             default => null
         };
     }
