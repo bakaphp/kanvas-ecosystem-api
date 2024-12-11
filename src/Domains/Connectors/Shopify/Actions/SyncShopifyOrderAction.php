@@ -20,6 +20,7 @@ use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Users\Models\UsersAssociatedApps;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Spatie\LaravelData\DataCollection;
 
 class SyncShopifyOrderAction
@@ -106,8 +107,20 @@ class SyncShopifyOrderAction
             return $orderExist;
         }
 
-        $order = (new CreateOrderAction($order))->execute();
+        /**
+         * @todo for now disable workflow but this is not the solution
+         * we may need workflow in the future
+         */
+        $order = (new CreateOrderAction($order))->disableWorkflow()->execute();
         $order->setShopifyId($this->region, $this->orderData['id']);
+
+        $order->fireWorkflow(
+            WorkflowEnum::AFTER_PULL->value,
+            true,
+            [
+                'app' => $this->app,
+            ]
+        );
 
         /**
          * @todo move to workflow
