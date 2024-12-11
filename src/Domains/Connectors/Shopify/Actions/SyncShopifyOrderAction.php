@@ -20,6 +20,7 @@ use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Users\Models\UsersAssociatedApps;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Spatie\LaravelData\DataCollection;
 
 class SyncShopifyOrderAction
@@ -112,6 +113,14 @@ class SyncShopifyOrderAction
          */
         $order = (new CreateOrderAction($order))->disableWorkflow()->execute();
         $order->setShopifyId($this->region, $this->orderData['id']);
+
+        $order->fireWorkflow(
+            WorkflowEnum::AFTER_IMPORT->value,
+            true,
+            [
+                'app' => $this->app,
+            ]
+        );
 
         /**
          * @todo move to workflow
