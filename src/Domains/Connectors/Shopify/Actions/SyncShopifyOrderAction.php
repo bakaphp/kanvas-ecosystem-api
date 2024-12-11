@@ -106,7 +106,11 @@ class SyncShopifyOrderAction
             return $orderExist;
         }
 
-        $order = (new CreateOrderAction($order))->execute();
+        /**
+         * @todo for now disable workflow but this is not the solution
+         * we may need workflow in the future
+         */
+        $order = (new CreateOrderAction($order))->disableWorkflow()->execute();
         $order->setShopifyId($this->region, $this->orderData['id']);
 
         /**

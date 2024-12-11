@@ -18,7 +18,7 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreateOrderAction
 {
-    protected bool $runWorkflow = true;
+    public bool $runWorkflow = true;
 
     public function __construct(
         protected Order $orderData
@@ -96,5 +96,12 @@ class CreateOrderAction
 
             return $order;
         });
+    }
+
+    public function disableWorkflow(): self
+    {
+        $this->runWorkflow = false;
+
+        return $this;
     }
 }
