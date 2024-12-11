@@ -84,7 +84,7 @@ class AmplitudeEventStreamWebhookJob extends ProcessWebhookJob
             new UserInteraction(
                 $user,
                 $interaction,
-                (string) $userMessages->messages_id,
+                (string) $userMessages->getId(),
                 Message::class,
             )
         );
