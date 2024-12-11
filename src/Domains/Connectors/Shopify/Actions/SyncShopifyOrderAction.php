@@ -6,6 +6,8 @@ namespace Kanvas\Connectors\Shopify\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Exception;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Notifications\NewManualPaidOrderNotification;
 use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
@@ -21,6 +23,10 @@ use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+
+use function Sentry\captureException;
+
+use Sentry\EventHint;
 use Spatie\LaravelData\DataCollection;
 
 class SyncShopifyOrderAction
@@ -150,14 +156,21 @@ class SyncShopifyOrderAction
             if (empty($lineItem['product_id'])) {
                 continue;
             }
-            $syncProduct = new SyncShopifyProductAction(
-                $this->app,
-                $this->company,
-                $this->region,
-                $lineItem['product_id']
-            );
 
-            $syncProduct->execute();
+            try {
+                $syncProduct = new SyncShopifyProductAction(
+                    $this->app,
+                    $this->company,
+                    $this->region,
+                    $lineItem['product_id']
+                );
+
+                $syncProduct->execute();
+            } catch (Exception $e) {
+                Log::error($e->getMessage(), [$lineItem]);
+
+                captureException($e, EventHint::fromArray(['extra' => $lineItem]));
+            }
         }
     }
 

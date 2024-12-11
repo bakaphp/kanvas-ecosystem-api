@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Shopify\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Connectors\Shopify\Services\ShopifyProductService;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
@@ -39,6 +40,11 @@ class SyncShopifyProductAction
             $this->region
         );
 
+        Log::info('Syncing product from Shopify', [
+            'product_id' => $this->productId,
+            'company_id' => $this->company->id,
+            'region_id' => $this->region->id,
+        ]);
         $shopifyProduct = $shopify->Product($this->productId)->get();
 
         $shopifyProductService = new ShopifyProductService(
