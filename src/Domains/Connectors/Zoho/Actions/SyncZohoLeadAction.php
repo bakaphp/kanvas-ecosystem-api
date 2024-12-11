@@ -128,7 +128,7 @@ class SyncZohoLeadAction
                     $this->app,
                     $this->company->defaultBranch,
                     $user ?? $this->company->user,
-                    $zohoLead->First_Name,
+                    $zohoLead->First_Name ?? $zohoLead->Full_Name,
                     Contact::collect($contact, DataCollection::class),
                     Address::collect([], DataCollection::class),
                     $zohoLead->Last_Name
