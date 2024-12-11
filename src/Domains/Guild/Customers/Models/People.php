@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Customers\Models;
 
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
+use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
@@ -197,13 +198,22 @@ class People extends BaseModel
 
     public function addAddress(DataTransferObjectAddress $address): Address
     {
+        $country = null;
+
+        try {
+            if (! empty($address->country)) {
+                $country = Countries::getByName($address->country)->getName();
+            }
+        } catch (Exception $e) {
+        }
+
         return Address::updateOrCreate(
             [
                 'peoples_id' => $this->id,
                 'address' => $address->address,
                 'city' => $address->city,
                 'state' => $address->state,
-                'countries_id' => $address->country ? Countries::getByName($address->country)->getId() : null,
+                'countries_id' => $country,
                 'zip' => $address->zipcode,
             ],
             [
