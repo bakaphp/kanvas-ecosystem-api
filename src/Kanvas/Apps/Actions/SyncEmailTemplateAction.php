@@ -28,13 +28,13 @@ class SyncEmailTemplateAction
     ) {
     }
 
-    public function execute(): void
+    public function execute(bool $overWrite = true): void
     {
-        $this->createEmailTemplate();
+        $this->createEmailTemplate($overWrite);
         $this->createNotificationTypes();
     }
 
-    public function createEmailTemplate(): void
+    public function createEmailTemplate(bool $overWrite = true): void
     {
         $templates = [
             [
@@ -107,7 +107,10 @@ class SyncEmailTemplateAction
             );
 
             $action = new CreateTemplateAction($dto);
-            $action->execute(! in_array($template['name'], [PushNotificationTemplateEnum::DEFAULT->value, 'user-email-update']) ? $parent : null);
+            $action->execute(
+                (! in_array($template['name'], [PushNotificationTemplateEnum::DEFAULT->value, 'user-email-update']) ? $parent : null),
+                $overWrite
+            );
         }
     }
 

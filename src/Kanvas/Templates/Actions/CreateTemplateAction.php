@@ -21,19 +21,24 @@ class CreateTemplateAction
     /**
      * Invoke function.
      */
-    public function execute(?Templates $parent = null): Templates
+    public function execute(?Templates $parent = null, bool $overwrite = true): Templates
     {
-        return Templates::updateOrCreate(
-            [
-                'apps_id' => $this->template->app->getKey(),
-                'companies_id' => $this->template->company ? $this->template->company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue(),
-                'name' => $this->template->name,
-            ],
-            [
-                'users_id' => $this->template->user ? $this->template->user->getKey() : AppEnums::GLOBAL_USER_ID->getValue(),
-                'template' => $this->template->template,
-                'parent_template_id' => $parent ? $parent->getId() : 0,
-            ]
-        );
+        $query = [
+            'apps_id' => $this->template->app->getKey(),
+            'companies_id' => $this->template->company ? $this->template->company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue(),
+            'name' => $this->template->name,
+        ];
+
+        $attributes = [
+            'users_id' => $this->template->user ? $this->template->user->getKey() : AppEnums::GLOBAL_USER_ID->getValue(),
+            'template' => $this->template->template,
+            'parent_template_id' => $parent ? $parent->getId() : 0,
+        ];
+
+        if ($overwrite) {
+            return Templates::updateOrCreate($query, $attributes);
+        }
+
+        return Templates::firstOrCreate($query, $attributes);
     }
 }
