@@ -18,8 +18,8 @@ class KanvasEmailTemplateSync extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:email-template-sync {app_id} {user_id} {overwrite:true}';
-
+    protected $signature = 'kanvas:email-template-sync {app_id} {user_id} {--overwrite=true}';
+    
     /**
      * The console command description.
      *
