@@ -32,10 +32,10 @@ class CreditScoreService
                 'ZIP' => $creditApplication->zip,
                 'SSN' => $creditApplication->ssn,
             ]);
-    
+
             $unsignedUrl = (string)$responseXml->iFrameUrl; // Replace with correct XML tag for iframe URL
             $signedUrl = $this->client->signUrl($unsignedUrl, 30);
-    
+
             return [
                 'score' => (string)$responseXml->Scores->Scoring->Score,
                 'model' => (string)$responseXml->Scores->Scoring->ScoreModel,
