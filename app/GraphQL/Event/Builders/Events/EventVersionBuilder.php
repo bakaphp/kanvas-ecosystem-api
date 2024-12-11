@@ -47,23 +47,25 @@ class EventVersionBuilder
         $eventVersionParticipant = EventVersionParticipant::getFullTableName();
         $participant = Participant::getFullTableName();
 
-        $peoples = People::select('*')
-            ->join($participant, 'peoples.id', '=', $participant . '.people_id')
-            ->join($eventVersionParticipant, $participant . '.id', '=', $eventVersionParticipant . '.participant_id')
-            ->distinct();
+        $root->select([
+            'peoples.*',
+            'peoples.id as id'
+        ])
+        ->join($participant, 'peoples.id', '=', $participant . '.people_id')
+        ->join($eventVersionParticipant, $participant . '.id', '=', $eventVersionParticipant . '.participant_id')
+        ->distinct();
 
         if (isset($args['HAS']['conditions'])) {
             foreach ($args['HAS']['conditions'] as $key => $condition) {
                 $column = $condition['column'] ?? null;
                 $value = $condition['value'] ?? null;
-
                 if ($column && $value) {
-                    $peoples->when($value, fn($query) => 
+                    $root->when($value, fn($query) => 
                         $query->where($eventVersionParticipant . '.' . $column, $value)
                     );
                 }
             }
         }
-        return $peoples;
+        return $root;
     }
 }
