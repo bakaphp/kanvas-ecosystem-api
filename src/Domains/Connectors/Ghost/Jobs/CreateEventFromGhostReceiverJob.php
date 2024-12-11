@@ -1,5 +1,7 @@
 <?php
-declare(strict_types= 1);
+
+declare(strict_types=1);
+
 namespace Kanvas\Connectors\Ghost\Jobs;
 
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
@@ -17,12 +19,12 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
         $company = $this->webhookRequest->receiverWebhook->company;
         $payload = $this->webhookRequest->payload['posts'][0];
         $eventType = $this->getType($payload);
-        if (!$eventType) {
+        if (! $eventType) {
             return [];
         }
         $category = EventCategory::where('companies_id', $company->getId())
                     ->first();
-            
+
         $data = [
             'name' => $payload['primary_tag']['name'],
             'slug' => Str::slug($payload['primary_tag']['name']),
