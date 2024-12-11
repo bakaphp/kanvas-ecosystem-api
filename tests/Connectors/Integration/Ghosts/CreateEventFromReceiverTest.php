@@ -1,5 +1,6 @@
 <?php
-declare(strict_types= 1);
+
+declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Ghosts;
 
@@ -26,7 +27,6 @@ use Kanvas\Event\Events\Models\EventStatus;
 
 final class CreateEventFromReceiverTest extends TestCase
 {
-
     public function testCreateEventFromWebhook(): void
     {
         $app = app(Apps::class);
@@ -77,7 +77,7 @@ final class CreateEventFromReceiverTest extends TestCase
             'companies_id' => $company->getId(),
             'apps_id' => $app->getId(),
             'users_id' => $user->getId(),
-            
+
         ]);
         $eventCategory = EventCategory::create([
             'apps_id' => $app->getId(),
