@@ -60,7 +60,9 @@ class EventVersionBuilder
                 $column = $condition['column'] ?? null;
                 $value = $condition['value'] ?? null;
                 if ($column && $value) {
-                    $root->when($value, fn($query) => 
+                    $root->when(
+                        $value,
+                        fn($query) => 
                         $query->where($eventVersionParticipant . '.' . $column, $value)
                     );
                 }
