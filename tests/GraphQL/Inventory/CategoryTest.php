@@ -191,4 +191,74 @@ class CategoryTest extends TestCase
             'data' => ['deleteCategory' => true]
         ]);
     }
+
+    public function testDuplicateCategory(): void
+    {
+        $data = [
+            'name' => fake()->name,
+            'code' => fake()->name,
+            'position' => 1,
+            'is_published' => true,
+            'weight' => 0
+        ];
+
+        $this->graphQL('
+            mutation($data: CategoryInput!) {
+                createCategory(input: $data)
+                {
+                    id
+                    name,
+                    code,
+                    is_published,
+                    position
+                    weight
+                }
+            }', ['data' => $data])->assertJson([
+            'data' => ['createCategory' => $data]
+        ]);
+
+        $response = $this->graphQL('
+            query {
+                categories {
+                    data {
+                        id,
+                        name,
+                        is_published
+                    }
+                }
+        }');
+
+        $id = $response['data']['categories']['data'][0]['id'];
+        $name = $response['data']['categories']['data'][0]['name'];
+
+        $this->graphQL('
+        mutation($id: ID!) {
+            deleteCategory(id: $id)
+        }', ['id' => $id])->assertJson([
+        'data' => ['deleteCategory' => true]
+        ]);
+
+        $data = [
+            'name' => $name,
+            'code' => fake()->name,
+            'position' => 1,
+            'is_published' => true,
+            'weight' => 0
+        ];
+        $this->graphQL('
+            mutation($data: CategoryInput!) {
+                createCategory(input: $data)
+                {
+                    id
+                    name,
+                    code,
+                    is_published,
+                    position
+                    weight
+                }
+            }', ['data' => $data])->assertJson([
+            'data' => ['createCategory' => $data]
+        ]);
+
+    }
 }
