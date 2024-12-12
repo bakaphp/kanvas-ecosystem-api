@@ -216,7 +216,6 @@ class CategoryTest extends TestCase
             }', ['data' => $data])->assertJson([
             'data' => ['createCategory' => $data]
         ]);
-
         $response = $this->graphQL('
             query {
                 categories {
@@ -237,7 +236,6 @@ class CategoryTest extends TestCase
         }', ['id' => $id])->assertJson([
         'data' => ['deleteCategory' => true]
         ]);
-
         $data = [
             'name' => $name,
             'code' => fake()->name,
@@ -259,6 +257,5 @@ class CategoryTest extends TestCase
             }', ['data' => $data])->assertJson([
             'data' => ['createCategory' => $data]
         ]);
-
     }
 }
