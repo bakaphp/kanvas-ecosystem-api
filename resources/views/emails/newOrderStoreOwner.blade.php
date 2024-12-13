@@ -1,11 +1,11 @@
 <tr>
     <td style="padding-right: 120px;">
         <p style="color: #9b9b9b; font-size: 14px;">
-            Hi {{ $admin->firstname }} {{ $admin->lastname }},
+            Hi {{ $user->firstname }} {{ $user->lastname }},
         </p>
 
         <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
-            A new order (Order Number: <strong>{{ $order->order_number }}</strong>) has been placed in your store.
+            A new order (Order Number: <strong>{{ $entity->order_number }}</strong>) has been placed in your store.
         </p>
 
         <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
@@ -25,11 +25,11 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach ($order->items as $item)
+                @foreach ($entity->items as $item)
                     <tr>
                         <td style="padding: 10px;">{{ $item->product_name }}</td>
                         <td style="text-align: right; padding: 10px;">{{ $item->quantity }}</td>
-                        <td style="text-align: right; padding: 10px;">{{ number_format($item->unit_price_gross_amount, 2) }} {{ $order->currency }}</td>
+                        <td style="text-align: right; padding: 10px;">{{ number_format($item->unit_price_gross_amount, 2) }} {{ $entity->currency }}</td>
                     </tr>
                 @endforeach
             </tbody>
@@ -40,16 +40,16 @@
 <tr>
     <td style="padding-top: 20px;">
         <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
-            Subtotal: <strong>{{ number_format($order->getSubTotalAmount(), 2) }} {{ $order->currency }}</strong>
+            Subtotal: <strong>{{ number_format($entity->getSubTotalAmount(), 2) }} {{ $entity->currency }}</strong>
         </p>
         <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
-            Shipping: <strong>{{ number_format($order->shipping_price_gross_amount, 2) }} {{ $order->currency }}</strong>
+            Shipping: <strong>{{ number_format($entity->shipping_price_gross_amount, 2) }} {{ $entity->currency }}</strong>
         </p>
         <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
-            Tax: <strong>{{ number_format($order->getTotalTaxAmount(), 2) }} {{ $order->currency }}</strong>
+            Tax: <strong>{{ number_format($entity->getTotalTaxAmount(), 2) }} {{ $entity->currency }}</strong>
         </p>
         <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
-            Total: <strong>{{ number_format($order->getTotalAmount(), 2) }} {{ $order->currency }}</strong>
+            Total: <strong>{{ number_format($entity->getTotalAmount(), 2) }} {{ $entity->currency }}</strong>
         </p>
     </td>
 </tr>
@@ -57,13 +57,13 @@
 <tr>
     <td style="padding-top: 20px;">
         <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
-            Customer Name: <strong>{{ $order->user->firstname }} {{ $order->user->lastname }}</strong>
+            Customer Name: <strong>{{ $entity->user->firstname }} {{ $entity->user->lastname }}</strong>
         </p>
         <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
-            Email: <strong>{{ $order->getEmail() }}</strong>
+            Email: <strong>{{ $entity->getEmail() }}</strong>
         </p>
         <p style="color: #9b9b9b; font-size: 14px; margin: 0;">
-            Phone: <strong>{{ $order->getPhone() }}</strong>
+            Phone: <strong>{{ $entity->getPhone() }}</strong>
         </p>
     </td>
 </tr>
