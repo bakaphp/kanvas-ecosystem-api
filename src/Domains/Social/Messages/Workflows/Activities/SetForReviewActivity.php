@@ -2,24 +2,20 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Messages\Actions;
+namespace Kanvas\Social\Messages\Workflows\Activities;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Notifications\Jobs\SendEmailToUserJob;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
+use Illuminate\Support\Facades\Log;
 
-class SetForReviewAction
+class SetForReviewActivity
 {
-    public function __construct(
-        protected Message $message
-    ) {
-    }
-
-    public function execute(): mixed
+    public function execute(Message $message): mixed
     {
-        $messageData = $this->message->message;
+        $messageData = $message->message;
         //validate if message has for_review=true,is_reviewed=false and is_public=1
         // if ($messageData['for_review'] && ! $messageData['is_reviewed'] && $this->message->is_public) {
             //$this->message->setLock(); lock the message here
@@ -41,12 +37,14 @@ class SetForReviewAction
             //         ]);
             // }
 
+
+            Log::info("SETFORREVIEWEXECUTED");
             $user = Users::find(1817);
             SendEmailToUserJob::dispatch(
             $user,
             'Prompt pending for review',
             [
-                "body" => "{$user->firstname} the prompt titled: {$this->message->message['title']} is in need for review"
+                "body" => "{$user->firstname} the prompt titled: {$message->message['title']} is in need for review"
             ]);
 
             return $messageData['for_review'];
