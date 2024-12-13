@@ -125,7 +125,7 @@ class SyncZohoLeadAction
                 app: $this->app,
                 branch: $this->company->defaultBranch,
                 user: $user ?? $this->company->user,
-                title: $zohoLead->Full_Name,
+                title: $zohoLead->Full_Name ?? $firstName,
                 pipeline_stage_id: $pipelineStage->getId(),
                 people: new People(
                     $this->app,
