@@ -113,7 +113,7 @@ class CreateEntityWorkflowCommand extends Command
         ]);
 
         //now rules worklfow actions
-        info('Now lets setup the workflow actions');
+        info('Now lets setup the workflow actions. Please use the space bar to select.');
 
         $actions = multiselect(
             label: 'What actions should be assigned?',
