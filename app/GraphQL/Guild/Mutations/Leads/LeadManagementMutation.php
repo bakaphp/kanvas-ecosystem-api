@@ -38,7 +38,7 @@ class LeadManagementMutation
         $attempt = $leadAttempt->execute();
 
         $createLead = new CreateLeadAction(
-            Lead::viaRequest($user, $app, $req['input']),
+            Lead::from($user, $app, $req['input']),
             $attempt
         );
         $lead = $createLead->execute();
