@@ -118,6 +118,9 @@ class SyncZohoLeadAction
             /**
              * @todo assign owner and user and member # if exist
              */
+            $firstName = $zohoLead->First_Name
+                        ?? $zohoLead->Full_Name
+                        ?? (! empty($zohoLead->Email) ? Str::before($zohoLead->Email, '@') : '');
             $lead = new DataTransferObjectLead(
                 app: $this->app,
                 branch: $this->company->defaultBranch,
@@ -128,7 +131,7 @@ class SyncZohoLeadAction
                     $this->app,
                     $this->company->defaultBranch,
                     $user ?? $this->company->user,
-                    $zohoLead->First_Name ?? $zohoLead->Full_Name,
+                    $firstName,
                     Contact::collect($contact, DataCollection::class),
                     Address::collect([], DataCollection::class),
                     $zohoLead->Last_Name
