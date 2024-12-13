@@ -32,13 +32,14 @@ final class CreateEventFromReceiverTest extends TestCase
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
+        $eventTypeName = fake()->name;
         $payload = [
             "posts" => [
                 [
                     'title' => fake()->name,
                     "primary_tag" => [
                         "slug" => fake()->slug,
-                        "name" => fake()->name,
+                        "name" => $eventTypeName,
                         'is_report' => true
                     ],
                     "published_at" => fake()->dateTime->format('Y-m-d'),
@@ -60,7 +61,6 @@ final class CreateEventFromReceiverTest extends TestCase
             'name' => 'Create People',
             'model_name' => CreatePeopleFromGhostReceiverJob::class,
         ]);
-        $eventTypeName = fake()->name;
         $eventsTypeWebhook = [
             $eventTypeName
         ];
