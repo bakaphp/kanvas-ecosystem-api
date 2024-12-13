@@ -217,7 +217,6 @@ class MessageManagementMutation
 
     public function reviewPendingMessage(mixed $root, array $request): Message
     {
-
         $request = $request['input'];
         $message = Message::getById((int)$request['message_id'], app(Apps::class));
         if (! $request['is_reviewed']) {

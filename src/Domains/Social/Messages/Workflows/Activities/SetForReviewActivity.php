@@ -41,7 +41,6 @@ class SetForReviewActivity extends KanvasActivity implements WorkflowActivityInt
                 );
             }
         }
-
         return ["Done"];
     }
 }
