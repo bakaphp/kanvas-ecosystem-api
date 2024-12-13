@@ -40,14 +40,6 @@
                     <td style="padding: 10px;">Company</td>
                     <td style="padding: 10px;">{{ $entity->company->name }}</td>
                 </tr>
-                <tr>
-                    <td style="padding: 10px;">Pipeline</td>
-                    <td style="padding: 10px;">{{ $entity->pipeline_id }}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 10px;">Status</td>
-                    <td style="padding: 10px;">{{ $entity->leads_status_id }}</td>
-                </tr>
             </tbody>
         </table>
     </td>
@@ -64,7 +56,7 @@
     </td>
 </tr>
 
-<tr>
+<!-- <tr>
     <td style="padding-top: 20px;">
         <table style="margin: 17px 0 0px" cellspacing="0" cellpadding="0">
             <tr>
@@ -76,4 +68,4 @@
             </tr>
         </table>
     </td>
-</tr>
+</tr> -->
