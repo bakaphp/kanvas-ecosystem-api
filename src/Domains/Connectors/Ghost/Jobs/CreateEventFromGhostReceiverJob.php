@@ -23,6 +23,7 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
             return [];
         }
         $category = EventCategory::where('companies_id', $company->getId())
+                    ->where('apps_id', $this->webhookRequest->receiverWebhook->app->getId())
                     ->first();
         $data = [
             'name' => $payload['primary_tag']['name'],
