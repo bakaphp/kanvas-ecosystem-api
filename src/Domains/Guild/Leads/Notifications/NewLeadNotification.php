@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Guild\Leads\Models;
+namespace Kanvas\Guild\Leads\Notifications;
 
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\EmailTemplateEnum;
