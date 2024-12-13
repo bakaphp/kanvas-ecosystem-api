@@ -33,6 +33,7 @@ input ContactInput {
     value: String!
     contacts_types_id: ID!
     weight: Int
+    id: ID
 }
 
 input AddressInput {
