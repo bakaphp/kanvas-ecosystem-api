@@ -44,6 +44,7 @@ use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
 use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
 use Kanvas\Social\Messages\Workflows\Activities\GenerateMessageTagsActivity;
 use Kanvas\Users\Workflows\Activities\AssignToDefaultCompanyActivity;
+use Kanvas\Social\Messages\Workflows\Activities\SetForReviewActivity;
 use Kanvas\Workflow\Rules\Models\Action;
 
 class KanvasWorkflowSynActionCommand extends Command
@@ -99,6 +100,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncOrderWithIPlusActivities::class,
             SyncPeopleWithIPlusActivities::class,
             SyncZohoAgentFromReceiverJob::class,
+            SetForReviewActivity::class,
         ];
 
         $createdActions = [];
