@@ -215,22 +215,24 @@ class MessageManagementMutation
         return $message;
     }
 
-    protected function reviewPendingMessage(mixed $root, array $request): bool
+    public function reviewPendingMessage(mixed $root, array $request): Message
     {
-        $message = Message::getById((int)$request['id'], app(Apps::class));
+
+        $request = $request['input'];
+        $message = Message::getById((int)$request['message_id'], app(Apps::class));
         if (!$request['is_reviewed']) {
             SendEmailToUserJob::dispatch(
                 $message->user,
                 "Your post has been declined",
                 [
-                    "body" => "Your post {$message->message['title']} has been declined for the following reasons: {$request['declined_reason']}"
+                    "body" => "Your post has been declined for the following reasons: {$request['declined_reason']}"
                 ]
             );
 
-            return true;
+            return $message;
         }
 
-        $message->setUnlock();
+        // $message->setUnlock();
         $message->setPublic();
 
         SendEmailToUserJob::dispatch(
@@ -241,6 +243,6 @@ class MessageManagementMutation
             ]
         );
 
-        return true;
+        return $message;
     }
 }
