@@ -46,7 +46,7 @@ class Lead extends Data
     /**
      *  @psalm-suppress ArgumentTypeCoercion
      */
-    public static function viaRequest(UserInterface $user, AppInterface $app, array $request): self
+    public static function fromMultiple(UserInterface $user, AppInterface $app, array $request): self
     {
         $branch = isset($request['branch_id']) ? CompaniesBranches::getById($request['branch_id']) : $user->getCurrentCompany()->branch;
         CompaniesRepository::userAssociatedToCompanyAndBranch(
