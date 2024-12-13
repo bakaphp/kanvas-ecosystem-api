@@ -390,7 +390,6 @@ class PeopleTest extends TestCase
                     ],
                 ],
             ]);
-
     }
 
     public function testDeletePeople()
