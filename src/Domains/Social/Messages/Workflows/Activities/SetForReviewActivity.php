@@ -37,7 +37,8 @@ class SetForReviewActivity extends KanvasActivity implements WorkflowActivityInt
                     'Prompt pending for review',
                     [
                         "body" => "{$reviewer->firstname} the prompt titled: {$entity->message['title']} is in need for review"
-                    ]);
+                    ]
+                );
             }
         }
 

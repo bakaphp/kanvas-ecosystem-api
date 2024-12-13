@@ -220,7 +220,7 @@ class MessageManagementMutation
 
         $request = $request['input'];
         $message = Message::getById((int)$request['message_id'], app(Apps::class));
-        if (!$request['is_reviewed']) {
+        if (! $request['is_reviewed']) {
             SendEmailToUserJob::dispatch(
                 $message->user,
                 "Your post has been declined",
