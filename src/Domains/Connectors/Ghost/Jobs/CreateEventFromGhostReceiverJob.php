@@ -47,9 +47,9 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
 
     public function getType(array $payload): ?EventType
     {
-        $appSetting =$this->webhookRequest->receiverWebhook->app->get(CustomFieldEnum::WEBHOOK_IS_REPORT_EVENT->value);
+        $appSetting = $this->webhookRequest->receiverWebhook->app->get(CustomFieldEnum::WEBHOOK_IS_REPORT_EVENT->value);
         $eventType = $payload['primary_tag']['name'];
-        if (!in_array($eventType, $appSetting)) {
+        if (! in_array($eventType, $appSetting)) {
             return null;
         }
         return EventType::where('apps_id', $this->webhookRequest->receiverWebhook->app->getId())

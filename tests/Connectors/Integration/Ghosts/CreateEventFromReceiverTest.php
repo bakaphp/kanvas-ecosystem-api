@@ -48,7 +48,7 @@ final class CreateEventFromReceiverTest extends TestCase
                             "name" => fake()->name,
                             "slug" => fake()->slug,
                             "description" => null,
-                            "meta_description"=> null,
+                            "meta_description" => null,
                             "meta_title" => null,
                             "url" => fake()->url,
                             "visibility" => "public",
