@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Leads\Notifications;
 
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\EmailTemplateEnum;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Notifications\Notification;
 use Kanvas\Templates\Enums\EmailTemplateEnum as EnumsEmailTemplateEnum;
 
