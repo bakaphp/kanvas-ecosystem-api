@@ -56,7 +56,7 @@ class UpdatePeopleAction
                 $existingContact = $this->people->contacts()
                 ->where('value', $contact->value)
                 ->first();
-                if ($this->people->contacts()->find($contact->id)) {
+                if ($contact->id && $this->people->contacts()->find($contact->id)) {
                     $this->people->contacts()->find($contact->id)->update([
                         'contacts_types_id' => $contact->contacts_types_id,
                         'value' => $contact->value,

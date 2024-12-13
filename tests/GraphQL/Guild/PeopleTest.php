@@ -326,15 +326,38 @@ class PeopleTest extends TestCase
             'custom_fields' => [],
         ];
 
-        $response = $this->createPeopleAndResponse($input);
+        $response = $this->graphQL('
+        mutation($input: PeopleInput!) {
+            createPeople(input: $input) {   
+                id,             
+                firstname,
+                middlename,
+                lastname,
+                name,
+                contacts {
+                    id
+                }
+            }
+        }
+    ', [
+            'input' => $input,
+        ]);
         $peopleId = $response['data']['createPeople']['id'];
+        $contactId = $response['data']['createPeople']['contacts'][0]['id'];
+
         $firstname = fake()->firstName();
         $lastname = fake()->lastName();
         $name = $firstname . ' ' . $lastname;
         $input = [
             'firstname' => $firstname,
             'lastname' => $lastname,
-            'contacts' => [],
+            'contacts' => [
+                [
+                    'id' => $contactId,
+                    'value' => fake()->email(),
+                    'contacts_types_id' => 1,
+                ]
+            ],
             'address' => [],
             'custom_fields' => [],
         ];
@@ -342,7 +365,11 @@ class PeopleTest extends TestCase
         mutation($id: ID!, $input: PeopleInput!) {
             updatePeople(id: $id, input: $input) {
                 id
-                name
+                name,
+                contacts {
+                    id,
+                    value
+                }
             }
         }
     ', [
@@ -354,6 +381,12 @@ class PeopleTest extends TestCase
                     'updatePeople' => [
                         'id' => $peopleId,
                         'name' => $name,
+                        'contacts' => [
+                            [
+                                'id' => $contactId,
+                                'value' => $input['contacts'][0]['value'],
+                            ]
+                        ]
                     ],
                 ],
             ]);
