@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\OfferLogix\Actions;
 
 use Kanvas\Connectors\OfferLogix\Client;
+use Kanvas\Connectors\OfferLogix\DataTransferObject\SoftPull;
 use Kanvas\Connectors\OfferLogix\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OfferLogix\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
@@ -26,7 +27,7 @@ class SoftPullAction
     ) {
     }
 
-    public function execute(array $data, ?string $SSN = null): ?string
+    public function execute(SoftPull $softPull): ?string
     {
         $offerLogixClient = new Client($this->lead->app, $this->lead->company);
         $sourceCodeCompany = $this->lead->company->get(ConfigurationEnum::COMPANY_SOURCE_ID) ?? self::DEFAULT_SOURCE_ID;
@@ -42,7 +43,7 @@ class SoftPullAction
 
         $cellphones = $this->people->getCellPhones();
 
-        $state = States::where('name', $data['state'])->first();
+        $state = States::where('name', $softPull->state)->first();
 
         if ($phoneWeight->count()) {
             $phone = $phoneWeight->first()->value;
@@ -67,10 +68,10 @@ class SoftPullAction
             'ConsumerFirstName' => $this->people->firstname,
             'ConsumerLastName' => $this->people->lastname,
             //'ConsumerStreetName' => $address->address ?? null,
-            'ConsumerDOB' => $this->people->dob ? date('mdY', strtotime(str_replace('-', '', $this->people->dob))) : null,
-            'ConsumerCity' => $data['city'], //$address->city ?? null,
+            'ConsumerDOB' => $people->dob ?? null,
+            'ConsumerCity' => $softPull->city, //$address->city ?? null,
             'ConsumerState' => $state ? $state->code : self::DEFAULT_STATE, // $address->state ?a? null,
-            'ConsumerSSN' => $SSN,
+            'ConsumerSSN' => $softPull->last_4_digits_of_ssn,
             //'ConsumerZip' => $address->zip ?? null,
             'ConsumerCellPhone' => $phone,
         ];

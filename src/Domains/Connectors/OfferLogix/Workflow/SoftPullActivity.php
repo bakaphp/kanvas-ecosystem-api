@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OfferLogix\Workflow;
 
-use DateTime;
 use Illuminate\Support\Arr;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OfferLogix\Actions\SoftPullAction;
+use Kanvas\Connectors\OfferLogix\DataTransferObject\SoftPull;
 use Kanvas\Connectors\OfferLogix\Enums\ConfigurationEnum;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -44,31 +44,28 @@ class SoftPullActivity extends KanvasActivity
         $people = $parentEngagement->people ?? $people;
 
         $dataArray = [];
-        foreach ($message['data'] as $item) {
-            // Convert label to variable name (replace space with underscore)
-            $key = str_replace(' ', '_', strtolower($item['label']));
-            // Assign value to the variable
-            $dataArray[$key] = $item['value'];
+        $softPull = SoftPull::fromMessage($people, $message);
+
+        if (empty($softPull->last_4_digits_of_ssn)) {
+            return [
+                'message' => 'Last 4 digits of SSN is required',
+                'entity' => $entity,
+            ];
         }
 
-        if (! empty($dataArray)) {
-            $people->dob = DateTime::createFromFormat('m/d/Y', $dataArray['birthday'])->format('Y-m-d') ?? $people->dob;
-            $people->name = $dataArray['first_name'] . ' ' . $dataArray['last_name'] ?? $people->name;
-            $people->firstname = $dataArray['first_name'] ?? $people->firstname;
-            $people->lastname = $dataArray['last_name'] ?? $people->lastname;
-            $people->middlename = $dataArray['middle_name'] ?? $people->middle_name;
-            $people->saveOrFail();
+        $people->dob = $softPull->dob;
+        $people->name = $softPull->getName();
+        $people->firstname = $softPull->first_name;
+        $people->lastname = $softPull->last_name;
+        $people->middlename = $softPull->middle_name;
+        $people->saveOrFail();
 
-            if (! empty($dataArray['mobile'])) {
-                $people->addPhone($dataArray['mobile']);
-            }
+        if (! empty($softPull->mobile)) {
+            $people->addPhone($softPull->mobile);
         }
 
-        $softPull = new SoftPullAction($lead, $people);
-        $results = $softPull->execute(
-            $dataArray,
-            Arr::get($dataArray, 'last_4_digits_of_ssn')
-        );
+        $softPullAction = new SoftPullAction($lead, $people);
+        $results = $softPullAction->execute($softPull);
 
         //if result is a url
         if (filter_var($results, FILTER_VALIDATE_URL)) {
