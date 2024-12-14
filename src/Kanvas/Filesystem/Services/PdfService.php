@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Services;
 
+use Awobaz\Compoships\Database\Eloquent\Model;
 use Baka\Contracts\AppInterface;
 use Baka\Support\PdfGenerator;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Filesystem\Models\Filesystem as ModelsFilesystem;
+use Kanvas\Templates\Actions\RenderTemplateAction;
 
 class PdfService
 {
@@ -49,5 +51,25 @@ class PdfService
 
         // Return the file URL
         return $uploadedFileEntry;
+    }
+
+    public static function generatePdfFromTemplate(
+        AppInterface $app,
+        UserInterface $user,
+        string $templateName,
+        Model $entity
+    ): ModelsFilesystem {
+        $renderTemplate = new RenderTemplateAction($app);
+
+        $renderTemplateHtml = $renderTemplate->execute(
+            $templateName,
+            ['entity' => $entity]
+        );
+
+        return self::htmlToPdf(
+            $app,
+            $user,
+            $renderTemplateHtml
+        );
     }
 }
