@@ -21,5 +21,9 @@ return [
     ],
     'logger' => [
         'max_log_batch_size' => env('MAX_LOG_BATCH_SIZE', 10)
-    ]
+    ],
+    'puppeteer' => [
+        'url' => env('PUPPETEER_API_URL', 'http://puppeteer:3000'),
+        'storage_folder' => env('PUPPETEER_STORAGE_FOLDER', 'pdf'),
+    ],
 ];
