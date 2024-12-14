@@ -24,6 +24,7 @@ use Kanvas\Connectors\IPlus\Workflows\Activities\SyncPeopleWithIPlusActivities;
 use Kanvas\Connectors\NetSuite\Webhooks\ProcessNetSuiteCompanyCustomerWebhookJob;
 use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
+use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\RainForest\Workflows\Activities\ImportProductActivity;
 use Kanvas\Connectors\ScrapperApi\Workflows\Activities\ScrapperSearchActivity;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyInventoryLevelWebhookJob;
@@ -99,6 +100,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncOrderWithIPlusActivities::class,
             SyncPeopleWithIPlusActivities::class,
             SyncZohoAgentFromReceiverJob::class,
+            SoftPullActivity::class,
         ];
 
         $createdActions = [];

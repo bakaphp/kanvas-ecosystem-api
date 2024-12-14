@@ -14,13 +14,16 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\AccessControlList\Traits\HasPermissions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Factories\MessageFactory;
 use Kanvas\Social\Messages\Observers\MessageObserver;
@@ -117,6 +120,28 @@ class Message extends BaseModel
     public function users()
     {
         return $this->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
+    }
+
+    public function getMessage(): array
+    {
+        return (array) $this->message;
+    }
+
+    public function entity(): ?Model
+    {
+        $legacyClassMap = match ($this->appModuleMessage->entity_namespace) {
+            'Gewaer\Models\Leads' => Lead::class,
+            'Gewaer\Models\Companies' => Companies::class,
+            'Kanvas\Packages\Social\Models\Messages' => Message::class,
+            //'Kanvas\Guild\Activities\Models\Activities' => Message::class,
+            default => null,
+        };
+
+        if (! $legacyClassMap) {
+            return null;
+        }
+
+        return $legacyClassMap::getById($this->appModuleMessage->entity_id);
     }
 
     public function user(): BelongsTo
