@@ -53,7 +53,7 @@ class AppUserManagementMutation
         }
 
         /**
-         * @todo remove this when we have the new UI
+         * @todo remove this when we have the new UI , its ugly as F :D
          */
         $adminUserRegistrationAssignCurrentCompany = $app->get(AppSettingsEnums::ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY->getValue());
         $createCompany = $request['data']['create_company'] ?? false;
