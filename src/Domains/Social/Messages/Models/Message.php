@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -29,6 +30,7 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\Topics\Models\Topic;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserFullTableName;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
@@ -117,6 +119,22 @@ class Message extends BaseModel
     public function users()
     {
         return $this->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
+    }
+
+    public function getMessage(): array
+    {
+        return (array) $this->message;
+    }
+
+    public function entity(): ?Model
+    {
+        if (! $this->appModuleMessage) {
+            return null;
+        }
+
+        $legacyClassMap = SystemModules::convertLegacySystemModules($this->appModuleMessage->system_modules);
+
+        return $legacyClassMap::getById($this->appModuleMessage->entity_id);
     }
 
     public function user(): BelongsTo

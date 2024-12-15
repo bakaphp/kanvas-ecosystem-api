@@ -81,6 +81,7 @@ jobs:
       NET_SUITE_TOKEN: ${{ secrets.NET_SUITE_TOKEN }}
       NET_SUITE_TOKEN_SECRET: ${{ secrets.NET_SUITE_TOKEN_SECRET }}
       TEST_APPLE_PAYMENT_SHARED_SECRET: ${{ secrets.TEST_APPLE_PAYMENT_SHARED_SECRET }}
+      TEST_OFFER_LOGIX_SOURCE_ID: ${{ secrets.TEST_OFFER_LOGIX_SOURCE_ID }}
     strategy:
       fail-fast: false
       matrix:
