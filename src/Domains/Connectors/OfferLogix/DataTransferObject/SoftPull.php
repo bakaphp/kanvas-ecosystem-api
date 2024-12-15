@@ -16,10 +16,10 @@ class SoftPull extends Data
         public readonly string $last_4_digits_of_ssn,
         public readonly string $city,
         public readonly string $state,
-        public readonly ?string $middle_name = null,
-        public readonly ?string $dob = null,
-        public readonly ?string $mobile = null,
-        public readonly ?string $email = null
+        public readonly ?string $middle_name,
+        public readonly ?string $dob,
+        public readonly ?string $mobile,
+        public readonly ?string $email
     ) {
     }
 
