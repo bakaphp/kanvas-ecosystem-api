@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OfferLogix\Workflow;
 
-use Illuminate\Support\Arr;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Apps\Models\Apps;
@@ -43,7 +42,6 @@ class SoftPullActivity extends KanvasActivity
         $parentEngagement = $engagement->parent();
         $people = $parentEngagement->people ?? $people;
 
-        $dataArray = [];
         $softPull = SoftPull::fromMessage($people, $message);
 
         if (empty($softPull->last_4_digits_of_ssn)) {

@@ -8,6 +8,7 @@ use Kanvas\Connectors\OfferLogix\Client;
 use Kanvas\Connectors\OfferLogix\DataTransferObject\SoftPull;
 use Kanvas\Connectors\OfferLogix\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OfferLogix\Enums\CustomFieldEnum;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -17,7 +18,6 @@ class SoftPullAction
 {
     private const DEFAULT_PHONE = '8090000000';
     private const DEFAULT_STATE = 'GA';
-    private const DEFAULT_SOURCE_ID = 19069;
     private const SXML_VALUE = '3';
     private const MAX_PHONE_LENGTH = 10;
 
@@ -30,16 +30,22 @@ class SoftPullAction
     public function execute(SoftPull $softPull): ?string
     {
         $offerLogixClient = new Client($this->lead->app, $this->lead->company);
-        $sourceCodeCompany = $this->lead->company->get(ConfigurationEnum::COMPANY_SOURCE_ID) ?? self::DEFAULT_SOURCE_ID;
+        $sourceCodeCompany = $this->lead->company->get(ConfigurationEnum::COMPANY_SOURCE_ID->value);
+
+        if (! $sourceCodeCompany) {
+            throw new ValidationException('OfferLogix Company source code not found');
+        }
+
         $sourceId = $sourceCodeCompany; //@todo check if this is configurable
         $sxml = self::SXML_VALUE;
 
         //$address = $this->people->address->count() ? $this->people->address->getFirst() : null;
         $phone = $this->people->getPhones();
-        $phoneWeight = $this->people->contacts()
-            ->where('contacts_types_id', ContactTypeEnum::PHONE->value)
-            ->orderBy('weight', 'DESC')->groupBy('value')
-            ->get();
+        $phoneWeight = $this->people->contacts()->selectRaw('value, MAX(weight) as max_weight, contacts_types_id')
+                    ->where('contacts_types_id', ContactTypeEnum::PHONE->value)
+                    ->groupBy('value', 'contacts_types_id')
+                    ->orderBy('max_weight', 'DESC')
+                    ->get();
 
         $cellphones = $this->people->getCellPhones();
 
