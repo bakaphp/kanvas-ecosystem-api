@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OfferLogix\Workflow;
 
+use Kanvas\ActionEngine\Engagements\DataTransferObject\EngagementMessage;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Apps\Models\Apps;
@@ -19,7 +20,7 @@ class SoftPullActivity extends KanvasActivity
 {
     public function execute(Message $entity, Apps $app, array $params): array
     {
-        $message = $entity->getMessage();
+        $message = EngagementMessage::from($entity->message);
         $lead = $entity->entity();
 
         if (! $lead instanceof Lead) {
@@ -32,7 +33,7 @@ class SoftPullActivity extends KanvasActivity
         $people = $lead->people;
         $results = [];
 
-        if ($message['verb'] !== ConfigurationEnum::ACTION_VERB->value && $message['status'] === ActionStatusEnum::SUBMITTED->value) {
+        if ($message->verb !== ConfigurationEnum::ACTION_VERB->value && $message->status === ActionStatusEnum::SUBMITTED->value) {
             return [
                 'message' => 'Not a Soft Pull and not submitted',
             ];
@@ -42,7 +43,7 @@ class SoftPullActivity extends KanvasActivity
         $parentEngagement = $engagement->parent();
         $people = $parentEngagement->people ?? $people;
 
-        $softPull = SoftPull::fromMessage($people, $message);
+        $softPull = SoftPull::fromMessage($people, $message->toArray());
 
         if (empty($softPull->last_4_digits_of_ssn)) {
             return [

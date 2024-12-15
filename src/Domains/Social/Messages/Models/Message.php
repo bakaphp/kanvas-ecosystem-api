@@ -129,12 +129,12 @@ class Message extends BaseModel
 
     public function entity(): ?Model
     {
-        $legacyClassMap = match ($this->appModuleMessage->entity_namespace) {
+        $legacyClassMap = match ($this->appModuleMessage->system_modules) {
             'Gewaer\Models\Leads' => Lead::class,
             'Gewaer\Models\Companies' => Companies::class,
             'Kanvas\Packages\Social\Models\Messages' => Message::class,
             //'Kanvas\Guild\Activities\Models\Activities' => Message::class,
-            default => null,
+            default => $this->appModuleMessage->system_modules,
         };
 
         if (! $legacyClassMap) {
