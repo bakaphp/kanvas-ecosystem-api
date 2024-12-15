@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Companies\Repositories;
 
 use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -15,6 +16,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
+use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
@@ -150,5 +152,19 @@ class CompaniesRepository
             ->where('user_company_apps.is_deleted', 0)
             ->select('companies.*')
             ->first();
+    }
+
+    public static function hasAccessToThisApp(CompanyInterface $company, AppInterface $app): bool
+    {
+        $exist = UserCompanyApps::where('companies_id', $company->getId())
+            ->where('apps_id', $app->getId())
+            ->where('is_deleted', StateEnums::NO->getValue())
+            ->exists();
+
+        if (! $exist) {
+            throw new ExceptionsModelNotFoundException('Company doesn\'t have access to this app');
+        }
+
+        return true;
     }
 }

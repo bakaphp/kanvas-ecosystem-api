@@ -350,6 +350,50 @@ class UserManagementTest extends TestCase
         $this->assertTrue($user->companies()->first()->id != $company->getId());
     }
 
+    public function testCreateUserAssigningCompany()
+    {
+        $app = app(Apps::class);
+        $user = $app->keys()->first()->user()->firstOrFail();
+        $user->assign(RolesEnums::OWNER->value);
+        $company = $user->getCurrentCompany();
+
+        $email = fake()->email();
+        $response = $this->graphQL(/** @lang GraphQL */ '
+            mutation appCreateUser($data: CreateUserInput!) {
+                appCreateUser(data: $data) {
+                    id
+                    email
+                }
+              }',
+            [
+                'data' => [
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                    'email' => $email,
+                    'custom_fields' => [],
+                    'create_company' => false,
+                    'company_id' => $company->getId(),
+                ],
+            ],
+            [],
+            [
+                AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,
+            ]
+        );
+
+        $response->assertJson([
+            'data' => [
+                'appCreateUser' => [
+                    'email' => $email,
+                ],
+            ],
+        ]);
+
+        $user = Users::getByEmail($email);
+        $this->assertTrue($user->companies()->count() == 1);
+        $this->assertTrue($user->companies()->first()->id == $company->getId());
+    }
+
     public function testResetPassword()
     {
         $app = app(Apps::class);
