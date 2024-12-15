@@ -144,6 +144,7 @@ class CreateUserAction
         $user->user_login_tries = 0;
         $user->user_last_login_try = 0;
         $user->default_company = $this->data->default_company ?? StateEnums::NO->getValue();
+        $user->default_company_branch = StateEnums::NO->getValue();
         $user->session_time = time();
         $user->session_page = StateEnums::NO->getValue();
         $user->language = $user->language ?: AppEnums::DEFAULT_LANGUAGE->getValue();
