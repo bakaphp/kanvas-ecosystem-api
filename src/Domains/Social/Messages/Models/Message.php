@@ -21,9 +21,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\AccessControlList\Traits\HasPermissions;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Factories\MessageFactory;
 use Kanvas\Social\Messages\Observers\MessageObserver;
@@ -32,6 +30,7 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\Topics\Models\Topic;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserFullTableName;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
@@ -129,17 +128,11 @@ class Message extends BaseModel
 
     public function entity(): ?Model
     {
-        $legacyClassMap = match ($this->appModuleMessage->system_modules) {
-            'Gewaer\Models\Leads' => Lead::class,
-            'Gewaer\Models\Companies' => Companies::class,
-            'Kanvas\Packages\Social\Models\Messages' => Message::class,
-            //'Kanvas\Guild\Activities\Models\Activities' => Message::class,
-            default => $this->appModuleMessage->system_modules,
-        };
-
-        if (! $legacyClassMap) {
+        if (! $this->appModuleMessage) {
             return null;
         }
+
+        $legacyClassMap = SystemModules::convertLegacySystemModules($this->appModuleMessage->system_modules);
 
         return $legacyClassMap::getById($this->appModuleMessage->entity_id);
     }
