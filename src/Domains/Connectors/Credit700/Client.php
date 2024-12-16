@@ -13,18 +13,25 @@ use SimpleXMLElement;
 
 class Client
 {
-    protected string $apiBaseUrl = 'https://www.700Dealer.com/XCRS/Service.aspx'; // Production URL
+    protected string $apiBaseUrl = 'https://gateway.700dealer.com'; // Production URL
     protected GuzzleClient $httpClient;
     protected string $account;
     protected string $password;
+    protected string $clientId;
+    protected string $clientSecret;
+    protected ?string $accessToken = null;
 
     public function __construct(
         protected AppInterface $app
     ) {
-        $this->account = $this->app->get(ConfigurationEnum::ACCOUNT->value);
-        $this->password = $this->app->get(ConfigurationEnum::PASSWORD->value);
+        $this->clientId = $this->app->get(ConfigurationEnum::CLIENT_ID->value);
+        $this->clientSecret = $this->app->get(ConfigurationEnum::CLIENT_SECRET->value);
 
-        if (empty($this->account) || empty($this->password)) {
+        if (! app()->environment('production')) {
+            $this->apiBaseUrl = 'https://gateway.700creditsolution.com';
+        }
+
+        if (empty($this->clientId) || empty($this->clientSecret)) {
             throw new ValidationException('700Credit credentials are not set for ' . $this->app->name);
         }
 
@@ -44,22 +51,61 @@ class Client
 
     public function post(string $path, array $data = []): SimpleXMLElement
     {
-        $requestData = array_merge($data, [
-            'ACCOUNT' => $this->account,
-            'PASSWD' => $this->password,
-            'PRODUCT' => 'CREDIT',
-            'BUREAU' => 'XPN', // Choose from XPN, TU, or EFX
-            'PASS' => '2',
-            'PROCESS' => 'PCCREDIT',
-        ]);
+        $this->generateToken();
 
-        $response = $this->httpClient->post($this->apiBaseUrl, [
-            'form_params' => $requestData,
+        $response = $this->httpClient->post($this->apiBaseUrl . $path, [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $this->accessToken,
+            ],
+            'json' => $data,
         ]);
 
         $responseBody = $response->getBody()->getContents();
 
         // Process XML response
         return new SimpleXMLElement($responseBody);
+    }
+
+    public function generateToken(): string
+    {
+        $response = $this->httpClient->post($this->apiBaseUrl . '/.auth/token', [
+             [
+                'ClientId' => $this->clientId,
+                'ClientSecret' => $this->clientSecret,
+            ],
+        ]);
+
+        $data = json_decode($response->getBody()->getContents(), true);
+
+        if (! isset($data['access_token'])) {
+            throw new RuntimeException('Failed to generate access token.');
+        }
+
+        $this->accessToken = $data['access_token'];
+
+        return $this->accessToken;
+    }
+
+    public function signUrl(string $unsignedUrl, int $duration, string $signedBy): string
+    {
+        if (! $this->accessToken) {
+            throw new ValidationException('Access token is missing. Generate the token first.');
+        }
+
+        $response = $this->httpClient->post($this->apiBaseUrl . '/.auth/sign', [
+            [
+                'url' => $unsignedUrl,
+                'duration' => $duration,
+                'signedBy' => $signedBy,
+            ],
+        ]);
+
+        $data = json_decode($response->getBody()->getContents(), true);
+
+        if (! isset($data['url'])) {
+            throw new RuntimeException('Failed to sign the URL.');
+        }
+
+        return $data['url'];
     }
 }
