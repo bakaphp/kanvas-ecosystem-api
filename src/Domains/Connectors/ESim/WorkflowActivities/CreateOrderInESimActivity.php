@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\ESim\WorkflowActivities;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\ESim\Enums\ConfigurationEnum;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
+use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESim\Services\OrderService;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -39,6 +41,8 @@ class CreateOrderInESimActivity extends KanvasActivity
         $order->saveOrFail();
         $order->set(CustomFieldEnum::ORDER_ESIM_METADATA->value, $response);
 
+        $provider = $order->items()->first()->variant->product->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
+
         $response['order_id'] = $order->id;
         $response['order'] = $order->toArray();
         foreach ($order->items as $item) {
@@ -50,11 +54,19 @@ class CreateOrderInESimActivity extends KanvasActivity
         }
 
         try {
-            $esimGo = new ESimService($app);
-            $esimData = $esimGo->getAppliedBundleStatus($response['data']['iccid'], $response['data']['plan']);
-            $esimData['expiration_date'] = null;
-            $esimData['phone_number'] = null;
-            $response['esim_status'] = $esimData;
+            if (strtolower($provider->value) == strtolower(ProviderEnum::E_SIM_GO->value)) {
+                $esimGo = new ESimService($app);
+                $esimData = $esimGo->getAppliedBundleStatus($response['data']['iccid'], $response['data']['plan']);
+                $esimData['expiration_date'] = null;
+                $esimData['phone_number'] = null;
+                $response['esim_status'] = $esimData;
+            } elseif (strtolower($provider->value) == strtolower(ProviderEnum::EASY_ACTIVATION->value)) {
+                $response['esim_status'] = [
+                    'expiration_date' => $response['data']['end_date'] ?? null,
+                    'esim_status' => $response['data']['status'] ?? null,
+                    'phone_number' => $response['data']['phone_number'] ?? null,
+                ];
+            }
         } catch (Throwable $e) {
         }
 

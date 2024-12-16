@@ -186,6 +186,13 @@ class Variants extends BaseModel implements EntityIntegrationInterface
             ->first();
     }
 
+    public function getAttributeBySlug(string $slug): ?Attributes
+    {
+        return $this->attributes()
+            ->where('attributes.slug', $slug)
+            ->first();
+    }
+
     public function searchableAttributes(): BelongsToMany
     {
         return $this->buildAttributesQuery(['is_searchable' => true]);
