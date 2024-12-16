@@ -55,6 +55,7 @@ abstract class ProcessWebhookJob implements ShouldQueue
 
             return $results;
         } catch (Throwable $e) {
+            //notify via sentry
             Log::error($e->getMessage());
             captureException($e);
             $this->webhookRequest->update([
