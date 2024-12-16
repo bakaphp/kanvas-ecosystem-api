@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\ActionEngine\Queries\Engagements;
 
+use Baka\Support\Str;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\Apps\Models\Apps;
@@ -21,6 +22,12 @@ class EngagementQuery
             'lead' => 'leads_id',
             'people' => 'people_id',
         };
+
+        $entityId = $data['entity_id'];
+
+        if(Str::isUuid($entityId)) {
+            $entityType = 'uuid'; 
+        }
 
         $pipeline = Pipeline::getBySlug($data['slug'], $app, $company);
         $stage = $pipeline->stages()->where('slug', $data['status'])->first();
