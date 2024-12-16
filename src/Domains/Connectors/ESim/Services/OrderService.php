@@ -56,7 +56,7 @@ class OrderService
 
     protected function easyActivationOrder(OrderItem $item): array
     {
-        $totalDays = $item->variant->getAttributeByName('esim_days');
+        $totalDays = $item->variant->getAttributeByName('esim_days') ?? 7; //default 7 days
         $channelId = $this->order->app->get(ConfigurationEnum::APP_CHANNEL_ID->value);
 
         $metaData = $this->order->metadata;
