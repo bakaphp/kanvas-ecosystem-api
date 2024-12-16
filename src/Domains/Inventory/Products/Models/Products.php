@@ -25,6 +25,7 @@ use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Actions\AddAttributeAction;
+use Kanvas\Inventory\Products\Builders\ProductSortAttributeBuilder;
 use Kanvas\Inventory\Products\Factories\ProductFactory;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
@@ -38,7 +39,6 @@ use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
-use Kanvas\Inventory\Products\Builders\ProductSortAttributeBuilder;
 
 /**
  * Class Products.
@@ -122,6 +122,13 @@ class Products extends BaseModel implements EntityIntegrationInterface
     {
         return $this->attributes()
             ->where('attributes.name', $name)
+            ->first();
+    }
+
+    public function getAttributeBySlug(string $slug): ?Attributes
+    {
+        return $this->attributes()
+            ->where('attributes.slug', $slug)
             ->first();
     }
 
