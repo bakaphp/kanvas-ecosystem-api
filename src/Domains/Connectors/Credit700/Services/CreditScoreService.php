@@ -9,6 +9,7 @@ use Exception;
 use GuzzleHttp\Exception\RequestException;
 use Kanvas\Connectors\Credit700\Client;
 use Kanvas\Connectors\Credit700\DataTransferObject\CreditApplicant;
+use Kanvas\Connectors\Credit700\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 
 class CreditScoreService
@@ -27,6 +28,8 @@ class CreditScoreService
             $responseXml = $this->client->post(
                 '/Request',
                 [
+                    'ACCOUNT' => $this->app->get(ConfigurationEnum::ACCOUNT->value),
+                    'PASSWORD' => $this->app->get(ConfigurationEnum::PASSWORD->value),
                     'PRODUCT' => 'CREDIT',
                     'BUREAU' => 'XPN', // Can be XPN, TU, or EFX
                     'PASS' => '2',
