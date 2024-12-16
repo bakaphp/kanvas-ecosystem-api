@@ -12,6 +12,5 @@ class EngagementTest extends TestCase
     {
         //todo add test
         $this->markTestIncomplete('TODO: Implement the test logic for EngagementByFilter query.');
-
     }
 }
