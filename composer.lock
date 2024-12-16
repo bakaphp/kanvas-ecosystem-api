@@ -10542,16 +10542,16 @@
         },
         {
             "name": "spatie/laravel-webhook-server",
-            "version": "3.8.1",
+            "version": "3.8.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-webhook-server.git",
-                "reference": "d4cc24141a4d6a148e110df5f36217cc8f40f07e"
+                "reference": "020e54e7f50bf80e738600872f8f0f149ce58efb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-webhook-server/zipball/d4cc24141a4d6a148e110df5f36217cc8f40f07e",
-                "reference": "d4cc24141a4d6a148e110df5f36217cc8f40f07e",
+                "url": "https://api.github.com/repos/spatie/laravel-webhook-server/zipball/020e54e7f50bf80e738600872f8f0f149ce58efb",
+                "reference": "020e54e7f50bf80e738600872f8f0f149ce58efb",
                 "shasum": ""
             },
             "require": {
@@ -10604,7 +10604,7 @@
                 "webhook"
             ],
             "support": {
-                "source": "https://github.com/spatie/laravel-webhook-server/tree/3.8.1"
+                "source": "https://github.com/spatie/laravel-webhook-server/tree/3.8.2"
             },
             "funding": [
                 {
@@ -10612,7 +10612,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2024-02-12T08:18:25+00:00"
+            "time": "2024-12-16T12:56:30+00:00"
         },
         {
             "name": "spatie/php-structure-discoverer",
@@ -17021,12 +17021,12 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": [],
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
         "php": "^8.2"
     },
-    "platform-dev": {},
+    "platform-dev": [],
     "plugin-api-version": "2.6.0"
 }
