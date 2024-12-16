@@ -191,6 +191,7 @@ class ConvertJsonTemplateToLeadStructureAction
     {
         $person = [];
         $person['name'] = $this->getValueFromPath($request, $json['name']);
+        $person['organization'] = $this->getValueFromPath($request, $json['organization']);
         $person['contacts'] = [];
         foreach ($json['contacts'] as $contact) {
             $person['contacts'][] = [
