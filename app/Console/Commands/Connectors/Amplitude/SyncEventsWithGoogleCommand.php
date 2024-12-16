@@ -141,7 +141,7 @@ class SyncEventsWithGoogleCommand extends Command
 
                 // Send event to Google
                 $googleClient->writeUserEvent($writeUserEventRequest);
-                $this->info('Event: ' . $eventType . ' for user ' . $user->user->displayname . ' at ' . $eventTime->toDateTime()->format('Y-m-d H:i:s'));
+                $this->info('Event: ' . $eventType . ' for user ' . $user->user->getId() . ' at ' . $eventTime->toDateTime()->format('Y-m-d H:i:s'));
             }
         }
 
