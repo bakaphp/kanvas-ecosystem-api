@@ -37,7 +37,7 @@ class CreateOrderInESimActivity extends KanvasActivity
         $createOrder = new OrderService($order);
         $response = $createOrder->createOrder();
 
-        $order->metadata = $response;
+        $order->metadata = array_merge(($order->metadata ?? []), $response);
         $order->saveOrFail();
         $order->set(CustomFieldEnum::ORDER_ESIM_METADATA->value, $response);
 
@@ -45,6 +45,7 @@ class CreateOrderInESimActivity extends KanvasActivity
 
         $response['order_id'] = $order->id;
         $response['order'] = $order->toArray();
+
         foreach ($order->items as $item) {
             $variant = Variants::where('id', $item->variant_id)->first();
             $detail['variant'] = $variant->toArray();
@@ -54,13 +55,14 @@ class CreateOrderInESimActivity extends KanvasActivity
         }
 
         try {
-            if (strtolower($provider->value) == strtolower(ProviderEnum::E_SIM_GO->value)) {
+            $providerValue = strtolower($provider->value);
+            if ($providerValue === strtolower(ProviderEnum::E_SIM_GO->value)) {
                 $esimGo = new ESimService($app);
                 $esimData = $esimGo->getAppliedBundleStatus($response['data']['iccid'], $response['data']['plan']);
                 $esimData['expiration_date'] = null;
                 $esimData['phone_number'] = null;
                 $response['esim_status'] = $esimData;
-            } elseif (strtolower($provider->value) == strtolower(ProviderEnum::EASY_ACTIVATION->value)) {
+            } elseif ($providerValue === strtolower(ProviderEnum::EASY_ACTIVATION->value)) {
                 $response['esim_status'] = [
                     'expiration_date' => $response['data']['end_date'] ?? null,
                     'esim_status' => $response['data']['status'] ?? null,
@@ -68,6 +70,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                 ];
             }
         } catch (Throwable $e) {
+            // Log the exception or handle it as needed
         }
 
         //create the esim for the user
