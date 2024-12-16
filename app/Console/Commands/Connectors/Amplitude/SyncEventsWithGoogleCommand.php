@@ -86,7 +86,7 @@ class SyncEventsWithGoogleCommand extends Command
 
                 $eventType = match (trim($eventType)) {
                     'View Explore' => InteractionEnum::VIEW_HOME_PAGE->getValue(),
-                    'Page Viewed' => InteractionEnum::VIEW_HOME_PAGE->getValue(),
+                    'Page Viewed' => InteractionEnum::VIEW_ITEM->getValue(),
                     'View Library' => InteractionEnum::VIEW_ITEM->getValue(),
                     'Select Prompt' => InteractionEnum::VIEW_ITEM->getValue(),
                     '[Amplitude] Page Viewed' => InteractionEnum::VIEW_ITEM->getValue(),
