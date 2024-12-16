@@ -56,19 +56,20 @@ class OrderService
 
     protected function easyActivationOrder(OrderItem $item): array
     {
-        $totalDays = $item->variant->getAttributeByName('esim_days');
+        $esimDays = $item->variant->getAttributeByName('esim_days');
+        $totalDays = $esimDays ? $esimDays->value : 7;
         $channelId = $this->order->app->get(ConfigurationEnum::APP_CHANNEL_ID->value);
 
         $metaData = $this->order->metadata;
         $startDate = $metaData['start_date'] ?? now()->format('Y-m-d');
-        $endDate = $metaData['end_date'] ?? now()->addDays($totalDays->value)->format('Y-m-d');
+        $endDate = $metaData['end_date'] ?? now()->addDays($totalDays)->format('Y-m-d');
         $imeiNumber = $metaData['imei_number'] ?? null;
 
         return $this->client->post('/api/v2/easyactivations/create/order', [
             'products' => [
                 [
                     'sku' => $item->product_sku,
-                    'service_days' => $totalDays->value,
+                    'service_days' => $totalDays,
                     'product_qty' => $item->quantity,
                     'start_date' => $startDate,
                     'imei_number' => $imeiNumber,
@@ -79,7 +80,7 @@ class OrderService
             'start_date' => $startDate,
             'end_date' => $endDate,
             'total' => $this->order->total_net_amount,
-            'total_days' => $totalDays->value,
+            'total_days' => $totalDays,
             'language' => 'en',
             'user' => $this->getUserDetails(),
             'client' => $this->getClientDetails(),
