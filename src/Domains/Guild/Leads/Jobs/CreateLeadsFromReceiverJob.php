@@ -59,6 +59,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         if ($leadReceiver->rotation) {
             $leadOwner = $leadReceiver->rotation->getAgent();
             $payload['leads_owner_id'] = $leadOwner->getId();
+            $user = $leadOwner;
         }
 
         $createLead = new CreateLeadAction(
