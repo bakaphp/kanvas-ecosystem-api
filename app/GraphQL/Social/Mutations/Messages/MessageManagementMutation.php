@@ -217,7 +217,7 @@ class MessageManagementMutation
         }
 
         $messageHistory = Message::whereIn('id', explode('.', $messagePath))
-                            ->where('is_deleted',0)
+                            ->where('is_deleted', 0)
                             ->where('is_locked', 0)
                             ->orderBy('id', 'ASC')
                             ->get();
