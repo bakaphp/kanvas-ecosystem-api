@@ -16,7 +16,7 @@ use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions as KanvasRegions;
 
-class InventoryDevExportCommand extends Command
+class InventoryDevToProdExportCommand extends Command
 {
     public $regionId = 0;
     public $warehouseId = 0;
@@ -28,7 +28,7 @@ class InventoryDevExportCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas-inventory:dev-inventory-export {app_id} {company_id}';
+    protected $signature = 'kanvas-inventory:dev-to-prod-inventory-export {app_id} {company_id}';
 
     /**
      * The console command description.
