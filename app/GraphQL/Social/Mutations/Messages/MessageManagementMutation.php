@@ -223,5 +223,4 @@ class MessageManagementMutation
                             ->get();
         return $messageHistory;
     }
-
 }
