@@ -31,9 +31,10 @@ class SyncLeadToZohoAction
             $zohoLead = ZohoLead::fromLead($this->lead);
             $zohoData = $zohoLead->toArray();
             $company = $lead->company;
-            $usesAgentsModule = $company->get(CustomFieldEnum::ZOHO_HAS_AGENTS_MODULE->value);
             $receiver = $lead->receiver;
             $leadRotation = $receiver ? $receiver->rotation : null;
+            $usesAgentsModule = $company->get(CustomFieldEnum::ZOHO_HAS_AGENTS_MODULE->value);
+
             $zohoCrm = Client::getInstance($this->app, $company);
 
             if (! $zohoLeadId = $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value)) {
@@ -50,7 +51,7 @@ class SyncLeadToZohoAction
                     $lead->load('owner'); */
 
                     $zohoData['Lead_Source'] = $receiver->name ?? 'Kanvas Api';
-                    $zohoData['Owner'] = $lead->owner->get(CustomFieldEnum::ZOHO_USER_OWNER_ID) ?? $company->get(CustomFieldEnum::DEFAULT_OWNER);
+                    $zohoData['Owner'] = $lead->owner->get(CustomFieldEnum::ZOHO_USER_OWNER_ID->value) ?? $company->get(CustomFieldEnum::DEFAULT_OWNER->value);
                 }
 
                 $zohoData['Lead_Status'] = 'New Lead';
