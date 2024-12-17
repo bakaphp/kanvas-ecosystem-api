@@ -65,11 +65,9 @@ class InventoryDevExportCommand extends Command
                 'quantity' => 0,
                 'price' => 0,
             ];
-        
             if ($product?->productsType) {
                 $productData['productType'] = $this->mapProductType($product);
             }
-        
             $productsToExport[] = $productData;
         }
 
@@ -92,7 +90,7 @@ class InventoryDevExportCommand extends Command
             importProduct(input:\$input, companyId: \$companyId)
         }
 GQL;
-        foreach($chunks as $chunk) {
+        foreach ($chunks as $chunk) {
             $response = $client->post(
                 $url,
                 [
@@ -200,7 +198,7 @@ GQL;
 
     public function mapProductType($product): array
     {
-        if($product?->productsType) {
+        if ($product?->productsType) {
             return [
                 'name' => $product?->productsType->name,
                 'description' => $product?->productsType->description,
