@@ -1,5 +1,7 @@
 <?php
+
 declare(strict_types=1);
+
 namespace Kanvas\Connectors\Ghost\Enums;
 
 enum CustomFieldEventWebhookEnum: string

@@ -55,7 +55,7 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
             $eventType = $app->get(CustomFieldEventWebhookEnum::WEBHOOK_WEB_FORUM_EVENT->value);
         } elseif (empty($primaryTag['is_report'])) {
             $eventType = $app->get(CustomFieldEventWebhookEnum::WEBHOOK_IS_REPORT_EVENT->value);
-            if (!$eventType) {
+            if (! $eventType) {
                 return null;
             }
         }
