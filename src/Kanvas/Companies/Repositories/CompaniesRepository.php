@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Companies\Repositories;
 
 use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -15,6 +16,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
+use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
@@ -58,7 +60,7 @@ class CompaniesRepository
                        'companies.id'
                    );
                    $query->where('users_associated_company.users_id', $user->getId());
-               })->firstOrFail();
+               })->select('companies.*')->firstOrFail();
     }
 
     /**
@@ -113,13 +115,13 @@ class CompaniesRepository
     public static function getAllCompanyUserBuilder(Companies $company): Builder
     {
         $ecosystemConnection = config('database.connections.ecosystem');
-        $columns = Schema::Connection('ecosystem')->getColumnListing('users');
+        // $columns = Schema::Connection('ecosystem')->getColumnListing('users');
 
         return UsersAssociatedCompanies::join($ecosystemConnection['database'] . '.users', 'users.id', '=', 'users_associated_company.users_id')
                                 ->where('companies_id', $company->getKey())
                                 ->where('users_associated_company.is_deleted', StateEnums::NO->getValue())
                                 ->where('users.is_deleted', StateEnums::NO->getValue())
-                                ->groupBy($columns)
+                              //  ->groupBy($columns)
                                 ->select('users.*');
     }
 
@@ -150,5 +152,19 @@ class CompaniesRepository
             ->where('user_company_apps.is_deleted', 0)
             ->select('companies.*')
             ->first();
+    }
+
+    public static function hasAccessToThisApp(CompanyInterface $company, AppInterface $app): bool
+    {
+        $exist = UserCompanyApps::where('companies_id', $company->getId())
+            ->where('apps_id', $app->getId())
+            ->where('is_deleted', StateEnums::NO->getValue())
+            ->exists();
+
+        if (! $exist) {
+            throw new ExceptionsModelNotFoundException('Company doesn\'t have access to this app');
+        }
+
+        return true;
     }
 }

@@ -186,6 +186,13 @@ class Variants extends BaseModel implements EntityIntegrationInterface
             ->first();
     }
 
+    public function getAttributeBySlug(string $slug): ?Attributes
+    {
+        return $this->attributes()
+            ->where('attributes.slug', $slug)
+            ->first();
+    }
+
     public function searchableAttributes(): BelongsToMany
     {
         return $this->buildAttributesQuery(['is_searchable' => true]);
@@ -358,7 +365,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface
                 return [
                     'id' => $channels->getId(),
                     'name' => $channels->name,
-                    'price' => $channels->price,
+                    'price' => (float) $channels->price,
                     'is_published' => $channels->is_published,
                 ];
             }),
@@ -382,8 +389,9 @@ class Variants extends BaseModel implements EntityIntegrationInterface
     public function searchableAs(): string
     {
         $variant = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
+        $app = $variant->app ?? app(Apps::class);
 
-        $customIndex = isset($variant->app) ? $variant->app->get('app_custom_product_variant_index') : null;
+        $customIndex = $app->get('app_custom_product_variant_index') ?? null;
 
         return config('scout.prefix') . ($customIndex ?? 'product_variant_index');
     }
@@ -428,17 +436,19 @@ class Variants extends BaseModel implements EntityIntegrationInterface
 
     public function getPrice(Warehouses $warehouse, ?Channels $channel = null): float
     {
-        $warehouseInfo = $this->variantWarehouses()->where('warehouses_id', $warehouse->getId())->first();
+        $channelPrice = $channel
+            ? $this->variantChannels()
+                ->where('channels_id', $channel->getId())
+                ->value('price')
+            : null;
 
-        if ($channel) {
-            $channelInfo = $this->variantChannels()->where('channels_id', $channel->getId())->first();
-
-            $price = $channelInfo?->price ?? 0;
+        if ($channelPrice !== null) {
+            return (float) $channelPrice;
         }
 
-        $price = $warehouseInfo?->price ?? 0;
-
-        return (float)$price;
+        return (float) $this->variantWarehouses()
+            ->where('warehouses_id', $warehouse->getId())
+            ->value('price') ?? 0.0;
     }
 
     public function updateQuantityInWarehouse(Warehouses $warehouse, float $quantity): void

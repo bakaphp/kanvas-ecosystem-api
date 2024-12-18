@@ -6,8 +6,10 @@ namespace Kanvas\Guild\Leads\Actions;
 
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
+use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Enums\FlagEnum;
@@ -15,10 +17,15 @@ use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadDataInput;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadAttempt;
 use Kanvas\Guild\Leads\Models\LeadStatus;
+use Kanvas\Guild\Leads\Notifications\NewLeadCompanyOwnerNotification;
+use Kanvas\Guild\Leads\Notifications\NewLeadNotification;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
+use Kanvas\Users\Services\UserRoleNotificationService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+
+use function Sentry\captureException;
 
 class CreateLeadAction
 {
@@ -111,13 +118,34 @@ class CreateLeadAction
                 );
             }
 
+            try {
+                $newLead->owner?->notify(new NewLeadNotification($newLead, [
+                    'app' => $newLead->app,
+                    'company' => $newLead->company,
+                ]));
+
+                UserRoleNotificationService::notify(
+                    RolesEnums::ADMIN->value,
+                    new NewLeadCompanyOwnerNotification(
+                        $newLead,
+                        [
+                            'app' => $newLead->app,
+                            'company' => $newLead->company,
+                        ]
+                    ),
+                    $newLead->app
+                );
+            } catch (Exception $e) {
+                captureException($e);
+            }
+
             return $newLead;
         }, 5);
     }
 
     protected function checkIfLeadExist(Lead $lead, People $people): void
     {
-        $duplicate = Lead::fromApp($this->leadData->app)
+        $duplicate = Lead::query()->fromApp($this->leadData->app)
             ->fromCompany($this->company)
             ->notDeleted(StateEnums::NO->getValue())
             ->where([

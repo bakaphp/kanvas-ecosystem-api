@@ -27,4 +27,16 @@ class VariantsWarehousesPriceHistory extends BaseModel
     public $timestamps = false;
     protected $guarded = [];
     protected $forceDeleting = true;
+
+    protected function casts(): array
+    {
+        return [
+            'price' => 'decimal:2',
+        ];
+    }
+
+    public function getPriceAttribute(string|int $value): float
+    {
+        return (float) $value;
+    }
 }

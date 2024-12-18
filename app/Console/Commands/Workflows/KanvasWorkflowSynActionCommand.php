@@ -19,14 +19,20 @@ use Kanvas\Connectors\Internal\Activities\GenerateMessageSlugActivity;
 use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductActivity;
 use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductsAfterImportActivity;
 use Kanvas\Connectors\Internal\Activities\UserCustomFieldActivity;
+use Kanvas\Connectors\IPlus\Workflows\Activities\SyncOrderWithIPlusActivities;
+use Kanvas\Connectors\IPlus\Workflows\Activities\SyncPeopleWithIPlusActivities;
 use Kanvas\Connectors\NetSuite\Webhooks\ProcessNetSuiteCompanyCustomerWebhookJob;
 use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
+use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\RainForest\Workflows\Activities\ImportProductActivity;
 use Kanvas\Connectors\ScrapperApi\Workflows\Activities\ScrapperSearchActivity;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyInventoryLevelWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyOrderWebhookJob;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyProductWebhookJob;
+use Kanvas\Connectors\Shopify\Workflows\Activities\CreateShopifyDraftOrderActivity;
+use Kanvas\Connectors\Shopify\Workflows\Activities\CreateUserActivity;
+use Kanvas\Connectors\Shopify\Workflows\Activities\DeleteVariantFromShopifyActivity;
 use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyActivity;
 use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyWithIntegrationActivity;
 use Kanvas\Connectors\Stripe\Jobs\ImportStripePlanWebhookJob;
@@ -34,6 +40,7 @@ use Kanvas\Connectors\Stripe\Jobs\ImportStripePriceWebhookJob;
 use Kanvas\Connectors\Stripe\Jobs\UpdatePeopleStripeSubscriptionJob;
 use Kanvas\Connectors\Stripe\Webhooks\CashierStripeWebhookJob;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
+use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
 use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
 use Kanvas\Social\Messages\Workflows\Activities\GenerateMessageTagsActivity;
@@ -87,6 +94,13 @@ class KanvasWorkflowSynActionCommand extends Command
             CashierStripeWebhookJob::class,
             CreateOrderInESimActivity::class,
             AmplitudeEventStreamWebhookJob::class,
+            CreateShopifyDraftOrderActivity::class,
+            DeleteVariantFromShopifyActivity::class,
+            CreateUserActivity::class,
+            SyncOrderWithIPlusActivities::class,
+            SyncPeopleWithIPlusActivities::class,
+            SyncZohoAgentFromReceiverJob::class,
+            SoftPullActivity::class,
         ];
 
         $createdActions = [];

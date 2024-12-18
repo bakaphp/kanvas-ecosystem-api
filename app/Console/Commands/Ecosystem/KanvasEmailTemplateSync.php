@@ -18,7 +18,7 @@ class KanvasEmailTemplateSync extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:email-template-sync {app_id} {user_id}';
+    protected $signature = 'kanvas:email-template-sync {app_id} {user_id} {--overwrite=true}';
 
     /**
      * The console command description.
@@ -35,6 +35,7 @@ class KanvasEmailTemplateSync extends Command
         $appId = $this->argument('app_id');
         $app = Apps::getById($appId);
         $user = Users::getById($this->argument('user_id'));
+        $overwrite = $this->argument('overwrite');
 
         if (! $app) {
             $this->error("App with ID $appId not found.");
@@ -45,17 +46,17 @@ class KanvasEmailTemplateSync extends Command
         $this->info("Sync email templates from the app: {$app->name}");
         $this->newLine();
 
-        $defaultTemplate = Templates::notDeleted()->fromApp($app)->where('parent_template_id', 0)->first();
+        $defaultTemplate = Templates::query()->notDeleted()->fromApp($app)->where('parent_template_id', 0)->first();
 
         if (! $defaultTemplate) {
             $this->error('Default template not found.');
-            $this->syncTemplates($app, $user);
+            $this->syncTemplates($app, $user, $overwrite);
 
             return 1;
         }
 
         if ($this->confirm('Do you want to sync the email templates? This will overwrite the existing email templates.')) {
-            $this->syncTemplates($app, $user);
+            $this->syncTemplates($app, $user, $overwrite);
             $this->info('Email templates have been synced.');
         } else {
             $this->info('Email templates syncing has been canceled.');
@@ -67,9 +68,9 @@ class KanvasEmailTemplateSync extends Command
     /**
      * Sync the email templates.
      */
-    protected function syncTemplates(Apps $app, UserInterface $user): void
+    protected function syncTemplates(Apps $app, UserInterface $user, bool $overwrite): void
     {
         $syncEmailTemplate = new SyncEmailTemplateAction($app, $user);
-        $syncEmailTemplate->execute();
+        $syncEmailTemplate->execute($overwrite);
     }
 }

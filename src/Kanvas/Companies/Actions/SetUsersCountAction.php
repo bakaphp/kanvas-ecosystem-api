@@ -17,10 +17,10 @@ class SetUsersCountAction
     public function execute(): int
     {
         // Modify CI
-        $users = CompaniesRepository::getAllCompanyUsers($this->company);
-        $count = count($users->toArray());
-        $this->company->set('total_users', $count);
+        $totalUsers = CompaniesRepository::getAllCompanyUserBuilder($this->company)->count();
+        //$count = count($users->toArray());
+        $this->company->set('total_users', $totalUsers);
 
-        return $count;
+        return $totalUsers;
     }
 }

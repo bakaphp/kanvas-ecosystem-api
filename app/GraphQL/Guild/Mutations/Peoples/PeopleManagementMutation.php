@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Guild\Mutations\Peoples;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
+use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
@@ -53,12 +56,25 @@ class PeopleManagementMutation
         return $createPeople->execute();
     }
 
+    protected function getPeopleById(int $id, UserInterface $user, AppInterface $app, CompanyInterface $company): ModelsPeople
+    {
+        if (! $user->isAppOwner()) {
+            return ModelsPeople::getByIdFromCompanyApp($id, $company, $app);
+        }
+
+        return PeoplesRepository::getById(
+            id: $id,
+            app: $app,
+        );
+    }
+
     public function update(mixed $root, array $req): ModelsPeople
     {
         $user = auth()->user();
         $data = $req['input'];
+        $app = app(Apps::class);
 
-        $people = PeoplesRepository::getById((int) $req['id'], $user->getCurrentCompany());
+        $people = $this->getPeopleById((int) $req['id'], $user, $app, $user->getCurrentCompany());
 
         $peopleData = People::from([
             'app' => app(Apps::class),
@@ -91,24 +107,25 @@ class PeopleManagementMutation
     public function delete(mixed $root, array $req): bool
     {
         $user = auth()->user();
+        $app = app(Apps::class);
 
-        return PeoplesRepository::getById(
-            (int) $req['id'],
-            $user->getCurrentCompany()
-        )->softDelete();
+        $people = $this->getPeopleById((int) $req['id'], $user, $app, $user->getCurrentCompany());
+
+        return $people->softDelete();
     }
 
-    public function attachFile(mixed $root, array $request): ModelsPeople
+    public function attachFile(mixed $root, array $req): ModelsPeople
     {
         $app = app(Apps::class);
         $user = auth()->user();
-        $people = ModelsPeople::getByIdFromCompanyApp((int) $request['id'], $user->getCurrentCompany(), $app);
+
+        $people = $this->getPeopleById((int) $req['id'], $user, $app, $user->getCurrentCompany());
 
         return $this->uploadFileToEntity(
             model: $people,
             app: $app,
             user: $user,
-            request: $request
+            request: $req
         );
     }
 
@@ -118,9 +135,16 @@ class PeopleManagementMutation
     public function restore(mixed $root, array $req): bool
     {
         $user = auth()->user();
+        $app = app(Apps::class);
 
-        return ModelsPeople::where('id', (int) $req['id'])
-            ->where('companies_id', $user->getCurrentCompany()->getId())
-            ->firstOrFail()->restoreRecord();
+        $peopleQuery = ModelsPeople::query()->where('id', (int) $req['id']);
+
+        if (! $user->isAppOwner()) {
+            $peopleQuery->where('companies_id', $user->getCurrentCompany()->getId());
+        } else {
+            $peopleQuery->where('apps_id', $app->getId());
+        }
+
+        return $peopleQuery->firstOrFail()->restoreRecord();
     }
 }

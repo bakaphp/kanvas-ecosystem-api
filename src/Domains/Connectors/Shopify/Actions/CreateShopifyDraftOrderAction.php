@@ -10,6 +10,7 @@ use Kanvas\Connectors\Shopify\Client;
 use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
 use Kanvas\Exceptions\EntityNotIntegratedException;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Souk\Orders\Models\Order;
 use PHPShopify\ShopifySDK;
 
@@ -77,21 +78,32 @@ class CreateShopifyDraftOrderAction
                 throw new EntityNotIntegratedException($item->variant, 'Shopify');
             }
 
-            $applyDiscount = $item->getPrice() !== $item->variant->getPrice($this->order->region->defaultWarehouse);
+            $defaultWarehouse = $this->order->region->defaultWarehouse;
+            $defaultChannel = Channels::getDefault($this->company, $this->app);
+
+            // Calculate variant price and determine discount application
+            $variantPrice = $item->variant->getPrice($defaultWarehouse, $defaultChannel);
+            $itemPrice = $item->getPrice();
+            $applyDiscount = $itemPrice !== $variantPrice;
+
+            // Calculate final price
+            $finalPrice = $applyDiscount ? ($variantPrice - $itemPrice) : $itemPrice;
+            $formattedPrice = number_format($finalPrice, 2, '.', '');
+
             $discount = $applyDiscount ? [
                 'description' => 'Custom Price',
                 'value_type' => 'fixed_amount',
-                'value' => $item->getPrice(),
-                'amount' => $item->getPrice(),
+                'value' => $formattedPrice,
+                'amount' => $formattedPrice,
                 'title' => 'Custom Price',
             ] : null;
 
             $lineItems[] = [
                 'variant_id' => $shopifyVariantId,
                 'quantity' => $item->quantity,
-                'price' => $item->getPrice(),
+                'price' => $itemPrice,
                 'applied_discount' => $discount,
-                //'title' => $item->variant->product->name,
+                // 'title' => $item->variant->product->name,
             ];
         }
 

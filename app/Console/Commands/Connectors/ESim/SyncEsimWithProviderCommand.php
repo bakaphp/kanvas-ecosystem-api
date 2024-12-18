@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands\Connectors\ESim;
 
 use Baka\Traits\KanvasJobsTrait;
+use DateTime;
+use Exception;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -52,13 +54,20 @@ class SyncEsimWithProviderCommand extends Command
 
             if ($iccid == null) {
                 $this->info("Message ID: {$message->id} does not have an ICCID.");
-                $message->setPrivate();
+                //$message->setPrivate();
 
                 continue;
             }
 
-            $response = $eSimService->getAppliedBundleStatus($iccid, $bundle);
-            $iccidStatus = $eSimService->checkStatus($iccid);
+            try {
+                $response = $eSimService->getAppliedBundleStatus($iccid, $bundle);
+                $iccidStatus = $eSimService->checkStatus($iccid);
+            } catch (Exception $e) {
+                $this->info("Message ID: {$message->id} has an error: {$e->getMessage()}");
+                //$message->setPrivate();
+
+                continue;
+            }
 
             if (! empty($response)) {
                 $inactiveStatuses = [
@@ -67,9 +76,26 @@ class SyncEsimWithProviderCommand extends Command
                     IccidStatusEnum::COMPLETED->value,
                 ];
 
+                $firstInstallTimestamp = $iccidStatus['firstInstalledDateTime'] ?? null;
+                $isUnlimited = filter_var($response['unlimited'] ?? false, FILTER_VALIDATE_BOOLEAN);
                 $messageData = $message->message;
+
+                if ($firstInstallTimestamp) {
+                    $installDate = (new DateTime())->setTimestamp($firstInstallTimestamp / 1000); // Convert milliseconds to seconds
+                    $firstInstallDate = $installDate->format('Y-m-d H:i:s');
+
+                    $esimDays = $messageData['items'][0]['variant']['attributes']['esim_days'] ?? 0;
+                    $expiredDate = (! $isUnlimited && $esimDays > 0)
+                        ? $installDate->modify('+' . $esimDays . ' days')->format('Y-m-d H:i:s')
+                        : null;
+                } else {
+                    $firstInstallDate = null;
+                    $expiredDate = null;
+                }
+
                 $response['bundleState'] = IccidStatusEnum::getStatus($iccidStatus['profileStatus']);
-                $response['expiration_date'] = $messageData['esim_status']['expiration_date'] ?? null;
+                $response['installed_date'] = $firstInstallDate;
+                $response['expiration_date'] = $expiredDate ?? ($messageData['esim_status']['expiration_date'] ?? null);
                 $response['phone_number'] = $messageData['esim_status']['phone_number'] ?? null;
                 $messageData['esim_status'] = $response;
                 $message->message = $messageData;

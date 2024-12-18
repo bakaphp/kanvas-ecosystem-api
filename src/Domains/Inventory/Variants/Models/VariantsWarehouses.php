@@ -52,6 +52,19 @@ class VariantsWarehouses extends BaseModel
 
     protected $guarded = [];
 
+    protected function casts(): array
+    {
+        return [
+            'price' => 'decimal:2',
+            'quantity' => 'integer',
+        ];
+    }
+
+    public function getPriceAttribute(string|int $value): float
+    {
+        return (float) $value;
+    }
+
     /**
      * channels.
      */
@@ -119,8 +132,6 @@ class VariantsWarehouses extends BaseModel
 
     /**
      * Get the status history with the status information.
-     *
-     * @return array
      */
     public function getStatusHistory(): array
     {
@@ -128,9 +139,9 @@ class VariantsWarehouses extends BaseModel
 
         foreach ($this->statusHistory as $status) {
             $statusHistories[] = [
-                "id" => $status->id,
-                "name" => $status->name,
-                "from_date" => $status->pivot->from_date
+                'id' => $status->id,
+                'name' => $status->name,
+                'from_date' => $status->pivot->from_date,
             ];
         };
 
@@ -142,6 +153,7 @@ class VariantsWarehouses extends BaseModel
         $total = VariantsWarehouses::where('warehouses_id', $this->warehouse->getId())
                 ->where('is_deleted', 0)
                 ->sum('quantity');
+
         return (int) $total;
     }
 }

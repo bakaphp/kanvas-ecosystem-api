@@ -55,8 +55,15 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
         $payload['type_id'] = $payload['type_id'] ?? $leadReceiver->lead_types_id;
         $payload['source_id'] = $payload['source_id'] ?? $leadReceiver->leads_sources_id;
 
+        //get lead owner by rotation
+        if ($leadReceiver->rotation) {
+            $leadOwner = $leadReceiver->rotation->getAgent();
+            $payload['leads_owner_id'] = $leadOwner->getId();
+            $user = $leadOwner;
+        }
+
         $createLead = new CreateLeadAction(
-            Lead::viaRequest(
+            Lead::from(
                 $user ?? $leadReceiver->user,
                 $this->receiver->app,
                 $payload
@@ -70,7 +77,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
             'message' => 'Lead created successfully via receiver ' . $leadReceiver->uuid,
             'receiver' => $leadReceiver->getId(),
             'lead_id' => $lead->getId(),
-            'lead' => $lead->toArray()
+            'lead' => $lead->toArray(),
         ];
     }
 

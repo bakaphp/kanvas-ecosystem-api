@@ -89,6 +89,13 @@ input ProductInputUpdate {
 input ProductAttributeOrderBy {
     name: String
     sort: String
+    format: FormatSortAttribute!
+}
+
+enum FormatSortAttribute {
+    NUMERIC 
+    STRING 
+    DATE
 }
 
 extend type Mutation @guard {
@@ -135,6 +142,7 @@ extend type Query @guard {
         search: String @search
         variantAttributeValue: String
         variantAttributeOrderBy: ProductAttributeOrderBy
+        attributeOrderBy: ProductAttributeOrderBy
         where: _
             @whereConditions(
                 columns: [

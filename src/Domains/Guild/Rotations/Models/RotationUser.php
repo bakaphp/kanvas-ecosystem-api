@@ -9,7 +9,7 @@ use Kanvas\Guild\Models\BaseModel;
 
 /**
  * Class RotationUser
- *
+ * @deprecated version 2.0
  * @property int $id
  * @property int $rotations_id
  * @property int $companies_id

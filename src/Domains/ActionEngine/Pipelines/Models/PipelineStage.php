@@ -27,7 +27,7 @@ class PipelineStage extends BaseModel
 {
     use UuidTrait;
 
-    protected $table = 'pipelines';
+    protected $table = 'pipelines_stages';
     protected $guarded = [];
 
     public function pipeline(): BelongsTo

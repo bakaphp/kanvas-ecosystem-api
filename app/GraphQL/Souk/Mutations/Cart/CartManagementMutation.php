@@ -17,6 +17,7 @@ class CartManagementMutation
         $items = $request['items'];
         $user = auth()->user();
         $company = $user->getCurrentCompany();
+        $currentUserCompany = $company;
         $cart = app('cart')->session($user->getId());
         $app = app(Apps::class);
 
@@ -36,10 +37,18 @@ class CartManagementMutation
         foreach ($items as $item) {
             $variant = Variants::getByIdFromCompany($item['variant_id'], $company);
 
+            //$variantPrice = $variant->variantWarehouses()->firstOrFail()->price;
+            $variantPrice = $useCompanySpecificPrice
+                    ? $variant->variantChannels()
+                        ->whereHas('channel', fn ($query) => $query->where('slug', $currentUserCompany->uuid))
+                        ->firstOrFail()->price
+                    : $variant->variantWarehouses()
+                        ->firstOrFail()->price;
+
             $cart->add([
                 'id' => $variant->getId(),
                 'name' => $variant->name,
-                'price' => $useCompanySpecificPrice ? $variant->variantChannels('slug', $company->uuid)->firstOrFail()->price : $variant->variantWarehouses()->firstOrFail()->price, //@todo modify to use channel instead of warehouse
+                'price' => $variantPrice, //@todo modify to use channel instead of warehouse
                 'quantity' => $item['quantity'],
                 'attributes' => $variant->product->attributes ? $variant->product->attributes->map(function ($attribute) {
                     return [
