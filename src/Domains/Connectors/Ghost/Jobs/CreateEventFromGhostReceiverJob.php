@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Ghost\Jobs;
 
+use Carbon\Carbon;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Event\Events\Models\EventCategory;
@@ -26,6 +27,7 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
         $category = EventCategory::where('companies_id', $company->getId())
                     ->where('apps_id', $this->webhookRequest->receiverWebhook->app->getId())
                     ->first();
+        $date = new Carbon($payload['published_at']);
         $data = [
             'name' => $payload['title'],
             'slug' => $payload['slug'],
@@ -33,7 +35,7 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
             'category_id' => $category->getId(),
             'dates' => [
                 [
-                    'date' => $payload['published_at'],
+                    'date' => $date->format('Y-m-d'),
                 ]
             ]
         ];
