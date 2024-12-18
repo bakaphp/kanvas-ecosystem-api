@@ -89,8 +89,8 @@ class EventServiceProvider extends ServiceProvider
         Variants::observe(VariantObserver::class);
         VariantsChannels::observe(VariantsChannelObserver::class);
         Attributes::observe(AttributeObserver::class);
-        UsersAssociatedApps::observe(UsersAssociatedAppsObserver::class);
-        UserCompanyApps::observe(UsersAssociatedCompaniesObserver::class);
+        #UsersAssociatedApps::observe(UsersAssociatedAppsObserver::class);
+        #UserCompanyApps::observe(UsersAssociatedCompaniesObserver::class);
         ProductsCategories::observe(ProductsCategoriesObserver::class);
         PeopleEmploymentHistory::observe(PeopleEmploymentHistoryObserver::class);
         People::observe(PeopleObserver::class);

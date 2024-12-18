@@ -31,6 +31,16 @@ class ProductBuilder
             $order = $args['variantAttributeOrderBy'];
             $query->orderByVariantAttribute(
                 $order['name'],
+                $order['format'],
+                $order['sort']
+            );
+        }
+
+        if (! empty($args['attributeOrderBy']) && empty($args['variantAttributeOrderBy'])) {
+            $order = $args['attributeOrderBy'];
+            $query->orderByAttribute(
+                $order['name'],
+                $order['format'],
                 $order['sort']
             );
         }

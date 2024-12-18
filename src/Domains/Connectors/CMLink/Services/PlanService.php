@@ -19,30 +19,39 @@ class PlanService
         $this->client = new Client($app, $company);
     }
 
+    /**
+     * Activate a plan.
+     *
+     * @param string $dataBundleId ID of the data bundle to activate.
+     * @param string $iccid ICCID of the SIM card.
+     */
     public function activatePlan(
         string $dataBundleId,
-        string $mcc,
-        ?string $iccid = null,
-        ?string $himsi = null,
-        ?string $msisdn = null
+        string $iccid
     ): array {
-        $body = [
+        return $this->client->post('/aep/APP_activeDataBundle_SBO/v1', [
             'dataBundleId' => $dataBundleId,
-            'mcc' => $mcc,
-            'iccid' => $iccid,
-            'hImsi' => $himsi,
-            'msisdn' => $msisdn,
-        ];
-
-        return $this->client->post('/aep/APP_activeDataBundle_SBO/v1', $body);
+            'ICCID' => $iccid,
+            'accessToken' => $this->client->getAccessToken(),
+        ]);
     }
 
+    /**
+     * Terminate a plan.
+     *
+     * @param string $iccid ICCID of the SIM card.
+     * @param string $dataBundleId ID of the data bundle to terminate.
+     */
     public function terminatePlan(string $iccid, string $dataBundleId): array
     {
         return $this->client->post('/aep/SBO_package_end/v1', [
             'iccidPackageList' => [
-                ['iccid' => $iccid, 'packageid' => $dataBundleId],
+                [
+                    'iccid' => $iccid,
+                    'packageid' => $dataBundleId,
+                ],
             ],
+            'accessToken' => $this->client->getAccessToken(),
         ]);
     }
 }

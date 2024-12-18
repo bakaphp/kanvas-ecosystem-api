@@ -65,7 +65,8 @@ class SyncZohoAgentAction
                         email: $this->email,
                         password: Str::random(11),
                         branch: $this->company->defaultBranch //assign user to default branch
-                    )
+                    ),
+                    $this->app
                 ))->execute();
             }
 

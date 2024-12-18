@@ -9,3 +9,23 @@ type Engagement {
     entity_uuid: String!
     slug: String!
 }
+
+enum EngagementEntityType {
+    LEAD
+    PEOPLE
+}
+
+input EngagementFilterInput {
+    entity_type: EngagementEntityType!
+    entity_id: ID!
+    slug: String!
+    status: String!
+}
+
+# Query definition
+extend type Query @guard {
+    engagementByFilter(filter: EngagementFilterInput!): Engagement
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Queries\\Engagements\\EngagementQuery@engagementByFilter"
+        )
+}

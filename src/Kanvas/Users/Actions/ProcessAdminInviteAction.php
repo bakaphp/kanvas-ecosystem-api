@@ -9,6 +9,7 @@ use Kanvas\Apps\Actions\CreateAppKeyAction;
 use Kanvas\Apps\DataTransferObject\AppKeyInput;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\CreateUserAction;
+use Kanvas\Auth\Actions\RegisterUsersAppAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput as RegisterPostDataDto;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\DataTransferObject\CompleteInviteInput;
@@ -63,9 +64,6 @@ class ProcessAdminInviteAction
                 isActive: StateEnums::YES->getValue()
             );
 
-            //Set password to null to avoid auto-assign.
-            $user->password = null;
-
             //create user admin key
             (new CreateAppKeyAction(
                 data: new AppKeyInput(
@@ -76,11 +74,11 @@ class ProcessAdminInviteAction
                 createUserInApp: false
             ))->execute();
 
-            //associate admin to global company
-            $app->associateUser(
-                user: $user,
-                isActive: StateEnums::YES->getValue()
-            );
+            //use action instead of $app to save profile data.
+            (new RegisterUsersAppAction($user, $app))->execute($user->password);
+
+            //Set password to null to avoid auto-assign.
+            $user->password = null;
 
             $company->associateUserApp(
                 user: $user,

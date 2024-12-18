@@ -46,7 +46,7 @@ class Lead extends Data
     /**
      *  @psalm-suppress ArgumentTypeCoercion
      */
-    public static function viaRequest(UserInterface $user, AppInterface $app, array $request): self
+    public static function fromMultiple(UserInterface $user, AppInterface $app, array $request): self
     {
         $branch = isset($request['branch_id']) ? CompaniesBranches::getById($request['branch_id']) : $user->getCurrentCompany()->branch;
         CompaniesRepository::userAssociatedToCompanyAndBranch(
@@ -65,6 +65,18 @@ class Lead extends Data
 
         // Re-index the array if needed
         $request['people']['contacts'] = array_values($request['people']['contacts']);
+
+        $organization = isset($request['organization'])
+        ? Organization::from(array_merge(
+            [
+                'company' => $branch->company,
+                'user' => $user,
+                'app' => $app,
+            ],
+            is_array($request['organization'])
+                ? $request['organization']
+                : ['name' => $request['organization']]
+        )) : null;
 
         return new self(
             $app,
@@ -95,12 +107,7 @@ class Lead extends Data
             (int) ($request['receiver_id'] ?? 0),
             $request['description'] ?? null,
             $request['reason_lost'] ?? null,
-            isset($request['organization']) ? Organization::from([
-                'company' => $branch->company,
-                'user' => $user,
-                'app' => $app,
-                ...$request['organization'],
-            ]) : null,
+            $organization,
             $request['custom_fields'] ?? [],
             $request['files'] ?? []
         );

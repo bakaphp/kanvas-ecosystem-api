@@ -14,6 +14,8 @@ enum WorkflowEnum: string
     case USER_LOGIN = 'user-login';
     case USER_LOGOUT = 'user-logout';
     case AFTER_FORGOT_PASSWORD = 'after-forgot-password';
+    case AFTER_PUSH = 'after-push';
+    case AFTER_PULL = 'after-pull';
     case REQUEST_FORGOT_PASSWORD = 'request-forgot-password';
     case CREATE_CUSTOM_FIELD = 'create-custom-field';
     case CREATE_CUSTOM_FIELDS = 'create-custom-fields';

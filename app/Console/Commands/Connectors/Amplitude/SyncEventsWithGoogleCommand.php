@@ -19,6 +19,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Amplitude\Client;
 use Kanvas\Connectors\Google\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Users\Models\UsersAssociatedApps;
 
 class SyncEventsWithGoogleCommand extends Command
@@ -84,11 +85,13 @@ class SyncEventsWithGoogleCommand extends Command
                 $messageId = $result['event_properties']['prompt_id'] ?? 0;
 
                 $eventType = match (trim($eventType)) {
-                    'View Explore' => 'view-home-page',
-                    'Page Viewed' => 'view-item',
-                    'View Library' => 'view-home-page',
-                    'Select Prompt' => 'view-item',
-                    '[Amplitude] Page Viewed' => 'view-item',
+                    'View Explore' => InteractionEnum::VIEW_HOME_PAGE->getValue(),
+                    'Page Viewed' => InteractionEnum::VIEW_ITEM->getValue(),
+                    'View Library' => InteractionEnum::VIEW_ITEM->getValue(),
+                    'Select Prompt' => InteractionEnum::VIEW_ITEM->getValue(),
+                    '[Amplitude] Page Viewed' => InteractionEnum::VIEW_ITEM->getValue(),
+                    'Clicking Output Icon' => InteractionEnum::VIEW_ITEM->getValue(),
+                    'Clicking AI Nugget Preview' => InteractionEnum::VIEW_ITEM->getValue(),
                     default => null,
                 };
 
@@ -96,11 +99,15 @@ class SyncEventsWithGoogleCommand extends Command
                     continue;
                 }
 
-                $user = UsersAssociatedApps::fromApp($app)->where('displayname', $displayname)->first();
+                if (! $messageId) {
+                    continue;
+                }
+
+                $user = UsersAssociatedApps::query()->fromApp($app)->where('displayname', $displayname)->first();
 
                 if (! $user) {
                     // Use default user if no user found
-                    $user = UsersAssociatedApps::fromApp($app)->where('users_id', $app->get('default_user_recommendation_catchall_id'))->first();
+                    $user = UsersAssociatedApps::query()->fromApp($app)->where('users_id', $app->get('default_user_recommendation_catchall_id'))->first();
                 }
 
                 if (! $user) {
@@ -134,7 +141,7 @@ class SyncEventsWithGoogleCommand extends Command
 
                 // Send event to Google
                 $googleClient->writeUserEvent($writeUserEventRequest);
-                $this->info('Event: ' . $eventType . ' for user ' . $user->displayname . ' at ' . $eventTime->toDateTime()->format('Y-m-d H:i:s'));
+                $this->info('Event: ' . $eventType . ' for user ' . $user->user->getId() . ' at ' . $eventTime->toDateTime()->format('Y-m-d H:i:s'));
             }
         }
 

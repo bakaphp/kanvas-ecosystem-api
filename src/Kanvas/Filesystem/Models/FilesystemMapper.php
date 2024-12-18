@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Traits\DefaultTrait;
 
 /**
  * FilesystemMapping Model.
@@ -32,6 +33,7 @@ use Kanvas\SystemModules\Models\SystemModules;
 class FilesystemMapper extends BaseModel
 {
     use UuidTrait;
+    use DefaultTrait;
     //use Cachable;
 
     protected $table = 'filesystem_mappers';
@@ -46,6 +48,7 @@ class FilesystemMapper extends BaseModel
         'name',
         'file_header',
         'mapping',
+        'is_default',
     ];
 
     protected $casts = [

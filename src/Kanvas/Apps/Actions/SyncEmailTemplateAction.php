@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\File;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Leads\Enums\EmailTemplateEnum as LeadsEnumsEmailTemplateEnum;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
 use Kanvas\Notifications\Templates\Invite;
@@ -28,58 +29,54 @@ class SyncEmailTemplateAction
     ) {
     }
 
-    public function execute(): void
+    public function execute(bool $overWrite = true): void
     {
-        $this->createEmailTemplate();
+        $this->createEmailTemplate($overWrite);
         $this->createNotificationTypes();
     }
 
-    public function createEmailTemplate(): void
+    public function createEmailTemplate(bool $overWrite = true): void
     {
         $templates = [
             [
                 'name' => EmailTemplateEnum::DEFAULT->value,
                 'template' => File::get(resource_path('views/emails/defaultTemplate.blade.php')),
-            ],
-            [
+            ], [
                 'name' => 'user-email-update',
                 'template' => File::get(resource_path('views/emails/defaultTemplate.blade.php')),
-            ],
-            [
+            ], [
                 'name' => EmailTemplateEnum::USER_INVITE->value,
                 'template' => File::get(resource_path('views/emails/userInvite.blade.php')),
-            ],
-            [
+            ], [
                 'name' => EmailTemplateEnum::ADMIN_USER_INVITE->value,
                 'template' => File::get(resource_path('views/emails/adminUserInvite.blade.php')),
-            ],
-            [
+            ], [
                 'name' => EmailTemplateEnum::ADMIN_USER_INVITE_EXISTING_USER->value,
                 'template' => File::get(resource_path('views/emails/adminUserInviteAlreadyExist.blade.php')),
-            ],
-            [
+            ], [
                 'name' => EmailTemplateEnum::CHANGE_PASSWORD->value,
                 'template' => File::get(resource_path('views/emails/passwordUpdated.blade.php')),
-            ],
-            [
+            ], [
                 'name' => EmailTemplateEnum::RESET_PASSWORD->value,
                 'template' => File::get(resource_path('views/emails/resetPassword.blade.php')),
-            ],
-            [
+            ], [
                 'name' => EmailTemplateEnum::WELCOME->value,
                 'template' => File::get(resource_path('views/emails/welcome.blade.php')),
-            ],
-            [
+            ], [
                 'name' => PushNotificationTemplateEnum::DEFAULT->value,
                 'template' => File::get(resource_path('views/emails/pushNotification.blade.php')),
-            ],
-            [
+            ], [
                 'name' => EnumsEmailTemplateEnum::NEW_ORDER->value,
                 'template' => File::get(resource_path('views/emails/newOrder.blade.php')),
-            ],
-            [
+            ], [
                 'name' => EnumsEmailTemplateEnum::NEW_ORDER_STORE_OWNER->value,
                 'template' => File::get(resource_path('views/emails/newOrderStoreOwner.blade.php')),
+            ], [
+                'name' => LeadsEnumsEmailTemplateEnum::NEW_LEAD->value,
+                'template' => File::get(resource_path('views/emails/newLead.blade.php')),
+            ], [
+                'name' => LeadsEnumsEmailTemplateEnum::NEW_LEAD_COMPANY_ADMIN->value,
+                'template' => File::get(resource_path('views/emails/newLeadCompany.blade.php')),
             ],
         ];
 
@@ -107,7 +104,10 @@ class SyncEmailTemplateAction
             );
 
             $action = new CreateTemplateAction($dto);
-            $action->execute(! in_array($template['name'], [PushNotificationTemplateEnum::DEFAULT->value, 'user-email-update']) ? $parent : null);
+            $action->execute(
+                (! in_array($template['name'], [PushNotificationTemplateEnum::DEFAULT->value, 'user-email-update']) ? $parent : null),
+                $overWrite
+            );
         }
     }
 

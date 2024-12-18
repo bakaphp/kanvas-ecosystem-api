@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Connectors\ESim;
 
 use Baka\Traits\KanvasJobsTrait;
+use Exception;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -53,16 +54,25 @@ class SyncOrdersWithProviderCommand extends Command
                 $this->info("Order ID: {$order->id} does not have an ICCID.");
                 $order->cancel();
                 $order->fulfillCancelled();
+
                 continue;
             }
 
             #$api = $apiUrl . "/{$iccid}/esims_1GB_7D_IT_V2";
             //$api = $apiUrl . "/esims/{$iccid}/bundles/" . $bundle;
 
-            $response = $eSimService->getAppliedBundleStatus($iccid, $bundle);
+            try {
+                $response = $eSimService->getAppliedBundleStatus($iccid, $bundle);
+            } catch (Exception $e) {
+                $this->info("Order ID: {$order->id} does not have an ICCID.");
+                $order->cancel();
+                $order->fulfillCancelled();
+
+                continue;
+            }
 
             if (! empty($response)) {
-                if ($response['bundleState'] === 'active') {
+                if (isset($response['bundleState']) && $response['bundleState'] === 'active') {
                     $order->fulfill();
                     $order->completed();
                     $this->info("Syncing order ID: {$order->id}");
