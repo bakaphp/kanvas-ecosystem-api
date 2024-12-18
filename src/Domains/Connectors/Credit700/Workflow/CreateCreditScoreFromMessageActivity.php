@@ -13,10 +13,13 @@ use Kanvas\Connectors\Credit700\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Credit700\Services\CreditScoreService;
 use Kanvas\Connectors\Credit700\Support\Setup;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Channels\Services\DistributionMessageService;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\KanvasActivity;
 
@@ -76,6 +79,12 @@ class CreateCreditScoreFromMessageActivity extends KanvasActivity
         );
 
         $message = $createMessage->execute();
+
+        $leadChannel = Channel::fromApp($app)
+            ->where('entity_id', $lead->getId())
+            ->whereIn('entity_namespace', [Lead::class, SystemModules::getLegacyNamespace(Lead::class)])
+            ->firstOrFail();
+        DistributionMessageService::sentToChannelFeed($leadChannel, $message);
 
         ///$lead->user->no
 
