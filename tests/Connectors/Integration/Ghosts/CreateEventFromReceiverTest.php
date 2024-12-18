@@ -41,7 +41,7 @@ final class CreateEventFromReceiverTest extends TestCase
                     'slug' => fake()->slug,
                     "primary_tag" => [
                         "slug" => fake()->slug,
-                        "name" => $eventTypeName,
+                        "name" => 'is_report',
                         'is_report' => true
                     ],
                     "published_at" => fake()->dateTime->format('Y-m-d H:i:s'),
