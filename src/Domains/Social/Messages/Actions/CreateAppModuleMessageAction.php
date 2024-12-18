@@ -19,15 +19,13 @@ class CreateAppModuleMessageAction
 
     public function execute(): AppModuleMessage
     {
-        $data = [
-            'message_id' => $this->message->getId(),
+        return AppModuleMessage::firstOrCreate([
+            'message_id' => $this->message->id,
             'message_types_id' => $this->message->message_types_id,
             'apps_id' => $this->message->app->getId(),
-            'companies_id' => $this->message->company->getId(),
+            'companies_id' => $this->message->companies_id,
             'system_modules' => $this->systemModule->model_name,
             'entity_id' => $this->entityId,
-        ];
-
-        return AppModuleMessage::create($data);
+        ]);
     }
 }

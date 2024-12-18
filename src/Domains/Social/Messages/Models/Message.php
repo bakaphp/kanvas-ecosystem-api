@@ -222,15 +222,10 @@ class Message extends BaseModel
         $this->saveOrFail();
     }
 
-    public function hasAppModuleMessage(): bool
-    {
-        return (bool)$this->appModuleMessage;
-    }
-
     public function isLocked(): bool
     {
         //For now lets make sure all that all messages not linked with orders are unlocked.
-        if ((! $this->hasAppModuleMessage()) || (! $this->appModuleMessage->hasEntityOfClass(Order::class))) {
+        if ((! $this->appModuleMessage->exist()) || (! $this->appModuleMessage->hasEntityOfClass(Order::class))) {
             $this->setUnlock();
             return (bool)$this->is_locked;
         }
