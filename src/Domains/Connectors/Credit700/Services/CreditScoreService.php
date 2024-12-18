@@ -58,7 +58,7 @@ class CreditScoreService
             return [
                 'scores' => $scores,
                 'iframe_url' => $iframeUrl,
-                'iframe_url_signed' => $this->generateSignedIframeUrl($iframeUrl, $userRequestingReport->firstname),
+                'iframe_url_signed' => $iframeUrl !== null ? $this->generateSignedIframeUrl($iframeUrl, $userRequestingReport->firstname) : null,
             ];
         } catch (RequestException $e) {
             throw new ValidationException('Failed to retrieve credit score: ' . $e->getMessage());

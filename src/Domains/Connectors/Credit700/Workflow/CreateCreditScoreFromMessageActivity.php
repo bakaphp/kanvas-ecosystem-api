@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Credit700\Workflow;
 
 use Baka\Support\Str;
+use Kanvas\ActionEngine\Actions\Models\Action;
+use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\EngagementMessage;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\Apps\Models\Apps;
@@ -40,9 +42,25 @@ class CreateCreditScoreFromMessageActivity extends KanvasActivity
 
         $creditScoreService = new CreditScoreService($app);
         $creditApplicant = $creditScoreService->getCreditScore(
-            CreditApplicant::from($lead->people, $messageData['personal']['ssn']),
+            new CreditApplicant(
+                $messageData['personal']['first_name'] . ' ' . $messageData['personal']['last_name'],
+                $messageData['housing']['address'],
+                $messageData['housing']['city'],
+                $messageData['housing']['state']['code'],
+                $messageData['housing']['zip_code'],
+                $messageData['personal']['ssn']
+            ),
             $lead->user
         );
+
+        if (empty($creditApplicant['iframe_url'])) {
+            return [
+                'message' => 'Credit score not found',
+                'status' => 'error',
+                'data' => $message->getId(),
+                'lead' => $lead->getId(),
+            ];
+        }
 
         $engagementMessage = new EngagementMessage(
             data: $creditApplicant,
@@ -86,6 +104,24 @@ class CreateCreditScoreFromMessageActivity extends KanvasActivity
             ->firstOrFail();
         DistributionMessageService::sentToChannelFeed($leadChannel, $message);
 
+        $action = Action::where('slug', ConfigurationEnum::ACTION_VERB->value)->firstOrFail();
+        $companyAction = CompanyAction::fromApp($app)->fromCompany($message->company)->where('actions_id', $action->getId())->firstOrFail();
+        $submittedStage = $companyAction->pipeline->stages()->where('slug', 'submitted')->firstOrFail();
+        //create the engagement
+        Engagement::firstOrCreate(
+            [
+                'companies_id' => $message->company->getId(),
+                'apps_id' => $app->getId(),
+                'users_id' => $message->user->getId(),
+                'message_id' => $message->getId(),
+                'leads_id' => $lead->getId(),
+                'slug' => ConfigurationEnum::ACTION_VERB->value,
+                'people_id' => $people->getId(),
+                'pipelines_stages_id' => $submittedStage->getId(),
+                'companies_actions_id' => $companyAction->getId(),
+                'entity_uuid' => $lead->uuid,
+            ]
+        );
         ///$lead->user->no
 
         return $creditApplicant;
