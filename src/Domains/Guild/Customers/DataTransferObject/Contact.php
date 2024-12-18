@@ -15,7 +15,7 @@ class Contact extends Data
         public readonly string $value,
         public readonly int $contacts_types_id,
         public readonly int $weight = 0,
-        public readonly ?string $id = null,
+        public readonly string|int|null $id = null,
     ) {
     }
 }
