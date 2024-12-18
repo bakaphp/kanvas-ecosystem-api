@@ -40,9 +40,25 @@ class CreateCreditScoreFromMessageActivity extends KanvasActivity
 
         $creditScoreService = new CreditScoreService($app);
         $creditApplicant = $creditScoreService->getCreditScore(
-            CreditApplicant::from($lead->people, $messageData['personal']['ssn']),
+            new CreditApplicant(
+                $messageData['personal']['first_name'] . ' ' . $messageData['personal']['last_name'],
+                $messageData['housing']['address'],
+                $messageData['housing']['city'],
+                $messageData['housing']['state']['code'],
+                $messageData['housing']['zip_code'],
+                $messageData['personal']['ssn']
+            ),
             $lead->user
         );
+
+        if (empty($creditApplicant['iframe_url'])) {
+            return [
+                'message' => 'Credit score not found',
+                'status' => 'error',
+                'data' => $message->getId(),
+                'lead' => $lead->getId(),
+            ];
+        }
 
         $engagementMessage = new EngagementMessage(
             data: $creditApplicant,
@@ -86,6 +102,8 @@ class CreateCreditScoreFromMessageActivity extends KanvasActivity
             ->firstOrFail();
         DistributionMessageService::sentToChannelFeed($leadChannel, $message);
 
+        //create the engagement
+        
         ///$lead->user->no
 
         return $creditApplicant;
