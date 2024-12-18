@@ -11,4 +11,5 @@ enum CustomFieldEnum: string
     case GHOST_UNLOCK_CUSTOM_FIELD = 'unlocked_reports';
 
     case GHOST_EVENT_WEB_FORUM = 'web-forum';
+    case GHOST_EVENT_IS_REPORT = 'is_report';
 }

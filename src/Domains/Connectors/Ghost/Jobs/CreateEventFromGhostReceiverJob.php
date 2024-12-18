@@ -53,13 +53,13 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
     {
         $primaryTag = $payload['primary_tag'];
         $app = $this->webhookRequest->receiverWebhook->app;
-        if ($primaryTag['name'] == CustomFieldEnum::GHOST_EVENT_WEB_FORUM->value) {
-            $eventType = $app->get(CustomFieldEventWebhookEnum::WEBHOOK_WEB_FORUM_EVENT->value);
-        } elseif (! empty($primaryTag['is_report'])) {
-            $eventType = $app->get(CustomFieldEventWebhookEnum::WEBHOOK_IS_REPORT_EVENT->value);
-            if (! $eventType) {
-                return null;
-            }
+        $eventType = match ($primaryTag['name']) {
+            CustomFieldEnum::GHOST_EVENT_WEB_FORUM->value => $app->get(CustomFieldEventWebhookEnum::WEBHOOK_WEB_FORUM_EVENT->value),
+            CustomFieldEnum::GHOST_EVENT_IS_REPORT->value => $app->get(CustomFieldEventWebhookEnum::WEBHOOK_IS_REPORT_EVENT->value),
+            default => null,
+        };
+        if (! $eventType) {
+            return null;
         }
         return EventType::where('apps_id', $this->webhookRequest->receiverWebhook->app->getId())
              ->where('companies_id', $this->webhookRequest->receiverWebhook->company->getId())
