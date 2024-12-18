@@ -31,8 +31,8 @@ class DeleteVariantFromShopifyActivity extends KanvasActivity
             $integrationCompany = IntegrationsCompany::getByIntegration(
                 company: $variant->product->company,
                 status: $status,
-                region: $warehouse->region,
-                name: IntegrationsEnum::SHOPIFY->value
+                name: IntegrationsEnum::SHOPIFY->value,
+                region: $warehouse->region
             );
 
             if ($integrationCompany) {

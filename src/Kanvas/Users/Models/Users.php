@@ -460,7 +460,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * A company owner is the first person that register this company
-     * This only ocurred when signing up the first time, after that all users invites
+     * This only occurred when signing up the first time, after that all users invites
      * come with a default_company id attached.
      */
     public function isFirstSignup(): bool
@@ -529,8 +529,8 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             return Companies::getById($this->currentCompanyId());
         } catch (EloquentModelNotFoundException $e) {
             throw new InternalServerErrorException(
-                'No default company app configured for this user on 
-                the current app ' . app(Apps::class)->name . ', 
+                'No default company app configured for this user on
+                the current app ' . app(Apps::class)->name . ',
                 please contact support'
             );
         }
@@ -545,8 +545,8 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             return CompaniesBranches::getById($this->currentBranchId());
         } catch (EloquentModelNotFoundException $e) {
             throw new InternalServerErrorException(
-                'No default company app configured 
-                for this user on the current app ' . app(Apps::class)->name . ', 
+                'No default company app configured
+                for this user on the current app ' . app(Apps::class)->name . ',
                 please contact support'
             );
         }
