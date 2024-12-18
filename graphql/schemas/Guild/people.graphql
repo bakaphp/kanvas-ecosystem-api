@@ -136,6 +136,8 @@ extend type Query @guard {
             )
         hasEmails: _
             @whereHasConditions(relation: "emails", columns: ["id", "value"])
+        hasOrganization: _
+            @whereHasConditions(relation: "organizations", columns: ["id"])
         hasPhones: _
             @whereHasConditions(relation: "phones", columns: ["id", "value"])
         hasTags: _ @whereHasConditions(relation: "tags", columns: ["name"])
