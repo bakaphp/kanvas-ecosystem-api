@@ -7,6 +7,7 @@ namespace Kanvas\ActionEngine\Actions\Models;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\ActionEngine\Models\BaseModel;
+use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Nevadskiy\Tree\AsTree;
 
 /**
@@ -41,5 +42,10 @@ class CompanyAction extends BaseModel
     public function action(): BelongsTo
     {
         return $this->belongsTo(Action::class, 'actions_id', 'id');
+    }
+
+    public function pipeline(): BelongsTo
+    {
+        return $this->belongsTo(Pipeline::class, 'pipelines_id', 'id');
     }
 }
