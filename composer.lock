@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4168eae7cd73804e92b7fbedb304e380",
+    "content-hash": "25f20c5b087b2beae3c396acd1a31c2d",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -1195,16 +1195,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.334.6",
+            "version": "3.336.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "2b0be3aded849d3b7bb0b53ea3295c7cecdeeee7"
+                "reference": "5a62003bf183e32da038056a4b9077c27224e034"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/2b0be3aded849d3b7bb0b53ea3295c7cecdeeee7",
-                "reference": "2b0be3aded849d3b7bb0b53ea3295c7cecdeeee7",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/5a62003bf183e32da038056a4b9077c27224e034",
+                "reference": "5a62003bf183e32da038056a4b9077c27224e034",
                 "shasum": ""
             },
             "require": {
@@ -1287,9 +1287,9 @@
             "support": {
                 "forum": "https://forums.aws.amazon.com/forum.jspa?forumID=80",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.334.6"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.336.0"
             },
-            "time": "2024-12-13T19:18:29+00:00"
+            "time": "2024-12-18T19:04:32+00:00"
         },
         {
             "name": "berkayk/onesignal-laravel",
@@ -3087,16 +3087,16 @@
         },
         {
             "name": "google/protobuf",
-            "version": "v4.29.1",
+            "version": "v4.29.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/protocolbuffers/protobuf-php.git",
-                "reference": "6042b5483f8029e42473faeb8ef75ba266278381"
+                "reference": "79aa5014efeeec3d137df5cdb0ae2fc163953945"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/6042b5483f8029e42473faeb8ef75ba266278381",
-                "reference": "6042b5483f8029e42473faeb8ef75ba266278381",
+                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/79aa5014efeeec3d137df5cdb0ae2fc163953945",
+                "reference": "79aa5014efeeec3d137df5cdb0ae2fc163953945",
                 "shasum": ""
             },
             "require": {
@@ -3125,9 +3125,9 @@
                 "proto"
             ],
             "support": {
-                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v4.29.1"
+                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v4.29.2"
             },
-            "time": "2024-12-03T22:07:45+00:00"
+            "time": "2024-12-18T14:11:12+00:00"
         },
         {
             "name": "graham-campbell/result-type",
@@ -4087,8 +4087,8 @@
             "type": "library",
             "extra": {
                 "laminas": {
-                    "config-provider": "Laminas\\Diactoros\\ConfigProvider",
-                    "module": "Laminas\\Diactoros"
+                    "module": "Laminas\\Diactoros",
+                    "config-provider": "Laminas\\Diactoros\\ConfigProvider"
                 }
             },
             "autoload": {
@@ -5370,16 +5370,16 @@
         },
         {
             "name": "league/csv",
-            "version": "9.20.0",
+            "version": "9.20.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/csv.git",
-                "reference": "553579df208641ada6ffb450b3a151e2fcfa4f31"
+                "reference": "491d1e79e973a7370c7571dc0fe4a7241f4936ee"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/csv/zipball/553579df208641ada6ffb450b3a151e2fcfa4f31",
-                "reference": "553579df208641ada6ffb450b3a151e2fcfa4f31",
+                "url": "https://api.github.com/repos/thephpleague/csv/zipball/491d1e79e973a7370c7571dc0fe4a7241f4936ee",
+                "reference": "491d1e79e973a7370c7571dc0fe4a7241f4936ee",
                 "shasum": ""
             },
             "require": {
@@ -5453,7 +5453,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-12-13T15:49:27+00:00"
+            "time": "2024-12-18T10:11:15+00:00"
         },
         {
             "name": "league/flysystem",
@@ -5824,35 +5824,30 @@
         },
         {
             "name": "league/oauth2-client",
-            "version": "2.7.0",
+            "version": "2.8.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/oauth2-client.git",
-                "reference": "160d6274b03562ebeb55ed18399281d8118b76c8"
+                "reference": "3d5cf8d0543731dfb725ab30e4d7289891991e13"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/oauth2-client/zipball/160d6274b03562ebeb55ed18399281d8118b76c8",
-                "reference": "160d6274b03562ebeb55ed18399281d8118b76c8",
+                "url": "https://api.github.com/repos/thephpleague/oauth2-client/zipball/3d5cf8d0543731dfb725ab30e4d7289891991e13",
+                "reference": "3d5cf8d0543731dfb725ab30e4d7289891991e13",
                 "shasum": ""
             },
             "require": {
-                "guzzlehttp/guzzle": "^6.0 || ^7.0",
-                "paragonie/random_compat": "^1 || ^2 || ^9.99",
-                "php": "^5.6 || ^7.0 || ^8.0"
+                "ext-json": "*",
+                "guzzlehttp/guzzle": "^6.5.8 || ^7.4.5",
+                "php": "^7.1 || >=8.0.0 <8.5.0"
             },
             "require-dev": {
                 "mockery/mockery": "^1.3.5",
-                "php-parallel-lint/php-parallel-lint": "^1.3.1",
-                "phpunit/phpunit": "^5.7 || ^6.0 || ^9.5",
-                "squizlabs/php_codesniffer": "^2.3 || ^3.0"
+                "php-parallel-lint/php-parallel-lint": "^1.4",
+                "phpunit/phpunit": "^7 || ^8 || ^9 || ^10 || ^11",
+                "squizlabs/php_codesniffer": "^3.11"
             },
             "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-2.x": "2.0.x-dev"
-                }
-            },
             "autoload": {
                 "psr-4": {
                     "League\\OAuth2\\Client\\": "src/"
@@ -5888,9 +5883,9 @@
             ],
             "support": {
                 "issues": "https://github.com/thephpleague/oauth2-client/issues",
-                "source": "https://github.com/thephpleague/oauth2-client/tree/2.7.0"
+                "source": "https://github.com/thephpleague/oauth2-client/tree/2.8.0"
             },
-            "time": "2023-04-16T18:19:15+00:00"
+            "time": "2024-12-11T05:05:52+00:00"
         },
         {
             "name": "league/uri",
@@ -6559,10 +6554,6 @@
             ],
             "type": "library",
             "extra": {
-                "branch-alias": {
-                    "dev-master": "3.x-dev",
-                    "dev-2.x": "2.x-dev"
-                },
                 "laravel": {
                     "providers": [
                         "Carbon\\Laravel\\ServiceProvider"
@@ -6572,6 +6563,10 @@
                     "includes": [
                         "extension.neon"
                     ]
+                },
+                "branch-alias": {
+                    "dev-2.x": "2.x-dev",
+                    "dev-master": "3.x-dev"
                 }
             },
             "autoload": {
@@ -9953,12 +9948,12 @@
             "type": "library",
             "extra": {
                 "laravel": {
-                    "providers": [
-                        "Silber\\Bouncer\\BouncerServiceProvider"
-                    ],
                     "aliases": {
                         "Bouncer": "Silber\\Bouncer\\BouncerFacade"
-                    }
+                    },
+                    "providers": [
+                        "Silber\\Bouncer\\BouncerServiceProvider"
+                    ]
                 }
             },
             "autoload": {
@@ -10321,16 +10316,16 @@
         },
         {
             "name": "spatie/laravel-model-states",
-            "version": "2.8.0",
+            "version": "2.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-model-states.git",
-                "reference": "2ca065ef483db25b7aeb916cb8597cb1315e8d30"
+                "reference": "627ceb869f2f7a251cce4d34b1f72e1f677eb0a6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-model-states/zipball/2ca065ef483db25b7aeb916cb8597cb1315e8d30",
-                "reference": "2ca065ef483db25b7aeb916cb8597cb1315e8d30",
+                "url": "https://api.github.com/repos/spatie/laravel-model-states/zipball/627ceb869f2f7a251cce4d34b1f72e1f677eb0a6",
+                "reference": "627ceb869f2f7a251cce4d34b1f72e1f677eb0a6",
                 "shasum": ""
             },
             "require": {
@@ -10381,7 +10376,7 @@
                 "state"
             ],
             "support": {
-                "source": "https://github.com/spatie/laravel-model-states/tree/2.8.0"
+                "source": "https://github.com/spatie/laravel-model-states/tree/2.9.0"
             },
             "funding": [
                 {
@@ -10393,7 +10388,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-12-11T09:58:12+00:00"
+            "time": "2024-12-16T15:39:46+00:00"
         },
         {
             "name": "spatie/laravel-package-tools",
@@ -10616,16 +10611,16 @@
         },
         {
             "name": "spatie/php-structure-discoverer",
-            "version": "2.2.0",
+            "version": "2.2.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/php-structure-discoverer.git",
-                "reference": "271542206169d95dd2ffe346ddf11f37672553a2"
+                "reference": "e2b39ba0baaf05d1300c5467e7ee8a6439324827"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/php-structure-discoverer/zipball/271542206169d95dd2ffe346ddf11f37672553a2",
-                "reference": "271542206169d95dd2ffe346ddf11f37672553a2",
+                "url": "https://api.github.com/repos/spatie/php-structure-discoverer/zipball/e2b39ba0baaf05d1300c5467e7ee8a6439324827",
+                "reference": "e2b39ba0baaf05d1300c5467e7ee8a6439324827",
                 "shasum": ""
             },
             "require": {
@@ -10684,7 +10679,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/php-structure-discoverer/issues",
-                "source": "https://github.com/spatie/php-structure-discoverer/tree/2.2.0"
+                "source": "https://github.com/spatie/php-structure-discoverer/tree/2.2.1"
             },
             "funding": [
                 {
@@ -10692,7 +10687,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-08-29T10:43:45+00:00"
+            "time": "2024-12-16T13:29:18+00:00"
         },
         {
             "name": "spatie/regex",
@@ -12586,8 +12581,8 @@
             "type": "library",
             "extra": {
                 "thanks": {
-                    "name": "symfony/polyfill",
-                    "url": "https://github.com/symfony/polyfill"
+                    "url": "https://github.com/symfony/polyfill",
+                    "name": "symfony/polyfill"
                 }
             },
             "autoload": {
@@ -14580,16 +14575,16 @@
         },
         {
             "name": "weble/zohoclient",
-            "version": "4.3.0",
+            "version": "4.3.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Weble/ZohoClient.git",
-                "reference": "fd4aeb7838e12bd837b42f640deaf9986b5f1390"
+                "reference": "8bb57ee9df9d9375db07298d43c7fab874904186"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Weble/ZohoClient/zipball/fd4aeb7838e12bd837b42f640deaf9986b5f1390",
-                "reference": "fd4aeb7838e12bd837b42f640deaf9986b5f1390",
+                "url": "https://api.github.com/repos/Weble/ZohoClient/zipball/8bb57ee9df9d9375db07298d43c7fab874904186",
+                "reference": "8bb57ee9df9d9375db07298d43c7fab874904186",
                 "shasum": ""
             },
             "require": {
@@ -14627,7 +14622,7 @@
             ],
             "support": {
                 "issues": "https://github.com/Weble/ZohoClient/issues",
-                "source": "https://github.com/Weble/ZohoClient/tree/4.3.0"
+                "source": "https://github.com/Weble/ZohoClient/tree/4.3.1"
             },
             "funding": [
                 {
@@ -14635,7 +14630,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-04-09T13:21:35+00:00"
+            "time": "2024-12-19T08:16:01+00:00"
         },
         {
             "name": "webleit/zohocrmapi",
@@ -14760,16 +14755,16 @@
         },
         {
             "name": "webonyx/graphql-php",
-            "version": "v15.19.0",
+            "version": "v15.19.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/webonyx/graphql-php.git",
-                "reference": "5203bf29c8be0280e8d0925538a310202bc10f29"
+                "reference": "fa01712b1a170ddc1d92047011b2f4c2bdfa8234"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/webonyx/graphql-php/zipball/5203bf29c8be0280e8d0925538a310202bc10f29",
-                "reference": "5203bf29c8be0280e8d0925538a310202bc10f29",
+                "url": "https://api.github.com/repos/webonyx/graphql-php/zipball/fa01712b1a170ddc1d92047011b2f4c2bdfa8234",
+                "reference": "fa01712b1a170ddc1d92047011b2f4c2bdfa8234",
                 "shasum": ""
             },
             "require": {
@@ -14822,7 +14817,7 @@
             ],
             "support": {
                 "issues": "https://github.com/webonyx/graphql-php/issues",
-                "source": "https://github.com/webonyx/graphql-php/tree/v15.19.0"
+                "source": "https://github.com/webonyx/graphql-php/tree/v15.19.1"
             },
             "funding": [
                 {
@@ -14830,7 +14825,7 @@
                     "type": "open_collective"
                 }
             ],
-            "time": "2024-12-04T19:14:22+00:00"
+            "time": "2024-12-19T10:52:18+00:00"
         },
         {
             "name": "yakovenko/laravel-lighthouse-graphql-multi-schema",
@@ -15513,16 +15508,16 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.0.3",
+            "version": "2.0.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpstan/phpstan.git",
-                "reference": "46b4d3529b12178112d9008337beda0cc2a1a6b4"
+                "reference": "50d276fc3bf1430ec315f2f109bbde2769821524"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/46b4d3529b12178112d9008337beda0cc2a1a6b4",
-                "reference": "46b4d3529b12178112d9008337beda0cc2a1a6b4",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/50d276fc3bf1430ec315f2f109bbde2769821524",
+                "reference": "50d276fc3bf1430ec315f2f109bbde2769821524",
                 "shasum": ""
             },
             "require": {
@@ -15567,7 +15562,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-11-28T22:19:37+00:00"
+            "time": "2024-12-17T17:14:01+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
@@ -17021,12 +17016,12 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
         "php": "^8.2"
     },
-    "platform-dev": [],
+    "platform-dev": {},
     "plugin-api-version": "2.6.0"
 }
