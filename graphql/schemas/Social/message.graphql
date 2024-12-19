@@ -73,6 +73,7 @@ input MessageInput {
 
 input MessageUpdateInput {
     message: Mixed
+    message_verb: ID
     is_public: Int
     is_deleted: Int
     tags: [TagInput!]

@@ -115,6 +115,22 @@ class MessageManagementMutation
             throw new ValidationException($validator->messages()->__toString());
         }
 
+        if (! empty($request['input']['message_verb'] ?? null)) {
+            try {
+                $messageType = MessagesTypesRepository::getByVerb($request['input']['message_verb'], $message->app);
+            } catch (ModelNotFoundException $e) {
+                $messageTypeDto = MessageTypeInput::from([
+                    'apps_id' => $message->app->getId(),
+                    'name' => $request['input']['message_verb'],
+                    'verb' => $request['input']['message_verb'],
+                ]);
+                $messageType = (new CreateMessageTypeAction($messageTypeDto))->execute();
+            }
+
+            unset($request['input']['message_verb']);
+            $request['input']['message_types_id'] = $messageType->getId();
+        }
+
         /**
          * @todo move to action
          */
