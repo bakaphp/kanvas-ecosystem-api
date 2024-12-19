@@ -48,7 +48,6 @@ class SyncShopifyOrderAction
                 zipcode: $this->orderData['shipping_address']['zip'] ?? ''
             ))
             : null;
-
         $billingAddress = ! empty($this->orderData['billing_address']['address1']) ?
             $customer->addAddress(new Address(
                 address: $this->orderData['billing_address']['address1'],

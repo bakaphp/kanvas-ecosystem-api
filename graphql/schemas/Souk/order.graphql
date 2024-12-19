@@ -36,6 +36,7 @@ type Order {
     created_at: String!
     updated_at: String
     items: [OrderItem!]
+    shipping_address: Address @belongsTo(relation: "shippingAddress")
 }
 
 type OrderItem {
