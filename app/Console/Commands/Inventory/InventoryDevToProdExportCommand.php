@@ -61,6 +61,7 @@ class InventoryDevToProdExportCommand extends Command
                 'slug' => $product->slug,
                 'sku' => $product->slug ?? Str::slug($product->name),
                 'variants' => $this->mapVariant($product),
+                'files' => $this->mapFilesForImport($product),
                 'categories' => $this->mapCategories($product),
                 'quantity' => 0,
                 'price' => 0,
@@ -127,6 +128,7 @@ GQL;
                 'short_description' => $variant->short_description,
                 'html_description' => $variant->html_description,
                 'sku' => $variant->sku ?? Str::slug($variant->name),
+                'files' => $this->mapFilesForImport($variant),
                 'ean' => $variant->ean,
                 'barcode' => $variant->barcode,
                 'serial_number' => $variant->serial_number,
@@ -225,5 +227,17 @@ GQL;
         }
 
         return $categoriesToExport;
+    }
+
+    public function mapFilesForImport(Products|Variants $entity): array
+    {
+        $fileSystem = [];
+        foreach ($entity->files as $file) {
+            $fileSystem[] = [
+                'url' => $file->url,
+                'name' => $file->name,
+            ];
+        }
+        return $fileSystem;
     }
 }
