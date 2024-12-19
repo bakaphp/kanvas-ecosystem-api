@@ -207,20 +207,4 @@ class MessageManagementMutation
 
         return $message;
     }
-
-    public function viewMessageHistory(mixed $root, array $request): Collection
-    {
-        $messagePath = Message::where('id', $request['message_id'])->value('path')->getValue();
-
-        if (! $messagePath) {
-            throw new Exception('Message does not a have history');
-        }
-
-        $messageHistory = Message::whereIn('id', explode('.', $messagePath))
-                            ->where('is_deleted', 0)
-                            ->where('is_locked', 0)
-                            ->orderBy('id', 'ASC')
-                            ->get();
-        return $messageHistory;
-    }
 }

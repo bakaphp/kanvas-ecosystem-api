@@ -158,10 +158,6 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@attachFileToMessage"
         )
-    viewMessageHistory(message_id: ID!): [Message!]
-        @field(
-            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@viewMessageHistory"
-        )
 }
 
 extend type Query @guard {
@@ -390,5 +386,13 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@likedMessagesByUser"
+        )
+    viewMessageHistory(
+        message_id: ID!
+        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
+    ): [Message!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@viewMessageHistory"
         )
 }

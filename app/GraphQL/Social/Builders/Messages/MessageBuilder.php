@@ -16,6 +16,7 @@ use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Models\UserMessage;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
+use Exception;
 
 class MessageBuilder
 {
@@ -146,5 +147,20 @@ class MessageBuilder
             ->where('messages.is_deleted', '=', 0)
             ->where('messages.apps_id', '=', $app->getId())
             ->select('messages.*');
+    }
+
+    public function viewMessageHistory(mixed $root, array $request): Builder
+    {
+        $messagePath = Message::where('id', $request['message_id'])->value('path')->getValue();
+
+        if (! $messagePath) {
+            throw new Exception('Message does not a have history');
+        }
+
+        $messageHistory = Message::query()->whereIn('id', explode('.', $messagePath))
+                            ->where('is_deleted', 0)
+                            ->where('is_locked', 0);
+
+        return $messageHistory;
     }
 }
