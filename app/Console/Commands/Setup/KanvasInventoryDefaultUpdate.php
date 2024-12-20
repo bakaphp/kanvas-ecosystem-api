@@ -174,7 +174,7 @@ class KanvasInventoryDefaultUpdate extends Command
             $variants = Variants::whereDoesntHave('status')
             ->where('companies_id', $companyData->getId())
             ->get();
-    
+
             foreach ($variants as $variant) {
                 $this->info("Working variant {$variant->getId()} status assignment \n");
                 $variant->status_id = $defaultStatus->getId();

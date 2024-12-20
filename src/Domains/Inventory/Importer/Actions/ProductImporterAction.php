@@ -130,7 +130,7 @@ class ProductImporterAction
     {
         $productType = null;
 
-        if(isset($this->importedProduct->productType)) {
+        if (isset($this->importedProduct->productType)) {
             $productType = ProductsTypesModel::getByCustomField(
                 'slug',
                 Str::slug($this->importedProduct->productType['name']),

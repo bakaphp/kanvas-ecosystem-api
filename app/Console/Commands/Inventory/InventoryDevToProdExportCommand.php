@@ -73,7 +73,6 @@ class InventoryDevToProdExportCommand extends Command
             $this->newLine();
             $this->info('Processing Product with slug ' . $product->slug);
             $this->newLine();
-
         }
 
         $chunks = array_chunk($productsToExport, 10);
