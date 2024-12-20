@@ -13,13 +13,10 @@ class ProductImporter extends Data
         public string $name,
         public string $slug,
         public string $sku,
-        public float $price,
         public array $variants,
         public ?string $description = null,
         public array $categories = [],
-        public int $quantity = 0,
         public bool $isPublished = true,
-        public float $discountPrice = 0.0,
         public int $position = 0,
         public ?string $shortDescription = null,
         public ?string $htmlDescription = null,
@@ -27,17 +24,11 @@ class ProductImporter extends Data
         public ?string $upc = null,
         public ?string $source = null,
         public ?string $sourceId = null,
-        public ?string $status = null,
+        public array $status = [],
         public array $files = [],
         public array $productType = [],
         public array $attributes = [],
-        public array $customFields = [],
-        public array $warehouses = [
-            [
-                'warehouse' => 'default',
-                'channel' => 'default',
-            ],
-        ],
+        public array $customFields = []
     ) {
     }
 
