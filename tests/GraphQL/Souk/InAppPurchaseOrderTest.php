@@ -79,7 +79,7 @@ class InAppPurchaseOrderTest extends TestCase
             ],
         ]);
     }
-    
+
     public function testCreateOrderFromAppleInAppPurchaseWithCustomFields()
     {
         $app = app(Apps::class);
@@ -101,7 +101,7 @@ class InAppPurchaseOrderTest extends TestCase
                 [
                     'name' => 'message_id',
                     'value' => '1',
-                ]
+                ],
             ],
         ];
 
