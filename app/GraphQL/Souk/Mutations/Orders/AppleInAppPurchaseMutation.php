@@ -45,11 +45,10 @@ class AppleInAppPurchaseMutation
         $createOrderFromInAppPurchase = new CreateOrderFromAppleReceiptAction($appleInAppPurchase);
 
         $order = $createOrderFromInAppPurchase->execute();
-
-        if (isset($request['message_id'])) {
-            $message = Message::findOrFail($request['message_id']);
-            $orderSystemModule = SystemModulesRepository::getByModelName(Order::class);
-            $createAppModuleMessage = (new CreateAppModuleMessageAction($message, $orderSystemModule, $order->getId()))->execute();
+        
+        if(!empty($appleInAppPurchase->custom_fields)) {
+            $order->setCustomFields($appleInAppPurchase->custom_fields);
+            $order->saveCustomFields();
         }
 
         return $order;

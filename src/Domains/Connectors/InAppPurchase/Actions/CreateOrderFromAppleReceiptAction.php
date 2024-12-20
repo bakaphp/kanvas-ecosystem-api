@@ -24,7 +24,7 @@ use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Spatie\LaravelData\DataCollection;
-
+use Imdhemy\AppStore\ValueObjects\LatestReceiptInfo;
 class CreateOrderFromAppleReceiptAction
 {
     private const DEFAULT_CURRENCY = 'USD';
@@ -128,9 +128,9 @@ class CreateOrderFromAppleReceiptAction
         );
     }
 
-    private function createOrderItem($inAppData): OrderItem
+    private function createOrderItem(LatestReceiptInfo $inAppData): OrderItem
     {
-        $variant = $this->getVariant($inAppData->getProductId());
+        $variant = $this->getVariant('JTJS98'); //($inAppData->getProductId());
         $warehouse = $this->region->warehouses()->firstOrFail();
 
         return new OrderItem(
