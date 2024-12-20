@@ -8,6 +8,7 @@ use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
 use Kanvas\Inventory\Channels\Repositories\ChannelRepository;
 use Kanvas\Inventory\Channels\Services\ChannelService;
+use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction as AddToWarehouse;
@@ -38,6 +39,9 @@ class Variants
                 (int) $req['input']['status']['id'],
                 auth()->user()->getCurrentCompany()
             )->getId();
+        } else {
+            $status = Status::getDefault(auth()->user()->getCurrentCompany());
+            $req['input']['status_id'] = $status->getId();
         }
 
         $variantDto = VariantDto::viaRequest($req['input'], auth()->user());
