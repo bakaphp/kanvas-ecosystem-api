@@ -58,12 +58,10 @@ class ShopifyProductService
            'description' => $description ?? '',
            'slug' => $slug,
            'sku' => (string) $productId,
-           'regionId' => $this->region->id,
-           'price' => 0,
-           'discountPrice' => 0,
-           'quantity' => 1,
            'isPublished' => (int) ($shopifyProduct['status'] == 'active'),
-           'status' => $shopifyProduct['status'],
+           'status' => [
+                'name' => $shopifyProduct['status']
+           ],
            'files' => $this->files['files'] ?? [],
            'source' => ShopifyConfigurationService::getKey(CustomFieldEnum::SHOPIFY_PRODUCT_ID->value, $this->company, $this->app, $this->region),
            'sourceId' => $productId,
@@ -86,13 +84,7 @@ class ShopifyProductService
                 'weight' => 0,
            ],
            'attributes' => [],
-           'variants' => $this->mapVariantsForImport($shopifyProduct['variants'], $shopifyProduct['options']),
-           'warehouses' => [
-                [
-                     'warehouse' => $this->warehouses->name,
-                     'channel' => $this->channel->name,
-                ],
-           ],
+           'variants' => $this->mapVariantsForImport($shopifyProduct['variants'], $shopifyProduct['options'])
         ];
     }
 
