@@ -11,6 +11,7 @@ use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Traits\TokenTrait;
 use Kanvas\Users\Models\Users;
 use Lcobucci\JWT\Token;
+use Lcobucci\JWT\Token\InvalidTokenStructure;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 
 class TokenGuard extends AuthTokenGuard
@@ -35,8 +36,12 @@ class TokenGuard extends AuthTokenGuard
         $requestToken = $this->getTokenForRequest();
 
         if (! empty($requestToken)) {
-            $token = $this->getRequestJwtToken();
-            $user = $this->sessionUser($token, $this->request);
+            try {
+                $token = $this->getRequestJwtToken();
+                $user = $this->sessionUser($token, $this->request);
+            } catch (InvalidTokenStructure $e) {
+                return null;
+            }
         }
 
         return $this->user = $user;
