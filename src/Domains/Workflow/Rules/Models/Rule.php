@@ -76,24 +76,38 @@ class Rule extends BaseModel
     {
         $conditions = $this->getRulesConditions()->get();
         $pattern = (string) $this->pattern;
-        $variableExpression = 'Variable';
         $values = [];
 
         foreach ($conditions as $key => $conditionModel) {
             $attribute = trim($conditionModel->attribute_name);
             $operator = trim($conditionModel->operator);
+            $value = $conditionModel->value;
 
-            $condition = "$attribute $operator $attribute$variableExpression";
-            $values["$attribute$variableExpression"] = $conditionModel->value;
+            // Detect if the attribute is an array key
+            if (strpos($attribute, '[') !== false && strpos($attribute, ']') !== false) {
+                $attribute = preg_replace_callback('/\[(.*?)\]/', function ($matches) {
+                    return "['" . trim($matches[1], "'\"") . "']";
+                }, $attribute);
+            }
 
+            if (is_array($value)) {
+                // Handle array operators
+                $condition = sprintf('%s %s [%s]', $attribute, $operator, implode(', ', array_map(fn ($v) => "'$v'", $value)));
+            } else {
+                // Replace placeholders directly
+                $condition = sprintf("%s %s '%s'", $attribute, $operator, $value);
+            }
+
+            // Replace the pattern placeholder
             $pattern = str_replace((string) ($key + 1), $condition, $pattern);
         }
 
+        // Normalize AND/OR keywords
         $pattern = str_ireplace(['AND', 'OR'], ['and', 'or'], $pattern);
 
         return [
             'expression' => $pattern,
-            'values' => $values,
+            'values' => $values, // Values are no longer used in the expression
         ];
     }
 }

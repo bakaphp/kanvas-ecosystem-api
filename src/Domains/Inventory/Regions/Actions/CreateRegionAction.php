@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Regions\Actions;
 
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
@@ -31,10 +32,11 @@ class CreateRegionAction
         );
 
         return RegionModel::firstOrCreate([
-            'name' => $this->data->name,
+            'slug' => $this->data->slug ?? Str::slug($this->data->name),
             'companies_id' => $this->data->company->getId(),
             'apps_id' => $this->data->app->getId(),
         ], [
+            'name' => $this->data->name,
             'users_id' => $this->data->user->getId(),
             'currency_id' => $this->data->currency->getId(),
             'short_slug' => $this->data->short_slug,

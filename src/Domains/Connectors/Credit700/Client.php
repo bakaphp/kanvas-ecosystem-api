@@ -49,27 +49,37 @@ class Client
         throw new RuntimeException('GET method is not applicable for 700Credit integration.');
     }
 
-    public function post(string $path, array $data = []): SimpleXMLElement
+    public function post(string $path, array $data = []): array
     {
-        $this->generateToken();
-
         $response = $this->httpClient->post($this->apiBaseUrl . $path, [
             'headers' => [
-                'Authorization' => 'Bearer ' . $this->accessToken,
+                //'Authorization' => 'Bearer ' . $this->accessToken,
+                'Content-Type' => 'application/x-www-form-urlencoded',
             ],
-            'json' => $data,
+            'form_params' => $data, // Use form_params for x-www-form-urlencoded
         ]);
 
         $responseBody = $response->getBody()->getContents();
+        $xml = new SimpleXMLElement($this->sanitizeXml($responseBody));
 
-        // Process XML response
-        return new SimpleXMLElement($responseBody);
+        return json_decode(json_encode($xml), true); // Return as an associative array
+    }
+
+    protected function sanitizeXml(string $xml): string
+    {
+        // Fix the nested <Creditsystem_Error> tag issue
+        $xml = preg_replace('/<Creditsystem_Error id=<Creditsystem_Error id="(\d+)">/', '<Creditsystem_Error id="$1">', $xml);
+
+        // Ensure all tags are properly closed
+        $xml = str_replace('</Creditsystem_Error></Creditsystem_Error>', '</Creditsystem_Error>', $xml);
+
+        return $xml;
     }
 
     public function generateToken(): string
     {
         $response = $this->httpClient->post($this->apiBaseUrl . '/.auth/token', [
-             [
+            'json' => [
                 'ClientId' => $this->clientId,
                 'ClientSecret' => $this->clientSecret,
             ],
@@ -86,14 +96,16 @@ class Client
         return $this->accessToken;
     }
 
-    public function signUrl(string $unsignedUrl, int $duration, string $signedBy): string
+    public function signUrl(string $unsignedUrl, string $signedBy, int $duration = 30): string
     {
-        if (! $this->accessToken) {
-            throw new ValidationException('Access token is missing. Generate the token first.');
-        }
+        $this->generateToken();
 
         $response = $this->httpClient->post($this->apiBaseUrl . '/.auth/sign', [
-            [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $this->accessToken,
+                'Content-Type' => 'application/json',
+            ],
+           'json' => [
                 'url' => $unsignedUrl,
                 'duration' => $duration,
                 'signedBy' => $signedBy,

@@ -38,10 +38,10 @@ class CreateChannel
         return Channels::firstOrCreate([
             'companies_id' => $this->dto->company->getId(),
             'apps_id' => $this->dto->app->getId(),
-            'name' => $this->dto->name,
-        ], [
-            'description' => $this->dto->description,
             'slug' => $this->dto->slug ?? Str::slug($this->dto->name),
+        ], [
+            'name' => $this->dto->name,
+            'description' => $this->dto->description,
             'is_default' => $this->dto->is_default,
             'is_published' => $this->dto->is_published,
             'users_id' => $this->user->getId(),

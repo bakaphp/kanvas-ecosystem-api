@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Ghost\Jobs;
 
+use Carbon\Carbon;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Event\Events\Models\EventCategory;
@@ -11,13 +12,14 @@ use Kanvas\Event\Events\DataTransferObject\Event;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Connectors\Ghost\Enums\CustomFieldEnum;
 use Illuminate\Support\Str;
+use Kanvas\Connectors\Ghost\Enums\CustomFieldEventWebhookEnum;
 
 class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
 {
     public function execute(): array
     {
         $company = $this->webhookRequest->receiverWebhook->company;
-        $payload = $this->webhookRequest->payload['posts'][0];
+        $payload = $this->webhookRequest->payload['post']['current'];
         $eventType = $this->getType($payload);
         if (! $eventType) {
             return [];
@@ -25,14 +27,15 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
         $category = EventCategory::where('companies_id', $company->getId())
                     ->where('apps_id', $this->webhookRequest->receiverWebhook->app->getId())
                     ->first();
+        $date = new Carbon($payload['published_at']);
         $data = [
-            'name' => $payload['primary_tag']['name'],
-            'slug' => Str::slug($payload['primary_tag']['name']),
+            'name' => $payload['title'],
+            'slug' => $payload['slug'],
             'type_id' => $eventType->getId(),
             'category_id' => $category->getId(),
             'dates' => [
                 [
-                    'date' => $payload['published_at'],
+                    'date' => $date->format('Y-m-d'),
                 ]
             ]
         ];
@@ -48,9 +51,14 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
 
     public function getType(array $payload): ?EventType
     {
-        $appSetting = $this->webhookRequest->receiverWebhook->app->get(CustomFieldEnum::WEBHOOK_IS_REPORT_EVENT->value);
-        $eventType = $payload['primary_tag']['name'];
-        if (! in_array($eventType, $appSetting)) {
+        $primaryTag = $payload['primary_tag'];
+        $app = $this->webhookRequest->receiverWebhook->app;
+        $eventType = match ($primaryTag['name']) {
+            CustomFieldEnum::GHOST_EVENT_WEB_FORUM->value => $app->get(CustomFieldEventWebhookEnum::WEBHOOK_WEB_FORUM_EVENT->value),
+            CustomFieldEnum::GHOST_EVENT_IS_REPORT->value => $app->get(CustomFieldEventWebhookEnum::WEBHOOK_IS_REPORT_EVENT->value),
+            default => null,
+        };
+        if (! $eventType) {
             return null;
         }
         return EventType::where('apps_id', $this->webhookRequest->receiverWebhook->app->getId())

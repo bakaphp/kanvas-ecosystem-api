@@ -19,6 +19,7 @@ use Kanvas\Connectors\Ghost\Jobs\CreateEventFromGhostReceiverJob;
 use Kanvas\Event\Events\DataTransferObject\Event;
 use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Connectors\Ghost\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Ghost\Enums\CustomFieldEventWebhookEnum;
 use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Events\Models\EventClass;
 use Kanvas\Event\Themes\Models\Theme;
@@ -34,15 +35,16 @@ final class CreateEventFromReceiverTest extends TestCase
         $company = $user->getCurrentCompany();
         $eventTypeName = fake()->name;
         $payload = [
-            "posts" => [
-                [
+            "post" => [
+                'current' => [
                     'title' => fake()->name,
+                    'slug' => fake()->slug,
                     "primary_tag" => [
                         "slug" => fake()->slug,
-                        "name" => $eventTypeName,
+                        "name" => 'is_report',
                         'is_report' => true
                     ],
-                    "published_at" => fake()->dateTime->format('Y-m-d'),
+                    "published_at" => fake()->dateTime->format('Y-m-d H:i:s'),
                     "tags" => [
                         [
                             "name" => fake()->name,
@@ -61,10 +63,8 @@ final class CreateEventFromReceiverTest extends TestCase
             'name' => 'Create People',
             'model_name' => CreatePeopleFromGhostReceiverJob::class,
         ]);
-        $eventsTypeWebhook = [
-            $eventTypeName
-        ];
-        $app->set(CustomFieldEnum::WEBHOOK_IS_REPORT_EVENT->value, $eventsTypeWebhook);
+
+        $app->set(CustomFieldEventWebhookEnum::WEBHOOK_IS_REPORT_EVENT->value, $eventTypeName);
         $eventType = EventType::create([
             'companies_id' => $company->getId(),
             'apps_id' => $app->getId(),
@@ -125,6 +125,6 @@ final class CreateEventFromReceiverTest extends TestCase
         Queue::fake();
         $job = new CreateEventFromGhostReceiverJob($webhookRequest);
         $result = $job->handle();
-        $this->assertEquals($payload["posts"][0]["primary_tag"]["name"], $result['name']);
+        $this->assertEquals($payload["post"]['current']["title"], $result['name']);
     }
 }
