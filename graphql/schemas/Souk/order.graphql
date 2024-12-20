@@ -177,7 +177,9 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\DraftOrderManagementMutation@create"
         )
-    createOrderFromAppleInAppPurchase(input: AppleInAppPurchaseReceipt!): Order!
+    createOrderFromAppleInAppPurchase(
+        input: AppleInAppPurchaseReceipt!
+    ): Order!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\AppleInAppPurchaseMutation@create"
         )
@@ -212,6 +214,19 @@ extend type Query @guard {
                     "user_phone"
                     "status"
                 ]
+            )
+        hasAddress: _
+            @whereConditions(
+                columns: [
+                    "address"
+                    "address_2"
+                    "city"
+                    "county"
+                    "state"
+                    "zip"
+                    "country"
+                ]
+                handler: "App\\GraphQL\\Souk\\Handlers\\HasAddressHandler"
             )
         orderBy: _
             @orderBy(columns: ["id", "created_at", "updated_at", "status"])
