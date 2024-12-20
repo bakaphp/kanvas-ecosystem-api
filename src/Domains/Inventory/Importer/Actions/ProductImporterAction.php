@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Importer\Actions;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
@@ -29,18 +30,6 @@ use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Status\Actions\CreateStatusAction;
 use Kanvas\Inventory\Status\DataTransferObject\Status;
 use Kanvas\Inventory\Status\Models\Status as ModelsStatus;
-use Kanvas\Inventory\Variants\Actions\AddAttributeAction as ActionsAddAttributeAction;
-use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction;
-use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
-use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
-use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
-use Kanvas\Inventory\Variants\DataTransferObject\Variants as VariantsDto;
-use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses;
-use Kanvas\Inventory\Variants\Models\Variants as VariantsModel;
-use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehouses;
-use Kanvas\Inventory\Variants\Services\VariantService;
-use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
-use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
@@ -101,12 +90,6 @@ class ProductImporterAction
 
             $this->categories();
 
-            $this->productWarehouse();
-
-            //$this->variants();
-            // @todo to be removed
-            //$this->variantsLocation($this->product);
-
             if (! empty($this->importedProduct->productType)) {
                 $this->productType();
             }
@@ -121,7 +104,7 @@ class ProductImporterAction
         return $this->product;
     }
 
-    protected function createStatus(): ?ModelsStatus
+    protected function createStatus(): ModelsStatus
     {
         if ($this->importedProduct->status) {
             $createStatus = new CreateStatusAction(
@@ -129,15 +112,15 @@ class ProductImporterAction
                     $this->app,
                     $this->company,
                     $this->user,
-                    $this->importedProduct->status,
+                    $this->importedProduct->status['name'],
                 ),
                 $this->user
             );
 
             return $createStatus->execute();
+        } else {
+            return ModelsStatus::getDefault($this->company);
         }
-
-        return null;
     }
 
     /**
@@ -147,13 +130,14 @@ class ProductImporterAction
     {
         $productType = null;
 
-        if (isset($this->importedProduct->productType['source_id'])) {
+        if(isset($this->importedProduct->productType)) {
             $productType = ProductsTypesModel::getByCustomField(
-                $this->importedProduct->getSourceKey(),
-                $this->importedProduct->productType['source_id'],
+                'slug',
+                Str::slug($this->importedProduct->productType['name']),
                 $this->company
             );
         }
+
         if ($productType) {
             $this->product->update(['products_types_id' => $productType->id]);
         } else {
@@ -166,13 +150,6 @@ class ProductImporterAction
             ]);
 
             $productType = (new CreateProductTypeAction($productTypeDto, $this->user))->execute();
-
-            if (isset($this->importedProduct->productType['source_id']) && $this->importedProduct->isFromThirdParty()) {
-                $productType->setLinkedSource(
-                    $this->importedProduct->source,
-                    $this->importedProduct->productType['source_id']
-                );
-            }
 
             $this->product->update(['products_types_id' => $productType->id]);
         }
@@ -248,200 +225,6 @@ class ProductImporterAction
             if ($attributeModel instanceof Attributes && ! empty($attribute['value'])) {
                 (new AddAttributeAction($this->product, $attributeModel, $attribute['value']))->execute();
             }
-        }
-    }
-
-    public function productWarehouse(): void
-    {
-        foreach ($this->importedProduct->warehouses as $warehouseLocation) {
-            $warehouseData = Warehouses::from([
-                'company' => $this->company,
-                'user' => $this->user,
-                'app' => $this->app,
-                'region' => $this->region,
-                'regions_id' => $this->region->getId(),
-                'name' => $warehouseLocation['warehouse'],
-            ]);
-
-            $warehouse = (new CreateWarehouseAction($warehouseData, $this->user))->execute();
-
-            $this->product->warehouses()->syncWithoutDetaching([$warehouse->getId()]);
-        }
-    }
-
-    /**
-     * variants.
-     */
-    public function variants(): void
-    {
-        foreach ($this->importedProduct->variants as $variant) {
-            $variantModel = null;
-
-            if (isset($variant['source_id'])) {
-                $variantModel = VariantsModel::getByCustomField(
-                    $this->importedProduct->getSourceKey(),
-                    $variant['source_id'],
-                    $this->company
-                );
-            }
-
-            if ($variantModel) {
-                $this->product->variants()->save($variantModel);
-            } else {
-                $variantDto = VariantsDto::from([
-                    'product' => $this->product,
-                    'products_id' => $this->product->getId(),
-                    'warehouse_id' => (int) $variant['warehouse']['id'],
-                    ...$variant,
-                ]);
-
-                $variantModel = (new CreateVariantsAction($variantDto, $this->user))->execute();
-                if (isset($variant['source_id']) && $this->importedProduct->isFromThirdParty()) {
-                    $variantModel->setLinkedSource($this->importedProduct->source, $variant['source_id']);
-                }
-            }
-
-            /*   if (! empty($variant['files'])) {
-                  foreach ($variant['files'] as $file) {
-                      $variantModel->addFileFromUrl($file['url'], $file['name']);
-                  }
-              }
-
-              $this->variantsAttributes($variantModel, $variant); */
-
-            $this->addVariantsToLocation($variantModel);
-        }
-    }
-
-    public function variantsLocation(ProductsModel $product): void
-    {
-        if ($product->variants()->count() > 0) {
-            foreach ($product->variants as $variant) {
-                $this->addVariantsToLocation($variant);
-            }
-        }
-    }
-
-    public function variantsAttributes(VariantsModel $variantModel, array $variantData): void
-    {
-        if (isset($variantData['attributes']) && ! empty($variantData['attributes'])) {
-            foreach ($variantData['attributes'] as $attribute) {
-                $attributeModel = null;
-                if (isset($attribute['source_id'])) {
-                    $attributeModel = Attributes::getByCustomField(
-                        $this->importedProduct->getSourceKey(),
-                        $attribute['source_id'],
-                        $this->company
-                    );
-                }
-
-                if (! $attributeModel && ! empty($attribute['name']) && ! empty($attribute['value'])) {
-                    $attributesDto = AttributesDto::from([
-                        'app' => $this->app,
-                        'user' => $this->user,
-                        'company' => $this->company,
-                        'name' => $attribute['name'],
-                        'value' => $attribute['value'],
-                    ]);
-                    $attributeModel = (new CreateAttribute($attributesDto, $this->user))->execute();
-
-                    if (isset($attribute['source_id']) && $this->importedProduct->isFromThirdParty()) {
-                        $attributeModel->setLinkedSource($this->importedProduct->source, $attribute['source_id']);
-                    }
-                }
-
-                if ($attributeModel instanceof Attributes && ! empty($attribute['value'])) {
-                    (new ActionsAddAttributeAction($variantModel, $attributeModel, $attribute['value']))->execute();
-                }
-            }
-        }
-    }
-
-    /**
-     * Add variant to warehouse and channels.
-     */
-    public function addVariantsToLocation(VariantsModel $variantModel): void
-    {
-        //add to warehouse
-        foreach ($this->importedProduct->warehouses as $warehouseLocation) {
-            $warehouseData = Warehouses::from([
-                'company' => $this->company,
-                'user' => $this->user,
-                'app' => $this->app,
-                'region' => $this->region,
-                'regions_id' => $this->region->getId(),
-                'name' => $warehouseLocation['warehouse'],
-            ]);
-
-            $warehouse = (new CreateWarehouseAction($warehouseData, $this->user))->execute();
-
-            $channelData = Channels::from([
-                'app' => $this->app,
-                'user' => $this->user,
-                'company' => $this->company,
-                'name' => $warehouseLocation['channel'],
-            ]);
-
-            $channel = (new CreateChannel($channelData, $this->user))->execute();
-
-            $matchingVariantInfo = array_filter($this->importedProduct->variants, function ($variant) use ($variantModel) {
-                return $variant['sku'] === $variantModel->sku;
-            });
-
-            if (! empty($matchingVariantInfo)) {
-                // Since array_filter preserves keys, use array_values to reset them
-                $variantData = current($matchingVariantInfo);
-
-                if (! empty($variantData['warehouse'])) {
-                    $variantData = [
-                        'quantity' => $variantData['warehouse']['quantity'] ?? ($variantData['quantity'] ?? 1),
-                        'price' => $variantData['warehouse']['price'] ?? $variantData['price'],
-                        'discountPrice' => $variantData['warehouse']['discountPrice'] ?? ($variantData['discountPrice'] ?? 0),
-                    ];
-                }
-            } else {
-                $variantData = [
-                    'quantity' => $this->importedProduct->quantity,
-                    'price' => $this->importedProduct->price,
-                    'discountPrice' => $this->importedProduct->discountPrice,
-                ];
-            }
-
-            $variantChannel = VariantChannel::from([
-                'price' => (float) $variantData['price'],
-                'discounted_price' => (float) $variantData['discountPrice'],
-                'is_published' => $this->importedProduct->isPublished,
-            ]);
-
-            $variantWarehouses = ModelsVariantsWarehouses::where('products_variants_id', $variantModel->getId())
-            ->where('warehouses_id', $warehouse->getId())
-            ->first();
-
-            if (! $variantWarehouses) {
-                $variantWarehouses = (new AddToWarehouseAction(
-                    $variantModel,
-                    $warehouse,
-                    VariantsWarehouses::from([
-                        'variant' => $variantModel,
-                        'warehouse' => $warehouse,
-                        'quantity' => $variantData['quantity'] ?? 1,
-                        'price' => $variantData['price'],
-                        'sku' => $variantModel->sku,
-                    ]),
-                ))->execute();
-            } else {
-                VariantService::updateWarehouseVariant($variantModel, $warehouse, [
-                    'quantity' => $variantData['quantity'] ?? 1,
-                    'price' => $variantData['price'],
-                    'sku' => $variantModel->sku,
-                ]);
-            }
-
-            (new AddVariantToChannelAction(
-                $variantWarehouses,
-                $channel,
-                $variantChannel
-            ))->execute();
         }
     }
 }
