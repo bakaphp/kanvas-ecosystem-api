@@ -3,22 +3,18 @@
 input ImporterProductInput {
     name: String!
     description: String
-    regionId: Int
     slug: String!
-    price: Float!
-    discountPrice: Float
     sku: String!
     variants: [VariantsInput!]!
-    quantity: Int!
     short_description: String
     html_description: String
     warranty_terms: String
     files: [FilesystemInputUrl!]
     upc: String
     isPublished: Boolean
-    warehouses: [Int!]
     source: String
     sourceId: Mixed
+    status: StatusReferenceInput
     productType: ProductTypeInput
     categories: [CategoryInput!]
     attributes: [ProductAttributesInput!]
