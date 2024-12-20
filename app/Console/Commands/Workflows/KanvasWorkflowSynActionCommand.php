@@ -14,6 +14,7 @@ use Kanvas\Connectors\Ghost\Jobs\CreatePeopleFromGhostReceiverJob;
 use Kanvas\Connectors\Google\Activities\GenerateUserForYouFeedActivity;
 use Kanvas\Connectors\Google\Activities\SyncMessageToDocumentActivity;
 use Kanvas\Connectors\Google\Activities\SyncUserInteractionToEventActivity;
+use Kanvas\Connectors\InAppPurchase\Workflows\LinkMessageToOrderActivity;
 use Kanvas\Connectors\Internal\Activities\ExtractCompanyNameFromPeopleEmailActivity;
 use Kanvas\Connectors\Internal\Activities\GenerateCompanyDashboardActivity;
 use Kanvas\Connectors\Internal\Activities\GenerateMessageSlugActivity;
@@ -103,6 +104,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncZohoAgentFromReceiverJob::class,
             SoftPullActivity::class,
             CreateCreditScoreFromMessageActivity::class,
+            LinkMessageToOrderActivity::class,
         ];
 
         $createdActions = [];

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Social\Builders\Messages;
 
 use Algolia\AlgoliaSearch\SearchClient;
+use Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,6 @@ use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Models\UserMessage;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
-use Exception;
 
 class MessageBuilder
 {
@@ -44,10 +44,11 @@ class MessageBuilder
         if (! $user->isAppOwner()) {
             $messages = Message::fromCompany($user->getCurrentCompany());
 
-            if ($viewingOneMessage) {
-                $messages->first()->isLocked();
-            }
-
+            /*
+                        if ($viewingOneMessage) {
+                            $messages->first()->isLocked();
+                        }
+             */
             return $messages;
         }
 

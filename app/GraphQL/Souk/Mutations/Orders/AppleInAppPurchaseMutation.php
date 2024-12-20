@@ -12,9 +12,6 @@ use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\Messages\Actions\CreateAppModuleMessageAction;
-use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 class AppleInAppPurchaseMutation
 {
@@ -46,10 +43,9 @@ class AppleInAppPurchaseMutation
 
         $order = $createOrderFromInAppPurchase->execute();
 
-        if (isset($request['message_id'])) {
-            $message = Message::findOrFail($request['message_id']);
-            $orderSystemModule = SystemModulesRepository::getByModelName(Order::class);
-            $createAppModuleMessage = (new CreateAppModuleMessageAction($message, $orderSystemModule, $order->getId()))->execute();
+        if (! empty($appleInAppPurchase->custom_fields)) {
+            $order->setCustomFields($appleInAppPurchase->custom_fields);
+            $order->saveCustomFields();
         }
 
         return $order;

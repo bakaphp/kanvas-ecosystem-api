@@ -20,7 +20,8 @@ class AppleInAppPurchaseReceipt extends Data
         public readonly string $product_id, //this is the sku
         public readonly string $transaction_id,
         public readonly string $receipt,
-        public readonly int $transaction_date
+        public readonly int $transaction_date,
+        public readonly array $custom_fields = []
     ) {
     }
 
@@ -39,7 +40,8 @@ class AppleInAppPurchaseReceipt extends Data
             $data['product_id'],
             $data['transaction_id'],
             $data['receipt'],
-            (int) $data['transaction_date']
+            (int) $data['transaction_date'],
+            $data['custom_fields'] ?? []
         );
     }
 }

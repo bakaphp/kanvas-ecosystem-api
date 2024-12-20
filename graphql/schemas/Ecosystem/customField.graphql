@@ -7,14 +7,16 @@ type CustomField {
 
 input CustomFieldInput {
     name: String!
-    data: Mixed
+    data: Mixed # in 2025 we will deprecated this field
+    value: Mixed
     system_module_uuid: String!
     entity_id: ID!
 }
 
 input CustomFieldEntityInput {
     name: ID!
-    data: Mixed
+    data: Mixed # in 2025 we will deprecated this field
+    value: Mixed
     public: Boolean
 }
 

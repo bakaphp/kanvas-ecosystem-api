@@ -11,6 +11,7 @@ use Baka\Users\Contracts\UserInterface;
 use Imdhemy\AppStore\ClientFactory;
 use Imdhemy\AppStore\Receipts\ReceiptResponse;
 use Imdhemy\AppStore\Receipts\Verifier;
+use Imdhemy\AppStore\ValueObjects\LatestReceiptInfo;
 use Kanvas\Connectors\InAppPurchase\DataTransferObject\AppleInAppPurchaseReceipt;
 use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum;
 use Kanvas\Currencies\Models\Currencies;
@@ -128,7 +129,7 @@ class CreateOrderFromAppleReceiptAction
         );
     }
 
-    private function createOrderItem($inAppData): OrderItem
+    private function createOrderItem(LatestReceiptInfo $inAppData): OrderItem
     {
         $variant = $this->getVariant($inAppData->getProductId());
         $warehouse = $this->region->warehouses()->firstOrFail();
