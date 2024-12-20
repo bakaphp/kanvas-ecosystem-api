@@ -131,8 +131,10 @@ class InAppPurchaseOrderTest extends TestCase
                     status
                     created_at
                     custom_fields {
-                        name
-                        value
+                        data {
+                            name
+                            value
+                        }
                     }
                 }
             }
@@ -140,7 +142,6 @@ class InAppPurchaseOrderTest extends TestCase
             'input' => $receipt,
         ]);
 
-        print_R($response->json());
         $response->assertSuccessful();
         $response->assertJsonStructure([
             'data' => [
