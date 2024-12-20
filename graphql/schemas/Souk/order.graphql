@@ -228,6 +228,11 @@ extend type Query @guard {
                 ]
                 handler: "App\\GraphQL\\Souk\\Handlers\\HasAddressHandler"
             )
+        hasItems: _
+            @whereHasConditions(
+                relation: "items"
+                columns: ["product_name", "product_sku"]
+            )
         orderBy: _
             @orderBy(columns: ["id", "created_at", "updated_at", "status"])
     ): [Order!]!
