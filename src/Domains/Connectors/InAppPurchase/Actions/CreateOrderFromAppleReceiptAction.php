@@ -11,6 +11,7 @@ use Baka\Users\Contracts\UserInterface;
 use Imdhemy\AppStore\ClientFactory;
 use Imdhemy\AppStore\Receipts\ReceiptResponse;
 use Imdhemy\AppStore\Receipts\Verifier;
+use Imdhemy\AppStore\ValueObjects\LatestReceiptInfo;
 use Kanvas\Connectors\InAppPurchase\DataTransferObject\AppleInAppPurchaseReceipt;
 use Kanvas\Connectors\InAppPurchase\Enums\ConfigurationEnum;
 use Kanvas\Currencies\Models\Currencies;
@@ -24,7 +25,7 @@ use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Spatie\LaravelData\DataCollection;
-use Imdhemy\AppStore\ValueObjects\LatestReceiptInfo;
+
 class CreateOrderFromAppleReceiptAction
 {
     private const DEFAULT_CURRENCY = 'USD';
