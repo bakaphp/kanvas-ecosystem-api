@@ -70,6 +70,10 @@ class InventoryDevToProdExportCommand extends Command
                 $productData['productType'] = $this->mapProductType($product);
             }
             $productsToExport[] = $productData;
+            $this->newLine();
+            $this->info('Processing Product with slug ' . $product->slug);
+            $this->newLine();
+
         }
 
         $chunks = array_chunk($productsToExport, 10);
@@ -161,9 +165,9 @@ GQL;
         foreach ($variant->warehouses as $warehouse) {
             $warehouses[] = [
                 'id' => $this->warehouseId,
-                'quantity' => $warehouse->quantity,
+                'quantity' => $variant->getQuantity($warehouse),
                 'status' => $warehouse->status !== null ? $this->mapStatus($warehouse->status) : null,
-                'price' => $warehouse->price ?? 0,
+                'price' => $variant->getPrice($warehouse),
                 'sku' => $warehouse->sku,
                 'position' => $warehouse->position,
                 'serial_number' => $warehouse->serial_number,
