@@ -778,7 +778,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         try {
             return self::where('id', $id)
-                ->whereRelation('companies', 'id', $company->getId())
+                ->whereRelation('companies', 'companies.id', $company->getId())
                 ->notDeleted()
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {

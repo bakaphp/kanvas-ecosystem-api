@@ -6,10 +6,10 @@ namespace Kanvas\Companies\Observers;
 
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Actions\SetUsersCountAction as CompaniesSetUsersCountAction;
 use Kanvas\Companies\Branches\Actions\CreateCompanyBranchActions;
 use Kanvas\Companies\Branches\DataTransferObject\CompaniesBranchPostData;
 use Kanvas\Companies\Groups\Actions\CreateCompanyGroupActions;
+use Kanvas\Companies\Jobs\CompanyDashboardJob;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
@@ -96,7 +96,9 @@ class CompaniesObserver
 
     public function updated(Companies $company): void
     {
-        (new CompaniesSetUsersCountAction($company))->execute();
+        $app = app(Apps::class);
+
+        CompanyDashboardJob::dispatch($company, $app);
         $company->fireWorkflow(
             WorkflowEnum::UPDATED->value,
             true,

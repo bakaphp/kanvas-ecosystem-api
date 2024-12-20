@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Enums;
 
+use InvalidArgumentException;
+
 enum WorkflowEnum: string
 {
     case CREATED = 'created';
@@ -22,4 +24,18 @@ enum WorkflowEnum: string
     case SEARCH = 'search';
     case AFTER_PRODUCT_IMPORT = 'after-product-import';
     case SYNC_SHOPIFY = 'sync-shopify';
+
+    /**
+     * Get the enum case by its value.
+     */
+    public static function fromString(string $value): self
+    {
+        foreach (self::cases() as $case) {
+            if ($case->value === $value) {
+                return $case;
+            }
+        }
+
+        throw new InvalidArgumentException("No WorkflowEnum case found for value: {$value}");
+    }
 }

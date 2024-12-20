@@ -7,6 +7,7 @@ namespace Kanvas\Auth\Actions;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Services\SetupService;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Users\Services\UserNotificationService;
@@ -61,7 +62,11 @@ class RegisterUsersAction extends CreateUserAction
         UserNotificationService::sendWelcomeEmail($this->app, $user, $company);
 
         if ($newUser) {
-            $this->onBoarding($user, $company);
+            (new SetupService())->onBoarding(
+                $user,
+                $this->app,
+                $company
+            );
         }
         if ($this->runWorkflow) {
             $user->fireWorkflow(

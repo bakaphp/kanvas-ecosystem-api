@@ -26,7 +26,7 @@ class SystemModuleEntityInput extends Data implements SystemModuleInputInterface
             name: (string) $data['name'],
             systemModuleUuid: (string) $data['system_module_uuid'],
             entityId: (string) $data['entity_id'],
-            data: $data['data'],
+            data: $data['data'] ?? $data['value'] ?? null,
         );
     }
 }

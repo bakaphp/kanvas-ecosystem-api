@@ -2,7 +2,7 @@ type Price {
     id: ID!
     apps_plans_id: ID! @belongsTo(relation: "plan")
     stripe_id: String
-    amount: Float!
+    amount: Money!
     currency: String!
     interval: String!
     is_active: Boolean

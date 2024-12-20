@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Credit700\Services;
 
 use Baka\Contracts\AppInterface;
+use Baka\Users\Contracts\UserInterface;
+use Exception;
 use GuzzleHttp\Exception\RequestException;
 use Kanvas\Connectors\Credit700\Client;
 use Kanvas\Connectors\Credit700\DataTransferObject\CreditApplicant;
+use Kanvas\Connectors\Credit700\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Guild\Customers\Models\People;
 
 class CreditScoreService
 {
@@ -21,30 +23,60 @@ class CreditScoreService
         $this->client = new Client($app);
     }
 
-    public function getCreditScore(CreditApplicant $creditApplication): array
+    public function getCreditScore(CreditApplicant $creditApplication, UserInterface $userRequestingReport): array
     {
         try {
-            $responseXml = $this->client->post(
-                '/Service.aspx',
+            $responseArray = $this->client->post(
+                '/Request',
                 [
+                    'ACCOUNT' => $this->app->get(ConfigurationEnum::ACCOUNT->value),
+                    'PASSWD' => $this->app->get(ConfigurationEnum::PASSWORD->value),
+                    'PRODUCT' => 'CREDIT',
+                    'BUREAU' => $this->app->get(ConfigurationEnum::BUREAU_SETTING->value) ?? 'TU', // Can be XPN, TU, or EFX
+                    'PASS' => '2',
+                    'PROCESS' => 'PCCREDIT',
                     'NAME' => $creditApplication->name,
                     'ADDRESS' => $creditApplication->address,
                     'CITY' => $creditApplication->city,
                     'STATE' => $creditApplication->state,
                     'ZIP' => $creditApplication->zip,
                     'SSN' => $creditApplication->ssn,
-                ],
+                ]
             );
 
+            $scores = [];
+
+            $bureauType = $this->app->get(ConfigurationEnum::BUREAU_SETTING->value) ?? 'TU';
+            // Check if risk_models exist in the response
+            if (isset($responseArray['bureau_xml_data'][ucwords($bureauType) . '_Report']['subject_segments']['scoring_segments']['scoring'])) {
+                $scores = $responseArray['bureau_xml_data'][ucwords($bureauType) . '_Report']['subject_segments']['scoring_segments']['scoring'];
+            }
+
+            // Extract iframe URL
+            $iframeUrl = $responseArray['custom_report_url']['iframe']['@attributes']['src'] ?? null;
+
             return [
-                'score' => (string)$responseXml->Scores->Scoring->Score,
-                'model' => (string)$responseXml->Scores->Scoring->ScoreModel,
-                'factors' => array_map(function ($factor) {
-                    return (string)$factor;
-                }, (array)$responseXml->Scores->Scoring->children('factor')),
+                'scores' => $scores,
+                'iframe_url' => $iframeUrl,
+                'iframe_url_signed' => $iframeUrl !== null ? $this->generateSignedIframeUrl($iframeUrl, $userRequestingReport->firstname) : null,
             ];
         } catch (RequestException $e) {
             throw new ValidationException('Failed to retrieve credit score: ' . $e->getMessage());
+        } catch (Exception $e) {
+            throw new ValidationException('An error occurred: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Generate and sign the iFrame URL for accessing the credit report.
+     */
+    public function generateSignedIframeUrl(string $unsignedUrl, string $signedBy): string
+    {
+        try {
+            // Sign the URL
+            return $this->client->signUrl($unsignedUrl, $signedBy); // 30-minute expiration
+        } catch (Exception $e) {
+            throw new ValidationException('Failed to generate signed URL: ' . $e->getMessage());
         }
     }
 }

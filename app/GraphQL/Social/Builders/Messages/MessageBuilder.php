@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Social\Builders\Messages;
 
 use Algolia\AlgoliaSearch\SearchClient;
+use Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -28,7 +29,7 @@ class MessageBuilder
         $user = auth()->user();
         $app = app(Apps::class);
 
-        $viewingOneMessage = isset($args['where']['column']) && ($args['where']['column'] === 'id' || $args['where']['column'] === 'uuid') && isset($args['where']['value']);
+        $viewingOneMessage = isset($args['where']['column']) && ($args['where']['column'] === 'id' || $args['where']['column'] === 'uuid' || $args['where']['column'] === 'slug') && isset($args['where']['value']);
         //if enable home-view interaction , remove once , moved to getUserFeed
         if ($app->get('TEMP_HOME_VIEW_EVENT') && $viewingOneMessage) {
             UserInteractionJob::dispatch(
@@ -39,8 +40,16 @@ class MessageBuilder
             );
         }
 
+        //Check in this condition if the message is an item and if then check if it has been bought by the current user via status=completed on Order
         if (! $user->isAppOwner()) {
-            return Message::fromCompany($user->getCurrentCompany());
+            $messages = Message::fromCompany($user->getCurrentCompany());
+
+            /*
+                        if ($viewingOneMessage) {
+                            $messages->first()->isLocked();
+                        }
+             */
+            return $messages;
         }
 
         return Message::query();
@@ -146,5 +155,20 @@ class MessageBuilder
             ->where('messages.is_deleted', '=', 0)
             ->where('messages.apps_id', '=', $app->getId())
             ->select('messages.*');
+    }
+
+    public function viewMessageHistory(mixed $root, array $request): Builder
+    {
+        $messagePath = Message::where('id', $request['message_id'])->value('path')->getValue();
+
+        if (! $messagePath) {
+            throw new Exception('Message does not a have history');
+        }
+
+        $messageHistory = Message::query()->whereIn('id', explode('.', $messagePath))
+                            ->where('is_deleted', 0)
+                            ->where('is_locked', 0);
+
+        return $messageHistory;
     }
 }

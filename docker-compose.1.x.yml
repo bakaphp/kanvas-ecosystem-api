@@ -290,6 +290,22 @@ services:
       retries: 3
       timeout: 5s
 
+#  puppeteer:
+#    image: browserless/chrome
+#    container_name: puppeteer${APP_CONTAINER_NAME}
+#    environment:
+      # Enable preloading to optimize performance
+      #- PREBOOT_CHROME=true
+      # Optional: Define the max concurrency if required
+      #- MAX_CONCURRENT_SESSIONS=10
+      # Optional: You can set a custom token for API security
+      # - TOKEN=your_secure_token
+#    ports:
+     # - "3000:3000" # Expose Puppeteer API on port 3000
+#    restart: always
+#    networks:
+#      - sail
+
 networks:
   sail:
     driver: bridge

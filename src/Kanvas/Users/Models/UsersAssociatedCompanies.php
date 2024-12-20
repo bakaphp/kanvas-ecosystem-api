@@ -20,7 +20,7 @@ use Kanvas\Models\BaseModel;
  */
 class UsersAssociatedCompanies extends BaseModel
 {
-    use HasCompositePrimaryKeyTrait;
+    //use HasCompositePrimaryKeyTrait;
 
     /**
      * The table associated with the model.
@@ -28,8 +28,6 @@ class UsersAssociatedCompanies extends BaseModel
      * @var string
      */
     protected $table = 'users_associated_company';
-
-    protected $primaryKey = ['users_id', 'companies_id', 'companies_branches_id'];
 
     protected $fillable = [
         'users_id',

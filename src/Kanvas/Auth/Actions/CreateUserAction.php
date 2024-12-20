@@ -20,6 +20,7 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Services\SetupService;
 use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Jobs\OnBoardingJob;
@@ -85,7 +86,11 @@ class CreateUserAction
         $this->assignCompany($user);
 
         if ($newUser && $company !== null) {
-            $this->onBoarding($user, $company);
+            (new SetupService())->onBoarding(
+                $user,
+                $this->app,
+                $company
+            );
         }
 
         UserNotificationService::sendWelcomeEmail($this->app, $user, $company);
@@ -139,6 +144,7 @@ class CreateUserAction
         $user->user_login_tries = 0;
         $user->user_last_login_try = 0;
         $user->default_company = $this->data->default_company ?? StateEnums::NO->getValue();
+        $user->default_company_branch = StateEnums::NO->getValue();
         $user->session_time = time();
         $user->session_page = StateEnums::NO->getValue();
         $user->language = $user->language ?: AppEnums::DEFAULT_LANGUAGE->getValue();
@@ -209,19 +215,6 @@ class CreateUserAction
             $role,
             $this->app
         ))->execute();
-    }
-
-    protected function onBoarding(Users $user, ?CompanyInterface $company = null): void
-    {
-        try {
-            OnBoardingJob::dispatch(
-                $user,
-                $company instanceof CompanyInterface ? $company->defaultBranch()->firstOrFail() : $user->getCurrentBranch(),
-                $this->app
-            );
-        } catch (Throwable $e) {
-            //no email sent
-        }
     }
 
     protected function createCompany(Users $user): CompanyInterface

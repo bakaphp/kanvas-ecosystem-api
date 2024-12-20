@@ -41,6 +41,13 @@ class AppleInAppPurchaseMutation
 
         $createOrderFromInAppPurchase = new CreateOrderFromAppleReceiptAction($appleInAppPurchase);
 
-        return $createOrderFromInAppPurchase->execute();
+        $order = $createOrderFromInAppPurchase->execute();
+
+        if (! empty($appleInAppPurchase->custom_fields)) {
+            $order->setCustomFields($appleInAppPurchase->custom_fields);
+            $order->saveCustomFields();
+        }
+
+        return $order;
     }
 }

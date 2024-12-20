@@ -131,14 +131,89 @@ class MessageTest extends TestCase
                     'tags' => [
                         [
                             'name' => 'tag1',
-                        ]
-                    ]
+                        ],
+                    ],
                 ],
             ]
         )->assertJson([
             'data' => [
                 'updateMessage' => [
                     'message' => $newMessage,
+                'tags' => [
+                        'data' => [
+                            [
+                                'name' => 'tag1',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+    }
+
+    public function testUpdateVerbMessage()
+    {
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+        $response = $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) {
+                        id
+                        message
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => $message,
+                    'message_verb' => $messageType->verb,
+                    'system_modules_id' => 1,
+                    'entity_id' => '1',
+                ],
+            ]
+        );
+
+        $createdMessageId = $response['data']['createMessage']['id'];
+
+        $newMessage = fake()->text();
+        $newMessageType = MessageType::factory()->create(['name' => 'newType2', 'verb' => 'newType2']);
+        $this->graphQL(
+            '
+                mutation updateMessage($id: ID!, $input: MessageUpdateInput!) {
+                    updateMessage(id: $id, input: $input) {
+                        id
+                        message
+                        messageType {
+                            verb
+                        }
+                        tags {
+                            data {
+                                name
+                            }
+                        }
+                    }
+                }
+            ',
+            [
+                'id' => $createdMessageId,
+                'input' => [
+                    'message' => $newMessage,
+                    'message_verb' => $newMessageType->verb,
+                    'tags' => [
+                        [
+                            'name' => 'tag1',
+                        ],
+                    ],
+                ],
+            ]
+        )->assertJson([
+            'data' => [
+                'updateMessage' => [
+                    'message' => $newMessage,
+                    'messageType' => [
+                        'verb' => $newMessageType->verb,
+                    ],
                 'tags' => [
                         'data' => [
                             [

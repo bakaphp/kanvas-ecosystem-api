@@ -57,6 +57,7 @@ type myInteraction {
     is_saved: Boolean
     is_shared: Boolean
     is_reported: Boolean
+    is_purchased: Boolean
 }
 
 input MessageInput {
@@ -73,6 +74,7 @@ input MessageInput {
 
 input MessageUpdateInput {
     message: Mixed
+    message_verb: ID
     is_public: Int
     is_deleted: Int
     tags: [TagInput!]
@@ -386,5 +388,13 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@likedMessagesByUser"
+        )
+    viewMessageHistory(
+        message_id: ID!
+        orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
+    ): [Message!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@viewMessageHistory"
         )
 }

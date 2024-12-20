@@ -129,8 +129,15 @@ extend type Query @guard {
                     "lastname"
                 ]
             )
+        hasEventsVersions: _
+            @whereHasConditions(
+                columns: ["id","name","version"]
+                handler: "App\\GraphQL\\Event\\Builders\\Events\\EventVersionBuilder@getHasEventVersion"
+            )
         hasEmails: _
             @whereHasConditions(relation: "emails", columns: ["id", "value"])
+        hasOrganization: _
+            @whereHasConditions(relation: "organizations", columns: ["id", "name"])
         hasPhones: _
             @whereHasConditions(relation: "phones", columns: ["id", "value"])
         hasTags: _ @whereHasConditions(relation: "tags", columns: ["name"])

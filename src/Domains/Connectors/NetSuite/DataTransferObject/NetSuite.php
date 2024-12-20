@@ -6,8 +6,9 @@ namespace Kanvas\Connectors\NetSuite\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Spatie\LaravelData\Data;
 
-class NetSuite
+class NetSuite extends Data
 {
     /**
      * __construct.

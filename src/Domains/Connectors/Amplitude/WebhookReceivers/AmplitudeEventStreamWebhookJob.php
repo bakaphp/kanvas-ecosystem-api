@@ -35,7 +35,7 @@ class AmplitudeEventStreamWebhookJob extends ProcessWebhookJob
 
         $eventType = $payload['event_type'] ?? null;
         //$entityIdField = $this->receiver->app->get('amplitude_entity_id_field');
-        $entityId = $payload['event_properties']['message_id'] ?? null;
+        $entityId = $payload['event_properties']['message_id'] ?? $payload['event_properties']['prompt_id'] ?? 0;
 
         if (! $eventType) {
             return [

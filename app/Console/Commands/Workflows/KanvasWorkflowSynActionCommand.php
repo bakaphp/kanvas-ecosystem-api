@@ -8,11 +8,13 @@ use Illuminate\Console\Command;
 use Kanvas\Apps\Activities\AppUsersNotificationByRoleActivity;
 use Kanvas\Connectors\Amplitude\WebhookReceivers\AmplitudeEventStreamWebhookJob;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
+use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromMessageActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\CreateOrderInESimActivity;
 use Kanvas\Connectors\Ghost\Jobs\CreatePeopleFromGhostReceiverJob;
 use Kanvas\Connectors\Google\Activities\GenerateUserForYouFeedActivity;
 use Kanvas\Connectors\Google\Activities\SyncMessageToDocumentActivity;
 use Kanvas\Connectors\Google\Activities\SyncUserInteractionToEventActivity;
+use Kanvas\Connectors\InAppPurchase\Workflows\LinkMessageToOrderActivity;
 use Kanvas\Connectors\Internal\Activities\ExtractCompanyNameFromPeopleEmailActivity;
 use Kanvas\Connectors\Internal\Activities\GenerateCompanyDashboardActivity;
 use Kanvas\Connectors\Internal\Activities\GenerateMessageSlugActivity;
@@ -24,6 +26,7 @@ use Kanvas\Connectors\IPlus\Workflows\Activities\SyncPeopleWithIPlusActivities;
 use Kanvas\Connectors\NetSuite\Webhooks\ProcessNetSuiteCompanyCustomerWebhookJob;
 use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
+use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\RainForest\Workflows\Activities\ImportProductActivity;
 use Kanvas\Connectors\ScrapperApi\Workflows\Activities\ScrapperSearchActivity;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyInventoryLevelWebhookJob;
@@ -99,6 +102,9 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncOrderWithIPlusActivities::class,
             SyncPeopleWithIPlusActivities::class,
             SyncZohoAgentFromReceiverJob::class,
+            SoftPullActivity::class,
+            CreateCreditScoreFromMessageActivity::class,
+            LinkMessageToOrderActivity::class,
         ];
 
         $createdActions = [];
