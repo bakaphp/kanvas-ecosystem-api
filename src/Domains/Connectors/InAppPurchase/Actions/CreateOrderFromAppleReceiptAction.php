@@ -130,7 +130,7 @@ class CreateOrderFromAppleReceiptAction
 
     private function createOrderItem(LatestReceiptInfo $inAppData): OrderItem
     {
-        $variant = $this->getVariant('JTJS98'); //($inAppData->getProductId());
+        $variant = $this->getVariant($inAppData->getProductId());
         $warehouse = $this->region->warehouses()->firstOrFail();
 
         return new OrderItem(
