@@ -35,7 +35,7 @@ class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActiv
 
         $order->metadata = array_merge(
             $order->metadata,
-            ['id' => $message->getId(), 'message' => $message->message]
+            ['message_id' => $message->getId(), 'message' => $message->message]
         );
         $order->saveOrFail();
 
