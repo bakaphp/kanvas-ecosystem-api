@@ -37,6 +37,11 @@ type Order {
     updated_at: String
     items: [OrderItem!]
     shipping_address: Address @belongsTo(relation: "shippingAddress")
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
 }
 
 type OrderItem {
@@ -161,6 +166,7 @@ input AppleInAppPurchaseReceipt {
     receipt: String!
     transaction_date: Mixed!
     region_id: ID
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 extend type Mutation @guard {

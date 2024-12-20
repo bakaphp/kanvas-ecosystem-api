@@ -22,6 +22,8 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 use Spatie\LaravelData\DataCollection;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
+use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 
 /**
  * Class Order
@@ -225,7 +227,17 @@ class Order extends BaseModel
 
     public function isFulfilled(): bool
     {
-        return $this->fulfillment_status === 'fulfilled';
+        return $this->fulfillment_status === OrderFulfillmentStatusEnum::COMPLETED->value;
+    }
+
+    public function isCompleted(): bool
+    {
+        return $this->status === OrderStatusEnum::COMPLETED->value;
+    }
+
+    public function isFullyCompleted(): bool
+    {
+        return $this->isFulfilled() && $this->isCompleted();
     }
 
     public function generateOrderNumber(): int

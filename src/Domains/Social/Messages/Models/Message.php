@@ -36,6 +36,10 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 use Nevadskiy\Tree\AsTree;
+use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
+use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
+use Exception;
 
 /**
  *  Class Message
@@ -163,6 +167,7 @@ class Message extends BaseModel
             'is_saved' => (int) ($userMessage?->is_saved),
             'is_shared' => (int) ($userMessage?->is_shared),
             'is_reported' => (int) ($userMessage?->is_reported),
+            'is_purchased' => 0
         ];
     }
 
@@ -222,5 +227,37 @@ class Message extends BaseModel
     public function scopeWhereIsNotPublic(Builder $query): Builder
     {
         return $query->where('is_public', 0);
+    }
+
+    public function setLock(): void
+    {
+        $this->is_locked = 1;
+        $this->saveOrFail();
+    }
+
+    public function setUnlock(): void
+    {
+        $this->is_locked = 0;
+        $this->saveOrFail();
+    }
+
+    public function isLocked(): bool
+    {
+        //For now lets make sure all that all messages not linked with orders are unlocked.
+        if ((! $this->appModuleMessage->exist()) || (! $this->appModuleMessage->hasEntityOfClass(Order::class))) {
+            $this->setUnlock();
+            return (bool)$this->is_locked;
+        }
+
+        $orderEntity = $this->appModuleMessage->entity;
+        if ($this->is_locked && $orderEntity->isFullyCompleted()) {
+            $this->setUnlock();
+        }
+
+        if ($this->is_locked) {
+            throw new Exception('Message content is locked');
+        }
+
+        return (bool)$this->is_locked;
     }
 }

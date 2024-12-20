@@ -57,6 +57,7 @@ type myInteraction {
     is_saved: Boolean
     is_shared: Boolean
     is_reported: Boolean
+    is_purchased: Boolean
 }
 
 input MessageInput {
