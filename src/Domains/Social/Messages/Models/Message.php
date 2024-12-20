@@ -167,7 +167,7 @@ class Message extends BaseModel
             'is_saved' => (int) ($userMessage?->is_saved),
             'is_shared' => (int) ($userMessage?->is_shared),
             'is_reported' => (int) ($userMessage?->is_reported),
-            'is_purchased' => 0
+            'is_purchased' => (int) ($userMessage?->is_purchased),
         ];
     }
 
