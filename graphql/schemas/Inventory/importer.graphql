@@ -14,7 +14,7 @@ input ImporterProductInput {
     isPublished: Boolean
     source: String
     sourceId: Mixed
-    status: StatusReferenceInput
+    status: StatusInput
     productType: ProductTypeInput
     categories: [CategoryInput!]
     attributes: [ProductAttributesInput!]
