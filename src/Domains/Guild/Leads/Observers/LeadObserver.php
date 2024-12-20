@@ -72,7 +72,7 @@ class LeadObserver
             (
                 new CreateChannelAction(
                     new Channel(
-                        app(Apps::class),
+                        $lead->app,
                         $lead->company,
                         $lead->user,
                         (string)$lead->id,

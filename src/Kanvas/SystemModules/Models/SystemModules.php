@@ -87,11 +87,24 @@ class SystemModules extends BaseModel
     public static function convertLegacySystemModules(string $className): string
     {
         $mapping = [
-            'Gewaer\Models\Leads' => Lead::class,
-            'Gewaer\Models\Messages' => Message::class,
-            'Gewaer\Models\Companies' => Companies::class,
-            'Kanvas\Packages\Social\Models\Messages' => Message::class,
+            'Gewaer\\Models\\Leads' => Lead::class,
+            'Gewaer\\Models\\Messages' => Message::class,
+            'Gewaer\\Models\\Companies' => Companies::class,
+            'Kanvas\\Packages\\Social\\Models\\Messages' => Message::class,
             // 'Kanvas\Guild\Activities\Models\Activities' => Message::class,
+        ];
+
+        return $mapping[$className] ?? $className;
+    }
+
+    public static function getLegacyNamespace(string $className): string
+    {
+        $mapping = [
+            Lead::class => 'Gewaer\\Models\\Leads',
+            Message::class => 'Gewaer\\Models\\Messages',
+            Companies::class => 'Gewaer\\Models\\Companies',
+            // Message::class => 'Kanvas\Packages\Social\Models\Messages',
+            // Message::class => 'Kanvas\Guild\Activities\Models\Activities',
         ];
 
         return $mapping[$className] ?? $className;

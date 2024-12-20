@@ -29,6 +29,7 @@ class Categories extends Data
         public bool $is_published = true,
         public int $weight = 0,
         public ?string $code = null,
+        public ?string $slug = null,
     ) {
     }
 
@@ -51,6 +52,7 @@ class Categories extends Data
             $request['is_published'] ?? (bool) StateEnums::YES->getValue(),
             $request['weight'] ?? 0,
             $request['code'] ?? null,
+            $request['slug'] ?? null
         );
     }
 }

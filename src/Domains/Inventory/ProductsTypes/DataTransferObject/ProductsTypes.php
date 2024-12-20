@@ -24,6 +24,7 @@ class ProductsTypes extends Data
         public ?string $description = null,
         public int $weight = 0,
         public bool $isPublished = true,
+        public ?string $slug = null,
     ) {
     }
 
@@ -43,6 +44,7 @@ class ProductsTypes extends Data
             $request['description'] ?? null,
             (int) $request['weight'],
             $request['is_published'] ?? (bool) StateEnums::YES->getValue(),
+            $request['slug'] ?? null
         );
     }
 }

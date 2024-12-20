@@ -36,10 +36,10 @@ class CreditApplicant extends Data
         $address = $people->address()->first();
         return new self(
             $people->firstname . ' ' . $people->lastname,
-            $address?->address,
-            $address?->city,
-            $address?->state,
-            $address?->zip,
+            $address?->address ?? '',
+            $address?->city ?? '',
+            $address?->state ?? '',
+            $address?->zip ?? '',
             $ssn
         );
     }
