@@ -9,6 +9,7 @@ use Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Enums\AppEnum;
 use Kanvas\Social\Enums\InteractionEnum;
@@ -43,6 +44,7 @@ class MessageBuilder
         //Check in this condition if the message is an item and if then check if it has been bought by the current user via status=completed on Order
         if (! $user->isAppOwner()) {
             $messages = Message::fromCompany($user->getCurrentCompany());
+
             return $messages;
         }
 
@@ -78,13 +80,21 @@ class MessageBuilder
         GraphQLContext $context,
         ResolveInfo $resolveInfo
     ): Builder {
-        return Message::fromApp()->whereHas('channels', function ($query) use ($args) {
-            $query->where('channels.uuid', $args['channel_uuid']);
-        })
-        ->when(! auth()->user()->isAdmin(), function ($query) {
-            $query->where('companies_id', auth()->user()->currentCompanyId());
-        })
-        ->select('messages.*');
+        if (isset($args['channel_uuid']) && isset($args['channel_slug'])) {
+            throw new InvalidArgumentException('Provide only one of channel_uuid or channel_slug, not both.');
+        }
+
+        return Message::fromApp()
+            ->whereHas('channels', function ($query) use ($args) {
+                if (isset($args['channel_uuid'])) {
+                    $query->where('channels.uuid', $args['channel_uuid']);
+                } elseif (isset($args['channel_slug'])) {
+                    $query->where('channels.slug', $args['channel_slug']);
+                }
+            })
+            ->when(! auth()->user()->isAdmin(), function ($query) {
+                $query->where('companies_id', auth()->user()->currentCompanyId());
+            });
     }
 
     public function getGroupByDate(
