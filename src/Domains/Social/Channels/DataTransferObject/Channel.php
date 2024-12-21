@@ -15,7 +15,7 @@ class Channel extends Data
         public Apps $apps,
         public Companies $companies,
         public Users $users,
-        public string $entity_id,
+        public string|int $entity_id,
         public string $entity_namespace,
         public string $name = '',
         public string $description = '',
