@@ -60,6 +60,8 @@ class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActiv
         $purchaseChannel = $newPurchaseMessageChannel->execute();
         $purchaseChannel->addMessage($message, $user);
 
+        $user->set('purchase_channel', $purchaseChannel->uuid);
+
         return [
             'order' => $order->id,
             'message' => $message->id,
