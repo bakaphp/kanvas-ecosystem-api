@@ -10,6 +10,7 @@ use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Social\Messages\Actions\CreateAppModuleMessageAction;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Services\MessageInteractionService;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
@@ -61,6 +62,8 @@ class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActiv
         $purchaseChannel->addMessage($message, $user);
 
         $user->set('purchase_channel', $purchaseChannel->uuid);
+        $messageInteractionService = new MessageInteractionService($message);
+        $messageInteractionService->purchase($user);
 
         return [
             'order' => $order->id,
