@@ -34,7 +34,7 @@ class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActiv
 
         $message = Message::getById($order->get('message_id'), $app);
         $orderSystemModule = SystemModulesRepository::getByModelName(Order::class);
-        $createAppModuleMessage = (new CreateAppModuleMessageAction($message, $orderSystemModule, $order->getId()))->execute();
+        (new CreateAppModuleMessageAction($message, $orderSystemModule, $order->getId()))->execute();
 
         $order->metadata = array_merge(
             $order->metadata,
@@ -63,7 +63,8 @@ class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActiv
         return [
             'order' => $order->id,
             'message' => $message->id,
-            'slug' => $message->slug,
+            'channel' => $purchaseChannel->id,
+            'channel_name' => $purchaseChannel->name,
         ];
     }
 }
