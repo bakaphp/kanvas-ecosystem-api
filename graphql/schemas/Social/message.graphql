@@ -306,6 +306,20 @@ extend type Query @guard {
                     "total_shared"
                 ]
             )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "created_at"
+                    "updated_at"
+                    "id"
+                    "total_view"
+                    "total_liked"
+                    "total_shared"
+                    "total_saved"
+                    "total_children"
+                    "total_disliked"
+                ]
+            )
     ): [Message!]!
         @paginate(
             defaultCount: 25
