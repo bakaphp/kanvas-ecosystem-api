@@ -56,9 +56,18 @@ class Channel extends BaseModel
 
     public function addMessage(Message $message, ?UserInterface $user = null): void
     {
-        $this->messages()->syncWithoutDetaching($message->id, [
-            'users_id' => $user ? $user->getId() : $message->users_id,
-        ]);
+        $exists = $this->messages()
+                ->wherePivot('messages_id', $message->id)
+                ->exists();
+
+        if (! $exists) {
+            // Attach only if it doesn't already exist
+            $this->messages()->attach($message->id, [
+                'users_id' => $user ? $user->getId() : $message->users_id,
+            ]);
+        }
+
+        // Update last_message_id regardless
         $this->last_message_id = $message->id;
         $this->saveOrFail();
     }
