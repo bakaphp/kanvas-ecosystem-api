@@ -61,9 +61,9 @@ class OrderService
         $channelId = $this->order->app->get(ConfigurationEnum::APP_CHANNEL_ID->value);
 
         $metaData = $this->order->metadata;
-        $startDate = $metaData['start_date'] ?? now()->format('Y-m-d');
-        $endDate = $metaData['end_date'] ?? now()->addDays($totalDays)->format('Y-m-d');
-        $imeiNumber = $metaData['imei_number'] ?? null;
+        $startDate = $metaData['startDate'] ?? now()->format('Y-m-d');
+        $endDate = $metaData['endDate'] ?? now()->addDays($totalDays)->format('Y-m-d');
+        $imeiNumber = $metaData['deviceImei'] ?? null;
 
         return $this->client->post('/api/v2/easyactivations/create/order', [
             'products' => [
