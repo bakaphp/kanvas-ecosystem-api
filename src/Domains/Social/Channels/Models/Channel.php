@@ -56,7 +56,7 @@ class Channel extends BaseModel
 
     public function addMessage(Message $message, ?UserInterface $user = null): void
     {
-        $this->messages()->attach($message->id, [
+        $this->messages()->syncWithoutDetaching($message->id, [
             'users_id' => $user ? $user->getId() : $message->users_id,
         ]);
         $this->last_message_id = $message->id;
