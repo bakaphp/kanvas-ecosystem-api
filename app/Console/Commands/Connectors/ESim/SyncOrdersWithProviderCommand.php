@@ -9,6 +9,8 @@ use Exception;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\ESim\Enums\ConfigurationEnum;
+use Kanvas\Connectors\ESim\Enums\ProviderEnum;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
 use Kanvas\Souk\Orders\Models\Order;
 
@@ -49,6 +51,8 @@ class SyncOrdersWithProviderCommand extends Command
         foreach ($orders as $order) {
             $iccid = $order->metadata['data']['iccid'] ?? null;
             $bundle = $order->metadata['data']['plan'] ?? null;
+            $qr = $order->metadata['data']['qr_code'] ?? null;
+            $startDate = $order->metadata['data']['start_date'] ?? null;
 
             if ($iccid == null) {
                 $this->info("Order ID: {$order->id} does not have an ICCID.");
@@ -58,30 +62,39 @@ class SyncOrdersWithProviderCommand extends Command
                 continue;
             }
 
-            #$api = $apiUrl . "/{$iccid}/esims_1GB_7D_IT_V2";
-            //$api = $apiUrl . "/esims/{$iccid}/bundles/" . $bundle;
+            $item = $order->items()->first();
+            $provider = $item->variant->product->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
 
-            try {
-                $response = $eSimService->getAppliedBundleStatus($iccid, $bundle);
-            } catch (Exception $e) {
-                $this->info("Order ID: {$order->id} does not have an ICCID.");
-                $order->cancel();
-                $order->fulfillCancelled();
-
-                continue;
-            }
-
-            if (! empty($response)) {
-                if (isset($response['bundleState']) && $response['bundleState'] === 'active') {
-                    $order->fulfill();
-                    $order->completed();
-                    $this->info("Syncing order ID: {$order->id}");
-                } else {
-                    $this->info("Order ID: {$order->id} is not active.");
-                }
-            }
+            match (strtolower($provider->value)) {
+                strtolower(ProviderEnum::E_SIM_GO->value) => $this->esimGoFulfillment($eSimService, $order, $iccid, $bundle),
+                strtolower(ProviderEnum::EASY_ACTIVATION->value) => [],
+                default => [],
+            };
         }
 
         return;
+    }
+
+    protected function esimGoFulfillment(ESimService $eSimService, Order $order, string $iccid, string $bundle): void
+    {
+        try {
+            $response = $eSimService->getAppliedBundleStatus($iccid, $bundle);
+        } catch (Exception $e) {
+            $this->info("Order ID: {$order->id} does not have an ICCID.");
+            $order->cancel();
+            $order->fulfillCancelled();
+
+            return;
+        }
+
+        if (! empty($response)) {
+            if (isset($response['bundleState']) && $response['bundleState'] === 'active') {
+                $order->fulfill();
+                $order->completed();
+                $this->info("Syncing order ID: {$order->id}");
+            } else {
+                $this->info("Order ID: {$order->id} is not active.");
+            }
+        }
     }
 }
