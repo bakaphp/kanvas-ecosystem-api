@@ -89,7 +89,7 @@ class CreateOrderFromCartAction
             currency: $this->region->currency,
             fulfillmentStatus: 'pending',
             items: $items,
-            metadata: '',
+            metadata: $request['metadata'] ?? [],
             weight: 0.0,
             checkoutToken: '',
             paymentGatewayName: ['manual'],
