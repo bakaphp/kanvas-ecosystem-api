@@ -147,6 +147,234 @@ final class LeadReceiverParserTest extends TestCase
         $this->assertEquals('1', $leadStructure['custom_fields']['CRE_Estimated_1st_Mortgage']);
     }
 
+    public function testExtraLeaSpacingParser(): void
+    {
+        $leadTemplate = '
+       {
+            "First Name": {
+                "name": "firstname",
+                "type": "string"
+            },
+            "Last Name": {
+                "name": "lastname",
+                "type": "string"
+            },
+            "Phone": {
+                "name": "phone",
+                "type": "string"
+            },
+            "Email": {
+                "name": "email",
+                "type": "string"
+            },
+            "Company": {
+                "name": "Company",
+                "type": "customField"
+            },
+            "City": {
+                "name": "city",
+                "type": "customField"
+            },
+            "State": {
+                "name": "state",
+                "type": "customField"
+            },
+            "Zip Code": {
+                "name": "zip",
+                "type": "customField"
+            },
+            "Type of Incorporation": {
+                "name": "type_of_incorporation",
+                "type": "customField"
+            },
+            "Industry": {
+                "name": "industry",
+                "type": "customField"
+            },
+            "Business Founded": {
+                "name": "business_founded",
+                "type": "customField"
+            },
+            "SubID": {
+                "name": "sub_id",
+                "type": "customField"
+            },
+            "Credit Score": {
+                "name": "Credit_Score",
+                "type": "customField"
+            },
+            "Amount Requested": {
+                "name": "amount_requested",
+                "type": "customField"
+            },
+            "Annual Revenue": {
+                "name": "annual_revenue",
+                "type": "decimal"
+            }
+        }';
+
+        $name = fake()->name;
+        $phone = fake()->phoneNumber;
+        $email = fake()->email;
+        $lastname = fake()->lastName;
+        $url = fake()->url;
+
+        $leadReceived = json_encode([
+            'First Name' => $name,
+            'Last Name' => $lastname,
+            'Phone' => $phone,
+            'Email' => $email,
+            'Company' => 'TEST, LLC',
+            'City' => 'aa BB',
+            'State' => 'PA',
+            'Zip Code' => '19053',
+            'Type of Incorporation' => 'soleProprietorship',
+            'Industry' => 'real_estate',
+            'Business Founded' => '2004-05-01T00:00:00',
+            'SubID' => '272da453-ed2c-4fa7-9ec0-c3efc6f55c87;cf3e6255ba55da60765e9d108',
+            'Credit Score' => 'Excellent (720+)',
+            'Amount Requested' => '1150000',
+            'Annual Revenue' => '70000',
+        ]);
+
+        $parseTemplate = new ConvertJsonTemplateToLeadStructureAction(
+            json_decode($leadTemplate, true),
+            json_decode($leadReceived, true)
+        );
+
+        $leadStructure = $parseTemplate->execute();
+
+        $this->assertIsArray($leadStructure);
+        $this->assertArrayHasKey('custom_fields', $leadStructure);
+        $this->assertArrayHasKey('people', $leadStructure);
+        $this->assertArrayHasKey('firstname', $leadStructure['people']);
+        $this->assertArrayHasKey('lastname', $leadStructure['people']);
+        $this->assertArrayHasKey('contacts', $leadStructure['people']);
+        $this->assertEquals($name, $leadStructure['people']['firstname']);
+        $this->assertEquals($lastname, $leadStructure['people']['lastname']);
+        $this->assertEquals($phone, $leadStructure['people']['contacts'][0]['value']);
+        $this->assertEquals($email, $leadStructure['people']['contacts'][1]['value']);
+        $this->assertEquals('Excellent (720+)', $leadStructure['custom_fields']['Credit_Score']);
+        $this->assertEquals('1150000', $leadStructure['custom_fields']['Amount Requested']);
+    }
+
+    public function testExtraLeaDefaultValueParser(): void
+    {
+        $leadTemplate = '
+       {
+            "First Name": {
+                "name": "firstname",
+                "type": "string"
+            },
+            "Last Name": {
+                "name": "lastname",
+                "type": "string"
+            },
+            "Phone": {
+                "name": "phone",
+                "type": "string"
+            },
+            "Member": {
+                "name": "member",
+                "type": "customField",
+                "default": "lpr2230"
+            },
+            "Email": {
+                "name": "email",
+                "type": "string"
+            },
+            "Company": {
+                "name": "Company",
+                "type": "customField"
+            },
+            "City": {
+                "name": "city",
+                "type": "customField"
+            },
+            "State": {
+                "name": "state",
+                "type": "customField"
+            },
+            "Zip Code": {
+                "name": "zip",
+                "type": "customField"
+            },
+            "Type of Incorporation": {
+                "name": "type_of_incorporation",
+                "type": "customField"
+            },
+            "Industry": {
+                "name": "industry",
+                "type": "customField"
+            },
+            "Business Founded": {
+                "name": "business_founded",
+                "type": "customField"
+            },
+            "SubID": {
+                "name": "sub_id",
+                "type": "customField"
+            },
+            "Credit Score": {
+                "name": "Credit_Score",
+                "type": "customField"
+            },
+            "Amount Requested": {
+                "name": "amount_requested",
+                "type": "customField"
+            },
+            "Annual Revenue": {
+                "name": "annual_revenue",
+                "type": "decimal"
+            }
+        }';
+
+        $name = fake()->name;
+        $phone = fake()->phoneNumber;
+        $email = fake()->email;
+        $lastname = fake()->lastName;
+        $url = fake()->url;
+
+        $leadReceived = json_encode([
+            'First Name' => $name,
+            'Last Name' => $lastname,
+            'Phone' => $phone,
+            'Email' => $email,
+            'Company' => 'TEST, LLC',
+            'City' => 'aa BB',
+            'State' => 'PA',
+            'Zip Code' => '19053',
+            'Type of Incorporation' => 'soleProprietorship',
+            'Industry' => 'real_estate',
+            'Business Founded' => '2004-05-01T00:00:00',
+            'SubID' => '272da453-ed2c-4fa7-9ec0-c3efc6f55c87;cf3e6255ba55da60765e9d108',
+            'Credit Score' => 'Excellent (720+)',
+            'Amount Requested' => '1150000',
+            'Annual Revenue' => '70000',
+        ]);
+
+        $parseTemplate = new ConvertJsonTemplateToLeadStructureAction(
+            json_decode($leadTemplate, true),
+            json_decode($leadReceived, true)
+        );
+
+        $leadStructure = $parseTemplate->execute();
+
+        $this->assertIsArray($leadStructure);
+        $this->assertArrayHasKey('custom_fields', $leadStructure);
+        $this->assertArrayHasKey('people', $leadStructure);
+        $this->assertArrayHasKey('firstname', $leadStructure['people']);
+        $this->assertArrayHasKey('lastname', $leadStructure['people']);
+        $this->assertArrayHasKey('contacts', $leadStructure['people']);
+        $this->assertEquals($name, $leadStructure['people']['firstname']);
+        $this->assertEquals($lastname, $leadStructure['people']['lastname']);
+        $this->assertEquals($phone, $leadStructure['people']['contacts'][0]['value']);
+        $this->assertEquals($email, $leadStructure['people']['contacts'][1]['value']);
+        $this->assertEquals('Excellent (720+)', $leadStructure['custom_fields']['Credit_Score']);
+        $this->assertEquals('1150000', $leadStructure['custom_fields']['Amount Requested']);
+        $this->assertEquals('lpr2230', $leadStructure['custom_fields']['member']);
+    }
+
     public function testComplexLearParser(): void
     {
         $leadTemplate = '
@@ -166,6 +394,11 @@ final class LeadReceiverParserTest extends TestCase
             "business.business_inception": {
                 "name": "business_founded",
                 "type": "customField"
+            },
+            "Member": {
+                "name": "member",
+                "type": "customField",
+                "default": "lpr2230"
             },
             "business.use_of_proceeds": {
                 "name": "industry",
@@ -309,5 +542,7 @@ final class LeadReceiverParserTest extends TestCase
         $this->assertArrayHasKey('firstname', $leadStructure['people']);
         $this->assertArrayHasKey('lastname', $leadStructure['people']);
         $this->assertArrayHasKey('contacts', $leadStructure['people']);
+        $this->assertArrayHasKey('member', $leadStructure['custom_fields']);
+        $this->assertEquals('lpr2230', $leadStructure['custom_fields']['member']);
     }
 }
