@@ -11,7 +11,7 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('user_messages', function (Blueprint $table) {
-            $table->tinyInteger('is_purchase')->after('is_shared')->default(0)->index('is_purchase');
+            $table->tinyInteger('is_purchased')->after('is_shared')->default(0)->index('is_purchased');
         });
     }
 
@@ -21,7 +21,7 @@ return new class () extends Migration {
     public function down(): void
     {
         Schema::table('user_messages', function (Blueprint $table) {
-            $table->dropColumn('is_purchase');
+            $table->dropColumn('is_purchased');
         });
     }
 };

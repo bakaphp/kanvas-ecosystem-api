@@ -7,7 +7,9 @@ namespace Kanvas\Social\Messages\Services;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Social\Enums\AppEnum;
 use Kanvas\Social\Enums\InteractionEnum;
+use Kanvas\Social\Interactions\Actions\CreateInteraction;
 use Kanvas\Social\Interactions\Actions\CreateUserInteractionAction;
+use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Interactions\Models\UsersInteractions;
@@ -83,6 +85,18 @@ class MessageInteractionService
         return $userInteraction;
     }
 
+    public function purchase(UserInterface $who): UsersInteractions
+    {
+        $this->incrementInteractionCount('total_purchased');
+
+        $userInteraction = $this->createInteraction($who, InteractionEnum::PURCHASE->getValue());
+        $userMessage = $this->addToUserMessage($who);
+        $userMessage->is_purchased = 1;
+        $userMessage->saveOrFail();
+
+        return $userInteraction;
+    }
+
     protected function incrementInteractionCount(string $interactionType): void
     {
         $this->message->$interactionType++;
@@ -97,7 +111,14 @@ class MessageInteractionService
 
     protected function createInteraction(UserInterface $who, string $interactionType, ?string $note = null): UsersInteractions
     {
-        $interaction = Interactions::getByName($interactionType, $this->message->app);
+        //$interaction = Interactions::getByName($interactionType, $this->message->app);
+        $interaction = (new CreateInteraction(
+            new Interaction(
+                $interactionType,
+                $this->message->app,
+                $interactionType,
+            )
+        ))->execute();
         $createUserInteraction = new CreateUserInteractionAction(
             new UserInteraction(
                 $who,

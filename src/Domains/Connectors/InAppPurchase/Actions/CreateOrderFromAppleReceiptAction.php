@@ -70,7 +70,14 @@ class CreateOrderFromAppleReceiptAction
             $people
         );
 
-        return (new CreateOrderAction($orderData))->execute();
+        $order = (new CreateOrderAction($orderData))->execute();
+
+        if (! empty($this->appleInAppPurchase->custom_fields)) {
+            $order->setCustomFields($this->appleInAppPurchase->custom_fields);
+            $order->saveCustomFields();
+        }
+
+        return $order;
     }
 
     private function verifyReceipt(array $receipt): ReceiptResponse
