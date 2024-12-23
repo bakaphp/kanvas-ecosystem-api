@@ -287,7 +287,8 @@ extend type Query @guard {
         )
 
     channelMessages(
-        channel_uuid: String!
+        channel_uuid: String
+        channel_slug: String
         where: _
             @whereConditions(
                 columns: [
@@ -303,6 +304,20 @@ extend type Query @guard {
                     "total_liked"
                     "total_saved"
                     "total_shared"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "created_at"
+                    "updated_at"
+                    "id"
+                    "total_view"
+                    "total_liked"
+                    "total_shared"
+                    "total_saved"
+                    "total_children"
+                    "total_disliked"
                 ]
             )
     ): [Message!]!

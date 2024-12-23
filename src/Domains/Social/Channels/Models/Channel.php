@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Social\Channels\Models;
 
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Social\Messages\Models\Message;
@@ -51,5 +52,14 @@ class Channel extends BaseModel
     {
         return $this->belongsToMany(Message::class, 'channel_messages', 'channel_id', 'messages_id')
                 ->withTimestamps();
+    }
+
+    public function addMessage(Message $message, ?UserInterface $user = null): void
+    {
+        $this->messages()->attach($message->id, [
+            'users_id' => $user ? $user->getId() : $message->users_id,
+        ]);
+        $this->last_message_id = $message->id;
+        $this->saveOrFail();
     }
 }
