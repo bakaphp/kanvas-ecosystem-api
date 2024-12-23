@@ -29,15 +29,14 @@ class CreateChannelAction
             'entity_namespace' => $this->channelDto->entity_namespace,
         ]);
 
-        $channel->users()->attach(
-            $this->channelDto->users->id,
-            [
+        $channel->users()->syncWithoutDetaching([
+            $this->channelDto->users->id => [
                 'roles_id' => RolesRepository::getByNameFromCompany(
                     name: RolesEnums::ADMIN->value,
                     app: $this->channelDto->apps,
                 )->id,
-            ]
-        );
+            ],
+        ]);
 
         return $channel;
     }
