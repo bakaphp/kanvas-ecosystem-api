@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ESim\WorkflowActivities;
 
+use GuzzleHttp\Exception\ClientException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\ESim\Enums\ConfigurationEnum;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
@@ -34,8 +35,16 @@ class CreateOrderInESimActivity extends KanvasActivity
             ];
         }
 
-        $createOrder = new OrderService($order);
-        $response = $createOrder->createOrder();
+        try {
+            $createOrder = new OrderService($order);
+            $response = $createOrder->createOrder();
+        } catch (ClientException $e) {
+            return [
+                'status' => 'error',
+                'message' => 'Error creating order in eSim',
+                'response' => $e->getMessage(),
+            ];
+        }
 
         $order->metadata = array_merge(($order->metadata ?? []), $response);
         $order->saveOrFail();
