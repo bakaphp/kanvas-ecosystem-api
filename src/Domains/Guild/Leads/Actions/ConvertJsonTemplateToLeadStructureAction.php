@@ -87,17 +87,17 @@ class ConvertJsonTemplateToLeadStructureAction
         $parsedData = [];
         $customFields = [];
         $processFields = [];
-
-        // Initialize people structure with placeholders
         $peopleStructure = [
             'firstname' => null,
             'lastname' => null,
             'contacts' => [],
         ];
 
-        // Iterate through the template and map values accordingly
         foreach ($template as $path => $info) {
+            // Fetch the value and use the default if the value is empty
             $value = $this->getValueFromPath($request, $path);
+            $value = ! empty($value) ? $value : ($info['default'] ?? null);
+
             $name = $info['name'];
             $type = $info['type'];
 
@@ -161,27 +161,20 @@ class ConvertJsonTemplateToLeadStructureAction
 
     public function getValueFromPath(array $array, string $path): string
     {
-        $values = [];
-        $paths = explode(' ', $path);
-        foreach ($paths as $p) {
-            $keys = explode('.', $p);
-            $tempArray = $array;
-            foreach ($keys as $key) {
-                if (isset($tempArray[$key])) {
-                    $tempArray = $tempArray[$key];
-                } else {
-                    $tempArray = null;
+        $keys = explode('.', $path); // Use dot notation for hierarchical keys
+        $tempArray = $array;
 
-                    break;
-                }
-            }
-            // Check if the value is a string before appending
-            if (is_string($tempArray) || is_numeric($tempArray)) {
-                $values[] = $tempArray;
+        foreach ($keys as $key) {
+            $key = trim($key); // Remove any unnecessary spaces
+            if (isset($tempArray[$key])) {
+                $tempArray = $tempArray[$key];
+            } else {
+                return ''; // Return an empty string if the key does not exist
             }
         }
 
-        return implode(' ', $values);
+        // Ensure the value is a string or numeric
+        return is_string($tempArray) || is_numeric($tempArray) ? (string) $tempArray : '';
     }
 
     /**
