@@ -211,7 +211,7 @@ class People extends BaseModel
             ],
             [
                 'address_2' => $address->address_2,
-                'address_type_id' => $type->getId(),
+                'address_type_id' => $type->getId(), //@todo move this to the search
             ]
         );
     }
