@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
@@ -67,6 +68,14 @@ class Setup
         'Duplicate',
     ];
 
+    public array $addressType = [
+        'Home',
+        'PreviousHome',
+        'Employer',
+        'PreviousEmployer',
+        'Other',
+    ];
+
     /**
      * Constructor.
      */
@@ -108,6 +117,14 @@ class Setup
             ], [
                'description' => $value ?? null,
                'leads_types_id' => null,
+            ]);
+        }
+
+        foreach ($this->addressType as $key => $value) {
+            AddressType::firstOrCreate([
+                'name' => $value,
+                'companies_id' => 0,
+                'apps_id' => $this->app->getId(),
             ]);
         }
 

@@ -42,4 +42,9 @@ class Address extends BaseModel
             'id'
         );
     }
+
+    public function type(): BelongsTo
+    {
+        return $this->belongsTo(AddressType::class, 'address_type_id', 'id');
+    }
 }
