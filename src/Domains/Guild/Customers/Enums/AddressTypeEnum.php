@@ -11,5 +11,6 @@ enum AddressTypeEnum: string
     case EMPLOYER = 'Employer';
     case PREVIOUS_EMPLOYER = 'PreviousEmployer';
     case BILLING = 'Billing';
+    case SHIPPING = 'Shipping';
     case OTHER = 'Other';
 }
