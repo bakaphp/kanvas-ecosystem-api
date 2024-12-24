@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -69,11 +70,12 @@ class Setup
     ];
 
     public array $addressType = [
-        'Home',
-        'PreviousHome',
-        'Employer',
-        'PreviousEmployer',
-        'Other',
+        AddressTypeEnum::HOME->value,
+        AddressTypeEnum::PREVIOUS_HOME->value,
+        AddressTypeEnum::EMPLOYER->value,
+        AddressTypeEnum::PREVIOUS_EMPLOYER->value,
+        AddressTypeEnum::OTHER->value,
+        AddressTypeEnum::BILLING->value,
     ];
 
     /**
