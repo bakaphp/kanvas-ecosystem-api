@@ -54,11 +54,12 @@ class CreateOrderInESimActivity extends KanvasActivity
 
         $response['order_id'] = $order->id;
         $response['order'] = $order->toArray();
-
+        $sku = null;
         foreach ($order->items as $item) {
             $variant = Variants::where('id', $item->variant_id)->first();
             $detail['variant'] = $variant->toArray();
             $detail['variant']['attributes'] = $variant->attributes()->pluck('value', 'name')->toArray();
+            $sku = $variant->sku;
 
             $response['items'][] = $detail;
         }
@@ -77,6 +78,8 @@ class CreateOrderInESimActivity extends KanvasActivity
                     'esim_status' => $response['data']['status'] ?? null,
                     'phone_number' => $response['data']['phone_number'] ?? null,
                 ];
+                $response['data']['plan_origin'] = $response['data']['plan'];
+                $response['data']['plan'] = $sku; //overwrite the plan with the sku
             }
         } catch (Throwable $e) {
             // Log the exception or handle it as needed
@@ -108,6 +111,7 @@ class CreateOrderInESimActivity extends KanvasActivity
         return [
             'status' => 'success',
             'message' => 'Order updated with eSim metadata',
+            'message_id' => $message->getId(),
             'response' => $response,
         ];
     }
