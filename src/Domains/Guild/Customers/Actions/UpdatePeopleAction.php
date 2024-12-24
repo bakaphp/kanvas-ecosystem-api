@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Customers\Actions;
 
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDataInput;
+use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Models\Address;
+use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
@@ -91,6 +93,7 @@ class UpdatePeopleAction
                         'city_id' => $address->city_id ?? 0,
                         'state_id' => $address->state_id ?? 0,
                         'countries_id' => $address->country_id ?? 0,
+                        'address_type_id' => $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value)->getId(),
                     ]);
                 }
             }

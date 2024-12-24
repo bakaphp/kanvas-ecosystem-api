@@ -4,14 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\DataTransferObject;
 
-use Kanvas\Guild\Customers\Models\AddressType;
 use Spatie\LaravelData\Data;
 
 class Address extends Data
 {
-    /**
-     * __construct.
-     */
     public function __construct(
         public readonly string $address,
         public readonly ?string $address_2 = null,
@@ -24,7 +20,7 @@ class Address extends Data
         public readonly ?int $city_id = null,
         public readonly ?int $state_id = null,
         public readonly ?int $country_id = null,
-        public readonly ?AddressType $type = null
+        public readonly ?int $address_type_id = null,
     ) {
     }
 }
