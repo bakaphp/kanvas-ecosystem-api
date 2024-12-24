@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
+use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -197,6 +198,8 @@ class People extends BaseModel
 
     public function addAddress(DataTransferObjectAddress $address): Address
     {
+        $typeId = $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value)->getId();
+
         return Address::updateOrCreate(
             [
                 'peoples_id' => $this->id,
@@ -208,6 +211,7 @@ class People extends BaseModel
             ],
             [
                 'address_2' => $address->address_2,
+                'address_type_id' => $typeId, // @todo move to search
             ]
         );
     }

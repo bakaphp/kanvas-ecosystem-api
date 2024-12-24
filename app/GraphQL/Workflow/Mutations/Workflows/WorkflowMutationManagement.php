@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\GraphQL\Workflow\Mutations\Workflows;
 
 use Baka\Support\Str;
+use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -20,28 +23,30 @@ class WorkflowMutationManagement
         $entityId = $request['entity_id'];
         $entityClass = $request['entity_namespace'];
         $workflowAction = $request['action'];
-        $params = $request['params'] ?? [];
+        $params = array_merge(['app' => app(Apps::class)], $request['params'] ?? []);
         $app = app(Apps::class);
 
         //if we get a slug
-        if (Str::contains($entityClass, '\\')) {
+        if (! Str::contains($entityClass, '\\')) {
             $entityClass = SystemModules::getSystemModuleNameSpaceBySlug($entityClass);
         }
 
         if (! class_exists($entityClass)) {
-            return false;
+            throw new Exception('Entity ' . $entityClass . ' not found');
         }
 
-        $entity = $entityClass::getById($entityId, $app);
+        try {
+            $entity = Str::isUuid($entityId)
+                ? $entityClass::getByUuid($entityId, $app)
+                : $entityClass::getById($entityId, $app);
+        } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
+            throw new ExceptionsModelNotFoundException('Record ' . class_basename($entityClass) . " {$entityId} not found");
+        }
 
         //validate action
         WorkflowEnum::fromString($workflowAction);
 
-        $entity->fireWorkflow(
-            $workflowAction,
-            true,
-            array_merge(['app' => $app], $params)
-        );
+        $entity->fireWorkflow($workflowAction, true, $params);
 
         return ['success' => true];
     }
