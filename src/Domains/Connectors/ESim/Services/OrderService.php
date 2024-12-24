@@ -68,7 +68,7 @@ class OrderService
         return $this->client->post('/api/v2/easyactivations/create/order', [
             'products' => [
                 [
-                    'sku' => $item->product_sku,
+                    'sku' => $item->variant->get('parent_sku'),
                     'service_days' => $totalDays,
                     'product_qty' => $item->quantity,
                     'start_date' => $startDate,
