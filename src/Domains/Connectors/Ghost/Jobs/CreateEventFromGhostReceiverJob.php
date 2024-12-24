@@ -5,14 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Ghost\Jobs;
 
 use Carbon\Carbon;
-use Kanvas\Workflow\Jobs\ProcessWebhookJob;
-use Kanvas\Event\Events\Models\EventType;
-use Kanvas\Event\Events\Models\EventCategory;
-use Kanvas\Event\Events\DataTransferObject\Event;
-use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Connectors\Ghost\Enums\CustomFieldEnum;
-use Illuminate\Support\Str;
 use Kanvas\Connectors\Ghost\Enums\CustomFieldEventWebhookEnum;
+use Kanvas\Event\Events\Actions\CreateEventAction;
+use Kanvas\Event\Events\DataTransferObject\Event;
+use Kanvas\Event\Events\Models\EventCategory;
+use Kanvas\Event\Events\Models\EventType;
+use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 
 class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
 {
@@ -36,9 +35,13 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
             'dates' => [
                 [
                     'date' => $date->format('Y-m-d'),
-                ]
-            ]
+                ],
+            ],
         ];
+        $metingLink = null;
+        if ($payload['primary_tag']['name'] == CustomFieldEnum::GHOST_EVENT_WEB_FORUM->value) {
+            $metingLink = $payload['tags'][0]['url'];
+        }
         $dto = Event::fromMultiple(
             $this->webhookRequest->receiverWebhook->app,
             $this->webhookRequest->receiverWebhook->user,
@@ -46,6 +49,7 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
             $data,
         );
         $event = (new CreateEventAction($dto))->execute();
+
         return $event->toArray();
     }
 
@@ -61,6 +65,7 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
         if (! $eventType) {
             return null;
         }
+
         return EventType::where('apps_id', $this->webhookRequest->receiverWebhook->app->getId())
              ->where('companies_id', $this->webhookRequest->receiverWebhook->company->getId())
              ->where('name', $eventType)

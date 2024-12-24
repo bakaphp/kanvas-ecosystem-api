@@ -40,6 +40,7 @@ class CreateEventAction
                 'event_class_id' => $this->event->class->getId(),
                 'description' => $this->event->description,
                 'slug' => $slug,
+                'meeting_link' => $this->event->meeting_link,
             ]);
             if ($this->event->dates->count()) {
                 $eventVersionSlug = Str::slug('events-versions-' . $slug . $this->event->dates[0]->date->format('Y-m-d'));
