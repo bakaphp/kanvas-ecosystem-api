@@ -123,11 +123,7 @@ class Setup
         }
 
         foreach ($this->addressType as $key => $value) {
-            AddressType::firstOrCreate([
-                'name' => $value,
-                'companies_id' => 0,
-                'apps_id' => $this->app->getId(),
-            ]);
+            AddressType::getByName($value, $this->app);
         }
 
         $defaultPipelineName = 'Default Leads';

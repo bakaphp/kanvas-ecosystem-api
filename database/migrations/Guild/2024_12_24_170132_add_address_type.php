@@ -15,6 +15,7 @@ return new class () extends Migration {
             $table->unsignedBigInteger('apps_id')->index(); // Foreign key to apps
             $table->unsignedBigInteger('companies_id')->index(); // Foreign key to companies
             $table->string('name'); // Name of the address type
+            $table->unsignedBigInteger('users_id')->default(1)->index(); // Foreign key to users
             $table->timestamps(); // created_at and updated_at
             $table->boolean('is_deleted')->default(false); // Soft delete indicator
         });
