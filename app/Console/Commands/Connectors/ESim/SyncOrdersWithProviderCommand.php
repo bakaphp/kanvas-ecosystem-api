@@ -65,6 +65,12 @@ class SyncOrdersWithProviderCommand extends Command
             $item = $order->items()->first();
             $provider = $item->variant->product->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value);
 
+            if ($provider == null) {
+                $this->info("Order ID: {$order->id} does not have a provider.");
+
+                continue;
+            }
+
             match (strtolower($provider->value)) {
                 strtolower(ProviderEnum::E_SIM_GO->value) => $this->esimGoFulfillment($eSimService, $order, $iccid, $bundle),
                 strtolower(ProviderEnum::EASY_ACTIVATION->value) => [],
