@@ -12,7 +12,7 @@ use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 
-class CreateParticipantFromMeetingJob extends ProcessWebhookJob
+class CreateParticipantFromMeetingZoomJob extends ProcessWebhookJob
 {
     public function execute(): array
     {
@@ -27,13 +27,13 @@ class CreateParticipantFromMeetingJob extends ProcessWebhookJob
                 'payload' => $this->webhookRequest->payload,
             ];
         }
-
-        $people = PeoplesRepository::getByEmail($payload['object']['participant']['email'], $this->webhookRequest->company);
+        $company = $event->company;
+        $people = PeoplesRepository::getByEmail($payload['object']['participant']['email'], $company);
         if (! $people) {
             $peopleDto = People::from([
-                'app' => $this->webhookRequest->app,
-                'company' => $this->webhookRequest->company,
-                'user' => $this->webhookRequest->user,
+                'app' => $this->webhookRequest->receiverWebhook->app,
+                'company' => $company,
+                'user' => $this->webhookRequest->receiverWebhook->user,
                 'firstname' => $payload['object']['participant']['user_name'],
                 'contacts' => [
                     [
@@ -42,13 +42,15 @@ class CreateParticipantFromMeetingJob extends ProcessWebhookJob
                         'weight' => 0,
                     ],
                 ],
+                'address' => [],
+                'branch' => $company->defaultBranch
             ]);
             $action = new CreatePeopleAction($peopleDto);
             $people = $action->execute();
         }
-        $sync = new SyncPeopleWithParticipantAction($people, $this->webhookRequest->user);
+        $sync = new SyncPeopleWithParticipantAction($people, $this->webhookRequest->receiverWebhook->user);
         $participant = $sync->execute();
-        $eventVersion = $event->eventVersions()->first();
+        $eventVersion = $event->versions()->first();
         $eventVersion->addParticipant($participant);
 
         return [
