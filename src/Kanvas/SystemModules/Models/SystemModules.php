@@ -124,6 +124,6 @@ class SystemModules extends BaseModel
             'order' => Order::class,
            ];
 
-        return $internalMapping[strtolower($slug)] ?? throw new InvalidArgumentException('Entity not found');
+        return $internalMapping[strtolower($slug)] ?? throw new InvalidArgumentException('Entity ' . $slug . ' not found');
     }
 }
