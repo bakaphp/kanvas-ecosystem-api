@@ -122,6 +122,7 @@ class CreatePeopleAction
                     'state_id' => $address->state_id ?? 0,
                     'countries_id' => $address->country_id ?? 0,
                     'address_type_id' => $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value, $this->peopleData->app)->getId(),
+                    'duration' => $address->duration ?? 0.0,
                 ];
 
                 if (! in_array($newAddress, $existingAddresses)) {

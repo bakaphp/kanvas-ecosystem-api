@@ -94,6 +94,7 @@ class UpdatePeopleAction
                         'state_id' => $address->state_id ?? 0,
                         'countries_id' => $address->country_id ?? 0,
                         'address_type_id' => $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value)->getId(),
+                        'duration' => $address->duration ?? 0.0,
                     ]);
                 }
             }
