@@ -21,6 +21,7 @@ class Address extends Data
         public readonly ?int $state_id = null,
         public readonly ?int $country_id = null,
         public readonly ?int $address_type_id = null,
+        public readonly ?float $duration = 0.0
     ) {
     }
 }
