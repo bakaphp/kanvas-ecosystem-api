@@ -65,6 +65,8 @@ class OrderService
         $endDate = $metaData['end_date'] ?? now()->addDays($totalDays)->format('Y-m-d');
         $imeiNumber = $metaData['imei_number'] ?? null;
 
+        $this->order->user_phone ??= '1234567899';
+
         return $this->client->post('/api/v2/easyactivations/create/order', [
             'products' => [
                 [
