@@ -149,29 +149,24 @@ class Setup
 
         $defaultStatus = $createDefaultStatus->execute();
 
-        $createDefaultAttributeType = new CreateAttributeType(
-            new AttributesType(
-                $this->company,
-                $this->app,
-                ucfirst(AttributeTypeEnum::INPUT->value),
-                AttributeTypeEnum::INPUT->value,
-                true
-            ),
-            $this->user
-        );
+        $attributeTypes = [
+            AttributeTypeEnum::INPUT->value,
+            AttributeTypeEnum::CHECKBOX->value,
+            AttributeTypeEnum::JSON->value,
+        ];
 
-        (new CreateAttributeType(
-            new AttributesType(
-                $this->company,
-                $this->app,
-                ucfirst(AttributeTypeEnum::CHECKBOX->value),
-                AttributeTypeEnum::CHECKBOX->value,
-                false
-            ),
-            $this->user
-        ))->execute();
-
-        $defaultAttributeType = $createDefaultAttributeType->execute();
+        foreach ($attributeTypes as $attributeType) {
+            $defaultAttributeType = (new CreateAttributeType(
+                new AttributesType(
+                    $this->company,
+                    $this->app,
+                    ucfirst($attributeType),
+                    $attributeType,
+                    true
+                ),
+                $this->user
+            ))->execute();
+        }
 
         return $defaultCategory instanceof Categories &&
             $defaultChannel instanceof ModelsChannels &&
