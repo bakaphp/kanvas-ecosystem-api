@@ -22,6 +22,8 @@ use Throwable;
 
 class CreateOrderInESimActivity extends KanvasActivity
 {
+    public $tries = 2;
+
     public function execute(Order $order, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);

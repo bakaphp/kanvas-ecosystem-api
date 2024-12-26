@@ -8,4 +8,5 @@ enum AttributeTypeEnum: string
 {
     case INPUT = 'input';
     case CHECKBOX = 'checkbox';
+    case JSON = 'json';
 }
