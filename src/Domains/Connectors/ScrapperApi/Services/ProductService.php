@@ -139,12 +139,13 @@ class ProductService
     {
         $weight = null;
 
-        if (isset($product['product_information']['product_dimensions'])) {
-            $productDimensions = $product['product_information']['product_dimensions'];
+        if (isset($product['product_information']['product_dimensions']) || isset($product['product_information']['package_dimensions'])) {
+            $productDimensions = isset($product['product_information']['product_dimensions']) ?
+                 $product['product_information']['product_dimensions'] :
+                 $product['product_information']['package_dimensions'] ;
             if (preg_match('/([\d.]+) x ([\d.]+) x ([\d.]+) inches; ([\d.]+) (Pounds|Ounces)/i', $productDimensions, $matches)) {
                 $weight = (float) $matches[4];
                 $unit = strtolower($matches[5]);
-
                 $weight = $unit === 'ounces'
                     ? $weight * 28.3495
                     : $weight * 453.592;

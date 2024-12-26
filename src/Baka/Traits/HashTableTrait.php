@@ -6,7 +6,9 @@ namespace Baka\Traits;
 
 use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ConfigurationException;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * @todo implement redis hashtable for speed
@@ -46,11 +48,17 @@ trait HashTableTrait
         return $this->getTable() . '_settings';
     }
 
+    public function hasAppsIdColumn(): bool
+    {
+        return Schema::hasColumn($this->getTable(), 'apps_id');
+    }
+
     /**
      * Set the settings.
      */
-    public function set(string $key, mixed $value, bool|int $isPublic = 0): bool
+    public function set(string $key, mixed $value, bool|int $isPublic = 0, ?Apps $app = null): bool
     {
+        $app = $app ?? app(Apps::class);
         $this->createSettingsModel();
 
         if ($value === null) {
@@ -77,6 +85,9 @@ trait HashTableTrait
         $this->settingsModel->name = $key;
         $this->settingsModel->value = $value;
         $this->settingsModel->is_public = (int) $isPublic;
+        if ($app && $this->hasAppsIdColumn()) {
+            $this->settingsModel->apps_id = $app->getId();
+        }
         $this->settingsModel->save();
 
         return true;
@@ -86,15 +97,16 @@ trait HashTableTrait
      * @param array<array-key, array{name: string, data: mixed}> $settings
      * @throws ConfigurationException
      */
-    public function setAll(array $settings, bool|int $isPublic = false): bool
+    public function setAll(array $settings, bool|int $isPublic = false, ?Apps $app = null): bool
     {
+        $app = $app ?? app(Apps::class);
         if (empty($settings)) {
             return false;
         }
 
         foreach ($settings as $setting) {
             $isPublic = $setting['public'] ?? $isPublic;
-            $this->set($setting['name'], $setting['data'], $isPublic);
+            $this->set($setting['name'], $setting['data'], $isPublic, $app);
         }
 
         return true;
@@ -103,27 +115,42 @@ trait HashTableTrait
     /**
      * Get the settings by its key.
      */
-    protected function getSettingsByKey(string $key): mixed
+    protected function getSettingsByKey(string $key, ?Apps $app = null): mixed
     {
+        $app = $app ?? app(Apps::class);
         return $this->settingsModel
             ->where($this->getSettingsPrimaryKey(), $this->getKey())
-            ->where('name', $key)->first();
+            ->when($this->hasAppsIdColumn(), function ($query) use ($app) {
+                return $query->where('apps_id', $app->getId())
+                        ->orWhereNull(column: 'apps_id');
+            })
+            ->where('name', $key)
+            ->first();
     }
 
     /**
      * Get all the setting of a given record.
      */
-    public function getAllSettings(bool $onlyPublicSettings = false, bool $publicFormat = false): array
+    public function getAllSettings(bool $onlyPublicSettings = false, bool $publicFormat = false, ?Apps $app = null): array
     {
         $this->createSettingsModel();
-
+        $app = $app ?? app(Apps::class);
         $allSettings = [];
         if ($onlyPublicSettings) {
             $settings = $this->settingsModel::where($this->getSettingsPrimaryKey(), $this->getId())
+                ->when($this->hasAppsIdColumn(), function ($query) use ($app) {
+                    return $query->where('apps_id', $app->getId())
+                            ->orWhereNull(column: 'apps_id');
+                })
                 ->isPublic()
                 ->get();
         } else {
-            $settings = $this->settingsModel::where($this->getSettingsPrimaryKey(), $this->getId())->get();
+            $settings = $this->settingsModel::where($this->getSettingsPrimaryKey(), $this->getId())
+            ->when($app, function ($query) use ($app) {
+                return $query->where('apps_id', $app->getId())
+                        ->orWhereNull(column: 'apps_id');
+            })
+            ->get();
         }
 
         foreach ($settings as $setting) {
@@ -163,23 +190,25 @@ trait HashTableTrait
     /**
      * Delete element.
      */
-    public function deleteHash(string $key): bool
+    public function deleteHash(string $key, ?Apps $app = null): bool
     {
+        $app = $app ?? app(Apps::class);
         $this->createSettingsModel();
-        if ($record = $this->getSettingsByKey($key)) {
+        if ($record = $this->getSettingsByKey($key, $app)) {
             return $record->delete();
         }
 
         return false;
     }
 
-    public function del(string $key): bool
+    public function del(string $key, ?Apps $app = null): bool
     {
-        return $this->deleteHash($key);
+        return $this->deleteHash($key, $app);
     }
 
-    public static function getByCustomField(string $name, mixed $value): ?Model
+    public static function getByCustomField(string $name, mixed $value, ?Apps $app = null): ?Model
     {
+        $app = $app ?? app(Apps::class);
         $instance = new static();
         $settingsTable = $instance->getSettingsTable();
         $foreignKey = $instance->getSettingsForeignKey();
@@ -188,6 +217,9 @@ trait HashTableTrait
             ->where($settingsTable . '.name', $name)
             ->where($settingsTable . '.value', $value)
             ->where($instance->getTable() . '.is_deleted', 0)
+            ->when($app, function ($query) use ($app, $settingsTable) {
+                return $query->where($settingsTable . '.apps_id', $app->getId());
+            })
             ->select($instance->getTable() . '.*')
             ->first();
     }
