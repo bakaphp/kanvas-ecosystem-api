@@ -55,7 +55,17 @@ class UpdatePeopleAction
         if ($this->peopleData->contacts->count()) {
             $contacts = [];
             foreach ($this->peopleData->contacts as $contact) {
-                $existingContact = $this->people->contacts()->where('value', $contact->value)->first();
+                $existingContact = $this->people->contacts()
+                ->where('value', $contact->value)
+                ->first();
+                if ($contact->id && $this->people->contacts()->find($contact->id)) {
+                    $this->people->contacts()->find($contact->id)->update([
+                        'contacts_types_id' => $contact->contacts_types_id,
+                        'value' => $contact->value,
+                        'weight' => $contact->weight,
+                    ]);
+                    continue;
+                }
 
                 if (! $existingContact) {
                     $contacts[] = new Contact([
