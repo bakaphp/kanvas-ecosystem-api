@@ -40,6 +40,7 @@ use Kanvas\Users\Models\UserCompanyApps;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
+use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
@@ -379,8 +380,10 @@ class Companies extends BaseModel implements CompanyInterface
 
     public function hasCompanyPermission(UserInterface $user): void
     {
-        if (! $user->isAdmin() && $this->users_id != $user->getId()) {
-            throw new AuthorizationException('Your are not allowed to perform this action for company ' . $this->name);
+        if (! UsersRepository::belongsToCompany($user, $this) && ! $user->isAdmin()) {
+            throw new AuthorizationException(
+                'You are not allowed to perform this action for company ' . $this->name
+            );
         }
     }
 }
