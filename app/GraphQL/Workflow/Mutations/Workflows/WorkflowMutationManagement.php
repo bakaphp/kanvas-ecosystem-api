@@ -9,7 +9,7 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class WorkflowMutationManagement
 {
-    public function runWorkflowFromEntity(mixed $rootValue, array $request): bool
+    public function runWorkflowFromEntity(mixed $rootValue, array $request): mixed
     {
         /**
          * @todo missing test for this mutation

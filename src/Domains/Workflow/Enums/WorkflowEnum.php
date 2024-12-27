@@ -24,6 +24,7 @@ enum WorkflowEnum: string
     case SEARCH = 'search';
     case AFTER_PRODUCT_IMPORT = 'after-product-import';
     case SYNC_SHOPIFY = 'sync-shopify';
+    case GENERATE = 'generate';
 
     /**
      * Get the enum case by its value.

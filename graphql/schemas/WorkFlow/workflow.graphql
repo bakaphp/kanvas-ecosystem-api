@@ -20,7 +20,7 @@ extend type Mutation @guardByAppKey {
         @field(
             resolver: "App\\GraphQL\\Workflow\\Mutations\\Receivers\\ReceiverWebhookMutationManagement@retryWebhookCall"
         )
-    runWorkflowFromEntity(input: runWorkflowEntityInput!): Boolean!
+    runWorkflowFromEntity(input: runWorkflowEntityInput!): Mixed!
         @field(
             resolver: "App\\GraphQL\\Workflow\\Mutations\\Workflows\\WorkflowMutationManagement@runWorkflowFromEntity"
         )
