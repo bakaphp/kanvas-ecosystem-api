@@ -10,8 +10,8 @@ return new class () extends Migration {
      */
     public function up(): void
     {
-        Schema::table('user_messages', function (Blueprint $table) {
-            $table->tinyInteger('is_purchased')->after('is_shared')->default(0)->index('is_purchased');
+        Schema::table('peoples_address', function (Blueprint $table) {
+            $table->decimal('duration', 8, 2)->nullable()->default(0.0)->after('countries_id')->index();
         });
     }
 
@@ -20,8 +20,8 @@ return new class () extends Migration {
      */
     public function down(): void
     {
-        Schema::table('user_messages', function (Blueprint $table) {
-            $table->dropColumn('is_purchased');
+        Schema::table('peoples_address', function (Blueprint $table) {
+            $table->dropColumn('duration');
         });
     }
 };

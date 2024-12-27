@@ -291,6 +291,107 @@ class PeopleTest extends TestCase
             ]);
     }
 
+    public function testUpdateContactPeople()
+    {
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $firstname = fake()->firstName();
+        $lastname = fake()->lastName();
+
+        $input = [
+            'firstname' => $firstname,
+            'lastname' => $lastname,
+            'contacts' => [
+                [
+                    'value' => fake()->email(),
+                    'contacts_types_id' => 1,
+                    'weight' => 0,
+                ],
+                [
+                    'value' => fake()->phoneNumber(),
+                    'contacts_types_id' => 2,
+                    'weight' => 0,
+                ],
+            ],
+            'address' => [
+                [
+                    'address' => fake()->address(),
+                    'city' => fake()->city(),
+                    'county' => fake()->city(),
+                    'state' => fake()->state(),
+                    'country' => fake()->country(),
+                    'zip' => fake()->postcode(),
+                ],
+            ],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->graphQL('
+        mutation($input: PeopleInput!) {
+            createPeople(input: $input) {   
+                id,             
+                firstname,
+                middlename,
+                lastname,
+                name,
+                contacts {
+                    id
+                }
+            }
+        }
+    ', [
+            'input' => $input,
+        ]);
+        $peopleId = $response['data']['createPeople']['id'];
+        $contactId = $response['data']['createPeople']['contacts'][0]['id'];
+
+        $firstname = fake()->firstName();
+        $lastname = fake()->lastName();
+        $name = $firstname . ' ' . $lastname;
+        $input = [
+            'firstname' => $firstname,
+            'lastname' => $lastname,
+            'contacts' => [
+                [
+                    'id' => $contactId,
+                    'value' => fake()->email(),
+                    'contacts_types_id' => 1,
+                ]
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+        $response = $this->graphQL('
+        mutation($id: ID!, $input: PeopleInput!) {
+            updatePeople(id: $id, input: $input) {
+                id
+                name,
+                contacts {
+                    id,
+                    value
+                }
+            }
+        }
+    ', [
+            'id' => $peopleId,
+            'input' => $input,
+            ]);
+        $response->assertJson([
+                'data' => [
+                    'updatePeople' => [
+                        'id' => $peopleId,
+                        'name' => $name,
+                        'contacts' => [
+                            [
+                                'id' => $contactId,
+                                'value' => $input['contacts'][0]['value'],
+                            ]
+                        ]
+                    ],
+                ],
+            ]);
+    }
+
     public function testDeletePeople()
     {
         $user = auth()->user();

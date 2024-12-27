@@ -44,6 +44,7 @@ class GenerateGoogleUserMessageAction
                         $query->where('is_liked', 0)
                             ->where('is_disliked', 0)
                             ->where('is_saved', 0)
+                            ->where('is_purchased', 0)
                             ->where('is_shared', 0);
                     })
                     ->lockForUpdate()

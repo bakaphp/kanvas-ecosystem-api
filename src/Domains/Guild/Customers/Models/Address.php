@@ -25,6 +25,8 @@ use Kanvas\Guild\Models\BaseModel;
  * @property string $zip
  * @property string $countries_id
  * @property int $is_default
+ * @property int $address_type_id
+ * @property float $duration
  */
 class Address extends BaseModel
 {
@@ -41,5 +43,10 @@ class Address extends BaseModel
             'peoples_id',
             'id'
         );
+    }
+
+    public function type(): BelongsTo
+    {
+        return $this->belongsTo(AddressType::class, 'address_type_id', 'id');
     }
 }

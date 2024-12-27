@@ -8,6 +8,8 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
+use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
@@ -67,6 +69,15 @@ class Setup
         'Duplicate',
     ];
 
+    public array $addressType = [
+        AddressTypeEnum::HOME->value,
+        AddressTypeEnum::PREVIOUS_HOME->value,
+        AddressTypeEnum::EMPLOYER->value,
+        AddressTypeEnum::PREVIOUS_EMPLOYER->value,
+        AddressTypeEnum::OTHER->value,
+        AddressTypeEnum::BILLING->value,
+    ];
+
     /**
      * Constructor.
      */
@@ -109,6 +120,10 @@ class Setup
                'description' => $value ?? null,
                'leads_types_id' => null,
             ]);
+        }
+
+        foreach ($this->addressType as $key => $value) {
+            AddressType::getByName($value, $this->app);
         }
 
         $defaultPipelineName = 'Default Leads';

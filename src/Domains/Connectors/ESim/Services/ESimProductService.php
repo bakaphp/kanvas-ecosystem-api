@@ -265,8 +265,9 @@ class ESimProductService
                     ];
 
                     $price = number_format($variantByPriceRange['public_price'], 2, '.', '');
-                    $sku = $variant['sku'] . '-' . $variantByPriceRange['days'];
+                    $sku = Str::simpleSlug($variant['sku'] . '-' . $variantByPriceRange['days']);
                     $sourceId = $variant['id'] . '-' . $variantByPriceRange['days'];
+
                     $productVariants[] = [
                         'name' => $variantName . ' ' . $variantByPriceRange['days'],
                         'description' => $variantName . ' ' . $variantByPriceRange['days'],
