@@ -40,7 +40,7 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
         ];
         $metingLink = null;
         if ($payload['primary_tag']['name'] == CustomFieldEnum::GHOST_EVENT_WEB_FORUM->value) {
-            $metingLink = $payload['tags'][0]['url'];
+            $metingLink = $payload['tags'][2]['url'];
         }
         $dto = Event::fromMultiple(
             $this->webhookRequest->receiverWebhook->app,
