@@ -82,7 +82,7 @@ extend type Query @guard {
                     "id"
                     "from_users_id"
                     "companies_id"
-                    "notification_types_id"
+                    "notification_type_id"
                     "system_modules_id"
                     "entity_id"
                     "read"
