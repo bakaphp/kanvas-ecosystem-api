@@ -9,6 +9,7 @@ use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum as ScrapperConfigEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Connectors\ScrapperApi\Actions\TranslateToSpanishAction;
 
 class ProductService
 {

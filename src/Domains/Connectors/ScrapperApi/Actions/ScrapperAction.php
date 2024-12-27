@@ -55,6 +55,7 @@ class ScrapperAction
                 if (preg_match('/(?:asin=|dp\/)([A-Z0-9]{10})/', $result['url'], $matches)) {
                     $asin = $matches[1];
                 } else {
+                    captureException(new Exception('ASIN not found')); 
                     throw new Exception('ASIN not found');
                 }
                 $productModel = Products::getBySlug($asin, $this->companyBranch->company);
