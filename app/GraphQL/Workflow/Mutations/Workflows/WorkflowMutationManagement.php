@@ -46,7 +46,11 @@ class WorkflowMutationManagement
         //validate action
         WorkflowEnum::fromString($workflowAction);
 
-        $entity->fireWorkflow($workflowAction, true, $params);
+        $results = $entity->fireWorkflow($workflowAction, true, $params);
+
+        if (is_array($results) && ! empty($results)) {
+            return $results;
+        }
 
         return ['success' => true];
     }

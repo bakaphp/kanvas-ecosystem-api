@@ -22,25 +22,35 @@ class ProcessWorkflowEventAction
     ) {
     }
 
-    public function execute(string $event, array $params = []): void
+    public function execute(string $event, array $params = []): mixed
     {
         try {
             $ruleType = RuleType::getByName($event);
         } catch (ModelNotFoundException $e) {
-            return;
+            return null;
         }
 
         $company = isset($params['company']) && $params['company'] instanceof CompanyInterface ? $params['company'] : null;
         $rules = RuleRepository::getRulesByModelAndType($this->app, $this->entity, $ruleType, $company);
+        $results = [];
+
         if ($rules->count() > 0) {
             foreach ($rules as $rule) {
                 if ($rule->runAsync()) {
                     $workflow = WorkflowStub::make(DynamicRuleWorkflow::class);
+                    $workflow->start($this->app, $rule, $this->entity, $params);
                 } else {
                     $workflow = SyncWorkflowStub::make(DynamicRuleWorkflow::class);
+                    $workflow->start($this->app, $rule, $this->entity, $params);
+                    $response = $workflow->getSyncResponse();
+
+                    if ($response) {
+                        $results[] = $response;
+                    }
                 }
-                $workflow->start($this->app, $rule, $this->entity, $params);
             }
         }
+
+        return $results;
     }
 }
