@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ESim\Services;
 
+use Baka\Support\Str;
 use Kanvas\Connectors\ESim\Client;
 use Kanvas\Connectors\ESim\Enums\ConfigurationEnum;
 use Kanvas\Connectors\ESim\Enums\ProviderEnum;
@@ -103,9 +104,14 @@ class OrderService
 
     protected function getUserDetails(): array
     {
+        $firstName = $this->order->user->firstname;
+        $lastName = $this->order->user->lastname
+                    ?? Str::of($firstName)->explode(' ')->slice(1)->join(' ')
+                    ?? $firstName;
+
         return [
-            'first_name' => $this->order->user->firstname,
-            'last_name' => $this->order->user->lastname,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
             'contact_number' => $this->order->user->cell_phone_number ?? $this->order->user->phone_numbers ?? $this->order->user_phone,
             'email' => $this->order->user->email,
         ];
