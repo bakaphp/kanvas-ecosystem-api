@@ -105,9 +105,9 @@ class OrderService
     protected function getUserDetails(): array
     {
         $firstName = $this->order->user->firstname;
-        $lastName = $this->order->user->lastname
-                    ?? Str::of($firstName)->explode(' ')->slice(1)->join(' ')
-                    ?? $firstName;
+        $lastName = trim((string) $this->order->user->lastname) ?:
+                        Str::of($firstName)->after(' ') ?:
+                        $firstName;
 
         return [
             'first_name' => $firstName,
