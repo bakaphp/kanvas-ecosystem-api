@@ -11,6 +11,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Kanvas\Workflow\SyncWorkflowStub;
 
 class WorkflowMutationManagement
 {
@@ -48,8 +49,8 @@ class WorkflowMutationManagement
 
         $results = $entity->fireWorkflow($workflowAction, true, $params);
 
-        if (is_array($results) && ! empty($results)) {
-            return $results;
+        if($results instanceof SyncWorkflowStub) {
+            return $results->output();
         }
 
         return ['success' => true];
