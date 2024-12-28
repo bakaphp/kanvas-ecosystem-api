@@ -19,13 +19,14 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
     {
         $company = $this->webhookRequest->receiverWebhook->company;
         $payload = $this->webhookRequest->payload['post']['current'];
+        $app = $this->webhookRequest->receiverWebhook->app;
         $eventType = $this->getType($payload);
         if (! $eventType) {
             return [];
         }
         $category = EventCategory::where('companies_id', $company->getId())
-                    ->where('apps_id', $this->webhookRequest->receiverWebhook->app->getId())
-                    ->first();
+        ->where('apps_id', $this->webhookRequest->receiverWebhook->app->getId())
+        ->first();
         $date = new Carbon($payload['published_at']);
         $data = [
             'name' => $payload['title'],
@@ -38,10 +39,12 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
                 ],
             ],
         ];
-        $metingLink = null;
+        dump( $payload);
         if ($payload['primary_tag']['name'] == CustomFieldEnum::GHOST_EVENT_WEB_FORUM->value) {
-            $metingLink = $payload['tags'][2]['url'];
+            $data['meeting_link'] = $payload['tags'][2]['name'];
         }
+        // dump($payload['primary_tag']['name']);
+        // dump($payload['tags'][2]['name']);
         $dto = Event::fromMultiple(
             $this->webhookRequest->receiverWebhook->app,
             $this->webhookRequest->receiverWebhook->user,
