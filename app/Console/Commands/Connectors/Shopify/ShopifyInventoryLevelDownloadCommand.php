@@ -64,7 +64,6 @@ class ShopifyInventoryLevelDownloadCommand extends Command
                 $progressBar->setMessage("Checking product {$product->name} to update inventory levels");
 
                 if ($shopifyProductId != null) {
-
                     foreach ($product->variants as $variant) {
                         if ($variant->getShopifyId($warehouses->regions)) {
                             $inventoryItem = $shopifyService->getInventoryItemFromVariant($variant);
@@ -84,7 +83,7 @@ class ShopifyInventoryLevelDownloadCommand extends Command
 
         $progressBar->finish();
         $this->newLine();
-        
+
         return Command::SUCCESS;
     }
 }
