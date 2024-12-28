@@ -39,12 +39,9 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
                 ],
             ],
         ];
-        dump( $payload);
         if ($payload['primary_tag']['name'] == CustomFieldEnum::GHOST_EVENT_WEB_FORUM->value) {
             $data['meeting_link'] = $payload['tags'][2]['name'];
         }
-        // dump($payload['primary_tag']['name']);
-        // dump($payload['tags'][2]['name']);
         $dto = Event::fromMultiple(
             $this->webhookRequest->receiverWebhook->app,
             $this->webhookRequest->receiverWebhook->user,
