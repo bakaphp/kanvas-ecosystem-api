@@ -7,6 +7,7 @@ namespace App\GraphQL\Workflow\Mutations\Workflows;
 use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\SystemModules\Models\SystemModules;
@@ -49,7 +50,11 @@ class WorkflowMutationManagement
         }
 
         //validate action
-        WorkflowEnum::fromString($workflowAction);
+        try {
+            WorkflowEnum::fromString($workflowAction);
+        } catch (InvalidArgumentException $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
 
         $results = $entity->fireWorkflow($workflowAction, true, $params);
 
