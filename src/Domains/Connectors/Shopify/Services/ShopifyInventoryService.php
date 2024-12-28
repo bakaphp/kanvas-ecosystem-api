@@ -189,10 +189,10 @@ class ShopifyInventoryService
         return $response;
     }
 
-    public function getInventoryItemFromVariant(Variants $variant) : array
+    public function getInventoryItemFromVariant(Variants $variant): array
     {
         $inventoryItemId = $variant->getInventoryId($this->warehouses->regions);
-        if($inventoryItemId) {
+        if ($inventoryItemId) {
             $shopifyVariant = $this->shopifySdk->InventoryLevel->get([
                 'inventory_item_ids' => $inventoryItemId
             ]);

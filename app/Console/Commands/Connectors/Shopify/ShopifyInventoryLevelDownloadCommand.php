@@ -63,9 +63,9 @@ class ShopifyInventoryLevelDownloadCommand extends Command
                     $shopifyService = new ShopifyInventoryService($product->app, $product->company, $warehouses);
 
                     foreach ($product->variants as $variant) {
-                        if($variant->getShopifyId($warehouses->regions)) {
+                        if ($variant->getShopifyId($warehouses->regions)) {
                             $inventoryItem = $shopifyService->getInventoryItemFromVariant($variant);
-                            if(!empty($inventoryItem)){
+                            if (!empty($inventoryItem)) {
                                 $variant->updateQuantityInWarehouse($warehouses, (float) $inventoryItem[0]['available']);
                                 $this->info("Checking variant {$variant->getId()} {$variant->name} {$inventoryItem[0]['available']} in stock\n");
                             };
