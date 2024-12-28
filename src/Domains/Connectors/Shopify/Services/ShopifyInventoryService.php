@@ -194,7 +194,7 @@ class ShopifyInventoryService
         $inventoryItemId = $variant->getInventoryId($this->warehouses->regions);
         if ($inventoryItemId) {
             $shopifyVariant = $this->shopifySdk->InventoryLevel->get([
-                'inventory_item_ids' => $inventoryItemId
+                'inventory_item_ids' => $inventoryItemId,
             ]);
 
             return $shopifyVariant;
@@ -202,6 +202,7 @@ class ShopifyInventoryService
 
         return [];
     }
+
     public function setStock(Variants $variant, ?Channels $channel = null, bool $isAdjustment = false): int
     {
         $shopifyVariant = $this->shopifySdk->ProductVariant($variant->getShopifyId($this->warehouses->regions));
