@@ -55,7 +55,7 @@ class WorkflowMutationManagement
         } catch (InvalidArgumentException $e) {
             return ['success' => false, 'message' => $e->getMessage()];
         }
-        
+
         $results = $entity->fireWorkflow($workflowAction, true, $params);
 
         //if its sync we return the results
