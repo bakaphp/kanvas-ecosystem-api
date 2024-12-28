@@ -50,34 +50,41 @@ class ShopifyInventoryLevelDownloadCommand extends Command
         $companyData = $associatedApps->company;
 
         $products = Products::where('companies_id', $companyData->getId())
-        ->where('apps_id', $app->getId())
-        ->orderBy('id', 'desc')
-        ->get();
+            ->where('apps_id', $app->getId())
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $progressBar = $this->output->createProgressBar(count($products));
+        $progressBar->setFormat(' %current%/%max% [%bar%] %percent:3s%% -- %message%');
+        $shopifyService = new ShopifyInventoryService($app, $company, $warehouses);
 
         foreach ($products as $product) {
             try {
-                $this->info("Checking product {$product->getId()} {$product->name} \n");
                 $shopifyProductId = $product->getShopifyId($warehouses->regions);
+                $progressBar->setMessage("Checking product {$product->name} to update inventory levels");
 
                 if ($shopifyProductId != null) {
-                    $shopifyService = new ShopifyInventoryService($product->app, $product->company, $warehouses);
 
                     foreach ($product->variants as $variant) {
                         if ($variant->getShopifyId($warehouses->regions)) {
                             $inventoryItem = $shopifyService->getInventoryItemFromVariant($variant);
                             if (! empty($inventoryItem)) {
                                 $variant->updateQuantityInWarehouse($warehouses, (float) $inventoryItem[0]['available']);
-                                $this->info("Checking variant {$variant->getId()} {$variant->name} {$inventoryItem[0]['available']} in stock\n");
-                            };
+                                $progressBar->setMessage("Updated {$product->name} - {$variant->name} → {$inventoryItem[0]['available']} in stock");
+                            }
                         }
                     }
                 }
             } catch (Throwable $e) {
-                $this->error($e->getMessage());
-                $this->error("Error syncing product {$product->getId()} {$product->name} \n");
+                $progressBar->setMessage("Error with {$product->name}: {$e->getMessage()}");
             }
+
+            $progressBar->advance();
         }
 
-        return;
+        $progressBar->finish();
+        $this->newLine();
+        
+        return Command::SUCCESS;
     }
 }
