@@ -24,7 +24,7 @@ class WorkflowMutationManagement
         $entityId = $request['entity_id'];
         $entityClass = $request['entity_namespace'];
         $workflowAction = $request['action'];
-        $params = array_merge(['app' => app(Apps::class)], $request['params'] ?? []);
+        $params = array_merge(['app' => app(Apps::class)], $request['params'] ?? [], ['ip' => request()->ip()]);
         $app = app(Apps::class);
 
         //if we get a slug
@@ -49,7 +49,8 @@ class WorkflowMutationManagement
 
         $results = $entity->fireWorkflow($workflowAction, true, $params);
 
-        if($results instanceof SyncWorkflowStub) {
+        //if its sync we return the results
+        if ($results instanceof SyncWorkflowStub) {
             return $results->output();
         }
 
