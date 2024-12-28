@@ -41,6 +41,7 @@ use Kanvas\Connectors\Stripe\Jobs\ImportStripePlanWebhookJob;
 use Kanvas\Connectors\Stripe\Jobs\ImportStripePriceWebhookJob;
 use Kanvas\Connectors\Stripe\Jobs\UpdatePeopleStripeSubscriptionJob;
 use Kanvas\Connectors\Stripe\Webhooks\CashierStripeWebhookJob;
+use Kanvas\Connectors\Stripe\Workflows\Activities\GenerateStripeSignupLinkForUserActivity;
 use Kanvas\Connectors\Stripe\Workflows\Activities\SetPlanWithoutPaymentActivity;
 use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
@@ -105,6 +106,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SoftPullActivity::class,
             CreateCreditScoreFromMessageActivity::class,
             LinkMessageToOrderActivity::class,
+            GenerateStripeSignupLinkForUserActivity::class,
         ];
 
         $createdActions = [];

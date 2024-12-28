@@ -6,6 +6,8 @@ namespace Kanvas\Workflow\Traits;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Workflow\Actions\ProcessWorkflowEventAction;
+use Kanvas\Workflow\SyncWorkflowStub;
+use Workflow\WorkflowStub;
 
 trait CanUseWorkflow
 {
@@ -15,13 +17,14 @@ trait CanUseWorkflow
         string $event,
         bool $async = true,
         array $params = []
-    ): void {
+    ): ?SyncWorkflowStub {
         if (! $this->enableWorkflows) {
-            return;
+            return null;
         }
         $app = ($params['app'] ?? null) instanceof Apps ? $params['app'] : app(Apps::class); // look for a better way to get app
         $processWorkflow = new ProcessWorkflowEventAction($app, $this);
-        $processWorkflow->execute($event, $params);
+
+        return $processWorkflow->execute($event, $params);
     }
 
     /**

@@ -22,25 +22,44 @@ class ProcessWorkflowEventAction
     ) {
     }
 
-    public function execute(string $event, array $params = []): void
+    public function execute(string $event, array $params = []): ?SyncWorkflowStub
     {
         try {
             $ruleType = RuleType::getByName($event);
-        } catch (ModelNotFoundException $e) {
-            return;
+        } catch (ModelNotFoundException) {
+            return null;
         }
 
-        $company = isset($params['company']) && $params['company'] instanceof CompanyInterface ? $params['company'] : null;
-        $rules = RuleRepository::getRulesByModelAndType($this->app, $this->entity, $ruleType, $company);
-        if ($rules->count() > 0) {
-            foreach ($rules as $rule) {
-                if ($rule->runAsync()) {
-                    $workflow = WorkflowStub::make(DynamicRuleWorkflow::class);
-                } else {
-                    $workflow = SyncWorkflowStub::make(DynamicRuleWorkflow::class);
-                }
-                $workflow->start($this->app, $rule, $this->entity, $params);
-            }
+        $company = $params['company'] ?? null;
+        if ($company && ! $company instanceof CompanyInterface) {
+            $company = null;
         }
+
+        $rules = RuleRepository::getRulesByModelAndType(
+            $this->app,
+            $this->entity,
+            $ruleType,
+            $company
+        );
+
+        if ($rules->isEmpty()) {
+            return null;
+        }
+
+        $lastSyncWorkflow = null;
+
+        $rules->each(function ($rule) use (&$lastSyncWorkflow, $params) {
+            $workflow = $rule->runAsync()
+                ? WorkflowStub::make(DynamicRuleWorkflow::class)
+                : SyncWorkflowStub::make(DynamicRuleWorkflow::class);
+
+            $workflow->start($this->app, $rule, $this->entity, $params);
+
+            if (! $rule->runAsync()) {
+                $lastSyncWorkflow = $workflow;
+            }
+        });
+
+        return $lastSyncWorkflow;
     }
 }

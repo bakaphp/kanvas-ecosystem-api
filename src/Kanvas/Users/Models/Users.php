@@ -312,6 +312,18 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return $role ? $role->name : '';
     }
 
+    public static function getById(mixed $id, ?AppInterface $app = null): self
+    {
+        try {
+            return self::where('id', $id)
+            ->notDeleted()
+            ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            //we want to expose the not found msg
+            throw new ExceptionsModelNotFoundException($e->getMessage() . " $id");
+        }
+    }
+
     /**
      * Get the current user information for the running app.
      * @psalm-suppress MixedReturnStatement
