@@ -30,6 +30,8 @@ class TranslateToSpanishAction
             'body' => json_encode($body),
         ]);
 
-        return $response->getBody()->getContents();
+        $response = json_decode($response->getBody()->getContents(), true);
+
+        return $response['producto_es'];
     }
 }
