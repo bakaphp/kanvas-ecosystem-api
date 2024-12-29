@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\ActionEngine\Tasks\Models;
+namespace Kanvas\ActionEngine\CheckList\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\HasCompositePrimaryKeyTrait;
@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Arr;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Models\BaseModel;
-use Kanvas\ActionEngine\Tasks\Observers\TaskEngagementItemObserver;
+use Kanvas\ActionEngine\CheckList\Observers\TaskEngagementItemObserver;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\ActionEngine\Tasks\Observers;
+namespace Kanvas\ActionEngine\CheckList\Observers;
 
-use Kanvas\ActionEngine\Tasks\DataTransferObject\TaskEngagementItem as DataTransferObjectTaskEngagementItem;
-use Kanvas\ActionEngine\Tasks\Events\TaskEngagementItemEvent;
-use Kanvas\ActionEngine\Tasks\Models\TaskEngagementItem;
+use Kanvas\ActionEngine\CheckList\DataTransferObject\TaskEngagementItem as DataTransferObjectTaskEngagementItem;
+use Kanvas\ActionEngine\CheckList\Events\TaskEngagementItemEvent;
+use Kanvas\ActionEngine\CheckList\Models\TaskEngagementItem;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
 

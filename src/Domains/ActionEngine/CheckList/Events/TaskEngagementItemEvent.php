@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\ActionEngine\Tasks\Events;
+namespace Kanvas\ActionEngine\CheckList\Events;
 
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
-use Kanvas\ActionEngine\Tasks\DataTransferObject\TaskEngagementItem;
-use Kanvas\ActionEngine\Tasks\Repositories\TaskEngagementItemRepository;
+use Kanvas\ActionEngine\CheckList\DataTransferObject\TaskEngagementItem;
+use Kanvas\ActionEngine\CheckList\Repositories\TaskEngagementItemRepository;
 use Kanvas\Guild\Leads\Models\Lead;
 
 class TaskEngagementItemEvent implements ShouldBroadcast

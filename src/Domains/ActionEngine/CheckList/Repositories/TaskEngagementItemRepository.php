@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\ActionEngine\Tasks\Repositories;
+namespace Kanvas\ActionEngine\CheckList\Repositories;
 
 use Illuminate\Database\Eloquent\Builder;
-use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
+use Kanvas\ActionEngine\CheckList\Models\TaskListItem;
 use Kanvas\Guild\Leads\Models\Lead;
 
 class TaskEngagementItemRepository

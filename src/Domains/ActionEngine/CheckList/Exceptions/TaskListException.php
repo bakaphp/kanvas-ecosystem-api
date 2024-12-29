@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\ActionEngine\Tasks\Exceptions;
+namespace Kanvas\ActionEngine\CheckList\Exceptions;
 
 use Exception;
 

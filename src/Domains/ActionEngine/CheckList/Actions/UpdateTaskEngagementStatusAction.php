@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\ActionEngine\Tasks\Actions;
+namespace Kanvas\ActionEngine\CheckList\Actions;
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
-use Kanvas\ActionEngine\Tasks\Enums\TaskStatusEnum;
-use Kanvas\ActionEngine\Tasks\Exceptions\TaskListException;
-use Kanvas\ActionEngine\Tasks\Models\TaskEngagementItem;
-use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
+use Kanvas\ActionEngine\CheckList\Enums\TaskStatusEnum;
+use Kanvas\ActionEngine\CheckList\Exceptions\TaskListException;
+use Kanvas\ActionEngine\CheckList\Models\TaskEngagementItem;
+use Kanvas\ActionEngine\CheckList\Models\TaskListItem;
 use Kanvas\Social\Messages\Models\Message;
 
 use function Sentry\captureException;

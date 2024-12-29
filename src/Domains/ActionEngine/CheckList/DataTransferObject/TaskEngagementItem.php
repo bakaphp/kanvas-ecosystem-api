@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\ActionEngine\Tasks\DataTransferObject;
+namespace Kanvas\ActionEngine\CheckList\DataTransferObject;
 
 use Spatie\LaravelData\Data;
 

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\ActionEngine\Tasks\Enums;
+namespace Kanvas\ActionEngine\CheckList\Enums;
 
 enum TaskStatusEnum: string
 {
