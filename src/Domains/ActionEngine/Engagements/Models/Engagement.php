@@ -61,4 +61,11 @@ class Engagement extends BaseModel
             ->where('message_id', $messageId)
             ->firstOrFail();
     }
+
+    public static function getByMessage(Message $message): self
+    {
+        return self::query()
+            ->where('message_id', $message->getId())
+            ->firstOrFail();
+    }
 }

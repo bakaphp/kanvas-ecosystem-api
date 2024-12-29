@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\ActionEngine\Models\BaseModel;
 
 /**
- * Class Tasks.
+ * Class Tasks aka CheckList.
  *
  * @property int $id
  * @property string $uuid
