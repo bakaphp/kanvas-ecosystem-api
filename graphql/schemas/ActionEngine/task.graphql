@@ -32,7 +32,7 @@ type LeadTaskEngagementItem {
 extend type Query @guard {
     taskLists: [TaskList!]!
         @paginate(
-            model: "Kanvas\\ActionEngine\\Tasks\\Models\\TaskList"
+            model: "Kanvas\\ActionEngine\\CheckList\\Models\\TaskList"
             scopes: ["fromCompany", "notDeleted", "fromApp"]
             defaultCount: 25
         )

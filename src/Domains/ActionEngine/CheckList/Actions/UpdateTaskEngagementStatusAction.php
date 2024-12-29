@@ -13,6 +13,7 @@ use Kanvas\ActionEngine\CheckList\Enums\TaskStatusEnum;
 use Kanvas\ActionEngine\CheckList\Exceptions\TaskListException;
 use Kanvas\ActionEngine\CheckList\Models\TaskEngagementItem;
 use Kanvas\ActionEngine\CheckList\Models\TaskListItem;
+use Kanvas\ActionEngine\Engagements\DataTransferObject\EngagementMessage;
 use Kanvas\Social\Messages\Models\Message;
 
 use function Sentry\captureException;
@@ -21,12 +22,14 @@ class UpdateTaskEngagementStatusAction
 {
     private ?Engagement $engagement;
     private array $messageData;
+    private EngagementMessage $engagementMessage;
 
     public function __construct(
         private readonly Message $message
     ) {
         $this->messageData = $this->message->getMessageData();
         $this->engagement = Engagement::getByMessage($this->message);
+        $this->engagementMessage = EngagementMessage::from($this->message->getMessageData());
     }
 
     public function execute(): ?TaskEngagementItem
@@ -144,13 +147,13 @@ class UpdateTaskEngagementStatusAction
 
     private function shouldUpdateToInProgress(TaskEngagementItem $taskEngagementItem): bool
     {
-        return $this->messageData['status'] === ActionStatusEnum::SENT->value &&
+        return $this->engagementMessage->status === ActionStatusEnum::SENT->value &&
             empty($taskEngagementItem->engagement_start_id);
     }
 
     private function shouldUpdateToCompleted(TaskEngagementItem $taskEngagementItem): bool
     {
-        return $this->messageData['status'] === ActionStatusEnum::SUBMITTED->value &&
+        return $this->engagementMessage->status === ActionStatusEnum::SUBMITTED->value &&
             empty($taskEngagementItem->engagement_end_id);
     }
 
