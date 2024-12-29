@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\ScrapperApi\Actions;
+namespace Kanvas\Connectors\Gemini\Actions;
 
 use GuzzleHttp\Client;
 
