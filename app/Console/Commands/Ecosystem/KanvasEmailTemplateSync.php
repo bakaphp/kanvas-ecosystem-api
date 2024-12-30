@@ -35,7 +35,7 @@ class KanvasEmailTemplateSync extends Command
         $appId = $this->argument('app_id');
         $app = Apps::getById($appId);
         $user = Users::getById($this->argument('user_id'));
-        $overwrite = $this->argument('overwrite');
+        $overwrite = filter_var($this->option('overwrite'), FILTER_VALIDATE_BOOLEAN); // Convert to boolean
 
         if (! $app) {
             $this->error("App with ID $appId not found.");
