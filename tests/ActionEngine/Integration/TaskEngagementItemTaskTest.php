@@ -40,20 +40,4 @@ final class TaskEngagementItemTaskTest extends TestCase
         $this->assertInstanceOf(Builder::class, $leadTaskItems);
         $this->assertIsArray($leadTaskItems->get()->toArray());
     }
-
-    public function testChangeCheckListStatus(): void
-    {
-        $lead = Lead::factory()->create();
-        //$eng
-        /**
-         * @todo
-         * - create action factory
-         * - create company action factory
-         * - create engagement message for one status
-         * - move engagement checklist status
-         * - create another engagement message for another status
-         * - move engagement checklist status
-         */
-        
-    }
 }
