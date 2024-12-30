@@ -6,7 +6,7 @@ namespace App\GraphQL\ActionEngine\Builders\Engagements;
 
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
-use Kanvas\ActionEngine\Tasks\Repositories\TaskEngagementItemRepository;
+use Kanvas\ActionEngine\CheckList\Repositories\TaskEngagementItemRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;

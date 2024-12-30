@@ -43,4 +43,11 @@ class Pipeline extends BaseModel
             ->notDeleted()
             ->firstOrFail();
     }
+
+    public function getStageBySlug(string $stage): PipelineStage
+    {
+        return $this->stages()
+            ->where('slug', $stage)
+            ->firstOrFail();
+    }
 }

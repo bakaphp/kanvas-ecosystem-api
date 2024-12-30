@@ -27,6 +27,9 @@ class EngagementMessage extends Data
         public readonly ?string $hashtagVisited = null,
         public readonly ?string $userUuid = null,
         public readonly ?string $contactUuid = null,
+        #[MapOutputName('checklistId')]
+        #[MapInputName('checklistId')]
+        public readonly ?int $checklistId = null,
     ) {
     }
 }

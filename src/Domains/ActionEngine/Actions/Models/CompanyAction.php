@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\ActionEngine\Actions\Models;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
+use Baka\Enums\StateEnums;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\ActionEngine\Models\BaseModel;
@@ -47,5 +50,14 @@ class CompanyAction extends BaseModel
     public function pipeline(): BelongsTo
     {
         return $this->belongsTo(Pipeline::class, 'pipelines_id', 'id');
+    }
+
+    public static function getByAction(Action $action, CompanyInterface $company, AppInterface $app): self
+    {
+        return static::where('actions_id', $action->getId())
+            ->where('companies_id', $company->getId())
+            ->where('apps_id', $app->getId())
+            ->where('is_deleted', StateEnums::NO->getValue())
+            ->firstOrFail();
     }
 }

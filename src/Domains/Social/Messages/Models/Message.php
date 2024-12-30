@@ -9,6 +9,7 @@ use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Exception;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
@@ -30,16 +31,13 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\Topics\Models\Topic;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserFullTableName;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Laravel\Scout\Searchable;
 use Nevadskiy\Tree\AsTree;
-use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
-use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
-use Exception;
 
 /**
  *  Class Message
@@ -125,7 +123,15 @@ class Message extends BaseModel
         return $this->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
     }
 
+    /**
+     * @deprecated v2.0.0
+     */
     public function getMessage(): array
+    {
+        return $this->getMessageData();
+    }
+
+    public function getMessageData(): array
     {
         return (array) $this->message;
     }
@@ -246,6 +252,7 @@ class Message extends BaseModel
         //For now lets make sure all that all messages not linked with orders are unlocked.
         if ((! $this->appModuleMessage->exist()) || (! $this->appModuleMessage->hasEntityOfClass(Order::class))) {
             $this->setUnlock();
+
             return (bool)$this->is_locked;
         }
 

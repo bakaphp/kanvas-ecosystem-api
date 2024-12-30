@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\ActionEngine\Integration;
 
 use Illuminate\Contracts\Database\Eloquent\Builder;
-use Kanvas\ActionEngine\Tasks\Repositories\TaskEngagementItemRepository;
+use Kanvas\ActionEngine\CheckList\Repositories\TaskEngagementItemRepository;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Tests\TestCase;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\ActionEngine\Tasks\Models;
+namespace Kanvas\ActionEngine\CheckList\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
@@ -13,7 +13,7 @@ use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Models\BaseModel;
 
 /**
- * Class Tasks.
+ * Class Task Items or Checklist Items.
  *
  * @property int $id
  * @property int $task_list_id
@@ -58,5 +58,10 @@ class TaskListItem extends BaseModel
     public function engagementEnd(): HasOne
     {
         return $this->hasOne(Engagement::class, 'id', 'engagement_end_id');
+    }
+
+    public function getConfig(): array
+    {
+        return (array) $this->config;
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\ActionEngine\Actions\Models;
 
+use Baka\Contracts\AppInterface;
+use Baka\Enums\StateEnums;
 use Baka\Traits\UuidTrait;
 use Kanvas\ActionEngine\Models\BaseModel;
 use Nevadskiy\Tree\AsTree;
@@ -36,4 +38,12 @@ class Action extends BaseModel
 
     protected $table = 'actions';
     protected $guarded = [];
+
+    public static function getBySlug(string $slug, AppInterface $app): ?self
+    {
+        return static::where('slug', $slug)
+            ->whereIn('apps_id', [0, $app->getId()])
+            ->where('is_deleted', StateEnums::NO->getValue())
+            ->first();
+    }
 }

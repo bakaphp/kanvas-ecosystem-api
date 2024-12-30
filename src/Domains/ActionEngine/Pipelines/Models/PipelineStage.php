@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\ActionEngine\Pipelines\Models;
 
+use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -26,6 +27,7 @@ use Kanvas\ActionEngine\Models\BaseModel;
 class PipelineStage extends BaseModel
 {
     use UuidTrait;
+    use SlugTrait;
 
     protected $table = 'pipelines_stages';
     protected $guarded = [];

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\ActionEngine\Tasks\Models;
+namespace Kanvas\ActionEngine\CheckList\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\ActionEngine\Models\BaseModel;
 
 /**
- * Class Tasks.
+ * Class Tasks aka CheckList.
  *
  * @property int $id
  * @property string $uuid

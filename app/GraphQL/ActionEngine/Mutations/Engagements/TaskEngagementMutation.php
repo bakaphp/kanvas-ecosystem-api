@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\GraphQL\ActionEngine\Mutations\Engagements;
 
-use Kanvas\ActionEngine\Tasks\Models\TaskEngagementItem;
-use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
+use Kanvas\ActionEngine\CheckList\Models\TaskEngagementItem;
+use Kanvas\ActionEngine\CheckList\Models\TaskListItem;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
