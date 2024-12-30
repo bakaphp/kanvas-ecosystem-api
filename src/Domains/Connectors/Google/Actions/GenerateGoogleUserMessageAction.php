@@ -31,7 +31,8 @@ class GenerateGoogleUserMessageAction
         $userForYouFeedRecommendation = $userRecommendation->getRecommendation(
             $this->user,
             UserEventEnum::VIEW_HOME_PAGE,
-            $pageSize
+            $pageSize, 
+            app()->isProduction() ? false : true
         );
         $userForYouFeed = iterator_to_array($userForYouFeedRecommendation->getResults()->getIterator());
 
