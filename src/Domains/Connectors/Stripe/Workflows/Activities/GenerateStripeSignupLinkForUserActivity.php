@@ -41,7 +41,7 @@ class GenerateStripeSignupLinkForUserActivity extends KanvasActivity
         $stripeAccount = Account::retrieve($stripeUserId);
 
         if (! empty($stripeAccount->charges_enabled)) {
-            $user->set(ConfigurationEnum::STRIPE_ACCOUNT_CONNECTED->value, true);
+            $user->set(ConfigurationEnum::STRIPE_ACCOUNT_CONNECTED->value, 1, true);
             $user->set(ConfigurationEnum::STRIPE_ACCOUNT_EMAIL->value, $stripeAccount->email);
 
             return $this->successResponse('Stripe account already connected');
