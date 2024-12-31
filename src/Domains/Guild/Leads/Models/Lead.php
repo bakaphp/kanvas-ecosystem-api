@@ -182,7 +182,7 @@ class Lead extends BaseModel
 
     public function type(): BelongsTo
     {
-        return $this->belongsTo(LeadType::class, 'lead_types_id', 'id');
+        return $this->belongsTo(LeadType::class, 'leads_types_id', 'id');
     }
 
     public function organization(): BelongsTo

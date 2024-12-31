@@ -1,28 +1,28 @@
 type Lead {
     id: ID!
     uuid: String!
-    company: Company! @belongsTo
-    branch: CompanyBranch! @belongsTo
+    company: Company! @belongsTo (relation: "company")
+    branch: CompanyBranch! @belongsTo (relation: "branch")
     title: String!
     people: People
-    user: User @belongsTo
-    owner: User @belongsTo
-    organization: Organization @belongsTo
-    receiver: LeadReceiver @belongsTo
-    status: LeadStatus @belongsTo
-    type: LeadType @belongsTo
-    source: LeadSource @belongsTo
+    user: User @belongsTo (relation: "user")
+    owner: User @belongsTo (relation: "owner")
+    organization: Organization @belongsTo (relation: "organization")
+    receiver: LeadReceiver @belongsTo (relation: "receiver")
+    status: LeadStatus @belongsTo (relation: "status")
+    type: LeadType @belongsTo (relation: "type")
+    source: LeadSource @belongsTo (relation: "source")
     firstname: String
     lastname: String
     email: String
     phone: String
     description: String
     reason_lost: String
-    pipeline: LeadPipeline @belongsTo
+    pipeline: LeadPipeline @belongsTo (relation: "pipeline")
     stage: LeadPipelineStage @belongsTo(relation: "stage")
     participants: [LeadsParticipants!]! @hasMany(relation: "participants")
     channels: [SocialChannel]! @hasMany(relation: "socialChannels")
-    systemModule: SystemModule
+    systemModule: SystemModule @belongsTo(relation: "systemModule")
     tags: [Tag!]
         @paginate(
             defaultCount: 25
