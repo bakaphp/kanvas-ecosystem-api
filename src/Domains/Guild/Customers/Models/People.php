@@ -198,7 +198,7 @@ class People extends BaseModel
 
     public function addAddress(DataTransferObjectAddress $address): Address
     {
-        $typeId = $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value)->getId();
+        $typeId = $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value, $this->app)->getId();
 
         return Address::updateOrCreate(
             [
