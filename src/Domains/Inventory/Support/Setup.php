@@ -171,6 +171,17 @@ class Setup
             $this->user
         ))->execute();
 
+        (new CreateAttributeType(
+            new AttributesType(
+                $this->company,
+                $this->app,
+                ucfirst(AttributeTypeEnum::JSON->value),
+                AttributeTypeEnum::JSON->value,
+                false
+            ),
+            $this->user
+        ))->execute();
+
         $defaultAttributeType = $createDefaultAttributeType->execute();
 
         return $defaultCategory instanceof Categories &&

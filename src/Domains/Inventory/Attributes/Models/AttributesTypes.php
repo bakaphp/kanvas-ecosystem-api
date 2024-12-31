@@ -46,4 +46,9 @@ class AttributesTypes extends BaseModel
     {
         return $this->slug === AttributeTypeEnum::CHECKBOX->value;
     }
+
+    public function isJson(): bool
+    {
+        return $this->slug === AttributeTypeEnum::JSON->value;
+    }
 }

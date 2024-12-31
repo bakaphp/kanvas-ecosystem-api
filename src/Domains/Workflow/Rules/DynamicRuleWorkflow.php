@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Rules;
 
 use Baka\Contracts\AppInterface;
+use Generator;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Kanvas\Workflow\Rules\Models\Rule;
@@ -15,7 +16,7 @@ use Workflow\Workflow;
 
 class DynamicRuleWorkflow extends Workflow
 {
-    public function execute(AppInterface $app, Rule $rule, Model $entity, array $params)
+    public function execute(AppInterface $app, Rule $rule, Model $entity, array $params): Generator
     {
         $activities = [];
 

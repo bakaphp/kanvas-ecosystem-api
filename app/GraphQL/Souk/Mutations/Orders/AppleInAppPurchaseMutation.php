@@ -12,6 +12,7 @@ use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class AppleInAppPurchaseMutation
 {
@@ -47,6 +48,17 @@ class AppleInAppPurchaseMutation
             $order->setCustomFields($appleInAppPurchase->custom_fields);
             $order->saveCustomFields();
         }
+
+        /**
+         * @todo move this to the create order DTO
+         */
+        $order->fireWorkflow(
+            WorkflowEnum::AFTER_CREATE_ORDER->value,
+            true,
+            [
+                'app' => $app,
+            ]
+        );
 
         return $order;
     }

@@ -11,11 +11,7 @@ class DistributionMessageService
 {
     public static function sentToChannelFeed(Channel $channel, Message $message): Channel
     {
-        $channel->messages()->attach($message->id, [
-            'users_id' => $message->users_id,
-        ]);
-        $channel->last_message_id = $message->id;
-        $channel->save();
+        $channel->addMessage($message);
 
         return $channel;
     }

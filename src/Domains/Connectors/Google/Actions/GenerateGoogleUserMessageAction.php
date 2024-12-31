@@ -31,7 +31,8 @@ class GenerateGoogleUserMessageAction
         $userForYouFeedRecommendation = $userRecommendation->getRecommendation(
             $this->user,
             UserEventEnum::VIEW_HOME_PAGE,
-            $pageSize
+            $pageSize,
+            app()->isProduction() ? false : true
         );
         $userForYouFeed = iterator_to_array($userForYouFeedRecommendation->getResults()->getIterator());
 
@@ -44,6 +45,7 @@ class GenerateGoogleUserMessageAction
                         $query->where('is_liked', 0)
                             ->where('is_disliked', 0)
                             ->where('is_saved', 0)
+                            ->where('is_purchased', 0)
                             ->where('is_shared', 0);
                     })
                     ->lockForUpdate()

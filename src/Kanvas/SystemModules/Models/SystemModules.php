@@ -10,11 +10,19 @@ use Baka\Traits\UuidTrait;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Models\BaseModel;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Users\Models\Users;
 
 /**
  * SystemModules Model.
@@ -108,5 +116,23 @@ class SystemModules extends BaseModel
         ];
 
         return $mapping[$className] ?? $className;
+    }
+
+    public static function getSystemModuleNameSpaceBySlug(string $slug): string
+    {
+        $internalMapping = [
+            'lead' => Lead::class,
+            'people' => People::class,
+            'message' => Message::class,
+            'product' => Products::class,
+            'variant' => Variants::class,
+            'order' => Order::class,
+            'user' => Users::class,
+            'company' => Companies::class,
+            'branch' => CompaniesBranches::class,
+            'region' =>  Regions::class,
+           ];
+
+        return $internalMapping[strtolower($slug)] ?? throw new InvalidArgumentException('Entity ' . $slug . ' not found');
     }
 }

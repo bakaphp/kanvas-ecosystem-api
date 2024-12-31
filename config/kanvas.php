@@ -4,8 +4,8 @@ return [
     'application' => [ //@todo migration to app
         'routes' => [
             'prefix' => 'v1',
-            'middleware' => ['api']
-        ]
+            'middleware' => ['api'],
+        ],
     ],
     'app' => [
         'id' => env('KANVAS_APP_ID'),
@@ -20,10 +20,13 @@ return [
         ],
     ],
     'logger' => [
-        'max_log_batch_size' => env('MAX_LOG_BATCH_SIZE', 10)
+        'max_log_batch_size' => env('MAX_LOG_BATCH_SIZE', 10),
     ],
     'puppeteer' => [
         'url' => env('PUPPETEER_API_URL', 'http://puppeteer:3000'),
         'storage_folder' => env('PUPPETEER_STORAGE_FOLDER', 'pdf'),
+    ],
+    'ipinfo' => [
+        'token' => env('IPINFO_API_KEY'),
     ],
 ];

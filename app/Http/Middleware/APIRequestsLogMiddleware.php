@@ -31,11 +31,10 @@ class APIRequestsLogMiddleware
             'app_id' => 'App Id: ' . $request->header('X-Kanvas-App'),
             'method' => $request->method(),
             'type_request' => str_contains($graphQuery, 'mutation') ? 'mutation' : 'query',
-            'resource' => $matches[1][0] ?? null,
+            'resource' => $matches[1] ?? null,
             'status_code' => $response->getStatusCode(),
         ]);
 
-        // Log request
         $batchLogger->log($requestInfo);
 
         return $response;
