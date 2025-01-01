@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 use Kanvas\Apps\Activities\AppUsersNotificationByRoleActivity;
 use Kanvas\Connectors\Amplitude\WebhookReceivers\AmplitudeEventStreamWebhookJob;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
+use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromLeadActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromMessageActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\CreateOrderInESimActivity;
 use Kanvas\Connectors\Ghost\Jobs\CreatePeopleFromGhostReceiverJob;
@@ -107,6 +108,7 @@ class KanvasWorkflowSynActionCommand extends Command
             CreateCreditScoreFromMessageActivity::class,
             LinkMessageToOrderActivity::class,
             GenerateStripeSignupLinkForUserActivity::class,
+            CreateCreditScoreFromLeadActivity::class,
         ];
 
         $createdActions = [];

@@ -9,6 +9,8 @@ use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\EngagementMessage;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
+use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Credit700\DataTransferObject\CreditApplicant;
 use Kanvas\Connectors\Credit700\Enums\ConfigurationEnum;
@@ -20,18 +22,17 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Services\DistributionMessageService;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
-use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\KanvasActivity;
 
-class CreateCreditScoreFromMessageActivity extends KanvasActivity
+class CreateCreditScoreFromLeadActivity extends KanvasActivity
 {
     /**
      * Generate a credit score for the lead.
      */
-    public function execute(Message $message, Apps $app, array $params): array
+    public function execute(Lead $lead, Apps $app, array $params): array
     {
         /**
          * en base al lead
@@ -41,10 +42,31 @@ class CreateCreditScoreFromMessageActivity extends KanvasActivity
         $setup = new Setup($app);
         $setup->run();
 
-        $engagement = Engagement::fromApp($app)->where('message_id', $message->getId())->firstOrFail();
-        $lead = $engagement->lead;
+        if (! isset($params['pull']) || $params['pull'] !== '700credit') {
+            return [
+                'message' => 'Credit score not found',
+                'status' => 'error',
+                'data' => $lead->getId(),
+            ];
+        }
+
+        $engagement = EngagementRepository::findEngagementForLead(
+            $lead,
+            'credit-app',
+            ActionStatusEnum::SUBMITTED->value
+        );
+
         $people = $lead->people;
-        $messageData = $engagement->message?->message['data']['form'];
+        $message = $engagement->message;
+        $messageData = $message?->message['data']['form'];
+
+        if (! $messageData) {
+            return [
+                'message' => 'Credit score not found',
+                'status' => 'error',
+                'data' => $lead->getId(),
+            ];
+        }
 
         $creditScoreService = new CreditScoreService($app);
         $creditApplicant = $creditScoreService->getCreditScore(
