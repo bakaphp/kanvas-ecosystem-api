@@ -16,6 +16,7 @@ use Kanvas\Connectors\Credit700\DataTransferObject\CreditApplicant;
 use Kanvas\Connectors\Credit700\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Credit700\Services\CreditScoreService;
 use Kanvas\Connectors\Credit700\Support\Setup;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Models\Channel;
@@ -34,128 +35,200 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
      */
     public function execute(Lead $lead, Apps $app, array $params): array
     {
-        /**
-         * en base al lead
-         * action pull
-         * options: pull: 700credit, provider: bureau
-         */
+        if (! $this->validateParams($params)) {
+            return $this->errorResponse('Invalid pull parameter', $lead);
+        }
+
         $setup = new Setup($app);
         $setup->run();
 
-        if (! isset($params['pull']) || $params['pull'] !== '700credit') {
-            return [
-                'message' => 'Credit score not found',
-                'status' => 'error',
-                'data' => $lead->getId(),
-            ];
+        $engagement = $this->getEngagement($lead);
+        $messageData = $this->extractMessageData($engagement?->message);
+
+        if (! $messageData) {
+            return $this->errorResponse('Message data not found', $lead);
         }
 
-        $engagement = EngagementRepository::findEngagementForLead(
+        $creditApplicant = $this->processCreditScore($messageData, $lead, $app, $params);
+
+        if (empty($creditApplicant['iframe_url'])) {
+            return $this->errorResponse('Credit score not found', $lead, $creditApplicant);
+        }
+
+        $parentMessage = $this->createParentMessage(
+            $creditApplicant,
+            $lead,
+            $app,
+            $engagement->message
+        );
+        $childMessage = $this->createChildMessage(
+            $creditApplicant,
+            $lead,
+            $app,
+            $engagement->message,
+            $parentMessage
+        );
+
+        $this->distributeMessages($lead, $app, $parentMessage, $childMessage);
+        $this->createEngagements($lead, $app, $parentMessage, $childMessage, $engagement->message);
+
+        return $creditApplicant;
+    }
+
+    private function validateParams(array $params): bool
+    {
+        return isset($params['pull']) && $params['pull'] === '700credit';
+    }
+
+    private function errorResponse(string $message, Lead $lead, array $data = []): array
+    {
+        return [
+            'message' => $message,
+            'status' => 'error',
+            'data' => $data ?: $lead->getId(),
+        ];
+    }
+
+    private function getEngagement(Lead $lead): ?Engagement
+    {
+        return EngagementRepository::findEngagementForLead(
             $lead,
             'credit-app',
             ActionStatusEnum::SUBMITTED->value
         );
+    }
 
-        $people = $lead->people;
-        $message = $engagement->message;
-        $messageData = $message?->message['data']['form'];
+    private function extractMessageData($message): ?array
+    {
+        return $message?->message['data']['form'] ?? null;
+    }
 
-        if (! $messageData) {
-            return [
-                'message' => 'Credit score not found',
-                'status' => 'error',
-                'data' => $lead->getId(),
-            ];
-        }
+    private function processCreditScore(array $messageData, Lead $lead, Apps $app, array $params): array
+    {
+        $personal = $messageData['personal'];
+        $housing = $messageData['housing'];
 
         $creditScoreService = new CreditScoreService($app);
-        $creditApplicant = $creditScoreService->getCreditScore(
+
+        return $creditScoreService->getCreditScore(
             new CreditApplicant(
-                $messageData['personal']['first_name'] . ' ' . $messageData['personal']['last_name'],
-                $messageData['housing']['address'],
-                $messageData['housing']['city'],
-                $messageData['housing']['state']['code'],
-                $messageData['housing']['zip_code'],
-                $messageData['personal']['ssn']
+                "{$personal['first_name']} {$personal['last_name']}",
+                $housing['address'],
+                $housing['city'],
+                $housing['state']['code'],
+                $housing['zip_code'],
+                $personal['ssn']
             ),
             $lead->user,
-            $params['provider'] ?? 'TU' //@todo move the bureau to enums?
+            $params['provider'] ?? 'TU'
         );
+    }
 
-        if (empty($creditApplicant['iframe_url'])) {
-            return [
-                'message' => 'Credit score not found',
-                'status' => 'error',
-                'data' => $message->getId(),
-                'lead' => $lead->getId(),
-            ];
-        }
-
+    private function createMessage(array $data, Lead $lead, Apps $app, $user, $company, ?int $parentId = null): object
+    {
         $engagementMessage = new EngagementMessage(
-            data: $creditApplicant,
+            data: $data,
             text: ConfigurationEnum::ACTION_VERB->value,
             verb: ConfigurationEnum::ACTION_VERB->value,
             hashtagVisited: ConfigurationEnum::ACTION_VERB->value,
             actionLink: 'http://nolink.com',
             source: 'workflow',
             linkPreview: 'http://nolink.com',
-            engagementStatus: 'submitted',
+            engagementStatus: $parentId ? ActionStatusEnum::SUBMITTED->value : ActionStatusEnum::SENT->value,
             visitorId: Str::uuid()->toString(),
-            status: 'submitted'
+            status: $parentId ? ActionStatusEnum::SUBMITTED->value : ActionStatusEnum::SENT->value,
         );
+
+        $messageInput = [
+            'message' => $engagementMessage->toArray(),
+            'reactions_count' => 0,
+            'comments_count' => 0,
+            'total_liked' => 0,
+            'total_disliked' => 0,
+            'total_saved' => 0,
+            'total_shared' => 0,
+            'ip_address' => '127.0.0.1',
+        ];
+
+        if ($parentId) {
+            $messageInput['parent_id'] = $parentId;
+        }
 
         $createMessage = new CreateMessageAction(
             MessageInput::fromArray(
-                [
-                    'message' => $engagementMessage->toArray(),
-                    'reactions_count' => 0,
-                    'comments_count' => 0,
-                    'total_liked' => 0,
-                    'total_disliked' => 0,
-                    'total_saved' => 0,
-                    'total_shared' => 0,
-                    'ip_address' => '127.0.0.1',
-                ],
-                $message->user,
+                $messageInput,
+                $user,
                 MessageType::fromApp($app)->where('verb', ConfigurationEnum::ACTION_VERB->value)->firstOrFail(),
-                $message->company,
+                $company,
                 $app
             ),
             SystemModulesRepository::getByModelName(Lead::class, $app),
             $lead->getId()
         );
 
-        $message = $createMessage->execute();
-        if (! empty($creditApplicant['pdf']) && $creditApplicant['pdf'] instanceof Filesystem) {
-            $message->addFile($creditApplicant['pdf'], 'credit_score_report.pdf');
+        return $createMessage->execute();
+    }
+
+    private function createParentMessage(array $data, Lead $lead, Apps $app, $message): object
+    {
+        return $this->createMessage($data, $lead, $app, $message->user, $message->company);
+    }
+
+    private function createChildMessage(array $data, Lead $lead, Apps $app, $message, $parentMessage): object
+    {
+        $childMessage = $this->createMessage($data, $lead, $app, $message->user, $message->company, $parentMessage->getId());
+
+        if (! empty($data['pdf']) && $data['pdf'] instanceof Filesystem) {
+            $childMessage->addFile($data['pdf'], 'credit_score_report.pdf');
         }
 
-        $leadChannel = Channel::fromApp($app)
+        return $childMessage;
+    }
+
+    private function distributeMessages(Lead $lead, Apps $app, $parentMessage, $childMessage): void
+    {
+        $leadChannel = Channel::query()
+            ->whereIn('apps_id', [$app->getId(), AppEnums::LEGACY_APP_ID->getValue()])
             ->where('entity_id', $lead->getId())
             ->whereIn('entity_namespace', [Lead::class, SystemModules::getLegacyNamespace(Lead::class)])
             ->firstOrFail();
-        DistributionMessageService::sentToChannelFeed($leadChannel, $message);
 
+        DistributionMessageService::sentToChannelFeed($leadChannel, $parentMessage);
+        DistributionMessageService::sentToChannelFeed($leadChannel, $childMessage);
+    }
+
+    private function createEngagements(Lead $lead, Apps $app, $parentMessage, $childMessage, $message): void
+    {
         $action = Action::where('slug', ConfigurationEnum::ACTION_VERB->value)->firstOrFail();
-        $companyAction = CompanyAction::fromApp($app)->fromCompany($message->company)->where('actions_id', $action->getId())->firstOrFail();
-        $submittedStage = $companyAction->pipeline->stages()->where('slug', 'submitted')->firstOrFail();
-        //create the engagement
-        Engagement::firstOrCreate(
-            [
-                'companies_id' => $message->company->getId(),
-                'apps_id' => $app->getId(),
-                'users_id' => $message->user->getId(),
-                'message_id' => $message->getId(),
-                'leads_id' => $lead->getId(),
-                'slug' => ConfigurationEnum::ACTION_VERB->value,
-                'people_id' => $people->getId(),
-                'pipelines_stages_id' => $submittedStage->getId(),
-                'companies_actions_id' => $companyAction->getId(),
-                'entity_uuid' => $lead->uuid,
-            ]
-        );
-        ///$lead->user->no
+        $companyAction = CompanyAction::fromApp($app)
+            ->fromCompany($message->company)
+            ->where('actions_id', $action->getId())
+            ->firstOrFail();
 
-        return $creditApplicant;
+        $sentStage = $companyAction->pipeline->stages()
+            ->where('slug', ActionStatusEnum::SENT->value)
+            ->firstOrFail();
+        $submittedStage = $companyAction->pipeline->stages()
+            ->where('slug', ActionStatusEnum::SUBMITTED->value)
+            ->firstOrFail();
+
+        $this->createEngagement($parentMessage, $lead, $app, $message, $sentStage, $companyAction);
+        $this->createEngagement($childMessage, $lead, $app, $message, $submittedStage, $companyAction);
+    }
+
+    private function createEngagement($message, Lead $lead, Apps $app, $originalMessage, $stage, $companyAction): void
+    {
+        Engagement::firstOrCreate([
+            'companies_id' => $message->company->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $message->user->getId(),
+            'message_id' => $message->getId(),
+            'leads_id' => $lead->getId(),
+            'slug' => ConfigurationEnum::ACTION_VERB->value,
+            'people_id' => $lead->people->getId(),
+            'pipelines_stages_id' => $stage->getId(),
+            'companies_actions_id' => $companyAction->getId(),
+            'entity_uuid' => $lead->uuid,
+        ]);
     }
 }

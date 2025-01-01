@@ -44,6 +44,7 @@ class Action extends BaseModel
     public static function getBySlug(string $slug, CompanyInterface $company): ?self
     {
         return static::where('slug', $slug)
-        ->where('is_deleted', StateEnums::NO->getValue());
+        ->where('is_deleted', StateEnums::NO->getValue())
+        ->first();
     }
 }
