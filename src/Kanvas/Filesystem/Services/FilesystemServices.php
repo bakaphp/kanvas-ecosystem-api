@@ -133,7 +133,9 @@ class FilesystemServices
 
     public function createFileSystemFromBase64(string $base64String, string $originalName, Users $user): ModelsFilesystem
     {
-        // Decode the Base64 string
+        /**
+         * @todo should we cache the decoded content? to avoid decoding it again
+         */
         $decodedContent = base64_decode($base64String);
 
         // Ensure the content is decoded correctly

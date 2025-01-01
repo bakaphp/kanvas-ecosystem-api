@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Credit700\Services;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use GuzzleHttp\Exception\RequestException;
@@ -28,22 +29,29 @@ class CreditScoreService
     {
         // $this->app->get(ConfigurationEnum::BUREAU_SETTING->value) ?? 'TU';
         try {
+            $data = [
+                'ACCOUNT' => $this->app->get(ConfigurationEnum::ACCOUNT->value),
+                'PASSWD' => $this->app->get(ConfigurationEnum::PASSWORD->value),
+                'PRODUCT' => 'CREDIT',
+                'BUREAU' => $bureau, // Can be XPN, TU, or EFX
+                'PASS' => '2',
+                'PROCESS' => 'PCCREDIT',
+                'NAME' => $creditApplication->name,
+                'ADDRESS' => $creditApplication->address,
+                'CITY' => $creditApplication->city,
+                'STATE' => $creditApplication->state,
+                'ZIP' => $creditApplication->zip,
+                'SSN' => $creditApplication->ssn,
+            ];
+
+            if (Str::contains($bureau, ':')) {
+                $data['MULTIBUR'] = $data['BUREAU'];
+                unset($data['BUREAU']);
+            }
+
             $responseArray = $this->client->post(
                 '/Request',
-                [
-                    'ACCOUNT' => $this->app->get(ConfigurationEnum::ACCOUNT->value),
-                    'PASSWD' => $this->app->get(ConfigurationEnum::PASSWORD->value),
-                    'PRODUCT' => 'CREDIT',
-                    'BUREAU' => $bureau, // Can be XPN, TU, or EFX
-                    'PASS' => '2',
-                    'PROCESS' => 'PCCREDIT',
-                    'NAME' => $creditApplication->name,
-                    'ADDRESS' => $creditApplication->address,
-                    'CITY' => $creditApplication->city,
-                    'STATE' => $creditApplication->state,
-                    'ZIP' => $creditApplication->zip,
-                    'SSN' => $creditApplication->ssn,
-                ]
+                $data
             );
 
             $scores = [];
