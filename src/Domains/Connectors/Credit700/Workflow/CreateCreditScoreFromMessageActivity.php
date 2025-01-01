@@ -14,6 +14,7 @@ use Kanvas\Connectors\Credit700\DataTransferObject\CreditApplicant;
 use Kanvas\Connectors\Credit700\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Credit700\Services\CreditScoreService;
 use Kanvas\Connectors\Credit700\Support\Setup;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Services\DistributionMessageService;
@@ -50,7 +51,8 @@ class CreateCreditScoreFromMessageActivity extends KanvasActivity
                 $messageData['housing']['zip_code'],
                 $messageData['personal']['ssn']
             ),
-            $lead->user
+            $lead->user,
+            $params['provider'] ?? 'TU' //@todo move the bureau to enums?
         );
 
         if (empty($creditApplicant['iframe_url'])) {
@@ -97,6 +99,9 @@ class CreateCreditScoreFromMessageActivity extends KanvasActivity
         );
 
         $message = $createMessage->execute();
+        if (! empty($creditApplicant['pdf']) && $creditApplicant['pdf'] instanceof Filesystem) {
+            $message->addFile($creditApplicant['pdf'], 'credit_score_report.pdf');
+        }
 
         $leadChannel = Channel::fromApp($app)
             ->where('entity_id', $lead->getId())

@@ -12,6 +12,7 @@ use Kanvas\Connectors\Credit700\Client;
 use Kanvas\Connectors\Credit700\DataTransferObject\CreditApplicant;
 use Kanvas\Connectors\Credit700\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Filesystem\Services\FilesystemServices;
 
 class CreditScoreService
 {
@@ -23,8 +24,9 @@ class CreditScoreService
         $this->client = new Client($app);
     }
 
-    public function getCreditScore(CreditApplicant $creditApplication, UserInterface $userRequestingReport): array
+    public function getCreditScore(CreditApplicant $creditApplication, UserInterface $userRequestingReport, string $bureau = 'TU'): array
     {
+        // $this->app->get(ConfigurationEnum::BUREAU_SETTING->value) ?? 'TU';
         try {
             $responseArray = $this->client->post(
                 '/Request',
@@ -32,7 +34,7 @@ class CreditScoreService
                     'ACCOUNT' => $this->app->get(ConfigurationEnum::ACCOUNT->value),
                     'PASSWD' => $this->app->get(ConfigurationEnum::PASSWORD->value),
                     'PRODUCT' => 'CREDIT',
-                    'BUREAU' => $this->app->get(ConfigurationEnum::BUREAU_SETTING->value) ?? 'TU', // Can be XPN, TU, or EFX
+                    'BUREAU' => $bureau, // Can be XPN, TU, or EFX
                     'PASS' => '2',
                     'PROCESS' => 'PCCREDIT',
                     'NAME' => $creditApplication->name,
@@ -54,11 +56,20 @@ class CreditScoreService
 
             // Extract iframe URL
             $iframeUrl = $responseArray['custom_report_url']['iframe']['@attributes']['src'] ?? null;
+            $pdfBase64 = $responseArray['pdf_report']['tu_pdf_report'] ?? null;
+
+            try {
+                $fileSystem = new FilesystemServices($this->app);
+                $pdf = ! empty($pdfBase64) ? $fileSystem->createFileSystemFromBase64($pdfBase64, 'credit-app.pdf', $userRequestingReport) : null;
+            } catch (Exception $e) {
+                $pdf = null;
+            }
 
             return [
                 'scores' => $scores,
                 'iframe_url' => $iframeUrl,
                 'iframe_url_signed' => $iframeUrl !== null ? $this->generateSignedIframeUrl($iframeUrl, $userRequestingReport->firstname) : null,
+                'pdf' => $pdf,
             ];
         } catch (RequestException $e) {
             throw new ValidationException('Failed to retrieve credit score: ' . $e->getMessage());
