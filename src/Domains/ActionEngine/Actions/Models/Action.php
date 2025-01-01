@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\ActionEngine\Actions\Models;
 
+use Baka\Contracts\CompanyInterface;
+use Baka\Enums\StateEnums;
+use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Kanvas\ActionEngine\Models\BaseModel;
 use Nevadskiy\Tree\AsTree;
@@ -33,7 +36,14 @@ class Action extends BaseModel
 {
     use UuidTrait;
     use AsTree;
+    use SlugTrait;
 
     protected $table = 'actions';
     protected $guarded = [];
+
+    public static function getBySlug(string $slug, CompanyInterface $company): ?self
+    {
+        return static::where('slug', $slug)
+        ->where('is_deleted', StateEnums::NO->getValue());
+    }
 }
