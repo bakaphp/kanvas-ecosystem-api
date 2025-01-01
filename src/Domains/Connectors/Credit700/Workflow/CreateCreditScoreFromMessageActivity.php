@@ -33,11 +33,8 @@ class CreateCreditScoreFromMessageActivity extends KanvasActivity
      */
     public function execute(Message $message, Apps $app, array $params): array
     {
-        /**
-         * en base al lead
-         * action pull
-         * options: pull: 700credit, provider: bureau
-         */
+        $this->overWriteAppPermissionService($app);
+
         $setup = new Setup($app);
         $setup->run();
 

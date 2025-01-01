@@ -50,10 +50,10 @@ class EngagementRepository
             throw new ModelNotFoundException("Pipeline not found for action '{$actionSlug}'");
         }
 
-        $engagementStage = $companyAction->pipeline()
-        ->stages()
-        ->where('slug', $stage)
-        ->firstOrFail();
+        $engagementStage = $companyAction->pipeline
+                ->stages()
+                ->where('slug', $stage)
+                ->firstOrFail();
 
         return Engagement::query()->where('leads_id', $lead->getId())
             ->where('pipelines_stages_id', $engagementStage->getId())

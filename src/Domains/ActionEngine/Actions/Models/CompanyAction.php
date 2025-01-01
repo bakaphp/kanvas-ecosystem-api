@@ -62,7 +62,7 @@ class CompanyAction extends BaseModel
         // Define the base query
         $query = self::query()
             ->where('actions_id', $action->getId())
-            ->fromCompany($company)
+            ->where('companies_id', $company->getId())
             ->whereIn('apps_id', [$app->getId(), AppEnums::GLOBAL_APP_ID->getValue()])
             ->where('is_deleted', 0);
 
