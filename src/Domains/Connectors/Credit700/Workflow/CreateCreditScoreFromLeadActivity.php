@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Credit700\Workflow;
 
 use Baka\Support\Str;
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\EngagementMessage;
@@ -30,7 +31,10 @@ use Kanvas\Workflow\KanvasActivity;
 
 class CreateCreditScoreFromLeadActivity extends KanvasActivity
 {
-    public function execute(Lead $lead, Apps $app, array $params): array
+    /**
+     * @param Model<Lead> $lead
+     */
+    public function execute(Model $lead, Apps $app, array $params): array
     {
         $this->overWriteAppPermissionService($app);
 
@@ -71,15 +75,23 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
         $this->distributeMessages($lead, $app, $parentMessage, $childMessage);
         $this->createEngagements($lead, $app, $parentMessage, $childMessage, $engagement->message);
 
-        return $creditApplicant;
+        return [
+            'scores' => $creditApplicant['scores'],
+            'iframe_url' => $creditApplicant['iframe_url'],
+            'iframe_url_signed' => $creditApplicant['iframe_url_signed'],
+            'pdf' => ! empty($creditApplicant['pdf']) && $creditApplicant['pdf'] instanceof Filesystem ? $creditApplicant['pdf']->url : null,
+            'message_id' => $parentMessage->getId(),
+            'message' => 'Credit score created successfully',
+            'lead_id' => $lead->getId(),
+        ];
     }
 
-    private function validateParams(array $params): bool
+    protected function validateParams(array $params): bool
     {
         return isset($params['pull']) && $params['pull'] === '700credit';
     }
 
-    private function errorResponse(string $message, Lead $lead, array $data = []): array
+    protected function errorResponse(string $message, Lead $lead, array $data = []): array
     {
         return [
             'message' => $message,
@@ -88,7 +100,7 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
         ];
     }
 
-    private function getEngagement(Lead $lead): ?Engagement
+    protected function getEngagement(Lead $lead): ?Engagement
     {
         return EngagementRepository::findEngagementForLead(
             $lead,
@@ -97,12 +109,12 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
         );
     }
 
-    private function extractMessageData($message): ?array
+    protected function extractMessageData($message): ?array
     {
         return $message?->message['data']['form'] ?? null;
     }
 
-    private function processCreditScore(array $messageData, Lead $lead, Apps $app, array $params): array
+    protected function processCreditScore(array $messageData, Lead $lead, Apps $app, array $params): array
     {
         $personal = $messageData['personal'];
         $housing = $messageData['housing'];
@@ -123,7 +135,7 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
         );
     }
 
-    private function createMessage(array $data, Lead $lead, Apps $app, $user, $company, ?int $parentId = null): object
+    protected function createMessage(array $data, Lead $lead, Apps $app, $user, $company, ?int $parentId = null): object
     {
         $engagementMessage = new EngagementMessage(
             data: $data,
@@ -168,12 +180,12 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
         return $createMessage->execute();
     }
 
-    private function createParentMessage(array $data, Lead $lead, Apps $app, $message): object
+    protected function createParentMessage(array $data, Lead $lead, Apps $app, $message): object
     {
         return $this->createMessage($data, $lead, $app, $message->user, $message->company);
     }
 
-    private function createChildMessage(array $data, Lead $lead, Apps $app, $message, $parentMessage): object
+    protected function createChildMessage(array $data, Lead $lead, Apps $app, $message, $parentMessage): object
     {
         $childMessage = $this->createMessage($data, $lead, $app, $message->user, $message->company, $parentMessage->getId());
 
@@ -184,7 +196,7 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
         return $childMessage;
     }
 
-    private function distributeMessages(Lead $lead, Apps $app, $parentMessage, $childMessage): void
+    protected function distributeMessages(Lead $lead, Apps $app, $parentMessage, $childMessage): void
     {
         $leadChannel = Channel::query()
             ->whereIn('apps_id', [$app->getId(), AppEnums::LEGACY_APP_ID->getValue()])
@@ -196,7 +208,7 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
         DistributionMessageService::sentToChannelFeed($leadChannel, $childMessage);
     }
 
-    private function createEngagements(Lead $lead, Apps $app, $parentMessage, $childMessage, $message): void
+    protected function createEngagements(Lead $lead, Apps $app, $parentMessage, $childMessage, $message): void
     {
         $action = Action::where('slug', ConfigurationEnum::ACTION_VERB->value)->firstOrFail();
         $companyAction = CompanyAction::fromApp($app)
@@ -215,7 +227,7 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
         $this->createEngagement($childMessage, $lead, $app, $message, $submittedStage, $companyAction);
     }
 
-    private function createEngagement($message, Lead $lead, Apps $app, $originalMessage, $stage, $companyAction): void
+    protected function createEngagement($message, Lead $lead, Apps $app, $originalMessage, $stage, $companyAction): void
     {
         Engagement::firstOrCreate([
             'companies_id' => $message->company->getId(),
