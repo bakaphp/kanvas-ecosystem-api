@@ -30,11 +30,10 @@ use Kanvas\Workflow\KanvasActivity;
 
 class CreateCreditScoreFromLeadActivity extends KanvasActivity
 {
-    /**
-     * Generate a credit score for the lead.
-     */
     public function execute(Lead $lead, Apps $app, array $params): array
     {
+        $this->overWriteAppPermissionService($app);
+
         if (! $this->validateParams($params)) {
             return $this->errorResponse('Invalid pull parameter', $lead);
         }
