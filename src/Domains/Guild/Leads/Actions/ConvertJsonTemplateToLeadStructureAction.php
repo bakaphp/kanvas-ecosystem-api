@@ -140,7 +140,6 @@ class ConvertJsonTemplateToLeadStructureAction
         } else {
             $parsedData[$name] = $value; // No pattern provided, use raw value
         }
-
     }
 
     private function mapCustomField(array &$customFields, string $name, ?string $value, ?string $pattern = null): void
