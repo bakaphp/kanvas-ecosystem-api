@@ -32,7 +32,7 @@ final class HasAddressHandler extends WhereConditionsHandler
         } elseif (array_key_exists('OR', $whereConditions)) {
             $this->nestedConditions($addressBuilder, $whereConditions['OR'][0], 'or');
         }
-
+        $addressBuilder->whereColumn('id', 'orders.shipping_address_id');
         $builder->whereExists($addressBuilder);
     }
 
