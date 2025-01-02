@@ -34,6 +34,18 @@ type IntegrationsEntityHistory {
     created_at: DateTime
 }
 
+type WorkflowIntegrationsHistory {
+    id: ID!
+    entity_namespace: String!
+    entity_id: ID!
+    integration: Integrations
+    integrationCompany: IntegrationsCompanies
+    status: Status
+    workflow: Workflow
+    trigger: String
+    created_at: DateTime
+}
+
 input IntegrationsCompaniesInput {
     integration: IntegrationsReferenceInput!
     region: RegionReferenceInput!
@@ -63,6 +75,13 @@ extend type Mutation @guard {
         )
 }
 
+enum WorkFlowIntegrationsHistoryEnumColumn {
+    ID @enum(value: "entity_integration_history.id")
+    ENTITY_NAMESPACE @enum(value: "entity_integration_history.entity_namespace")
+    STATUS_ID @enum(value: "entity_integration_history.status_id")
+    INTEGRATIONS_ID @enum(value: "entity_integration_history.integrations_id")
+}
+
 extend type Query @guard {
     integrations(
         search: String @search
@@ -74,7 +93,7 @@ extend type Query @guard {
             scopes: ["fromApp", "notDeleted", "fromPublicApp"]
             defaultCount: 25
         )
-    integrationsEntityHistory(
+    integrationsByEntityHistory(
         system_module_uuid: String!
         entity_id: ID!
         orderBy: _ @orderBy(columns: ["id", "name", "created_at", "updated_at"])
@@ -82,5 +101,23 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Workflow\\Builders\\Integrations\\IntegrationsBuilder@integrationEntityHistoryByEntity"
+        )
+    workflowIntegrationsHistory(
+        where: _
+            @whereConditions(
+                columnsEnum: WorkFlowIntegrationsHistoryEnumColumn
+            )
+        hasRegion: _
+            @whereHasConditions(
+                columns: [
+                    "id",
+                    "name"
+                ]
+                handler: "App\\GraphQL\\Workflow\\Builders\\Integrations\\IntegrationsBuilder@getHasRegion"
+            )
+    ): [WorkflowIntegrationsHistory!]!
+        @paginate(
+            model: "Kanvas\\Workflow\\Integrations\\Models\\EntityIntegrationHistory"
+            defaultCount: 25
         )
 }
