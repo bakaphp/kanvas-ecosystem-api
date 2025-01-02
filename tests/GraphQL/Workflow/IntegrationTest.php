@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Workflow;
 
-use Kanvas\Connectors\Shopify\Enums\StatusEnum;
-use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyWithIntegrationActivity;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Services\VariantService;
+use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\Connectors\Traits\HasShopifyConfiguration;
+use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
 class IntegrationTest extends TestCase
 {
+    use InventoryCases;
     use HasShopifyConfiguration;
 
     /**
@@ -189,27 +193,53 @@ class IntegrationTest extends TestCase
             }
         }');
 
-        $this->assertNotEmpty($response->json()['data']['workflowIntegrationsHistory']['data']);
+        $this->assertNotEmpty($response->json()['data']['workflowIntegrationsHistory']['data'][0]);
     }
 
     protected function createProduct()
     {
-        $product = Products::count() > 0 ? Products::first() : Products::factory()->create();
-        $variant = $product->variants()->first();
+        $app = app(Apps::class);
+
+        $product = Products::factory()->create();
+
+        $region = $this->createDefaultRegion(
+            company: $product->company,
+            app: $app,
+            user: $product->user
+        );
+
+        $this->createDefaultStatus(
+            company: $product->company,
+            app: $app,
+            user: $product->user
+        );
+
+        $this->createDefaultWarehouse(
+            company: $product->company,
+            app: $app,
+            user: $product->user,
+            region: $region
+        );
+
+        $variant = VariantService::createDefaultVariant($product, $product->user);
         $warehouse = $variant->warehouses()->first();
-        $this->setupShopifyConfiguration($product, $warehouse);
+        $this->setupShopifyIntegration($product, $warehouse->region);
 
-        $shopify = new ShopifyInventoryService(
-            $product->app,
-            $product->company,
-            $warehouse
+        $exportActivity = new SyncProductWithShopifyWithIntegrationActivity(
+            0,
+            now()->toDateTimeString(),
+            StoredWorkflow::make(),
+            []
         );
 
-        $shopifyResponse = $shopify->saveProduct($product, StatusEnum::ACTIVE);
-
-        $this->assertEquals(
-            $product->name,
-            $shopifyResponse['title']
+        $result = $exportActivity->execute(
+            product: $product,
+            app: $app,
+            params: []
         );
+
+        $this->assertArrayHasKey('shopify_response', $result);
+        $this->assertArrayHasKey('company', $result);
+        $this->assertArrayHasKey('product', $result);
     }
 }
