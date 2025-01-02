@@ -12,6 +12,7 @@ use Kanvas\Connectors\OfferLogix\Actions\SoftPullAction;
 use Kanvas\Connectors\OfferLogix\DataTransferObject\SoftPull;
 use Kanvas\Connectors\OfferLogix\Enums\ConfigurationEnum;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -35,7 +36,10 @@ class SoftPullFromLeadActivity extends KanvasActivity
             ];
         }
 
-        $address = $people->address->count() ? $people->address()->first() : null;
+        $address = $people?->address->first();
+        $pdfTemplate = $params['template_pdf'] ?? 'soft-pull-pdf-v2';
+        $pdfFileName = $params['pdf_file_name'] ?? 'soft_pull_pdf.pdf';
+        $generatePdf = $params['generate_pdf'] ?? false;
 
         if (! $address) {
             return [
@@ -48,7 +52,7 @@ class SoftPullFromLeadActivity extends KanvasActivity
         $softPull = SoftPull::from(
             $people,
             [
-                'last_4_digits_of_ssn' => $params['last_4_digits_of_ssn'] ?? '',
+                'last_4_digits_of_ssn' => $people->get('last_4_digits_of_ssn') ?? '',
                 'city' => $address->city,
                 'state' => $address->state,
             ]
@@ -79,20 +83,74 @@ class SoftPullFromLeadActivity extends KanvasActivity
             ]);
             $filesystem->saveOrFail();
 
-            $message = $this->createMessage(
-                array_merge(
-                    $softPull->toArray(),
-                    [
-                        'soft_pull' => $results,
-                    ]
-                ),
+            $parentMessage = $this->createMessage(
+                [
+                    'sent soft pull',
+                ],
                 $lead,
                 $app,
                 $lead->user,
                 $lead->company
             );
 
-            $message->addFile($filesystem, 'soft_pull');
+            $childMessage = $this->createMessage(
+                [
+                    [
+                        'label' => 'First Name',
+                        'value' => $people->firstname,
+                    ],
+                    [
+                        'label' => 'Middle Name',
+                        'value' => $people->middlename,
+                    ],
+                    [
+                        'label' => 'Last Name',
+                        'value' => $people->lastname,
+                    ],
+                    [
+                        'label' => 'Mobile',
+                        'value' => $softPull->mobile,
+                    ],
+                    [
+                        'label' => 'State',
+                        'value' => $address->state,
+                    ],
+                    [
+                        'label' => 'City',
+                        'value' => $address->city,
+                    ],
+                    [
+                        'label' => 'Birthday',
+                        'value' => $people->dob,
+                    ],
+                    [
+                        'label' => 'Last 4 Digits of SSN',
+                        'value' => $softPull->last_4_digits_of_ssn,
+                    ],
+                ],
+                $lead,
+                $app,
+                $lead->user,
+                $lead->company,
+                $parentMessage->getId()
+            );
+
+            $childMessage->addFile($filesystem, 'soft_pull');
+
+            //createPdf
+            if ($generatePdf) {
+                $pdfService = PdfService::generatePdfFromTemplate(
+                    $app,
+                    $lead->user,
+                    $pdfTemplate ?? 'soft-pull-pdf-v2', //template name laravel
+                    $childMessage,
+                    [
+                        'lead' => $lead,
+                    ]
+                );
+
+                $childMessage->addFile($pdfService, $pdfFileName ?? 'soft_pull_pdf.pdf');
+            }
         }
 
         return [

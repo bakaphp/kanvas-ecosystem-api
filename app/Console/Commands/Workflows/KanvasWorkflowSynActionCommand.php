@@ -19,6 +19,7 @@ use Kanvas\Connectors\InAppPurchase\Workflows\LinkMessageToOrderActivity;
 use Kanvas\Connectors\Internal\Activities\ExtractCompanyNameFromPeopleEmailActivity;
 use Kanvas\Connectors\Internal\Activities\GenerateCompanyDashboardActivity;
 use Kanvas\Connectors\Internal\Activities\GenerateMessageSlugActivity;
+use Kanvas\Connectors\Internal\Activities\GeneratePdfActivity;
 use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductActivity;
 use Kanvas\Connectors\Internal\Activities\UnPublishExpiredProductsAfterImportActivity;
 use Kanvas\Connectors\Internal\Activities\UserCustomFieldActivity;
@@ -28,6 +29,7 @@ use Kanvas\Connectors\NetSuite\Webhooks\ProcessNetSuiteCompanyCustomerWebhookJob
 use Kanvas\Connectors\NetSuite\Workflow\SyncCompanyWithNetSuiteActivity;
 use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
+use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
 use Kanvas\Connectors\RainForest\Workflows\Activities\ImportProductActivity;
 use Kanvas\Connectors\ScrapperApi\Workflows\Activities\ScrapperSearchActivity;
 use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyInventoryLevelWebhookJob;
@@ -109,6 +111,8 @@ class KanvasWorkflowSynActionCommand extends Command
             LinkMessageToOrderActivity::class,
             GenerateStripeSignupLinkForUserActivity::class,
             CreateCreditScoreFromLeadActivity::class,
+            GeneratePdfActivity::class,
+            SoftPullFromLeadActivity::class,
         ];
 
         $createdActions = [];

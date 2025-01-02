@@ -9,17 +9,13 @@ use Kanvas\Connectors\OfferLogix\DataTransferObject\SoftPull;
 use Kanvas\Connectors\OfferLogix\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OfferLogix\Enums\CustomFieldEnum;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Locations\Models\States;
 
 class SoftPullAction
 {
-    private const DEFAULT_PHONE = '8090000000';
     private const DEFAULT_STATE = 'GA';
     private const SXML_VALUE = '3';
-    private const MAX_PHONE_LENGTH = 10;
 
     public function __construct(
         protected Lead $lead,
@@ -38,34 +34,7 @@ class SoftPullAction
 
         $sourceId = $sourceCodeCompany; //@todo check if this is configurable
         $sxml = self::SXML_VALUE;
-
-        //$address = $this->people->address->count() ? $this->people->address->getFirst() : null;
-        $phone = $this->people->getPhones();
-        $phoneWeight = $this->people->contacts()->selectRaw('value, MAX(weight) as max_weight, contacts_types_id')
-                    ->where('contacts_types_id', ContactTypeEnum::PHONE->value)
-                    ->groupBy('value', 'contacts_types_id')
-                    ->orderBy('max_weight', 'DESC')
-                    ->get();
-
-        $cellphones = $this->people->getCellPhones();
-
         $state = States::where('name', $softPull->state)->first();
-
-        if ($phoneWeight->count()) {
-            $phone = $phoneWeight->first()->value;
-        } elseif ($cellphones->count()) {
-            $phone = $cellphones->first()->value;
-        } elseif ($phone->count()) {
-            $phone = $phone->first()->value;
-        } else {
-            $phone = self::DEFAULT_PHONE;
-        }
-
-        $phone = preg_replace('/\D+/', '', $phone);
-
-        if (strlen($phone) > self::MAX_PHONE_LENGTH) {
-            $phone = substr($phone, -self::MAX_PHONE_LENGTH);
-        }
 
         $requestData = [
             'Source' => $sourceId,
@@ -79,7 +48,7 @@ class SoftPullAction
             'ConsumerState' => $state ? $state->code : self::DEFAULT_STATE, // $address->state ?a? null,
             'ConsumerSSN' => $softPull->last_4_digits_of_ssn,
             //'ConsumerZip' => $address->zip ?? null,
-            'ConsumerCellPhone' => $phone,
+            'ConsumerCellPhone' => $softPull->mobile,
         ];
 
         $response = $offerLogixClient->post(

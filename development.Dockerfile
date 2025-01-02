@@ -24,8 +24,9 @@ RUN apt-get update && apt-get install -y \
     lua-zlib-dev \
     libmemcached-dev \
     nginx \
-    vim
-
+    vim \
+    wkhtmltopdf \
+    xvfb
 
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
