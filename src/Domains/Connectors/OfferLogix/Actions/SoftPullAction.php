@@ -11,6 +11,7 @@ use Kanvas\Connectors\OfferLogix\Enums\CustomFieldEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Locations\Models\States;
 
 class SoftPullAction
 {
