@@ -195,9 +195,21 @@ final class LeadReceiverParserTest extends TestCase
                 "name": "business_founded",
                 "type": "customField"
             },
+            "SubID2": {
+                "name": "SubID2",
+                "type": "regex",
+                "pattern": "/^[^;]*;([^;]+)/"
+            },
             "SubID": {
-                "name": "sub_id",
-                "type": "customField"
+                "name": "SubID_ID",
+                "type": "customField",
+                "pattern" : "/^[^;]*;([^;]+)/",
+                "note": "For now this will also create the parsed version SUB_ID and the main one SubID, maybe we should fix this in the future?"
+            },
+            "Test": {
+                "name": "Another1",
+                "type": "customField",
+                "pattern" : "/^[^;]*;([^;]+)/"
             },
             "Credit Score": {
                 "name": "Credit_Score",
@@ -232,6 +244,8 @@ final class LeadReceiverParserTest extends TestCase
             'Industry' => 'real_estate',
             'Business Founded' => '2004-05-01T00:00:00',
             'SubID' => '272da453-ed2c-4fa7-9ec0-c3efc6f55c87;cf3e6255ba55da60765e9d108',
+            'SubID2' => '272da453-ed2c-4fa7-9ec0-c3efc6f55c87;cf3e6255ba55da60765e9d108',
+            'Test' => '272da453-ed2c-4fa7-9ec0-c3efc6f55c87;cf3e6255ba55da60765e9d108',
             'Credit Score' => 'Excellent (720+)',
             'Amount Requested' => '1150000',
             'Annual Revenue' => '70000',
@@ -256,6 +270,9 @@ final class LeadReceiverParserTest extends TestCase
         $this->assertEquals($email, $leadStructure['people']['contacts'][1]['value']);
         $this->assertEquals('Excellent (720+)', $leadStructure['custom_fields']['Credit_Score']);
         $this->assertEquals('1150000', $leadStructure['custom_fields']['Amount Requested']);
+        $this->assertEquals('272da453-ed2c-4fa7-9ec0-c3efc6f55c87;cf3e6255ba55da60765e9d108', $leadStructure['custom_fields']['SubID']);
+        $this->assertEquals('cf3e6255ba55da60765e9d108', $leadStructure['custom_fields']['SubID_ID']);
+        $this->assertEquals('cf3e6255ba55da60765e9d108', $leadStructure['SubID2']);
     }
 
     public function testExtraLeaDefaultValueParser(): void
