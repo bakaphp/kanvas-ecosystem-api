@@ -190,7 +190,6 @@ class IntegrationTest extends TestCase
         }');
 
         $this->assertArrayHasKey('id', $response->json()['data']['workflowIntegrationsHistory']['data'][0]);
-
     }
 
     protected function createProduct()

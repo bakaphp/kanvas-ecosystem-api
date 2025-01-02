@@ -56,7 +56,7 @@ class IntegrationsBuilder
             if ($column && $value) {
                 $root->when(
                     $value,
-                    fn($query) =>
+                    fn ($query) =>
                     $query->where($regionTable . '.' . $column, $value)
                 );
             }
