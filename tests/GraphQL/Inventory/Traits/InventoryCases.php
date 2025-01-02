@@ -13,6 +13,7 @@ use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
 use Kanvas\Inventory\Regions\DataTransferObject\Region;
 use Kanvas\Inventory\Status\Actions\CreateStatusAction;
 use Kanvas\Inventory\Status\DataTransferObject\Status;
+use Kanvas\Inventory\Status\Models\Status as ModelsStatus;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses as DataTransferObjectWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
@@ -138,7 +139,7 @@ trait InventoryCases
             }', ['data' => $data]);
     }
 
-    public function createDefaultWarehouse(CompanyInterface $company, AppInterface $app, UserInterface $user, Regions $region) : Warehouses
+    public function createDefaultWarehouse(CompanyInterface $company, AppInterface $app, UserInterface $user, Regions $region): Warehouses
     {
         $createWarehouse = new CreateWarehouseAction(
             new DataTransferObjectWarehouses(
@@ -157,7 +158,7 @@ trait InventoryCases
         return $createWarehouse->execute();
     }
 
-    public function createDefaultRegion(CompanyInterface $company, AppInterface $app, UserInterface $user) : Regions
+    public function createDefaultRegion(CompanyInterface $company, AppInterface $app, UserInterface $user): Regions
     {
         $createRegion = new CreateRegionAction(
             new Region(
@@ -176,7 +177,7 @@ trait InventoryCases
         return $createRegion->execute();
     }
 
-    public function createDefaultStatus(CompanyInterface $company, AppInterface $app, UserInterface $user)
+    public function createDefaultStatus(CompanyInterface $company, AppInterface $app, UserInterface $user): ModelsStatus
     {
         $createDefaultStatus = new CreateStatusAction(
             new Status(
