@@ -4,10 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Workflow;
 
+use Kanvas\Connectors\Shopify\Enums\StatusEnum;
+use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
+use Kanvas\Inventory\Products\Models\Products;
+use Tests\Connectors\Traits\HasShopifyConfiguration;
 use Tests\TestCase;
 
 class IntegrationTest extends TestCase
 {
+    use HasShopifyConfiguration;
+
     /**
      * testCreate.
      *
@@ -166,5 +172,45 @@ class IntegrationTest extends TestCase
         }', ['id' => $integrationCompany['id']])->assertJson([
             'data' => ['removeIntegrationCompany' => true],
         ]);
+    }
+
+
+    public function testGetIntegrationsWorkflowHistory(): void
+    {
+        $this->createProduct();
+
+        $response = $this->graphQL('
+        query {
+            workflowIntegrationsHistory {
+                data {
+                    id,
+                    entity_namespace
+                }
+            }
+        }');
+
+        $this->assertArrayHasKey('id', $response->json()['data']['workflowIntegrationsHistory']['data'][0]);
+
+    }
+
+    protected function createProduct()
+    {
+        $product = Products::count() > 0 ? Products::first() : Products::factory()->create();
+        $variant = $product->variants()->first();
+        $warehouse = $variant->warehouses()->first();
+        $this->setupShopifyConfiguration($product, $warehouse);
+
+        $shopify = new ShopifyInventoryService(
+            $product->app,
+            $product->company,
+            $warehouse
+        );
+
+        $shopifyResponse = $shopify->saveProduct($product, StatusEnum::ACTIVE);
+
+        $this->assertEquals(
+            $product->name,
+            $shopifyResponse['title']
+        );
     }
 }
