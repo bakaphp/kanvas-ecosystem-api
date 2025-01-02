@@ -118,6 +118,7 @@ extend type Query @guard {
     ): [WorkflowIntegrationsHistory!]!
         @paginate(
             model: "Kanvas\\Workflow\\Integrations\\Models\\EntityIntegrationHistory"
+            scopes: ["fromApp", "notDeleted"]
             defaultCount: 25
         )
 }
