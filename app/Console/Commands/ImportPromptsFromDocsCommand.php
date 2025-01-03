@@ -21,7 +21,7 @@ class ImportPromptsFromDocsCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:import-prompts-from-sheet {--appId=78} {--messageType=588} {--companyId=2626}';
+    protected $signature = 'kanvas:import-prompts-from-sheet {--appId=78} {--messageType=588} {--nuggetMessageType=588} {--companyId=2626}';
 
     /**
      * The console command description.
@@ -81,7 +81,7 @@ class ImportPromptsFromDocsCommand extends Command
         // Retrieve command options
         $appId = $this->option('appId');
         $messageType = $this->option('messageType');
-        $nuggetMesaageType = $this->option('nuggetMessageType');;
+        $nuggetMessageType = $this->option('nuggetMessageType');
         $companyId = $this->option('companyId');
 
         foreach ($promptsCollection as $prompt) {
@@ -128,7 +128,7 @@ class ImportPromptsFromDocsCommand extends Command
                 'uuid' => DB::raw('uuid()'),
                 'companies_id' => $companyId,
                 'users_id' => $userId,
-                'message_types_id' => $nuggetMesaageType,
+                'message_types_id' => $nuggetMessageType,
                 'message' => json_encode([
                     'title' => $prompt['title'],
                     'ai_model' => [
