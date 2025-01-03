@@ -21,14 +21,14 @@ class ImportPromptsFromDocsCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:import-prompts-from-docs {--appId=78} {--messageType=588} {--companyId=2626}';
+    protected $signature = 'kanvas:import-prompts-from-sheet {--appId=78} {--messageType=588} {--companyId=2626}';
 
     /**
      * The console command description.
      *
      * @var string|null
      */
-    protected $description = 'Import prompts from Google Docs';
+    protected $description = 'Import prompts from Google Sheets document.';
 
     /**
      * Execute the console command.
@@ -65,7 +65,8 @@ class ImportPromptsFromDocsCommand extends Command
                 'category',
                 'prompt',
                 'tags',
-                'preview'
+                'preview',
+                'nugget'
             ];
             foreach ($values as $row) {
                 foreach ($row as $index => $value) {
@@ -80,6 +81,7 @@ class ImportPromptsFromDocsCommand extends Command
         // Retrieve command options
         $appId = $this->option('appId');
         $messageType = $this->option('messageType');
+        $nuggetMesaageType = $this->option('nuggetMessageType');;
         $companyId = $this->option('companyId');
 
         foreach ($promptsCollection as $prompt) {
@@ -118,6 +120,37 @@ class ImportPromptsFromDocsCommand extends Command
             DB::connection('social')->table('messages')
                 ->where('id', $lastId)
                 ->update(['path' => $lastId]);
+
+            //Create a child message for the nugget(prompt results) add the prompt preview as the message
+
+            $nuggestId = DB::connection('social')->table('messages')->insertGetId([
+                'apps_id' => $appId,
+                'uuid' => DB::raw('uuid()'),
+                'companies_id' => $companyId,
+                'users_id' => $userId,
+                'message_types_id' => $nuggetMesaageType,
+                'message' => json_encode([
+                    'title' => $prompt['title'],
+                    'ai_model' => [
+                        'key' => 'openai',
+                        'value' => 'chatgpt-4o-latest',
+                        'name' => 'OpenAI - ChatGPT-4o',
+                        'payment' => [
+                            'price' => 0,
+                            'is_locked' => false,
+                            'free_regeneration' => false
+                        ]
+                    ],
+                    "type" => "text-format",
+                    "nugget" => $prompt['nugget']
+                ]),
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+
+            DB::connection('social')->table('messages')
+                ->where('id', $nuggestId)
+                ->update(['path' => $lastId . "." . $nuggestId]);
 
             // Handle tags
             $tags = array_merge(explode(',', $prompt['tags']), [$prompt['category']]);
