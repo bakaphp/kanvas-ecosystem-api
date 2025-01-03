@@ -79,7 +79,11 @@ class IntegrationTest extends TestCase
             'region' => [
                 'id' => $regionResponse['data']['createRegion']['id']
             ],
-            'config' => "{ \"client_id\": \"{$credentials['client_id']}\",\"client_secret\": \"{$credentials['client_secret']}\",\"shop_url\": \"{$credentials['shop_url']}\"}"
+            'config' => [
+                'client_id' => $credentials['client_id'],
+                'client_secret' => $credentials['client_secret'],
+                'shop_url' => $credentials['shop_url']
+            ]
         ];
 
         $integrationCompanyResponse = $this->graphQL('
@@ -155,7 +159,11 @@ class IntegrationTest extends TestCase
             'region' => [
                 'id' => $regionResponse['data']['createRegion']['id']
             ],
-            'config' => "{ \"client_id\": \"{$credentials['client_id']}\",\"client_secret\": \"{$credentials['client_secret']}\",\"shop_url\": \"{$credentials['shop_url']}\"}"
+            'config' => [
+                'client_id' => $credentials['client_id'],
+                'client_secret' => $credentials['client_secret'],
+                'shop_url' => $credentials['shop_url']
+            ]
         ];
 
         $integrationCompanyResponse = $this->graphQL('
