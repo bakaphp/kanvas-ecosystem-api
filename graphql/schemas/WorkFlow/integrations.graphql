@@ -5,7 +5,7 @@ type Integrations {
     status: Status @method(name: "getIntegrationStatus")
     integrations: [IntegrationsCompanies!]!
         @method(name: "getIntegrationsByCompany")
-    config: JSON
+    config: Mixed
     created_at: DateTime
     updated_at: DateTime
 }
@@ -50,7 +50,7 @@ input IntegrationsCompaniesInput {
     integration: IntegrationsReferenceInput!
     region: RegionReferenceInput!
     company_id: ID!
-    config: JSON!
+    config: Mixed!
 }
 
 input IntegrationsReferenceInput {
