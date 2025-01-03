@@ -5,7 +5,7 @@ type Integrations {
     status: Status @method(name: "getIntegrationStatus")
     integrations: [IntegrationsCompanies!]!
         @method(name: "getIntegrationsByCompany")
-    config: String
+    config: JSON
     created_at: DateTime
     updated_at: DateTime
 }
