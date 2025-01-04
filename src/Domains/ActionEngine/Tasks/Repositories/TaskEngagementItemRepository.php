@@ -22,7 +22,7 @@ class TaskEngagementItemRepository
             return $query->where('company_task_list_items.task_list_id', $taskListId);
         })
         ->orderBy('company_task_list_items.weight', 'ASC')
-        ->selectRaw("
+        ->selectRaw('
             company_task_list_items.*,
             company_task_engagement_items.lead_id,
             company_task_engagement_items.status,
@@ -39,6 +39,6 @@ class TaskEngagementItemRepository
                 ELSE 
                     company_task_list_items.config
             END AS config
-        ");
+        ');
     }
 }
