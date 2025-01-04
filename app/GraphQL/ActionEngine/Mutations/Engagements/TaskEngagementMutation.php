@@ -54,6 +54,7 @@ class TaskEngagementMutation
          */
         $taskEngagementItem->disableRelatedItems();
         $taskEngagementItem->enableRelatedTasks();
+        $taskEngagementItem->completeRelatedItems();
 
         return $saveTaskEngagementItem;
     }
