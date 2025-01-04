@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\ActionEngine\Tasks\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -25,7 +26,8 @@ use Kanvas\ActionEngine\Models\BaseModel;
  */
 class TaskListItem extends BaseModel
 {
-    use UuidTrait;
+    //use UuidTrait;
+    use NoAppRelationshipTrait;
 
     protected $table = 'company_task_list_items';
     protected $guarded = [];
