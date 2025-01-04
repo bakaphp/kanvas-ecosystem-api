@@ -81,6 +81,24 @@ class TaskEngagementItem extends BaseModel
         return false;
     }
 
+    public function enableRelatedTasks(): bool
+    {
+        if ($this->status !== 'completed') {
+            return false;
+        }
+
+        // Retrieve the items to enable from the config
+        $itemsToEnable = Arr::get($this->item->task->config, 'task_item_to_enable', []);
+
+        if (is_array($itemsToEnable) && ! empty($itemsToEnable)) {
+            $affectedRows = $this->enableRelatedTask($itemsToEnable);
+
+            return $affectedRows > 0;
+        }
+
+        return false;
+    }
+
     protected function disableItems(array $itemsToDisable): int
     {
         $affectedRows = 0;
@@ -101,6 +119,65 @@ class TaskEngagementItem extends BaseModel
                 $taskEngagementItem->status = 'no_applicable';
                 $taskEngagementItem->saveOrFail();
                 $affectedRows++; // Increment only if something was changed
+            }
+        }
+
+        return $affectedRows;
+    }
+
+    /**
+     * Enable related task engagement items based on the checklist configuration.
+     *
+     * This method processes a list of related task engagement items and verifies
+     * if the checklist configuration criteria are met to change the "disabled" status.
+     * Example configuration:
+     * {
+     *     "task_item_to_enable": {
+     *         "67": [66, 65]
+     *     }
+     * }
+     *
+     * The configuration indicates that task item 67 should be enabled only if
+     * all related task items (66 and 65 in this case) are completed.
+     **/
+    protected function enableRelatedTask(array $relatedTask): int
+    {
+        $affectedRows = 0;
+
+        foreach ($relatedTask as $checkListItem => $relatedCheckListItems) {
+            // Fetch all related task items in bulk for validation
+            $relatedItems = TaskEngagementItem::query()
+                ->whereIn('task_list_item_id', $relatedCheckListItems)
+                ->where('lead_id', $this->lead_id)
+                ->where('companies_id', $this->company->getId())
+                ->where('apps_id', $this->app->getId())
+                ->get();
+
+            // Check if all related items are completed
+            $allCompleted = $relatedItems->count() === count($relatedCheckListItems) &&
+                            $relatedItems->every(fn ($item) => $item->status === 'completed');
+
+            if ($allCompleted) {
+                // Enable the main task item if all related items are completed
+                $taskEngagementItem = TaskEngagementItem::firstOrCreate([
+                    'task_list_item_id' => $checkListItem,
+                    'lead_id' => $this->lead_id,
+                    'companies_id' => $this->company->getId(),
+                    'apps_id' => $this->app->getId(),
+                ], [
+                    'users_id' => $this->user->getId(),
+                    'status' => 'in_progress',
+                ]);
+
+                // Update status and config only if not already completed
+                if ($taskEngagementItem->status !== 'completed') {
+                    $taskEngagementItem->config = array_merge(
+                        (array) $taskEngagementItem->config,
+                        ['disabled' => false]
+                    );
+                    $taskEngagementItem->saveOrFail();
+                    $affectedRows++;
+                }
             }
         }
 
