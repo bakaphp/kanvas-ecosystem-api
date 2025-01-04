@@ -24,7 +24,9 @@ RUN apt-get update && apt-get install -y \
     lua-zlib-dev \
     libmemcached-dev \
     nginx \
-    vim
+    vim \
+    wkhtmltopdf \
+    xvfb
 
 # Set working directory
 COPY . /var/www/html/

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Variants\Services;
 
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Inventory\Attributes\Enums\ConfigEnum as AttributeConfigEnum;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -116,7 +117,7 @@ class VariantService
         $variant = [
             'name' => $product->name,
             'description' => $product->description,
-            'sku' => $productDto->sku ?? null,
+            'sku' => $productDto->sku ?? Str::slug($product->name),
         ];
 
         $variantDto = VariantsDto::from([

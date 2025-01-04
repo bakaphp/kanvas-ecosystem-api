@@ -4,126 +4,75 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Credit700\Workflow;
 
-use Baka\Support\Str;
-use Kanvas\ActionEngine\Actions\Models\Action;
-use Kanvas\ActionEngine\Actions\Models\CompanyAction;
-use Kanvas\ActionEngine\Engagements\DataTransferObject\EngagementMessage;
+use Exception;
+use GuzzleHttp\Exception\GuzzleException;
+use Illuminate\Contracts\Container\BindingResolutionException;
+use Illuminate\Database\Eloquent\MissingAttributeException;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFoundException;
+use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Credit700\DataTransferObject\CreditApplicant;
-use Kanvas\Connectors\Credit700\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Credit700\Services\CreditScoreService;
 use Kanvas\Connectors\Credit700\Support\Setup;
-use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Social\Channels\Models\Channel;
-use Kanvas\Social\Channels\Services\DistributionMessageService;
-use Kanvas\Social\Messages\Actions\CreateMessageAction;
-use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Models\MessageType;
-use Kanvas\SystemModules\Models\SystemModules;
-use Kanvas\SystemModules\Repositories\SystemModulesRepository;
-use Kanvas\Workflow\KanvasActivity;
+use Throwable;
+use TypeError;
+use ValueError;
 
-class CreateCreditScoreFromMessageActivity extends KanvasActivity
+class CreateCreditScoreFromMessageActivity extends CreateCreditScoreFromLeadActivity
 {
     /**
-     * Generate a credit score for the lead.
+     * @param Model<Message> $message
+     * @throws MissingAttributeException
+     * @throws ValueError
+     * @throws TypeError
+     * @throws ValidationException
+     * @throws GuzzleException
+     * @throws Exception
+     * @throws ModelNotFoundException
+     * @throws BindingResolutionException
+     * @throws InvalidArgumentException
+     * @throws EloquentModelNotFoundException
+     * @throws Throwable
      */
-    public function execute(Message $message, Apps $app, array $params): array
+    public function execute(Model $message, Apps $app, array $params): array
     {
+        $this->overWriteAppPermissionService($app);
+
         $setup = new Setup($app);
         $setup->run();
 
         $engagement = Engagement::fromApp($app)->where('message_id', $message->getId())->firstOrFail();
         $lead = $engagement->lead;
-        $people = $lead->people;
-        $messageData = $engagement->message?->message['data']['form'];
+        $messageData = $this->extractMessageData($engagement->message);
 
-        $creditScoreService = new CreditScoreService($app);
-        $creditApplicant = $creditScoreService->getCreditScore(
-            new CreditApplicant(
-                $messageData['personal']['first_name'] . ' ' . $messageData['personal']['last_name'],
-                $messageData['housing']['address'],
-                $messageData['housing']['city'],
-                $messageData['housing']['state']['code'],
-                $messageData['housing']['zip_code'],
-                $messageData['personal']['ssn']
-            ),
-            $lead->user
-        );
-
-        if (empty($creditApplicant['iframe_url'])) {
-            return [
-                'message' => 'Credit score not found',
-                'status' => 'error',
-                'data' => $message->getId(),
-                'lead' => $lead->getId(),
-            ];
+        if (! $messageData) {
+            return $this->errorResponse('Message data not found', $lead);
         }
 
-        $engagementMessage = new EngagementMessage(
-            data: $creditApplicant,
-            text: ConfigurationEnum::ACTION_VERB->value,
-            verb: ConfigurationEnum::ACTION_VERB->value,
-            hashtagVisited: ConfigurationEnum::ACTION_VERB->value,
-            actionLink: 'http://nolink.com',
-            source: 'workflow',
-            linkPreview: 'http://nolink.com',
-            engagementStatus: 'submitted',
-            visitorId: Str::uuid()->toString(),
-            status: 'submitted'
-        );
+        $creditApplicant = $this->processCreditScore($messageData, $lead, $app, $params);
 
-        $createMessage = new CreateMessageAction(
-            MessageInput::fromArray(
-                [
-                    'message' => $engagementMessage->toArray(),
-                    'reactions_count' => 0,
-                    'comments_count' => 0,
-                    'total_liked' => 0,
-                    'total_disliked' => 0,
-                    'total_saved' => 0,
-                    'total_shared' => 0,
-                    'ip_address' => '127.0.0.1',
-                ],
-                $message->user,
-                MessageType::fromApp($app)->where('verb', ConfigurationEnum::ACTION_VERB->value)->firstOrFail(),
-                $message->company,
-                $app
-            ),
-            SystemModulesRepository::getByModelName(Lead::class, $app),
-            $lead->getId()
-        );
+        if (empty($creditApplicant['iframe_url'])) {
+            return $this->errorResponse('Credit score not found', $lead, $creditApplicant);
+        }
 
-        $message = $createMessage->execute();
+        $parentMessage = $this->createParentMessage($creditApplicant, $lead, $app, $message);
+        $childMessage = $this->createChildMessage($creditApplicant, $lead, $app, $message, $parentMessage);
 
-        $leadChannel = Channel::fromApp($app)
-            ->where('entity_id', $lead->getId())
-            ->whereIn('entity_namespace', [Lead::class, SystemModules::getLegacyNamespace(Lead::class)])
-            ->firstOrFail();
-        DistributionMessageService::sentToChannelFeed($leadChannel, $message);
+        $this->distributeMessages($lead, $app, $parentMessage, $childMessage);
+        $this->createEngagements($lead, $app, $parentMessage, $childMessage, $message);
 
-        $action = Action::where('slug', ConfigurationEnum::ACTION_VERB->value)->firstOrFail();
-        $companyAction = CompanyAction::fromApp($app)->fromCompany($message->company)->where('actions_id', $action->getId())->firstOrFail();
-        $submittedStage = $companyAction->pipeline->stages()->where('slug', 'submitted')->firstOrFail();
-        //create the engagement
-        Engagement::firstOrCreate(
-            [
-                'companies_id' => $message->company->getId(),
-                'apps_id' => $app->getId(),
-                'users_id' => $message->user->getId(),
-                'message_id' => $message->getId(),
-                'leads_id' => $lead->getId(),
-                'slug' => ConfigurationEnum::ACTION_VERB->value,
-                'people_id' => $people->getId(),
-                'pipelines_stages_id' => $submittedStage->getId(),
-                'companies_actions_id' => $companyAction->getId(),
-                'entity_uuid' => $lead->uuid,
-            ]
-        );
-        ///$lead->user->no
-
-        return $creditApplicant;
+        return [
+            'scores' => $creditApplicant['scores'],
+            'iframe_url' => $creditApplicant['iframe_url'],
+            'iframe_url_signed' => $creditApplicant['iframe_url_signed'],
+            'pdf' => ! empty($creditApplicant['pdf']) && $creditApplicant['pdf'] instanceof Filesystem ? $creditApplicant['pdf']->url : null,
+            'message_id' => $parentMessage->getId(),
+            'message' => 'Credit score created successfully',
+            'lead_id' => $lead->getId(),
+        ];
     }
 }
