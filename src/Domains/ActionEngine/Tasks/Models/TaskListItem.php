@@ -82,24 +82,25 @@ class TaskListItem extends BaseModel
             ->first();
 
             if ($companyTaskItem) {
-                $taskEngagementItem = TaskEngagementItem::fromCompany($this->company())
-                    ->fromApp($this->task->app)
-                    ->where('task_list_item_id', $companyTaskItem->getId())
-                    ->where('lead_id', $lead->getId())
-                    ->first();
+                $taskEngagementItem = TaskEngagementItem::firstOrCreate(
+                    [
+                        'task_list_item_id' => $companyTaskItem->getId(),
+                        'lead_id' => $lead->getId(),
+                        'companies_id' => $this->companies_id,
+                        'apps_id' => $this->apps_id,
+                    ],
+                    [
+                        'users_id' => $this->users_id,
+                        'engagement_end_id' => $engagement ? $engagement->getId() : null,
+                        'status' => 'completed',
+                    ]
+                );
 
-                if (! $taskEngagementItem) {
-                    $taskEngagementItem = new TaskEngagementItem();
-                    $taskEngagementItem->task_list_item_id = $companyTaskItem->getId();
-                    $taskEngagementItem->lead_id = $lead->getId();
-                    $taskEngagementItem->companies_id = $this->companies_id;
-                    $taskEngagementItem->apps_id = $this->apps_id;
-                    $taskEngagementItem->users_id = $this->users_id;
-                    $taskEngagementItem->engagement_end_id = $engagement ? $engagement->getId() : null;
+                // Ensure status is updated if the item already exists
+                if ($taskEngagementItem->wasRecentlyCreated || $taskEngagementItem->status !== 'completed') {
+                    $taskEngagementItem->status = 'completed';
+                    $taskEngagementItem->saveOrFail();
                 }
-
-                $taskEngagementItem->status = 'completed';
-                $taskEngagementItem->saveOrFail();
                 $totalAffected++;
             }
         }
