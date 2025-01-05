@@ -2,9 +2,8 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Notifications\Jobs;
+namespace Kanvas\Social\Messages\Jobs;
 
-use Baka\Contracts\AppInterface;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -12,11 +11,9 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Kanvas\Notifications\Models\NotificationTypes;
-use Kanvas\Notifications\Templates\DynamicKanvasNotification;
+use Kanvas\Social\Follows\Notifications\NewMessageNotification;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
-use Kanvas\Social\Messages\DataTransferObject\MessagesNotificationMetadata;
-use Kanvas\Users\Models\Users;
+use Kanvas\Social\Messages\Models\Message;
 use Throwable;
 
 class SendMessageNotificationsToAllFollowersJob implements ShouldQueue
@@ -28,10 +25,8 @@ class SendMessageNotificationsToAllFollowersJob implements ShouldQueue
     use KanvasJobsTrait;
 
     public function __construct(
-        protected Users $fromUser,
-        protected AppInterface $app,
-        protected NotificationTypes $notificationType,
-        protected MessagesNotificationMetadata $messagePayload,
+        protected Message $message,
+        protected array $config,
     ) {
     }
 
@@ -40,21 +35,21 @@ class SendMessageNotificationsToAllFollowersJob implements ShouldQueue
      */
     public function handle(): void
     {
-        $this->overwriteAppService($this->app);
-        $dynamicNotification = new DynamicKanvasNotification(
-            $this->notificationType,
-            $this->messagePayload->message
+        $this->overwriteAppService($this->message->app);
+        $newMessageNotification = new NewMessageNotification(
+            $this->message,
+            $this->config,
+            $this->config['via']
         );
-        $dynamicNotification->setFromUser($this->fromUser);
 
-        $chunkSize = 1000; // per page
+        $chunkSize = 500; // per page
 
-        UsersFollowsRepository::getFollowersBuilder($this->fromUser, $this->app)->chunk(
+        UsersFollowsRepository::getFollowersBuilder($this->message->user, $this->message->app)->chunk(
             $chunkSize,
-            function ($followers) use ($dynamicNotification) {
+            function ($followers) use ($newMessageNotification) {
                 foreach ($followers as $follower) {
                     try {
-                        $follower->notify($dynamicNotification);
+                        $follower->notify($newMessageNotification);
                     } catch (Throwable $e) {
                         Log::error('Error in notification to user : ' . $follower->displayname . ' ' . $e->getMessage(), [
                             'job' => self::class,
