@@ -10,6 +10,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Social\Follows\Models\UsersFollows;
 use Kanvas\Social\Follows\Notifications\NewFollowerNotification;
 use Kanvas\Users\Models\Users;
@@ -78,7 +79,7 @@ class FollowAction
                     'destination_type' => 'USER',
                     'destination_event' => 'FOLLOWING',
                 ]));
-            } catch (ModelNotFoundException $e) {
+            } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
             }
         }
 
