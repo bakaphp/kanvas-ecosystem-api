@@ -40,8 +40,7 @@ class MessageNotificationTest extends TestCase
             'created_at' => 1729675973544,
             'updated_at' => 1729675973544,
         ];
- 
-       
+
         $createMessage = new CreateMessageAction(
             new MessageInput(
                 $app,

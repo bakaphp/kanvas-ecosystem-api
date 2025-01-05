@@ -209,7 +209,7 @@ class Setup
             NotificationChannel::getById(NotificationChannelEnum::PUSH->value),
             $pushTemplate
         );
-        
+
         /**
          * setup blank template
          */
