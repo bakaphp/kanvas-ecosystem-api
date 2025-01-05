@@ -49,6 +49,7 @@ extend type Mutation @guard {
         id: ID!
         lead_id: ID!
         status: String!
+        message_id: ID
     ): Boolean!
         @field(
             resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Engagements\\TaskEngagementMutation@changeEngagementTaskItemStatus"

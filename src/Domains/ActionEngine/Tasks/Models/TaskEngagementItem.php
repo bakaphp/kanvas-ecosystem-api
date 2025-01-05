@@ -63,6 +63,9 @@ class TaskEngagementItem extends BaseModel
         return $this->hasOne(Engagement::class, 'id', 'engagement_end_id');
     }
 
+    /**
+     * A given task item can disable other task items based on the checklist configuration.
+     */
     public function disableRelatedItems(): bool
     {
         if ($this->status !== 'no_applicable') {
@@ -81,6 +84,10 @@ class TaskEngagementItem extends BaseModel
         return false;
     }
 
+    /**
+     * A given task item can enable other task items based on the checklist configuration.
+     * Enable means turn off disabled config attribute
+     */
     public function enableRelatedTasks(): bool
     {
         if ($this->status !== 'completed') {
@@ -99,6 +106,9 @@ class TaskEngagementItem extends BaseModel
         return false;
     }
 
+    /**
+     * A given task item can complete other task items based on the checklist configuration.
+     */
     public function completeRelatedItems(): bool
     {
         if ($this->status !== 'completed') {
@@ -115,6 +125,19 @@ class TaskEngagementItem extends BaseModel
         }
 
         return false;
+    }
+
+    /**
+     * Given a list of files, complete the task list items that are related to the files.
+     * [{"privacy-disclosure.pdf":"privacy-disclosure.pdf"}]
+     */
+    public function completeByRelatedDocumentItems(array $files): bool
+    {
+        if ($this->status !== 'completed') {
+            return false;
+        }
+        
+        return $this->item->completeByRelatedDocumentItems($files, $this->lead, $this->engagementEnd);
     }
 
     protected function disableItems(array $itemsToDisable): int
