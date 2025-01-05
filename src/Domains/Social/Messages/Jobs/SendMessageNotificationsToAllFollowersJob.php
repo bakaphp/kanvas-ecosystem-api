@@ -11,9 +11,12 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Kanvas\Social\Follows\Notifications\NewMessageNotification;
 use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Notifications\NewMessageNotification;
+
+use function Sentry\captureException;
+
 use Throwable;
 
 class SendMessageNotificationsToAllFollowersJob implements ShouldQueue
@@ -42,7 +45,7 @@ class SendMessageNotificationsToAllFollowersJob implements ShouldQueue
             $this->config['via']
         );
 
-        $chunkSize = 500; // per page
+        $chunkSize = 250; // per page
 
         UsersFollowsRepository::getFollowersBuilder($this->message->user, $this->message->app)->chunk(
             $chunkSize,
@@ -51,6 +54,8 @@ class SendMessageNotificationsToAllFollowersJob implements ShouldQueue
                     try {
                         $follower->notify($newMessageNotification);
                     } catch (Throwable $e) {
+                        captureException($e);
+
                         Log::error('Error in notification to user : ' . $follower->displayname . ' ' . $e->getMessage(), [
                             'job' => self::class,
                             'exception' => $e,

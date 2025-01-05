@@ -19,28 +19,18 @@ class SendMessageNotificationToFollowersActivity extends Activity implements Wor
 
     public function execute(Model $message, AppInterface $app, array $params = []): array
     {
-        /**
-         * @todo
-         *
-         * send notification activity shouldnt be just push
-         * follow the same logic as follow
-         *  base on configuration
-         *   - email tempate, push template
-         *   - message
-         *   - adicitonal params
-         *
-         *   - send to thequeueu for distribution
-         */
         $emailTemplate = $params['email_template'] ?? null;
         $pushTemplate = $params['push_template'] ?? null;
         $notificationMessage = $params['message'] ?? null;
         $notificationTitle = $params['title'] ?? null;
         $subject = $params['subject'] ?? null;
-        $via = ['mail'];
+        $viaList = $params['via'] ?? ['mail'];
 
-        foreach ($params['via'] as $via) {
-            $via[] = NotificationChannelEnum::getNotificationChannelBySlug($via);
-        }
+        // Map notification channels
+        $endViaList = array_map(
+            [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
+            $viaList
+        );
 
         $notificationMetaData = array_merge([
             'destination_id' => $message->getId(),
@@ -57,7 +47,7 @@ class SendMessageNotificationToFollowersActivity extends Activity implements Wor
             'title' => $notificationTitle,
             'metadata' => $notificationMetaData,
             'subject' => $subject,
-            'via' => $via,
+            'via' => $endViaList,
         ];
 
         SendMessageNotificationsToAllFollowersJob::dispatch(

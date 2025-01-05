@@ -2,14 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Follows\Notifications;
+namespace Kanvas\Social\Messages\Notifications;
 
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Notification;
 use Kanvas\Social\Messages\Enums\NotificationTemplateEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Templates\Enums\EmailTemplateEnum;
-use Kanvas\Users\Models\Users;
 
 class NewMessageNotification extends Notification
 {
@@ -20,8 +18,8 @@ class NewMessageNotification extends Notification
     ) {
         parent::__construct($message, $data);
         $this->setType(EmailTemplateEnum::BLANK->value);
-        $this->setTemplateName(NotificationTemplateEnum::EMAIL_NEW_MESSAGE->value);
-        $this->setPushTemplateName(NotificationTemplateEnum::PUSH_NEW_MESSAGE->value);
+        $this->setTemplateName($data['email_template'] ?? NotificationTemplateEnum::EMAIL_NEW_MESSAGE->value);
+        $this->setPushTemplateName($data['push_template'] ?? NotificationTemplateEnum::PUSH_NEW_MESSAGE->value);
         $this->setData($data);
         $this->channels = $via;
     }
