@@ -136,7 +136,7 @@ class TaskEngagementItem extends BaseModel
         if ($this->status !== 'completed') {
             return false;
         }
-        
+
         return $this->item->completeByRelatedDocumentItems($files, $this->lead, $this->engagementEnd);
     }
 
