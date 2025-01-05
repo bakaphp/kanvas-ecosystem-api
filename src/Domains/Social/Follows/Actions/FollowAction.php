@@ -57,9 +57,7 @@ class FollowAction
 
         $userFollowed = UsersFollows::updateOrCreate($search, $params);
 
-        if ($this->entity instanceof UserInterface) {
-
-            //echo (int) $userFollowed->wasRecentlyCreated;
+        if ($userFollowed->wasRecentlyCreated && $this->entity instanceof UserInterface) {
             try {
                 $this->entity->notify(new NewFollowerNotification($this->user, [
                     'app' => $this->app,
@@ -79,10 +77,8 @@ class FollowAction
                     'destination_id' => $this->user->getId(),
                     'destination_type' => 'USER',
                     'destination_event' => 'FOLLOWING',
-
                 ]));
             } catch (ModelNotFoundException $e) {
-                print_R($e); die();
             }
         }
 
