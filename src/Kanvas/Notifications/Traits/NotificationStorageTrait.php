@@ -35,6 +35,15 @@ trait NotificationStorageTrait
 
         //@todo if content is empty, we should return empty array
         //@todo change to the new notification logic
+        unset($this->data['apps_id'],
+            $this->data['entity'],
+            $this->data['app'],
+            $this->data['options'],
+            $this->data['fromUser'],
+            $this->data['company'],
+            $this->data['via'],
+            $this->data['user']);
+
         return [
             'users_id' => $userId,
             'from_users_id' => $fromUserId,
@@ -44,6 +53,7 @@ trait NotificationStorageTrait
             'notification_type_id' => $this->getType()->getId(),
             'entity_id' => method_exists($this->entity, 'getId') ? $this->entity->getId() : $this->entity->id,
             'content' => $this->message(),
+            'entity_content' => $this->data ?? [],
             'read' => 0,
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
