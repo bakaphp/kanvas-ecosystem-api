@@ -74,7 +74,7 @@ class FollowAction
                         'photo' => $this->entity->photo,
                     ],
                     'title' => 'New Follower',
-                    'message' => sprintf('You have a new follower %s', $this->user->displayname),
+                    'message' => sprintf('You’ve got a new follower! %s is now following you ', $this->user->displayname),
                     'destination_id' => $this->user->getId(),
                     'destination_type' => 'USER',
                     'destination_event' => 'FOLLOWING',
