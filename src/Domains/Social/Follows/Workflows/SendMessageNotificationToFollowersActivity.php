@@ -21,7 +21,7 @@ class SendMessageNotificationToFollowersActivity extends Activity implements Wor
     {
         $emailTemplate = $params['email_template'] ?? null;
         $pushTemplate = $params['push_template'] ?? null;
-        $notificationMessage = $params['message'] ?? null;
+        $notificationMessage = $params['message'] ?? 'New message from %s';
         $notificationTitle = $params['title'] ?? null;
         $subject = $params['subject'] ?? null;
         $viaList = $params['via'] ?? ['mail'];
@@ -43,7 +43,7 @@ class SendMessageNotificationToFollowersActivity extends Activity implements Wor
             'push_template' => $pushTemplate,
             'app' => $app,
             'company' => $message->company,
-            'message' => $notificationMessage,
+            'message' => sprintf($notificationMessage, $message->user->displayname),
             'title' => $notificationTitle,
             'metadata' => $notificationMetaData,
             'subject' => $subject,
