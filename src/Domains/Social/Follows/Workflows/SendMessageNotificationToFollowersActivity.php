@@ -5,26 +5,24 @@ declare(strict_types=1);
 namespace Kanvas\Social\Follows\Workflows;
 
 use Baka\Contracts\AppInterface;
-use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\Messages\Jobs\SendMessageNotificationsToAllFollowersJob;
-use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Workflow\Activity;
+use Kanvas\Workflow\KanvasActivity;
 
-class SendMessageNotificationToFollowersActivity extends Activity implements WorkflowActivityInterface
+class SendMessageNotificationToFollowersActivity extends KanvasActivity
 {
-    use KanvasJobsTrait;
     public $tries = 3;
+    public $queue = 'default';
 
     public function execute(Model $message, AppInterface $app, array $params = []): array
     {
         $emailTemplate = $params['email_template'] ?? null;
         $pushTemplate = $params['push_template'] ?? null;
         $notificationMessage = $params['message'] ?? 'New message from %s';
-        $notificationTitle = $params['title'] ?? null;
-        $subject = $params['subject'] ?? null;
-        $viaList = $params['via'] ?? ['mail'];
+        $notificationTitle = $params['title'] ?? 'New Message';
+        $subject = $params['subject'] ?? 'New message from %s';
+        $viaList = $params['via'] ?? ['database'];
 
         // Map notification channels
         $endViaList = array_map(
@@ -46,8 +44,9 @@ class SendMessageNotificationToFollowersActivity extends Activity implements Wor
             'message' => sprintf($notificationMessage, $message->user->displayname),
             'title' => $notificationTitle,
             'metadata' => $notificationMetaData,
-            'subject' => $subject,
+            'subject' => sprintf($subject, $message->user->displayname),
             'via' => $endViaList,
+            'fromUser' => $message->user,
         ];
 
         SendMessageNotificationsToAllFollowersJob::dispatch(

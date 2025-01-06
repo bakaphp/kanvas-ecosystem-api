@@ -44,7 +44,7 @@ class SendMessageNotificationsToAllFollowersJob implements ShouldQueue
             $this->config,
             $this->config['via']
         );
-
+        //$newMessageNotification->setFromUser($this->message->user);
         $chunkSize = 250; // per page
 
         UsersFollowsRepository::getFollowersBuilder($this->message->user, $this->message->app)->chunk(

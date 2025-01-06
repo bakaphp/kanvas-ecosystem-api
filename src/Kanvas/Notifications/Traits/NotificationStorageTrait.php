@@ -40,6 +40,8 @@ trait NotificationStorageTrait
             $this->data['app'],
             $this->data['options'],
             $this->data['fromUser'],
+            $this->data['company'],
+            $this->data['via'],
             $this->data['user']);
 
         return [

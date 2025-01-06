@@ -110,34 +110,34 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      */
     public function via(object $notifiable): array
     {
-        $notificationTypeChannels = $this->type instanceof NotificationTypes ? $this->type->getChannelsInNotificationFormat() : [];
-        $channels = ! empty($notificationTypeChannels) ? $notificationTypeChannels : $this->channels();
-        if (! empty($channels) && $this->type instanceof NotificationTypes && $notifiable instanceof UserInterface) {
-            /**
-             * @psalm-suppress MissingClosureReturnType
-             */
-            $enabledChannels = array_filter($channels, function ($channel) use ($notifiable) {
-                return $notifiable->isNotificationSettingEnable(
-                    $this->type,
-                    $this->app,
-                    NotificationChannelEnum::getChannelIdByClassReference($channel)
-                );
-            });
-            $channels = array_values($enabledChannels);
-        }
-
-        //set the user
-        $this->data['user'] = $notifiable;
-        if ($notifiable instanceof UserInterface && $notifiable->getId() > 0) {
-            $this->toUser = $notifiable; //we do this validation because user invite temp user deserialize the user
-        }
-
-        /* return [
-             KanvasDatabaseChannel::class,
-             ...$channels,
-        ]; */
-        return $channels;
+    $notificationTypeChannels = $this->type instanceof NotificationTypes ? $this->type->getChannelsInNotificationFormat() : [];
+    $channels = ! empty($notificationTypeChannels) ? $notificationTypeChannels : $this->channels();
+    if (! empty($channels) && $this->type instanceof NotificationTypes && $notifiable instanceof UserInterface) {
+        /**
+         * @psalm-suppress MissingClosureReturnType
+         */
+        $enabledChannels = array_filter($channels, function ($channel) use ($notifiable) {
+            return $notifiable->isNotificationSettingEnable(
+                $this->type,
+                $this->app,
+                NotificationChannelEnum::getChannelIdByClassReference($channel)
+            );
+        });
+        $channels = array_values($enabledChannels);
     }
+
+    //set the user
+    $this->data['user'] = $notifiable;
+    if ($notifiable instanceof UserInterface && $notifiable->getId() > 0) {
+        $this->toUser = $notifiable; //we do this validation because user invite temp user deserialize the user
+    }
+
+    /* return [
+         KanvasDatabaseChannel::class,
+         ...$channels,
+    ]; */
+    return $channels;
+}
 
     /**
      * Get the mail representation of the notification.
@@ -218,7 +218,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      */
     public function getFromUser(): UserInterface
     {
-        if ($this->fromUser !== null && ! $this->app->get(AppSettingsEnums::NOTIFICATION_FROM_USER_ID->getValue())) {
+        if ($this->fromUser === null && ! $this->app->get(AppSettingsEnums::NOTIFICATION_FROM_USER_ID->getValue())) {
             throw new ValidationException('Please contact admin to configure the notification_from_user_id');
         }
 

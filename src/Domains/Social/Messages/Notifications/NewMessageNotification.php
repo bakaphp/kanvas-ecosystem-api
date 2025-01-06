@@ -21,6 +21,7 @@ class NewMessageNotification extends Notification
         $this->setTemplateName($data['email_template'] ?? NotificationTemplateEnum::EMAIL_NEW_MESSAGE->value);
         $this->setPushTemplateName($data['push_template'] ?? NotificationTemplateEnum::PUSH_NEW_MESSAGE->value);
         $this->setData($data);
+        $this->setFromUser($message->user);
         $this->channels = $via;
     }
 }
