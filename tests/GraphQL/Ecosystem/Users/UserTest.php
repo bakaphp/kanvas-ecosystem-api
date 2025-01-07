@@ -190,7 +190,7 @@ class UserTest extends TestCase
     public function testDuplicateChangePassword()
     {
         $newPassword = 'abc12345676';
-        $currentPassword = 'abc123456';
+        $currentPassword = 'abc12345676';
         $userData = $this->graphQL(/** @lang GraphQL */ '
             { 
                 me {
