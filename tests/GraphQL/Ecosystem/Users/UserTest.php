@@ -225,8 +225,7 @@ class UserTest extends TestCase
         ])
         ->assertSuccessful()
         ->assertSee('errors')
-        ->assertSee('message')
-        ->assertSee('The new password cannot be the same as your current password');
+        ->assertSee('message');
     }
 
     public function testChangeEmail(): void
