@@ -3997,16 +3997,16 @@
         },
         {
             "name": "knplabs/knp-snappy",
-            "version": "v1.5.0",
+            "version": "v1.5.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/KnpLabs/snappy.git",
-                "reference": "98468898b50c09f26d56d905b79b0f52a2215da6"
+                "reference": "3dd138e9e47de91cd2e056c5e6e1a0dd72547ee7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/KnpLabs/snappy/zipball/98468898b50c09f26d56d905b79b0f52a2215da6",
-                "reference": "98468898b50c09f26d56d905b79b0f52a2215da6",
+                "url": "https://api.github.com/repos/KnpLabs/snappy/zipball/3dd138e9e47de91cd2e056c5e6e1a0dd72547ee7",
+                "reference": "3dd138e9e47de91cd2e056c5e6e1a0dd72547ee7",
                 "shasum": ""
             },
             "require": {
@@ -4058,9 +4058,9 @@
             ],
             "support": {
                 "issues": "https://github.com/KnpLabs/snappy/issues",
-                "source": "https://github.com/KnpLabs/snappy/tree/v1.5.0"
+                "source": "https://github.com/KnpLabs/snappy/tree/v1.5.1"
             },
-            "time": "2023-12-18T09:12:11+00:00"
+            "time": "2025-01-06T16:53:26+00:00"
         },
         {
             "name": "laminas/laminas-diactoros",
