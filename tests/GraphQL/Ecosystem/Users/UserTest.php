@@ -187,6 +187,48 @@ class UserTest extends TestCase
         ->assertSee('refresh_token');
     }
 
+    public function testDuplicateChangePassword()
+    {
+        $newPassword = 'abc12345676';
+        $currentPassword = 'abc123456';
+        $userData = $this->graphQL(/** @lang GraphQL */ '
+            { 
+                me {
+                    id,
+                    uuid,
+                    email
+                }
+            }
+        ');
+
+        $userDataProfile = $userData->json();
+        $user = Users::getById($userDataProfile['data']['me']['id']);
+        $user->resetPassword($currentPassword, app(Apps::class));
+
+        $email = $userDataProfile['data']['me']['email'];
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation changePassword(
+                $current_password: String!
+                $new_password: String!
+                $new_password_confirmation: String
+            ) {
+                changePassword(
+                    current_password: $current_password
+                    new_password: $new_password
+                    new_password_confirmation: $new_password_confirmation)
+            }
+        ', [
+            'current_password' => $currentPassword,
+            'new_password' => $currentPassword,
+            'new_password_confirmation' => $currentPassword,
+        ])
+        ->assertSuccessful()
+        ->assertSee('errors')
+        ->assertSee('message')
+        ->assertSee('The new password cannot be the same as your current password');
+    }
+
     public function testChangeEmail(): void
     {
         $this->graphQL(/** @lang GraphQL */ '
