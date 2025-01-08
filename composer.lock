@@ -9859,16 +9859,16 @@
         },
         {
             "name": "shopify/shopify-api",
-            "version": "v5.8.1",
+            "version": "v5.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Shopify/shopify-api-php.git",
-                "reference": "04dff050e8769b110881be20f8f799d8ece7d7d4"
+                "reference": "0080c3ca238c91237c8c65ff182bc5a7c5ba65cf"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Shopify/shopify-api-php/zipball/04dff050e8769b110881be20f8f799d8ece7d7d4",
-                "reference": "04dff050e8769b110881be20f8f799d8ece7d7d4",
+                "url": "https://api.github.com/repos/Shopify/shopify-api-php/zipball/0080c3ca238c91237c8c65ff182bc5a7c5ba65cf",
+                "reference": "0080c3ca238c91237c8c65ff182bc5a7c5ba65cf",
                 "shasum": ""
             },
             "require": {
@@ -9927,9 +9927,9 @@
             ],
             "support": {
                 "issues": "https://github.com/Shopify/shopify-api-php/issues",
-                "source": "https://github.com/Shopify/shopify-api-php/tree/v5.8.1"
+                "source": "https://github.com/Shopify/shopify-api-php/tree/v5.9.0"
             },
-            "time": "2024-11-13T19:30:20+00:00"
+            "time": "2025-01-08T19:04:36+00:00"
         },
         {
             "name": "silber/bouncer",
