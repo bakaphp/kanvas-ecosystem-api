@@ -28,6 +28,13 @@ input UpdateChannelInput {
     is_published: Int
 }
 
+enum ChannelProductFilterEnum {
+    SLUG @enum(value: "products.slug")
+    UUID @enum(value: "products.uuid")
+    NAME @enum(value: "products.name")
+    SKU @enum(value: "products.sku")
+}
+
 extend type Mutation @guard {
     createChannel(input: CreateChannelInput!): Channel!
         @field(
@@ -70,7 +77,7 @@ extend type Query {
         id: String!
         search: String @search
         visitor: VisitorEntityInput
-        where: _ @whereConditions(columns: ["id", "slug", "uuid", "name", "sku"])
+        where: _ @whereConditions(columnsEnum: ChannelProductFilterEnum)
         hasAttributesValues: _
             @whereHasConditions(
                 relation: "attributeValues"
