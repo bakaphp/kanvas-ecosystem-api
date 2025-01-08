@@ -58,7 +58,8 @@ class FollowAction
 
         $userFollowed = UsersFollows::updateOrCreate($search, $params);
 
-        if ($userFollowed->wasRecentlyCreated && $this->entity instanceof UserInterface) {
+        //if ($userFollowed->wasRecentlyCreated && $this->entity instanceof UserInterface) {
+        if ($this->entity instanceof UserInterface) {
             try {
                 $this->entity->notify(new NewFollowerNotification($this->user, [
                     'app' => $this->app,

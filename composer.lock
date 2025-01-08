@@ -1144,16 +1144,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.336.3",
+            "version": "3.336.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "b863c7953ebeeae191c3835bb5413f872cfbb753"
+                "reference": "bb137145fdbcd4ca121446157d804b9653aff54c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/b863c7953ebeeae191c3835bb5413f872cfbb753",
-                "reference": "b863c7953ebeeae191c3835bb5413f872cfbb753",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/bb137145fdbcd4ca121446157d804b9653aff54c",
+                "reference": "bb137145fdbcd4ca121446157d804b9653aff54c",
                 "shasum": ""
             },
             "require": {
@@ -1236,9 +1236,9 @@
             "support": {
                 "forum": "https://forums.aws.amazon.com/forum.jspa?forumID=80",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.336.3"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.336.10"
             },
-            "time": "2024-12-23T19:13:29+00:00"
+            "time": "2025-01-07T19:05:48+00:00"
         },
         {
             "name": "berkayk/onesignal-laravel",
@@ -2504,16 +2504,16 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.387.0",
+            "version": "v0.389.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
-                "reference": "89b7126578e0aaf6d5584d6ef7c7af165766c850"
+                "reference": "6274e67ee52b1a416ccee0a4eaf337d1139cdaf8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/89b7126578e0aaf6d5584d6ef7c7af165766c850",
-                "reference": "89b7126578e0aaf6d5584d6ef7c7af165766c850",
+                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/6274e67ee52b1a416ccee0a4eaf337d1139cdaf8",
+                "reference": "6274e67ee52b1a416ccee0a4eaf337d1139cdaf8",
                 "shasum": ""
             },
             "require": {
@@ -2542,9 +2542,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.387.0"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.389.0"
             },
-            "time": "2024-12-21T01:06:13+00:00"
+            "time": "2025-01-05T01:04:21+00:00"
         },
         {
             "name": "google/auth",
@@ -4616,16 +4616,16 @@
             ],
             "type": "library",
             "extra": {
-                "branch-alias": {
-                    "dev-master": "2.x-dev"
-                },
                 "laravel": {
-                    "providers": [
-                        "Laravel\\Octane\\OctaneServiceProvider"
-                    ],
                     "aliases": {
                         "Octane": "Laravel\\Octane\\Facades\\Octane"
-                    }
+                    },
+                    "providers": [
+                        "Laravel\\Octane\\OctaneServiceProvider"
+                    ]
+                },
+                "branch-alias": {
+                    "dev-master": "2.x-dev"
                 }
             },
             "autoload": {
@@ -6536,12 +6536,12 @@
             "version": "3.8.4",
             "source": {
                 "type": "git",
-                "url": "https://github.com/briannesbitt/Carbon.git",
+                "url": "https://github.com/CarbonPHP/carbon.git",
                 "reference": "129700ed449b1f02d70272d2ac802357c8c30c58"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/briannesbitt/Carbon/zipball/129700ed449b1f02d70272d2ac802357c8c30c58",
+                "url": "https://api.github.com/repos/CarbonPHP/carbon/zipball/129700ed449b1f02d70272d2ac802357c8c30c58",
                 "reference": "129700ed449b1f02d70272d2ac802357c8c30c58",
                 "shasum": ""
             },
@@ -6849,16 +6849,16 @@
         },
         {
             "name": "nikic/php-parser",
-            "version": "v5.3.1",
+            "version": "v5.4.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nikic/PHP-Parser.git",
-                "reference": "8eea230464783aa9671db8eea6f8c6ac5285794b"
+                "reference": "447a020a1f875a434d62f2a401f53b82a396e494"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/8eea230464783aa9671db8eea6f8c6ac5285794b",
-                "reference": "8eea230464783aa9671db8eea6f8c6ac5285794b",
+                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/447a020a1f875a434d62f2a401f53b82a396e494",
+                "reference": "447a020a1f875a434d62f2a401f53b82a396e494",
                 "shasum": ""
             },
             "require": {
@@ -6901,9 +6901,9 @@
             ],
             "support": {
                 "issues": "https://github.com/nikic/PHP-Parser/issues",
-                "source": "https://github.com/nikic/PHP-Parser/tree/v5.3.1"
+                "source": "https://github.com/nikic/PHP-Parser/tree/v5.4.0"
             },
-            "time": "2024-10-08T18:51:32+00:00"
+            "time": "2024-12-30T11:07:19+00:00"
         },
         {
             "name": "nunomaduro/termwind",
@@ -6994,16 +6994,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.47.0",
+            "version": "v6.47.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "426307f95ec9dbdbbb40eaa7475215f5abbbc847"
+                "reference": "3b4f85e1190dc2cdf32e89eabbe3139e8af5634c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/426307f95ec9dbdbbb40eaa7475215f5abbbc847",
-                "reference": "426307f95ec9dbdbbb40eaa7475215f5abbbc847",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/3b4f85e1190dc2cdf32e89eabbe3139e8af5634c",
+                "reference": "3b4f85e1190dc2cdf32e89eabbe3139e8af5634c",
                 "shasum": ""
             },
             "require": {
@@ -7120,7 +7120,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2024-12-11T11:05:42+00:00"
+            "time": "2025-01-08T13:18:57+00:00"
         },
         {
             "name": "nyholm/psr7",
@@ -10336,16 +10336,16 @@
         },
         {
             "name": "spatie/laravel-model-states",
-            "version": "2.9.0",
+            "version": "2.10.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-model-states.git",
-                "reference": "627ceb869f2f7a251cce4d34b1f72e1f677eb0a6"
+                "reference": "308f1552d384f4b3c494d860e7dba881fe5bb6cf"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-model-states/zipball/627ceb869f2f7a251cce4d34b1f72e1f677eb0a6",
-                "reference": "627ceb869f2f7a251cce4d34b1f72e1f677eb0a6",
+                "url": "https://api.github.com/repos/spatie/laravel-model-states/zipball/308f1552d384f4b3c494d860e7dba881fe5bb6cf",
+                "reference": "308f1552d384f4b3c494d860e7dba881fe5bb6cf",
                 "shasum": ""
             },
             "require": {
@@ -10396,7 +10396,7 @@
                 "state"
             ],
             "support": {
-                "source": "https://github.com/spatie/laravel-model-states/tree/2.9.0"
+                "source": "https://github.com/spatie/laravel-model-states/tree/2.10.0"
             },
             "funding": [
                 {
@@ -10408,20 +10408,20 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-12-16T15:39:46+00:00"
+            "time": "2024-12-30T09:34:54+00:00"
         },
         {
             "name": "spatie/laravel-package-tools",
-            "version": "1.17.0",
+            "version": "1.18.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-package-tools.git",
-                "reference": "9ab30fd24f677e5aa370ea4cf6b41c517d16cf85"
+                "reference": "8332205b90d17164913244f4a8e13ab7e6761d29"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-package-tools/zipball/9ab30fd24f677e5aa370ea4cf6b41c517d16cf85",
-                "reference": "9ab30fd24f677e5aa370ea4cf6b41c517d16cf85",
+                "url": "https://api.github.com/repos/spatie/laravel-package-tools/zipball/8332205b90d17164913244f4a8e13ab7e6761d29",
+                "reference": "8332205b90d17164913244f4a8e13ab7e6761d29",
                 "shasum": ""
             },
             "require": {
@@ -10460,7 +10460,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-package-tools/issues",
-                "source": "https://github.com/spatie/laravel-package-tools/tree/1.17.0"
+                "source": "https://github.com/spatie/laravel-package-tools/tree/1.18.0"
             },
             "funding": [
                 {
@@ -10468,7 +10468,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-12-09T16:29:14+00:00"
+            "time": "2024-12-30T13:13:39+00:00"
         },
         {
             "name": "spatie/laravel-queueable-action",
@@ -16182,16 +16182,16 @@
         },
         {
             "name": "sebastian/comparator",
-            "version": "6.2.1",
+            "version": "6.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/comparator.git",
-                "reference": "43d129d6a0f81c78bee378b46688293eb7ea3739"
+                "reference": "d4e47a769525c4dd38cea90e5dcd435ddbbc7115"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/comparator/zipball/43d129d6a0f81c78bee378b46688293eb7ea3739",
-                "reference": "43d129d6a0f81c78bee378b46688293eb7ea3739",
+                "url": "https://api.github.com/repos/sebastianbergmann/comparator/zipball/d4e47a769525c4dd38cea90e5dcd435ddbbc7115",
+                "reference": "d4e47a769525c4dd38cea90e5dcd435ddbbc7115",
                 "shasum": ""
             },
             "require": {
@@ -16203,6 +16203,9 @@
             },
             "require-dev": {
                 "phpunit/phpunit": "^11.4"
+            },
+            "suggest": {
+                "ext-bcmath": "For comparing BcMath\\Number objects"
             },
             "type": "library",
             "extra": {
@@ -16247,7 +16250,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/comparator/issues",
                 "security": "https://github.com/sebastianbergmann/comparator/security/policy",
-                "source": "https://github.com/sebastianbergmann/comparator/tree/6.2.1"
+                "source": "https://github.com/sebastianbergmann/comparator/tree/6.3.0"
             },
             "funding": [
                 {
@@ -16255,7 +16258,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-10-31T05:30:08+00:00"
+            "time": "2025-01-06T10:28:19+00:00"
         },
         {
             "name": "sebastian/complexity",
@@ -17038,12 +17041,12 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
         "php": "^8.2"
     },
-    "platform-dev": [],
+    "platform-dev": {},
     "plugin-api-version": "2.6.0"
 }
