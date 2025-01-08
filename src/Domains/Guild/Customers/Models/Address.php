@@ -8,6 +8,8 @@ use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Models\BaseModel;
+use Kanvas\Locations\Models\Cities;
+use Kanvas\Locations\Models\States;
 
 /**
  * Class Address.
@@ -49,5 +51,14 @@ class Address extends BaseModel
     {
         return $this->belongsTo(AddressType::class, 'address_type_id', 'id');
     }
-    
+
+    public function state(): BelongsTo
+    {
+        return $this->belongsTo(States::class, 'state_id', 'id');
+    }
+
+    public function city(): BelongsTo
+    {
+        return $this->belongsTo(Cities::class, 'city_id', 'id');
+    }
 }
