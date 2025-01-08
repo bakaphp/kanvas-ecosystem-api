@@ -70,7 +70,7 @@ extend type Query {
         id: String!
         search: String @search
         visitor: VisitorEntityInput
-        where: _ @whereConditions(columns: ["slug", "uuid", "name", "sku"])
+        where: _ @whereConditions(columns: ["id", "slug", "uuid", "name", "sku"])
         hasAttributesValues: _
             @whereHasConditions(
                 relation: "attributeValues"
