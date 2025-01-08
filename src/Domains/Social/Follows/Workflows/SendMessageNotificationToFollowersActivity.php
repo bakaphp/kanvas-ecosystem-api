@@ -41,6 +41,7 @@ class SendMessageNotificationToFollowersActivity extends KanvasActivity
             'subject' => sprintf($subject, $message->user->displayname),
             'via' => $endViaList,
             'fromUser' => $message->user,
+            'message_id' => $message->getId(),
             'destination_id' => $message->getId(),
             'destination_type' => $params['destination_type'] ?? 'MESSAGE',
             'destination_event' => $params['destination_event'] ?? 'NEW_MESSAGE',
