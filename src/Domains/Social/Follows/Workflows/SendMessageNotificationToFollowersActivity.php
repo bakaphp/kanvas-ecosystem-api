@@ -30,12 +30,6 @@ class SendMessageNotificationToFollowersActivity extends KanvasActivity
             $viaList
         );
 
-        $notificationMetaData = array_merge([
-            'destination_id' => $message->getId(),
-            'destination_type' => $params['destination_type'] ?? 'MESSAGE',
-            'destination_event' => $params['destination_event'] ?? 'NEW_MESSAGE',
-        ], $params['metadata'] ?? []);
-
         $config = [
             'email_template' => $emailTemplate,
             'push_template' => $pushTemplate,
@@ -43,10 +37,13 @@ class SendMessageNotificationToFollowersActivity extends KanvasActivity
             'company' => $message->company,
             'message' => sprintf($notificationMessage, $message->user->displayname),
             'title' => $notificationTitle,
-            'metadata' => $notificationMetaData,
+            'metadata' => $params['metadata'] ?? [],
             'subject' => sprintf($subject, $message->user->displayname),
             'via' => $endViaList,
             'fromUser' => $message->user,
+            'destination_id' => $message->getId(),
+            'destination_type' => $params['destination_type'] ?? 'MESSAGE',
+            'destination_event' => $params['destination_event'] ?? 'NEW_MESSAGE',
         ];
 
         SendMessageNotificationsToAllFollowersJob::dispatch(
