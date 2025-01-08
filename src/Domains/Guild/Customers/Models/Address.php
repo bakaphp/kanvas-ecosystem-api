@@ -49,4 +49,5 @@ class Address extends BaseModel
     {
         return $this->belongsTo(AddressType::class, 'address_type_id', 'id');
     }
+    
 }
