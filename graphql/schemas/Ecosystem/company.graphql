@@ -178,6 +178,7 @@ enum CompanyUserColumn {
     FIRSTNAME @enum(value: "users_associated_apps.firstname")
     LASTNAME @enum(value: "users_associated_apps.lastname")
     EMAIL @enum(value: "users_associated_apps.email")
+    USER_ROLE @enum(value: "users_associated_company.user_role")
     USER_ACTIVE @enum(value: "users_associated_company.user_active")
     CREATED_AT @enum(value: "users_associated_apps.created_at")
     UPDATE_AT @enum(value: "users_associated_apps.updated_at")
