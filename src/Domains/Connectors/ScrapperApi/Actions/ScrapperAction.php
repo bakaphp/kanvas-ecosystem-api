@@ -5,15 +5,16 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\ScrapperApi\Actions;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
 use Kanvas\Connectors\ScrapperApi\Services\ProductService;
+use Kanvas\Connectors\Shopify\Actions\SyncProductWithShopifyAction;
 use Kanvas\Inventory\Channels\Models\Channels;
-use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
-use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
+use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 
@@ -26,13 +27,17 @@ use Throwable;
  */
 class ScrapperAction
 {
+    public ?string $uuid = null;
+
     public function __construct(
         public AppInterface $app,
         public Users $user,
         public CompaniesBranches $companyBranch,
         protected Regions $region,
-        public string $search
+        public string $search,
+        string $uuid = null
     ) {
+        $this->uuid = $uuid ?? Str::uuid();
     }
 
     public function execute(): array
@@ -47,7 +52,7 @@ class ScrapperAction
         $service = new ProductService($channels, $warehouse);
         $scrapperProducts = 0;
         $importerProducts = 0;
-        foreach ($results as $result) {
+        foreach ($results as $i => $result) {
             $scrapperProducts++;
 
             try {
@@ -56,7 +61,6 @@ class ScrapperAction
                 } else {
                     continue;
                 }
-                $productModel = Products::getBySlug($asin, $this->companyBranch->company);
                 $product = $repository->getByAsin($asin);
                 $product = array_merge($product, $result);
                 if (empty($product['price']) && empty($product['original_price']['price'])) {
@@ -66,14 +70,20 @@ class ScrapperAction
                 if ($mappedProduct['price'] >= 230) {
                     continue;
                 }
-                ProductImporterJob::dispatch(
-                    jobUuid: Str::uuid(),
-                    importer: [$mappedProduct],
-                    branch: $this->companyBranch,
-                    user: $this->user,
-                    region: $this->region,
-                    app: $this->app
-                );
+                $product = (
+                    new ProductImporterAction(
+                        ProductImporter::from($mappedProduct),
+                        $this->companyBranch->company,
+                        $this->user,
+                        $this->region,
+                        $this->app,
+                        true
+                    )
+                )->execute();
+
+                $syncProductWithShopify = new SyncProductWithShopifyAction($product);
+                $syncProductWithShopify->execute();
+
                 $importerProducts++;
 
                 if (App::environment('local')) {
