@@ -52,6 +52,10 @@ class SendMessageNotificationsToAllFollowersJob implements ShouldQueue
             function ($followers) use ($newMessageNotification) {
                 foreach ($followers as $follower) {
                     try {
+                        $newMessageNotification->setData([
+                            'myInteraction' => $this->message->getMyInteraction($follower)
+                        ]);
+                        
                         $follower->notify($newMessageNotification);
                     } catch (Throwable $e) {
                         captureException($e);
